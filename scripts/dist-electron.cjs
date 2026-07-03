@@ -1,0 +1,33 @@
+const fs = require("node:fs");
+const { Arch, Platform, build } = require("electron-builder");
+
+const originalRename = fs.promises.rename.bind(fs.promises);
+
+fs.promises.rename = async (from, to) => {
+  let lastError;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    try {
+      return await originalRename(from, to);
+    } catch (error) {
+      lastError = error;
+      if (error?.code !== "EPERM") {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 750));
+    }
+  }
+  if (lastError?.code === "EPERM") {
+    await fs.promises.rm(to, { recursive: true, force: true });
+    await fs.promises.cp(from, to, { recursive: true });
+    await fs.promises.rm(from, { recursive: true, force: true });
+    return;
+  }
+  throw lastError;
+};
+
+build({
+  targets: Platform.WINDOWS.createTarget(["nsis", "portable"], Arch.x64)
+}).catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
