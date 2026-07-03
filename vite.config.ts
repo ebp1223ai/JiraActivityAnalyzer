@@ -22,6 +22,7 @@ const buildTime = process.env.NODE_ENV === "production"
   : "Development Mode";
 
 export default defineConfig({
+  base: "./",
   plugins: [react()],
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime)

@@ -1,7 +1,12 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, Menu, shell } from "electron";
 import path from "node:path";
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+const shouldOpenDevTools = process.env.OPEN_DEVTOOLS === "1";
+
+function getRendererEntry() {
+  return path.join(__dirname, "../dist/index.html");
+}
 
 function createMainWindow() {
   const window = new BrowserWindow({
@@ -11,7 +16,7 @@ function createMainWindow() {
     minHeight: 760,
     title: "Jira Activity Analyzer",
     backgroundColor: "#f6f9fd",
-    show: false,
+    show: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -20,7 +25,25 @@ function createMainWindow() {
     }
   });
 
-  window.once("ready-to-show", () => window.show());
+  window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+    console.error("[renderer did-fail-load]", { errorCode, errorDescription, validatedURL });
+  });
+
+  window.webContents.on("render-process-gone", (_event, details) => {
+    console.error("[renderer render-process-gone]", details);
+  });
+
+  window.on("unresponsive", () => {
+    console.error("[window unresponsive]");
+  });
+
+  window.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    console.log("[renderer console-message]", { level, message, line, sourceId });
+  });
+
+  window.webContents.on("did-finish-load", () => {
+    console.log("[renderer did-finish-load]", window.webContents.getURL());
+  });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://") || url.startsWith("http://")) {
@@ -38,14 +61,28 @@ function createMainWindow() {
   });
 
   if (devServerUrl) {
-    void window.loadURL(devServerUrl);
+    console.log("[electron] loading dev renderer", devServerUrl);
+    void window.loadURL(devServerUrl).catch((error) => {
+      console.error("[electron loadURL failed]", error);
+    });
     window.webContents.openDevTools({ mode: "detach" });
   } else {
-    void window.loadFile(path.join(__dirname, "../dist/index.html"));
+    const rendererEntry = getRendererEntry();
+    console.log("[electron] loading packaged renderer", rendererEntry);
+    void window.loadFile(rendererEntry).catch((error) => {
+      console.error("[electron loadFile failed]", { rendererEntry, error });
+    });
+    if (shouldOpenDevTools) {
+      window.webContents.openDevTools({ mode: "detach" });
+    }
   }
 }
 
 app.whenReady().then(() => {
+  if (app.isPackaged) {
+    Menu.setApplicationMenu(null);
+  }
+
   createMainWindow();
 
   app.on("activate", () => {
