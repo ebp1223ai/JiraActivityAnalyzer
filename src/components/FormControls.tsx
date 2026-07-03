@@ -25,3 +25,30 @@ export function Toggle({ on = true }: { on?: boolean }) {
     </span>
   );
 }
+
+export function MockModal({
+  title,
+  children,
+  onClose,
+  footer
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4">
+      <div className="w-full max-w-xl rounded-lg border border-line bg-white p-5 shadow-soft">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-lg font-black text-ink">{title}</h3>
+          <button className="btn px-3 py-2" onClick={onClose} aria-label="Close modal">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="text-sm font-semibold text-slate-700">{children}</div>
+        {footer ? <div className="mt-5 flex flex-wrap justify-end gap-3">{footer}</div> : null}
+      </div>
+    </div>
+  );
+}

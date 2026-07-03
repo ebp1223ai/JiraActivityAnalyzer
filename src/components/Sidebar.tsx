@@ -14,28 +14,37 @@ const items = [
 
 export function Sidebar() {
   return (
-    <aside className="flex h-screen w-[235px] shrink-0 flex-col border-r border-line bg-white p-3">
+    <aside className="flex h-screen w-[220px] shrink-0 flex-col overflow-hidden border-r border-line bg-white p-3">
       <div className="mb-5 flex items-center gap-3 px-3 py-2">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white"><BarChart3 size={22} /></span>
-        <div className="text-lg font-black text-ink">Activity Builder</div>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+          <BarChart3 size={22} />
+        </span>
+        <div className="min-w-0 text-lg font-black text-ink">Activity Builder</div>
       </div>
-      <nav className="space-y-2">
+      <nav className="thin-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
         {items.map(({ to, label, sub, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold transition ${isActive ? "bg-blue-50 text-blue-700" : "text-ink hover:bg-slate-50"}`
+              `flex min-w-0 items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold transition ${isActive ? "bg-blue-50 text-blue-700" : "text-ink hover:bg-slate-50"}`
             }
           >
-            <Icon size={22} />
-            <span>{label}<br /><span className="text-xs font-semibold">{sub}</span></span>
+            <Icon className="shrink-0" size={21} />
+            <span className="min-w-0 truncate">
+              {label}
+              <br />
+              <span className="text-xs font-semibold">{sub}</span>
+            </span>
           </NavLink>
         ))}
       </nav>
-      <div className="mt-auto border-t border-line px-4 py-5">
+      <div className="border-t border-line px-4 py-5">
         <BuildInfo />
-        <button className="mt-5 flex items-center gap-2 text-sm font-black text-muted"><Activity size={18} />收合選單</button>
+        <button className="mt-5 flex items-center gap-2 text-sm font-black text-muted">
+          <Activity size={18} />
+          收合選單
+        </button>
       </div>
     </aside>
   );

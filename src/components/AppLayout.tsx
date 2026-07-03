@@ -18,10 +18,12 @@ export function AppLayout() {
   const page = pageByPath[pathname] ?? "dashboard";
 
   return (
-    <div className="flex min-h-screen bg-app">
+    <div className="flex h-screen w-screen overflow-hidden bg-app">
       <Sidebar />
-      <main className="thin-scroll h-screen flex-1 overflow-auto p-4">
-        <Outlet />
+      <main className="thin-scroll min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4">
+        <div className="mx-auto w-full max-w-[1480px] min-w-0">
+          <Outlet />
+        </div>
       </main>
       <DebugLogPanel page={page} />
     </div>

@@ -10,9 +10,9 @@ export function SectionCard({ title, subtitle, action, children, className = "" 
   return (
     <section className={`card p-4 ${className}`}>
       {(title || action) && (
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           {title ? (
-            <h2 className="text-base font-black text-ink">
+            <h2 className="min-w-0 text-base font-black text-ink">
               {title}
               {subtitle ? <span className="text-slate-300"> / </span> : null}
               {subtitle ? <span>{subtitle}</span> : null}

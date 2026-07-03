@@ -5,8 +5,8 @@ type Props = {
 
 export function DataTable({ headers, rows }: Props) {
   return (
-    <div className="overflow-hidden rounded-lg border border-line">
-      <table className="table">
+    <div className="thin-scroll max-w-full overflow-auto rounded-lg border border-line">
+      <table className="table min-w-max">
         <thead>
           <tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr>
         </thead>
