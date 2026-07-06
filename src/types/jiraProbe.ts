@@ -26,9 +26,13 @@ export type JiraProbeRequest = {
 
 export type JiraProbeEndpointResult = {
   endpoint: string;
+  method?: string;
+  urlPath?: string;
   status: JiraProbeStatus;
   httpCode: number | "-";
+  contentType?: string;
   records: string;
+  duration?: string;
   usefulLevel: "High" | "Medium" | "Low" | "-";
   notes: string;
 };
@@ -60,6 +64,37 @@ export type JiraProbePreview = {
   rawJson: Record<string, unknown>;
 };
 
+export type JiraProbeInspector = {
+  overview: Array<[string, string]>;
+  issueFields: Array<[string, string, string, string, string, string, string]>;
+  description: {
+    rendered: string;
+    plainText: string;
+    raw: string;
+  };
+  changelog: {
+    summary: Array<[string, string]>;
+    rows: Array<[string, string, string, string, string, string, string]>;
+    partial: boolean;
+  };
+  comments: {
+    summary: Array<[string, string]>;
+    rows: Array<[string, string, string, string, string, string, string]>;
+  };
+  attachments: {
+    summary: Array<[string, string]>;
+    rows: Array<[string, string, string, string, string, string, string, string]>;
+  };
+  links: {
+    summary: Array<[string, string]>;
+    rows: Array<[string, string, string, string, string, string, string]>;
+  };
+  users: Array<[string, string, string, string, string, string]>;
+  activityEstimate: Array<[string, string, string, string, string]>;
+  rawJson: Record<string, unknown>;
+  manualCompare: Array<[string, string, string, string, string]>;
+};
+
 export type JiraProbeAuthDiagnostics = {
   baseUrl: string;
   apiVersionTried: string[];
@@ -87,6 +122,7 @@ export type JiraProbeResult = {
   endpoints: JiraProbeEndpointResult[];
   eventEstimates: JiraProbeEventEstimate[];
   preview: JiraProbePreview;
+  inspector?: JiraProbeInspector;
   hints: string[];
   debugLogs: string[];
   rawJsonEnabled: boolean;

@@ -37,7 +37,21 @@ const authTypeNotes: Record<JiraProbeAuthType, string> = {
   bearer: "Recommended for Jira Server/Data Center Personal Access Token."
 };
 
-type PreviewTab = "issueFields" | "changelog" | "comments" | "attachments" | "links" | "rawJson";
+type PreviewTab = "overview" | "issueFields" | "description" | "changelog" | "comments" | "attachments" | "links" | "users" | "activityEstimate" | "rawJson" | "manualCompare";
+
+const inspectorTabs: Array<{ key: PreviewTab; label: string }> = [
+  { key: "overview", label: "Overview / 概覽" },
+  { key: "issueFields", label: "Issue Fields / Issue 欄位" },
+  { key: "description", label: "Description / 描述" },
+  { key: "changelog", label: "Changelog / 變更紀錄" },
+  { key: "comments", label: "Comments / 留言" },
+  { key: "attachments", label: "Attachments / 附件" },
+  { key: "links", label: "Links / 關聯 Issue" },
+  { key: "users", label: "Users / 使用者" },
+  { key: "activityEstimate", label: "Activity Event Estimate / 活動事件估算" },
+  { key: "rawJson", label: "Raw JSON / 原始 JSON" },
+  { key: "manualCompare", label: "Manual Compare / 手動比對" }
+];
 
 export function JiraProbePage() {
   const [baseUrl, setBaseUrl] = useState(defaultConnection.baseUrl);
@@ -49,7 +63,7 @@ export function JiraProbePage() {
   const [authType, setAuthType] = useState<JiraProbeAuthType>("basic");
   const [useMock, setUseMock] = useState(true);
   const [showRawJson, setShowRawJson] = useState(false);
-  const [activeTab, setActiveTab] = useState<PreviewTab>("issueFields");
+  const [activeTab, setActiveTab] = useState<PreviewTab>("overview");
   const [runState, setRunState] = useState<JiraProbeRunState>("idle");
   const [error, setError] = useState("");
   const [result, setResult] = useState<JiraProbeResult | null>(null);
@@ -70,21 +84,12 @@ export function JiraProbePage() {
   }), [apiToken, apiVersion, authType, baseUrl, depth, email, issueKey, useMock]);
 
   async function handleRunProbe() {
-    const startedAt = new Date().toISOString();
     setRunState("loading");
     setError("");
-    appendDebugLog("jiraProbe", [
-      "[INFO] Run Probe started",
-      `[INFO] Run ID: ${startedAt}`,
-      `[INFO] Mode: ${useMock ? "Mock Mode" : "Real read-only probe"}`,
-      `[INFO] Issue Key: ${issueKey || "(empty)"}`,
-      useMock ? "[INFO] No Jira request sent" : "[INFO] Auth: [masked]",
-      "[INFO] No database write performed"
-    ]);
     try {
       const next = await runJiraProbe(request);
       setResult(next);
-      setActiveTab("issueFields");
+      setActiveTab("overview");
       setRunState(next.status === "error" ? "error" : "success");
       if (next.message && next.status === "error") {
         setError(next.message);
@@ -117,15 +122,114 @@ export function JiraProbePage() {
     await navigator.clipboard.writeText(`Jira Probe ${result.issueKey}: coverage ${result.summary.coverageScore}%, estimated events ${result.summary.estimatedActivityEvents}`);
   }
 
-  const previewRows = result ? {
-    issueFields: result.preview.issueFields,
-    changelog: result.preview.changelog,
-    comments: result.preview.comments,
-    attachments: result.preview.attachments,
-    links: result.preview.links
-  } : null;
-
   const errorBanner = result?.localizedMessage;
+
+  function noData(message = "No data available / Permission denied / Endpoint failed") {
+    return <div className="rounded-lg border border-dashed border-line p-5 text-sm font-bold text-muted">{message}</div>;
+  }
+
+  function renderInspectorTab() {
+    const inspector = result?.inspector;
+    if (!result) return null;
+    if (!inspector) {
+      if (activeTab === "rawJson") {
+        return (
+          <pre className="thin-scroll max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-relaxed text-slate-100">
+            {JSON.stringify(result.preview.rawJson, null, 2)}
+          </pre>
+        );
+      }
+      return noData();
+    }
+
+    switch (activeTab) {
+      case "overview":
+        return <DataTable headers={["Field", "Value"]} rows={inspector.overview} />;
+      case "issueFields":
+        return <DataTable headers={["Field Key", "Field Name", "Type", "Value Preview", "Raw Type", "Has Value", "Is Custom Field"]} rows={inspector.issueFields} />;
+      case "description":
+        return (
+          <div className="space-y-4">
+            <div>
+              <div className="mb-2 text-sm font-black text-ink">Rendered / 渲染</div>
+              <div className="rounded-lg border border-line bg-white p-4 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: inspector.description.rendered }} />
+            </div>
+            <div>
+              <div className="mb-2 text-sm font-black text-ink">Plain Text / 純文字</div>
+              <pre className="thin-scroll max-h-52 overflow-auto rounded-lg border border-line bg-slate-50 p-4 text-xs leading-relaxed">{inspector.description.plainText}</pre>
+            </div>
+            <div>
+              <div className="mb-2 text-sm font-black text-ink">Raw / 原始</div>
+              <pre className="thin-scroll max-h-52 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-relaxed text-slate-100">{inspector.description.raw}</pre>
+            </div>
+          </div>
+        );
+      case "changelog":
+        return (
+          <div className="space-y-4">
+            {inspector.changelog.partial ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">Changelog may be partial.</div> : null}
+            <DataTable headers={["Metric", "Value"]} rows={inspector.changelog.summary} />
+            {inspector.changelog.rows.length ? <DataTable headers={["Time", "Author", "Field", "From", "To", "Changelog ID", "Item Index"]} rows={inspector.changelog.rows} /> : noData()}
+          </div>
+        );
+      case "comments":
+        return (
+          <div className="space-y-4">
+            <DataTable headers={["Metric", "Value"]} rows={inspector.comments.summary} />
+            {inspector.comments.rows.length ? <DataTable headers={["Comment ID", "Author", "Created", "Updated", "Updated By", "Body Preview", "Visibility"]} rows={inspector.comments.rows} /> : noData()}
+          </div>
+        );
+      case "attachments":
+        return (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-800">Attachment metadata only; file content not downloaded.</div>
+            <DataTable headers={["Metric", "Value"]} rows={inspector.attachments.summary} />
+            {inspector.attachments.rows.length ? <DataTable headers={["Attachment ID", "Filename", "Author", "Created", "MIME Type", "Size", "Thumbnail URL", "Content URL"]} rows={inspector.attachments.rows} /> : noData()}
+          </div>
+        );
+      case "links":
+        return (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700">Link creator may not be recoverable unless changelog contains link change event.</div>
+            <DataTable headers={["Metric", "Value"]} rows={inspector.links.summary} />
+            {inspector.links.rows.length ? <DataTable headers={["Link ID", "Link Type", "Direction", "Linked Issue Key", "Linked Issue Summary", "Linked Issue Status", "Linked Issue Type"]} rows={inspector.links.rows} /> : noData()}
+          </div>
+        );
+      case "users":
+        return inspector.users.length ? <DataTable headers={["Display Name", "Username / Name", "Email", "Account ID", "Source", "Event Count Estimate"]} rows={inspector.users} /> : noData("No users detected from the available API response.");
+      case "activityEstimate":
+        return <DataTable headers={["Event Type", "Count", "Source", "Confidence", "Notes"]} rows={inspector.activityEstimate} />;
+      case "manualCompare":
+        return (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-line bg-slate-50 p-3 text-sm font-bold text-muted">Enter Jira Web Value manually and mark Match / Different when comparing with Jira Web UI. This is UI-only; no file or database write is performed.</div>
+            <DataTable headers={["Item", "API Value", "Jira Web Value", "Match Status", "Notes"]} rows={inspector.manualCompare} />
+          </div>
+        );
+      case "rawJson":
+        return (
+          <div>
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-line p-3 text-sm font-bold">
+              <span>Show Raw JSON / 顯示原始 JSON</span>
+              <button type="button" data-allow-truncate="true" onClick={() => setShowRawJson((value) => !value)} aria-label="Toggle raw JSON">
+                <Toggle on={showRawJson} />
+              </button>
+            </div>
+            {showRawJson ? (
+              <pre className="thin-scroll max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-relaxed text-slate-100">
+                {JSON.stringify(inspector.rawJson, null, 2)}
+              </pre>
+            ) : (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-blue-700">
+                Raw JSON is hidden by default. Token and Authorization data are redacted.
+              </div>
+            )}
+          </div>
+        );
+      default:
+        return null;
+    }
+  }
 
   return (
     <div className="min-w-0">
@@ -283,12 +387,16 @@ export function JiraProbePage() {
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <SectionCard title="Endpoint Coverage" subtitle="Endpoint result">
               <DataTable
-                headers={["Endpoint", "Status", "HTTP Code", "Records", "Useful Level", "Notes"]}
+                headers={["Endpoint", "Method", "URL Path", "Status", "HTTP Code", "Content-Type", "Records", "Duration", "Useful Level", "Notes"]}
                 rows={result.endpoints.map((item) => [
                   item.endpoint,
+                  item.method ?? "GET",
+                  item.urlPath ?? "-",
                   <StatusBadge tone={statusTone[item.status]}>{item.status}</StatusBadge>,
                   String(item.httpCode),
+                  item.contentType ?? "-",
                   item.records,
+                  item.duration ?? "-",
                   item.usefulLevel,
                   item.notes
                 ])}
@@ -313,35 +421,15 @@ export function JiraProbePage() {
           </div>
 
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <SectionCard title="Data Preview" subtitle="preview">
+            <SectionCard title="Data Inspector" subtitle="read-only probe result">
               <div className="mb-3 flex flex-wrap gap-2">
-                {(["issueFields", "changelog", "comments", "attachments", "links", "rawJson"] as PreviewTab[]).map((tab) => (
-                  <button key={tab} className={`btn px-3 py-2 ${activeTab === tab ? "btn-primary" : ""}`} data-no-clip="true" onClick={() => setActiveTab(tab)}>
-                    {tab}
+                {inspectorTabs.map((tab) => (
+                  <button key={tab.key} className={`btn px-3 py-2 ${activeTab === tab.key ? "btn-primary" : ""}`} data-no-clip="true" onClick={() => setActiveTab(tab.key)}>
+                    {tab.label}
                   </button>
                 ))}
               </div>
-              {activeTab === "rawJson" ? (
-                <div>
-                  <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-line p-3 text-sm font-bold">
-                    <span>Show Raw JSON / {"\u986f\u793a\u539f\u59cb JSON"}</span>
-                    <button type="button" data-allow-truncate="true" onClick={() => setShowRawJson((value) => !value)} aria-label="Toggle raw JSON">
-                      <Toggle on={showRawJson} />
-                    </button>
-                  </div>
-                  {showRawJson ? (
-                    <pre className="thin-scroll max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-relaxed text-slate-100">
-                      {JSON.stringify(result.preview.rawJson, null, 2)}
-                    </pre>
-                  ) : (
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-blue-700">
-                      Raw JSON is hidden by default. Token and Authorization data are redacted.
-                    </div>
-                  )}
-                </div>
-              ) : previewRows ? (
-                <DataTable headers={activeTab === "issueFields" ? ["Field", "Value"] : ["A", "B", "C"]} rows={previewRows[activeTab]} />
-              ) : null}
+              {renderInspectorTab()}
             </SectionCard>
 
             <SectionCard title="Permission & Limitation Hints" subtitle="read-only limits">

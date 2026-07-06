@@ -53,6 +53,7 @@ Build Time is shown in the sidebar and in Settings > System Status.
 - Non-JSON responses such as login pages, SSO redirects, proxy pages, or HTML error pages are handled as readable probe errors instead of raw JSON parse failures.
 - The read-only guard blocks non-GET requests and attachment content/thumbnail URLs.
 - Debug Log Copy, Download, and Clear operate on the current in-memory log state. Download uses a preload IPC save dialog in Electron.
+- Data Inspector tabs show sanitized read-only probe data for overview, issue fields, description, changelog, comments, attachments, links, users, activity estimates, raw JSON, and manual compare.
 - It does not write to Jira.
 - It does not write to the production database.
 - Attachment file content is not downloaded; only metadata from the issue payload is shown.

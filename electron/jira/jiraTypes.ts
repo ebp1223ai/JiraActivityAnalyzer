@@ -29,9 +29,13 @@ export type JiraHttpResult = {
 
 export type ProbeEndpointResult = {
   endpoint: string;
+  method?: string;
+  urlPath?: string;
   status: EndpointStatus;
   httpCode: number | "-";
+  contentType?: string;
   records: string;
+  duration?: string;
   usefulLevel: "High" | "Medium" | "Low" | "-";
   notes: string;
 };

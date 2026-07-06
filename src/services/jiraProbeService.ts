@@ -92,6 +92,124 @@ export function createMockJiraProbeResult(request: JiraProbeRequest): JiraProbeR
         authorization: "[redacted]"
       }
     },
+    inspector: {
+      overview: [
+        ["Issue Key", issueKey],
+        ["Issue ID", "126606"],
+        ["Project Key", "COPGEN1"],
+        ["Project Name", "COPGEN Platform"],
+        ["Issue Type", "Bug"],
+        ["Summary", "Investigate intermittent data sync failures between COPGEN and Jira Cloud"],
+        ["Status", "In Progress"],
+        ["Priority", "High"],
+        ["Resolution", "Empty / Not available"],
+        ["Assignee", "Alice Chen"],
+        ["Reporter", "Charlie Wu"],
+        ["Creator", "Bob Lin"],
+        ["Created", "2026/07/01 10:12"],
+        ["Updated", "2026/07/03 15:42"],
+        ["Attachment Count", String(attachments)],
+        ["Comment Count", String(comments)],
+        ["Changelog Count", String(totals.histories)],
+        ["Issue Link Count", String(links)]
+      ],
+      issueFields: [
+        ["summary", "Summary", "string", "Investigate intermittent data sync failures", "string", "yes", "no"],
+        ["status", "Status", "status", "In Progress", "object", "yes", "no"],
+        ["priority", "Priority", "priority", "High", "object", "yes", "no"],
+        ["customfield_10001", "Sprint", "array", "Sprint 24", "array", "yes", "yes"],
+        ["customfield_12345", "Story Points", "number", "3", "number", "yes", "yes"]
+      ],
+      description: {
+        rendered: "<p>Mock description rendered from sample Jira data.</p>",
+        plainText: "Mock description rendered from sample Jira data.",
+        raw: "Mock description rendered from sample Jira data."
+      },
+      changelog: {
+        summary: [
+          ["Histories Count", String(totals.histories)],
+          ["Change Items Count", String(totals.changes)],
+          ["Status Changes", request.depth === "basic" ? "0" : "18"],
+          ["Assignee Changes", request.depth === "basic" ? "0" : "11"],
+          ["Priority Changes", request.depth === "basic" ? "0" : "6"],
+          ["Description Changes", request.depth === "basic" ? "0" : "2"],
+          ["Custom Field Changes", request.depth === "basic" ? "0" : "37"]
+        ],
+        rows: [
+          ["2026/07/01 15:42", "Bob Lin", "status", "To Do", "In Progress", "10001", "0"],
+          ["2026/07/02 09:12", "Alice Chen", "assignee", "Unassigned", "Alice Chen", "10002", "0"],
+          ["2026/07/03 11:05", "Charlie Wu", "priority", "Medium", "High", "10003", "0"]
+        ],
+        partial: false
+      },
+      comments: {
+        summary: [
+          ["Comment Count", String(comments)],
+          ["Comment Authors Count", comments ? "3" : "0"],
+          ["First Comment Time", comments ? "2026/07/01 11:03" : "Empty / Not available"],
+          ["Last Comment Time", comments ? "2026/07/02 09:12" : "Empty / Not available"],
+          ["Edited Comments Count", comments ? "1" : "0"]
+        ],
+        rows: [
+          ["10010", "Alice Chen", "2026/07/01 11:03", "2026/07/01 11:03", "-", "Initial investigation notes", "public"],
+          ["10011", "Bob Lin", "2026/07/01 15:47", "2026/07/01 16:05", "Bob Lin", "Found intermittent timeout in API call", "public"]
+        ]
+      },
+      attachments: {
+        summary: [
+          ["Attachment Count", String(attachments)],
+          ["Image Count", "1"],
+          ["Log Count", "1"],
+          ["Excel Count", "0"],
+          ["Zip Count", "1"],
+          ["Total Size", "6.1 MB"],
+          ["Uploaders Count", "3"]
+        ],
+        rows: [
+          ["20001", "sync-error-log.txt", "Alice Chen", "2026/07/01", "text/plain", "1.2 MB", "no", "metadata only"],
+          ["20002", "api-timeout-trace.zip", "Bob Lin", "2026/07/01", "application/zip", "4.8 MB", "no", "metadata only"]
+        ]
+      },
+      links: {
+        summary: [
+          ["Link Count", String(links)],
+          ["Inward Count", "1"],
+          ["Outward Count", "2"],
+          ["Link Types", "blocks, relates to"]
+        ],
+        rows: [
+          ["30001", "blocks", "outward", "COPGEN1-126580", "Data connector refactor", "In Progress", "Task"],
+          ["30002", "is blocked by", "inward", "COPGEN1-126612", "API rate limit investigation", "To Do", "Bug"]
+        ]
+      },
+      users: [
+        ["Alice Chen", "alice.chen", "Not available from API", "mock-account-1", "assignee, comment author", "42"],
+        ["Bob Lin", "bob.lin", "Not available from API", "mock-account-2", "creator, changelog author", "31"],
+        ["Charlie Wu", "charlie.wu", "Not available from API", "mock-account-3", "reporter", "18"]
+      ],
+      activityEstimate: [
+        ["issue_created", "1", "issue", "High", "One issue payload"],
+        ["field_changed", String(totals.changes), "changelog", request.depth === "basic" ? "Low" : "High", "All changelog items"],
+        ["status_changed", request.depth === "basic" ? "0" : "18", "changelog", "High", "field == status"],
+        ["comment_created", String(comments), "comments", "High", "comment count"],
+        ["attachment_added", String(attachments), "attachments", "High", "metadata only"],
+        ["issue_link_observed", String(links), "links", "Medium", "link creator may not be recoverable"]
+      ],
+      rawJson: {
+        myself: { displayName: "Mock User" },
+        issue: { key: issueKey, fields: { summary: "Mock issue fields", status: "In Progress" } },
+        changelog: { total: totals.histories, items: totals.changes },
+        comments: { total: comments },
+        authorization: "[redacted]"
+      },
+      manualCompare: [
+        ["Summary", "Investigate intermittent data sync failures", "", "Not checked", ""],
+        ["Status", "In Progress", "", "Not checked", ""],
+        ["Priority", "High", "", "Not checked", ""],
+        ["Comments count", String(comments), "", "Not checked", ""],
+        ["Attachments count", String(attachments), "", "Not checked", ""]
+      ]
+    },
     hints: [
       "Token can read issue basic fields.",
       request.depth === "basic" ? "Changelog was skipped in Basic mode." : "Changelog is available; field-level timeline can be generated.",
@@ -101,7 +219,10 @@ export function createMockJiraProbeResult(request: JiraProbeRequest): JiraProbeR
       request.depth === "deep" ? "Worklog is unavailable due to permission or not enabled." : "Worklog is only requested in Deep mode."
     ],
     debugLogs: [
-      "[INFO] Initialize Jira Probe page",
+      "[INFO] Run Probe started",
+      `[INFO] Run ID: mock-${Date.now()}`,
+      "[INFO] Mode: Mock probe",
+      `[INFO] Issue Key: ${issueKey}`,
       "[INFO] Selected connection: Jira Cloud (Production)",
       "[INFO] Mock Mode enabled",
       "[INFO] No Jira request sent",
@@ -113,6 +234,7 @@ export function createMockJiraProbeResult(request: JiraProbeRequest): JiraProbeR
       `[INFO] Attachment metadata parsed: ${attachments}`,
       `[INFO] Issue links parsed: ${links}`,
       request.depth === "deep" ? "[WARN] Worklog unavailable: 403 Forbidden" : "[INFO] Worklog skipped",
+      `[INFO] Estimated activity events: ${estimatedActivityEvents}`,
       `[SUCCESS] Probe completed. Coverage Score: ${totals.score}%`
     ],
     rawJsonEnabled: false
