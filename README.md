@@ -2,7 +2,7 @@
 
 First desktop UI prototype for Jira Activity Analyzer / Activity Builder.
 
-This is an Electron desktop app shell with a React renderer. The first version is a static UI prototype with one read-only Jira Probe diagnostics page. Import, database writes, token storage, backup restore, and export behavior are not implemented.
+This is an Electron desktop app shell with a React renderer. The first version is a static UI prototype with one read-only Jira Probe diagnostics page. Import, database writes, token storage, and backup restore behavior are not implemented.
 
 ## Scripts
 
@@ -26,6 +26,31 @@ Build Time is shown in the sidebar and in Settings > System Status.
 ## Jira Probe
 
 `Jira 測試 / Jira Probe` is a read-only diagnostics page for checking whether one issue can provide enough Jira data to build activity events later.
+
+Default Real Probe UI values are optimized for Jira Server/Data Center:
+
+- API Version: `v2`
+- Auth Type: `Bearer Token / Personal Access Token`
+- Probe Depth: `Standard`
+- Mock Mode: `Off`
+- Log Level: `DEBUG`
+
+Optional local defaults can be loaded from `.env` in the app working directory, or `jira-probe.env` / `config.env` under Electron `userData`:
+
+```env
+JIRA_BASE_URL=https://jira.example.com:8443
+JIRA_EMAIL=your.name@example.com
+JIRA_USERNAME=your.username
+JIRA_API_TOKEN=replace-with-your-token
+JIRA_AUTH_TYPE=bearer
+JIRA_API_VERSION=v2
+JIRA_PROBE_DEFAULT_ISSUE=COPGEN1-138930
+JIRA_PROBE_DEPTH=standard
+JIRA_PROBE_MOCK_MODE=false
+JIRA_PROBE_LOG_LEVEL=DEBUG
+```
+
+`.env` is ignored by git. Do not commit real tokens.
 
 - Renderer code does not call Jira directly. Real Probe requests go through Electron preload IPC into the main process.
 - The Electron main process owns Jira auth headers, read-only request validation, safe response parsing, sensitive-data masking, and structured probe logs.
@@ -54,6 +79,15 @@ Build Time is shown in the sidebar and in Settings > System Status.
 - The read-only guard blocks non-GET requests and attachment content/thumbnail URLs.
 - Debug Log Copy, Download, and Clear operate on the current in-memory log state. Download uses a preload IPC save dialog in Electron.
 - Data Inspector tabs show sanitized read-only probe data for overview, issue fields, description, changelog, comments, attachments, links, users, activity estimates, raw JSON, and manual compare.
+- Data Inspector supports in-page search and simple data filters. It is UI-only and does not write files or database records.
+- Copy Summary copies a token-safe human-readable probe summary.
+- Save Probe Result / Export Probe JSON opens an Electron save dialog and writes a sanitized JSON report only when the user chooses a path.
+- Exported JSON includes app version, build time, exported time, run id, base URL, issue key, selected API version, auth type, endpoint coverage, parsed inspector sections, sanitized raw responses, and sanitized debug logs.
+- Exported JSON does not include API token values or Authorization headers.
+- Probe Depth controls read-only endpoint coverage:
+  - Basic: `/myself` and `/issue`
+  - Standard: Basic plus changelog, comments, attachment metadata, issue links, and users derived from responses
+  - Deep: Standard plus read-only worklog, transitions, and field metadata checks when available
 - It does not write to Jira.
 - It does not write to the production database.
 - Attachment file content is not downloaded; only metadata from the issue payload is shown.

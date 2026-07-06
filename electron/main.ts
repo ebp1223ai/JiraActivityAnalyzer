@@ -40,11 +40,92 @@ const uiViewports = [
 
 const debugStates = ["expanded", "collapsed"] as const;
 
+function parseEnvText(text: string) {
+  const output: Record<string, string> = {};
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const separator = trimmed.indexOf("=");
+    if (separator === -1) continue;
+    const key = trimmed.slice(0, separator).trim();
+    const value = trimmed.slice(separator + 1).trim().replace(/^["']|["']$/g, "");
+    output[key] = value;
+  }
+  return output;
+}
+
+function getProbeEnvCandidates() {
+  return [
+    path.resolve(process.cwd(), ".env"),
+    path.join(app.getPath("userData"), "jira-probe.env"),
+    path.join(app.getPath("userData"), "config.env")
+  ];
+}
+
+function toProbeEnvConfig(env: Record<string, string>, sourcePath: string) {
+  const token = env.JIRA_API_TOKEN ?? "";
+  return {
+    found: true,
+    sourcePath,
+    config: {
+      baseUrl: env.JIRA_BASE_URL ?? "",
+      email: env.JIRA_EMAIL ?? env.JIRA_USERNAME ?? "",
+      username: env.JIRA_USERNAME ?? "",
+      apiToken: token,
+      hasToken: Boolean(token),
+      authType: (env.JIRA_AUTH_TYPE ?? "bearer").toLowerCase(),
+      apiVersion: (env.JIRA_API_VERSION ?? "v2").toLowerCase(),
+      issueKey: env.JIRA_PROBE_DEFAULT_ISSUE ?? "",
+      depth: (env.JIRA_PROBE_DEPTH ?? "standard").toLowerCase(),
+      mockMode: (env.JIRA_PROBE_MOCK_MODE ?? "false").toLowerCase() === "true",
+      logLevel: (env.JIRA_PROBE_LOG_LEVEL ?? "DEBUG").toUpperCase()
+    }
+  };
+}
+
 ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
   if (!request || request.useMock) {
     throw new Error("Jira Probe IPC only runs real read-only API probes.");
   }
   return runApiProbe(request);
+});
+
+ipcMain.handle("jira-probe:load-env", async () => {
+  for (const candidate of getProbeEnvCandidates()) {
+    if (fs.existsSync(candidate)) {
+      return toProbeEnvConfig(parseEnvText(fs.readFileSync(candidate, "utf8")), candidate);
+    }
+  }
+  return {
+    found: false,
+    checkedPaths: getProbeEnvCandidates(),
+    config: {
+      baseUrl: "",
+      email: "",
+      username: "",
+      apiToken: "",
+      hasToken: false,
+      authType: "bearer",
+      apiVersion: "v2",
+      issueKey: "",
+      depth: "standard",
+      mockMode: false,
+      logLevel: "DEBUG"
+    }
+  };
+});
+
+ipcMain.handle("jira-probe:save-result", async (_event, payload: { defaultFileName: string; content: string }) => {
+  const result = await dialog.showSaveDialog({
+    title: "Save Probe Result",
+    defaultPath: payload.defaultFileName,
+    filters: [{ name: "JSON", extensions: ["json"] }]
+  });
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+  fs.writeFileSync(result.filePath, payload.content, "utf8");
+  return { canceled: false, filePath: result.filePath };
 });
 
 ipcMain.handle("debug-log:save-text", async (_event, payload: { defaultFileName: string; content: string }) => {

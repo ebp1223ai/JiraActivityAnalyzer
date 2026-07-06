@@ -120,7 +120,7 @@ export function SettingsPage() {
           <SettingRow label="Reports Output Path"><input className="field" defaultValue="exports/reports" /></SettingRow>
         </SectionCard>
         <SectionCard title="除錯紀錄設定" subtitle="Debug Log Settings">
-          <SettingRow label="Log Level"><select className="field"><option>INFO</option></select></SettingRow>
+          <SettingRow label="Log Level"><select className="field" defaultValue="DEBUG"><option>DEBUG</option><option>INFO</option><option>WARN</option><option>ERROR</option></select></SettingRow>
           <SettingRow label="Log Retention (days)"><input className="field" defaultValue="30" /></SettingRow>
           <div className="space-y-3 font-bold"><div className="flex justify-between gap-3">Enable performance logs <Toggle /></div><div className="flex justify-between gap-3">Auto-scroll debug panel <Toggle /></div></div>
           <SettingRow label="Log File Path"><input className="field" defaultValue="logs/debug.log" /></SettingRow>

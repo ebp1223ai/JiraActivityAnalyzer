@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Activity, ClipboardCopy, Eraser, FileJson, Play, ShieldCheck } from "lucide-react";
+import { Activity, ClipboardCopy, Download, Eraser, FileJson, Play, RefreshCcw, ShieldCheck } from "lucide-react";
 import { DataTable } from "../components/DataTable";
 import { FieldLabel, Toggle } from "../components/FormControls";
 import { MetricCard } from "../components/MetricCard";
@@ -12,10 +12,12 @@ import { runJiraProbe } from "../services/jiraProbeService";
 import type { JiraProbeApiVersion, JiraProbeAuthType, JiraProbeDepth, JiraProbeResult, JiraProbeRunState, JiraProbeStatus } from "../types/jiraProbe";
 import type { AppOutletContext } from "../components/AppLayout";
 
+declare const __BUILD_TIME__: string;
+
 const defaultConnection = {
-  name: "Jira Cloud (Production)",
-  baseUrl: "https://example.atlassian.net",
-  email: "alpha.platform@example.com"
+  name: "Jira Server/Data Center",
+  baseUrl: "https://jira.example.com:8443",
+  email: ""
 };
 
 const statusTone: Record<JiraProbeStatus, "green" | "blue" | "amber" | "red" | "gray"> = {
@@ -27,9 +29,9 @@ const statusTone: Record<JiraProbeStatus, "green" | "blue" | "amber" | "red" | "
 };
 
 const depthNotes: Record<JiraProbeDepth, string> = {
-  basic: "Issue basic fields",
-  standard: "Issue + changelog + comments + attachments metadata + links",
-  deep: "Standard + worklog + transitions + field metadata + linked issue summary"
+  basic: "Basic: GET /myself and /issue only. Good for token and core issue fields.",
+  standard: "Standard: Basic plus changelog, comments, attachments metadata, issue links, and users.",
+  deep: "Deep: Standard plus worklog, transitions, and field metadata when available."
 };
 
 const authTypeNotes: Record<JiraProbeAuthType, string> = {
@@ -56,14 +58,19 @@ const inspectorTabs: Array<{ key: PreviewTab; label: string }> = [
 export function JiraProbePage() {
   const [baseUrl, setBaseUrl] = useState(defaultConnection.baseUrl);
   const [email, setEmail] = useState(defaultConnection.email);
-  const [issueKey, setIssueKey] = useState("COPGEN1-126606");
+  const [issueKey, setIssueKey] = useState("COPGEN1-138930");
   const [apiToken, setApiToken] = useState("");
   const [depth, setDepth] = useState<JiraProbeDepth>("standard");
-  const [apiVersion, setApiVersion] = useState<JiraProbeApiVersion>("auto");
-  const [authType, setAuthType] = useState<JiraProbeAuthType>("basic");
-  const [useMock, setUseMock] = useState(true);
+  const [apiVersion, setApiVersion] = useState<JiraProbeApiVersion>("v2");
+  const [authType, setAuthType] = useState<JiraProbeAuthType>("bearer");
+  const [useMock, setUseMock] = useState(false);
+  const [logLevel, setLogLevel] = useState("DEBUG");
+  const [envStatus, setEnvStatus] = useState("Env not loaded");
+  const [actionNotice, setActionNotice] = useState("");
   const [showRawJson, setShowRawJson] = useState(false);
   const [activeTab, setActiveTab] = useState<PreviewTab>("overview");
+  const [inspectorSearch, setInspectorSearch] = useState("");
+  const [inspectorFilter, setInspectorFilter] = useState("all");
   const [runState, setRunState] = useState<JiraProbeRunState>("idle");
   const [error, setError] = useState("");
   const [result, setResult] = useState<JiraProbeResult | null>(null);
@@ -82,6 +89,51 @@ export function JiraProbePage() {
     apiVersion,
     authType
   }), [apiToken, apiVersion, authType, baseUrl, depth, email, issueKey, useMock]);
+
+  useEffect(() => {
+    void handleReloadEnv(false);
+  }, []);
+
+  function applyEnvConfig(config: {
+    baseUrl: string;
+    email: string;
+    username: string;
+    apiToken: string;
+    authType: string;
+    apiVersion: string;
+    issueKey: string;
+    depth: string;
+    mockMode: boolean;
+    logLevel: string;
+  }) {
+    if (config.baseUrl) setBaseUrl(config.baseUrl);
+    if (config.email || config.username) setEmail(config.email || config.username);
+    if (config.apiToken) setApiToken(config.apiToken);
+    if (config.issueKey) setIssueKey(config.issueKey);
+    if (["basic", "bearer"].includes(config.authType)) setAuthType(config.authType as JiraProbeAuthType);
+    if (["auto", "v2", "v3"].includes(config.apiVersion)) setApiVersion(config.apiVersion as JiraProbeApiVersion);
+    if (["basic", "standard", "deep"].includes(config.depth)) setDepth(config.depth as JiraProbeDepth);
+    setUseMock(config.mockMode);
+    if (config.logLevel) setLogLevel(config.logLevel);
+  }
+
+  async function handleReloadEnv(showNotice = true) {
+    const response = await window.desktopApp?.jiraProbe?.loadEnv?.();
+    if (!response) {
+      setEnvStatus("Env not available in browser preview");
+      return;
+    }
+    applyEnvConfig(response.config);
+    if (response.found) {
+      setEnvStatus(`Env loaded / 已載入 .env: ${response.sourcePath}`);
+      appendDebugLog("jiraProbe", ["[INFO] Env loaded", `[INFO] Env source: ${response.sourcePath}`, `[INFO] Env token present: ${response.config.hasToken ? "yes (masked)" : "no"}`]);
+      if (showNotice) setActionNotice("Env loaded.");
+    } else {
+      setEnvStatus("Env not found / 未找到 .env，請手動輸入");
+      appendDebugLog("jiraProbe", ["[WARN] Env not found", "[INFO] Manual input is available"]);
+      if (showNotice) setActionNotice("Env not found.");
+    }
+  }
 
   async function handleRunProbe() {
     setRunState("loading");
@@ -119,13 +171,115 @@ export function JiraProbePage() {
 
   async function handleCopySummary() {
     if (!result || !navigator.clipboard) return;
-    await navigator.clipboard.writeText(`Jira Probe ${result.issueKey}: coverage ${result.summary.coverageScore}%, estimated events ${result.summary.estimatedActivityEvents}`);
+    const summary = [
+      "Jira Probe Summary",
+      `Issue: ${result.issueKey}`,
+      `Base URL: ${baseUrl}`,
+      `API Version: ${result.apiVersion ?? apiVersion}`,
+      `Auth Type: ${authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
+      `Coverage Score: ${result.summary.coverageScore}%`,
+      `Fields: ${result.summary.issueFields} total`,
+      `Changelog: ${result.summary.changelogHistories} histories / ${result.summary.changeItems} change items`,
+      `Comments: ${result.summary.comments}`,
+      `Attachments: ${result.summary.attachments} metadata records`,
+      `Issue Links: ${result.summary.issueLinks}`,
+      `Users Detected: ${result.summary.usersDetected}`,
+      `Estimated Activity Events: ${result.summary.estimatedActivityEvents}`,
+      "Database Write: No",
+      "Attachment Download: No",
+      `Generated At: ${new Date().toLocaleString("zh-TW", { hour12: false })}`,
+      "",
+      "Endpoint Coverage:",
+      ...result.endpoints.map((item) => `- ${item.endpoint}: ${item.httpCode} ${item.status}`),
+      "",
+      "Notes:",
+      "- Read-only GET requests only",
+      "- Token masked",
+      "- No database write performed"
+    ].join("\n");
+    await navigator.clipboard.writeText(summary);
+    setActionNotice("Summary copied.");
+    appendDebugLog("jiraProbe", ["[INFO] Probe summary copied to clipboard"]);
+  }
+
+  function safeIssueFileName() {
+    return result?.issueKey.replace(/[^A-Z0-9_-]/gi, "_") || "jira-probe";
+  }
+
+  function exportPayload() {
+    if (!result) return null;
+    return {
+      appVersion: "0.1.0",
+      buildTime: typeof __BUILD_TIME__ === "string" ? __BUILD_TIME__ : "Development Mode",
+      exportedAt: new Date().toISOString(),
+      probeRunId: result.debugLogs.find((line) => line.includes("Run ID:"))?.replace("[INFO] Run ID: ", "") ?? "",
+      baseUrl,
+      issueKey: result.issueKey,
+      apiVersion: result.apiVersion,
+      authType,
+      endpointCoverage: result.endpoints,
+      overview: result.inspector?.overview ?? [],
+      issueFields: result.inspector?.issueFields ?? [],
+      description: result.inspector?.description ?? null,
+      changelog: result.inspector?.changelog ?? null,
+      comments: result.inspector?.comments ?? null,
+      attachmentsMetadata: result.inspector?.attachments ?? null,
+      links: result.inspector?.links ?? null,
+      users: result.inspector?.users ?? [],
+      activityEventEstimate: result.inspector?.activityEstimate ?? [],
+      rawResponsesSanitized: result.inspector?.rawJson ?? result.preview.rawJson,
+      debugLogSanitized: result.debugLogs
+    };
+  }
+
+  async function handleSaveProbeResult() {
+    const payload = exportPayload();
+    if (!payload || !window.desktopApp?.jiraProbe?.saveResult) return;
+    const timestamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "_").slice(0, 15);
+    const content = JSON.stringify(payload, null, 2);
+    const saveResult = await window.desktopApp.jiraProbe.saveResult({
+      defaultFileName: `jira-probe-${safeIssueFileName()}-${timestamp}.json`,
+      content
+    });
+    if (!saveResult.canceled) {
+      setActionNotice("Probe result saved.");
+      appendDebugLog("jiraProbe", [`[INFO] Probe result saved: ${saveResult.filePath}`]);
+    }
+  }
+
+  async function handleCopyCurrentJson() {
+    if (!result?.inspector || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(JSON.stringify(result.inspector.rawJson, null, 2));
+    setActionNotice("Sanitized JSON copied.");
+    appendDebugLog("jiraProbe", ["[INFO] Sanitized raw JSON copied to clipboard"]);
+  }
+
+  async function handleCopyCompareSummary() {
+    if (!result?.inspector || !navigator.clipboard) return;
+    const text = result.inspector.manualCompare.map((row) => `${row[0]}: API=${row[1]} | Web=${row[2] || "(empty)"} | ${row[3]}`).join("\n");
+    await navigator.clipboard.writeText(text);
+    setActionNotice("Compare summary copied.");
+    appendDebugLog("jiraProbe", ["[INFO] Manual compare summary copied to clipboard"]);
   }
 
   const errorBanner = result?.localizedMessage;
 
   function noData(message = "No data available / Permission denied / Endpoint failed") {
     return <div className="rounded-lg border border-dashed border-line p-5 text-sm font-bold text-muted">{message}</div>;
+  }
+
+  function matchesInspectorFilters(row: unknown[]) {
+    const value = row.map((cell) => String(cell ?? "")).join(" ").toLowerCase();
+    const query = inspectorSearch.trim().toLowerCase();
+    const hasData = !/empty \/ not available|permission denied|endpoint failed/i.test(value);
+    if (query && !value.includes(query)) return false;
+    if (inspectorFilter === "withData" && !hasData) return false;
+    if (inspectorFilter === "emptyOnly" && hasData) return false;
+    return true;
+  }
+
+  function filteredRows<T extends unknown[]>(rows: T[]) {
+    return rows.filter((row) => matchesInspectorFilters(row));
   }
 
   function renderInspectorTab() {
@@ -144,9 +298,9 @@ export function JiraProbePage() {
 
     switch (activeTab) {
       case "overview":
-        return <DataTable headers={["Field", "Value"]} rows={inspector.overview} />;
+        return <DataTable headers={["Field", "Value"]} rows={filteredRows(inspector.overview)} />;
       case "issueFields":
-        return <DataTable headers={["Field Key", "Field Name", "Type", "Value Preview", "Raw Type", "Has Value", "Is Custom Field"]} rows={inspector.issueFields} />;
+        return <DataTable headers={["Field Key", "Field Name", "Type", "Value Preview", "Raw Type", "Has Value", "Is Custom Field"]} rows={filteredRows(inspector.issueFields)} />;
       case "description":
         return (
           <div className="space-y-4">
@@ -169,14 +323,14 @@ export function JiraProbePage() {
           <div className="space-y-4">
             {inspector.changelog.partial ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">Changelog may be partial.</div> : null}
             <DataTable headers={["Metric", "Value"]} rows={inspector.changelog.summary} />
-            {inspector.changelog.rows.length ? <DataTable headers={["Time", "Author", "Field", "From", "To", "Changelog ID", "Item Index"]} rows={inspector.changelog.rows} /> : noData()}
+            {inspector.changelog.rows.length ? <DataTable headers={["Time", "Author", "Field", "From", "To", "Changelog ID", "Item Index"]} rows={filteredRows(inspector.changelog.rows)} /> : noData()}
           </div>
         );
       case "comments":
         return (
           <div className="space-y-4">
             <DataTable headers={["Metric", "Value"]} rows={inspector.comments.summary} />
-            {inspector.comments.rows.length ? <DataTable headers={["Comment ID", "Author", "Created", "Updated", "Updated By", "Body Preview", "Visibility"]} rows={inspector.comments.rows} /> : noData()}
+            {inspector.comments.rows.length ? <DataTable headers={["Comment ID", "Author", "Created", "Updated", "Updated By", "Body Preview", "Visibility"]} rows={filteredRows(inspector.comments.rows)} /> : noData()}
           </div>
         );
       case "attachments":
@@ -184,7 +338,7 @@ export function JiraProbePage() {
           <div className="space-y-4">
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-800">Attachment metadata only; file content not downloaded.</div>
             <DataTable headers={["Metric", "Value"]} rows={inspector.attachments.summary} />
-            {inspector.attachments.rows.length ? <DataTable headers={["Attachment ID", "Filename", "Author", "Created", "MIME Type", "Size", "Thumbnail URL", "Content URL"]} rows={inspector.attachments.rows} /> : noData()}
+            {inspector.attachments.rows.length ? <DataTable headers={["Attachment ID", "Filename", "Author", "Created", "MIME Type", "Size", "Thumbnail URL", "Content URL"]} rows={filteredRows(inspector.attachments.rows)} /> : noData()}
           </div>
         );
       case "links":
@@ -192,28 +346,41 @@ export function JiraProbePage() {
           <div className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700">Link creator may not be recoverable unless changelog contains link change event.</div>
             <DataTable headers={["Metric", "Value"]} rows={inspector.links.summary} />
-            {inspector.links.rows.length ? <DataTable headers={["Link ID", "Link Type", "Direction", "Linked Issue Key", "Linked Issue Summary", "Linked Issue Status", "Linked Issue Type"]} rows={inspector.links.rows} /> : noData()}
+            {inspector.links.rows.length ? <DataTable headers={["Link ID", "Link Type", "Direction", "Linked Issue Key", "Linked Issue Summary", "Linked Issue Status", "Linked Issue Type"]} rows={filteredRows(inspector.links.rows)} /> : noData()}
           </div>
         );
       case "users":
-        return inspector.users.length ? <DataTable headers={["Display Name", "Username / Name", "Email", "Account ID", "Source", "Event Count Estimate"]} rows={inspector.users} /> : noData("No users detected from the available API response.");
+        return inspector.users.length ? <DataTable headers={["Display Name", "Username / Name", "Email", "Account ID", "Source", "Event Count Estimate"]} rows={filteredRows(inspector.users)} /> : noData("No users detected from the available API response.");
       case "activityEstimate":
-        return <DataTable headers={["Event Type", "Count", "Source", "Confidence", "Notes"]} rows={inspector.activityEstimate} />;
+        return <DataTable headers={["Event Type", "Count", "Source", "Confidence", "Notes"]} rows={filteredRows(inspector.activityEstimate)} />;
       case "manualCompare":
         return (
           <div className="space-y-3">
-            <div className="rounded-lg border border-line bg-slate-50 p-3 text-sm font-bold text-muted">Enter Jira Web Value manually and mark Match / Different when comparing with Jira Web UI. This is UI-only; no file or database write is performed.</div>
-            <DataTable headers={["Item", "API Value", "Jira Web Value", "Match Status", "Notes"]} rows={inspector.manualCompare} />
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-bold text-muted">
+              <span>Enter Jira Web Value manually and mark Match / Different when comparing with Jira Web UI. This is UI-only; no file or database write is performed.</span>
+              <button className="btn" type="button" data-no-clip="true" onClick={handleCopyCompareSummary}>
+                <ClipboardCopy size={16} />Copy Compare Summary
+              </button>
+            </div>
+            <DataTable headers={["Item", "API Value", "Jira Web Value", "Match Status", "Notes"]} rows={filteredRows(inspector.manualCompare)} />
           </div>
         );
       case "rawJson":
         return (
           <div>
-            <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-line p-3 text-sm font-bold">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line p-3 text-sm font-bold">
               <span>Show Raw JSON / 顯示原始 JSON</span>
-              <button type="button" data-allow-truncate="true" onClick={() => setShowRawJson((value) => !value)} aria-label="Toggle raw JSON">
-                <Toggle on={showRawJson} />
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button className="btn" type="button" data-no-clip="true" onClick={handleCopyCurrentJson}>
+                  <ClipboardCopy size={16} />Copy JSON
+                </button>
+                <button className="btn" type="button" data-no-clip="true" onClick={handleSaveProbeResult}>
+                  <Download size={16} />Save JSON
+                </button>
+                <button type="button" data-allow-truncate="true" onClick={() => setShowRawJson((value) => !value)} aria-label="Toggle raw JSON">
+                  <Toggle on={showRawJson} />
+                </button>
+              </div>
             </div>
             {showRawJson ? (
               <pre className="thin-scroll max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-relaxed text-slate-100">
@@ -293,6 +460,16 @@ export function JiraProbePage() {
                 <option value="standard">Standard</option>
                 <option value="deep">Deep</option>
               </select>
+              <div className="mt-1 text-xs font-semibold leading-snug text-muted">{depthNotes[depth]}</div>
+            </div>
+            <div>
+              <FieldLabel label="Log Level" sub="debug detail" />
+              <select className="field" value={logLevel} onChange={(event) => setLogLevel(event.target.value)}>
+                <option>DEBUG</option>
+                <option>INFO</option>
+                <option>WARN</option>
+                <option>ERROR</option>
+              </select>
             </div>
             <div className="flex items-end justify-between gap-3 rounded-lg border border-line px-3 py-2 text-sm font-bold">
               <span>Mock Mode<br /><span className="text-xs font-semibold text-muted">safe sample data</span></span>
@@ -327,15 +504,26 @@ export function JiraProbePage() {
           <button className="btn btn-primary" data-no-clip="true" onClick={handleRunProbe} disabled={runState === "loading"}>
             <Play size={16} />{runState === "loading" ? "Running Probe..." : "Run Probe / \u57f7\u884c\u6e2c\u8a66"}
           </button>
+          <button className="btn" data-no-clip="true" onClick={() => void handleReloadEnv(true)}>
+            <RefreshCcw size={16} />Reload Env
+          </button>
           <button className="btn" data-no-clip="true" onClick={handleClear}>
             <Eraser size={16} />Clear Result / {"\u6e05\u9664\u7d50\u679c"}
           </button>
           <button className="btn" data-no-clip="true" onClick={handleCopySummary} disabled={!result}>
             <ClipboardCopy size={16} />Copy Summary / {"\u8907\u88fd\u6458\u8981"}
           </button>
-          <button className="btn" data-no-clip="true" disabled title="UI only; no file write in this prototype">
+          <button className="btn" data-no-clip="true" onClick={handleSaveProbeResult} disabled={!result} title={result ? "Export sanitized probe JSON" : "Run Probe first."}>
+            <Download size={16} />Save Probe Result
+          </button>
+          <button className="btn" data-no-clip="true" onClick={handleSaveProbeResult} disabled={!result} title={result ? "Export sanitized probe JSON" : "Run Probe first."}>
             <FileJson size={16} />Export Probe JSON
           </button>
+        </div>
+
+        <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-xs font-bold leading-relaxed text-muted">
+          {envStatus}
+          {actionNotice ? <span className="ml-3 text-blue-700">{actionNotice}</span> : null}
         </div>
 
         {runState !== "idle" ? (
@@ -354,6 +542,24 @@ export function JiraProbePage() {
 
       {result ? (
         <>
+          <SectionCard className="mt-4" title="Probe Summary" subtitle="read-only result overview">
+            <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-3 text-sm font-semibold">
+              {[
+                ["Issue Key", result.issueKey],
+                ["Status", result.status],
+                ["API Version", result.apiVersion ?? "-"],
+                ["Auth Type", authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"],
+                ["Probe Depth", result.depth],
+                ["Build Time", typeof __BUILD_TIME__ === "string" ? __BUILD_TIME__ : "Development Mode"]
+              ].map(([label, value]) => (
+                <div key={label} className="min-w-0 rounded-lg border border-line bg-slate-50 p-3">
+                  <div className="text-xs font-black uppercase tracking-wide text-muted">{label}</div>
+                  <div className="mt-1 break-words text-base font-black text-ink" data-no-clip="true">{value}</div>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+
           <ResponsiveMetricGrid min={200} className="mt-4">
             <MetricCard label="Coverage Score" sub="coverage" value={`${result.summary.coverageScore}%`} icon={ShieldCheck} tone="bg-green-50 text-green-600" />
             <MetricCard label="Issue Fields" sub="fields" value={String(result.summary.issueFields)} icon={Activity} />
@@ -422,6 +628,19 @@ export function JiraProbePage() {
 
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <SectionCard title="Data Inspector" subtitle="read-only probe result">
+              <div className="mb-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+                <input
+                  className="field"
+                  value={inspectorSearch}
+                  onChange={(event) => setInspectorSearch(event.target.value)}
+                  placeholder="Search inspector data..."
+                />
+                <select className="field" value={inspectorFilter} onChange={(event) => setInspectorFilter(event.target.value)}>
+                  <option value="all">All data</option>
+                  <option value="withData">With value only</option>
+                  <option value="emptyOnly">Empty / unavailable only</option>
+                </select>
+              </div>
               <div className="mb-3 flex flex-wrap gap-2">
                 {inspectorTabs.map((tab) => (
                   <button key={tab.key} className={`btn px-3 py-2 ${activeTab === tab.key ? "btn-primary" : ""}`} data-no-clip="true" onClick={() => setActiveTab(tab.key)}>

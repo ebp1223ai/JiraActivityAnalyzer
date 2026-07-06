@@ -149,9 +149,9 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear }: Props) {
       </div>
 
       <label className="mt-4 text-sm font-black text-ink" data-no-clip="true">Log Level</label>
-      <select className="field mt-2">
-        <option>INFO</option>
+      <select className="field mt-2" defaultValue="DEBUG">
         <option>DEBUG</option>
+        <option>INFO</option>
         <option>WARN</option>
         <option>ERROR</option>
       </select>

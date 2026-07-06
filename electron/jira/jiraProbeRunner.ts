@@ -499,6 +499,7 @@ export async function runApiProbe(request: ProbeRequest) {
     "[INFO] Mode: Real read-only probe",
     `[INFO] Base URL: ${baseUrl || "(empty)"}`,
     `[INFO] Issue Key or ID: ${issueKey || "(empty)"}`,
+    `[INFO] Probe depth: ${request.depth}`,
     `[INFO] Auth Type: ${authType === "bearer" ? "Bearer Token / Personal Access Token" : "Basic Auth"}`,
     "[INFO] Authorization: [masked]",
     "[INFO] Token: [masked]",
@@ -645,7 +646,37 @@ export async function runApiProbe(request: ProbeRequest) {
 
   endpoints.push(endpoint("Attachments", "success", 200, String(attachments.length), "High", "Metadata only, no file download", { urlPath: issuePath, contentType: issue.contentType }));
   endpoints.push(endpoint("Issue Links", "success", 200, String(links.length), "Medium", "Link creator may not be recoverable unless changelog contains link change event.", { urlPath: issuePath, contentType: issue.contentType }));
-  endpoints.push(endpoint("Worklog", "skipped", "-", "0", "-", "No worklog request is sent by Jira Probe"));
+
+  if (request.depth === "deep") {
+    const worklogPath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/worklog?maxResults=100`;
+    debugLogs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}/worklog`);
+    const worklog = await client.get(worklogPath);
+    appendResponseLog(debugLogs, worklog);
+    const worklogRecords = worklog.ok && worklog.json && typeof worklog.json === "object" && Array.isArray((worklog.json as { worklogs?: unknown[] }).worklogs)
+      ? (worklog.json as { worklogs: unknown[] }).worklogs.length
+      : 0;
+    endpoints.push(endpoint("Worklog", statusFor(worklog), worklog.status, String(worklogRecords), worklog.ok ? "Medium" : "Low", noteFor(worklog, "Worklog metadata available"), { urlPath: worklogPath, contentType: worklog.contentType }));
+
+    const transitionsPath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/transitions`;
+    debugLogs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}/transitions`);
+    const transitions = await client.get(transitionsPath);
+    appendResponseLog(debugLogs, transitions);
+    const transitionRecords = transitions.ok && transitions.json && typeof transitions.json === "object" && Array.isArray((transitions.json as { transitions?: unknown[] }).transitions)
+      ? (transitions.json as { transitions: unknown[] }).transitions.length
+      : 0;
+    endpoints.push(endpoint("Transitions", statusFor(transitions), transitions.status, String(transitionRecords), transitions.ok ? "Low" : "Low", noteFor(transitions, "Transition metadata available"), { urlPath: transitionsPath, contentType: transitions.contentType }));
+
+    const fieldsPath = `${apiPrefix}/field`;
+    debugLogs.push(`[DEBUG] GET ${apiPrefix}/field`);
+    const fieldMetadata = await client.get(fieldsPath);
+    appendResponseLog(debugLogs, fieldMetadata);
+    const fieldRecords = fieldMetadata.ok && Array.isArray(fieldMetadata.json) ? (fieldMetadata.json as unknown[]).length : 0;
+    endpoints.push(endpoint("Field Metadata", statusFor(fieldMetadata), fieldMetadata.status, String(fieldRecords), fieldMetadata.ok ? "Medium" : "Low", noteFor(fieldMetadata, "Field metadata available"), { urlPath: fieldsPath, contentType: fieldMetadata.contentType }));
+  } else {
+    endpoints.push(endpoint("Worklog", "skipped", "-", "0", "-", request.depth === "basic" ? "Skipped in Basic mode" : "Skipped unless Probe Depth is Deep"));
+    endpoints.push(endpoint("Transitions", "skipped", "-", "0", "-", "Skipped unless Probe Depth is Deep"));
+    endpoints.push(endpoint("Field Metadata", "skipped", "-", "0", "-", "Skipped unless Probe Depth is Deep"));
+  }
 
   const statusChanges = Math.round(changelogItems * 0.08);
   const assigneeChanges = Math.round(changelogItems * 0.04);
@@ -700,7 +731,7 @@ export async function runApiProbe(request: ProbeRequest) {
       comments: commentCount,
       attachments: attachments.length,
       issueLinks: links.length,
-      usersDetected: 0,
+      usersDetected: inspector.users.length,
       estimatedActivityEvents,
       permissionGaps
     },
