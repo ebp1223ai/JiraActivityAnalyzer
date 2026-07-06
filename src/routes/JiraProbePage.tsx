@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import { Activity, ClipboardCopy, Eraser, FileJson, Play, ShieldCheck } from "lucide-react";
 import { DataTable } from "../components/DataTable";
 import { FieldLabel, Toggle } from "../components/FormControls";
@@ -8,7 +9,8 @@ import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { runJiraProbe } from "../services/jiraProbeService";
-import type { JiraProbeDepth, JiraProbeResult, JiraProbeStatus } from "../types/jiraProbe";
+import type { JiraProbeApiVersion, JiraProbeAuthType, JiraProbeDepth, JiraProbeResult, JiraProbeRunState, JiraProbeStatus } from "../types/jiraProbe";
+import type { AppOutletContext } from "../components/AppLayout";
 
 const defaultConnection = {
   name: "Jira Cloud (Production)",
@@ -38,12 +40,15 @@ export function JiraProbePage() {
   const [issueKey, setIssueKey] = useState("COPGEN1-126606");
   const [apiToken, setApiToken] = useState("");
   const [depth, setDepth] = useState<JiraProbeDepth>("standard");
+  const [apiVersion, setApiVersion] = useState<JiraProbeApiVersion>("auto");
+  const [authType, setAuthType] = useState<JiraProbeAuthType>("basic");
   const [useMock, setUseMock] = useState(true);
   const [showRawJson, setShowRawJson] = useState(false);
   const [activeTab, setActiveTab] = useState<PreviewTab>("issueFields");
-  const [isRunning, setIsRunning] = useState(false);
+  const [runState, setRunState] = useState<JiraProbeRunState>("idle");
   const [error, setError] = useState("");
   const [result, setResult] = useState<JiraProbeResult | null>(null);
+  const { appendDebugLog } = useOutletContext<AppOutletContext>();
 
   const request = useMemo(() => ({
     connection: {
@@ -54,20 +59,44 @@ export function JiraProbePage() {
     },
     issueKey,
     depth,
-    useMock
-  }), [apiToken, baseUrl, depth, email, issueKey, useMock]);
+    useMock,
+    apiVersion,
+    authType
+  }), [apiToken, apiVersion, authType, baseUrl, depth, email, issueKey, useMock]);
 
   async function handleRunProbe() {
-    setIsRunning(true);
+    const startedAt = new Date().toISOString();
+    setRunState("loading");
     setError("");
+    appendDebugLog("jiraProbe", [
+      "[INFO] Run Probe started",
+      `[INFO] Run ID: ${startedAt}`,
+      `[INFO] Mode: ${useMock ? "Mock Mode" : "Real read-only probe"}`,
+      `[INFO] Issue Key: ${issueKey || "(empty)"}`,
+      useMock ? "[INFO] No Jira request sent" : "[INFO] Auth: [masked]",
+      "[INFO] No database write performed"
+    ]);
     try {
       const next = await runJiraProbe(request);
       setResult(next);
       setActiveTab("issueFields");
+      setRunState(next.status === "error" ? "error" : "success");
+      if (next.message && next.status === "error") {
+        setError(next.message);
+      }
+      appendDebugLog("jiraProbe", next.debugLogs);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Probe failed.");
+      const message = caught instanceof Error ? caught.message : "Probe failed.";
+      setResult(null);
+      setError(message);
+      setRunState("error");
+      appendDebugLog("jiraProbe", [
+        `[ERROR] ${message}`,
+        "[INFO] Real Probe did not fall back to mock data",
+        "[INFO] No database write performed"
+      ]);
     } finally {
-      setIsRunning(false);
+      setRunState((current) => current === "loading" ? "idle" : current);
     }
   }
 
@@ -75,6 +104,7 @@ export function JiraProbePage() {
     setResult(null);
     setError("");
     setShowRawJson(false);
+    setRunState("idle");
   }
 
   async function handleCopySummary() {
@@ -122,12 +152,27 @@ export function JiraProbePage() {
               <input className="field" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" />
             </div>
             <div>
-              <FieldLabel label="Issue Key" sub="Jira issue key" />
-              <input className="field" value={issueKey} onChange={(event) => setIssueKey(event.target.value)} placeholder="COPGEN1-126606" />
+              <FieldLabel label="Issue Key or ID" sub="Jira issue key or ID" />
+              <input className="field" value={issueKey} onChange={(event) => setIssueKey(event.target.value)} placeholder="COPGEN1-126606 or 138930" />
             </div>
             <div>
               <FieldLabel label="API Token" sub="password field" />
               <input className="field" type="password" value={apiToken} onChange={(event) => setApiToken(event.target.value)} placeholder="Token is never saved or logged" />
+            </div>
+            <div>
+              <FieldLabel label="API Version" sub="API version" />
+              <select className="field" value={apiVersion} onChange={(event) => setApiVersion(event.target.value as JiraProbeApiVersion)}>
+                <option value="auto">Auto Detect</option>
+                <option value="v3">Jira Cloud v3</option>
+                <option value="v2">Jira Server/Data Center v2</option>
+              </select>
+            </div>
+            <div>
+              <FieldLabel label="Auth Type" sub="auth type" />
+              <select className="field" value={authType} onChange={(event) => setAuthType(event.target.value as JiraProbeAuthType)}>
+                <option value="basic">Basic Auth</option>
+                <option value="bearer">Bearer Token / Personal Access Token</option>
+              </select>
             </div>
             <div>
               <FieldLabel label="Probe Depth" sub="probe depth" />
@@ -157,7 +202,7 @@ export function JiraProbePage() {
             ) : (
               <>
                 <div>{"\u76ee\u524d\u70ba\u771f\u5be6 read-only Jira Probe\uff0c\u6703\u4f7f\u7528 Jira Base URL\u3001Email\u3001API Token \u8207 Issue Key \u547c\u53eb Jira GET API\uff0c\u4f46\u4e0d\u6703\u5beb\u5165 Jira\uff0c\u4e5f\u4e0d\u6703\u5beb\u5165\u6b63\u5f0f\u8cc7\u6599\u5eab\u3002"}</div>
-                <div className="mt-2 text-xs">Real Probe is implemented for read-only GET requests only.</div>
+                <div className="mt-2 text-xs">Real Probe is implemented for read-only GET requests only. It never falls back to mock data.</div>
               </>
             )}
             <div className="mt-3 border-t border-current/20 pt-3 font-black" data-no-clip="true">Depth description</div>
@@ -167,8 +212,8 @@ export function JiraProbePage() {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-3">
-          <button className="btn btn-primary" data-no-clip="true" onClick={handleRunProbe} disabled={isRunning}>
-            <Play size={16} />{isRunning ? "Running Probe..." : "Run Probe / \u57f7\u884c\u6e2c\u8a66"}
+          <button className="btn btn-primary" data-no-clip="true" onClick={handleRunProbe} disabled={runState === "loading"}>
+            <Play size={16} />{runState === "loading" ? "Running Probe..." : "Run Probe / \u57f7\u884c\u6e2c\u8a66"}
           </button>
           <button className="btn" data-no-clip="true" onClick={handleClear}>
             <Eraser size={16} />Clear Result / {"\u6e05\u9664\u7d50\u679c"}
@@ -181,7 +226,12 @@ export function JiraProbePage() {
           </button>
         </div>
 
-        {error ? <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
+        {runState !== "idle" ? (
+          <div className={`mt-4 rounded-lg border p-3 text-sm font-bold ${runState === "success" ? "border-green-200 bg-green-50 text-green-700" : runState === "loading" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+            State: {runState}
+            {error ? <span className="ml-2">{error}</span> : null}
+          </div>
+        ) : null}
       </SectionCard>
 
       {result ? (

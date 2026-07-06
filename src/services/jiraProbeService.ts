@@ -32,8 +32,10 @@ export function createMockJiraProbeResult(request: JiraProbeRequest): JiraProbeR
 
   return {
     mode: "mock",
+    status: "success",
     issueKey,
     depth: request.depth,
+    apiVersion: "mock",
     summary: {
       coverageScore: totals.score,
       issueFields: 64,
@@ -131,9 +133,17 @@ export function createMockJiraProbeResult(request: JiraProbeRequest): JiraProbeR
 }
 
 export async function runJiraProbe(request: JiraProbeRequest): Promise<JiraProbeResult> {
-  if (request.useMock || !request.connection.apiToken.trim() || !window.desktopApp?.jiraProbe?.run) {
+  if (request.useMock) {
     await new Promise((resolve) => setTimeout(resolve, 350));
     return createMockJiraProbeResult(request);
+  }
+
+  if (!request.connection.apiToken.trim()) {
+    throw new Error("API Token is required for Real Probe. Mock result was not used.");
+  }
+
+  if (!window.desktopApp?.jiraProbe?.run) {
+    throw new Error("Real Probe is only available inside the Electron app. Mock result was not used.");
   }
 
   return window.desktopApp.jiraProbe.run({

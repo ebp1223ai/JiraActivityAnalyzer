@@ -1,8 +1,8 @@
 # Jira Activity Analyzer
 
-First static desktop UI prototype for Jira Activity Analyzer / Activity Builder.
+First desktop UI prototype for Jira Activity Analyzer / Activity Builder.
 
-This is an Electron desktop app shell with a React renderer. The first version is mock UI only: no Jira API calls, database writes, token storage, backup restore, import, or export behavior is implemented.
+This is an Electron desktop app shell with a React renderer. The first version is a static UI prototype with one read-only Jira Probe diagnostics page. Import, database writes, token storage, backup restore, and export behavior are not implemented.
 
 ## Scripts
 
@@ -28,13 +28,22 @@ Build Time is shown in the sidebar and in Settings > System Status.
 `Jira 測試 / Jira Probe` is a read-only diagnostics page for checking whether one issue can provide enough Jira data to build activity events later.
 
 - Mock Mode uses safe sample data. No Jira request is sent, no token is used, and no database write is performed.
-- Real Probe requires Jira Base URL, Email / Username, API Token, and Issue Key.
+- Real Probe requires Jira Base URL, Email / Username, API Token, and Issue Key or ID.
+- Real Probe never falls back to mock data. If the Jira request fails, the page shows a real error state with failed/skipped endpoints.
+- API Version supports Auto Detect, Jira Cloud v3, and Jira Server/Data Center v2.
+- Auto Detect tries v3 first and can try v2 when v3 looks unavailable.
+- Auth Type supports Basic Auth and Bearer Token / Personal Access Token.
 - The API Token field is a password input and is never written to Debug Log, exported JSON, or console output.
 - Real Probe only sends read-only GET requests:
   - `GET /rest/api/3/myself`
   - `GET /rest/api/3/issue/{issueKey}`
   - `GET /rest/api/3/issue/{issueKey}/changelog`
   - `GET /rest/api/3/issue/{issueKey}/comment`
+  - `GET /rest/api/2/myself`
+  - `GET /rest/api/2/issue/{issueKey}`
+  - `GET /rest/api/2/issue/{issueKey}?expand=changelog`
+  - `GET /rest/api/2/issue/{issueKey}/comment`
+- Non-JSON responses such as login pages, SSO redirects, proxy pages, or HTML error pages are handled as readable probe errors instead of raw JSON parse failures.
 - It does not write to Jira.
 - It does not write to the production database.
 - Attachment file content is not downloaded; only metadata from the issue payload is shown.

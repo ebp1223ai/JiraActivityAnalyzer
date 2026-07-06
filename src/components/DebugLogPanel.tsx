@@ -5,12 +5,31 @@ type Props = {
   collapsed: boolean;
   onToggle: () => void;
   page: keyof typeof debugLogs;
+  extraLogs?: string[];
 };
 
-const levelFor = (index: number) => (index % 5 === 0 ? "INFO" : index % 3 === 0 ? "DEBUG" : "INFO");
+const levelFor = (line: string, index: number) => {
+  if (line.includes("[ERROR]")) return "ERROR";
+  if (line.includes("[WARN]")) return "WARN";
+  if (line.includes("[DEBUG]")) return "DEBUG";
+  return index % 3 === 0 ? "DEBUG" : "INFO";
+};
 
-export function DebugLogPanel({ collapsed, onToggle, page }: Props) {
-  const logs = debugLogs[page];
+const levelClass: Record<string, string> = {
+  ERROR: "bg-red-100 text-red-700",
+  WARN: "bg-amber-100 text-amber-700",
+  DEBUG: "bg-blue-100 text-blue-700",
+  INFO: "bg-green-100 text-green-700"
+};
+
+function timestampFor(index: number) {
+  const minutes = String(40 + Math.floor(index / 12)).padStart(2, "0");
+  const seconds = String(21 + (index % 12)).padStart(2, "0");
+  return `15:${minutes}:${seconds}.${120 + index}`;
+}
+
+export function DebugLogPanel({ collapsed, onToggle, page, extraLogs = [] }: Props) {
+  const logs = [...debugLogs[page], ...extraLogs];
 
   if (collapsed) {
     return (
@@ -66,13 +85,13 @@ export function DebugLogPanel({ collapsed, onToggle, page }: Props) {
       </div>
 
       <div className="thin-scroll mt-4 min-h-0 flex-1 overflow-auto rounded-lg border border-line p-3">
-        {logs.concat(logs.slice(0, 4)).map((log, index) => {
-          const level = levelFor(index);
+        {logs.map((log, index) => {
+          const level = levelFor(log, index);
           return (
             <div key={`${log}-${index}`} className="grid min-w-0 grid-cols-[82px_44px_minmax(0,1fr)] gap-2 py-2 text-xs">
-              <span className="font-mono text-slate-500" data-no-clip="true">15:4{index}:21.{120 + index}</span>
+              <span className="font-mono text-slate-500" data-no-clip="true">{timestampFor(index)}</span>
               <span
-                className={`h-fit rounded px-1.5 py-0.5 text-[10px] font-black ${level === "INFO" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}
+                className={`h-fit rounded px-1.5 py-0.5 text-[10px] font-black ${levelClass[level]}`}
                 data-no-clip="true"
               >
                 {level}
@@ -86,8 +105,8 @@ export function DebugLogPanel({ collapsed, onToggle, page }: Props) {
       <div className="mt-4 rounded-lg border border-line p-4 text-xs">
         <div className="mb-3 text-sm font-black text-ink" data-no-clip="true">Log Level 說明</div>
         <div className="space-y-2 font-semibold leading-snug text-muted">
-          <div><span className="text-red-500" data-no-clip="true">ERROR</span> 輸入或系統錯誤</div>
-          <div><span className="text-amber-500" data-no-clip="true">WARN</span> 潛在問題或非關鍵警告</div>
+          <div><span className="text-red-500" data-no-clip="true">ERROR</span> 輸入錯誤或系統錯誤，需立即處理</div>
+          <div><span className="text-amber-500" data-no-clip="true">WARN</span> 潛在問題或非阻斷警告</div>
           <div><span className="text-blue-600" data-no-clip="true">INFO</span> 一般資訊性訊息</div>
           <div><span className="text-slate-500" data-no-clip="true">DEBUG</span> 詳細除錯資訊</div>
         </div>
@@ -102,7 +121,7 @@ export function DebugLogPanel({ collapsed, onToggle, page }: Props) {
       </select>
 
       <div className="mt-5 flex min-w-0 items-center justify-between gap-3 text-sm font-black leading-snug text-ink">
-        <span data-no-clip="true">Auto Scroll<br /><span className="text-xs font-semibold text-muted">自動捲動至最新記錄</span></span>
+        <span data-no-clip="true">Auto Scroll<br /><span className="text-xs font-semibold text-muted">自動捲動到最新記錄</span></span>
         <span className="relative inline-flex h-6 w-11 shrink-0 rounded-full bg-blue-600 p-1"><span className="h-4 w-4 translate-x-5 rounded-full bg-white shadow" /></span>
       </div>
     </aside>

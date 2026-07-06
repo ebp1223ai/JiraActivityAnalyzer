@@ -2,6 +2,12 @@ export type JiraProbeDepth = "basic" | "standard" | "deep";
 
 export type JiraProbeStatus = "success" | "partial" | "forbidden" | "failed" | "skipped";
 
+export type JiraProbeRunState = "idle" | "loading" | "success" | "error";
+
+export type JiraProbeApiVersion = "auto" | "v3" | "v2";
+
+export type JiraProbeAuthType = "basic" | "bearer";
+
 export type JiraProbeConnection = {
   name: string;
   baseUrl: string;
@@ -14,6 +20,8 @@ export type JiraProbeRequest = {
   issueKey: string;
   depth: JiraProbeDepth;
   useMock: boolean;
+  apiVersion: JiraProbeApiVersion;
+  authType: JiraProbeAuthType;
 };
 
 export type JiraProbeEndpointResult = {
@@ -21,7 +29,7 @@ export type JiraProbeEndpointResult = {
   status: JiraProbeStatus;
   httpCode: number | "-";
   records: string;
-  usefulLevel: "High" | "Medium" | "Low";
+  usefulLevel: "High" | "Medium" | "Low" | "-";
   notes: string;
 };
 
@@ -54,8 +62,11 @@ export type JiraProbePreview = {
 
 export type JiraProbeResult = {
   mode: "mock" | "api";
+  status: "success" | "error";
   issueKey: string;
   depth: JiraProbeDepth;
+  apiVersion: "v3" | "v2" | "mock" | "unknown";
+  message?: string;
   summary: JiraProbeSummary;
   endpoints: JiraProbeEndpointResult[];
   eventEstimates: JiraProbeEventEstimate[];

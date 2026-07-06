@@ -10,6 +10,13 @@ const captureDir = process.env.ELECTRON_UI_CAPTURE_DIR
   ? path.resolve(process.env.ELECTRON_UI_CAPTURE_DIR)
   : path.resolve(process.cwd(), "test-artifacts/screenshots");
 
+if (isUiSmoke) {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch("disable-gpu");
+  app.commandLine.appendSwitch("disable-gpu-compositing");
+  app.setPath("userData", path.resolve(process.cwd(), "test-artifacts/electron-ui-profile"));
+}
+
 const uiRoutes = [
   { name: "dashboard", hash: "#/", title: "Dashboard" },
   { name: "connections", hash: "#/connections", title: "Connections" },
@@ -33,6 +40,8 @@ const debugStates = ["expanded", "collapsed"] as const;
 
 type ProbeDepth = "basic" | "standard" | "deep";
 type EndpointStatus = "success" | "partial" | "forbidden" | "failed" | "skipped";
+type ProbeApiVersion = "auto" | "v3" | "v2";
+type ProbeAuthType = "basic" | "bearer";
 
 type ProbeRequest = {
   connection: {
@@ -44,6 +53,18 @@ type ProbeRequest = {
   issueKey: string;
   depth: ProbeDepth;
   useMock: boolean;
+  apiVersion: ProbeApiVersion;
+  authType: ProbeAuthType;
+};
+
+type JiraHttpResult = {
+  ok: boolean;
+  status: number | "-";
+  contentType: string;
+  json: unknown | null;
+  errorType?: "HTTP_ERROR" | "NON_JSON_RESPONSE" | "INVALID_JSON" | "NETWORK_ERROR";
+  message?: string;
+  bodyPreview?: string;
 };
 
 function normalizeIssueKey(issueKey: string) {
@@ -70,28 +91,178 @@ function sanitizeRawJson(value: unknown): unknown {
   return value;
 }
 
-async function jiraGet(baseUrl: string, pathName: string, email: string, apiToken: string) {
+function messageForHttpStatus(status: number | "-") {
+  if (status === 401) return "Unauthorized. Check username/token/auth type.";
+  if (status === 403) return "Forbidden. Token is valid but lacks permission or issue/project access.";
+  if (status === 404) return "Issue or endpoint not found. Check Issue Key, Base URL, and API version.";
+  if (status === "-") return "Network error. Check VPN, proxy, certificate, and base URL.";
+  return `HTTP ${status} response received.`;
+}
+
+function sanitizeBodyPreview(value: string) {
+  return value
+    .replace(/Basic\s+[A-Za-z0-9+/=._-]+/gi, "Basic [masked]")
+    .replace(/Bearer\s+[A-Za-z0-9+/=._-]+/gi, "Bearer [masked]")
+    .replace(/token[=:]\s*[^&\s"'<>]+/gi, "token=[masked]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 300);
+}
+
+function authorizationHeader(email: string, apiToken: string, authType: ProbeAuthType) {
+  if (authType === "bearer") {
+    return `Bearer ${apiToken}`;
+  }
+  return `Basic ${Buffer.from(`${email}:${apiToken}`).toString("base64")}`;
+}
+
+async function jiraGet(baseUrl: string, pathName: string, email: string, apiToken: string, authType: ProbeAuthType): Promise<JiraHttpResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 18000);
   try {
-    const authorization = Buffer.from(`${email}:${apiToken}`).toString("base64");
     const response = await fetch(`${baseUrl}${pathName}`, {
       headers: {
         Accept: "application/json",
-        Authorization: `Basic ${authorization}`
+        Authorization: authorizationHeader(email, apiToken, authType)
       },
       signal: controller.signal
     });
+    const contentType = response.headers.get("content-type") ?? "";
     const text = await response.text();
-    const json = text ? JSON.parse(text) : null;
-    return { ok: response.ok, status: response.status, json };
+    const looksLikeHtml = /^\s*</.test(text) || /text\/html/i.test(contentType);
+    const isJson = /application\/json/i.test(contentType) || /^\s*[\[{]/.test(text);
+
+    if (looksLikeHtml || !isJson) {
+      return {
+        ok: false,
+        status: response.status,
+        contentType,
+        json: null,
+        errorType: "NON_JSON_RESPONSE",
+        message: "Expected JSON but received HTML. This may be a Jira login page, SSO redirect, proxy response, or wrong REST API path.",
+        bodyPreview: sanitizeBodyPreview(text)
+      };
+    }
+
+    try {
+      const json = text ? JSON.parse(text) : null;
+      return {
+        ok: response.ok,
+        status: response.status,
+        contentType,
+        json,
+        errorType: response.ok ? undefined : "HTTP_ERROR",
+        message: response.ok ? undefined : messageForHttpStatus(response.status),
+        bodyPreview: response.ok ? undefined : sanitizeBodyPreview(text)
+      };
+    } catch {
+      return {
+        ok: false,
+        status: response.status,
+        contentType,
+        json: null,
+        errorType: "INVALID_JSON",
+        message: "Expected JSON but received invalid JSON.",
+        bodyPreview: sanitizeBodyPreview(text)
+      };
+    }
+  } catch {
+    return {
+      ok: false,
+      status: "-",
+      contentType: "network-error",
+      json: null,
+      errorType: "NETWORK_ERROR",
+      message: "Network error. Check VPN, proxy, certificate, and base URL."
+    };
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function endpoint(endpoint: string, status: EndpointStatus, httpCode: number | "-", records: string, usefulLevel: "High" | "Medium" | "Low", notes: string) {
+function endpoint(endpoint: string, status: EndpointStatus, httpCode: number | "-", records: string, usefulLevel: "High" | "Medium" | "Low" | "-", notes: string) {
   return { endpoint, status, httpCode, records, usefulLevel, notes };
+}
+
+function statusFor(result: JiraHttpResult): EndpointStatus {
+  if (result.ok) return "success";
+  if (result.status === 403) return "forbidden";
+  return "failed";
+}
+
+function noteFor(result: JiraHttpResult, successNote: string) {
+  return result.ok ? successNote : result.message ?? messageForHttpStatus(result.status);
+}
+
+function appendResponseLog(debugLogs: string[], result: JiraHttpResult) {
+  debugLogs.push(`[DEBUG] Response status: ${result.status}`);
+  debugLogs.push(`[DEBUG] Content-Type: ${result.contentType || "unknown"}`);
+  if (result.errorType === "NON_JSON_RESPONSE") {
+    debugLogs.push("[ERROR] Expected JSON but received HTML");
+    debugLogs.push("[ERROR] Possible causes: login page, SSO redirect, wrong API path, auth failed, proxy error");
+  } else if (result.errorType === "NETWORK_ERROR") {
+    debugLogs.push(`[ERROR] ${result.message}`);
+  } else if (result.message && !result.ok) {
+    debugLogs.push(`[ERROR] ${result.message}`);
+  }
+  if (result.bodyPreview) {
+    debugLogs.push(`[DEBUG] Body preview: ${result.bodyPreview}`);
+  }
+}
+
+function emptySummary() {
+  return {
+    coverageScore: 0,
+    issueFields: 0,
+    changelogHistories: 0,
+    changeItems: 0,
+    comments: 0,
+    attachments: 0,
+    issueLinks: 0,
+    usersDetected: 0,
+    estimatedActivityEvents: 0,
+    permissionGaps: 1
+  };
+}
+
+function createErrorResult(request: ProbeRequest, selectedApiVersion: "v3" | "v2" | "unknown", message: string, endpoints: ReturnType<typeof endpoint>[], debugLogs: string[], rawJson: Record<string, unknown> = {}) {
+  return {
+    mode: "api",
+    status: "error",
+    issueKey: normalizeIssueKey(request.issueKey),
+    depth: request.depth,
+    apiVersion: selectedApiVersion,
+    message,
+    summary: emptySummary(),
+    endpoints,
+    eventEstimates: [
+      { type: "issue_created", count: 0 },
+      { type: "field_changed", count: 0 },
+      { type: "status_changed", count: 0 },
+      { type: "assignee_changed", count: 0 },
+      { type: "comment_created", count: 0 },
+      { type: "comment_updated", count: 0 },
+      { type: "attachment_added", count: 0 },
+      { type: "issue_link_observed", count: 0 },
+      { type: "worklog_added", count: 0 }
+    ],
+    preview: {
+      issueFields: [["Error", message]],
+      changelog: [],
+      comments: [],
+      attachments: [],
+      links: [],
+      rawJson: sanitizeRawJson(rawJson) as Record<string, unknown>
+    },
+    hints: [
+      message,
+      "Real Probe did not fall back to mock data.",
+      "No database write performed.",
+      "Check Base URL, API version, auth type, token, VPN/proxy, and issue access."
+    ],
+    debugLogs,
+    rawJsonEnabled: false
+  };
 }
 
 async function runApiProbe(request: ProbeRequest) {
@@ -99,50 +270,129 @@ async function runApiProbe(request: ProbeRequest) {
   const issueKey = normalizeIssueKey(request.issueKey);
   const email = request.connection.email.trim();
   const apiToken = request.connection.apiToken;
-  const endpoints = [];
+  const authType = request.authType ?? "basic";
+  const endpoints: ReturnType<typeof endpoint>[] = [];
+  const runId = new Date().toISOString();
   const debugLogs = [
-    "[INFO] Initialize Jira Probe page",
+    "[INFO] Run Probe started",
+    `[INFO] Run ID: ${runId}`,
     `[INFO] Selected connection: ${request.connection.name || "Custom Jira Cloud"}`,
-    "[INFO] Running read-only Jira Probe",
+    "[INFO] Mode: Real read-only probe",
     "[INFO] Token: [masked]",
     "[INFO] Authorization: [masked]",
+    "[INFO] Auth: [masked]",
+    `[INFO] Base URL: ${baseUrl || "(empty)"}`,
+    `[INFO] API Version: ${request.apiVersion ?? "auto"}`,
+    `[INFO] Auth Type: ${authType === "bearer" ? "Bearer Token / Personal Access Token" : "Basic Auth"}`,
+    `[INFO] Issue Key: ${issueKey || "(empty)"}`,
     "[INFO] No database write performed",
-    `[INFO] Running probe for ${issueKey}`
+    `[INFO] Running probe for ${issueKey || "(empty)"}`
   ];
 
   if (!baseUrl || !email || !apiToken || !issueKey) {
-    throw new Error("Base URL, email, token, and issue key are required.");
+    const missing = [
+      !baseUrl ? "Jira Base URL" : "",
+      !email ? "Email / Username" : "",
+      !apiToken ? "API Token" : "",
+      !issueKey ? "Issue Key or ID" : ""
+    ].filter(Boolean).join(", ");
+    const message = `Missing required Real Probe fields: ${missing}. Mock result was not used.`;
+    debugLogs.push(`[ERROR] ${message}`);
+    return createErrorResult(request, "unknown", message, [
+      endpoint("Get Myself", "skipped", "-", "0", "-", "Skipped because required fields are missing"),
+      endpoint("Get Issue", "skipped", "-", "0", "-", "Skipped because required fields are missing"),
+      endpoint("Changelog", "skipped", "-", "0", "-", "Skipped because required fields are missing"),
+      endpoint("Comments", "skipped", "-", "0", "-", "Skipped because required fields are missing")
+    ], debugLogs);
   }
 
-  debugLogs.push("[DEBUG] GET /rest/api/3/myself");
-  const myself = await jiraGet(baseUrl, "/rest/api/3/myself", email, apiToken);
-  endpoints.push(endpoint("Get Myself", myself.ok ? "success" : myself.status === 403 ? "forbidden" : "failed", myself.status, myself.ok ? "1" : "0", "High", myself.ok ? "Token can resolve current user" : "Authentication or permission failed"));
+  let selectedApiVersion: "v3" | "v2" = request.apiVersion === "v2" ? "v2" : "v3";
+  let apiPrefix = selectedApiVersion === "v2" ? "/rest/api/2" : "/rest/api/3";
 
-  debugLogs.push(`[DEBUG] GET /rest/api/3/issue/${issueKey}`);
-  const issue = await jiraGet(baseUrl, `/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=*all&expand=names,schema,renderedFields`, email, apiToken);
-  endpoints.push(endpoint("Get Issue", issue.ok ? "success" : issue.status === 403 ? "forbidden" : "failed", issue.status, issue.ok ? "1" : "0", "High", issue.ok ? "Basic fields available" : "Issue not found or not readable"));
+  debugLogs.push(`[DEBUG] GET ${apiPrefix}/myself`);
+  let myself = await jiraGet(baseUrl, `${apiPrefix}/myself`, email, apiToken, authType);
+  appendResponseLog(debugLogs, myself);
+
+  if ((request.apiVersion ?? "auto") === "auto" && !myself.ok && (myself.status === 404 || myself.errorType === "NON_JSON_RESPONSE")) {
+    debugLogs.push("[INFO] API v3 failed, trying v2");
+    selectedApiVersion = "v2";
+    apiPrefix = "/rest/api/2";
+    debugLogs.push(`[DEBUG] GET ${apiPrefix}/myself`);
+    myself = await jiraGet(baseUrl, `${apiPrefix}/myself`, email, apiToken, authType);
+    appendResponseLog(debugLogs, myself);
+  }
+
+  debugLogs.push(`[INFO] API ${selectedApiVersion} selected`);
+  endpoints.push(endpoint("Get Myself", statusFor(myself), myself.status, myself.ok ? "1" : "0", myself.ok ? "High" : "Low", noteFor(myself, "Authenticated")));
+
+  if (!myself.ok) {
+    endpoints.push(endpoint("Get Issue", "skipped", "-", "0", "-", "Skipped because auth failed"));
+    endpoints.push(endpoint("Changelog", "skipped", "-", "0", "-", "Skipped because auth failed"));
+    endpoints.push(endpoint("Comments", "skipped", "-", "0", "-", "Skipped because auth failed"));
+    endpoints.push(endpoint("Attachments", "skipped", "-", "0", "-", "Skipped because auth failed"));
+    endpoints.push(endpoint("Issue Links", "skipped", "-", "0", "-", "Skipped because auth failed"));
+    endpoints.push(endpoint("Worklog", "skipped", "-", "0", "-", "No worklog request is sent by Jira Probe"));
+    return createErrorResult(request, selectedApiVersion, myself.message ?? "Authentication failed.", endpoints, debugLogs, { myself });
+  }
+
+  const issueExpand = selectedApiVersion === "v2" ? "names,schema,renderedFields,changelog" : "names,schema,renderedFields";
+  debugLogs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}`);
+  const issue = await jiraGet(baseUrl, `${apiPrefix}/issue/${encodeURIComponent(issueKey)}?fields=*all&expand=${issueExpand}`, email, apiToken, authType);
+  appendResponseLog(debugLogs, issue);
+  endpoints.push(endpoint("Get Issue", statusFor(issue), issue.status, issue.ok ? "1" : "0", issue.ok ? "High" : "Low", noteFor(issue, "Basic fields available")));
+
+  if (!issue.ok) {
+    endpoints.push(endpoint("Changelog", "skipped", "-", "0", "-", "Skipped because issue failed"));
+    endpoints.push(endpoint("Comments", "skipped", "-", "0", "-", "Skipped because issue failed"));
+    endpoints.push(endpoint("Attachments", "skipped", "-", "0", "-", "Skipped because issue failed"));
+    endpoints.push(endpoint("Issue Links", "skipped", "-", "0", "-", "Skipped because issue failed"));
+    endpoints.push(endpoint("Worklog", "skipped", "-", "0", "-", "No worklog request is sent by Jira Probe"));
+    return createErrorResult(request, selectedApiVersion, issue.message ?? "Issue lookup failed.", endpoints, debugLogs, { myself: myself.json, issue });
+  }
 
   const fields = issue.ok && issue.json && typeof issue.json === "object" ? (issue.json as { fields?: Record<string, unknown> }).fields ?? {} : {};
   const attachments = Array.isArray(fields.attachment) ? fields.attachment : [];
   const links = Array.isArray(fields.issuelinks) ? fields.issuelinks : [];
+  const expandedChangelog = issue.json && typeof issue.json === "object" ? (issue.json as { changelog?: { histories?: Array<{ items?: unknown[] }> } }).changelog : undefined;
   let changelogTotal = 0;
   let changelogItems = 0;
   let commentCount = 0;
   const worklogCount = 0;
 
-  let changelog: Awaited<ReturnType<typeof jiraGet>> | null = null;
+  let changelog: JiraHttpResult | null = null;
   if (request.depth !== "basic") {
-    debugLogs.push(`[DEBUG] GET /rest/api/3/issue/${issueKey}/changelog`);
-    changelog = await jiraGet(baseUrl, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/changelog?maxResults=100`, email, apiToken);
-    const values = changelog.ok && changelog.json && typeof changelog.json === "object" && Array.isArray((changelog.json as { values?: unknown[] }).values) ? (changelog.json as { values: Array<{ items?: unknown[] }> }).values : [];
+    if (selectedApiVersion === "v2") {
+      debugLogs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}?expand=changelog`);
+      debugLogs.push("[DEBUG] Response status: 200");
+      debugLogs.push("[DEBUG] Content-Type: application/json");
+      const histories = Array.isArray(expandedChangelog?.histories) ? expandedChangelog.histories : [];
+      changelog = {
+        ok: true,
+        status: 200,
+        contentType: "application/json",
+        json: { values: histories, total: histories.length }
+      };
+    } else {
+      debugLogs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}/changelog`);
+      changelog = await jiraGet(baseUrl, `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/changelog?maxResults=100`, email, apiToken, authType);
+      appendResponseLog(debugLogs, changelog);
+    }
+    const values = changelog.ok && changelog.json && typeof changelog.json === "object"
+      ? Array.isArray((changelog.json as { values?: unknown[] }).values)
+        ? (changelog.json as { values: Array<{ items?: unknown[] }> }).values
+        : Array.isArray((changelog.json as { histories?: unknown[] }).histories)
+          ? (changelog.json as { histories: Array<{ items?: unknown[] }> }).histories
+          : []
+      : [];
     changelogTotal = values.length;
     changelogItems = values.reduce((total, history) => total + (Array.isArray(history.items) ? history.items.length : 0), 0);
-    endpoints.push(endpoint("Changelog", changelog.ok ? "success" : changelog.status === 403 ? "forbidden" : "failed", changelog.status, `${changelogTotal} histories / ${changelogItems} items`, "High", changelog.ok ? "Can build field_changed events" : "Changelog unavailable"));
+    endpoints.push(endpoint("Changelog", statusFor(changelog), changelog.status, `${changelogTotal} histories / ${changelogItems} items`, changelog.ok ? "High" : "Low", noteFor(changelog, "Can build field_changed events")));
 
-    debugLogs.push(`[DEBUG] GET /rest/api/3/issue/${issueKey}/comment`);
-    const comments = await jiraGet(baseUrl, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment?maxResults=100`, email, apiToken);
+    debugLogs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}/comment`);
+    const comments = await jiraGet(baseUrl, `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?maxResults=100`, email, apiToken, authType);
+    appendResponseLog(debugLogs, comments);
     commentCount = comments.ok && comments.json && typeof comments.json === "object" && Array.isArray((comments.json as { comments?: unknown[] }).comments) ? (comments.json as { comments: unknown[] }).comments.length : 0;
-    endpoints.push(endpoint("Comments", comments.ok ? "success" : comments.status === 403 ? "forbidden" : "failed", comments.status, String(commentCount), "High", comments.ok ? "Can build comment events" : "Comments unavailable"));
+    endpoints.push(endpoint("Comments", statusFor(comments), comments.status, String(commentCount), comments.ok ? "High" : "Low", noteFor(comments, "Can build comment events")));
   } else {
     endpoints.push(endpoint("Changelog", "skipped", "-", "0", "High", "Skipped in Basic mode"));
     endpoints.push(endpoint("Comments", "skipped", "-", "0", "High", "Skipped in Basic mode"));
@@ -159,12 +409,15 @@ async function runApiProbe(request: ProbeRequest) {
   const permissionGaps = endpoints.filter((item) => item.status === "forbidden" || item.status === "failed").length;
   const coverageScore = Math.max(0, Math.min(100, 40 + (changelogItems > 0 ? 25 : 0) + (commentCount > 0 ? 10 : 0) + (attachments.length > 0 ? 5 : 0) + (links.length > 0 ? 5 : 0) - permissionGaps * 10));
 
-  debugLogs.push(`[SUCCESS] Probe completed. Coverage Score: ${coverageScore}%`);
+  debugLogs.push(`[SUCCESS] Real Probe completed. Coverage Score: ${coverageScore}%`);
 
   return {
     mode: "api",
+    status: permissionGaps > 0 ? "error" : "success",
     issueKey,
     depth: request.depth,
+    apiVersion: selectedApiVersion,
+    message: permissionGaps > 0 ? "Real Probe completed with endpoint errors. Mock data was not used." : "Real Probe completed with read-only Jira data.",
     summary: {
       coverageScore,
       issueFields: Object.keys(fields).length,
