@@ -3,6 +3,7 @@ import { DataTable } from "../components/DataTable";
 import { Chip, FieldLabel } from "../components/FormControls";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
+import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 
@@ -25,13 +26,13 @@ export function ConnectionsPage() {
         </div>
       </SectionCard>
       <SectionCard className="mt-4" title="連線狀態" subtitle="Connection Status">
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+        <ResponsiveMetricGrid min={180}>
           <MetricCard label="已驗證使用者" sub="Authenticated User" value="alpha.platform" icon={UserCheck} tone="bg-green-50 text-green-600" />
           <MetricCard label="可存取專案數" sub="Accessible Projects" value="48" icon={FolderOpen} />
           <MetricCard label="權杖範圍" sub="Token Scope" value="read:jira" icon={ShieldCheck} tone="bg-violet-50 text-violet-600" />
           <MetricCard label="上次測試時間" sub="Last Tested" value="15:43:21" icon={KeyRound} tone="bg-amber-50 text-amber-600" />
           <MetricCard label="API 版本" sub="Api Version" value="3" icon={Database} tone="bg-cyan-50 text-cyan-600" />
-        </div>
+        </ResponsiveMetricGrid>
       </SectionCard>
       <SectionCard className="mt-4" title="已儲存連線" subtitle="Saved Connections" action={<button className="btn">+ 新增連線 Add Connection</button>}>
         <DataTable

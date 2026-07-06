@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { DebugLogPanel } from "./DebugLogPanel";
 import { Sidebar } from "./Sidebar";
@@ -18,6 +18,7 @@ export function AppLayout() {
   const { pathname } = useLocation();
   const page = pageByPath[pathname] ?? "dashboard";
   const mainRef = useRef<HTMLElement>(null);
+  const [debugCollapsed, setDebugCollapsed] = useState(false);
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0 });
@@ -31,7 +32,7 @@ export function AppLayout() {
           <Outlet />
         </div>
       </main>
-      <DebugLogPanel page={page} />
+      <DebugLogPanel collapsed={debugCollapsed} onToggle={() => setDebugCollapsed((value) => !value)} page={page} />
     </div>
   );
 }

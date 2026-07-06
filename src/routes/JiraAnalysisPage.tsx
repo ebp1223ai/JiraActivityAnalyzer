@@ -3,6 +3,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recha
 import { DataTable } from "../components/DataTable";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
+import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { jiraLifecycle, metricIcons } from "../data/mockData";
@@ -20,9 +21,9 @@ export function JiraAnalysisPage() {
           <div className="space-y-3 text-sm font-semibold"><div><b>Created</b><br />2026-07-01 10:12:34</div><div><b>Updated</b><br />2026-07-03 15:42:18</div><div><b>Labels</b><br />integration, sync, bug, data</div><div><b>Linked Issues</b><br />5</div></div>
         </div>
       </SectionCard>
-      <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <ResponsiveMetricGrid min={210} className="mt-3">
         {[["Total Events", "事件總數", "412", Activity], ["Participants", "參與人數", "26", Users], ["Comments", "留言數", "68", MessageSquare], ["Attachments", "附件數", "15", Paperclip], ["Status Changes", "狀態變更次數", "18", GitBranch], ["Lead Time", "整體處理時間", "2d 04h 21m", Clock]].map(([a,b,c,d]) => <MetricCard key={a as string} label={a as string} sub={b as string} value={c as string} icon={d as typeof Activity} />)}
-      </div>
+      </ResponsiveMetricGrid>
       <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
         <SectionCard title="Lifecycle Analysis" subtitle="處理生命週期"><DataTable headers={["Stage", "Time", "Duration"]} rows={jiraLifecycle} /><div className="mt-3 text-right font-black text-blue-600">Lead Time 2d 04h 21m</div></SectionCard>
         <SectionCard title="Participants Contribution" subtitle="參與者貢獻"><DataTable headers={["Participant", "Events", "% of Total"]} rows={[["Alice Chen","102","24.8%"],["Bob Lin","78","18.9%"],["Charlie Wu","64","15.5%"],["Daisy Huang","48","11.7%"],["Others","84","20.4%"]]} /></SectionCard>

@@ -12,7 +12,7 @@ export function SectionCard({ title, subtitle, action, children, className = "" 
       {(title || action) && (
         <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3">
           {title ? (
-            <h2 className="min-w-0 max-w-full truncate text-base font-black text-ink" title={`${title}${subtitle ? ` / ${subtitle}` : ""}`}>
+            <h2 className="min-w-0 max-w-full text-base font-black leading-snug text-ink" data-no-clip="true">
               {title}
               {subtitle ? <span className="text-slate-300"> / </span> : null}
               {subtitle ? <span>{subtitle}</span> : null}

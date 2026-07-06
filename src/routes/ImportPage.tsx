@@ -3,6 +3,7 @@ import { DataTable } from "../components/DataTable";
 import { Chip, FieldLabel } from "../components/FormControls";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
+import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { db, previewIssues } from "../data/mockData";
@@ -89,12 +90,12 @@ export function ImportPage() {
       <SectionCard className="mt-4" title="預覽結果" subtitle="Issue Preview">
         <DataTable headers={["Issue Key", "Summary", "Updated", "Creator", "Assignee", "Matched Users", "Estimated Events"]} rows={previewIssues} />
       </SectionCard>
-      <div className="mt-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
+      <ResponsiveMetricGrid min={190} className="mt-4">
         {["匹配成功的 Issue|2,184|98.2%", "預估事件數|56,812|", "使用者|1,287|匹配成功", "專案|48|匹配成功", "已存在於 DB|12,345|", "新事件數|44,467|78.2%", "將跳過的重複事件|10,123|17.8%"].map((m) => {
           const [a, b, c] = m.split("|");
           return <MetricCard key={a} label={a} value={b} sub={c} icon={Database} />;
         })}
-      </div>
+      </ResponsiveMetricGrid>
     </div>
   );
 }

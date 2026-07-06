@@ -21,12 +21,14 @@ const uiRoutes = [
 ];
 
 const uiViewports = [
-  { width: 1280, height: 720, capture: false },
+  { width: 1024, height: 768, capture: true },
+  { width: 1280, height: 720, capture: true },
   { width: 1366, height: 768, capture: true },
-  { width: 1440, height: 900, capture: false },
   { width: 1600, height: 900, capture: true },
   { width: 1920, height: 1080, capture: true }
 ];
+
+const debugStates = ["expanded", "collapsed"] as const;
 
 function getRendererEntry() {
   return path.join(__dirname, "../dist/index.html");
@@ -48,12 +50,26 @@ async function runUiSmoke(window: BrowserWindow) {
     window.setSize(viewport.width, viewport.height, false);
     await wait(250);
 
-    for (const route of uiRoutes) {
-      await window.webContents.executeJavaScript(`window.location.hash = ${JSON.stringify(route.hash)};`);
-      await wait(350);
-
-      const audit = await window.webContents.executeJavaScript(`
+    for (const debugState of debugStates) {
+      await window.webContents.executeJavaScript(`
         (() => {
+          const desired = ${JSON.stringify(debugState)};
+          const panel = document.querySelector("[data-debug-panel-state]");
+          if (panel && panel.getAttribute("data-debug-panel-state") !== desired) {
+            const button = panel.querySelector("button");
+            if (button) button.click();
+          }
+        })()
+      `);
+      await wait(250);
+
+      for (const route of uiRoutes) {
+        await window.webContents.executeJavaScript(`window.location.hash = ${JSON.stringify(route.hash)};`);
+        await wait(350);
+
+        const audit = await window.webContents.executeJavaScript(`
+        (() => {
+          const tolerance = 2;
           const vw = document.documentElement.clientWidth;
           const rootOverflow = document.documentElement.scrollWidth - document.documentElement.clientWidth;
           const bodyOverflow = document.body.scrollWidth - document.body.clientWidth;
@@ -74,6 +90,41 @@ async function runUiSmoke(window: BrowserWindow) {
             }
             if (offenders.length >= 8) break;
           }
+          const clippingTargets = Array.from(document.querySelectorAll([
+            "[data-no-clip='true']",
+            "[data-ui='metric-card'] [data-no-clip='true']",
+            "button",
+            ".btn",
+            ".chip",
+            "nav a span",
+            "[data-debug-panel-state] label"
+          ].join(",")));
+          const clipping = [];
+          for (const el of clippingTargets) {
+            if (el.closest("[data-allow-truncate='true']") || el.getAttribute("data-allow-truncate") === "true") continue;
+            if (el.classList && el.classList.contains("sr-only")) continue;
+            const rect = el.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) continue;
+            const overflowX = el.scrollWidth - el.clientWidth;
+            const overflowY = el.scrollHeight - el.clientHeight;
+            if (overflowX > tolerance || overflowY > tolerance) {
+              clipping.push({
+                tag: el.tagName.toLowerCase(),
+                attr: el.getAttribute("data-no-clip") === "true" ? "data-no-clip" : "",
+                className: String(el.className || "").slice(0, 120),
+                text: String(el.textContent || "").replace(/\\s+/g, " ").trim().slice(0, 100),
+                overflowX,
+                overflowY,
+                clientWidth: el.clientWidth,
+                scrollWidth: el.scrollWidth,
+                clientHeight: el.clientHeight,
+                scrollHeight: el.scrollHeight
+              });
+            }
+            if (clipping.length >= 12) break;
+          }
+          const noClipCount = document.querySelectorAll("[data-no-clip='true']").length;
+          const allowTruncateCount = document.querySelectorAll("[data-allow-truncate='true']").length;
           return {
             hash: window.location.hash,
             rootOverflow,
@@ -82,32 +133,43 @@ async function runUiSmoke(window: BrowserWindow) {
             hasDebugLog: bodyText.includes("Debug Log"),
             hasBuildTime: bodyText.includes("Build Time"),
             hasTitle: bodyText.includes(${JSON.stringify(route.title)}),
+            debugState: document.querySelector("[data-debug-panel-state]")?.getAttribute("data-debug-panel-state"),
+            clipping,
+            noClipCount,
+            allowTruncateCount,
             offenders
           };
         })()
       `);
 
-      const context = `${viewport.width}x${viewport.height} ${route.name}`;
-      if (audit.rootOverflow > 1 || audit.bodyOverflow > 1) {
-        failures.push(`${context}: global horizontal overflow root=${audit.rootOverflow}, body=${audit.bodyOverflow}, offenders=${JSON.stringify(audit.offenders)}`);
-      }
-      if (!audit.hasSidebar) {
-        failures.push(`${context}: sidebar text not found`);
-      }
-      if (!audit.hasDebugLog) {
-        failures.push(`${context}: debug log panel not found`);
-      }
-      if (!audit.hasBuildTime) {
-        failures.push(`${context}: Build Time not found`);
-      }
-      if (!audit.hasTitle) {
-        failures.push(`${context}: page title ${route.title} not found`);
-      }
+        const context = `${viewport.width}x${viewport.height} ${debugState} ${route.name}`;
+        if (audit.rootOverflow > 1 || audit.bodyOverflow > 1) {
+          failures.push(`${context}: global horizontal overflow root=${audit.rootOverflow}, body=${audit.bodyOverflow}, offenders=${JSON.stringify(audit.offenders)}`);
+        }
+        if (audit.debugState !== debugState) {
+          failures.push(`${context}: expected debug panel ${debugState}, got ${audit.debugState}`);
+        }
+        if (!audit.hasSidebar) {
+          failures.push(`${context}: sidebar text not found`);
+        }
+        if (debugState === "expanded" && !audit.hasDebugLog) {
+          failures.push(`${context}: debug log panel not found`);
+        }
+        if (!audit.hasBuildTime) {
+          failures.push(`${context}: Build Time not found`);
+        }
+        if (!audit.hasTitle) {
+          failures.push(`${context}: page title ${route.title} not found`);
+        }
+        if (audit.clipping.length > 0) {
+          failures.push(`${context}: internal clipping detected ${JSON.stringify(audit.clipping)}`);
+        }
 
-      if (shouldCaptureUi && viewport.capture) {
-        const image = await window.capturePage();
-        const filename = `${viewport.width}x${viewport.height}-${route.name}.png`;
-        fs.writeFileSync(path.join(captureDir, filename), image.toPNG());
+        if (shouldCaptureUi && viewport.capture) {
+          const image = await window.capturePage();
+          const filename = `${viewport.width}x${viewport.height}-${debugState}-${route.name}.png`;
+          fs.writeFileSync(path.join(captureDir, filename), image.toPNG());
+        }
       }
     }
   }
@@ -129,8 +191,8 @@ function createMainWindow() {
   const window = new BrowserWindow({
     width: 1440,
     height: 920,
-    minWidth: 1180,
-    minHeight: 760,
+    minWidth: 960,
+    minHeight: 680,
     title: "Jira Activity Analyzer",
     backgroundColor: "#f6f9fd",
     show: !isUiSmoke,

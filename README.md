@@ -32,6 +32,8 @@ The smoke test checks:
 - all seven routes load
 - sidebar, Debug Log, page title, and Build Time are visible
 - `documentElement` and `body` have no global horizontal overflow
+- important `data-no-clip` UI such as metric values, status badges, buttons, nav labels, and Debug Log labels are not internally clipped
+- both Debug Log expanded and collapsed states work across `1024x768`, `1280x720`, `1366x768`, `1600x900`, and `1920x1080`
 - screenshots are generated only when `npm run capture:ui` is used
 
 ## Electron Security

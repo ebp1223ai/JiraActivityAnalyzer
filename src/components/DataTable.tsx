@@ -1,3 +1,5 @@
+import { ResponsiveTableContainer } from "./Responsive";
+
 type Props = {
   headers: string[];
   rows: Array<Array<React.ReactNode>>;
@@ -24,16 +26,16 @@ export function DataTable({ headers, rows }: Props) {
   const minWidth = Math.max(720, headers.length * 132);
 
   return (
-    <div className="thin-scroll min-w-0 max-w-full overflow-x-auto overflow-y-hidden rounded-lg border border-line">
+    <ResponsiveTableContainer>
       <table className="table min-w-full" style={{ minWidth }}>
         <thead>
-          <tr>{headers.map((header) => <th key={header} title={header}>{header}</th>)}</tr>
+          <tr>{headers.map((header) => <th key={header} title={header} data-allow-truncate="true">{header}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((row, index) => (
             <tr key={index}>
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} title={getCellTitle(cell)}>
+                <td key={cellIndex} title={getCellTitle(cell)} data-allow-truncate={getCellTitle(cell) ? "true" : undefined}>
                   {renderCell(cell)}
                 </td>
               ))}
@@ -41,6 +43,6 @@ export function DataTable({ headers, rows }: Props) {
           ))}
         </tbody>
       </table>
-    </div>
+    </ResponsiveTableContainer>
   );
 }

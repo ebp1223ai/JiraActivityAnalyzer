@@ -60,7 +60,7 @@ canvas {
   box-shadow: 0 12px 34px rgba(20, 40, 80, 0.05);
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .field {
@@ -73,8 +73,6 @@ canvas {
   padding: 0.72rem 0.85rem;
   color: #14213d;
   outline: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .field:focus {
@@ -94,9 +92,8 @@ canvas {
   padding: 0.32rem 0.55rem;
   font-size: 0.78rem;
   font-weight: 700;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .btn {
@@ -111,19 +108,17 @@ canvas {
   padding: 0.68rem 0.9rem;
   font-size: 0.86rem;
   font-weight: 800;
-  white-space: nowrap;
+  white-space: normal;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
   line-height: 1.15;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .btn > span,
 .chip > span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .btn-primary {

@@ -19,7 +19,9 @@ export function Sidebar() {
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
           <BarChart3 size={22} />
         </span>
-        <div className="min-w-0 truncate text-lg font-black text-ink" title="Activity Builder">Activity Builder</div>
+        <div className="min-w-0 truncate text-lg font-black text-ink" data-allow-truncate="true" title="Activity Builder">
+          Activity Builder
+        </div>
       </div>
       <nav className="thin-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
         {items.map(({ to, label, sub, icon: Icon }) => (
@@ -27,11 +29,11 @@ export function Sidebar() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex min-w-0 items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold transition ${isActive ? "bg-blue-50 text-blue-700" : "text-ink hover:bg-slate-50"}`
+              `flex min-w-0 items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold leading-snug transition ${isActive ? "bg-blue-50 text-blue-700" : "text-ink hover:bg-slate-50"}`
             }
           >
             <Icon className="shrink-0" size={21} />
-            <span className="min-w-0 truncate">
+            <span className="min-w-0" data-no-clip="true">
               {label}
               <br />
               <span className="text-xs font-semibold">{sub}</span>
@@ -41,9 +43,9 @@ export function Sidebar() {
       </nav>
       <div className="border-t border-line px-4 py-5">
         <BuildInfo />
-        <button className="mt-5 flex items-center gap-2 text-sm font-black text-muted">
+        <button className="mt-5 flex max-w-full items-center gap-2 text-sm font-black leading-snug text-muted" data-no-clip="true">
           <Activity size={18} />
-          收合選單
+          <span>收合選單</span>
         </button>
       </div>
     </aside>

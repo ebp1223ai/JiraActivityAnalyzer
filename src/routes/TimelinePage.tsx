@@ -3,6 +3,7 @@ import { DataTable } from "../components/DataTable";
 import { Chip, FieldLabel } from "../components/FormControls";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
+import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { metricIcons, timelineEvents } from "../data/mockData";
 
@@ -47,7 +48,7 @@ export function TimelinePage() {
           查詢規則：若未指定 Issue Key，請至少選擇一位使用者。指定有效 Issue Key 時，Users 可留空，Project 會自動以 Issue Key 推導為 Auto Project。
         </div>
       </SectionCard>
-      <div className="mt-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
+      <ResponsiveMetricGrid min={190} className="mt-4">
         {[
           ["總事件數", "Total Events", "1,248", Activity],
           ["Issue 數", "Issues", "236", FileText],
@@ -56,7 +57,7 @@ export function TimelinePage() {
           ["附件數", "Attachments", "143", Paperclip],
           ["狀態變更數", "Status Changes", "196", GitBranch]
         ].map(([a, b, c, d]) => <MetricCard key={a as string} label={a as string} sub={b as string} value={c as string} icon={d as typeof Activity} />)}
-      </div>
+      </ResponsiveMetricGrid>
       <SectionCard
         className="mt-4"
         title="活動事件"

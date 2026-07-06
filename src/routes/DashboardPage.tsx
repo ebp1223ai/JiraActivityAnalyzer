@@ -5,6 +5,7 @@ import { DataTable } from "../components/DataTable";
 import { MockModal } from "../components/FormControls";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
+import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { buildInfo } from "../buildInfo";
@@ -30,7 +31,7 @@ export function DashboardPage() {
   return (
     <div className="min-w-0">
       <PageHeader title="總覽" subtitle="Dashboard" />
-      <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3">
+      <ResponsiveMetricGrid min={220}>
         <MetricCard label="最後同步時間" sub="Last Sync Time" value="2026/07/03 15:43:21" icon={RefreshCw} />
         <MetricCard label="連線狀態" sub="Connection Status" value="已連線" icon={Activity} tone="bg-green-50 text-green-600" />
         <div className="card p-4">
@@ -66,8 +67,8 @@ export function DashboardPage() {
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full w-[34%] bg-green-500" /></div>
           <div className="mt-2 text-sm font-semibold text-muted">使用中 {db.size} / {db.capacity} (34.2%)</div>
         </div>
-      </div>
-      <div className="mt-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
+      </ResponsiveMetricGrid>
+      <ResponsiveMetricGrid min={200} className="mt-3">
         {[
           ["總事件數", "Total Events", "1.25M", Activity],
           ["匯入 Issue 數", "Imported Issues", "356,892", Database],
@@ -78,7 +79,7 @@ export function DashboardPage() {
         ].map(([label, sub, value, icon]) => (
           <MetricCard key={label as string} label={label as string} sub={sub as string} value={value as string} icon={icon as typeof Activity} />
         ))}
-      </div>
+      </ResponsiveMetricGrid>
       <div className="mt-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,360px),1fr))] gap-3">
         <SectionCard title="活動趨勢" subtitle="Activity Trend" action={<select className="field w-28"><option>Daily</option></select>}>
           <div className="h-56 min-w-0">
@@ -124,12 +125,12 @@ export function DashboardPage() {
           <DataTable headers={["開始時間", "狀態", "事件", "新增", "略過", "失敗", "時間"]} rows={syncRuns.map((r) => [r[0], <StatusBadge key={r[0]}>成功</StatusBadge>, ...r.slice(2)])} />
         </SectionCard>
         <SectionCard title="系統健康狀態" subtitle="System Health">
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
+            <ResponsiveMetricGrid min={150}>
             {["Pending Jobs|3", "Avg Import Duration|00:02:08", "Last Successful Import|2026/07/03 15:43:21", "Index Size|68.4 GB", "Recent Warnings|0", "Last Backup Time|2026/07/03 15:42:18"].map((item) => {
               const [a, b] = item.split("|");
               return <div key={a} className="rounded-lg border border-line p-4 text-center"><div className="text-xs font-bold text-muted">{a}</div><div className="mt-2 text-xl font-black">{b}</div></div>;
             })}
-          </div>
+          </ResponsiveMetricGrid>
         </SectionCard>
       </div>
 

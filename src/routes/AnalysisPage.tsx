@@ -4,6 +4,7 @@ import { DataTable } from "../components/DataTable";
 import { Chip, FieldLabel } from "../components/FormControls";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
+import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { analysisRows, eventTypes, metricIcons, trend } from "../data/mockData";
 
@@ -18,9 +19,9 @@ export function AnalysisPage() {
           <div><FieldLabel label="Date Range" sub="日期範圍" /><div className="field">2026-06-26 ~ 2026-07-03</div></div>
         </div>
       </SectionCard>
-      <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <ResponsiveMetricGrid min={210} className="mt-4">
         {[["總事件數", "Total Events", "1,248,356", Activity], ["活躍 Issue 數", "Active Issues", "412,651", AlertTriangle], ["建立 Issue 數", "Created Issues", "198,324", Archive], ["留言數", "Comments", "279,463", MessageSquare], ["附件數", "Attachments", "1,287,901", Paperclip], ["專案數", "Projects", "48", FolderOpen]].map(([a,b,c,d]) => <MetricCard key={a as string} label={a as string} sub={b as string} value={c as string} foot="↑ 12.7% vs 上一週" icon={d as typeof Activity} />)}
-      </div>
+      </ResponsiveMetricGrid>
       <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2">
         <SectionCard title="1. 使用者比較" subtitle="User Comparison"><DataTable headers={["使用者", "總事件數", "活躍 Issue 數", "建立 Issue 數", "留言數", "附件數"]} rows={analysisRows} /></SectionCard>
         <SectionCard title="2. 活動趨勢" subtitle="Activity Trend" action={<select className="field w-28"><option>Daily</option></select>}>
