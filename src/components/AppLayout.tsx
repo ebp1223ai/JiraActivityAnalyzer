@@ -47,6 +47,7 @@ export function AppLayout() {
         onToggle={() => setDebugCollapsed((value) => !value)}
         logs={logsByPage[page]}
         onClear={() => setLogsByPage((current) => clearDebugLogPage(current, page))}
+        onAppend={(lines) => setLogsByPage((current) => appendDebugLogLines(current, page, lines))}
       />
     </div>
   );

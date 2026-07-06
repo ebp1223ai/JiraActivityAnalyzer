@@ -35,13 +35,20 @@ Default Real Probe UI values are optimized for Jira Server/Data Center:
 - Mock Mode: `Off`
 - Log Level: `DEBUG`
 
-Optional local defaults are loaded from the executable folder first. Put one of these files next to `Jira Activity Analyzer Portable 0.1.0.exe`:
+Runtime files live beside the executable in packaged builds, and under the project root in development. The app creates and uses this layout:
 
-- `.env`
-- `jira-probe.env`
-- `config.env`
+```text
+<runtime>/
+  .env
+  data/
+  logs/
+  exports/
+  probe-results/
+  backups/
+  config/
+```
 
-Fallback locations are the app working directory `.env`, then `jira-probe.env` / `config.env` under Electron `userData`.
+Jira Probe loads `<runtime>/.env`. If the file is missing, Reload Env creates a safe template automatically and logs the created path. The app does not create a real database or backup in this UI prototype.
 
 ```env
 JIRA_BASE_URL=https://jira.example.com:8443
@@ -87,7 +94,8 @@ JIRA_PROBE_LOG_LEVEL=DEBUG
 - Data Inspector tabs show sanitized read-only probe data for overview, issue fields, description, changelog, comments, attachments, links, users, activity estimates, raw JSON, and manual compare.
 - Data Inspector supports in-page search and simple data filters. It is UI-only and does not write files or database records.
 - Copy Summary copies a token-safe human-readable probe summary.
-- Save Probe Result / Export Probe JSON opens an Electron save dialog and writes a sanitized JSON report only when the user chooses a path.
+- Save Probe Result / Export Probe JSON opens an Electron save dialog defaulting to `<runtime>/probe-results/` and writes a sanitized JSON report only when the user chooses a path.
+- Debug Log Download opens an Electron save dialog defaulting to `<runtime>/logs/`.
 - Exported JSON includes app version, build time, exported time, run id, base URL, issue key, selected API version, auth type, endpoint coverage, parsed inspector sections, sanitized raw responses, and sanitized debug logs.
 - Exported JSON does not include API token values or Authorization headers.
 - Probe Depth controls read-only endpoint coverage:

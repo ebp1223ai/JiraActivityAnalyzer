@@ -10,8 +10,22 @@ declare global {
         run: (request: JiraProbeRequest) => Promise<JiraProbeResult>;
         loadEnv: () => Promise<{
           found: boolean;
+          created?: boolean;
+          status?: "loaded" | "created";
           sourcePath?: string;
+          envPath?: string;
           checkedPaths?: string[];
+          loadedAt?: string;
+          createdAt?: string;
+          paths?: {
+            runtimeDir: string;
+            dataDir: string;
+            logsDir: string;
+            exportsDir: string;
+            probeResultsDir: string;
+            backupsDir: string;
+            configDir: string;
+          };
           config: {
             baseUrl: string;
             email: string;
@@ -26,10 +40,10 @@ declare global {
             logLevel: string;
           };
         }>;
-        saveResult: (payload: { defaultFileName: string; content: string }) => Promise<{ canceled: boolean; filePath?: string }>;
+        saveResult: (payload: { defaultFileName: string; content: string }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
       };
       appDebug?: {
-        saveTextFile: (payload: { defaultFileName: string; content: string }) => Promise<{ canceled: boolean; filePath?: string }>;
+        saveTextFile: (payload: { defaultFileName: string; content: string }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
       };
     };
   }

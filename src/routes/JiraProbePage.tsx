@@ -64,7 +64,6 @@ export function JiraProbePage() {
   const [apiVersion, setApiVersion] = useState<JiraProbeApiVersion>("v2");
   const [authType, setAuthType] = useState<JiraProbeAuthType>("bearer");
   const [useMock, setUseMock] = useState(false);
-  const [logLevel, setLogLevel] = useState("DEBUG");
   const [envStatus, setEnvStatus] = useState("Env not loaded");
   const [actionNotice, setActionNotice] = useState("");
   const [showRawJson, setShowRawJson] = useState(false);
@@ -104,7 +103,6 @@ export function JiraProbePage() {
     issueKey: string;
     depth: string;
     mockMode: boolean;
-    logLevel: string;
   }) {
     if (config.baseUrl) setBaseUrl(config.baseUrl);
     if (config.email || config.username) setEmail(config.email || config.username);
@@ -114,7 +112,6 @@ export function JiraProbePage() {
     if (["auto", "v2", "v3"].includes(config.apiVersion)) setApiVersion(config.apiVersion as JiraProbeApiVersion);
     if (["basic", "standard", "deep"].includes(config.depth)) setDepth(config.depth as JiraProbeDepth);
     setUseMock(config.mockMode);
-    if (config.logLevel) setLogLevel(config.logLevel);
   }
 
   async function handleReloadEnv(showNotice = true) {
@@ -124,14 +121,16 @@ export function JiraProbePage() {
       return;
     }
     applyEnvConfig(response.config);
-    if (response.found) {
-      setEnvStatus(`Env loaded / 已載入 .env: ${response.sourcePath}`);
-      appendDebugLog("jiraProbe", ["[INFO] Env loaded", `[INFO] Env source: ${response.sourcePath}`, `[INFO] Env token present: ${response.config.hasToken ? "yes (masked)" : "no"}`]);
+    if (response.status === "loaded") {
+      const loadedAt = response.loadedAt ? new Date(response.loadedAt).toLocaleString("zh-TW", { hour12: false }) : new Date().toLocaleString("zh-TW", { hour12: false });
+      setEnvStatus(`已載入 .env / Env loaded | Env Path: ${response.envPath ?? response.sourcePath} | Loaded At: ${loadedAt}`);
+      appendDebugLog("jiraProbe", ["[INFO] Env file loaded", `[INFO] Env path: ${response.envPath ?? response.sourcePath}`, `[INFO] Env token present: ${response.config.hasToken ? "yes (masked)" : "no"}`]);
       if (showNotice) setActionNotice("Env loaded.");
     } else {
-      setEnvStatus("Env not found / 未找到 .env，請手動輸入");
-      appendDebugLog("jiraProbe", ["[WARN] Env not found", "[INFO] Manual input is available"]);
-      if (showNotice) setActionNotice("Env not found.");
+      const createdAt = response.createdAt ? new Date(response.createdAt).toLocaleString("zh-TW", { hour12: false }) : new Date().toLocaleString("zh-TW", { hour12: false });
+      setEnvStatus(`未找到 .env，已自動建立範本 / Default env file created | Env Path: ${response.envPath ?? response.sourcePath} | Created At: ${createdAt}`);
+      appendDebugLog("jiraProbe", ["[WARN] Env file not found", "[INFO] Default env file created", `[INFO] Env path: ${response.envPath ?? response.sourcePath}`]);
+      if (showNotice) setActionNotice("Default env file created.");
     }
   }
 
@@ -243,7 +242,10 @@ export function JiraProbePage() {
     });
     if (!saveResult.canceled) {
       setActionNotice("Probe result saved.");
-      appendDebugLog("jiraProbe", [`[INFO] Probe result saved: ${saveResult.filePath}`]);
+      appendDebugLog("jiraProbe", [
+        `[INFO] Output folder ready: ${saveResult.folderPath ?? ""}`,
+        `[INFO] Probe result saved: ${saveResult.filePath ?? ""}`
+      ]);
     }
   }
 
@@ -461,15 +463,6 @@ export function JiraProbePage() {
                 <option value="deep">Deep</option>
               </select>
               <div className="mt-1 text-xs font-semibold leading-snug text-muted">{depthNotes[depth]}</div>
-            </div>
-            <div>
-              <FieldLabel label="Log Level" sub="debug detail" />
-              <select className="field" value={logLevel} onChange={(event) => setLogLevel(event.target.value)}>
-                <option>DEBUG</option>
-                <option>INFO</option>
-                <option>WARN</option>
-                <option>ERROR</option>
-              </select>
             </div>
             <div className="flex items-end justify-between gap-3 rounded-lg border border-line px-3 py-2 text-sm font-bold">
               <span>Mock Mode<br /><span className="text-xs font-semibold text-muted">safe sample data</span></span>

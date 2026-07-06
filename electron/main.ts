@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import { ensureDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getDatabaseDir, getEnvPath, getExportsDir, getLogsDir, getProbeResultsDir } from "./appPaths.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
 import type { ProbeRequest } from "./jira/jiraTypes.js";
 
@@ -40,6 +41,23 @@ const uiViewports = [
 
 const debugStates = ["expanded", "collapsed"] as const;
 
+const defaultEnvText = `# Jira Activity Analyzer local configuration
+# This file is created automatically when missing.
+# Fill in your Jira Server/Data Center URL and Personal Access Token.
+# Do not commit this file to Git.
+
+JIRA_BASE_URL=https://jira.example.com:8443
+JIRA_EMAIL=
+JIRA_USERNAME=
+JIRA_API_TOKEN=
+JIRA_AUTH_TYPE=bearer
+JIRA_API_VERSION=v2
+JIRA_PROBE_DEFAULT_ISSUE=COPGEN1-138930
+JIRA_PROBE_DEPTH=standard
+JIRA_PROBE_MOCK_MODE=false
+JIRA_PROBE_LOG_LEVEL=DEBUG
+`;
+
 function parseEnvText(text: string) {
   const output: Record<string, string> = {};
   for (const line of text.split(/\r?\n/)) {
@@ -54,30 +72,30 @@ function parseEnvText(text: string) {
   return output;
 }
 
-function getExecutableConfigDir() {
-  if (process.env.PORTABLE_EXECUTABLE_DIR) return process.env.PORTABLE_EXECUTABLE_DIR;
-  if (process.env.PORTABLE_EXECUTABLE_FILE) return path.dirname(process.env.PORTABLE_EXECUTABLE_FILE);
-  return path.dirname(process.execPath);
-}
-
-function getProbeEnvCandidates() {
-  const executableDir = getExecutableConfigDir();
-  const candidates = [
-    path.join(executableDir, ".env"),
-    path.join(executableDir, "jira-probe.env"),
-    path.join(executableDir, "config.env"),
-    path.resolve(process.cwd(), ".env"),
-    path.join(app.getPath("userData"), "jira-probe.env"),
-    path.join(app.getPath("userData"), "config.env")
-  ];
-  return Array.from(new Set(candidates.filter(Boolean)));
-}
-
-function toProbeEnvConfig(env: Record<string, string>, sourcePath: string) {
-  const token = env.JIRA_API_TOKEN ?? "";
+function ensureRuntimeFolders() {
   return {
-    found: true,
+    runtimeDir: ensureDir(getAppRuntimeDir()),
+    dataDir: ensureDir(getDatabaseDir()),
+    logsDir: ensureDir(getLogsDir()),
+    exportsDir: ensureDir(getExportsDir()),
+    probeResultsDir: ensureDir(getProbeResultsDir()),
+    backupsDir: ensureDir(getBackupsDir()),
+    configDir: ensureDir(getConfigDir())
+  };
+}
+
+function toProbeEnvConfig(env: Record<string, string>, sourcePath: string, status: "loaded" | "created") {
+  const token = env.JIRA_API_TOKEN ?? "";
+  const timestamp = new Date().toISOString();
+  return {
+    found: status === "loaded",
+    created: status === "created",
+    status,
     sourcePath,
+    envPath: sourcePath,
+    loadedAt: status === "loaded" ? timestamp : undefined,
+    createdAt: status === "created" ? timestamp : undefined,
+    paths: ensureRuntimeFolders(),
     config: {
       baseUrl: env.JIRA_BASE_URL ?? "",
       email: env.JIRA_EMAIL ?? env.JIRA_USERNAME ?? "",
@@ -94,6 +112,19 @@ function toProbeEnvConfig(env: Record<string, string>, sourcePath: string) {
   };
 }
 
+function ensureProbeEnv() {
+  const paths = ensureRuntimeFolders();
+  const envPath = getEnvPath();
+  if (fs.existsSync(envPath)) {
+    return toProbeEnvConfig(parseEnvText(fs.readFileSync(envPath, "utf8")), envPath, "loaded");
+  }
+  fs.writeFileSync(envPath, defaultEnvText, { encoding: "utf8", flag: "wx" });
+  return {
+    ...toProbeEnvConfig(parseEnvText(defaultEnvText), envPath, "created"),
+    paths
+  };
+}
+
 ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
   if (!request || request.useMock) {
     throw new Error("Jira Probe IPC only runs real read-only API probes.");
@@ -102,54 +133,35 @@ ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
 });
 
 ipcMain.handle("jira-probe:load-env", async () => {
-  for (const candidate of getProbeEnvCandidates()) {
-    if (fs.existsSync(candidate)) {
-      return toProbeEnvConfig(parseEnvText(fs.readFileSync(candidate, "utf8")), candidate);
-    }
-  }
-  return {
-    found: false,
-    checkedPaths: getProbeEnvCandidates(),
-    config: {
-      baseUrl: "",
-      email: "",
-      username: "",
-      apiToken: "",
-      hasToken: false,
-      authType: "bearer",
-      apiVersion: "v2",
-      issueKey: "",
-      depth: "standard",
-      mockMode: false,
-      logLevel: "DEBUG"
-    }
-  };
+  return ensureProbeEnv();
 });
 
 ipcMain.handle("jira-probe:save-result", async (_event, payload: { defaultFileName: string; content: string }) => {
+  const outputDir = ensureDir(getProbeResultsDir());
   const result = await dialog.showSaveDialog({
     title: "Save Probe Result",
-    defaultPath: payload.defaultFileName,
+    defaultPath: path.join(outputDir, payload.defaultFileName),
     filters: [{ name: "JSON", extensions: ["json"] }]
   });
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
   fs.writeFileSync(result.filePath, payload.content, "utf8");
-  return { canceled: false, filePath: result.filePath };
+  return { canceled: false, filePath: result.filePath, folderPath: outputDir };
 });
 
 ipcMain.handle("debug-log:save-text", async (_event, payload: { defaultFileName: string; content: string }) => {
+  const outputDir = ensureDir(getLogsDir());
   const result = await dialog.showSaveDialog({
     title: "Save Debug Log",
-    defaultPath: payload.defaultFileName,
+    defaultPath: path.join(outputDir, payload.defaultFileName),
     filters: [{ name: "Text", extensions: ["txt"] }]
   });
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
   fs.writeFileSync(result.filePath, payload.content, "utf8");
-  return { canceled: false, filePath: result.filePath };
+  return { canceled: false, filePath: result.filePath, folderPath: outputDir };
 });
 
 function getRendererEntry() {
@@ -390,6 +402,13 @@ function createMainWindow() {
 app.whenReady().then(() => {
   if (app.isPackaged || isUiSmoke) {
     Menu.setApplicationMenu(null);
+  }
+
+  const envState = ensureProbeEnv();
+  if (envState.status === "created") {
+    console.log("[env] Default env file created", envState.envPath);
+  } else {
+    console.log("[env] Env file loaded", envState.envPath);
   }
 
   createMainWindow();

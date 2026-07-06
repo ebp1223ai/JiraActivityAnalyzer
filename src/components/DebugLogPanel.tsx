@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Copy, Download, Trash2 } from "lucide-react";
 
 type Props = {
@@ -6,6 +6,7 @@ type Props = {
   onToggle: () => void;
   logs: string[];
   onClear: () => void;
+  onAppend?: (lines: string[]) => void;
 };
 
 const levelClass: Record<string, string> = {
@@ -33,9 +34,19 @@ function debugFileName() {
   return `jira-activity-analyzer-debug-${timestamp}.txt`;
 }
 
-export function DebugLogPanel({ collapsed, onToggle, logs, onClear }: Props) {
+export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: Props) {
   const [notice, setNotice] = useState("");
+  const [autoScroll, setAutoScroll] = useState(true);
+  const logContainerRef = useRef<HTMLDivElement>(null);
   const content = logs.join("\n");
+
+  useEffect(() => {
+    if (!autoScroll) return;
+    const node = logContainerRef.current;
+    if (node) {
+      node.scrollTop = node.scrollHeight;
+    }
+  }, [autoScroll, logs]);
 
   async function handleCopy() {
     if (!navigator.clipboard) {
@@ -53,6 +64,12 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear }: Props) {
         content
       });
       setNotice(result.canceled ? "Download canceled" : "Downloaded");
+      if (!result.canceled) {
+        onAppend?.([
+          `[INFO] Output folder ready: ${result.folderPath ?? ""}`,
+          `[INFO] Debug log saved: ${result.filePath ?? ""}`
+        ]);
+      }
       return;
     }
 
@@ -68,6 +85,7 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear }: Props) {
 
   function handleClear() {
     onClear();
+    onAppend?.(["[INFO] Debug log cleared"]);
     setNotice("Debug log cleared");
   }
 
@@ -120,7 +138,7 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear }: Props) {
 
       {notice ? <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700" data-no-clip="true">{notice}</div> : null}
 
-      <div className="thin-scroll mt-4 min-h-0 flex-1 overflow-auto rounded-lg border border-line p-3">
+      <div ref={logContainerRef} className="thin-scroll mt-4 min-h-0 flex-1 overflow-auto rounded-lg border border-line p-3">
         {logs.map((log, index) => {
           const level = levelFor(log, index);
           return (
@@ -141,10 +159,10 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear }: Props) {
       <div className="mt-4 rounded-lg border border-line p-4 text-xs">
         <div className="mb-3 text-sm font-black text-ink" data-no-clip="true">Log Level 說明</div>
         <div className="space-y-2 font-semibold leading-snug text-muted">
-          <div><span className="text-red-500" data-no-clip="true">ERROR</span> 輸入錯誤或系統錯誤，需立即處理</div>
-          <div><span className="text-amber-500" data-no-clip="true">WARN</span> 潛在問題或非阻斷警告</div>
-          <div><span className="text-blue-600" data-no-clip="true">INFO</span> 一般資訊性訊息</div>
-          <div><span className="text-slate-500" data-no-clip="true">DEBUG</span> 詳細除錯資訊</div>
+          <div><span className="text-red-500" data-no-clip="true">ERROR</span> Requires immediate attention.</div>
+          <div><span className="text-amber-500" data-no-clip="true">WARN</span> Potential issue or recoverable warning.</div>
+          <div><span className="text-blue-600" data-no-clip="true">INFO</span> Normal application flow.</div>
+          <div><span className="text-slate-500" data-no-clip="true">DEBUG</span> Detailed diagnostic information.</div>
         </div>
       </div>
 
@@ -157,8 +175,16 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear }: Props) {
       </select>
 
       <div className="mt-5 flex min-w-0 items-center justify-between gap-3 text-sm font-black leading-snug text-ink">
-        <span data-no-clip="true">Auto Scroll<br /><span className="text-xs font-semibold text-muted">自動捲動到最新記錄</span></span>
-        <span className="relative inline-flex h-6 w-11 shrink-0 rounded-full bg-blue-600 p-1"><span className="h-4 w-4 translate-x-5 rounded-full bg-white shadow" /></span>
+        <span data-no-clip="true">Auto Scroll<br /><span className="text-xs font-semibold text-muted">Scroll to latest logs</span></span>
+        <button
+          type="button"
+          className={`relative inline-flex h-6 w-11 shrink-0 rounded-full p-1 transition ${autoScroll ? "bg-blue-600" : "bg-slate-300"}`}
+          onClick={() => setAutoScroll((value) => !value)}
+          aria-label="Toggle debug log auto scroll"
+          data-allow-truncate="true"
+        >
+          <span className={`h-4 w-4 rounded-full bg-white shadow transition ${autoScroll ? "translate-x-5" : "translate-x-0"}`} />
+        </button>
       </div>
     </aside>
   );
