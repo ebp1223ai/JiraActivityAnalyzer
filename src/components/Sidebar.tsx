@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Activity, BarChart3, Clock3, DatabaseZap, Home, ListChecks, Settings, UserRound, UsersRound } from "lucide-react";
+import { Activity, BarChart3, Clock3, DatabaseZap, Home, ListChecks, Settings, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 import { BuildInfo } from "./BuildInfo";
 
 const items = [
@@ -9,6 +9,7 @@ const items = [
   { to: "/timeline", label: "工作紀錄", sub: "Timeline", icon: Clock3 },
   { to: "/analysis", label: "使用者分析", sub: "Analysis", icon: UsersRound },
   { to: "/jira-analysis", label: "Jira 分析", sub: "Jira Analysis", icon: ListChecks },
+  { to: "/jira-probe", label: "Jira \u6e2c\u8a66", sub: "Jira Probe", icon: ShieldCheck },
   { to: "/settings", label: "設定", sub: "Settings", icon: Settings }
 ];
 

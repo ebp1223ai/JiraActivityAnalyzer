@@ -11,6 +11,7 @@ const pageByPath: Record<string, keyof typeof debugLogs> = {
   "/timeline": "timeline",
   "/analysis": "analysis",
   "/jira-analysis": "jira",
+  "/jira-probe": "jiraProbe",
   "/settings": "settings"
 };
 

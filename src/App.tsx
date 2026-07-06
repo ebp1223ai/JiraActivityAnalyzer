@@ -5,6 +5,7 @@ import { ConnectionsPage } from "./routes/ConnectionsPage";
 import { DashboardPage } from "./routes/DashboardPage";
 import { ImportPage } from "./routes/ImportPage";
 import { JiraAnalysisPage } from "./routes/JiraAnalysisPage";
+import { JiraProbePage } from "./routes/JiraProbePage";
 import { SettingsPage } from "./routes/SettingsPage";
 import { TimelinePage } from "./routes/TimelinePage";
 
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/timeline" element={<TimelinePage />} />
         <Route path="/analysis" element={<AnalysisPage />} />
         <Route path="/jira-analysis" element={<JiraAnalysisPage />} />
+        <Route path="/jira-probe" element={<JiraProbePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

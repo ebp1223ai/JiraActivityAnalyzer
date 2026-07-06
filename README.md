@@ -11,7 +11,7 @@ This is an Electron desktop app shell with a React renderer. The first version i
 - `npm run build` builds the React renderer and Electron main/preload bundles.
 - `npm run dist` builds Windows installer and portable artifacts with electron-builder under `release/`.
 - `npm run preview` opens the production build in Electron.
-- `npm run test:ui` runs the Electron-only UI smoke test across all seven routes and supported desktop sizes.
+- `npm run test:ui` runs the Electron-only UI smoke test across all eight routes and supported desktop sizes.
 - `npm run capture:ui` runs the same smoke test and saves app-only screenshots under `test-artifacts/screenshots/`.
 
 ## Build Time
@@ -23,13 +23,29 @@ The app injects `__BUILD_TIME__` from `vite.config.ts`.
 
 Build Time is shown in the sidebar and in Settings > System Status.
 
+## Jira Probe
+
+`Jira 測試 / Jira Probe` is a read-only diagnostics page for checking whether one issue can provide enough Jira data to build activity events later.
+
+- Mock Mode uses safe sample data. No Jira request is sent, no token is used, and no database write is performed.
+- Real Probe requires Jira Base URL, Email / Username, API Token, and Issue Key.
+- The API Token field is a password input and is never written to Debug Log, exported JSON, or console output.
+- Real Probe only sends read-only GET requests:
+  - `GET /rest/api/3/myself`
+  - `GET /rest/api/3/issue/{issueKey}`
+  - `GET /rest/api/3/issue/{issueKey}/changelog`
+  - `GET /rest/api/3/issue/{issueKey}/comment`
+- It does not write to Jira.
+- It does not write to the production database.
+- Attachment file content is not downloaded; only metadata from the issue payload is shown.
+
 ## UI Validation
 
 The UI smoke test runs inside Electron with `BrowserWindow.capturePage()`. It captures only the app renderer, never the full Windows desktop, so screenshots do not include other user windows.
 
 The smoke test checks:
 
-- all seven routes load
+- all eight routes load
 - sidebar, Debug Log, page title, and Build Time are visible
 - `documentElement` and `body` have no global horizontal overflow
 - important `data-no-clip` UI such as metric values, status badges, buttons, nav labels, and Debug Log labels are not internally clipped

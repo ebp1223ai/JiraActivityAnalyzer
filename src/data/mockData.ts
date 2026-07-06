@@ -114,6 +114,7 @@ export const debugLogs: Record<string, string[]> = {
   timeline: ["sessionStorage enabled", "Query activity_events from local database", "Apply filters", "Execute SQL query", "Returned rows: 1,248", "Timeline ready"],
   analysis: ["Aggregate events from local database", "Compute per-user metrics", "Calculate event type distribution", "Render charts and tables", "Analysis ready"],
   jira: ["Load issue from local database", "Query activity_events...", "Compute lifecycle metrics", "Compute participant contribution", "Build risk hints", "Jira analysis ready"],
+  jiraProbe: ["Initialize Jira Probe page", "Selected connection: Jira Cloud (Production)", "Token: [masked]", "Ready for read-only probe", "No database write will be performed"],
   settings: ["Loading settings...", "Checking database connection...", "Loading data management information...", "Loading backup history...", "Settings ready."]
 };
 

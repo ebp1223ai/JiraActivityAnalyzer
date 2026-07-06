@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, shell } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -17,6 +17,7 @@ const uiRoutes = [
   { name: "timeline", hash: "#/timeline", title: "Timeline" },
   { name: "analysis", hash: "#/analysis", title: "Analysis" },
   { name: "jira-analysis", hash: "#/jira-analysis", title: "Jira Analysis" },
+  { name: "jira-probe", hash: "#/jira-probe", title: "Jira Probe" },
   { name: "settings", hash: "#/settings", title: "Settings" }
 ];
 
@@ -29,6 +30,206 @@ const uiViewports = [
 ];
 
 const debugStates = ["expanded", "collapsed"] as const;
+
+type ProbeDepth = "basic" | "standard" | "deep";
+type EndpointStatus = "success" | "partial" | "forbidden" | "failed" | "skipped";
+
+type ProbeRequest = {
+  connection: {
+    name: string;
+    baseUrl: string;
+    email: string;
+    apiToken: string;
+  };
+  issueKey: string;
+  depth: ProbeDepth;
+  useMock: boolean;
+};
+
+function normalizeIssueKey(issueKey: string) {
+  return String(issueKey || "").trim().toUpperCase();
+}
+
+function sanitizeRawJson(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeRawJson);
+  }
+  if (value && typeof value === "object") {
+    const output: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (/authorization|token|password|apiToken/i.test(key)) {
+        output[key] = "[redacted]";
+      } else if (key === "content" && typeof child === "string" && child.includes("/attachment/content/")) {
+        output[key] = "[attachment content url redacted]";
+      } else {
+        output[key] = sanitizeRawJson(child);
+      }
+    }
+    return output;
+  }
+  return value;
+}
+
+async function jiraGet(baseUrl: string, pathName: string, email: string, apiToken: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 18000);
+  try {
+    const authorization = Buffer.from(`${email}:${apiToken}`).toString("base64");
+    const response = await fetch(`${baseUrl}${pathName}`, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Basic ${authorization}`
+      },
+      signal: controller.signal
+    });
+    const text = await response.text();
+    const json = text ? JSON.parse(text) : null;
+    return { ok: response.ok, status: response.status, json };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function endpoint(endpoint: string, status: EndpointStatus, httpCode: number | "-", records: string, usefulLevel: "High" | "Medium" | "Low", notes: string) {
+  return { endpoint, status, httpCode, records, usefulLevel, notes };
+}
+
+async function runApiProbe(request: ProbeRequest) {
+  const baseUrl = request.connection.baseUrl.trim().replace(/\/+$/, "");
+  const issueKey = normalizeIssueKey(request.issueKey);
+  const email = request.connection.email.trim();
+  const apiToken = request.connection.apiToken;
+  const endpoints = [];
+  const debugLogs = [
+    "[INFO] Initialize Jira Probe page",
+    `[INFO] Selected connection: ${request.connection.name || "Custom Jira Cloud"}`,
+    "[INFO] Running read-only Jira Probe",
+    "[INFO] Token: [masked]",
+    "[INFO] Authorization: [masked]",
+    "[INFO] No database write performed",
+    `[INFO] Running probe for ${issueKey}`
+  ];
+
+  if (!baseUrl || !email || !apiToken || !issueKey) {
+    throw new Error("Base URL, email, token, and issue key are required.");
+  }
+
+  debugLogs.push("[DEBUG] GET /rest/api/3/myself");
+  const myself = await jiraGet(baseUrl, "/rest/api/3/myself", email, apiToken);
+  endpoints.push(endpoint("Get Myself", myself.ok ? "success" : myself.status === 403 ? "forbidden" : "failed", myself.status, myself.ok ? "1" : "0", "High", myself.ok ? "Token can resolve current user" : "Authentication or permission failed"));
+
+  debugLogs.push(`[DEBUG] GET /rest/api/3/issue/${issueKey}`);
+  const issue = await jiraGet(baseUrl, `/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=*all&expand=names,schema,renderedFields`, email, apiToken);
+  endpoints.push(endpoint("Get Issue", issue.ok ? "success" : issue.status === 403 ? "forbidden" : "failed", issue.status, issue.ok ? "1" : "0", "High", issue.ok ? "Basic fields available" : "Issue not found or not readable"));
+
+  const fields = issue.ok && issue.json && typeof issue.json === "object" ? (issue.json as { fields?: Record<string, unknown> }).fields ?? {} : {};
+  const attachments = Array.isArray(fields.attachment) ? fields.attachment : [];
+  const links = Array.isArray(fields.issuelinks) ? fields.issuelinks : [];
+  let changelogTotal = 0;
+  let changelogItems = 0;
+  let commentCount = 0;
+  const worklogCount = 0;
+
+  let changelog: Awaited<ReturnType<typeof jiraGet>> | null = null;
+  if (request.depth !== "basic") {
+    debugLogs.push(`[DEBUG] GET /rest/api/3/issue/${issueKey}/changelog`);
+    changelog = await jiraGet(baseUrl, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/changelog?maxResults=100`, email, apiToken);
+    const values = changelog.ok && changelog.json && typeof changelog.json === "object" && Array.isArray((changelog.json as { values?: unknown[] }).values) ? (changelog.json as { values: Array<{ items?: unknown[] }> }).values : [];
+    changelogTotal = values.length;
+    changelogItems = values.reduce((total, history) => total + (Array.isArray(history.items) ? history.items.length : 0), 0);
+    endpoints.push(endpoint("Changelog", changelog.ok ? "success" : changelog.status === 403 ? "forbidden" : "failed", changelog.status, `${changelogTotal} histories / ${changelogItems} items`, "High", changelog.ok ? "Can build field_changed events" : "Changelog unavailable"));
+
+    debugLogs.push(`[DEBUG] GET /rest/api/3/issue/${issueKey}/comment`);
+    const comments = await jiraGet(baseUrl, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment?maxResults=100`, email, apiToken);
+    commentCount = comments.ok && comments.json && typeof comments.json === "object" && Array.isArray((comments.json as { comments?: unknown[] }).comments) ? (comments.json as { comments: unknown[] }).comments.length : 0;
+    endpoints.push(endpoint("Comments", comments.ok ? "success" : comments.status === 403 ? "forbidden" : "failed", comments.status, String(commentCount), "High", comments.ok ? "Can build comment events" : "Comments unavailable"));
+  } else {
+    endpoints.push(endpoint("Changelog", "skipped", "-", "0", "High", "Skipped in Basic mode"));
+    endpoints.push(endpoint("Comments", "skipped", "-", "0", "High", "Skipped in Basic mode"));
+  }
+
+  endpoints.push(endpoint("Attachments", issue.ok ? "success" : "skipped", issue.ok ? 200 : "-", String(attachments.length), "High", "Metadata only, no file download"));
+  endpoints.push(endpoint("Issue Links", issue.ok ? "success" : "skipped", issue.ok ? 200 : "-", String(links.length), "Medium", "Link creator may require changelog"));
+
+  endpoints.push(endpoint("Worklog", "skipped", "-", "0", "Low", "Not requested. Real Probe is limited to read-only issue, changelog, and comments GET endpoints."));
+
+  const statusChanges = Math.round(changelogItems * 0.08);
+  const assigneeChanges = Math.round(changelogItems * 0.04);
+  const estimatedActivityEvents = 1 + changelogItems + commentCount + attachments.length + links.length + worklogCount;
+  const permissionGaps = endpoints.filter((item) => item.status === "forbidden" || item.status === "failed").length;
+  const coverageScore = Math.max(0, Math.min(100, 40 + (changelogItems > 0 ? 25 : 0) + (commentCount > 0 ? 10 : 0) + (attachments.length > 0 ? 5 : 0) + (links.length > 0 ? 5 : 0) - permissionGaps * 10));
+
+  debugLogs.push(`[SUCCESS] Probe completed. Coverage Score: ${coverageScore}%`);
+
+  return {
+    mode: "api",
+    issueKey,
+    depth: request.depth,
+    summary: {
+      coverageScore,
+      issueFields: Object.keys(fields).length,
+      changelogHistories: changelogTotal,
+      changeItems: changelogItems,
+      comments: commentCount,
+      attachments: attachments.length,
+      issueLinks: links.length,
+      usersDetected: 0,
+      estimatedActivityEvents,
+      permissionGaps
+    },
+    endpoints,
+    eventEstimates: [
+      { type: "issue_created", count: issue.ok ? 1 : 0 },
+      { type: "field_changed", count: changelogItems },
+      { type: "status_changed", count: statusChanges },
+      { type: "assignee_changed", count: assigneeChanges },
+      { type: "comment_created", count: commentCount },
+      { type: "comment_updated", count: 0 },
+      { type: "attachment_added", count: attachments.length },
+      { type: "issue_link_observed", count: links.length },
+      { type: "worklog_added", count: worklogCount }
+    ],
+    preview: {
+      issueFields: [
+        ["Key", issueKey],
+        ["Summary", String(fields.summary ?? "-")],
+        ["Status", String(((fields.status as { name?: string } | undefined)?.name) ?? "-")],
+        ["Priority", String(((fields.priority as { name?: string } | undefined)?.name) ?? "-")],
+        ["Assignee", String(((fields.assignee as { displayName?: string } | undefined)?.displayName) ?? "-")],
+        ["Reporter", String(((fields.reporter as { displayName?: string } | undefined)?.displayName) ?? "-")]
+      ],
+      changelog: [],
+      comments: [],
+      attachments: attachments.slice(0, 5).map((item) => {
+        const file = item as { filename?: string; size?: number; mimeType?: string };
+        return [file.filename ?? "-", file.size ? `${file.size} bytes` : "-", file.mimeType ?? "metadata only"];
+      }),
+      links: links.slice(0, 5).map((item) => {
+        const link = item as { type?: { name?: string }; outwardIssue?: { key?: string; fields?: { summary?: string } }; inwardIssue?: { key?: string; fields?: { summary?: string } } };
+        const linked = link.outwardIssue ?? link.inwardIssue;
+        return [linked?.key ?? "-", link.type?.name ?? "link", linked?.fields?.summary ?? "-"];
+      }),
+      rawJson: sanitizeRawJson({ myself: myself.json, issue: issue.json, changelog: changelog?.json ?? null }) as Record<string, unknown>
+    },
+    hints: [
+      issue.ok ? "Token can read issue basic fields." : "Token cannot read this issue.",
+      changelogItems > 0 ? "Changelog is available; field-level timeline can be generated." : "Changelog is unavailable or skipped.",
+      commentCount > 0 ? "Comments are available; discussion timeline can be generated." : "Comments are unavailable or skipped.",
+      "Attachment metadata is inspected only; file content is not downloaded.",
+      links.length > 0 ? "Issue links are available, but link creator may not be fully recoverable." : "No issue links were observed.",
+      worklogCount > 0 ? "Worklog is available." : "Worklog is unavailable, skipped, or empty."
+    ],
+    debugLogs,
+    rawJsonEnabled: false
+  };
+}
+
+ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
+  if (!request || request.useMock) {
+    throw new Error("Jira Probe IPC only runs real read-only API probes.");
+  }
+  return runApiProbe(request);
+});
 
 function getRendererEntry() {
   return path.join(__dirname, "../dist/index.html");
