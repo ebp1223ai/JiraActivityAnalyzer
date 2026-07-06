@@ -65,7 +65,57 @@ function emptyEvents() {
   ];
 }
 
-function createErrorResult(request: ProbeRequest, selectedApiVersion: "v3" | "v2" | "unknown", message: string, endpoints: ProbeEndpointResult[], debugLogs: string[], rawJson: Record<string, unknown> = {}) {
+function statusText(result: JiraHttpResult | null) {
+  if (!result) return "-";
+  return String(result.status);
+}
+
+function contentTypeText(...results: Array<JiraHttpResult | null>) {
+  return results.map((result) => result?.contentType).filter(Boolean).join(" / ") || "-";
+}
+
+function authFailureNote(result: JiraHttpResult) {
+  if (result.status === 401 && result.errorType === "NON_JSON_RESPONSE") return "Unauthorized or HTML login page";
+  if (result.status === 401) return "Unauthorized";
+  if (result.errorType === "NON_JSON_RESPONSE") return "HTML login page or SSO/proxy response";
+  return noteFor(result, "Authenticated");
+}
+
+function recommendedNextAction() {
+  return [
+    "Try Bearer Token / Personal Access Token if this is Jira Server/Data Center.",
+    "Confirm the token is generated from the same Jira account.",
+    "Confirm VPN/internal network access.",
+    "Confirm SSO does not require browser login."
+  ];
+}
+
+function buildAuthDiagnostics(baseUrl: string, authType: "basic" | "bearer", selectedApiVersion: "v3" | "v2" | null, v3Myself: JiraHttpResult | null, v2Myself: JiraHttpResult | null) {
+  return {
+    baseUrl,
+    apiVersionTried: [v3Myself ? "v3" : "", v2Myself ? "v2" : ""].filter(Boolean),
+    authType: authType === "bearer" ? "Bearer Token / Personal Access Token" : "Basic Auth",
+    v3MyselfStatus: statusText(v3Myself),
+    v2MyselfStatus: statusText(v2Myself),
+    contentType: contentTypeText(v3Myself, v2Myself),
+    selectedApiVersion,
+    recommendedNextAction: selectedApiVersion ? ["Authentication passed. Continue issue probing with the selected API version."] : recommendedNextAction()
+  };
+}
+
+function createErrorResult(request: ProbeRequest, selectedApiVersion: "v3" | "v2" | null, message: string, endpoints: ProbeEndpointResult[], debugLogs: string[], rawJson: Record<string, unknown> = {}, options?: {
+  localizedMessage?: { zh: string; en: string };
+  authDiagnostics?: {
+    baseUrl: string;
+    apiVersionTried: string[];
+    authType: string;
+    v3MyselfStatus: string;
+    v2MyselfStatus: string;
+    contentType: string;
+    selectedApiVersion: "v3" | "v2" | null;
+    recommendedNextAction: string[];
+  };
+}) {
   return {
     mode: "api",
     status: "error",
@@ -73,6 +123,8 @@ function createErrorResult(request: ProbeRequest, selectedApiVersion: "v3" | "v2
     depth: request.depth,
     apiVersion: selectedApiVersion,
     message,
+    localizedMessage: options?.localizedMessage,
+    authDiagnostics: options?.authDiagnostics,
     summary: emptySummary(endpoints.filter((item) => item.status === "failed" || item.status === "forbidden").length || 1),
     endpoints,
     eventEstimates: emptyEvents(),
@@ -104,7 +156,7 @@ function requiredFieldError(request: ProbeRequest, debugLogs: string[]) {
   ].filter(Boolean).join(", ");
   const message = `Missing required Real Probe fields: ${missing}. Mock result was not used.`;
   debugLogs.push(`[ERROR] ${message}`);
-  return createErrorResult(request, "unknown", message, [
+  return createErrorResult(request, null, message, [
     endpoint("Get Myself", "skipped", "-", "0", "-", "Skipped because required fields are missing"),
     endpoint("Get Issue", "skipped", "-", "0", "-", "Skipped because required fields are missing"),
     endpoint("Changelog", "skipped", "-", "0", "-", "Skipped because required fields are missing"),
@@ -131,6 +183,7 @@ export async function runApiProbe(request: ProbeRequest) {
     `[INFO] Issue Key or ID: ${issueKey || "(empty)"}`,
     `[INFO] Auth Type: ${authType === "bearer" ? "Bearer Token / Personal Access Token" : "Basic Auth"}`,
     "[INFO] Authorization: [masked]",
+    "[INFO] Token: [masked]",
     "[INFO] API Token: [masked]",
     `[INFO] API Version: ${request.apiVersion ?? "auto"}`,
     "[INFO] No database write performed"
@@ -141,34 +194,68 @@ export async function runApiProbe(request: ProbeRequest) {
   }
 
   const client = createJiraClient({ baseUrl, email, apiToken, authType });
-  let selectedApiVersion: "v3" | "v2" = request.apiVersion === "v2" ? "v2" : "v3";
-  let apiPrefix = selectedApiVersion === "v2" ? "/rest/api/2" : "/rest/api/3";
+  let selectedApiVersion: "v3" | "v2" | null = null;
+  let apiPrefix = "";
+  let myself: JiraHttpResult | null = null;
+  let v3Myself: JiraHttpResult | null = null;
+  let v2Myself: JiraHttpResult | null = null;
 
-  debugLogs.push(`[DEBUG] Trying ${apiPrefix}/myself`);
-  let myself = await client.get(`${apiPrefix}/myself`);
-  appendResponseLog(debugLogs, myself);
+  if ((request.apiVersion ?? "auto") === "auto" || request.apiVersion === "v3") {
+    debugLogs.push("[DEBUG] Trying /rest/api/3/myself");
+    v3Myself = await client.get("/rest/api/3/myself");
+    appendResponseLog(debugLogs, v3Myself);
+    if (v3Myself.ok) {
+      selectedApiVersion = "v3";
+      apiPrefix = "/rest/api/3";
+      myself = v3Myself;
+    } else {
+      debugLogs.push("[WARN] v3 authentication failed");
+    }
+  }
 
-  if ((request.apiVersion ?? "auto") === "auto" && !myself.ok) {
-    debugLogs.push(`[WARN] v3 failed: status ${myself.status}, content-type ${myself.contentType || "unknown"}`);
-    selectedApiVersion = "v2";
-    apiPrefix = "/rest/api/2";
-    debugLogs.push(`[DEBUG] Trying ${apiPrefix}/myself`);
-    myself = await client.get(`${apiPrefix}/myself`);
-    appendResponseLog(debugLogs, myself);
+  if (!selectedApiVersion && ((request.apiVersion ?? "auto") === "auto" || request.apiVersion === "v2")) {
+    debugLogs.push("[DEBUG] Trying /rest/api/2/myself");
+    v2Myself = await client.get("/rest/api/2/myself");
+    appendResponseLog(debugLogs, v2Myself);
+    if (v2Myself.ok) {
+      selectedApiVersion = "v2";
+      apiPrefix = "/rest/api/2";
+      myself = v2Myself;
+    } else {
+      debugLogs.push("[WARN] v2 authentication failed");
+    }
+  }
+
+  if (v3Myself) {
+    endpoints.push(endpoint("Get Myself v3", statusFor(v3Myself), v3Myself.status, v3Myself.ok ? "1" : "0", v3Myself.ok ? "High" : "Low", authFailureNote(v3Myself)));
+  }
+  if (v2Myself) {
+    endpoints.push(endpoint("Get Myself v2", statusFor(v2Myself), v2Myself.status, v2Myself.ok ? "1" : "0", v2Myself.ok ? "High" : "Low", authFailureNote(v2Myself)));
+  }
+
+  if (!selectedApiVersion || !myself) {
+    const message = "Authentication failed before issue probing. Both Jira API v3 and v2 /myself checks failed. Please check Base URL, Auth Type, Username, Token, VPN, or SSO.";
+    const localizedMessage = {
+      zh: "認證失敗。\nJira 在 /myself 回傳 401 Unauthorized HTML 頁面。\n這通常代表 Basic Auth 不被接受、Token 無效、SSO 攔截、或 Auth Type 選錯。",
+      en: "Authentication failed.\nJira returned 401 Unauthorized HTML response for /myself.\nThis usually means Basic Auth is not accepted, token is invalid, SSO intercepted the request, or the wrong auth type is selected."
+    };
+    debugLogs.push("[ERROR] Authentication failed. No API version selected.");
+    debugLogs.push("[INFO] Issue probe skipped because authentication failed.");
+    debugLogs.push("[INFO] No database write performed");
+    endpoints.push(endpoint("Get Issue", "skipped", "-", "0", "-", "Skipped because authentication failed"));
+    endpoints.push(endpoint("Changelog", "skipped", "-", "0", "-", "Skipped because authentication failed"));
+    endpoints.push(endpoint("Comments", "skipped", "-", "0", "-", "Skipped because authentication failed"));
+    endpoints.push(endpoint("Attachments", "skipped", "-", "0", "-", "Skipped because authentication failed"));
+    endpoints.push(endpoint("Issue Links", "skipped", "-", "0", "-", "Skipped because authentication failed"));
+    return createErrorResult(request, null, message, endpoints, debugLogs, { v3Myself, v2Myself }, {
+      localizedMessage,
+      authDiagnostics: {
+        ...buildAuthDiagnostics(baseUrl, authType, null, v3Myself, v2Myself)
+      }
+    });
   }
 
   debugLogs.push(`[INFO] Selected API Version: ${selectedApiVersion}`);
-  endpoints.push(endpoint("Get Myself", statusFor(myself), myself.status, myself.ok ? "1" : "0", myself.ok ? "High" : "Low", noteFor(myself, "Authenticated")));
-
-  if (!myself.ok) {
-    endpoints.push(endpoint("Get Issue", "skipped", "-", "0", "-", "Skipped because authentication failed"));
-    endpoints.push(endpoint("Changelog", "skipped", "-", "0", "-", "Skipped because issue was not loaded"));
-    endpoints.push(endpoint("Comments", "skipped", "-", "0", "-", "Skipped because issue was not loaded"));
-    endpoints.push(endpoint("Attachments", "skipped", "-", "0", "-", "Skipped because issue was not loaded"));
-    endpoints.push(endpoint("Issue Links", "skipped", "-", "0", "-", "Skipped because issue was not loaded"));
-    endpoints.push(endpoint("Worklog", "skipped", "-", "0", "-", "No worklog request is sent by Jira Probe"));
-    return createErrorResult(request, selectedApiVersion, myself.message ?? "Authentication failed.", endpoints, debugLogs, { myself });
-  }
 
   const issueExpand = selectedApiVersion === "v2" ? "names,schema,renderedFields,changelog" : "names,schema,renderedFields";
   debugLogs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}`);
@@ -182,7 +269,9 @@ export async function runApiProbe(request: ProbeRequest) {
     endpoints.push(endpoint("Attachments", "skipped", "-", "0", "-", "Skipped because issue failed"));
     endpoints.push(endpoint("Issue Links", "skipped", "-", "0", "-", "Skipped because issue failed"));
     endpoints.push(endpoint("Worklog", "skipped", "-", "0", "-", "No worklog request is sent by Jira Probe"));
-    return createErrorResult(request, selectedApiVersion, issue.message ?? "Issue lookup failed.", endpoints, debugLogs, { myself: myself.json, issue });
+    return createErrorResult(request, selectedApiVersion, issue.message ?? "Issue lookup failed.", endpoints, debugLogs, { myself: myself.json, issue }, {
+      authDiagnostics: buildAuthDiagnostics(baseUrl, authType, selectedApiVersion, v3Myself, v2Myself)
+    });
   }
 
   const fields = issue.json && typeof issue.json === "object" ? (issue.json as { fields?: Record<string, unknown> }).fields ?? {} : {};
@@ -245,6 +334,7 @@ export async function runApiProbe(request: ProbeRequest) {
     depth: request.depth,
     apiVersion: selectedApiVersion,
     message: permissionGaps > 0 ? "Real Probe completed with endpoint errors. Mock data was not used." : "Real Probe completed with read-only Jira data.",
+    authDiagnostics: buildAuthDiagnostics(baseUrl, authType, selectedApiVersion, v3Myself, v2Myself),
     summary: {
       coverageScore,
       issueFields: Object.keys(fields).length,

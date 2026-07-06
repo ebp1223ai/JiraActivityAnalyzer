@@ -60,13 +60,29 @@ export type JiraProbePreview = {
   rawJson: Record<string, unknown>;
 };
 
+export type JiraProbeAuthDiagnostics = {
+  baseUrl: string;
+  apiVersionTried: string[];
+  authType: string;
+  v3MyselfStatus: string;
+  v2MyselfStatus: string;
+  contentType: string;
+  selectedApiVersion: "v3" | "v2" | null;
+  recommendedNextAction: string[];
+};
+
 export type JiraProbeResult = {
   mode: "mock" | "api";
   status: "success" | "error";
   issueKey: string;
   depth: JiraProbeDepth;
-  apiVersion: "v3" | "v2" | "mock" | "unknown";
+  apiVersion: "v3" | "v2" | "mock" | null;
   message?: string;
+  localizedMessage?: {
+    zh: string;
+    en: string;
+  };
+  authDiagnostics?: JiraProbeAuthDiagnostics;
   summary: JiraProbeSummary;
   endpoints: JiraProbeEndpointResult[];
   eventEstimates: JiraProbeEventEstimate[];

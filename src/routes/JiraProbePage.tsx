@@ -32,6 +32,11 @@ const depthNotes: Record<JiraProbeDepth, string> = {
   deep: "Standard + worklog + transitions + field metadata + linked issue summary"
 };
 
+const authTypeNotes: Record<JiraProbeAuthType, string> = {
+  basic: "For Jira Cloud or Jira instances that allow username + token/password.",
+  bearer: "Recommended for Jira Server/Data Center Personal Access Token."
+};
+
 type PreviewTab = "issueFields" | "changelog" | "comments" | "attachments" | "links" | "rawJson";
 
 export function JiraProbePage() {
@@ -120,6 +125,8 @@ export function JiraProbePage() {
     links: result.preview.links
   } : null;
 
+  const errorBanner = result?.localizedMessage;
+
   return (
     <div className="min-w-0">
       <PageHeader title={"Jira \u6e2c\u8a66"} subtitle="Jira Probe" />
@@ -173,6 +180,7 @@ export function JiraProbePage() {
                 <option value="basic">Basic Auth</option>
                 <option value="bearer">Bearer Token / Personal Access Token</option>
               </select>
+              <div className="mt-1 text-xs font-semibold leading-snug text-muted">{authTypeNotes[authType]}</div>
             </div>
             <div>
               <FieldLabel label="Probe Depth" sub="probe depth" />
@@ -232,6 +240,12 @@ export function JiraProbePage() {
             {error ? <span className="ml-2">{error}</span> : null}
           </div>
         ) : null}
+        {errorBanner ? (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold leading-relaxed text-red-800">
+            <div className="whitespace-pre-line">{errorBanner.en}</div>
+            <div className="mt-3 whitespace-pre-line">{errorBanner.zh}</div>
+          </div>
+        ) : null}
       </SectionCard>
 
       {result ? (
@@ -247,6 +261,24 @@ export function JiraProbePage() {
             <MetricCard label="Estimated Events" sub="estimated activity" value={String(result.summary.estimatedActivityEvents)} icon={Activity} tone="bg-rose-50 text-rose-600" />
             <MetricCard label="Permission Gaps" sub="permission gaps" value={String(result.summary.permissionGaps)} icon={Activity} tone="bg-red-50 text-red-600" />
           </ResponsiveMetricGrid>
+
+          {result.authDiagnostics ? (
+            <SectionCard className="mt-4" title="Authentication Diagnostics" subtitle="認證診斷">
+              <DataTable
+                headers={["Field", "Value"]}
+                rows={[
+                  ["Base URL", result.authDiagnostics.baseUrl],
+                  ["API Version tried", result.authDiagnostics.apiVersionTried.join(", ") || "-"],
+                  ["Auth Type", result.authDiagnostics.authType],
+                  ["/rest/api/3/myself status", result.authDiagnostics.v3MyselfStatus],
+                  ["/rest/api/2/myself status", result.authDiagnostics.v2MyselfStatus],
+                  ["Content-Type", result.authDiagnostics.contentType],
+                  ["Selected API Version", result.authDiagnostics.selectedApiVersion ?? "-"],
+                  ["Recommended Next Action", result.authDiagnostics.recommendedNextAction.join(" ")]
+                ]}
+              />
+            </SectionCard>
+          ) : null}
 
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <SectionCard title="Endpoint Coverage" subtitle="Endpoint result">
