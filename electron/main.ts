@@ -54,12 +54,23 @@ function parseEnvText(text: string) {
   return output;
 }
 
+function getExecutableConfigDir() {
+  if (process.env.PORTABLE_EXECUTABLE_DIR) return process.env.PORTABLE_EXECUTABLE_DIR;
+  if (process.env.PORTABLE_EXECUTABLE_FILE) return path.dirname(process.env.PORTABLE_EXECUTABLE_FILE);
+  return path.dirname(process.execPath);
+}
+
 function getProbeEnvCandidates() {
-  return [
+  const executableDir = getExecutableConfigDir();
+  const candidates = [
+    path.join(executableDir, ".env"),
+    path.join(executableDir, "jira-probe.env"),
+    path.join(executableDir, "config.env"),
     path.resolve(process.cwd(), ".env"),
     path.join(app.getPath("userData"), "jira-probe.env"),
     path.join(app.getPath("userData"), "config.env")
   ];
+  return Array.from(new Set(candidates.filter(Boolean)));
 }
 
 function toProbeEnvConfig(env: Record<string, string>, sourcePath: string) {

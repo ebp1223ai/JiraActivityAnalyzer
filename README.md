@@ -35,7 +35,13 @@ Default Real Probe UI values are optimized for Jira Server/Data Center:
 - Mock Mode: `Off`
 - Log Level: `DEBUG`
 
-Optional local defaults can be loaded from `.env` in the app working directory, or `jira-probe.env` / `config.env` under Electron `userData`:
+Optional local defaults are loaded from the executable folder first. Put one of these files next to `Jira Activity Analyzer Portable 0.1.0.exe`:
+
+- `.env`
+- `jira-probe.env`
+- `config.env`
+
+Fallback locations are the app working directory `.env`, then `jira-probe.env` / `config.env` under Electron `userData`.
 
 ```env
 JIRA_BASE_URL=https://jira.example.com:8443
