@@ -35,17 +35,17 @@ function ActionCard({
 
   return (
     <button
-      className={`min-h-[116px] rounded-lg border p-4 text-left transition hover:shadow-soft ${styles[tone]}`}
+      className={`min-h-[116px] min-w-0 max-w-full overflow-hidden rounded-lg border p-4 text-left transition hover:shadow-soft ${styles[tone]}`}
       onClick={onClick}
       type="button"
     >
-      <div className="mb-3 flex items-center gap-3">
+      <div className="mb-3 flex min-w-0 items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/80">
           <Icon size={20} />
         </span>
-        <div className="min-w-0 text-sm font-black leading-snug text-ink">{title}</div>
+        <div className="min-w-0 truncate text-sm font-black leading-snug text-ink" title={title}>{title}</div>
       </div>
-      <div className="text-xs font-semibold leading-relaxed text-muted">{description}</div>
+      <div className="max-w-full break-words text-xs font-semibold leading-relaxed text-muted" title={description}>{description}</div>
     </button>
   );
 }
@@ -130,7 +130,7 @@ export function SettingsPage() {
       <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 2xl:grid-cols-[2fr_1fr]">
         <SectionCard title="資料管理" subtitle="Data Management">
           <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[0.8fr_1.2fr]">
-            <div className="rounded-lg border border-line bg-slate-50 p-4 text-sm font-semibold leading-8">
+            <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-4 text-sm font-semibold leading-8">
               <b>Current Database</b><br />
               Database Type: SQLite<br />
               Database Events: 1,248,356<br />
@@ -140,8 +140,8 @@ export function SettingsPage() {
               Last Backup Time: {db.lastBackup}
             </div>
             <div>
-              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-                <div className="mb-1 flex items-center gap-2 font-black"><AlertTriangle size={17} />Load Database safety notice</div>
+              <div className="mb-3 min-w-0 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-snug text-amber-800">
+                <div className="mb-1 flex min-w-0 items-center gap-2 font-black"><AlertTriangle className="shrink-0" size={17} /><span className="truncate">Load Database safety notice</span></div>
                 Before loading a backup, the system will automatically back up the current database first. After loading, the selected backup becomes the active database.
               </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -169,7 +169,7 @@ export function SettingsPage() {
                 row.by,
                 row.status,
                 <span className="inline-block max-w-[260px] truncate align-bottom" title={row.desc}>{row.desc}</span>,
-                <div className="flex gap-2"><button className="btn px-3 py-2">Details</button><button className="btn px-3 py-2">Download</button></div>
+                <div className="flex min-w-max gap-2"><button className="btn px-3 py-2">Details</button><button className="btn px-3 py-2">Download</button></div>
               ])}
             />
           </div>
@@ -179,7 +179,7 @@ export function SettingsPage() {
           <div className="divide-y divide-line rounded-lg border border-line text-sm font-semibold">
             {["Jira Cloud Connection|Connected", "Database Connection|Connected", "Last Import Status|Success", "Pending Jobs|0", "System Uptime|2d 14h 23m", `Application Version|${buildInfo.version}`, `Build Time|${buildInfo.buildTime}`].map((row) => {
               const [a, b] = row.split("|");
-              return <div key={a} className="flex justify-between gap-3 p-3"><span>{a}</span><span className="text-right font-black text-green-600">{b}</span></div>;
+              return <div key={a} className="flex min-w-0 justify-between gap-3 p-3"><span className="truncate" title={a}>{a}</span><span className="shrink-0 text-right font-black text-green-600" title={b}>{b}</span></div>;
             })}
           </div>
           <button className="btn mx-auto mt-6"><RefreshCw size={16} />重新整理 / Refresh</button>
@@ -201,9 +201,9 @@ export function SettingsPage() {
             Before loading a backup, the system will automatically back up the current database first. After loading, the selected backup becomes the active database.
           </p>
           <div className="space-y-2">
-            <div className="flex justify-between gap-3 rounded-md bg-slate-50 px-3 py-2"><span>Selected Backup / 選取備份</span><b>backup_20260703_154258_before_import.db</b></div>
-            <div className="flex justify-between gap-3 rounded-md bg-slate-50 px-3 py-2"><span>Current Database / 目前資料庫</span><b>{db.name} / {db.id}</b></div>
-            <div className="flex justify-between gap-3 rounded-md bg-slate-50 px-3 py-2"><span>Auto Backup / 自動備份</span><b>backup_20260703_160544_before_restore.db</b></div>
+            <div className="flex min-w-0 justify-between gap-3 rounded-md bg-slate-50 px-3 py-2"><span className="shrink-0">Selected Backup / 選取備份</span><b className="min-w-0 truncate text-right" title="backup_20260703_154258_before_import.db">backup_20260703_154258_before_import.db</b></div>
+            <div className="flex min-w-0 justify-between gap-3 rounded-md bg-slate-50 px-3 py-2"><span className="shrink-0">Current Database / 目前資料庫</span><b className="min-w-0 truncate text-right" title={`${db.name} / ${db.id}`}>{db.name} / {db.id}</b></div>
+            <div className="flex min-w-0 justify-between gap-3 rounded-md bg-slate-50 px-3 py-2"><span className="shrink-0">Auto Backup / 自動備份</span><b className="min-w-0 truncate text-right" title="backup_20260703_160544_before_restore.db">backup_20260703_160544_before_restore.db</b></div>
             <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700">載入後目前資料庫將改為選取備份。</div>
             <div className="rounded-md bg-slate-100 px-3 py-2 font-black text-ink">Confirm Text: type LOAD BACKUP to enable confirm.</div>
           </div>

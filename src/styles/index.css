@@ -13,11 +13,18 @@ body,
 #root {
   width: 100%;
   height: 100%;
+  max-width: 100%;
   overflow: hidden;
 }
 
 * {
   box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  min-width: 0;
 }
 
 body {
@@ -28,6 +35,12 @@ button,
 input,
 select {
   font: inherit;
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
 }
 
 .thin-scroll::-webkit-scrollbar {
@@ -46,16 +59,22 @@ select {
   background: white;
   box-shadow: 0 12px 34px rgba(20, 40, 80, 0.05);
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .field {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid #cfd9e8;
   border-radius: 7px;
   background: #fff;
   padding: 0.72rem 0.85rem;
   color: #14213d;
   outline: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .field:focus {
@@ -66,6 +85,8 @@ select {
 .chip {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
+  min-width: 0;
   gap: 0.35rem;
   border-radius: 7px;
   background: #eef4ff;
@@ -73,6 +94,9 @@ select {
   padding: 0.32rem 0.55rem;
   font-size: 0.78rem;
   font-weight: 700;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .btn {
@@ -89,6 +113,17 @@ select {
   font-weight: 800;
   white-space: nowrap;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+}
+
+.btn > span,
+.chip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .btn-primary {
@@ -107,6 +142,7 @@ select {
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.8rem;
+  table-layout: fixed;
 }
 
 .table th {
@@ -122,6 +158,13 @@ select {
   padding: 0.72rem 0.78rem;
   vertical-align: middle;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table th:last-child,
+.table td:last-child {
+  overflow: visible;
 }
 
 .table tr:last-child td {

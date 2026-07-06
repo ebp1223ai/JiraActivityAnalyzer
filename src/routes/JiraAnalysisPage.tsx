@@ -10,20 +10,20 @@ import { jiraLifecycle, metricIcons } from "../data/mockData";
 export function JiraAnalysisPage() {
   const { Activity, Clock, GitBranch, MessageSquare, Paperclip, Users } = metricIcons;
   return (
-    <div>
+    <div className="min-w-0">
       <PageHeader title="Jira 分析" subtitle="Jira Analysis" />
-      <div className="mb-4 grid grid-cols-[1fr_110px_170px_150px] gap-3"><input className="field" defaultValue="COPGEN1-126606" /><button className="btn btn-primary"><Search size={16} />Load</button><button className="btn"><RefreshCw size={16} />Refresh from Jira</button><button className="btn"><ExternalLink size={16} />Open in Jira</button></div>
+      <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_110px] xl:grid-cols-[minmax(0,1fr)_110px_170px_150px]"><input className="field" defaultValue="COPGEN1-126606" /><button className="btn btn-primary"><Search size={16} />Load</button><button className="btn"><RefreshCw size={16} />Refresh from Jira</button><button className="btn"><ExternalLink size={16} />Open in Jira</button></div>
       <SectionCard title="Issue Summary" subtitle="Issue 摘要">
-        <div className="grid grid-cols-4 gap-5">
-          <div className="col-span-2"><div className="text-sm font-bold text-muted">Issue Key / Jira 編號</div><div className="text-2xl font-black">COPGEN1-126606</div><p className="mt-3 max-w-xl font-semibold">Investigate intermittent data sync failures between COPGEN and JIRA Cloud</p><div className="mt-4 flex gap-3"><StatusBadge>In Progress</StatusBadge><StatusBadge tone="red">High</StatusBadge></div></div>
+        <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-4">
+          <div className="xl:col-span-2"><div className="text-sm font-bold text-muted">Issue Key / Jira 編號</div><div className="truncate text-2xl font-black" title="COPGEN1-126606">COPGEN1-126606</div><p className="mt-3 max-w-xl break-words font-semibold">Investigate intermittent data sync failures between COPGEN and JIRA Cloud</p><div className="mt-4 flex flex-wrap gap-3"><StatusBadge>In Progress</StatusBadge><StatusBadge tone="red">High</StatusBadge></div></div>
           <div className="space-y-3 text-sm font-semibold"><div><b>Assignee</b><br />Alice Chen</div><div><b>Creator</b><br />Bob Lin</div><div><b>Reporter</b><br />Charlie Wu</div></div>
           <div className="space-y-3 text-sm font-semibold"><div><b>Created</b><br />2026-07-01 10:12:34</div><div><b>Updated</b><br />2026-07-03 15:42:18</div><div><b>Labels</b><br />integration, sync, bug, data</div><div><b>Linked Issues</b><br />5</div></div>
         </div>
       </SectionCard>
-      <div className="mt-3 grid grid-cols-6 gap-3">
+      <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {[["Total Events", "事件總數", "412", Activity], ["Participants", "參與人數", "26", Users], ["Comments", "留言數", "68", MessageSquare], ["Attachments", "附件數", "15", Paperclip], ["Status Changes", "狀態變更次數", "18", GitBranch], ["Lead Time", "整體處理時間", "2d 04h 21m", Clock]].map(([a,b,c,d]) => <MetricCard key={a as string} label={a as string} sub={b as string} value={c as string} icon={d as typeof Activity} />)}
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-3">
+      <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
         <SectionCard title="Lifecycle Analysis" subtitle="處理生命週期"><DataTable headers={["Stage", "Time", "Duration"]} rows={jiraLifecycle} /><div className="mt-3 text-right font-black text-blue-600">Lead Time 2d 04h 21m</div></SectionCard>
         <SectionCard title="Participants Contribution" subtitle="參與者貢獻"><DataTable headers={["Participant", "Events", "% of Total"]} rows={[["Alice Chen","102","24.8%"],["Bob Lin","78","18.9%"],["Charlie Wu","64","15.5%"],["Daisy Huang","48","11.7%"],["Others","84","20.4%"]]} /></SectionCard>
         <SectionCard title="Status Transition Analysis" subtitle="狀態流轉分析"><DataTable headers={["From", "To", "Count", "%"]} rows={[["To Do","In Progress","6","33.3%"],["In Progress","In Review","4","22.2%"],["In Review","Resolved","3","16.7%"],["Resolved","In Review","2","11.1%"],["To Do","Blocked","1","5.6%"]]} /></SectionCard>

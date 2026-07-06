@@ -15,9 +15,9 @@ const tones = {
 
 export function StatusBadge({ children, tone = "green" }: Props) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-bold ${tones[tone]}`}>
+    <span className={`inline-flex max-w-full items-center gap-1 overflow-hidden rounded-md border px-2 py-1 text-xs font-bold ${tones[tone]}`} title={typeof children === "string" ? children : undefined}>
       {tone === "green" ? <CheckCircle2 size={13} /> : null}
-      {children}
+      <span className="min-w-0 truncate">{children}</span>
     </span>
   );
 }

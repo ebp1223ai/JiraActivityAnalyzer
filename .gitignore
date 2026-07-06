@@ -3,6 +3,13 @@ dist
 dist-electron
 release
 .env
+test-artifacts/
+screenshots/
+playwright-report/
 *.db
+*.sqlite
+*.sqlite3
+backups/
+backup_*.db
 logs
 *.log

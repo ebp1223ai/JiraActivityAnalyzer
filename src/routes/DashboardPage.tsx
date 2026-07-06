@@ -141,9 +141,9 @@ export function DashboardPage() {
         >
           <div className="space-y-2">
             {databaseDetails.map(([label, value]) => (
-              <div key={label} className="flex justify-between gap-4 rounded-md bg-slate-50 px-3 py-2">
-                <span className="font-black text-muted">{label}</span>
-                <span className="text-right font-black text-ink">{value}</span>
+            <div key={label} className="flex min-w-0 justify-between gap-4 rounded-md bg-slate-50 px-3 py-2">
+                <span className="shrink-0 font-black text-muted">{label}</span>
+                <span className="min-w-0 truncate text-right font-black text-ink" title={value}>{value}</span>
               </div>
             ))}
           </div>
