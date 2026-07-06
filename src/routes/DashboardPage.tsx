@@ -7,16 +7,21 @@ import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
+import { buildInfo } from "../buildInfo";
 import { activeUsers, db, eventTypes, projectActivity, syncRuns, trend } from "../data/mockData";
 
 const databaseDetails = [
-  ["Current Live DB", db.name],
-  ["DB ID", db.id],
-  ["Created At", db.createdAt],
+  ["Database Name", db.name],
+  ["Database ID", db.id],
   ["Source Type", "Live"],
   ["Source Backup", "None"],
+  ["Created At", db.createdAt],
   ["Restored At", "-"],
-  ["Last Backup Time", db.lastBackup]
+  ["Last Backup Time", db.lastBackup],
+  ["Database Path", "data/jira_analyzer.db"],
+  ["Schema Version", "2026.07.static-ui"],
+  ["App Version", buildInfo.version],
+  ["Build Time", buildInfo.buildTime]
 ];
 
 export function DashboardPage() {
@@ -38,6 +43,9 @@ export function DashboardPage() {
           </div>
           <div className="mt-4 text-xl font-black">{db.name}</div>
           <div className="text-sm font-semibold text-muted">ID: {db.id}</div>
+          <div className="text-sm font-semibold text-muted">Source Type: Live</div>
+          <div className="text-sm font-semibold text-muted">Source Backup: None</div>
+          <div className="text-sm font-semibold text-muted">Restored At: -</div>
           <div className="text-sm font-semibold text-muted">Last Backup: {db.lastBackup}</div>
           <button className="mt-3 text-sm font-black text-blue-600" onClick={() => setShowDbModal(true)}>
             檢視詳情 / Details
