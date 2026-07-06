@@ -1,18 +1,5 @@
 import type { JiraProbeDepth, JiraProbeRequest, JiraProbeResult } from "../types/jiraProbe";
 
-declare global {
-  interface Window {
-    desktopApp?: {
-      platform: string;
-      shell: string;
-      nodeAccess: boolean;
-      jiraProbe?: {
-        run: (request: JiraProbeRequest) => Promise<JiraProbeResult>;
-      };
-    };
-  }
-}
-
 const safeIssueKey = (issueKey: string) => issueKey.trim().toUpperCase() || "COPGEN1-126606";
 
 const totalsByDepth: Record<JiraProbeDepth, { histories: number; changes: number; worklogs: number; score: number }> = {

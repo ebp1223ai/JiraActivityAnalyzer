@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { DebugLogPanel } from "./DebugLogPanel";
 import { Sidebar } from "./Sidebar";
-import type { debugLogs } from "../data/mockData";
+import { appendDebugLogLines, clearDebugLogPage, createInitialDebugLogState, type DebugPage } from "../state/debugLogStore";
 
-const pageByPath: Record<string, keyof typeof debugLogs> = {
+const pageByPath: Record<string, DebugPage> = {
   "/": "dashboard",
   "/connections": "connections",
   "/import": "import",
@@ -16,7 +16,7 @@ const pageByPath: Record<string, keyof typeof debugLogs> = {
 };
 
 export type AppOutletContext = {
-  appendDebugLog: (page: keyof typeof debugLogs, lines: string[]) => void;
+  appendDebugLog: (page: DebugPage, lines: string[]) => void;
 };
 
 export function AppLayout() {
@@ -24,7 +24,7 @@ export function AppLayout() {
   const page = pageByPath[pathname] ?? "dashboard";
   const mainRef = useRef<HTMLElement>(null);
   const [debugCollapsed, setDebugCollapsed] = useState(false);
-  const [extraLogsByPage, setExtraLogsByPage] = useState<Partial<Record<keyof typeof debugLogs, string[]>>>({});
+  const [logsByPage, setLogsByPage] = useState(createInitialDebugLogState);
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0 });
@@ -37,15 +37,17 @@ export function AppLayout() {
         <div className="mx-auto w-full max-w-[1480px] min-w-0">
           <Outlet context={{
             appendDebugLog: (targetPage, lines) => {
-              setExtraLogsByPage((current) => ({
-                ...current,
-                [targetPage]: [...(current[targetPage] ?? []), ...lines].slice(-120)
-              }));
+              setLogsByPage((current) => appendDebugLogLines(current, targetPage, lines));
             }
           } satisfies AppOutletContext} />
         </div>
       </main>
-      <DebugLogPanel collapsed={debugCollapsed} onToggle={() => setDebugCollapsed((value) => !value)} page={page} extraLogs={extraLogsByPage[page] ?? []} />
+      <DebugLogPanel
+        collapsed={debugCollapsed}
+        onToggle={() => setDebugCollapsed((value) => !value)}
+        logs={logsByPage[page]}
+        onClear={() => setLogsByPage((current) => clearDebugLogPage(current, page))}
+      />
     </div>
   );
 }

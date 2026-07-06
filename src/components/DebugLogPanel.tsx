@@ -1,18 +1,11 @@
+import { useState } from "react";
 import { ChevronLeft, ChevronRight, Copy, Download, Trash2 } from "lucide-react";
-import { debugLogs } from "../data/mockData";
 
 type Props = {
   collapsed: boolean;
   onToggle: () => void;
-  page: keyof typeof debugLogs;
-  extraLogs?: string[];
-};
-
-const levelFor = (line: string, index: number) => {
-  if (line.includes("[ERROR]")) return "ERROR";
-  if (line.includes("[WARN]")) return "WARN";
-  if (line.includes("[DEBUG]")) return "DEBUG";
-  return index % 3 === 0 ? "DEBUG" : "INFO";
+  logs: string[];
+  onClear: () => void;
 };
 
 const levelClass: Record<string, string> = {
@@ -22,14 +15,61 @@ const levelClass: Record<string, string> = {
   INFO: "bg-green-100 text-green-700"
 };
 
+function levelFor(line: string, index: number) {
+  if (line.includes("[ERROR]")) return "ERROR";
+  if (line.includes("[WARN]")) return "WARN";
+  if (line.includes("[DEBUG]")) return "DEBUG";
+  return index % 3 === 0 ? "DEBUG" : "INFO";
+}
+
 function timestampFor(index: number) {
   const minutes = String(40 + Math.floor(index / 12)).padStart(2, "0");
   const seconds = String(21 + (index % 12)).padStart(2, "0");
   return `15:${minutes}:${seconds}.${120 + index}`;
 }
 
-export function DebugLogPanel({ collapsed, onToggle, page, extraLogs = [] }: Props) {
-  const logs = [...debugLogs[page], ...extraLogs];
+function debugFileName() {
+  const timestamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "_").slice(0, 15);
+  return `jira-activity-analyzer-debug-${timestamp}.txt`;
+}
+
+export function DebugLogPanel({ collapsed, onToggle, logs, onClear }: Props) {
+  const [notice, setNotice] = useState("");
+  const content = logs.join("\n");
+
+  async function handleCopy() {
+    if (!navigator.clipboard) {
+      setNotice("Clipboard is not available");
+      return;
+    }
+    await navigator.clipboard.writeText(content);
+    setNotice("Copied");
+  }
+
+  async function handleDownload() {
+    if (window.desktopApp?.appDebug?.saveTextFile) {
+      const result = await window.desktopApp.appDebug.saveTextFile({
+        defaultFileName: debugFileName(),
+        content
+      });
+      setNotice(result.canceled ? "Download canceled" : "Downloaded");
+      return;
+    }
+
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = debugFileName();
+    link.click();
+    URL.revokeObjectURL(url);
+    setNotice("Downloaded");
+  }
+
+  function handleClear() {
+    onClear();
+    setNotice("Debug log cleared");
+  }
 
   if (collapsed) {
     return (
@@ -63,26 +103,22 @@ export function DebugLogPanel({ collapsed, onToggle, page, extraLogs = [] }: Pro
         </button>
       </div>
 
-      {page === "timeline" ? (
-        <div className="mt-4 w-fit max-w-full rounded-full bg-green-50 px-3 py-2 text-sm font-bold leading-snug text-green-700" data-no-clip="true">
-          sessionStorage enabled
-        </div>
-      ) : null}
-
       <div className="mt-4 flex flex-wrap gap-2">
-        <button className="btn min-w-[72px] flex-1 px-3" data-no-clip="true" title="Copy logs">
+        <button className="btn min-w-[72px] flex-1 px-3" data-no-clip="true" title="Copy logs" onClick={handleCopy}>
           <Copy size={16} />
           <span>Copy</span>
         </button>
-        <button className="btn min-w-[46px] px-3" data-no-clip="true" title="Download TXT">
+        <button className="btn min-w-[46px] px-3" data-no-clip="true" title="Download TXT" onClick={handleDownload}>
           <Download size={16} />
           <span className="sr-only">Download TXT</span>
         </button>
-        <button className="btn btn-danger min-w-[46px] px-3" data-no-clip="true" title="Clear logs">
+        <button className="btn btn-danger min-w-[46px] px-3" data-no-clip="true" title="Clear logs" onClick={handleClear}>
           <Trash2 size={16} />
           <span>Clear</span>
         </button>
       </div>
+
+      {notice ? <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700" data-no-clip="true">{notice}</div> : null}
 
       <div className="thin-scroll mt-4 min-h-0 flex-1 overflow-auto rounded-lg border border-line p-3">
         {logs.map((log, index) => {

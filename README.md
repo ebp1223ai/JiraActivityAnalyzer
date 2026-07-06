@@ -27,6 +27,13 @@ Build Time is shown in the sidebar and in Settings > System Status.
 
 `Jira 測試 / Jira Probe` is a read-only diagnostics page for checking whether one issue can provide enough Jira data to build activity events later.
 
+- Renderer code does not call Jira directly. Real Probe requests go through Electron preload IPC into the main process.
+- The Electron main process owns Jira auth headers, read-only request validation, safe response parsing, sensitive-data masking, and structured probe logs.
+- Jira request code is split into:
+  - `electron/jira/jiraClient.ts`
+  - `electron/jira/jiraReadOnlyGuard.ts`
+  - `electron/jira/jiraProbeRunner.ts`
+  - `electron/jira/safeJson.ts`
 - Mock Mode uses safe sample data. No Jira request is sent, no token is used, and no database write is performed.
 - Real Probe requires Jira Base URL, Email / Username, API Token, and Issue Key or ID.
 - Real Probe never falls back to mock data. If the Jira request fails, the page shows a real error state with failed/skipped endpoints.
@@ -44,6 +51,8 @@ Build Time is shown in the sidebar and in Settings > System Status.
   - `GET /rest/api/2/issue/{issueKey}?expand=changelog`
   - `GET /rest/api/2/issue/{issueKey}/comment`
 - Non-JSON responses such as login pages, SSO redirects, proxy pages, or HTML error pages are handled as readable probe errors instead of raw JSON parse failures.
+- The read-only guard blocks non-GET requests and attachment content/thumbnail URLs.
+- Debug Log Copy, Download, and Clear operate on the current in-memory log state. Download uses a preload IPC save dialog in Electron.
 - It does not write to Jira.
 - It does not write to the production database.
 - Attachment file content is not downloaded; only metadata from the issue payload is shown.
