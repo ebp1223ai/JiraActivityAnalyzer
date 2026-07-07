@@ -17,7 +17,8 @@ contextBridge.exposeInMainWorld("desktopApp", {
     setActive: (id: string) => ipcRenderer.invoke("connection:set-active", id)
   },
   jiraAnalysis: {
-    load: (payload: unknown) => ipcRenderer.invoke("jira-analysis:load", payload)
+    load: (payload: unknown) => ipcRenderer.invoke("jira-analysis:load", payload),
+    saveExport: (payload: { category: "jira-analysis" | "raw-data" | "debug-bundles"; defaultFileName: string; data: unknown }) => ipcRenderer.invoke("jira-analysis:save-export", payload)
   },
   appDebug: {
     saveTextFile: (payload: { defaultFileName: string; content: string }) => ipcRenderer.invoke("debug-log:save-text", payload)

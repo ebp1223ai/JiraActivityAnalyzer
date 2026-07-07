@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Copy, ExternalLink, RefreshCw, Search } from "lucide-react";
+import { Copy, Download, ExternalLink, PackageOpen, RefreshCw, Search } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import { DataTable } from "../components/DataTable";
 import { MetricCard } from "../components/MetricCard";
@@ -9,6 +9,7 @@ import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { metricIcons } from "../data/mockData";
+import { buildInfo } from "../buildInfo";
 import { useConnectionContext } from "../state/ConnectionContext";
 import type { AppOutletContext } from "../components/AppLayout";
 
@@ -62,6 +63,16 @@ const tabLabels: Array<{ key: TabKey; label: string; sub: string }> = [
 
 const defaultTabState: TabState = { page: 1, pageSize: 40, search: "", filter: "all" };
 
+function formatTimestampForFile(date = new Date()) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+function formatTimestampForJson(date = new Date()) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 function cellText(cell: ReactNode): string {
   if (cell === null || cell === undefined) return "";
   if (typeof cell === "string" || typeof cell === "number" || typeof cell === "boolean") return String(cell);
@@ -74,6 +85,10 @@ function normalized(value: string) {
 
 function uniqueColumnValues(rows: TableRow[], columnIndex: number) {
   return Array.from(new Set(rows.map((row) => cellText(row[columnIndex])).filter(Boolean))).sort();
+}
+
+function rowsToObjects(headers: string[], rows: TableRow[]) {
+  return rows.map((row) => Object.fromEntries(headers.map((header, index) => [header, cellText(row[index])])));
 }
 
 function LabelChips({ value }: { value: unknown }) {
@@ -178,11 +193,12 @@ function PaginatedTable({
 export function JiraAnalysisPage() {
   const { Activity, Clock, GitBranch, MessageSquare, Paperclip, Users } = metricIcons;
   const { activeConnection } = useConnectionContext();
-  const { appendDebugLog } = useOutletContext<AppOutletContext>();
+  const { appendDebugLog, getDebugLogs } = useOutletContext<AppOutletContext>();
   const [issueKey, setIssueKey] = useState("COPGEN1-138930");
   const [result, setResult] = useState<JiraAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [tabStates, setTabStates] = useState<Partial<Record<TabKey, TabState>>>({});
 
@@ -191,6 +207,7 @@ export function JiraAnalysisPage() {
 
   async function handleLoad() {
     setError("");
+    setNotice("");
     if (!activeConnection) {
       setError("Please configure an active Jira connection first.");
       return;
@@ -220,6 +237,174 @@ export function JiraAnalysisPage() {
   function openInJira() {
     if (!activeConnection || !issueKey) return;
     window.open(`${activeConnection.baseUrl.replace(/\/+$/, "")}/browse/${encodeURIComponent(issueKey)}`, "_blank");
+  }
+
+  function appPayload() {
+    return {
+      name: "Jira Activity Analyzer",
+      version: buildInfo.version.replace(/^v/, ""),
+      buildTime: buildInfo.buildTime,
+      gitCommit: buildInfo.gitCommit,
+      gitBranch: buildInfo.gitBranch
+    };
+  }
+
+  function sourcePayload() {
+    return {
+      baseUrl: activeConnection?.baseUrl ?? "",
+      apiVersion: activeConnection?.apiVersion ?? "",
+      authType: activeConnection?.authType ?? "",
+      token: "[masked]",
+      authorization: "[masked]",
+      readOnly: true,
+      databaseWrite: false,
+      attachmentDownload: false
+    };
+  }
+
+  function buildAnalysisExport() {
+    return {
+      exportType: "jira-analysis-result",
+      app: appPayload(),
+      exportedAt: formatTimestampForJson(),
+      source: sourcePayload(),
+      issue: {
+        key: issue.key ?? issueKey,
+        id: issue.id ?? "",
+        summary: issue.summary ?? "",
+        status: issue.status ?? "",
+        priority: issue.priority ?? "",
+        assignee: issue.assignee ?? "",
+        reporter: issue.reporter ?? "",
+        creator: issue.creator ?? "",
+        created: issue.created ?? "",
+        updated: issue.updated ?? ""
+      },
+      analysisSummary: summary,
+      overview: rowsToObjects(["field", "value"], result?.overview ?? []),
+      lifecycle: rowsToObjects(["stage", "time", "duration"], result?.lifecycle ?? []),
+      participants: rowsToObjects(["participant", "events", "changelog", "comments", "attachments", "status", "first", "last"], result?.participants ?? []),
+      statusTransitions: rowsToObjects(["from", "to", "count", "first", "last", "actors"], result?.transitions ?? []),
+      fieldChangeHotspots: rowsToObjects(["field", "changeCount", "percent", "actors", "lastChanged"], result?.fields ?? []),
+      fieldChanges: rowsToObjects(["time", "actor", "field", "from", "to", "changelogId", "itemIndex"], result?.fieldChanges ?? []),
+      commentsSummary: rowsToObjects(["metric", "value"], result?.comments ?? []),
+      comments: rowsToObjects(["created", "updated", "author", "bodyPreview", "edited", "commentId", "actions"], result?.commentRows ?? []),
+      attachmentsSummary: rowsToObjects(["created", "filename", "author", "mimeType", "size", "hasContentUrl", "hasThumbnailUrl", "type", "actions"], result?.attachments ?? []),
+      linkedIssues: rowsToObjects(["linkId", "type", "direction", "issueKey", "summary", "status", "issueType"], result?.links ?? []),
+      riskHints: result?.risks ?? [],
+      activityTimeline: rowsToObjects(["time", "actor", "eventType", "details", "source", "confidence"], result?.timeline ?? []),
+      manualCompare: null,
+      notes: ["Token masked", "No database write performed", "Attachment content was not downloaded"]
+    };
+  }
+
+  function buildRawExport() {
+    return {
+      exportType: "jira-analysis-raw-data",
+      app: appPayload(),
+      exportedAt: formatTimestampForJson(),
+      requestContext: {
+        ...sourcePayload(),
+        issueKey: issue.key ?? issueKey
+      },
+      endpoints: (result?.rawData ?? []).map((endpoint) => ({
+        name: endpoint.name,
+        method: endpoint.method,
+        path: endpoint.path,
+        status: endpoint.status,
+        contentType: "application/json",
+        durationMs: 0,
+        records: endpoint.records,
+        response: endpoint.json
+      })),
+      debugLog: getDebugLogs("jira")
+    };
+  }
+
+  function buildDebugBundle() {
+    return {
+      exportType: "jira-analysis-debug-bundle",
+      app: appPayload(),
+      exportedAt: formatTimestampForJson(),
+      activeConnection: {
+        name: activeConnection?.name ?? "",
+        baseUrl: activeConnection?.baseUrl ?? "",
+        apiVersion: activeConnection?.apiVersion ?? "",
+        authType: activeConnection?.authType ?? "",
+        token: "[masked]",
+        status: activeConnection?.status ?? ""
+      },
+      uiState: {
+        activeTab,
+        tabStates,
+        issueKey
+      },
+      analysisResult: buildAnalysisExport(),
+      rawData: buildRawExport(),
+      debugLog: getDebugLogs("jira"),
+      warnings: [],
+      errors: error ? [error] : []
+    };
+  }
+
+  function buildSummaryText() {
+    return [
+      "Jira Analysis Summary",
+      `Issue: ${issue.key ?? issueKey}`,
+      `Summary: ${issue.summary ?? "-"}`,
+      `Status: ${issue.status ?? "-"}`,
+      `Assignee: ${issue.assignee ?? "-"}`,
+      `Reporter: ${issue.reporter ?? "-"}`,
+      `Created: ${issue.created ?? "-"}`,
+      `Updated: ${issue.updated ?? "-"}`,
+      "",
+      "Analysis:",
+      `- Total Events: ${summary.totalEvents ?? "-"}`,
+      `- Participants: ${summary.participants ?? "-"}`,
+      `- Comments: ${summary.comments ?? "-"}`,
+      `- Attachments: ${summary.attachments ?? "-"}`,
+      `- Status Changes: ${summary.statusChanges ?? "-"}`,
+      `- Lead Time: ${summary.leadTime ?? "-"}`,
+      "",
+      "Endpoint:",
+      `- API Version: ${activeConnection?.apiVersion ?? "-"}`,
+      `- Auth Type: ${activeConnection?.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
+      "- Read-only: yes",
+      "- Database write: no",
+      "- Attachment download: no",
+      "",
+      "Notes:",
+      "- Token masked",
+      "- Raw data available in exported file"
+    ].join("\n");
+  }
+
+  async function copyAnalysisSummary() {
+    if (!result?.ok) return;
+    await navigator.clipboard?.writeText(buildSummaryText());
+    setNotice("Analysis summary copied.");
+    appendDebugLog("jira", ["[INFO] Analysis summary copied"]);
+  }
+
+  async function saveJiraAnalysisExport(kind: "analysis" | "raw" | "bundle") {
+    if (!result?.ok) return;
+    const timestamp = formatTimestampForFile();
+    const issue = String(result.issue?.key ?? issueKey).replace(/[^A-Z0-9_-]/gi, "-");
+    const request = kind === "analysis"
+      ? { category: "jira-analysis" as const, defaultFileName: `jira-analysis-${issue}-${timestamp}.json`, data: buildAnalysisExport(), label: "Analysis result" }
+      : kind === "raw"
+        ? { category: "raw-data" as const, defaultFileName: `jira-analysis-raw-${issue}-${timestamp}.json`, data: buildRawExport(), label: "Raw data" }
+        : { category: "debug-bundles" as const, defaultFileName: `jira-analysis-debug-bundle-${issue}-${timestamp}.json`, data: buildDebugBundle(), label: "Debug bundle" };
+    try {
+      const saved = await window.desktopApp?.jiraAnalysis?.saveExport?.(request);
+      if (!saved || saved.canceled || !saved.filePath) throw new Error(`${request.label} save was canceled.`);
+      setNotice(`${request.label} saved.`);
+      appendDebugLog("jira", [`[INFO] ${request.label} saved: ${saved.filePath}`, "[INFO] No database write performed"]);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : `${request.label} save failed.`;
+      setError(message);
+      appendDebugLog("jira", [`[ERROR] ${message}`]);
+    }
   }
 
   function switchTab(key: TabKey) {
@@ -309,14 +494,19 @@ export function JiraAnalysisPage() {
         )}
       </SectionCard>
 
-      <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_110px] xl:grid-cols-[minmax(0,1fr)_110px_170px_150px]">
-        <input className="field" value={issueKey} onChange={(event) => setIssueKey(event.target.value)} />
+      <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
+        <input className="field min-w-[240px] flex-1" value={issueKey} onChange={(event) => setIssueKey(event.target.value)} />
         <button className="btn btn-primary" onClick={handleLoad} disabled={loading}><Search size={16} />{loading ? "Loading" : "Load"}</button>
         <button className="btn" onClick={handleLoad} disabled={loading}><RefreshCw size={16} />Refresh from Jira</button>
         <button className="btn" onClick={openInJira} disabled={!activeConnection} title={activeConnection ? `${activeConnection.baseUrl.replace(/\/+$/, "")}/browse/${encodeURIComponent(issueKey)}` : undefined}><ExternalLink size={16} />Open in Jira</button>
+        <button className="btn" onClick={copyAnalysisSummary} disabled={!result?.ok} title={!result?.ok ? "Load an issue first." : "Copy Analysis Summary"}><Copy size={16} />Copy Summary</button>
+        <button className="btn" onClick={() => void saveJiraAnalysisExport("analysis")} disabled={!result?.ok} title={!result?.ok ? "Load an issue first." : "Save Analysis Result JSON"}><Download size={16} />Save Analysis Result</button>
+        <button className="btn" onClick={() => void saveJiraAnalysisExport("raw")} disabled={!result?.ok} title={!result?.ok ? "Load an issue first." : "Save Raw Data JSON"}><Download size={16} />Save Raw Data</button>
+        <button className="btn" onClick={() => void saveJiraAnalysisExport("bundle")} disabled={!result?.ok} title={!result?.ok ? "Load an issue first." : "Save Debug Bundle JSON"}><PackageOpen size={16} />Save Debug Bundle</button>
       </div>
 
       {error ? <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{error}</div> : null}
+      {notice ? <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 text-sm font-bold text-green-700">{notice}</div> : null}
 
       <SectionCard title="Issue Summary" subtitle="real read-only Jira data">
         {result?.ok ? (

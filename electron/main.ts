@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ensureDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConnectionsPath, getDatabaseDir, getEnvPath, getExportsDir, getLogsDir, getProbeResultsDir } from "./appPaths.js";
 import { createJiraClient } from "./jira/jiraClient.js";
+import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
 import { sanitizeRawJson } from "./jira/safeJson.js";
 import type { ProbeRequest } from "./jira/jiraTypes.js";
@@ -76,7 +77,7 @@ function parseEnvText(text: string) {
 }
 
 function ensureRuntimeFolders() {
-  return {
+  const folders = {
     runtimeDir: ensureDir(getAppRuntimeDir()),
     dataDir: ensureDir(getDatabaseDir()),
     logsDir: ensureDir(getLogsDir()),
@@ -85,6 +86,8 @@ function ensureRuntimeFolders() {
     backupsDir: ensureDir(getBackupsDir()),
     configDir: ensureDir(getConfigDir())
   };
+  ensureExportFolders();
+  return folders;
 }
 
 type AppConnection = {
@@ -591,6 +594,10 @@ ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppCo
     timeline: activityTimeline,
     rawData
   };
+});
+
+ipcMain.handle("jira-analysis:save-export", async (_event, payload: { category: "jira-analysis" | "raw-data" | "debug-bundles"; defaultFileName: string; data: unknown }) => {
+  return saveExportJson(payload);
 });
 
 ipcMain.handle("jira-probe:load-env", async () => {

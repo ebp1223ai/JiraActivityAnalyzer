@@ -17,6 +17,7 @@ const pageByPath: Record<string, DebugPage> = {
 
 export type AppOutletContext = {
   appendDebugLog: (page: DebugPage, lines: string[]) => void;
+  getDebugLogs: (page: DebugPage) => string[];
 };
 
 export function AppLayout() {
@@ -38,7 +39,8 @@ export function AppLayout() {
           <Outlet context={{
             appendDebugLog: (targetPage, lines) => {
               setLogsByPage((current) => appendDebugLogLines(current, targetPage, lines));
-            }
+            },
+            getDebugLogs: (targetPage) => logsByPage[targetPage] ?? []
           } satisfies AppOutletContext} />
         </div>
       </main>

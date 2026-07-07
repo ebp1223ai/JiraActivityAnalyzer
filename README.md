@@ -23,6 +23,48 @@ The app injects `__BUILD_TIME__` from `vite.config.ts`.
 
 Build Time is shown in the sidebar and in Settings > System Status.
 
+## Export Result / Raw Data
+
+Runtime export files are written under `<runtime>/exports/`. The app creates these common folders:
+
+```text
+<runtime>/exports/
+  jira-analysis/
+  jira-probe/
+  timeline/
+  user-analysis/
+  import-preview/
+  connections/
+  dashboard/
+  raw-data/
+  debug-bundles/
+```
+
+Jira Analysis supports:
+
+- Copy Analysis Summary: copies a token-safe text summary for GPT / Codex troubleshooting.
+- Save Analysis Result: writes `<runtime>/exports/jira-analysis/jira-analysis-{issueKey}-YYYYMMDD_HHmmss.json`.
+- Save Raw Data: writes `<runtime>/exports/raw-data/jira-analysis-raw-{issueKey}-YYYYMMDD_HHmmss.json`.
+- Save Debug Bundle: writes `<runtime>/exports/debug-bundles/jira-analysis-debug-bundle-{issueKey}-YYYYMMDD_HHmmss.json`.
+
+Save buttons are disabled until a Jira Analysis issue is successfully loaded. Exported JSON is created by Electron main process IPC and is sanitized before writing.
+
+Exported Jira Analysis result JSON includes app version, build time, git commit, git branch, exported time, read-only source metadata, issue summary, analysis summary, lifecycle, participants, status transitions, field changes, comments, attachments metadata, linked issues, risk hints, and activity timeline.
+
+Exported raw data JSON includes sanitized endpoint responses and sanitized debug logs. It does not include API token values, Authorization headers, passwords, master keys, cookies, session IDs, CSRF/XSRF values, `.env` content, database content, or downloaded attachment files.
+
+The shared export sanitizer masks sensitive keys such as `authorization`, `token`, `apiToken`, `password`, `masterKey`, `cookie`, `set-cookie`, `session`, `sessionId`, `JSESSIONID`, `atl.xsrf.token`, `csrf`, and `secret`.
+
+Common export TODOs for later pages:
+
+- Dashboard: Save Dashboard Snapshot / Save Raw Metrics Data
+- Connections: Save Connection Test Result / Save Raw Test Response
+- Import: Save Preview Result / Save Dry Run Result / Save Raw Search Result
+- Timeline: Save Timeline Result / Save Raw Activity Events / Save Filter State
+- Analysis: Save User Analysis Result / Save Raw Aggregation Data
+- Jira Probe: Save Probe Result / Save Raw Data / Save Debug Bundle
+- Settings: Save Diagnostics Result / Save System Status Snapshot
+
 ## Jira Probe
 
 `Jira 測試 / Jira Probe` is a read-only diagnostics page for checking whether one issue can provide enough Jira data to build activity events later.
