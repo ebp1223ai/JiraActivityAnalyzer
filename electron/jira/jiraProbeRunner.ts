@@ -497,16 +497,15 @@ export async function runApiProbe(request: ProbeRequest) {
     `[INFO] Run ID: ${runId}`,
     "[INFO] Standard read-only probe started",
     "[INFO] Probe Scope: Standard read-only issue analysis",
-    `[INFO] Selected connection: ${request.connection.name || "Custom Jira"}`,
     "[INFO] Mode: Real read-only probe",
     "[INFO] Jira Probe uses Live Jira API regardless of global data source mode",
+    "[INFO] Data Source Mode: Live Jira API",
+    `[INFO] Connection Source: ${request.connection.name || "Current .env Jira Connection"}`,
     `[INFO] Base URL: ${baseUrl || "(empty)"}`,
     `[INFO] Issue Key or ID: ${issueKey || "(empty)"}`,
-    `[INFO] Auth Type: ${authType === "bearer" ? "Bearer Token / Personal Access Token" : "Basic Auth"}`,
+    `[INFO] API Version: ${request.apiVersion === "v3" ? "Jira Cloud v3" : request.apiVersion === "auto" ? "Auto Detect" : "Jira Server/Data Center v2"}`,
+    `[INFO] Auth Type: ${authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
     "[INFO] Authorization: [masked]",
-    "[INFO] Token: [masked]",
-    "[INFO] API Token: [masked]",
-    `[INFO] API Version: ${request.apiVersion ?? "auto"}`,
     "[INFO] No database write performed"
   ];
 

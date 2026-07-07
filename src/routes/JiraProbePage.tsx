@@ -37,6 +37,16 @@ const authTypeNotes: Record<JiraProbeAuthType, string> = {
   bearer: "Recommended for Jira Server/Data Center Personal Access Token."
 };
 
+function apiVersionLabel(value: JiraProbeApiVersion) {
+  if (value === "v3") return "Jira Cloud v3";
+  if (value === "auto") return "Auto Detect";
+  return "Jira Server/Data Center v2";
+}
+
+function authTypeLabel(value: JiraProbeAuthType) {
+  return value === "bearer" ? "Bearer Token / PAT" : "Basic Auth";
+}
+
 type PreviewTab = "overview" | "issueFields" | "description" | "changelog" | "comments" | "attachments" | "links" | "users" | "activityEstimate" | "rawJson" | "manualCompare";
 
 const inspectorTabs: Array<{ key: PreviewTab; label: string }> = [
@@ -92,7 +102,7 @@ export function JiraProbePage() {
 
   const request = useMemo(() => ({
     connection: {
-      name: defaultConnection.name,
+      name: activeConnection?.name || "Current .env Jira Connection",
       baseUrl,
       email,
       apiToken
@@ -102,7 +112,7 @@ export function JiraProbePage() {
     useMock,
     apiVersion,
     authType
-  }), [apiToken, apiVersion, authType, baseUrl, email, issueKey, useMock]);
+  }), [activeConnection?.name, apiToken, apiVersion, authType, baseUrl, email, issueKey, useMock]);
 
   useEffect(() => {
     if (!jiraProbe.envLoadedOnce) void handleReloadEnv(false);
@@ -147,7 +157,7 @@ export function JiraProbePage() {
     if (response.status === "loaded") {
       const loadedAt = response.loadedAt ? new Date(response.loadedAt).toLocaleString("zh-TW", { hour12: false }) : new Date().toLocaleString("zh-TW", { hour12: false });
       setEnvStatus(`已載入 .env / Env loaded | Env Path: ${response.envPath ?? response.sourcePath} | Loaded At: ${loadedAt}`);
-      appendDebugLog("jiraProbe", ["[INFO] Env file loaded", `[INFO] Env path: ${response.envPath ?? response.sourcePath}`, `[INFO] Env token present: ${response.config.hasToken ? "yes (masked)" : "no"}`]);
+      appendDebugLog("jiraProbe", ["[INFO] Env file loaded", `[INFO] Env path: ${response.envPath ?? response.sourcePath}`, `[INFO] Credential status: ${response.config.hasToken ? "present (masked)" : "missing"}`]);
       if (showNotice) setActionNotice("Env loaded.");
     } else {
       const createdAt = response.createdAt ? new Date(response.createdAt).toLocaleString("zh-TW", { hour12: false }) : new Date().toLocaleString("zh-TW", { hour12: false });
@@ -160,7 +170,14 @@ export function JiraProbePage() {
   async function handleRunProbe() {
     setRunState("loading");
     setError("");
-    appendDebugLog("jiraProbe", ["[INFO] Jira Probe uses Live Jira API regardless of global data source mode"]);
+    appendDebugLog("jiraProbe", [
+      "[INFO] Jira Probe uses Live Jira API regardless of global data source mode",
+      "[INFO] Data Source Mode: Live Jira API",
+      "[INFO] Connection Source: Current .env Jira Connection",
+      `[INFO] API Version: ${apiVersionLabel(apiVersion)}`,
+      `[INFO] Auth Type: ${authTypeLabel(authType)}`,
+      "[INFO] Authorization: [masked]"
+    ]);
     try {
       const next = await runJiraProbe(request);
       setResult(next);

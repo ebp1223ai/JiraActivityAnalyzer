@@ -341,7 +341,7 @@ export function JiraAnalysisPage() {
       riskHints: result?.risks ?? [],
       activityTimeline: rowsToObjects(["time", "actor", "eventType", "details", "source", "confidence"], result?.timeline ?? []),
       manualCompare: null,
-      notes: ["Token masked", "No database write performed", "Attachment content was not downloaded"]
+      notes: ["Credentials masked", "No database write performed", "Attachment content was not downloaded"]
     };
   }
 

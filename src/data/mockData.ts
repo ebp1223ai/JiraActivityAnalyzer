@@ -114,7 +114,7 @@ export const debugLogs: Record<string, string[]> = {
   timeline: ["sessionStorage enabled", "Query activity_events from local database", "Apply filters", "Execute SQL query", "Returned rows: 1,248", "Timeline ready"],
   analysis: ["Aggregate events from local database", "Compute per-user metrics", "Calculate event type distribution", "Render charts and tables", "Analysis ready"],
   jira: ["Data Source Mode: Live Jira API", "Jira Analysis load ready", "GET /rest/api/2/myself", "GET /rest/api/2/issue/{issueKey}", "GET /rest/api/2/issue/{issueKey}?expand=changelog", "GET /rest/api/2/issue/{issueKey}/comment", "No database write performed"],
-  jiraProbe: ["Initialize Jira Probe page", "Selected connection: Jira Cloud (Production)", "Token: [masked]", "Ready for read-only probe", "No database write will be performed"],
+  jiraProbe: ["Initialize Jira Probe page", "Jira Probe uses Live Jira API regardless of global data source mode", "Data Source Mode: Live Jira API", "Connection Source: Current .env Jira Connection", "API Version: Jira Server/Data Center v2", "Auth Type: Bearer Token / PAT", "Authorization: [masked]", "Ready for standard read-only probe", "No database write will be performed"],
   settings: ["Loading settings...", "Checking database connection...", "Loading data management information...", "Loading backup history...", "Settings ready."]
 };
 

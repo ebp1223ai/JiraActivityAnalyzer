@@ -60,7 +60,7 @@ export function ConnectionsPage() {
     appendDebugLog("connections", [
       state.env.status === "created" ? "[WARN] Env file not found" : "[INFO] Env loaded successfully",
       state.env.status === "created" ? "[INFO] Default env file created" : `[INFO] Env path: ${envPath}`,
-      "[INFO] Token: [masked]"
+      "[INFO] Credential status: present (masked)"
     ]);
     setNotice(state.env.status === "created" ? "Default env file created and loaded." : "Env loaded.");
   }
@@ -80,7 +80,7 @@ export function ConnectionsPage() {
       `[INFO] Env file selected: ${envPath}`,
       "[INFO] Env loaded successfully",
       "[INFO] Current Env Path updated",
-      "[INFO] Token: [masked]"
+      "[INFO] Credential status: present (masked)"
     ]);
     setNotice("Env file selected and loaded.");
   }
