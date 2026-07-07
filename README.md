@@ -73,7 +73,6 @@ Default Real Probe UI values are optimized for Jira Server/Data Center:
 
 - API Version: `v2`
 - Auth Type: `Bearer Token / Personal Access Token`
-- Probe Depth: `Standard`
 - Mock Mode: `Off`
 - Log Level: `DEBUG`
 
@@ -85,12 +84,14 @@ Runtime files live beside the executable in packaged builds, and under the proje
   data/
   logs/
   exports/
-  probe-results/
+  exports/jira-probe/
+  exports/raw-data/
   backups/
   config/
+  data/
 ```
 
-Jira Probe loads `<runtime>/.env`. If the file is missing, Reload Env creates a safe template automatically and logs the created path. The app does not create a real database or backup in this UI prototype.
+Connections and Jira Probe load the current env path recorded in `<runtime>/config/app-config.json`. If no custom env path is configured, the app falls back to `<runtime>/.env`. If that file is missing, Reload Env creates a safe template automatically and logs the created path. Choose Env File accepts `.env` / `*.env`, stores only the selected path in app-config, and reloads it on the next launch. The app does not create a real database or backup in this UI prototype.
 
 ```env
 JIRA_BASE_URL=https://jira.example.com:8443
@@ -100,7 +101,6 @@ JIRA_API_TOKEN=replace-with-your-token
 JIRA_AUTH_TYPE=bearer
 JIRA_API_VERSION=v2
 JIRA_PROBE_DEFAULT_ISSUE=COPGEN1-138930
-JIRA_PROBE_DEPTH=standard
 JIRA_PROBE_MOCK_MODE=false
 JIRA_PROBE_LOG_LEVEL=DEBUG
 ```
@@ -133,17 +133,16 @@ JIRA_PROBE_LOG_LEVEL=DEBUG
 - Non-JSON responses such as login pages, SSO redirects, proxy pages, or HTML error pages are handled as readable probe errors instead of raw JSON parse failures.
 - The read-only guard blocks non-GET requests and attachment content/thumbnail URLs.
 - Debug Log Copy, Download, and Clear operate on the current in-memory log state. Download uses a preload IPC save dialog in Electron.
+- Connections is `.env` only. The page displays Current Env Path, supports Reload Env, Choose Env File, and Test Connection, and does not write connection records or `connections.json`.
+- Jira Probe uses a fixed Standard read-only issue analysis scope.
 - Data Inspector tabs show sanitized read-only probe data for overview, issue fields, description, changelog, comments, attachments, links, users, activity estimates, raw JSON, and manual compare.
 - Data Inspector supports in-page search and simple data filters. It is UI-only and does not write files or database records.
-- Copy Summary copies a token-safe human-readable probe summary.
-- Save Probe Result / Export Probe JSON opens an Electron save dialog defaulting to `<runtime>/probe-results/` and writes a sanitized JSON report only when the user chooses a path.
+- Save Probe Result writes sanitized JSON to `<runtime>/exports/jira-probe/`.
+- Save Raw Data writes sanitized raw API response JSON to `<runtime>/exports/raw-data/`.
 - Debug Log Download opens an Electron save dialog defaulting to `<runtime>/logs/`.
 - Exported JSON includes app version, build time, exported time, run id, base URL, issue key, selected API version, auth type, endpoint coverage, parsed inspector sections, sanitized raw responses, and sanitized debug logs.
 - Exported JSON does not include API token values or Authorization headers.
-- Probe Depth controls read-only endpoint coverage:
-  - Basic: `/myself` and `/issue`
-  - Standard: Basic plus changelog, comments, attachment metadata, issue links, and users derived from responses
-  - Deep: Standard plus read-only worklog, transitions, and field metadata checks when available
+- Standard read-only probe scope includes `/myself`, `/issue`, `/issue?expand=changelog`, `/comment`, attachment metadata parsing, issue links parsing, users derived from responses, and activity event estimates.
 - It does not write to Jira.
 - It does not write to the production database.
 - Attachment file content is not downloaded; only metadata from the issue payload is shown.

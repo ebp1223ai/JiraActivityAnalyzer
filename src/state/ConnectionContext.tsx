@@ -6,6 +6,7 @@ type ConnectionContextValue = {
   savedConnections: JiraConnection[];
   envStatus: ConnectionEnvStatus | null;
   reloadEnv: () => Promise<ConnectionStatePayload | null>;
+  chooseEnv: () => Promise<{ canceled: boolean; state: ConnectionStatePayload } | null>;
   testConnection: (connection: JiraConnection) => Promise<{ connection: JiraConnection; logs: string[]; result: unknown } | null>;
   saveConnection: (connection: JiraConnection) => Promise<ConnectionStatePayload | null>;
   setActiveConnection: (id: string) => Promise<ConnectionStatePayload | null>;
@@ -28,6 +29,13 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
   async function reloadEnv() {
     const payload = await window.desktopApp?.connections?.loadEnv?.();
     return payload ? applyState(payload) : null;
+  }
+
+  async function chooseEnv() {
+    const payload = await window.desktopApp?.connections?.chooseEnv?.();
+    if (!payload) return null;
+    applyState(payload.state);
+    return payload;
   }
 
   async function refreshList() {
@@ -62,6 +70,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     savedConnections,
     envStatus,
     reloadEnv,
+    chooseEnv,
     testConnection,
     saveConnection,
     setActiveConnection

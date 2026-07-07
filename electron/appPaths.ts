@@ -17,8 +17,16 @@ export function getAppDataDir() {
   return path.join(getAppRuntimeDir(), "data");
 }
 
-export function getEnvPath() {
+export function getDataDir() {
+  return getAppDataDir();
+}
+
+export function getDefaultEnvPath() {
   return path.join(getAppRuntimeDir(), ".env");
+}
+
+export function getEnvPath() {
+  return getDefaultEnvPath();
 }
 
 export function getLogsDir() {
@@ -33,6 +41,10 @@ export function getProbeResultsDir() {
   return path.join(getAppRuntimeDir(), "probe-results");
 }
 
+export function getRawDataDir() {
+  return path.join(getExportsDir(), "raw-data");
+}
+
 export function getBackupsDir() {
   return path.join(getAppRuntimeDir(), "backups");
 }
@@ -43,6 +55,10 @@ export function getDatabaseDir() {
 
 export function getConfigDir() {
   return path.join(getAppRuntimeDir(), "config");
+}
+
+export function getConfigPath() {
+  return path.join(getConfigDir(), "app-config.json");
 }
 
 export function getConnectionsPath() {

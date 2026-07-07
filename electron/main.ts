@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { ensureDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConnectionsPath, getDatabaseDir, getEnvPath, getExportsDir, getLogsDir, getProbeResultsDir } from "./appPaths.js";
+import { ensureDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
 import { createJiraClient } from "./jira/jiraClient.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
@@ -55,9 +55,7 @@ JIRA_USERNAME=
 JIRA_API_TOKEN=
 JIRA_AUTH_TYPE=bearer
 JIRA_API_VERSION=v2
-JIRA_DEFAULT_CONNECTION_NAME=Jira Server (Production)
 JIRA_PROBE_DEFAULT_ISSUE=COPGEN1-138930
-JIRA_PROBE_DEPTH=standard
 JIRA_PROBE_MOCK_MODE=false
 JIRA_PROBE_LOG_LEVEL=DEBUG
 `;
@@ -76,12 +74,50 @@ function parseEnvText(text: string) {
   return output;
 }
 
+function formatLocalDateTime(date = new Date()) {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+type AppConfig = {
+  currentEnvPath?: string;
+  lastEnvLoadedAt?: string;
+};
+
+function readAppConfig(): AppConfig {
+  const configPath = getConfigPath();
+  if (!fs.existsSync(configPath)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(configPath, "utf8")) as AppConfig;
+  } catch {
+    return {};
+  }
+}
+
+function writeAppConfig(config: AppConfig) {
+  ensureDir(getConfigDir());
+  fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), "utf8");
+}
+
+function resolveCurrentEnvPath() {
+  const config = readAppConfig();
+  if (config.currentEnvPath && fs.existsSync(config.currentEnvPath)) return config.currentEnvPath;
+  return getDefaultEnvPath();
+}
+
+function setCurrentEnvPath(envPath: string) {
+  const timestamp = formatLocalDateTime();
+  writeAppConfig({ ...readAppConfig(), currentEnvPath: envPath, lastEnvLoadedAt: timestamp });
+  return timestamp;
+}
+
 function ensureRuntimeFolders() {
   const folders = {
     runtimeDir: ensureDir(getAppRuntimeDir()),
     dataDir: ensureDir(getDatabaseDir()),
     logsDir: ensureDir(getLogsDir()),
     exportsDir: ensureDir(getExportsDir()),
+    rawDataDir: ensureDir(getRawDataDir()),
     probeResultsDir: ensureDir(getProbeResultsDir()),
     backupsDir: ensureDir(getBackupsDir()),
     configDir: ensureDir(getConfigDir())
@@ -114,7 +150,7 @@ function maskToken(token: string) {
 }
 
 function connectionFromEnv(env: Record<string, string>): AppConnection {
-  const name = env.JIRA_DEFAULT_CONNECTION_NAME || "Jira Server (Production)";
+  const name = "Current .env Jira Connection";
   const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "jira-production";
   const token = env.JIRA_API_TOKEN ?? "";
   const envApiVersion = (env.JIRA_API_VERSION ?? "v2").toLowerCase();
@@ -159,17 +195,15 @@ function writeConnectionFile(data: { activeConnectionId: string; connections: Ap
 
 function loadConnectionState() {
   const envState = ensureProbeEnv();
-  const env = parseEnvText(fs.readFileSync(getEnvPath(), "utf8"));
+  const env = parseEnvText(fs.readFileSync(envState.envPath, "utf8"));
   const envConnection = connectionFromEnv(env);
-  const saved = readConnectionFile();
-  const savedConnections = saved.connections.filter((item) => item.id !== envConnection.id);
-  const connections = [envConnection, ...savedConnections].map((item) => ({
+  const connections = [envConnection].map((item) => ({
     ...item,
-    active: (saved.activeConnectionId || envConnection.id) === item.id
+    active: true
   }));
   return {
     env: envState,
-    activeConnectionId: saved.activeConnectionId || envConnection.id,
+    activeConnectionId: envConnection.id,
     activeConnection: connections.find((item) => item.active) ?? envConnection,
     connections
   };
@@ -177,13 +211,18 @@ function loadConnectionState() {
 
 function toProbeEnvConfig(env: Record<string, string>, sourcePath: string, status: "loaded" | "created") {
   const token = env.JIRA_API_TOKEN ?? "";
-  const timestamp = new Date().toISOString();
+  const timestamp = formatLocalDateTime();
+  const appConfig = readAppConfig();
   return {
     found: status === "loaded",
     created: status === "created",
     status,
     sourcePath,
     envPath: sourcePath,
+    currentEnvPath: sourcePath,
+    defaultEnvPath: getDefaultEnvPath(),
+    appConfigPath: getConfigPath(),
+    lastEnvLoadedAt: appConfig.lastEnvLoadedAt,
     loadedAt: status === "loaded" ? timestamp : undefined,
     createdAt: status === "created" ? timestamp : undefined,
     paths: ensureRuntimeFolders(),
@@ -196,7 +235,7 @@ function toProbeEnvConfig(env: Record<string, string>, sourcePath: string, statu
       authType: (env.JIRA_AUTH_TYPE ?? "bearer").toLowerCase(),
       apiVersion: (env.JIRA_API_VERSION ?? "v2").toLowerCase(),
       issueKey: env.JIRA_PROBE_DEFAULT_ISSUE ?? "",
-      depth: (env.JIRA_PROBE_DEPTH ?? "standard").toLowerCase(),
+      depth: "standard",
       mockMode: (env.JIRA_PROBE_MOCK_MODE ?? "false").toLowerCase() === "true",
       logLevel: (env.JIRA_PROBE_LOG_LEVEL ?? "DEBUG").toUpperCase()
     }
@@ -205,13 +244,16 @@ function toProbeEnvConfig(env: Record<string, string>, sourcePath: string, statu
 
 function ensureProbeEnv() {
   const paths = ensureRuntimeFolders();
-  const envPath = getEnvPath();
+  const envPath = resolveCurrentEnvPath();
   if (fs.existsSync(envPath)) {
+    setCurrentEnvPath(envPath);
     return toProbeEnvConfig(parseEnvText(fs.readFileSync(envPath, "utf8")), envPath, "loaded");
   }
-  fs.writeFileSync(envPath, defaultEnvText, { encoding: "utf8", flag: "wx" });
+  const defaultEnvPath = getDefaultEnvPath();
+  fs.writeFileSync(defaultEnvPath, defaultEnvText, { encoding: "utf8", flag: "wx" });
+  setCurrentEnvPath(defaultEnvPath);
   return {
-    ...toProbeEnvConfig(parseEnvText(defaultEnvText), envPath, "created"),
+    ...toProbeEnvConfig(parseEnvText(defaultEnvText), defaultEnvPath, "created"),
     paths
   };
 }
@@ -226,6 +268,24 @@ ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
 ipcMain.handle("connection:load-env", async () => loadConnectionState());
 
 ipcMain.handle("connection:list", async () => loadConnectionState());
+
+ipcMain.handle("connection:choose-env", async () => {
+  const result = await dialog.showOpenDialog({
+    title: "Choose Env File",
+    defaultPath: path.dirname(resolveCurrentEnvPath()),
+    properties: ["openFile"],
+    filters: [
+      { name: "Environment Files", extensions: ["env"] },
+      { name: "All Files", extensions: ["*"] }
+    ]
+  });
+  if (result.canceled || !result.filePaths[0]) {
+    return { canceled: true, state: loadConnectionState() };
+  }
+  const envPath = result.filePaths[0];
+  setCurrentEnvPath(envPath);
+  return { canceled: false, state: loadConnectionState() };
+});
 
 ipcMain.handle("connection:save", async (_event, connection: AppConnection) => {
   const current = readConnectionFile();
@@ -248,6 +308,8 @@ ipcMain.handle("connection:set-active", async (_event, id: string) => {
 });
 
 ipcMain.handle("connection:test", async (_event, connection: AppConnection) => {
+  const requestedVersion = connection.apiVersion ?? "v2";
+  const prefixes = requestedVersion === "auto" ? ["/rest/api/3", "/rest/api/2"] : [requestedVersion === "v3" ? "/rest/api/3" : "/rest/api/2"];
   const logs = [
     "[INFO] Test connection started",
     `[INFO] Base URL: ${connection.baseUrl}`,
@@ -255,7 +317,7 @@ ipcMain.handle("connection:test", async (_event, connection: AppConnection) => {
     `[INFO] API Version: ${connection.apiVersion}`,
     "[INFO] Authorization: [masked]",
     "[INFO] Token: [masked]",
-    "[DEBUG] GET /rest/api/2/myself"
+    `[DEBUG] GET ${prefixes[0]}/myself`
   ];
   const client = createJiraClient({
     baseUrl: connection.baseUrl,
@@ -263,8 +325,15 @@ ipcMain.handle("connection:test", async (_event, connection: AppConnection) => {
     apiToken: connection.apiToken ?? "",
     authType: connection.authType
   });
-  const myself = await client.get("/rest/api/2/myself");
-  const now = new Date().toLocaleString("zh-TW", { hour12: false });
+  let myself = await client.get(`${prefixes[0]}/myself`);
+  if (!myself.ok && prefixes.length > 1) {
+    logs.push(`[DEBUG] Response status: ${myself.status}`);
+    logs.push("[WARN] v3 connection test failed; trying v2");
+    logs.push(`[DEBUG] GET ${prefixes[1]}/myself`);
+    myself = await client.get(`${prefixes[1]}/myself`);
+  }
+  logs.push(`[DEBUG] Response status: ${myself.status}`);
+  const now = formatLocalDateTime();
   if (!myself.ok) {
     logs.push(`[ERROR] Connection test failed: ${myself.message ?? myself.status}`);
     logs.push("[INFO] No database write performed");
@@ -276,8 +345,9 @@ ipcMain.handle("connection:test", async (_event, connection: AppConnection) => {
   }
   const user = myself.json && typeof myself.json === "object" ? myself.json as Record<string, unknown> : {};
   logs.push("[INFO] Authenticated user resolved");
-  logs.push("[DEBUG] GET /rest/api/2/project");
-  const projects = await client.get("/rest/api/2/project");
+  const projectPrefix = prefixes.length > 1 && myself.ok && prefixes[0].includes("/3") ? "/rest/api/2" : prefixes.at(-1) ?? "/rest/api/2";
+  logs.push(`[DEBUG] GET ${projectPrefix}/project`);
+  const projects = await client.get(`${projectPrefix}/project`);
   const accessibleProjectsCount = projects.ok && Array.isArray(projects.json) ? projects.json.length : 0;
   if (!projects.ok) logs.push("[WARN] Project list endpoint failed; connection auth still succeeded");
   logs.push("[INFO] Connection test successful");
@@ -605,17 +675,19 @@ ipcMain.handle("jira-probe:load-env", async () => {
 });
 
 ipcMain.handle("jira-probe:save-result", async (_event, payload: { defaultFileName: string; content: string }) => {
-  const outputDir = ensureDir(getProbeResultsDir());
-  const result = await dialog.showSaveDialog({
-    title: "Save Probe Result",
-    defaultPath: path.join(outputDir, payload.defaultFileName),
-    filters: [{ name: "JSON", extensions: ["json"] }]
+  return saveExportJson({
+    category: "jira-probe",
+    defaultFileName: payload.defaultFileName,
+    data: JSON.parse(payload.content)
   });
-  if (result.canceled || !result.filePath) {
-    return { canceled: true };
-  }
-  fs.writeFileSync(result.filePath, payload.content, "utf8");
-  return { canceled: false, filePath: result.filePath, folderPath: outputDir };
+});
+
+ipcMain.handle("jira-probe:save-raw-data", async (_event, payload: { defaultFileName: string; data: unknown }) => {
+  return saveExportJson({
+    category: "raw-data",
+    defaultFileName: payload.defaultFileName,
+    data: payload.data
+  });
 });
 
 ipcMain.handle("debug-log:save-text", async (_event, payload: { defaultFileName: string; content: string }) => {

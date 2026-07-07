@@ -7,10 +7,12 @@ contextBridge.exposeInMainWorld("desktopApp", {
   jiraProbe: {
     run: (request: unknown) => ipcRenderer.invoke("jira-probe:run", request),
     loadEnv: () => ipcRenderer.invoke("jira-probe:load-env"),
-    saveResult: (payload: { defaultFileName: string; content: string }) => ipcRenderer.invoke("jira-probe:save-result", payload)
+    saveResult: (payload: { defaultFileName: string; content: string }) => ipcRenderer.invoke("jira-probe:save-result", payload),
+    saveRawData: (payload: { defaultFileName: string; data: unknown }) => ipcRenderer.invoke("jira-probe:save-raw-data", payload)
   },
   connections: {
     loadEnv: () => ipcRenderer.invoke("connection:load-env"),
+    chooseEnv: () => ipcRenderer.invoke("connection:choose-env"),
     list: () => ipcRenderer.invoke("connection:list"),
     test: (connection: unknown) => ipcRenderer.invoke("connection:test", connection),
     save: (connection: unknown) => ipcRenderer.invoke("connection:save", connection),

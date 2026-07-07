@@ -15,6 +15,10 @@ declare global {
           status?: "loaded" | "created";
           sourcePath?: string;
           envPath?: string;
+          currentEnvPath?: string;
+          defaultEnvPath?: string;
+          appConfigPath?: string;
+          lastEnvLoadedAt?: string;
           checkedPaths?: string[];
           loadedAt?: string;
           createdAt?: string;
@@ -23,6 +27,7 @@ declare global {
             dataDir: string;
             logsDir: string;
             exportsDir: string;
+            rawDataDir?: string;
             probeResultsDir: string;
             backupsDir: string;
             configDir: string;
@@ -42,9 +47,11 @@ declare global {
           };
         }>;
         saveResult: (payload: { defaultFileName: string; content: string }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
+        saveRawData: (payload: { defaultFileName: string; data: unknown }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
       };
       connections?: {
         loadEnv: () => Promise<ConnectionStatePayload>;
+        chooseEnv: () => Promise<{ canceled: boolean; state: ConnectionStatePayload }>;
         list: () => Promise<ConnectionStatePayload>;
         test: (connection: JiraConnection) => Promise<{ connection: JiraConnection; logs: string[]; result: unknown }>;
         save: (connection: JiraConnection) => Promise<ConnectionStatePayload>;

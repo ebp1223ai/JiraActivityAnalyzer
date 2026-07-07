@@ -24,6 +24,10 @@ export type JiraConnection = {
 export type ConnectionEnvStatus = {
   status?: "loaded" | "created";
   envPath?: string;
+  currentEnvPath?: string;
+  defaultEnvPath?: string;
+  appConfigPath?: string;
+  lastEnvLoadedAt?: string;
   loadedAt?: string;
   createdAt?: string;
 };

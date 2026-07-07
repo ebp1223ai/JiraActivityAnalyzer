@@ -495,11 +495,12 @@ export async function runApiProbe(request: ProbeRequest) {
   const debugLogs = [
     "[INFO] Run Probe started",
     `[INFO] Run ID: ${runId}`,
+    "[INFO] Standard read-only probe started",
+    "[INFO] Probe Scope: Standard read-only issue analysis",
     `[INFO] Selected connection: ${request.connection.name || "Custom Jira"}`,
     "[INFO] Mode: Real read-only probe",
     `[INFO] Base URL: ${baseUrl || "(empty)"}`,
     `[INFO] Issue Key or ID: ${issueKey || "(empty)"}`,
-    `[INFO] Probe depth: ${request.depth}`,
     `[INFO] Auth Type: ${authType === "bearer" ? "Bearer Token / Personal Access Token" : "Basic Auth"}`,
     "[INFO] Authorization: [masked]",
     "[INFO] Token: [masked]",
@@ -673,9 +674,9 @@ export async function runApiProbe(request: ProbeRequest) {
     const fieldRecords = fieldMetadata.ok && Array.isArray(fieldMetadata.json) ? (fieldMetadata.json as unknown[]).length : 0;
     endpoints.push(endpoint("Field Metadata", statusFor(fieldMetadata), fieldMetadata.status, String(fieldRecords), fieldMetadata.ok ? "Medium" : "Low", noteFor(fieldMetadata, "Field metadata available"), { urlPath: fieldsPath, contentType: fieldMetadata.contentType }));
   } else {
-    endpoints.push(endpoint("Worklog", "skipped", "-", "0", "-", request.depth === "basic" ? "Skipped in Basic mode" : "Skipped unless Probe Depth is Deep"));
-    endpoints.push(endpoint("Transitions", "skipped", "-", "0", "-", "Skipped unless Probe Depth is Deep"));
-    endpoints.push(endpoint("Field Metadata", "skipped", "-", "0", "-", "Skipped unless Probe Depth is Deep"));
+    endpoints.push(endpoint("Worklog", "skipped", "-", "0", "-", "Not included in Standard read-only probe"));
+    endpoints.push(endpoint("Transitions", "skipped", "-", "0", "-", "Not included in Standard read-only probe"));
+    endpoints.push(endpoint("Field Metadata", "skipped", "-", "0", "-", "Not included in Standard read-only probe"));
   }
 
   const statusChanges = Math.round(changelogItems * 0.08);
