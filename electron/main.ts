@@ -316,7 +316,7 @@ ipcMain.handle("connection:test", async (_event, connection: AppConnection) => {
     `[INFO] Auth Type: ${connection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
     `[INFO] API Version: ${connection.apiVersion}`,
     "[INFO] Authorization: [masked]",
-    "[INFO] Token: [masked]",
+    `[INFO] Credential status: ${connection.apiToken ? "present (masked)" : "missing"}`,
     `[DEBUG] GET ${prefixes[0]}/myself`
   ];
   const client = createJiraClient({
@@ -388,6 +388,16 @@ function formatDateTime(input: unknown): string {
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
+function formatJiraDate(input: unknown): string {
+  const value = text(input);
+  if (value === "-") return "-";
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return value;
+  const date = new Date(timestamp);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function dateSortValue(input: unknown): number {
   const timestamp = Date.parse(text(input));
   return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
@@ -402,6 +412,138 @@ function fileType(mimeType: unknown, filename: unknown): string {
   if (/zip|compressed|archive/.test(mime) || /\.(zip|7z|rar|gz|tar)$/.test(file)) return "zip";
   return "other";
 }
+
+function candidateFromIssue(issue: Record<string, unknown>) {
+  const fields = asRecord(issue.fields);
+  const project = asRecord(fields.project);
+  return {
+    id: text(issue.id),
+    key: text(issue.key),
+    summary: text(fields.summary),
+    status: text(asRecord(fields.status).name),
+    assignee: text(fields.assignee),
+    reporter: text(fields.reporter),
+    creator: text(fields.creator),
+    updated: formatJiraDate(fields.updated),
+    created: formatJiraDate(fields.created),
+    issueType: text(asRecord(fields.issuetype).name),
+    priority: text(asRecord(fields.priority).name),
+    project: `${text(project.key)} / ${text(project.name)}`,
+    matchedReason: "Matched by Standard search; exact updatedBy actor requires Full Fetch in Stage 2"
+  };
+}
+
+ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { connection: AppConnection; jql: string; safetyLimit: number }) => {
+  const connection = payload.connection;
+  const safetyLimit = Math.min(Math.max(Number(payload.safetyLimit) || 1000, 1), 1000);
+  const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
+  const fields = "key,summary,status,assignee,reporter,creator,updated,created,issuetype,priority,project";
+  const maxResults = 100;
+  let startAt = 0;
+  let total = 0;
+  const issues: Record<string, unknown>[] = [];
+  const pages: Array<{ startAt: number; count: number; total: number; status: string | number }> = [];
+  const logs = [
+    "[INFO] Candidate Discovery started",
+    "[INFO] Data Source Mode: Live Jira API",
+    "[INFO] Connection Source: Current .env Jira Connection",
+    `[INFO] API Version: ${connection.apiVersion === "v3" ? "Jira Cloud v3" : "Jira Server/Data Center v2"}`,
+    `[INFO] Auth Type: ${connection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
+    "[INFO] Authorization: [masked]",
+    "[INFO] Search API method: GET only"
+  ];
+  const warnings: string[] = [];
+
+  const client = createJiraClient({
+    baseUrl: connection.baseUrl,
+    email: connection.email || connection.username,
+    apiToken: connection.apiToken ?? "",
+    authType: connection.authType
+  });
+
+  while (issues.length < safetyLimit) {
+    const pathName = `${apiPrefix}/search?jql=${encodeURIComponent(payload.jql)}&fields=${encodeURIComponent(fields)}&startAt=${startAt}&maxResults=${maxResults}`;
+    logs.push(`[DEBUG] GET ${apiPrefix}/search?startAt=${startAt}&maxResults=${maxResults}`);
+    const response = await client.get(pathName);
+    if (!response.ok) {
+      logs.push(`[ERROR] Candidate Discovery failed: ${response.status} ${response.message ?? response.errorType ?? ""}`.trim());
+      logs.push("[INFO] No database write performed");
+      return {
+        ok: false,
+        message: response.message ?? "Jira candidate search failed.",
+        status: response.status,
+        contentType: response.contentType,
+        errorType: response.errorType,
+        logs,
+        warnings,
+        candidates: [],
+        metadata: {
+          method: "GET",
+          endpoint: `${apiPrefix}/search`,
+          startAt,
+          maxResults,
+          total,
+          pages,
+          rawResponseSanitized: sanitizeRawJson(response.json)
+        }
+      };
+    }
+
+    const json = asRecord(response.json);
+    const pageIssues = Array.isArray(json.issues) ? json.issues as Record<string, unknown>[] : [];
+    total = Number(json.total ?? pageIssues.length) || pageIssues.length;
+    pages.push({ startAt, count: pageIssues.length, total, status: response.status });
+    logs.push(`[INFO] Candidate page loaded: startAt=${startAt}, count=${pageIssues.length}, total=${total}`);
+    issues.push(...pageIssues.slice(0, Math.max(0, safetyLimit - issues.length)));
+
+    if (total > safetyLimit && !warnings.includes("Candidate result exceeded safety limit 1000. Please narrow users or date range.")) {
+      warnings.push("Candidate result exceeded safety limit 1000. Please narrow users or date range.");
+      logs.push(`[WARN] Candidate total exceeded safety limit: total=${total}, limit=${safetyLimit}`);
+    }
+
+    startAt += pageIssues.length;
+    if (pageIssues.length === 0 || startAt >= total || issues.length >= safetyLimit) break;
+  }
+
+  const candidates = issues
+    .map(candidateFromIssue)
+    .sort((a, b) => {
+      const updated = Date.parse(b.updated) - Date.parse(a.updated);
+      if (updated !== 0) return updated;
+      const created = Date.parse(b.created) - Date.parse(a.created);
+      if (created !== 0) return created;
+      return b.key.localeCompare(a.key);
+    });
+
+  logs.push(`[INFO] Candidate Discovery completed: candidates=${candidates.length}`);
+  logs.push("[INFO] No database write performed");
+
+  return {
+    ok: true,
+    candidates,
+    warnings,
+    logs,
+    metadata: {
+      method: "GET",
+      endpoint: `${apiPrefix}/search`,
+      fields,
+      maxResults,
+      candidateSafetyLimit: safetyLimit,
+      total,
+      returned: candidates.length,
+      pages,
+      rawResponseSanitized: {
+        total,
+        returned: candidates.length,
+        pages
+      }
+    }
+  };
+});
+
+ipcMain.handle("user-analysis:save-export", async (_event, payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => {
+  return saveExportJson(payload);
+});
 
 ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppConnection; issueKey: string }) => {
   const issueKey = String(payload.issueKey || "").trim().toUpperCase();

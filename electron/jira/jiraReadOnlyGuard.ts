@@ -11,6 +11,7 @@ const allowedReadOnlyPaths = [
   /^\/rest\/api\/[23]\/issue\/[^/?#]+\/comment(?:\?.*)?$/,
   /^\/rest\/api\/[23]\/issue\/[^/?#]+\/worklog(?:\?.*)?$/,
   /^\/rest\/api\/[23]\/issue\/[^/?#]+\/transitions(?:\?.*)?$/,
+  /^\/rest\/api\/[23]\/search(?:\?.*)?$/,
   /^\/rest\/api\/[23]\/field$/,
   /^\/rest\/api\/[23]\/attachment\/[^/?#]+$/
 ];

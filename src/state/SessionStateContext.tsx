@@ -35,11 +35,53 @@ export type JiraProbeSessionState = {
   saving: boolean;
 };
 
+export type UserAnalysisCandidateIssue = {
+  id: string;
+  key: string;
+  summary: string;
+  status: string;
+  assignee: string;
+  reporter: string;
+  creator: string;
+  updated: string;
+  created: string;
+  issueType: string;
+  priority: string;
+  project: string;
+  matchedReason: string;
+};
+
+export type UserAnalysisSessionState = {
+  selectedUsersText: string;
+  startDate: string;
+  endDate: string;
+  searchMode: "standard";
+  generatedJql: string;
+  candidateSafetyLimit: number;
+  fetchLimit: number;
+  candidateIssues: UserAnalysisCandidateIssue[];
+  selectedForFetch: string[];
+  excludedIssues: string[];
+  activeTab: "candidates" | "queue";
+  page: number;
+  pageSize: number;
+  search: string;
+  warnings: string[];
+  errors: string[];
+  lastDiscoveryAt: string;
+  rawSearchMetadata: unknown | null;
+  saving: boolean;
+  loading: boolean;
+  notice: string;
+};
+
 type SessionStateContextValue = {
   jiraAnalysis: JiraAnalysisSessionState;
   setJiraAnalysis: Dispatch<SetStateAction<JiraAnalysisSessionState>>;
   jiraProbe: JiraProbeSessionState;
   setJiraProbe: Dispatch<SetStateAction<JiraProbeSessionState>>;
+  userAnalysis: UserAnalysisSessionState;
+  setUserAnalysis: Dispatch<SetStateAction<UserAnalysisSessionState>>;
 };
 
 const initialJiraAnalysis: JiraAnalysisSessionState = {
@@ -69,14 +111,39 @@ const initialJiraProbe: JiraProbeSessionState = {
   saving: false
 };
 
+const initialUserAnalysis: UserAnalysisSessionState = {
+  selectedUsersText: "roger_hsieh\nch_kao",
+  startDate: "2026-07-01",
+  endDate: "2026-07-07",
+  searchMode: "standard",
+  generatedJql: "",
+  candidateSafetyLimit: 1000,
+  fetchLimit: 40,
+  candidateIssues: [],
+  selectedForFetch: [],
+  excludedIssues: [],
+  activeTab: "candidates",
+  page: 1,
+  pageSize: 40,
+  search: "",
+  warnings: [],
+  errors: [],
+  lastDiscoveryAt: "",
+  rawSearchMetadata: null,
+  saving: false,
+  loading: false,
+  notice: ""
+};
+
 const SessionStateContext = createContext<SessionStateContextValue | null>(null);
 
 export function SessionStateProvider({ children }: { children: ReactNode }) {
   const [jiraAnalysis, setJiraAnalysis] = useState(initialJiraAnalysis);
   const [jiraProbe, setJiraProbe] = useState(initialJiraProbe);
+  const [userAnalysis, setUserAnalysis] = useState(initialUserAnalysis);
 
   return (
-    <SessionStateContext.Provider value={{ jiraAnalysis, setJiraAnalysis, jiraProbe, setJiraProbe }}>
+    <SessionStateContext.Provider value={{ jiraAnalysis, setJiraAnalysis, jiraProbe, setJiraProbe, userAnalysis, setUserAnalysis }}>
       {children}
     </SessionStateContext.Provider>
   );
