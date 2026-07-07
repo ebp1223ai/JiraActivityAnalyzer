@@ -24,7 +24,6 @@ function emptyConnection(): JiraConnection {
     apiToken: "",
     tokenSource: "env",
     tokenMasked: "",
-    projectScope: ["COPGEN1", "FW", "QA"],
     status: "not_tested",
     lastTestedAt: "",
     authenticatedUser: "",
@@ -136,8 +135,6 @@ export function ConnectionsPage() {
           <FieldLabel label="API Token / PAT" sub="不會寫入 config" />
           <input className="field" type="password" value={draft.apiToken ?? ""} onChange={(event) => update("apiToken", event.target.value)} placeholder={draft.tokenMasked || "Token is masked and not logged"} />
 
-          <FieldLabel label="Project Scope" sub="專案範圍" />
-          <input className="field" value={draft.projectScope.join(",")} onChange={(event) => update("projectScope", event.target.value.split(",").map((item) => item.trim()).filter(Boolean))} />
         </div>
 
         <div className="mt-6 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
@@ -166,14 +163,13 @@ export function ConnectionsPage() {
 
       <SectionCard className="mt-4" title="Saved Connections" subtitle="local app config metadata">
         <DataTable
-          headers={["Name", "Base URL", "Auth Type", "API Version", "Token Source", "Project Scope", "Status", "Last Tested", "Active", "Actions"]}
+          headers={["Name", "Base URL", "Auth Type", "API Version", "Token Source", "Status", "Last Tested", "Active", "Actions"]}
           rows={savedConnections.map((connection) => [
             connection.name,
             connection.baseUrl,
             connection.authType,
             connection.apiVersion,
             connection.tokenSource,
-            connection.projectScope.join(", "),
             <StatusBadge tone={statusTone(connection.status)}>{connection.status}</StatusBadge>,
             connection.lastTestedAt || "-",
             connection.active ? <CheckCircle2 className="text-green-600" size={18} /> : "-",

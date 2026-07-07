@@ -11,8 +11,6 @@ const issueKey = "COPGEN1-126606";
 
 export function TimelinePage() {
   const { Activity, FileText, Users, MessageSquare, Paperclip, GitBranch } = metricIcons;
-  const hasIssueKey = issueKey.trim().length > 0;
-
   return (
     <div className="min-w-0">
       <PageHeader title="工作紀錄" subtitle="Timeline" connected={false} />
@@ -25,10 +23,6 @@ export function TimelinePage() {
           <div>
             <FieldLabel label="日期範圍" sub="Date Range" />
             <div className="field flex items-center justify-between gap-3"><span>2026/05/01</span><span>~</span><span>2026/05/31</span><Calendar size={16} /></div>
-          </div>
-          <div>
-            <FieldLabel label="專案" sub="Project" />
-            <input className="field bg-slate-50 text-slate-500" value={hasIssueKey ? "Auto: COPGEN1" : "COPGEN1, FW, QA"} disabled={hasIssueKey} readOnly />
           </div>
           <div>
             <FieldLabel label="Jira 編號" sub="Issue Key" />
@@ -45,7 +39,7 @@ export function TimelinePage() {
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-3"><button className="btn">重設 / Reset</button><button className="btn btn-primary"><Search size={17} />套用 / Apply</button></div>
         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-700">
-          查詢規則：若未指定 Issue Key，請至少選擇一位使用者。指定有效 Issue Key 時，Users 可留空，Project 會自動以 Issue Key 推導為 Auto Project。
+          查詢規則：若未指定 Issue Key，請至少選擇一位使用者。指定有效 Issue Key 時，Users 可留空，時間軸只顯示該 Issue 的活動。
         </div>
       </SectionCard>
       <ResponsiveMetricGrid min={190} className="mt-4">

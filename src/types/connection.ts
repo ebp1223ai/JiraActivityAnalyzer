@@ -14,7 +14,6 @@ export type JiraConnection = {
   apiToken?: string;
   tokenSource: TokenSource;
   tokenMasked: string;
-  projectScope: string[];
   status: ConnectionStatus;
   lastTestedAt: string;
   authenticatedUser: string;

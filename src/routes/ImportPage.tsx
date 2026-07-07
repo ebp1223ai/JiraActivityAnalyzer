@@ -23,7 +23,6 @@ export function ImportPage() {
                   <div className="min-w-0">
                     <div className="font-black text-ink">Jira Cloud (Production)</div>
                     <div className="text-xs font-bold text-muted">Base URL: https://example.atlassian.net</div>
-                    <div className="mt-2 flex flex-wrap gap-2"><Chip>COPGEN1</Chip><Chip>FW</Chip><Chip>QA</Chip></div>
                   </div>
                 </div>
                 <StatusBadge>Connected</StatusBadge>
@@ -61,10 +60,6 @@ export function ImportPage() {
           <div>
             <FieldLabel label="Max Issues" sub="最大 Issue 數" />
             <input className="field" defaultValue="10,000" />
-          </div>
-          <div>
-            <FieldLabel label="Project Filter" sub="專案篩選" />
-            <div className="field flex flex-wrap gap-2"><Chip>Alpha Platform</Chip><Chip>Beta Service</Chip></div>
           </div>
         </div>
         <div className="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-4">

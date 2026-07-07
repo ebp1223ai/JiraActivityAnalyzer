@@ -4,6 +4,7 @@ import path from "node:path";
 import { ensureDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConnectionsPath, getDatabaseDir, getEnvPath, getExportsDir, getLogsDir, getProbeResultsDir } from "./appPaths.js";
 import { createJiraClient } from "./jira/jiraClient.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
+import { sanitizeRawJson } from "./jira/safeJson.js";
 import type { ProbeRequest } from "./jira/jiraTypes.js";
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
@@ -54,7 +55,6 @@ JIRA_API_TOKEN=
 JIRA_AUTH_TYPE=bearer
 JIRA_API_VERSION=v2
 JIRA_DEFAULT_CONNECTION_NAME=Jira Server (Production)
-JIRA_DEFAULT_PROJECT_SCOPE=COPGEN1,FW,QA
 JIRA_PROBE_DEFAULT_ISSUE=COPGEN1-138930
 JIRA_PROBE_DEPTH=standard
 JIRA_PROBE_MOCK_MODE=false
@@ -98,7 +98,6 @@ type AppConnection = {
   apiToken?: string;
   tokenSource: "env" | "session" | "encrypted-store";
   tokenMasked: string;
-  projectScope: string[];
   status: "connected" | "failed" | "not_tested";
   lastTestedAt: string;
   authenticatedUser: string;
@@ -127,7 +126,6 @@ function connectionFromEnv(env: Record<string, string>): AppConnection {
     apiToken: token,
     tokenSource: token ? "env" : "session",
     tokenMasked: maskToken(token),
-    projectScope: (env.JIRA_DEFAULT_PROJECT_SCOPE ?? "COPGEN1,FW,QA").split(",").map((item) => item.trim()).filter(Boolean),
     status: "not_tested",
     lastTestedAt: "",
     authenticatedUser: "",
@@ -307,6 +305,31 @@ function text(value: unknown): string {
   return String(record.displayName ?? record.name ?? record.key ?? record.value ?? JSON.stringify(value).slice(0, 160));
 }
 
+function formatDateTime(input: unknown): string {
+  const value = text(input);
+  if (value === "-") return "-";
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return "-";
+  const date = new Date(timestamp);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function dateSortValue(input: unknown): number {
+  const timestamp = Date.parse(text(input));
+  return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
+}
+
+function fileType(mimeType: unknown, filename: unknown): string {
+  const mime = text(mimeType).toLowerCase();
+  const file = text(filename).toLowerCase();
+  if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(file)) return "image";
+  if (/log|text\/plain/.test(mime) || /\.(log|txt)$/.test(file)) return "log";
+  if (/spreadsheet|excel|csv/.test(mime) || /\.(xlsx?|csv)$/.test(file)) return "excel";
+  if (/zip|compressed|archive/.test(mime) || /\.(zip|7z|rar|gz|tar)$/.test(file)) return "zip";
+  return "other";
+}
+
 ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppConnection; issueKey: string }) => {
   const issueKey = String(payload.issueKey || "").trim().toUpperCase();
   const connection = payload.connection;
@@ -349,6 +372,7 @@ ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppCo
     : await client.get(`${apiPrefix}/issue/${encodeURIComponent(issueKey)}/changelog?maxResults=100`);
   logs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}/comment`);
   const commentsResponse = await client.get(`${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?maxResults=100`);
+  const changelogStatus = "status" in changelog ? changelog.status : changelog.ok ? 200 : "-";
 
   const issueJson = asRecord(issue.json);
   const fields = asRecord(issueJson.fields);
@@ -397,12 +421,74 @@ ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppCo
     entry.actors.add(text(history.author));
     statusTransitions.set(key, entry);
   });
+  const fieldChanges = changeItems
+    .map(({ history, item }, index) => [
+      formatDateTime(history.created),
+      text(history.author),
+      text(item.field),
+      text(item.fromString ?? item.from),
+      text(item.toString ?? item.to),
+      text(history.id),
+      String(index + 1)
+    ])
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+
+  const commentRows = comments
+    .map((comment) => [
+      formatDateTime(comment.created),
+      formatDateTime(comment.updated),
+      text(comment.author),
+      text(comment.body),
+      text(comment.created) !== text(comment.updated) ? "Yes" : "No",
+      text(comment.id),
+      "View / Copy"
+    ])
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+
+  const attachmentRows = attachments
+    .map((item) => {
+      const record = asRecord(item);
+      return [
+        formatDateTime(record.created),
+        text(record.filename),
+        text(record.author),
+        text(record.mimeType),
+        text(record.size),
+        record.content ? "Yes" : "No",
+        record.thumbnail ? "Yes" : "No",
+        fileType(record.mimeType, record.filename),
+        "Copy / Metadata"
+      ];
+    })
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+
   const activityTimeline = [
-    [text(fields.created), text(fields.creator), "issue_created", text(fields.summary)],
-    ...changeItems.map(({ history, item }) => [text(history.created), text(history.author), text(item.field) === "status" ? "status_changed" : "field_changed", `${text(item.field)}: ${text(item.fromString)} -> ${text(item.toString)}`]),
-    ...comments.map((comment) => [text(comment.created), text(comment.author), "comment_created", text(comment.body).slice(0, 120)]),
-    ...attachments.map((attachment) => [text(asRecord(attachment).created), text(asRecord(attachment).author), "attachment_added", text(asRecord(attachment).filename)])
-  ].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+    { time: text(fields.created), actor: text(fields.creator), event: "issue_created", details: text(fields.summary), source: "Issue", confidence: "High" },
+    ...changeItems.map(({ history, item }) => ({
+      time: text(history.created),
+      actor: text(history.author),
+      event: text(item.field) === "status" ? "status_changed" : "field_changed",
+      details: `${text(item.field)}: ${text(item.fromString ?? item.from)} -> ${text(item.toString ?? item.to)}`,
+      source: "Changelog",
+      confidence: "High"
+    })),
+    ...comments.map((comment) => ({ time: text(comment.created), actor: text(comment.author), event: "comment_created", details: text(comment.body), source: "Comment", confidence: "High" })),
+    ...attachments.map((attachment) => {
+      const record = asRecord(attachment);
+      return { time: text(record.created), actor: text(record.author), event: "attachment_added", details: text(record.filename), source: "Attachment", confidence: "High" };
+    })
+  ]
+    .sort((a, b) => dateSortValue(a.time) - dateSortValue(b.time))
+    .map((item) => [formatDateTime(item.time), item.actor, item.event, item.details, item.source, item.confidence]);
+
+  const rawData = [
+    { name: "Get Myself", method: "GET", path: `${apiPrefix}/myself`, status: text(myself.status), records: "1", json: sanitizeRawJson(myself.json) },
+    { name: "Get Issue", method: "GET", path: `${apiPrefix}/issue/${issueKey}`, status: text(issue.status), records: "1", json: sanitizeRawJson(issue.json) },
+    { name: "Get Changelog", method: "GET", path: `${apiPrefix}/issue/${issueKey}/changelog`, status: text(changelogStatus), records: String(histories.length), json: sanitizeRawJson(changelog.json) },
+    { name: "Get Comments", method: "GET", path: `${apiPrefix}/issue/${issueKey}/comment`, status: text(commentsResponse.status ?? "-"), records: String(comments.length), json: sanitizeRawJson(commentsResponse.json) },
+    { name: "Attachment Metadata", method: "READ", path: "fields.attachment", status: "-", records: String(attachments.length), json: sanitizeRawJson(attachments) },
+    { name: "Issue Links", method: "READ", path: "fields.issuelinks", status: "-", records: String(links.length), json: sanitizeRawJson(links) }
+  ];
 
   logs.push("[INFO] Issue loaded");
   logs.push(`[INFO] Parsed fields: ${Object.keys(fields).length}`);
@@ -411,7 +497,7 @@ ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppCo
   logs.push(`[INFO] Parsed attachments: ${attachments.length}`);
   logs.push(`[INFO] Parsed issue links: ${links.length}`);
   logs.push(`[INFO] Parsed participants: ${participants.size}`);
-  logs.push("[INFO] Analysis sections built");
+  logs.push("[INFO] Analysis tabs ready");
   logs.push("[INFO] No database write performed");
   logs.push("[SUCCESS] Jira Analysis ready");
 
@@ -430,8 +516,8 @@ ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppCo
       assignee: text(fields.assignee),
       reporter: text(fields.reporter),
       creator: text(fields.creator),
-      created: text(fields.created),
-      updated: text(fields.updated),
+      created: formatDateTime(fields.created),
+      updated: formatDateTime(fields.updated),
       resolution: text(resolution.name),
       labels: text(fields.labels),
       components: text(fields.components),
@@ -441,6 +527,29 @@ ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppCo
       attachmentCount: attachments.length,
       commentCount: comments.length
     },
+    overview: [
+      ["Issue Key", text(issueJson.key ?? issueKey)],
+      ["Issue ID", text(issueJson.id)],
+      ["Project", `${text(project.key)} / ${text(project.name)}`],
+      ["Issue Type", text(issueType.name)],
+      ["Summary", text(fields.summary)],
+      ["Status", text(status.name)],
+      ["Priority", text(priority.name)],
+      ["Resolution", text(resolution.name)],
+      ["Assignee", text(fields.assignee)],
+      ["Reporter", text(fields.reporter)],
+      ["Creator", text(fields.creator)],
+      ["Created", formatDateTime(fields.created)],
+      ["Updated", formatDateTime(fields.updated)],
+      ["Labels", text(fields.labels)],
+      ["Components", text(fields.components)],
+      ["Affected Versions", text(fields.versions)],
+      ["Fix Versions", text(fields.fixVersions)],
+      ["Attachment Count", String(attachments.length)],
+      ["Comment Count", String(comments.length)],
+      ["Link Count", String(links.length)],
+      ["Changelog Count", String(changeItems.length)]
+    ],
     summary: {
       totalEvents: activityTimeline.length,
       participants: participants.size,
@@ -449,24 +558,23 @@ ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppCo
       statusChanges: Array.from(fieldCounts.entries()).find(([field]) => field === "status")?.[1] ?? 0,
       leadTime: `${Math.max(0, Math.ceil((Date.parse(text(fields.updated)) - Date.parse(text(fields.created))) / 86400000))}d`
     },
-    lifecycle: [["Created", text(fields.created), "-"], ["Updated", text(fields.updated), "-"], ["Resolved", text(resolution.name) === "-" ? "-" : text(fields.resolutiondate), "-"]],
-    participants: Array.from(participants.entries()).map(([name, stats]) => [name, String(stats.events), String(stats.changelog), String(stats.comments), String(stats.attachments), String(stats.status), stats.first, stats.last]),
+    lifecycle: [["Created", formatDateTime(fields.created), "-"], ["Updated", formatDateTime(fields.updated), "-"], ["Resolved", text(resolution.name) === "-" ? "-" : formatDateTime(fields.resolutiondate), "-"]],
+    participants: Array.from(participants.entries()).map(([name, stats]) => [name, String(stats.events), String(stats.changelog), String(stats.comments), String(stats.attachments), String(stats.status), formatDateTime(stats.first), formatDateTime(stats.last)]),
     transitions: Array.from(statusTransitions.entries()).map(([key, value]) => {
       const [from, to] = key.split(" -> ");
-      return [from, to, String(value.count), value.first, value.last, Array.from(value.actors).join(", ")];
+      return [from, to, String(value.count), formatDateTime(value.first), formatDateTime(value.last), Array.from(value.actors).join(", ")];
     }),
     fields: Array.from(fieldCounts.entries()).sort((a, b) => b[1] - a[1]).map(([field, count]) => [field, String(count), `${Math.round(count / Math.max(1, changeItems.length) * 100)}%`, "-", "-"]),
+    fieldChanges,
     comments: [
       ["Comment Count", String(comments.length)],
       ["Comment Authors Count", String(new Set(comments.map((item) => text(item.author))).size)],
-      ["First Comment Time", text(comments[0]?.created)],
-      ["Last Comment Time", text(comments.at(-1)?.created)],
+      ["First Comment Time", formatDateTime(comments[0]?.created)],
+      ["Last Comment Time", formatDateTime(comments.at(-1)?.created)],
       ["Edited Comments Count", String(comments.filter((item) => text(item.created) !== text(item.updated)).length)]
     ],
-    attachments: attachments.map((item) => {
-      const record = asRecord(item);
-      return [text(record.filename), text(record.author), text(record.mimeType), text(record.size), text(record.created)];
-    }),
+    commentRows,
+    attachments: attachmentRows,
     links: links.map((item) => {
       const record = asRecord(item);
       const linked = asRecord(record.outwardIssue ?? record.inwardIssue);
@@ -480,7 +588,8 @@ ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppCo
       attachments.length > 10 ? "Many attachments" : "",
       "No database write performed"
     ].filter(Boolean),
-    timeline: activityTimeline
+    timeline: activityTimeline,
+    rawData
   };
 });
 
