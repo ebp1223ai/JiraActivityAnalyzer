@@ -12,6 +12,7 @@ import { buildInfo } from "../buildInfo";
 import { globalDataSourceMode } from "../data/dataSource";
 import { runJiraProbe } from "../services/jiraProbeService";
 import { useConnectionContext } from "../state/ConnectionContext";
+import { useSessionState } from "../state/SessionStateContext";
 import type { JiraProbeApiVersion, JiraProbeAuthType, JiraProbeResult, JiraProbeRunState, JiraProbeStatus } from "../types/jiraProbe";
 import type { AppOutletContext } from "../components/AppLayout";
 
@@ -55,23 +56,39 @@ const inspectorTabs: Array<{ key: PreviewTab; label: string }> = [
 export function JiraProbePage() {
   const [baseUrl, setBaseUrl] = useState(defaultConnection.baseUrl);
   const [email, setEmail] = useState(defaultConnection.email);
-  const [issueKey, setIssueKey] = useState("COPGEN1-138930");
   const [apiToken, setApiToken] = useState("");
   const [apiVersion, setApiVersion] = useState<JiraProbeApiVersion>("v2");
   const [authType, setAuthType] = useState<JiraProbeAuthType>("bearer");
   const [useMock, setUseMock] = useState(false);
   const [useActiveConnection, setUseActiveConnection] = useState(true);
   const [envStatus, setEnvStatus] = useState("Env not loaded");
-  const [actionNotice, setActionNotice] = useState("");
-  const [showRawJson, setShowRawJson] = useState(false);
-  const [activeTab, setActiveTab] = useState<PreviewTab>("overview");
-  const [inspectorSearch, setInspectorSearch] = useState("");
-  const [inspectorFilter, setInspectorFilter] = useState("all");
-  const [runState, setRunState] = useState<JiraProbeRunState>("idle");
-  const [error, setError] = useState("");
-  const [result, setResult] = useState<JiraProbeResult | null>(null);
   const { appendDebugLog } = useOutletContext<AppOutletContext>();
   const { activeConnection } = useConnectionContext();
+  const { jiraProbe, setJiraProbe } = useSessionState();
+  const issueKey = jiraProbe.issueKey;
+  const result = jiraProbe.result as JiraProbeResult | null;
+  const showRawJson = jiraProbe.showRawJson;
+  const activeTab = jiraProbe.activeTab as PreviewTab;
+  const inspectorSearch = jiraProbe.inspectorSearch;
+  const inspectorFilter = jiraProbe.inspectorFilter;
+  const runState = jiraProbe.runState as JiraProbeRunState;
+  const error = jiraProbe.error;
+  const actionNotice = jiraProbe.actionNotice;
+
+  const updateProbe = (next: Partial<typeof jiraProbe>) => setJiraProbe((current) => ({ ...current, ...next }));
+  const setIssueKey = (value: string) => updateProbe({ issueKey: value });
+  const setActionNotice = (value: string) => updateProbe({ actionNotice: value });
+  const setShowRawJson = (value: boolean | ((current: boolean) => boolean)) => {
+    setJiraProbe((current) => ({ ...current, showRawJson: typeof value === "function" ? value(current.showRawJson) : value }));
+  };
+  const setActiveTab = (value: PreviewTab) => updateProbe({ activeTab: value });
+  const setInspectorSearch = (value: string) => updateProbe({ inspectorSearch: value });
+  const setInspectorFilter = (value: string) => updateProbe({ inspectorFilter: value });
+  const setRunState = (value: JiraProbeRunState | ((current: JiraProbeRunState) => JiraProbeRunState)) => {
+    setJiraProbe((current) => ({ ...current, runState: typeof value === "function" ? value(current.runState as JiraProbeRunState) : value }));
+  };
+  const setError = (value: string) => updateProbe({ error: value });
+  const setResult = (value: JiraProbeResult | null) => updateProbe({ result: value });
 
   const request = useMemo(() => ({
     connection: {
@@ -88,8 +105,8 @@ export function JiraProbePage() {
   }), [apiToken, apiVersion, authType, baseUrl, email, issueKey, useMock]);
 
   useEffect(() => {
-    void handleReloadEnv(false);
-  }, []);
+    if (!jiraProbe.envLoadedOnce) void handleReloadEnv(false);
+  }, [jiraProbe.envLoadedOnce]);
 
   useEffect(() => {
     if (!useActiveConnection || !activeConnection) return;
@@ -113,7 +130,7 @@ export function JiraProbePage() {
     if (config.baseUrl) setBaseUrl(config.baseUrl);
     if (config.email || config.username) setEmail(config.email || config.username);
     if (config.apiToken) setApiToken(config.apiToken);
-    if (config.issueKey) setIssueKey(config.issueKey);
+    if (config.issueKey && !jiraProbe.issueKey) setIssueKey(config.issueKey);
     if (["basic", "bearer"].includes(config.authType)) setAuthType(config.authType as JiraProbeAuthType);
     if (["auto", "v2", "v3"].includes(config.apiVersion)) setApiVersion(config.apiVersion as JiraProbeApiVersion);
     setUseMock(config.mockMode);
@@ -121,6 +138,7 @@ export function JiraProbePage() {
 
   async function handleReloadEnv(showNotice = true) {
     const response = await window.desktopApp?.jiraProbe?.loadEnv?.();
+    updateProbe({ envLoadedOnce: true });
     if (!response) {
       setEnvStatus("Env not available in browser preview");
       return;
@@ -148,6 +166,7 @@ export function JiraProbePage() {
       setResult(next);
       setActiveTab("overview");
       setRunState(next.status === "error" ? "error" : "success");
+      updateProbe({ lastProbeAt: new Date().toISOString() });
       if (next.message && next.status === "error") {
         setError(next.message);
       }
@@ -247,35 +266,45 @@ export function JiraProbePage() {
   async function handleSaveProbeResult() {
     const payload = exportPayload();
     if (!payload || !window.desktopApp?.jiraProbe?.saveResult) return;
+    updateProbe({ saving: true });
     const timestamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "_").slice(0, 15);
-    const content = JSON.stringify(payload, null, 2);
-    const saveResult = await window.desktopApp.jiraProbe.saveResult({
-      defaultFileName: `jira-probe-result-${safeIssueFileName()}-${timestamp}.json`,
-      content
-    });
-    if (!saveResult.canceled) {
-      setActionNotice("Probe result saved.");
-      appendDebugLog("jiraProbe", [
-        `[INFO] Output folder ready: ${saveResult.folderPath ?? ""}`,
-        `[INFO] Probe result saved: ${saveResult.filePath ?? ""}`
-      ]);
+    try {
+      const content = JSON.stringify(payload, null, 2);
+      const saveResult = await window.desktopApp.jiraProbe.saveResult({
+        defaultFileName: `jira-probe-result-${safeIssueFileName()}-${timestamp}.json`,
+        content
+      });
+      if (!saveResult.canceled) {
+        setActionNotice("Probe result saved.");
+        appendDebugLog("jiraProbe", [
+          `[INFO] Output folder ready: ${saveResult.folderPath ?? ""}`,
+          `[INFO] Probe result saved: ${saveResult.filePath ?? ""}`
+        ]);
+      }
+    } finally {
+      updateProbe({ saving: false });
     }
   }
 
   async function handleSaveRawData() {
     const payload = rawDataPayload();
     if (!payload || !window.desktopApp?.jiraProbe?.saveRawData) return;
+    updateProbe({ saving: true });
     const timestamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "_").slice(0, 15);
-    const saveResult = await window.desktopApp.jiraProbe.saveRawData({
-      defaultFileName: `jira-probe-raw-${safeIssueFileName()}-${timestamp}.json`,
-      data: payload
-    });
-    if (!saveResult.canceled) {
-      setActionNotice("Raw data saved.");
-      appendDebugLog("jiraProbe", [
-        `[INFO] Raw data saved: ${saveResult.filePath ?? ""}`,
-        "[INFO] No database write performed"
-      ]);
+    try {
+      const saveResult = await window.desktopApp.jiraProbe.saveRawData({
+        defaultFileName: `jira-probe-raw-${safeIssueFileName()}-${timestamp}.json`,
+        data: payload
+      });
+      if (!saveResult.canceled) {
+        setActionNotice("Raw data saved.");
+        appendDebugLog("jiraProbe", [
+          `[INFO] Raw data saved: ${saveResult.filePath ?? ""}`,
+          "[INFO] No database write performed"
+        ]);
+      }
+    } finally {
+      updateProbe({ saving: false });
     }
   }
 

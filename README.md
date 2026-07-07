@@ -37,6 +37,10 @@ The current global data source mode is `live_jira_api`.
 
 Local database import, database reads, database writes, backup/restore, and production data-source switching are not implemented in this UI round.
 
+## Session State
+
+Jira Analysis and Jira Probe keep their current issue key, last result, active tab, table pagination, filters, notices, and errors in an in-memory React session store. Navigating to another route and returning to these pages preserves the loaded result without triggering a new Jira request. This session store is reset when the app window is closed and does not write tokens, Authorization headers, passwords, cookies, session IDs, or `.env` contents to localStorage or app config.
+
 ## Export Result / Raw Data
 
 Runtime export files are written under `<runtime>/exports/`. The app creates these common folders:

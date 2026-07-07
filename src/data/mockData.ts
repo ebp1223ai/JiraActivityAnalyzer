@@ -113,7 +113,7 @@ export const debugLogs: Record<string, string[]> = {
   import: ["Connected to Jira Cloud", "Resolving target users...", "Building JQL...", "Fetched issues: 2,184", "Estimating events...", "Preview completed"],
   timeline: ["sessionStorage enabled", "Query activity_events from local database", "Apply filters", "Execute SQL query", "Returned rows: 1,248", "Timeline ready"],
   analysis: ["Aggregate events from local database", "Compute per-user metrics", "Calculate event type distribution", "Render charts and tables", "Analysis ready"],
-  jira: ["Load issue from local database", "Query activity_events...", "Compute lifecycle metrics", "Compute participant contribution", "Build risk hints", "Jira analysis ready"],
+  jira: ["Data Source Mode: Live Jira API", "Jira Analysis load ready", "GET /rest/api/2/myself", "GET /rest/api/2/issue/{issueKey}", "GET /rest/api/2/issue/{issueKey}?expand=changelog", "GET /rest/api/2/issue/{issueKey}/comment", "No database write performed"],
   jiraProbe: ["Initialize Jira Probe page", "Selected connection: Jira Cloud (Production)", "Token: [masked]", "Ready for read-only probe", "No database write will be performed"],
   settings: ["Loading settings...", "Checking database connection...", "Loading data management information...", "Loading backup history...", "Settings ready."]
 };

@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
 import { AppLayout } from "./components/AppLayout";
+import { buildInfo } from "./buildInfo";
 import { AnalysisPage } from "./routes/AnalysisPage";
 import { ConnectionsPage } from "./routes/ConnectionsPage";
 import { DashboardPage } from "./routes/DashboardPage";
@@ -9,23 +11,30 @@ import { JiraProbePage } from "./routes/JiraProbePage";
 import { SettingsPage } from "./routes/SettingsPage";
 import { TimelinePage } from "./routes/TimelinePage";
 import { ConnectionProvider } from "./state/ConnectionContext";
+import { SessionStateProvider } from "./state/SessionStateContext";
 
 export default function App() {
+  useEffect(() => {
+    document.title = `Jira Activity Analyzer ${buildInfo.version}`;
+  }, []);
+
   return (
     <ConnectionProvider>
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/connections" element={<ConnectionsPage />} />
-          <Route path="/import" element={<ImportPage />} />
-          <Route path="/timeline" element={<TimelinePage />} />
-          <Route path="/analysis" element={<AnalysisPage />} />
-          <Route path="/jira-analysis" element={<JiraAnalysisPage />} />
-          <Route path="/jira-probe" element={<JiraProbePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
+      <SessionStateProvider>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/connections" element={<ConnectionsPage />} />
+            <Route path="/import" element={<ImportPage />} />
+            <Route path="/timeline" element={<TimelinePage />} />
+            <Route path="/analysis" element={<AnalysisPage />} />
+            <Route path="/jira-analysis" element={<JiraAnalysisPage />} />
+            <Route path="/jira-probe" element={<JiraProbePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </SessionStateProvider>
     </ConnectionProvider>
   );
 }

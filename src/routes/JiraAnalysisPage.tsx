@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { ReactNode } from "react";
 import { Copy, Download, ExternalLink, PackageOpen, RefreshCw, Search } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
@@ -12,6 +12,7 @@ import { metricIcons } from "../data/mockData";
 import { buildInfo } from "../buildInfo";
 import { liveJiraSourceMetadata } from "../data/dataSource";
 import { useConnectionContext } from "../state/ConnectionContext";
+import { useSessionState } from "../state/SessionStateContext";
 import type { AppOutletContext } from "../components/AppLayout";
 
 type TableRow = ReactNode[];
@@ -194,14 +195,32 @@ function PaginatedTable({
 export function JiraAnalysisPage() {
   const { Activity, Clock, GitBranch, MessageSquare, Paperclip, Users } = metricIcons;
   const { activeConnection } = useConnectionContext();
+  const { jiraAnalysis, setJiraAnalysis } = useSessionState();
   const { appendDebugLog, getDebugLogs } = useOutletContext<AppOutletContext>();
-  const [issueKey, setIssueKey] = useState("COPGEN1-138930");
-  const [result, setResult] = useState<JiraAnalysisResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const [tabStates, setTabStates] = useState<Partial<Record<TabKey, TabState>>>({});
+  const issueKey = jiraAnalysis.issueKey;
+  const result = jiraAnalysis.result as JiraAnalysisResult | null;
+  const loading = jiraAnalysis.loading;
+  const error = jiraAnalysis.error;
+  const notice = jiraAnalysis.notice;
+  const activeTab = jiraAnalysis.activeTab as TabKey;
+  const tabStates = jiraAnalysis.tabStates as Partial<Record<TabKey, TabState>>;
+
+  const updateAnalysis = (next: Partial<typeof jiraAnalysis>) => setJiraAnalysis((current) => ({ ...current, ...next }));
+  const setIssueKey = (value: string) => updateAnalysis({ issueKey: value });
+  const setResult = (value: JiraAnalysisResult | null) => updateAnalysis({ result: value });
+  const setLoading = (value: boolean) => updateAnalysis({ loading: value });
+  const setError = (value: string) => updateAnalysis({ error: value });
+  const setNotice = (value: string) => updateAnalysis({ notice: value });
+  const setActiveTab = (value: TabKey) => updateAnalysis({ activeTab: value });
+  const setTabStates = (value: Partial<Record<TabKey, TabState>> | ((current: Partial<Record<TabKey, TabState>>) => Partial<Record<TabKey, TabState>>)) => {
+    setJiraAnalysis((current) => {
+      const currentTabStates = current.tabStates as Partial<Record<TabKey, TabState>>;
+      return {
+        ...current,
+        tabStates: typeof value === "function" ? value(currentTabStates) : value
+      };
+    });
+  };
 
   const tabState = tabStates[activeTab] ?? defaultTabState;
   const updateTabState = (next: Partial<TabState>) => setTabStates((current) => ({ ...current, [activeTab]: { ...defaultTabState, ...current[activeTab], ...next } }));
@@ -219,12 +238,21 @@ export function JiraAnalysisPage() {
     }
     setLoading(true);
     try {
-      appendDebugLog("jira", ["[INFO] Data Source Mode: Live Jira API"]);
+      appendDebugLog("jira", [
+        "[INFO] Data Source Mode: Live Jira API",
+        "[INFO] Jira Analysis load started",
+        `[INFO] Active connection: ${activeConnection.name}`,
+        `[INFO] Base URL: ${activeConnection.baseUrl}`,
+        `[INFO] API Version: ${activeConnection.apiVersion}`,
+        `[INFO] Auth Type: ${activeConnection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
+        "[INFO] Authorization: [masked]"
+      ]);
       const response = await window.desktopApp?.jiraAnalysis?.load?.({ connection: activeConnection, issueKey }) as JiraAnalysisResult | undefined;
       if (!response) throw new Error("Jira Analysis IPC is not available.");
       setResult(response);
       setActiveTab("overview");
       setTabStates({});
+      updateAnalysis({ lastLoadedAt: new Date().toISOString() });
       appendDebugLog("jira", response.logs ?? []);
       if (!response.ok) setError(response.message ?? "Jira Analysis failed.");
     } catch (caught) {
@@ -370,6 +398,7 @@ export function JiraAnalysisPage() {
 
   async function saveJiraAnalysisExport(kind: "analysis" | "raw" | "bundle") {
     if (!result?.ok) return;
+    updateAnalysis({ saving: true });
     const timestamp = formatTimestampForFile();
     const issue = String(result.issue?.key ?? issueKey).replace(/[^A-Z0-9_-]/gi, "-");
     const request = kind === "analysis"
@@ -386,6 +415,8 @@ export function JiraAnalysisPage() {
       const message = caught instanceof Error ? caught.message : `${request.label} save failed.`;
       setError(message);
       appendDebugLog("jira", [`[ERROR] ${message}`]);
+    } finally {
+      updateAnalysis({ saving: false });
     }
   }
 
