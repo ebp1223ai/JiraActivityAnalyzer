@@ -62,7 +62,7 @@ declare global {
         saveExport: (payload: { category: "jira-analysis" | "raw-data" | "debug-bundles"; defaultFileName: string; data: unknown }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
       };
       userAnalysis?: {
-        discoverCandidates: (payload: { connection: JiraConnection; jql: string; safetyLimit: number }) => Promise<Record<string, unknown>>;
+        discoverCandidates: (payload: { connection: JiraConnection; jql: string; safetyLimit: number; selectedUsers: string[] }) => Promise<Record<string, unknown>>;
         saveExport: (payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
       };
       appDebug?: {

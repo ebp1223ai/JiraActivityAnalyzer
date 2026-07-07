@@ -413,32 +413,66 @@ function fileType(mimeType: unknown, filename: unknown): string {
   return "other";
 }
 
-function candidateFromIssue(issue: Record<string, unknown>) {
+function candidateFromIssue(issue: Record<string, unknown>, selectedUsers: string[]) {
   const fields = asRecord(issue.fields);
   const project = asRecord(fields.project);
+  const matched: string[] = [];
+  const assignee = text(fields.assignee);
+  const reporter = text(fields.reporter);
+  const creator = text(fields.creator);
+  const normalizedUsers = selectedUsers.map((user) => user.toLowerCase());
+  const fieldMatches = (value: string) => normalizedUsers.filter((user) => value.toLowerCase().includes(user));
+  for (const user of fieldMatches(assignee)) matched.push(`Assignee matched ${user}`);
+  for (const user of fieldMatches(reporter)) matched.push(`Reporter matched ${user}`);
+  for (const user of fieldMatches(creator)) matched.push(`Creator matched ${user}`);
   return {
     id: text(issue.id),
     key: text(issue.key),
     summary: text(fields.summary),
     status: text(asRecord(fields.status).name),
-    assignee: text(fields.assignee),
-    reporter: text(fields.reporter),
-    creator: text(fields.creator),
+    assignee,
+    reporter,
+    creator,
     updated: formatJiraDate(fields.updated),
     created: formatJiraDate(fields.created),
     issueType: text(asRecord(fields.issuetype).name),
     priority: text(asRecord(fields.priority).name),
     project: `${text(project.key)} / ${text(project.name)}`,
-    matchedReason: "Matched by Standard search; exact updatedBy actor requires Full Fetch in Stage 2"
+    matchedReason: [...matched.slice(0, 3), "Matched by base JQL", "Exact updatedBy actor requires Stage 2 Full Fetch"].join("; ")
   };
 }
 
-ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { connection: AppConnection; jql: string; safetyLimit: number }) => {
+function jiraSearchErrorDetails(response: { json: unknown | null; bodyPreview?: string; status: number | "-"; message?: string; errorType?: string }) {
+  const json = asRecord(response.json);
+  const messages = Array.isArray(json.errorMessages) ? json.errorMessages.map(text).filter((item) => item !== "-") : [];
+  const errors = asRecord(json.errors);
+  const fieldErrors = Object.entries(errors).map(([key, value]) => `${key}: ${text(value)}`);
+  const details = [...messages, ...fieldErrors];
+  if (details.length > 0) {
+    return {
+      message: `Candidate Discovery failed: HTTP ${response.status}. Jira errorMessages: ${details.join("; ")}`,
+      logLines: [`[ERROR] Candidate Discovery failed: HTTP ${response.status}`, `[ERROR] Jira errorMessages: ${details.join("; ")}`],
+      body: sanitizeRawJson(response.json)
+    };
+  }
+  const bodyPreview = response.bodyPreview ? response.bodyPreview.slice(0, 1000) : "";
+  return {
+    message: `Candidate Discovery failed: HTTP ${response.status}. ${bodyPreview ? `Jira response body: ${bodyPreview}` : response.message ?? response.errorType ?? "Search request failed."}`,
+    logLines: [
+      `[ERROR] Candidate Discovery failed: HTTP ${response.status}`,
+      bodyPreview ? `[ERROR] Jira response body: ${bodyPreview}` : `[ERROR] ${response.message ?? response.errorType ?? "Search request failed."}`
+    ],
+    body: response.json ? sanitizeRawJson(response.json) : bodyPreview
+  };
+}
+
+ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { connection: AppConnection; jql: string; safetyLimit: number; selectedUsers?: string[] }) => {
   const connection = payload.connection;
   const safetyLimit = Math.min(Math.max(Number(payload.safetyLimit) || 1000, 1), 1000);
   const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
   const fields = "key,summary,status,assignee,reporter,creator,updated,created,issuetype,priority,project";
   const maxResults = 100;
+  const selectedUsers = Array.isArray(payload.selectedUsers) ? payload.selectedUsers.map(String) : [];
   let startAt = 0;
   let total = 0;
   const issues: Record<string, unknown>[] = [];
@@ -450,7 +484,9 @@ ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { co
     `[INFO] API Version: ${connection.apiVersion === "v3" ? "Jira Cloud v3" : "Jira Server/Data Center v2"}`,
     `[INFO] Auth Type: ${connection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
     "[INFO] Authorization: [masked]",
-    "[INFO] Search API method: GET only"
+    "[INFO] Search API method: GET only",
+    "[INFO] JQL Strategy: base search without updatedBy",
+    "[INFO] updatedBy status: disabled"
   ];
   const warnings: string[] = [];
 
@@ -466,16 +502,19 @@ ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { co
     logs.push(`[DEBUG] GET ${apiPrefix}/search?startAt=${startAt}&maxResults=${maxResults}`);
     const response = await client.get(pathName);
     if (!response.ok) {
-      logs.push(`[ERROR] Candidate Discovery failed: ${response.status} ${response.message ?? response.errorType ?? ""}`.trim());
+      const details = jiraSearchErrorDetails(response);
+      logs.push(...details.logLines);
       logs.push("[INFO] No database write performed");
       return {
         ok: false,
-        message: response.message ?? "Jira candidate search failed.",
+        message: details.message,
         status: response.status,
         contentType: response.contentType,
         errorType: response.errorType,
         logs,
         warnings,
+        jqlStrategy: "base search without updatedBy",
+        updatedByStatus: "disabled",
         candidates: [],
         metadata: {
           method: "GET",
@@ -484,7 +523,7 @@ ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { co
           maxResults,
           total,
           pages,
-          rawResponseSanitized: sanitizeRawJson(response.json)
+          rawResponseSanitized: details.body
         }
       };
     }
@@ -506,7 +545,7 @@ ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { co
   }
 
   const candidates = issues
-    .map(candidateFromIssue)
+    .map((issue) => candidateFromIssue(issue, selectedUsers))
     .sort((a, b) => {
       const updated = Date.parse(b.updated) - Date.parse(a.updated);
       if (updated !== 0) return updated;
@@ -523,6 +562,8 @@ ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { co
     candidates,
     warnings,
     logs,
+    jqlStrategy: "base search without updatedBy",
+    updatedByStatus: "disabled",
     metadata: {
       method: "GET",
       endpoint: `${apiPrefix}/search`,

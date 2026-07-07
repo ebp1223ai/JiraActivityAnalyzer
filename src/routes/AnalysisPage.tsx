@@ -27,21 +27,51 @@ function jqlString(value: string) {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
 }
 
-function buildStandardJql(users: string[], startDate: string, endDate: string) {
+function nextDay(dateText: string) {
+  const date = new Date(`${dateText}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dateText;
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildBaseJql(users: string[], startDate: string, endDate: string) {
   if (users.length === 0 || !startDate || !endDate) return "";
-  const userList = users.map(jqlString).join(", ");
-  const updatedByClauses = users.map((user) => `updatedBy(${jqlString(user)}, "${startDate}", "${endDate}")`);
+  const endExclusive = nextDay(endDate);
+  const userClauses = users.length === 1
+    ? [
+      `  assignee = ${jqlString(users[0])}`,
+      `  OR reporter = ${jqlString(users[0])}`,
+      `  OR creator = ${jqlString(users[0])}`
+    ]
+    : [
+      `  assignee in (${users.map(jqlString).join(", ")})`,
+      `  OR reporter in (${users.map(jqlString).join(", ")})`,
+      `  OR creator in (${users.map(jqlString).join(", ")})`
+    ];
   return [
     "(",
-    `  creator in (${userList})`,
-    `  OR reporter in (${userList})`,
-    `  OR assignee in (${userList})`,
-    ...updatedByClauses.map((clause) => `  OR ${clause}`),
+    ...userClauses,
     ")",
     `AND updated >= "${startDate}"`,
-    `AND updated <= "${endDate}"`,
+    `AND updated < "${endExclusive}"`,
     "ORDER BY updated DESC, created DESC, key DESC"
   ].join("\n");
+}
+
+function formatGeneratedJql(baseJql: string, strategy: string, updatedByStatus: string, fallbackReason = "") {
+  return [
+    "JQL Strategy:",
+    strategy,
+    "",
+    "updatedBy:",
+    updatedByStatus === "disabled" ? "Disabled / Not included in base query" : updatedByStatus,
+    fallbackReason ? "" : undefined,
+    fallbackReason ? "Fallback reason:" : undefined,
+    fallbackReason || undefined,
+    "",
+    "Generated Base JQL:",
+    baseJql
+  ].filter((line): line is string => typeof line === "string").join("\n");
 }
 
 function stamp() {
@@ -89,7 +119,8 @@ export function AnalysisPage() {
   const { userAnalysis, setUserAnalysis } = useSessionState();
 
   const selectedUsers = useMemo(() => parseUsers(userAnalysis.selectedUsersText), [userAnalysis.selectedUsersText]);
-  const generatedJql = userAnalysis.generatedJql || buildStandardJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
+  const generatedBaseJql = userAnalysis.generatedBaseJql || buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
+  const generatedJql = userAnalysis.generatedJql || formatGeneratedJql(generatedBaseJql, userAnalysis.jqlStrategy, userAnalysis.updatedByStatus);
   const filteredCandidates = userAnalysis.candidateIssues.filter((issue) => issueMatches(issue, userAnalysis.search));
   const pageCount = Math.max(1, Math.ceil(filteredCandidates.length / userAnalysis.pageSize));
   const page = Math.min(userAnalysis.page, pageCount);
@@ -119,14 +150,26 @@ export function AnalysisPage() {
       appendDebugLog("analysis", [`[WARN] ${error}`]);
       return;
     }
-    const nextJql = buildStandardJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
-    patchState({ generatedJql: nextJql, errors: [], warnings: dateRangeWarning ? [dateRangeWarning] : [], notice: "Generated JQL updated." });
+    const nextBaseJql = buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
+    const nextGeneratedJql = formatGeneratedJql(nextBaseJql, "base search without updatedBy", "disabled");
+    const updatedByWarning = "updatedBy search is not enabled in Stage 1 because this Jira instance may not support it.";
+    patchState({
+      generatedJql: nextGeneratedJql,
+      generatedBaseJql: nextBaseJql,
+      jqlStrategy: "base search without updatedBy",
+      updatedByStatus: "disabled",
+      errors: [],
+      warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning],
+      notice: "Generated JQL updated."
+    });
     appendDebugLog("analysis", [
       `[INFO] Selected users parsed: ${selectedUsers.length}`,
       `[INFO] Date range: ${userAnalysis.startDate} to ${userAnalysis.endDate}`,
       "[INFO] Search Mode: Standard",
-      "[INFO] Generated JQL:",
-      nextJql
+      "[INFO] JQL Strategy: base search without updatedBy",
+      "[INFO] updatedBy status: disabled",
+      "[INFO] Generated Base JQL:",
+      nextBaseJql
     ]);
   }
 
@@ -137,8 +180,19 @@ export function AnalysisPage() {
       appendDebugLog("analysis", [`[ERROR] ${error}`]);
       return;
     }
-    const nextJql = buildStandardJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
-    patchState({ loading: true, errors: [], warnings: dateRangeWarning ? [dateRangeWarning] : [], generatedJql: nextJql, notice: "" });
+    const nextBaseJql = buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
+    const nextGeneratedJql = formatGeneratedJql(nextBaseJql, "base search without updatedBy", "disabled");
+    const updatedByWarning = "updatedBy search is not enabled in Stage 1 because this Jira instance may not support it.";
+    patchState({
+      loading: true,
+      errors: [],
+      warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning],
+      generatedJql: nextGeneratedJql,
+      generatedBaseJql: nextBaseJql,
+      jqlStrategy: "base search without updatedBy",
+      updatedByStatus: "disabled",
+      notice: ""
+    });
     appendDebugLog("analysis", [
       "[INFO] User Analysis Stage 1 initialized",
       "[INFO] Data Source Mode: Live Jira API",
@@ -149,23 +203,38 @@ export function AnalysisPage() {
       `[INFO] Selected users parsed: ${selectedUsers.length}`,
       `[INFO] Date range: ${userAnalysis.startDate} to ${userAnalysis.endDate}`,
       "[INFO] Search Mode: Standard",
+      "[INFO] JQL Strategy: base search without updatedBy",
+      "[INFO] updatedBy status: disabled",
       `[INFO] Candidate Safety Limit: ${userAnalysis.candidateSafetyLimit}`,
       `[INFO] Fetch Limit: ${userAnalysis.fetchLimit}`,
-      "[INFO] Generated JQL:",
-      nextJql
+      "[INFO] Generated Base JQL:",
+      nextBaseJql
     ]);
     try {
       if (!activeConnection) throw new Error("No active Jira connection. Reload .env in Connections first.");
       const response = await window.desktopApp?.userAnalysis?.discoverCandidates?.({
         connection: activeConnection,
-        jql: nextJql,
-        safetyLimit: userAnalysis.candidateSafetyLimit
+        jql: nextBaseJql,
+        safetyLimit: userAnalysis.candidateSafetyLimit,
+        selectedUsers
       });
       if (!response) throw new Error("Electron User Analysis API is not available.");
       appendDebugLog("analysis", Array.isArray(response.logs) ? response.logs as string[] : []);
-      if (!response.ok) throw new Error(String(response.message ?? "Candidate Discovery failed."));
+      if (!response.ok) {
+        const message = String(response.message ?? "Candidate Discovery failed.");
+        patchState({
+          loading: false,
+          errors: [message],
+          warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning],
+          jqlStrategy: String(response.jqlStrategy ?? "base search without updatedBy") as typeof userAnalysis.jqlStrategy,
+          updatedByStatus: String(response.updatedByStatus ?? "disabled") as typeof userAnalysis.updatedByStatus,
+          rawSearchMetadata: response.metadata ?? null,
+          notice: ""
+        });
+        return;
+      }
       const candidates = (Array.isArray(response.candidates) ? response.candidates : []) as UserAnalysisCandidateIssue[];
-      const warnings = [...(dateRangeWarning ? [dateRangeWarning] : []), ...(Array.isArray(response.warnings) ? response.warnings as string[] : [])];
+      const warnings = [...(dateRangeWarning ? [dateRangeWarning] : []), updatedByWarning, ...(Array.isArray(response.warnings) ? response.warnings as string[] : [])];
       patchState({
         loading: false,
         candidateIssues: candidates,
@@ -175,13 +244,15 @@ export function AnalysisPage() {
         page: 1,
         errors: [],
         warnings,
+        jqlStrategy: String(response.jqlStrategy ?? "base search without updatedBy") as typeof userAnalysis.jqlStrategy,
+        updatedByStatus: String(response.updatedByStatus ?? "disabled") as typeof userAnalysis.updatedByStatus,
         lastDiscoveryAt: new Date().toISOString(),
         rawSearchMetadata: response.metadata ?? null,
         notice: `Candidate Discovery completed: ${candidates.length} issues.`
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Candidate Discovery failed.";
-      patchState({ loading: false, errors: [message], notice: "" });
+      patchState({ loading: false, errors: [message], warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning], notice: "" });
       appendDebugLog("analysis", [`[ERROR] ${message}`, "[INFO] No database write performed"]);
     }
   }
@@ -209,6 +280,9 @@ export function AnalysisPage() {
     setUserAnalysis((current) => ({
       ...current,
       generatedJql: "",
+      generatedBaseJql: "",
+      jqlStrategy: "base search without updatedBy",
+      updatedByStatus: "disabled",
       candidateIssues: [],
       selectedForFetch: [],
       excludedIssues: [],
@@ -244,13 +318,17 @@ export function AnalysisPage() {
         end: userAnalysis.endDate
       },
       searchMode: userAnalysis.searchMode,
+      jqlStrategy: userAnalysis.jqlStrategy,
       generatedJql,
+      generatedBaseJql,
+      updatedByStatus: userAnalysis.updatedByStatus,
       candidateSafetyLimit: userAnalysis.candidateSafetyLimit,
       fetchLimit: userAnalysis.fetchLimit,
       candidateIssues: userAnalysis.candidateIssues,
       selectedForFetch: fetchQueue,
       excludedIssues: userAnalysis.excludedIssues,
       warnings: userAnalysis.warnings,
+      errors: userAnalysis.errors,
       debugLogSanitized: getDebugLogs("analysis")
     };
   }
@@ -268,6 +346,9 @@ export function AnalysisPage() {
       exportedAt: new Date().toISOString(),
       ...sourcePayload(activeConnection),
       generatedJql,
+      generatedBaseJql,
+      jqlStrategy: userAnalysis.jqlStrategy,
+      updatedByStatus: userAnalysis.updatedByStatus,
       searchRequest: {
         method: "GET",
         endpoint: activeConnection?.apiVersion === "v3" ? "/rest/api/3/search" : "/rest/api/2/search",
@@ -357,7 +438,7 @@ export function AnalysisPage() {
             <div>
               <FieldLabel label="Search Mode" sub="搜尋模式" />
               <select className="field" value="standard" disabled>
-                <option>Standard - creator OR reporter OR assignee OR updatedBy</option>
+                <option>Standard - assignee OR reporter OR creator</option>
               </select>
             </div>
             <div>
@@ -371,7 +452,7 @@ export function AnalysisPage() {
               </select>
             </div>
             <div className="rounded-lg border border-line bg-white p-3 text-xs font-semibold leading-relaxed text-muted">
-              Coming later modes: Created only, Assigned only, Commented, Changed, Broad.
+              updatedBy is disabled in Stage 1. Exact updatedBy actor requires Stage 2 Full Fetch.
             </div>
           </div>
         </div>
@@ -511,7 +592,7 @@ export function AnalysisPage() {
             </button>
           </div>
           <div className="mt-3 text-sm font-semibold leading-relaxed text-muted">
-            Exports include globalDataSourceMode, masked source metadata, generatedJql, candidateIssues, selectedForFetch, warnings, and sanitized debug logs.
+            Exports include globalDataSourceMode, masked source metadata, generatedJql, generatedBaseJql, jqlStrategy, updatedByStatus, candidateIssues, selectedForFetch, warnings, errors, and sanitized debug logs.
           </div>
         </SectionCard>
         <SectionCard title="Stage 2 Placeholder" subtitle="Full Fetch">

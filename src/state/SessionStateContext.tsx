@@ -57,6 +57,9 @@ export type UserAnalysisSessionState = {
   endDate: string;
   searchMode: "standard";
   generatedJql: string;
+  generatedBaseJql: string;
+  jqlStrategy: "base search without updatedBy" | "base-in-query" | "base-or-chain-fallback";
+  updatedByStatus: "disabled" | "success" | "failed" | "not_supported";
   candidateSafetyLimit: number;
   fetchLimit: number;
   candidateIssues: UserAnalysisCandidateIssue[];
@@ -117,6 +120,9 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   endDate: "2026-07-07",
   searchMode: "standard",
   generatedJql: "",
+  generatedBaseJql: "",
+  jqlStrategy: "base search without updatedBy",
+  updatedByStatus: "disabled",
   candidateSafetyLimit: 1000,
   fetchLimit: 40,
   candidateIssues: [],
