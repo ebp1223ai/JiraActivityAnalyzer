@@ -58,6 +58,10 @@ export type UserAnalysisSessionState = {
   searchMode: "standard";
   generatedJql: string;
   generatedBaseJql: string;
+  jqlDateRange: {
+    startInclusive: string;
+    endExclusive: string;
+  };
   jqlStrategy: "base search without updatedBy" | "base-in-query" | "base-or-chain-fallback";
   updatedByStatus: "disabled" | "success" | "failed" | "not_supported";
   candidateSafetyLimit: number;
@@ -72,6 +76,9 @@ export type UserAnalysisSessionState = {
   warnings: string[];
   errors: string[];
   lastDiscoveryAt: string;
+  lastSavedCandidateResultPath: string;
+  lastSavedCandidateRawDataPath: string;
+  lastSavedExportFolderPath: string;
   rawSearchMetadata: unknown | null;
   saving: boolean;
   loading: boolean;
@@ -121,6 +128,10 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   searchMode: "standard",
   generatedJql: "",
   generatedBaseJql: "",
+  jqlDateRange: {
+    startInclusive: "",
+    endExclusive: ""
+  },
   jqlStrategy: "base search without updatedBy",
   updatedByStatus: "disabled",
   candidateSafetyLimit: 1000,
@@ -135,6 +146,9 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   warnings: [],
   errors: [],
   lastDiscoveryAt: "",
+  lastSavedCandidateResultPath: "",
+  lastSavedCandidateRawDataPath: "",
+  lastSavedExportFolderPath: "",
   rawSearchMetadata: null,
   saving: false,
   loading: false,

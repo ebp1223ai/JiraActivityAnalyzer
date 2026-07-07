@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, DatabaseZap, Download, Eye, ListChecks, Play, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, DatabaseZap, Download, Eye, FolderOpen, ListChecks, Play, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel } from "../components/FormControls";
@@ -27,16 +27,28 @@ function jqlString(value: string) {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
 }
 
-function nextDay(dateText: string) {
-  const date = new Date(`${dateText}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return dateText;
-  date.setDate(date.getDate() + 1);
-  return date.toISOString().slice(0, 10);
+function addDays(dateText: string, days: number) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateText);
+  if (!match) return dateText;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function toJqlDateRange(startDate: string, endDate: string) {
+  return {
+    startInclusive: startDate,
+    endExclusive: addDays(endDate, 1)
+  };
 }
 
 function buildBaseJql(users: string[], startDate: string, endDate: string) {
   if (users.length === 0 || !startDate || !endDate) return "";
-  const endExclusive = nextDay(endDate);
+  const { startInclusive, endExclusive } = toJqlDateRange(startDate, endDate);
   const userClauses = users.length === 1
     ? [
       `  assignee = ${jqlString(users[0])}`,
@@ -52,14 +64,24 @@ function buildBaseJql(users: string[], startDate: string, endDate: string) {
     "(",
     ...userClauses,
     ")",
-    `AND updated >= "${startDate}"`,
+    `AND updated >= "${startInclusive}"`,
     `AND updated < "${endExclusive}"`,
     "ORDER BY updated DESC, created DESC, key DESC"
   ].join("\n");
 }
 
-function formatGeneratedJql(baseJql: string, strategy: string, updatedByStatus: string, fallbackReason = "") {
+function formatGeneratedJql(baseJql: string, strategy: string, updatedByStatus: string, dateRange: { start: string; end: string; endExclusive: string }, fallbackReason = "") {
   return [
+    "UI Date Range:",
+    `${dateRange.start} to ${dateRange.end}`,
+    "",
+    "JQL Date Range:",
+    `updated >= "${dateRange.start}"`,
+    `updated < "${dateRange.endExclusive}"`,
+    "",
+    "End Date Handling:",
+    "End date is inclusive in UI and converted to exclusive end date in JQL.",
+    "",
     "JQL Strategy:",
     strategy,
     "",
@@ -119,8 +141,16 @@ export function AnalysisPage() {
   const { userAnalysis, setUserAnalysis } = useSessionState();
 
   const selectedUsers = useMemo(() => parseUsers(userAnalysis.selectedUsersText), [userAnalysis.selectedUsersText]);
+  const currentJqlDateRange = useMemo(
+    () => toJqlDateRange(userAnalysis.startDate, userAnalysis.endDate),
+    [userAnalysis.endDate, userAnalysis.startDate]
+  );
   const generatedBaseJql = userAnalysis.generatedBaseJql || buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
-  const generatedJql = userAnalysis.generatedJql || formatGeneratedJql(generatedBaseJql, userAnalysis.jqlStrategy, userAnalysis.updatedByStatus);
+  const generatedJql = userAnalysis.generatedJql || formatGeneratedJql(generatedBaseJql, userAnalysis.jqlStrategy, userAnalysis.updatedByStatus, {
+    start: userAnalysis.startDate,
+    end: userAnalysis.endDate,
+    endExclusive: currentJqlDateRange.endExclusive
+  });
   const filteredCandidates = userAnalysis.candidateIssues.filter((issue) => issueMatches(issue, userAnalysis.search));
   const pageCount = Math.max(1, Math.ceil(filteredCandidates.length / userAnalysis.pageSize));
   const page = Math.min(userAnalysis.page, pageCount);
@@ -150,12 +180,18 @@ export function AnalysisPage() {
       appendDebugLog("analysis", [`[WARN] ${error}`]);
       return;
     }
+    const nextJqlDateRange = toJqlDateRange(userAnalysis.startDate, userAnalysis.endDate);
     const nextBaseJql = buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
-    const nextGeneratedJql = formatGeneratedJql(nextBaseJql, "base search without updatedBy", "disabled");
+    const nextGeneratedJql = formatGeneratedJql(nextBaseJql, "base search without updatedBy", "disabled", {
+      start: userAnalysis.startDate,
+      end: userAnalysis.endDate,
+      endExclusive: nextJqlDateRange.endExclusive
+    });
     const updatedByWarning = "updatedBy search is not enabled in Stage 1 because this Jira instance may not support it.";
     patchState({
       generatedJql: nextGeneratedJql,
       generatedBaseJql: nextBaseJql,
+      jqlDateRange: nextJqlDateRange,
       jqlStrategy: "base search without updatedBy",
       updatedByStatus: "disabled",
       errors: [],
@@ -164,7 +200,8 @@ export function AnalysisPage() {
     });
     appendDebugLog("analysis", [
       `[INFO] Selected users parsed: ${selectedUsers.length}`,
-      `[INFO] Date range: ${userAnalysis.startDate} to ${userAnalysis.endDate}`,
+      `[INFO] UI date range: ${userAnalysis.startDate} to ${userAnalysis.endDate}`,
+      `[INFO] JQL date range: updated >= "${nextJqlDateRange.startInclusive}" AND updated < "${nextJqlDateRange.endExclusive}"`,
       "[INFO] Search Mode: Standard",
       "[INFO] JQL Strategy: base search without updatedBy",
       "[INFO] updatedBy status: disabled",
@@ -180,8 +217,13 @@ export function AnalysisPage() {
       appendDebugLog("analysis", [`[ERROR] ${error}`]);
       return;
     }
+    const nextJqlDateRange = toJqlDateRange(userAnalysis.startDate, userAnalysis.endDate);
     const nextBaseJql = buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
-    const nextGeneratedJql = formatGeneratedJql(nextBaseJql, "base search without updatedBy", "disabled");
+    const nextGeneratedJql = formatGeneratedJql(nextBaseJql, "base search without updatedBy", "disabled", {
+      start: userAnalysis.startDate,
+      end: userAnalysis.endDate,
+      endExclusive: nextJqlDateRange.endExclusive
+    });
     const updatedByWarning = "updatedBy search is not enabled in Stage 1 because this Jira instance may not support it.";
     patchState({
       loading: true,
@@ -189,6 +231,7 @@ export function AnalysisPage() {
       warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning],
       generatedJql: nextGeneratedJql,
       generatedBaseJql: nextBaseJql,
+      jqlDateRange: nextJqlDateRange,
       jqlStrategy: "base search without updatedBy",
       updatedByStatus: "disabled",
       notice: ""
@@ -201,7 +244,8 @@ export function AnalysisPage() {
       `[INFO] Auth Type: ${activeConnection?.authType === "basic" ? "Basic Auth" : "Bearer Token / PAT"}`,
       "[INFO] Authorization: [masked]",
       `[INFO] Selected users parsed: ${selectedUsers.length}`,
-      `[INFO] Date range: ${userAnalysis.startDate} to ${userAnalysis.endDate}`,
+      `[INFO] UI date range: ${userAnalysis.startDate} to ${userAnalysis.endDate}`,
+      `[INFO] JQL date range: updated >= "${nextJqlDateRange.startInclusive}" AND updated < "${nextJqlDateRange.endExclusive}"`,
       "[INFO] Search Mode: Standard",
       "[INFO] JQL Strategy: base search without updatedBy",
       "[INFO] updatedBy status: disabled",
@@ -281,6 +325,10 @@ export function AnalysisPage() {
       ...current,
       generatedJql: "",
       generatedBaseJql: "",
+      jqlDateRange: {
+        startInclusive: "",
+        endExclusive: ""
+      },
       jqlStrategy: "base search without updatedBy",
       updatedByStatus: "disabled",
       candidateIssues: [],
@@ -292,6 +340,9 @@ export function AnalysisPage() {
       warnings: [],
       errors: [],
       lastDiscoveryAt: "",
+      lastSavedCandidateResultPath: "",
+      lastSavedCandidateRawDataPath: "",
+      lastSavedExportFolderPath: "",
       rawSearchMetadata: null,
       loading: false,
       saving: false,
@@ -315,8 +366,10 @@ export function AnalysisPage() {
       selectedUsers,
       dateRange: {
         start: userAnalysis.startDate,
-        end: userAnalysis.endDate
+        end: userAnalysis.endDate,
+        endInclusive: true
       },
+      jqlDateRange: userAnalysis.jqlDateRange.startInclusive ? userAnalysis.jqlDateRange : currentJqlDateRange,
       searchMode: userAnalysis.searchMode,
       jqlStrategy: userAnalysis.jqlStrategy,
       generatedJql,
@@ -345,6 +398,13 @@ export function AnalysisPage() {
       },
       exportedAt: new Date().toISOString(),
       ...sourcePayload(activeConnection),
+      selectedUsers,
+      dateRange: {
+        start: userAnalysis.startDate,
+        end: userAnalysis.endDate,
+        endInclusive: true
+      },
+      jqlDateRange: userAnalysis.jqlDateRange.startInclusive ? userAnalysis.jqlDateRange : currentJqlDateRange,
       generatedJql,
       generatedBaseJql,
       jqlStrategy: userAnalysis.jqlStrategy,
@@ -355,6 +415,8 @@ export function AnalysisPage() {
         fields: ["key", "summary", "status", "assignee", "reporter", "creator", "updated", "created", "issuetype", "priority", "project"],
         candidateSafetyLimit: userAnalysis.candidateSafetyLimit
       },
+      searchRequestMetadata: userAnalysis.rawSearchMetadata,
+      rawSearchResponsesSanitized: userAnalysis.rawSearchMetadata ? [userAnalysis.rawSearchMetadata] : [],
       rawSearchMetadataSanitized: userAnalysis.rawSearchMetadata,
       pagination: {
         page: userAnalysis.page,
@@ -374,12 +436,40 @@ export function AnalysisPage() {
         data: raw ? rawDataPayload() : exportPayload()
       });
       if (!result) throw new Error("Electron export API is not available.");
-      patchState({ saving: false, notice: result.canceled ? "Save canceled." : `Saved: ${result.filePath}`, errors: [] });
-      appendDebugLog("analysis", [result.canceled ? "[INFO] Save Candidate Result canceled" : `[INFO] ${raw ? "Save Candidate Raw Data" : "Save Candidate Result"} completed`, "[INFO] Export data sanitized"]);
+      if (result.canceled) {
+        patchState({ saving: false, notice: "Save canceled.", errors: [] });
+        appendDebugLog("analysis", [raw ? "[INFO] Save Candidate Raw Data canceled" : "[INFO] Save Candidate Result canceled"]);
+        return;
+      }
+      patchState({
+        saving: false,
+        notice: `Saved to: ${result.filePath}`,
+        errors: [],
+        lastSavedCandidateResultPath: raw ? userAnalysis.lastSavedCandidateResultPath : result.filePath ?? "",
+        lastSavedCandidateRawDataPath: raw ? result.filePath ?? "" : userAnalysis.lastSavedCandidateRawDataPath,
+        lastSavedExportFolderPath: result.folderPath ?? userAnalysis.lastSavedExportFolderPath
+      });
+      appendDebugLog("analysis", [
+        raw ? `[INFO] Candidate raw data saved: ${result.filePath}` : `[INFO] Candidate result saved: ${result.filePath}`,
+        "[INFO] Export data sanitized"
+      ]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Save failed.";
       patchState({ saving: false, errors: [message], notice: "" });
-      appendDebugLog("analysis", [`[ERROR] ${message}`]);
+      appendDebugLog("analysis", [raw ? `[ERROR] Save Candidate Raw Data failed: ${message}` : `[ERROR] Save Candidate Result failed: ${message}`]);
+    }
+  }
+
+  async function openExportFolder() {
+    try {
+      const result = await window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath: userAnalysis.lastSavedExportFolderPath });
+      if (!result) throw new Error("Electron open folder API is not available.");
+      patchState({ notice: result.ok ? `Opened export folder: ${result.folderPath}` : `Open export folder failed: ${result.error}`, errors: result.ok ? [] : [result.error ?? "Open export folder failed."] });
+      appendDebugLog("analysis", [result.ok ? `[INFO] Export folder opened: ${result.folderPath}` : `[ERROR] Open export folder failed: ${result.error}`]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Open export folder failed.";
+      patchState({ errors: [message], notice: "" });
+      appendDebugLog("analysis", [`[ERROR] Open export folder failed: ${message}`]);
     }
   }
 
@@ -590,6 +680,23 @@ export function AnalysisPage() {
             <button className="btn" type="button" onClick={() => void saveCandidateResult(true)} disabled={userAnalysis.saving}>
               <Download size={16} />Save Candidate Raw Data
             </button>
+            <button className="btn" type="button" onClick={() => void openExportFolder()}>
+              <FolderOpen size={16} />Open Export Folder
+            </button>
+          </div>
+          <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
+            <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-3">
+              <div className="text-xs font-black uppercase text-muted">Last Saved Candidate Result</div>
+              <div className="mt-1 break-all text-sm font-bold text-ink" title={userAnalysis.lastSavedCandidateResultPath || "Not saved yet"}>
+                {userAnalysis.lastSavedCandidateResultPath || "Not saved yet"}
+              </div>
+            </div>
+            <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-3">
+              <div className="text-xs font-black uppercase text-muted">Last Saved Candidate Raw Data</div>
+              <div className="mt-1 break-all text-sm font-bold text-ink" title={userAnalysis.lastSavedCandidateRawDataPath || "Not saved yet"}>
+                {userAnalysis.lastSavedCandidateRawDataPath || "Not saved yet"}
+              </div>
+            </div>
           </div>
           <div className="mt-3 text-sm font-semibold leading-relaxed text-muted">
             Exports include globalDataSourceMode, masked source metadata, generatedJql, generatedBaseJql, jqlStrategy, updatedByStatus, candidateIssues, selectedForFetch, warnings, errors, and sanitized debug logs.

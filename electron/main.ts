@@ -586,6 +586,13 @@ ipcMain.handle("user-analysis:save-export", async (_event, payload: { category: 
   return saveExportJson(payload);
 });
 
+ipcMain.handle("user-analysis:open-export-folder", async (_event, payload?: { folderPath?: string }) => {
+  const folderPath = payload?.folderPath || path.join(getExportsDir(), "user-analysis");
+  ensureDir(folderPath);
+  const error = await shell.openPath(folderPath);
+  return error ? { ok: false, folderPath, error } : { ok: true, folderPath };
+});
+
 ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppConnection; issueKey: string }) => {
   const issueKey = String(payload.issueKey || "").trim().toUpperCase();
   const connection = payload.connection;
