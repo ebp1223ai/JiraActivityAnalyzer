@@ -45,6 +45,10 @@ export function getConfigDir() {
   return path.join(getAppRuntimeDir(), "config");
 }
 
+export function getConnectionsPath() {
+  return path.join(getConfigDir(), "connections.json");
+}
+
 export function ensureDir(dirPath: string) {
   fs.mkdirSync(dirPath, { recursive: true });
   return dirPath;

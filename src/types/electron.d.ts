@@ -1,4 +1,5 @@
 import type { JiraProbeRequest, JiraProbeResult } from "./jiraProbe";
+import type { ConnectionStatePayload, JiraConnection } from "./connection";
 
 declare global {
   interface Window {
@@ -41,6 +42,16 @@ declare global {
           };
         }>;
         saveResult: (payload: { defaultFileName: string; content: string }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
+      };
+      connections?: {
+        loadEnv: () => Promise<ConnectionStatePayload>;
+        list: () => Promise<ConnectionStatePayload>;
+        test: (connection: JiraConnection) => Promise<{ connection: JiraConnection; logs: string[]; result: unknown }>;
+        save: (connection: JiraConnection) => Promise<ConnectionStatePayload>;
+        setActive: (id: string) => Promise<ConnectionStatePayload>;
+      };
+      jiraAnalysis?: {
+        load: (payload: { connection: JiraConnection; issueKey: string }) => Promise<Record<string, unknown>>;
       };
       appDebug?: {
         saveTextFile: (payload: { defaultFileName: string; content: string }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;

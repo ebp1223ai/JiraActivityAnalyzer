@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { ensureDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getDatabaseDir, getEnvPath, getExportsDir, getLogsDir, getProbeResultsDir } from "./appPaths.js";
+import { ensureDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConnectionsPath, getDatabaseDir, getEnvPath, getExportsDir, getLogsDir, getProbeResultsDir } from "./appPaths.js";
+import { createJiraClient } from "./jira/jiraClient.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
 import type { ProbeRequest } from "./jira/jiraTypes.js";
 
@@ -52,6 +53,8 @@ JIRA_USERNAME=
 JIRA_API_TOKEN=
 JIRA_AUTH_TYPE=bearer
 JIRA_API_VERSION=v2
+JIRA_DEFAULT_CONNECTION_NAME=Jira Server (Production)
+JIRA_DEFAULT_PROJECT_SCOPE=COPGEN1,FW,QA
 JIRA_PROBE_DEFAULT_ISSUE=COPGEN1-138930
 JIRA_PROBE_DEPTH=standard
 JIRA_PROBE_MOCK_MODE=false
@@ -81,6 +84,93 @@ function ensureRuntimeFolders() {
     probeResultsDir: ensureDir(getProbeResultsDir()),
     backupsDir: ensureDir(getBackupsDir()),
     configDir: ensureDir(getConfigDir())
+  };
+}
+
+type AppConnection = {
+  id: string;
+  name: string;
+  baseUrl: string;
+  authType: "basic" | "bearer";
+  apiVersion: "auto" | "v3" | "v2";
+  username: string;
+  email: string;
+  apiToken?: string;
+  tokenSource: "env" | "session" | "encrypted-store";
+  tokenMasked: string;
+  projectScope: string[];
+  status: "connected" | "failed" | "not_tested";
+  lastTestedAt: string;
+  authenticatedUser: string;
+  accessibleProjectsCount: number;
+  active?: boolean;
+};
+
+function maskToken(token: string) {
+  if (!token) return "";
+  return token.length <= 4 ? "****" : `****${token.slice(-4)}`;
+}
+
+function connectionFromEnv(env: Record<string, string>): AppConnection {
+  const name = env.JIRA_DEFAULT_CONNECTION_NAME || "Jira Server (Production)";
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "jira-production";
+  const token = env.JIRA_API_TOKEN ?? "";
+  const envApiVersion = (env.JIRA_API_VERSION ?? "v2").toLowerCase();
+  return {
+    id,
+    name,
+    baseUrl: env.JIRA_BASE_URL ?? "",
+    authType: ((env.JIRA_AUTH_TYPE ?? "bearer").toLowerCase() === "basic" ? "basic" : "bearer"),
+    apiVersion: ["auto", "v2", "v3"].includes(envApiVersion) ? (envApiVersion as "auto" | "v2" | "v3") : "v2",
+    username: env.JIRA_USERNAME ?? "",
+    email: env.JIRA_EMAIL ?? env.JIRA_USERNAME ?? "",
+    apiToken: token,
+    tokenSource: token ? "env" : "session",
+    tokenMasked: maskToken(token),
+    projectScope: (env.JIRA_DEFAULT_PROJECT_SCOPE ?? "COPGEN1,FW,QA").split(",").map((item) => item.trim()).filter(Boolean),
+    status: "not_tested",
+    lastTestedAt: "",
+    authenticatedUser: "",
+    accessibleProjectsCount: 0,
+    active: true
+  };
+}
+
+function readConnectionFile() {
+  const filePath = getConnectionsPath();
+  if (!fs.existsSync(filePath)) return { activeConnectionId: "", connections: [] as AppConnection[] };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8")) as { activeConnectionId?: string; connections?: AppConnection[] };
+    return { activeConnectionId: parsed.activeConnectionId ?? "", connections: parsed.connections ?? [] };
+  } catch {
+    return { activeConnectionId: "", connections: [] as AppConnection[] };
+  }
+}
+
+function writeConnectionFile(data: { activeConnectionId: string; connections: AppConnection[] }) {
+  ensureDir(getConfigDir());
+  const sanitized = {
+    activeConnectionId: data.activeConnectionId,
+    connections: data.connections.map(({ apiToken: _apiToken, ...connection }) => connection)
+  };
+  fs.writeFileSync(getConnectionsPath(), JSON.stringify(sanitized, null, 2), "utf8");
+}
+
+function loadConnectionState() {
+  const envState = ensureProbeEnv();
+  const env = parseEnvText(fs.readFileSync(getEnvPath(), "utf8"));
+  const envConnection = connectionFromEnv(env);
+  const saved = readConnectionFile();
+  const savedConnections = saved.connections.filter((item) => item.id !== envConnection.id);
+  const connections = [envConnection, ...savedConnections].map((item) => ({
+    ...item,
+    active: (saved.activeConnectionId || envConnection.id) === item.id
+  }));
+  return {
+    env: envState,
+    activeConnectionId: saved.activeConnectionId || envConnection.id,
+    activeConnection: connections.find((item) => item.active) ?? envConnection,
+    connections
   };
 }
 
@@ -130,6 +220,268 @@ ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
     throw new Error("Jira Probe IPC only runs real read-only API probes.");
   }
   return runApiProbe(request);
+});
+
+ipcMain.handle("connection:load-env", async () => loadConnectionState());
+
+ipcMain.handle("connection:list", async () => loadConnectionState());
+
+ipcMain.handle("connection:save", async (_event, connection: AppConnection) => {
+  const current = readConnectionFile();
+  const existing = current.connections.filter((item) => item.id !== connection.id);
+  const sanitized: AppConnection = {
+    ...connection,
+    apiToken: undefined,
+    tokenMasked: connection.tokenMasked || maskToken(connection.apiToken ?? ""),
+    tokenSource: connection.tokenSource || "session"
+  };
+  const activeConnectionId = connection.active ? connection.id : current.activeConnectionId || connection.id;
+  writeConnectionFile({ activeConnectionId, connections: [sanitized, ...existing] });
+  return loadConnectionState();
+});
+
+ipcMain.handle("connection:set-active", async (_event, id: string) => {
+  const current = readConnectionFile();
+  writeConnectionFile({ activeConnectionId: id, connections: current.connections });
+  return loadConnectionState();
+});
+
+ipcMain.handle("connection:test", async (_event, connection: AppConnection) => {
+  const logs = [
+    "[INFO] Test connection started",
+    `[INFO] Base URL: ${connection.baseUrl}`,
+    `[INFO] Auth Type: ${connection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
+    `[INFO] API Version: ${connection.apiVersion}`,
+    "[INFO] Authorization: [masked]",
+    "[INFO] Token: [masked]",
+    "[DEBUG] GET /rest/api/2/myself"
+  ];
+  const client = createJiraClient({
+    baseUrl: connection.baseUrl,
+    email: connection.email || connection.username,
+    apiToken: connection.apiToken ?? "",
+    authType: connection.authType
+  });
+  const myself = await client.get("/rest/api/2/myself");
+  const now = new Date().toLocaleString("zh-TW", { hour12: false });
+  if (!myself.ok) {
+    logs.push(`[ERROR] Connection test failed: ${myself.message ?? myself.status}`);
+    logs.push("[INFO] No database write performed");
+    return {
+      connection: { ...connection, status: "failed", lastTestedAt: now, tokenMasked: maskToken(connection.apiToken ?? "") },
+      logs,
+      result: myself
+    };
+  }
+  const user = myself.json && typeof myself.json === "object" ? myself.json as Record<string, unknown> : {};
+  logs.push("[INFO] Authenticated user resolved");
+  logs.push("[DEBUG] GET /rest/api/2/project");
+  const projects = await client.get("/rest/api/2/project");
+  const accessibleProjectsCount = projects.ok && Array.isArray(projects.json) ? projects.json.length : 0;
+  if (!projects.ok) logs.push("[WARN] Project list endpoint failed; connection auth still succeeded");
+  logs.push("[INFO] Connection test successful");
+  logs.push("[INFO] No database write performed");
+  return {
+    connection: {
+      ...connection,
+      status: "connected",
+      lastTestedAt: now,
+      authenticatedUser: String(user.displayName ?? user.name ?? user.emailAddress ?? "Authenticated"),
+      accessibleProjectsCount,
+      tokenMasked: maskToken(connection.apiToken ?? "")
+    },
+    logs,
+    result: myself
+  };
+});
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+function text(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map(text).join(", ") || "-";
+  const record = asRecord(value);
+  return String(record.displayName ?? record.name ?? record.key ?? record.value ?? JSON.stringify(value).slice(0, 160));
+}
+
+ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppConnection; issueKey: string }) => {
+  const issueKey = String(payload.issueKey || "").trim().toUpperCase();
+  const connection = payload.connection;
+  const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
+  const logs = [
+    "[INFO] Jira Analysis load started",
+    `[INFO] Active connection: ${connection.name}`,
+    `[INFO] Base URL: ${connection.baseUrl}`,
+    `[INFO] Auth Type: ${connection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
+    `[INFO] API Version: ${connection.apiVersion}`,
+    "[INFO] Authorization: [masked]",
+    `[INFO] Issue Key: ${issueKey}`,
+    `[DEBUG] GET ${apiPrefix}/myself`
+  ];
+  const client = createJiraClient({
+    baseUrl: connection.baseUrl,
+    email: connection.email || connection.username,
+    apiToken: connection.apiToken ?? "",
+    authType: connection.authType
+  });
+  const myself = await client.get(`${apiPrefix}/myself`);
+  if (!myself.ok) {
+    logs.push(`[ERROR] Authentication failed: ${myself.message ?? myself.status}`);
+    logs.push("[INFO] No database write performed");
+    return { ok: false, message: myself.message ?? "Authentication failed.", logs };
+  }
+
+  const issuePath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}?fields=*all&expand=names,schema,renderedFields,changelog`;
+  logs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}`);
+  const issue = await client.get(issuePath);
+  if (!issue.ok) {
+    logs.push(`[ERROR] Issue load failed: ${issue.message ?? issue.status}`);
+    logs.push("[INFO] No database write performed");
+    return { ok: false, message: issue.message ?? "Issue load failed.", logs };
+  }
+
+  logs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}?expand=changelog`);
+  const changelog = connection.apiVersion === "v2"
+    ? { ok: true, json: asRecord(issue.json).changelog ?? null }
+    : await client.get(`${apiPrefix}/issue/${encodeURIComponent(issueKey)}/changelog?maxResults=100`);
+  logs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}/comment`);
+  const commentsResponse = await client.get(`${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?maxResults=100`);
+
+  const issueJson = asRecord(issue.json);
+  const fields = asRecord(issueJson.fields);
+  const project = asRecord(fields.project);
+  const issueType = asRecord(fields.issuetype);
+  const status = asRecord(fields.status);
+  const priority = asRecord(fields.priority);
+  const resolution = asRecord(fields.resolution);
+  const attachments = Array.isArray(fields.attachment) ? fields.attachment : [];
+  const links = Array.isArray(fields.issuelinks) ? fields.issuelinks : [];
+  const changelogRoot = asRecord(changelog.json);
+  const histories = Array.isArray(changelogRoot.histories) ? changelogRoot.histories as Record<string, unknown>[] : Array.isArray(changelogRoot.values) ? changelogRoot.values as Record<string, unknown>[] : [];
+  const changeItems = histories.flatMap((history) => {
+    const items = Array.isArray(history.items) ? history.items as Record<string, unknown>[] : [];
+    return items.map((item) => ({ history, item }));
+  });
+  const comments = commentsResponse.ok && Array.isArray(asRecord(commentsResponse.json).comments) ? asRecord(commentsResponse.json).comments as Record<string, unknown>[] : [];
+  const participants = new Map<string, { events: number; changelog: number; comments: number; attachments: number; status: number; first: string; last: string }>();
+  const addParticipant = (name: string, type: "changelog" | "comments" | "attachments" | "status", time: string) => {
+    if (!name || name === "-") return;
+    const current = participants.get(name) ?? { events: 0, changelog: 0, comments: 0, attachments: 0, status: 0, first: time, last: time };
+    current.events += 1;
+    current[type] += 1;
+    current.first = [current.first, time].filter(Boolean).sort()[0] ?? time;
+    current.last = [current.last, time].filter(Boolean).sort().at(-1) ?? time;
+    participants.set(name, current);
+  };
+  histories.forEach((history) => {
+    const author = text(asRecord(history).author);
+    const created = text(history.created);
+    const items = Array.isArray(history.items) ? history.items as Record<string, unknown>[] : [];
+    items.forEach((item) => addParticipant(author, text(item.field) === "status" ? "status" : "changelog", created));
+  });
+  comments.forEach((comment) => addParticipant(text(comment.author), "comments", text(comment.created)));
+  attachments.forEach((attachment) => addParticipant(text(asRecord(attachment).author), "attachments", text(asRecord(attachment).created)));
+  const fieldCounts = new Map<string, number>();
+  changeItems.forEach(({ item }) => fieldCounts.set(text(item.field), (fieldCounts.get(text(item.field)) ?? 0) + 1));
+  const statusTransitions = new Map<string, { count: number; first: string; last: string; actors: Set<string> }>();
+  changeItems.filter(({ item }) => text(item.field) === "status").forEach(({ history, item }) => {
+    const key = `${text(item.fromString)} -> ${text(item.toString)}`;
+    const created = text(history.created);
+    const entry = statusTransitions.get(key) ?? { count: 0, first: created, last: created, actors: new Set<string>() };
+    entry.count += 1;
+    entry.first = [entry.first, created].sort()[0];
+    entry.last = [entry.last, created].sort().at(-1) ?? created;
+    entry.actors.add(text(history.author));
+    statusTransitions.set(key, entry);
+  });
+  const activityTimeline = [
+    [text(fields.created), text(fields.creator), "issue_created", text(fields.summary)],
+    ...changeItems.map(({ history, item }) => [text(history.created), text(history.author), text(item.field) === "status" ? "status_changed" : "field_changed", `${text(item.field)}: ${text(item.fromString)} -> ${text(item.toString)}`]),
+    ...comments.map((comment) => [text(comment.created), text(comment.author), "comment_created", text(comment.body).slice(0, 120)]),
+    ...attachments.map((attachment) => [text(asRecord(attachment).created), text(asRecord(attachment).author), "attachment_added", text(asRecord(attachment).filename)])
+  ].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+
+  logs.push("[INFO] Issue loaded");
+  logs.push(`[INFO] Parsed fields: ${Object.keys(fields).length}`);
+  logs.push(`[INFO] Parsed changelog: ${histories.length} histories / ${changeItems.length} items`);
+  logs.push(`[INFO] Parsed comments: ${comments.length}`);
+  logs.push(`[INFO] Parsed attachments: ${attachments.length}`);
+  logs.push(`[INFO] Parsed issue links: ${links.length}`);
+  logs.push(`[INFO] Parsed participants: ${participants.size}`);
+  logs.push("[INFO] Analysis sections built");
+  logs.push("[INFO] No database write performed");
+  logs.push("[SUCCESS] Jira Analysis ready");
+
+  return {
+    ok: true,
+    logs,
+    issue: {
+      key: text(issueJson.key ?? issueKey),
+      id: text(issueJson.id),
+      summary: text(fields.summary),
+      status: text(status.name),
+      priority: text(priority.name),
+      issueType: text(issueType.name),
+      projectKey: text(project.key),
+      projectName: text(project.name),
+      assignee: text(fields.assignee),
+      reporter: text(fields.reporter),
+      creator: text(fields.creator),
+      created: text(fields.created),
+      updated: text(fields.updated),
+      resolution: text(resolution.name),
+      labels: text(fields.labels),
+      components: text(fields.components),
+      versions: text(fields.versions),
+      fixVersions: text(fields.fixVersions),
+      linkedIssuesCount: links.length,
+      attachmentCount: attachments.length,
+      commentCount: comments.length
+    },
+    summary: {
+      totalEvents: activityTimeline.length,
+      participants: participants.size,
+      comments: comments.length,
+      attachments: attachments.length,
+      statusChanges: Array.from(fieldCounts.entries()).find(([field]) => field === "status")?.[1] ?? 0,
+      leadTime: `${Math.max(0, Math.ceil((Date.parse(text(fields.updated)) - Date.parse(text(fields.created))) / 86400000))}d`
+    },
+    lifecycle: [["Created", text(fields.created), "-"], ["Updated", text(fields.updated), "-"], ["Resolved", text(resolution.name) === "-" ? "-" : text(fields.resolutiondate), "-"]],
+    participants: Array.from(participants.entries()).map(([name, stats]) => [name, String(stats.events), String(stats.changelog), String(stats.comments), String(stats.attachments), String(stats.status), stats.first, stats.last]),
+    transitions: Array.from(statusTransitions.entries()).map(([key, value]) => {
+      const [from, to] = key.split(" -> ");
+      return [from, to, String(value.count), value.first, value.last, Array.from(value.actors).join(", ")];
+    }),
+    fields: Array.from(fieldCounts.entries()).sort((a, b) => b[1] - a[1]).map(([field, count]) => [field, String(count), `${Math.round(count / Math.max(1, changeItems.length) * 100)}%`, "-", "-"]),
+    comments: [
+      ["Comment Count", String(comments.length)],
+      ["Comment Authors Count", String(new Set(comments.map((item) => text(item.author))).size)],
+      ["First Comment Time", text(comments[0]?.created)],
+      ["Last Comment Time", text(comments.at(-1)?.created)],
+      ["Edited Comments Count", String(comments.filter((item) => text(item.created) !== text(item.updated)).length)]
+    ],
+    attachments: attachments.map((item) => {
+      const record = asRecord(item);
+      return [text(record.filename), text(record.author), text(record.mimeType), text(record.size), text(record.created)];
+    }),
+    links: links.map((item) => {
+      const record = asRecord(item);
+      const linked = asRecord(record.outwardIssue ?? record.inwardIssue);
+      const linkedFields = asRecord(linked.fields);
+      return [text(record.id), text(asRecord(record.type).name), record.outwardIssue ? "outward" : "inward", text(linked.key), text(linkedFields.summary), text(asRecord(linkedFields.status).name), text(asRecord(linkedFields.issuetype).name)];
+    }),
+    risks: [
+      comments.length === 0 ? "No comments found" : "",
+      (fieldCounts.get("status") ?? 0) > 8 ? "Many status changes" : "",
+      (fieldCounts.get("assignee") ?? 0) > 3 ? "Many assignee changes" : "",
+      attachments.length > 10 ? "Many attachments" : "",
+      "No database write performed"
+    ].filter(Boolean),
+    timeline: activityTimeline
+  };
 });
 
 ipcMain.handle("jira-probe:load-env", async () => {
@@ -327,7 +679,7 @@ function createMainWindow() {
     height: 920,
     minWidth: 960,
     minHeight: 680,
-    title: "Jira Activity Analyzer",
+    title: `Jira Activity Analyzer v${app.getVersion()}`,
     backgroundColor: "#f6f9fd",
     show: !isUiSmoke,
     webPreferences: {

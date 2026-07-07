@@ -9,6 +9,7 @@ import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { runJiraProbe } from "../services/jiraProbeService";
+import { useConnectionContext } from "../state/ConnectionContext";
 import type { JiraProbeApiVersion, JiraProbeAuthType, JiraProbeDepth, JiraProbeResult, JiraProbeRunState, JiraProbeStatus } from "../types/jiraProbe";
 import type { AppOutletContext } from "../components/AppLayout";
 
@@ -64,6 +65,7 @@ export function JiraProbePage() {
   const [apiVersion, setApiVersion] = useState<JiraProbeApiVersion>("v2");
   const [authType, setAuthType] = useState<JiraProbeAuthType>("bearer");
   const [useMock, setUseMock] = useState(false);
+  const [useActiveConnection, setUseActiveConnection] = useState(true);
   const [envStatus, setEnvStatus] = useState("Env not loaded");
   const [actionNotice, setActionNotice] = useState("");
   const [showRawJson, setShowRawJson] = useState(false);
@@ -74,6 +76,7 @@ export function JiraProbePage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<JiraProbeResult | null>(null);
   const { appendDebugLog } = useOutletContext<AppOutletContext>();
+  const { activeConnection } = useConnectionContext();
 
   const request = useMemo(() => ({
     connection: {
@@ -92,6 +95,15 @@ export function JiraProbePage() {
   useEffect(() => {
     void handleReloadEnv(false);
   }, []);
+
+  useEffect(() => {
+    if (!useActiveConnection || !activeConnection) return;
+    setBaseUrl(activeConnection.baseUrl);
+    setEmail(activeConnection.email || activeConnection.username);
+    if (activeConnection.apiToken) setApiToken(activeConnection.apiToken);
+    setAuthType(activeConnection.authType as JiraProbeAuthType);
+    setApiVersion(activeConnection.apiVersion as JiraProbeApiVersion);
+  }, [activeConnection, useActiveConnection]);
 
   function applyEnvConfig(config: {
     baseUrl: string;
@@ -420,6 +432,12 @@ export function JiraProbePage() {
               </div>
             </div>
             <StatusBadge>Connected</StatusBadge>
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-white px-3 py-2 text-sm font-bold">
+              <span>Use Active Connection<br /><span className="text-xs font-semibold text-muted">{activeConnection?.name ?? "No active connection"}</span></span>
+              <button type="button" data-allow-truncate="true" onClick={() => setUseActiveConnection((value) => !value)} aria-label="Toggle active connection">
+                <Toggle on={useActiveConnection} />
+              </button>
+            </div>
           </div>
 
           <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">

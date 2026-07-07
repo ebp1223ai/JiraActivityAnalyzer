@@ -177,7 +177,7 @@ export function SettingsPage() {
 
         <SectionCard title="系統狀態" subtitle="System Status">
           <div className="divide-y divide-line rounded-lg border border-line text-sm font-semibold">
-            {["Jira Cloud Connection|Connected", "Database Connection|Connected", "Last Import Status|Success", "Pending Jobs|0", "System Uptime|2d 14h 23m", `Application Version|${buildInfo.version}`, `Build Time|${buildInfo.buildTime}`].map((row) => {
+            {["Jira Cloud Connection|Connected", "Database Connection|Connected", "Last Import Status|Success", "Pending Jobs|0", "System Uptime|2d 14h 23m", `Application Version|${buildInfo.version}`, `Build Time|${buildInfo.buildTime}`, `Git Commit|${buildInfo.gitCommit}`, `Git Branch|${buildInfo.gitBranch}`].map((row) => {
               const [a, b] = row.split("|");
               return <div key={a} className="flex min-w-0 justify-between gap-3 p-3"><span className="truncate" title={a}>{a}</span><span className="shrink-0 text-right font-black text-green-600" title={b}>{b}</span></div>;
             })}
