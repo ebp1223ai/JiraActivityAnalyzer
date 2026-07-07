@@ -23,6 +23,20 @@ The app injects `__BUILD_TIME__` from `vite.config.ts`.
 
 Build Time is shown in the sidebar and in Settings > System Status.
 
+## Global Data Source Mode
+
+The current global data source mode is `live_jira_api`.
+
+- Connections is now labeled `連線與資料來源 / Connections & Data Source`.
+- Live Jira API is available and selected.
+- Local Database mode is disabled and marked as coming later.
+- Dashboard, Jira Analysis, User Analysis, and Jira Probe show the active data source mode.
+- Jira Probe always uses Live Jira API and remains read-only.
+- Header badges reflect the current Jira API/version/status instead of always saying `Jira Cloud Connected`.
+- Exported Jira Probe and Jira Analysis JSON includes `globalDataSourceMode` and masked read-only source metadata.
+
+Local database import, database reads, database writes, backup/restore, and production data-source switching are not implemented in this UI round.
+
 ## Export Result / Raw Data
 
 Runtime export files are written under `<runtime>/exports/`. The app creates these common folders:

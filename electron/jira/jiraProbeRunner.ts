@@ -499,6 +499,7 @@ export async function runApiProbe(request: ProbeRequest) {
     "[INFO] Probe Scope: Standard read-only issue analysis",
     `[INFO] Selected connection: ${request.connection.name || "Custom Jira"}`,
     "[INFO] Mode: Real read-only probe",
+    "[INFO] Jira Probe uses Live Jira API regardless of global data source mode",
     `[INFO] Base URL: ${baseUrl || "(empty)"}`,
     `[INFO] Issue Key or ID: ${issueKey || "(empty)"}`,
     `[INFO] Auth Type: ${authType === "bearer" ? "Bearer Token / Personal Access Token" : "Basic Auth"}`,

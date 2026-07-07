@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Cloud, FileInput, KeyRound, RefreshCw, ShieldCheck, UserCheck } from "lucide-react";
+import { Cloud, Database, FileInput, KeyRound, RefreshCw, ShieldCheck, UserCheck } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import { FieldLabel } from "../components/FormControls";
 import { MetricCard } from "../components/MetricCard";
@@ -8,6 +8,7 @@ import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useConnectionContext } from "../state/ConnectionContext";
+import { globalDataSourceMode } from "../data/dataSource";
 import type { AppOutletContext } from "../components/AppLayout";
 import type { ConnectionApiVersion, ConnectionAuthType, JiraConnection } from "../types/connection";
 
@@ -46,7 +47,12 @@ export function ConnectionsPage() {
   }
 
   async function handleReloadEnv() {
-    appendDebugLog("connections", ["[INFO] Reload Env requested", `[INFO] Current Env Path: ${envStatus?.currentEnvPath ?? envStatus?.envPath ?? ""}`]);
+    appendDebugLog("connections", [
+      "[INFO] Global Data Source Mode: Live Jira API",
+      "[INFO] Local Database mode: disabled / coming later",
+      "[INFO] Reload Env requested",
+      `[INFO] Current Env Path: ${envStatus?.currentEnvPath ?? envStatus?.envPath ?? ""}`
+    ]);
     const state = await reloadEnv();
     if (!state) return;
     setDraft({ ...state.activeConnection });
@@ -91,9 +97,37 @@ export function ConnectionsPage() {
 
   return (
     <div className="min-w-0">
-      <PageHeader title="連線設定" subtitle="Connections" />
+      <PageHeader title="連線與資料來源" subtitle="Connections & Data Source" />
 
-      <SectionCard>
+      <SectionCard className="mb-4" title="Global Data Source Mode" subtitle="全域資料來源模式">
+        <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2">
+          <div className="min-w-0 rounded-lg border-2 border-blue-500 bg-blue-50 p-4">
+            <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+              <Cloud className="shrink-0 text-blue-600" />
+              <div className="font-black text-ink">Live Jira API / 即時 Jira 查詢</div>
+              <StatusBadge>Available / 可使用</StatusBadge>
+              <StatusBadge tone="green">Selected / 目前使用中</StatusBadge>
+            </div>
+            <p className="text-sm font-semibold leading-relaxed text-blue-800">
+              Use the current .env Jira connection to query Jira in real time.
+            </p>
+            <div className="mt-3 text-xs font-black uppercase text-blue-700">Global Data Source Mode: {globalDataSourceMode.label}</div>
+          </div>
+          <div className="min-w-0 rounded-lg border border-line bg-slate-100 p-4 opacity-75">
+            <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+              <Database className="shrink-0 text-slate-500" />
+              <div className="font-black text-ink">Local Database / 本機資料庫</div>
+              <StatusBadge tone="gray">Coming later / 尚未啟用</StatusBadge>
+              <StatusBadge tone="gray">Disabled</StatusBadge>
+            </div>
+            <p className="text-sm font-semibold leading-relaxed text-muted">
+              Analyze previously imported local database records. This mode is planned but not available yet.
+            </p>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Live Jira API Settings" subtitle="即時 Jira 設定">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <h2 className="flex min-w-0 items-center gap-3 text-xl font-black">
             <Cloud className="shrink-0 text-blue-600" />
@@ -158,6 +192,38 @@ export function ConnectionsPage() {
           <MetricCard label="Auth Type" sub="auth" value={draft.authType === "bearer" ? "Bearer" : "Basic"} icon={ShieldCheck} tone="bg-violet-50 text-violet-600" />
           <MetricCard label="Last Tested" sub="time" value={draft.lastTestedAt || "-"} icon={KeyRound} tone="bg-amber-50 text-amber-600" />
         </ResponsiveMetricGrid>
+      </SectionCard>
+
+      <SectionCard className="mt-4" title="Local Database Settings" subtitle="本機資料庫設定">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-semibold leading-relaxed text-muted">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <StatusBadge tone="gray">Database Mode: Coming later</StatusBadge>
+            <StatusBadge tone="gray">Disabled</StatusBadge>
+          </div>
+          <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-3">
+            {[
+              ["Database Path", "-"],
+              ["Current Database ID", "-"],
+              ["Current Database Source", "-"],
+              ["Last Imported At", "-"],
+              ["Last Backup Time", "-"],
+              ["Database Health", "Unavailable"]
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-line bg-white p-3">
+                <div className="text-xs font-black uppercase text-muted">{label}</div>
+                <div className="mt-1 font-black text-ink">{value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button className="btn" disabled>Choose Database</button>
+            <button className="btn" disabled>Load Database</button>
+            <button className="btn" disabled>Backup Database</button>
+          </div>
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800">
+            Local Database mode is planned and will be enabled after the import database is implemented.
+          </div>
+        </div>
       </SectionCard>
     </div>
   );

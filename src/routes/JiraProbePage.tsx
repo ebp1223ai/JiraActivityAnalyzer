@@ -9,6 +9,7 @@ import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { buildInfo } from "../buildInfo";
+import { globalDataSourceMode } from "../data/dataSource";
 import { runJiraProbe } from "../services/jiraProbeService";
 import { useConnectionContext } from "../state/ConnectionContext";
 import type { JiraProbeApiVersion, JiraProbeAuthType, JiraProbeResult, JiraProbeRunState, JiraProbeStatus } from "../types/jiraProbe";
@@ -141,6 +142,7 @@ export function JiraProbePage() {
   async function handleRunProbe() {
     setRunState("loading");
     setError("");
+    appendDebugLog("jiraProbe", ["[INFO] Jira Probe uses Live Jira API regardless of global data source mode"]);
     try {
       const next = await runJiraProbe(request);
       setResult(next);
@@ -178,11 +180,13 @@ export function JiraProbePage() {
 
   function exportPayload() {
     if (!result) return null;
+    const dataSource = probeDataSourceMetadata(result.apiVersion);
     return {
       exportType: "jira-probe-result",
       appVersion: buildInfo.version.replace(/^v/, ""),
       buildTime: buildInfo.buildTime,
       exportedAt: new Date().toISOString(),
+      ...dataSource,
       probeRunId: result.debugLogs.find((line) => line.includes("Run ID:"))?.replace("[INFO] Run ID: ", "") ?? "",
       baseUrl,
       issueKey: result.issueKey,
@@ -205,23 +209,38 @@ export function JiraProbePage() {
 
   function rawDataPayload() {
     if (!result) return null;
+    const dataSource = probeDataSourceMetadata(result.apiVersion);
     return {
       exportType: "jira-probe-raw-data",
       appVersion: buildInfo.version.replace(/^v/, ""),
       buildTime: buildInfo.buildTime,
       exportedAt: new Date().toISOString(),
+      ...dataSource,
       requestContext: {
-        baseUrl,
+        ...dataSource.source,
         issueKey: result.issueKey,
-        apiVersion: result.apiVersion,
-        authType,
-        authorization: "[masked]",
-        token: "[masked]",
         readOnly: true
       },
       endpoints: result.endpoints,
       rawResponsesSanitized: result.inspector?.rawJson ?? result.preview.rawJson,
       debugLogSanitized: result.debugLogs
+    };
+  }
+
+  function probeDataSourceMetadata(selectedApiVersion: JiraProbeResult["apiVersion"] | null) {
+    return {
+      globalDataSourceMode: globalDataSourceMode.id,
+      source: {
+        type: globalDataSourceMode.id,
+        baseUrl,
+        apiVersion: selectedApiVersion ?? apiVersion,
+        authType,
+        readOnly: true,
+        databaseWrite: false,
+        attachmentDownload: false,
+        token: "[masked]",
+        authorization: "[masked]"
+      }
     };
   }
 
@@ -497,6 +516,8 @@ export function JiraProbePage() {
             )}
             <div className="mt-3 border-t border-current/20 pt-3 font-black" data-no-clip="true">Probe Scope / 測試範圍</div>
             <div>Standard read-only issue analysis</div>
+            <div className="mt-2 font-bold" data-no-clip="true">Global Data Source Mode: Live Jira API</div>
+            <div className="mt-1 text-xs leading-relaxed">Jira Probe always uses Live Jira API. Local Database mode is disabled / coming later.</div>
             <div className="mt-2 text-xs leading-relaxed">
               GET /rest/api/2/myself, GET /rest/api/2/issue/{"{issueKey}"}, GET /rest/api/2/issue/{"{issueKey}"}?expand=changelog, GET /rest/api/2/issue/{"{issueKey}"}/comment, parse attachments metadata, issue links, users, and estimate activity events.
             </div>

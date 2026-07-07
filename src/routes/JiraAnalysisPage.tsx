@@ -10,6 +10,7 @@ import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { metricIcons } from "../data/mockData";
 import { buildInfo } from "../buildInfo";
+import { liveJiraSourceMetadata } from "../data/dataSource";
 import { useConnectionContext } from "../state/ConnectionContext";
 import type { AppOutletContext } from "../components/AppLayout";
 
@@ -218,6 +219,7 @@ export function JiraAnalysisPage() {
     }
     setLoading(true);
     try {
+      appendDebugLog("jira", ["[INFO] Data Source Mode: Live Jira API"]);
       const response = await window.desktopApp?.jiraAnalysis?.load?.({ connection: activeConnection, issueKey }) as JiraAnalysisResult | undefined;
       if (!response) throw new Error("Jira Analysis IPC is not available.");
       setResult(response);
@@ -250,16 +252,11 @@ export function JiraAnalysisPage() {
   }
 
   function sourcePayload() {
-    return {
-      baseUrl: activeConnection?.baseUrl ?? "",
-      apiVersion: activeConnection?.apiVersion ?? "",
-      authType: activeConnection?.authType ?? "",
-      token: "[masked]",
-      authorization: "[masked]",
-      readOnly: true,
-      databaseWrite: false,
-      attachmentDownload: false
-    };
+    return liveJiraSourceMetadata(activeConnection).source;
+  }
+
+  function dataSourcePayload() {
+    return liveJiraSourceMetadata(activeConnection);
   }
 
   function buildAnalysisExport() {
@@ -267,6 +264,7 @@ export function JiraAnalysisPage() {
       exportType: "jira-analysis-result",
       app: appPayload(),
       exportedAt: formatTimestampForJson(),
+      ...dataSourcePayload(),
       source: sourcePayload(),
       issue: {
         key: issue.key ?? issueKey,
@@ -303,6 +301,7 @@ export function JiraAnalysisPage() {
       exportType: "jira-analysis-raw-data",
       app: appPayload(),
       exportedAt: formatTimestampForJson(),
+      ...dataSourcePayload(),
       requestContext: {
         ...sourcePayload(),
         issueKey: issue.key ?? issueKey
@@ -326,6 +325,7 @@ export function JiraAnalysisPage() {
       exportType: "jira-analysis-debug-bundle",
       app: appPayload(),
       exportedAt: formatTimestampForJson(),
+      ...dataSourcePayload(),
       activeConnection: {
         name: activeConnection?.name ?? "",
         baseUrl: activeConnection?.baseUrl ?? "",
@@ -479,6 +479,7 @@ export function JiraAnalysisPage() {
       <SectionCard className="mb-4" title="Active Connection" subtitle="read-only Jira source">
         {activeConnection ? (
           <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-3 text-sm font-semibold">
+            <InfoTile label="Data Source Mode" value="Live Jira API / 即時 Jira 查詢" />
             <InfoTile label="Connection" value={activeConnection.name} />
             <InfoTile label="Base URL" value={activeConnection.baseUrl} />
             <InfoTile label="Auth Type" value={activeConnection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"} />
@@ -486,6 +487,8 @@ export function JiraAnalysisPage() {
             <InfoTile label="Token Source" value={activeConnection.tokenSource} />
             <InfoTile label="Status" value={activeConnection.status} />
             <InfoTile label="Last Tested" value={activeConnection.lastTestedAt || "-"} />
+            <InfoTile label="Read-only" value="yes" />
+            <InfoTile label="Database write" value="no" />
           </div>
         ) : (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">

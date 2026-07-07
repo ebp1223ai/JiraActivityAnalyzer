@@ -4,7 +4,7 @@ import { BuildInfo } from "./BuildInfo";
 
 const items = [
   { to: "/", label: "總覽", sub: "Dashboard", icon: Home },
-  { to: "/connections", label: "連線設定", sub: "Connections", icon: UserRound },
+  { to: "/connections", label: "連線與資料來源", sub: "Connections & Data Source", icon: UserRound },
   { to: "/import", label: "資料匯入", sub: "Import", icon: DatabaseZap },
   { to: "/timeline", label: "工作紀錄", sub: "Timeline", icon: Clock3 },
   { to: "/analysis", label: "使用者分析", sub: "Analysis", icon: UsersRound },

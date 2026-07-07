@@ -3,11 +3,11 @@ dist
 dist-electron
 release
 .env
-data/
-logs/
-exports/
-probe-results/
-config/
+/data/
+/logs/
+/exports/
+/probe-results/
+/config/
 test-artifacts/
 screenshots/
 playwright-report/

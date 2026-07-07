@@ -13,6 +13,19 @@ export function AnalysisPage() {
   return (
     <div className="min-w-0">
       <PageHeader title="使用者分析" subtitle="Analysis" />
+      <SectionCard className="mb-4" title="Data Source Mode" subtitle="資料來源模式">
+        <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="text-xs font-black uppercase text-blue-700">Live Jira API / 即時 Jira 查詢</div>
+            <div className="mt-2 text-sm font-semibold leading-relaxed text-blue-800">
+              Candidate Discovery will use read-only Jira JQL search.
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-semibold leading-relaxed text-muted">
+            Local Database mode is disabled / coming later.
+          </div>
+        </div>
+      </SectionCard>
       <SectionCard>
         <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
           <div><FieldLabel label="Selected Users" sub="比較使用者" /><div className="field flex min-w-0 flex-wrap gap-2"><Chip>Alpha-Platform</Chip><Chip>Ben Service</Chip><Chip>Chia-Ting Wu</Chip><button className="btn ml-auto"><Plus size={16} />新增使用者</button></div></div>

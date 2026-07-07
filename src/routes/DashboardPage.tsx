@@ -9,6 +9,7 @@ import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { buildInfo } from "../buildInfo";
+import { globalDataSourceMode } from "../data/dataSource";
 import { activeUsers, db, eventTypes, projectActivity, syncRuns, trend } from "../data/mockData";
 
 const databaseDetails = [
@@ -31,6 +32,24 @@ export function DashboardPage() {
   return (
     <div className="min-w-0">
       <PageHeader title="總覽" subtitle="Dashboard" />
+      <SectionCard className="mb-4" title="Global Data Source Mode" subtitle="全域資料來源模式">
+        <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[1fr_1fr_1.4fr]">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="text-xs font-black uppercase text-blue-700">Current Mode</div>
+            <div className="mt-1 text-xl font-black text-ink" data-no-clip="true">{globalDataSourceMode.label}</div>
+            <div className="mt-1 text-sm font-semibold text-blue-800">{globalDataSourceMode.zhLabel}</div>
+          </div>
+          <div className="rounded-lg border border-line bg-slate-50 p-4">
+            <div className="text-xs font-black uppercase text-muted">Connection Profile</div>
+            <div className="mt-1 text-lg font-black text-ink" data-no-clip="true">Jira Server/Data Center v2</div>
+            <div className="mt-1 text-sm font-semibold text-muted">Bearer Token / PAT</div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-semibold leading-relaxed text-muted">
+            <div className="font-black text-ink">Local Database</div>
+            <div>Disabled / Coming later. Dashboard currently reads live Jira source state only.</div>
+          </div>
+        </div>
+      </SectionCard>
       <ResponsiveMetricGrid min={220}>
         <MetricCard label="最後同步時間" sub="Last Sync Time" value="2026/07/03 15:43:21" icon={RefreshCw} />
         <MetricCard label="連線狀態" sub="Connection Status" value="已連線" icon={Activity} tone="bg-green-50 text-green-600" />

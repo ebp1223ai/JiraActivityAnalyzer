@@ -222,6 +222,7 @@ export function createMockJiraProbeResult(request: JiraProbeRequest): JiraProbeR
       "[INFO] Run Probe started",
       `[INFO] Run ID: mock-${Date.now()}`,
       "[INFO] Mode: Mock probe",
+      "[INFO] Jira Probe uses Live Jira API regardless of global data source mode",
       "[INFO] Standard read-only probe started",
       "[INFO] Probe Scope: Standard read-only issue analysis",
       `[INFO] Issue Key: ${issueKey}`,
