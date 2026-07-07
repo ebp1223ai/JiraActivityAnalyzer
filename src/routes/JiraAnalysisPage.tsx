@@ -259,11 +259,32 @@ export function JiraAnalysisPage() {
     return liveJiraSourceMetadata(activeConnection);
   }
 
+  function analysisSummaryPayload() {
+    return {
+      issueKey: issue.key ?? issueKey,
+      issueId: issue.id ?? "",
+      title: issue.summary ?? "",
+      status: issue.status ?? "",
+      assignee: issue.assignee ?? "",
+      reporter: issue.reporter ?? "",
+      creator: issue.creator ?? "",
+      created: issue.created ?? "",
+      updated: issue.updated ?? "",
+      totalEvents: summary.totalEvents ?? 0,
+      participants: summary.participants ?? 0,
+      comments: summary.comments ?? 0,
+      attachments: summary.attachments ?? 0,
+      statusChanges: summary.statusChanges ?? 0,
+      leadTime: summary.leadTime ?? ""
+    };
+  }
+
   function buildAnalysisExport() {
     return {
       exportType: "jira-analysis-result",
       app: appPayload(),
       exportedAt: formatTimestampForJson(),
+      summary: analysisSummaryPayload(),
       ...dataSourcePayload(),
       source: sourcePayload(),
       issue: {
@@ -345,45 +366,6 @@ export function JiraAnalysisPage() {
       warnings: [],
       errors: error ? [error] : []
     };
-  }
-
-  function buildSummaryText() {
-    return [
-      "Jira Analysis Summary",
-      `Issue: ${issue.key ?? issueKey}`,
-      `Summary: ${issue.summary ?? "-"}`,
-      `Status: ${issue.status ?? "-"}`,
-      `Assignee: ${issue.assignee ?? "-"}`,
-      `Reporter: ${issue.reporter ?? "-"}`,
-      `Created: ${issue.created ?? "-"}`,
-      `Updated: ${issue.updated ?? "-"}`,
-      "",
-      "Analysis:",
-      `- Total Events: ${summary.totalEvents ?? "-"}`,
-      `- Participants: ${summary.participants ?? "-"}`,
-      `- Comments: ${summary.comments ?? "-"}`,
-      `- Attachments: ${summary.attachments ?? "-"}`,
-      `- Status Changes: ${summary.statusChanges ?? "-"}`,
-      `- Lead Time: ${summary.leadTime ?? "-"}`,
-      "",
-      "Endpoint:",
-      `- API Version: ${activeConnection?.apiVersion ?? "-"}`,
-      `- Auth Type: ${activeConnection?.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
-      "- Read-only: yes",
-      "- Database write: no",
-      "- Attachment download: no",
-      "",
-      "Notes:",
-      "- Token masked",
-      "- Raw data available in exported file"
-    ].join("\n");
-  }
-
-  async function copyAnalysisSummary() {
-    if (!result?.ok) return;
-    await navigator.clipboard?.writeText(buildSummaryText());
-    setNotice("Analysis summary copied.");
-    appendDebugLog("jira", ["[INFO] Analysis summary copied"]);
   }
 
   async function saveJiraAnalysisExport(kind: "analysis" | "raw" | "bundle") {
@@ -502,7 +484,6 @@ export function JiraAnalysisPage() {
         <button className="btn btn-primary" onClick={handleLoad} disabled={loading}><Search size={16} />{loading ? "Loading" : "Load"}</button>
         <button className="btn" onClick={handleLoad} disabled={loading}><RefreshCw size={16} />Refresh from Jira</button>
         <button className="btn" onClick={openInJira} disabled={!activeConnection} title={activeConnection ? `${activeConnection.baseUrl.replace(/\/+$/, "")}/browse/${encodeURIComponent(issueKey)}` : undefined}><ExternalLink size={16} />Open in Jira</button>
-        <button className="btn" onClick={copyAnalysisSummary} disabled={!result?.ok} title={!result?.ok ? "Load an issue first." : "Copy Analysis Summary"}><Copy size={16} />Copy Summary</button>
         <button className="btn" onClick={() => void saveJiraAnalysisExport("analysis")} disabled={!result?.ok} title={!result?.ok ? "Load an issue first." : "Save Analysis Result JSON"}><Download size={16} />Save Analysis Result</button>
         <button className="btn" onClick={() => void saveJiraAnalysisExport("raw")} disabled={!result?.ok} title={!result?.ok ? "Load an issue first." : "Save Raw Data JSON"}><Download size={16} />Save Raw Data</button>
         <button className="btn" onClick={() => void saveJiraAnalysisExport("bundle")} disabled={!result?.ok} title={!result?.ok ? "Load an issue first." : "Save Debug Bundle JSON"}><PackageOpen size={16} />Save Debug Bundle</button>

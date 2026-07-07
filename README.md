@@ -56,14 +56,13 @@ Runtime export files are written under `<runtime>/exports/`. The app creates the
 
 Jira Analysis supports:
 
-- Copy Analysis Summary: copies a token-safe text summary for GPT / Codex troubleshooting.
 - Save Analysis Result: writes `<runtime>/exports/jira-analysis/jira-analysis-{issueKey}-YYYYMMDD_HHmmss.json`.
 - Save Raw Data: writes `<runtime>/exports/raw-data/jira-analysis-raw-{issueKey}-YYYYMMDD_HHmmss.json`.
 - Save Debug Bundle: writes `<runtime>/exports/debug-bundles/jira-analysis-debug-bundle-{issueKey}-YYYYMMDD_HHmmss.json`.
 
 Save buttons are disabled until a Jira Analysis issue is successfully loaded. Exported JSON is created by Electron main process IPC and is sanitized before writing.
 
-Exported Jira Analysis result JSON includes app version, build time, git commit, git branch, exported time, read-only source metadata, issue summary, analysis summary, lifecycle, participants, status transitions, field changes, comments, attachments metadata, linked issues, risk hints, and activity timeline.
+Exported Jira Analysis result JSON includes app version, build time, git commit, git branch, exported time, a token-safe `summary` object, `globalDataSourceMode`, read-only source metadata, issue details, analysis summary, lifecycle, participants, status transitions, field changes, comments, attachments metadata, linked issues, risk hints, and activity timeline.
 
 Exported raw data JSON includes sanitized endpoint responses and sanitized debug logs. It does not include API token values, Authorization headers, passwords, master keys, cookies, session IDs, CSRF/XSRF values, `.env` content, database content, or downloaded attachment files.
 

@@ -194,37 +194,6 @@ export function ConnectionsPage() {
         </ResponsiveMetricGrid>
       </SectionCard>
 
-      <SectionCard className="mt-4" title="Local Database Settings" subtitle="本機資料庫設定">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-semibold leading-relaxed text-muted">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <StatusBadge tone="gray">Database Mode: Coming later</StatusBadge>
-            <StatusBadge tone="gray">Disabled</StatusBadge>
-          </div>
-          <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-3">
-            {[
-              ["Database Path", "-"],
-              ["Current Database ID", "-"],
-              ["Current Database Source", "-"],
-              ["Last Imported At", "-"],
-              ["Last Backup Time", "-"],
-              ["Database Health", "Unavailable"]
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-lg border border-line bg-white p-3">
-                <div className="text-xs font-black uppercase text-muted">{label}</div>
-                <div className="mt-1 font-black text-ink">{value}</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button className="btn" disabled>Choose Database</button>
-            <button className="btn" disabled>Load Database</button>
-            <button className="btn" disabled>Backup Database</button>
-          </div>
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800">
-            Local Database mode is planned and will be enabled after the import database is implemented.
-          </div>
-        </div>
-      </SectionCard>
     </div>
   );
 }
