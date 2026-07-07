@@ -582,6 +582,219 @@ ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { co
   };
 });
 
+function uniqueUserNames(values: unknown[]) {
+  return Array.from(new Set(values.map(text).filter((item) => item && item !== "-"))).sort();
+}
+
+function countChangeItems(histories: Record<string, unknown>[]) {
+  return histories.reduce((sum, history) => sum + (Array.isArray(history.items) ? history.items.length : 0), 0);
+}
+
+function buildFullFetchReport(issueKey: string, candidate: Record<string, unknown>, result: Record<string, unknown>, startedAt: number, status: "success" | "failed", error = "") {
+  const issue = asRecord(result.issue);
+  const fields = asRecord(issue.fields);
+  const histories = Array.isArray(result.changelogHistories) ? result.changelogHistories as Record<string, unknown>[] : [];
+  const comments = Array.isArray(result.comments) ? result.comments as Record<string, unknown>[] : [];
+  const attachments = Array.isArray(result.attachments) ? result.attachments as Record<string, unknown>[] : [];
+  const links = Array.isArray(result.links) ? result.links as Record<string, unknown>[] : [];
+  const parsedUsers = Array.isArray(result.parsedUsers) ? result.parsedUsers as string[] : [];
+  const estimatedEvents = 1 + countChangeItems(histories) + comments.length + attachments.length + links.length;
+  return {
+    issueKey,
+    summary: text(fields.summary ?? candidate.summary),
+    status: text(asRecord(fields.status).name ?? candidate.status),
+    fetchStatus: status,
+    httpStatus: text(result.httpStatus ?? "-"),
+    changelogHistories: histories.length,
+    changelogItems: countChangeItems(histories),
+    comments: comments.length,
+    attachmentsMetadata: attachments.length,
+    issueLinks: links.length,
+    parsedUsers: parsedUsers.length,
+    estimatedEvents,
+    duration: `${Date.now() - startedAt}ms`,
+    error,
+    lastFetchedAt: formatLocalDateTime()
+  };
+}
+
+ipcMain.handle("user-analysis:full-fetch", async (_event, payload: { connection: AppConnection; fetchQueue: Record<string, unknown>[]; fetchLimit: number }) => {
+  const connection = payload.connection;
+  const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
+  const fetchQueue = Array.isArray(payload.fetchQueue) ? payload.fetchQueue : [];
+  const runId = `full-fetch-${Date.now()}`;
+  const startedAt = new Date().toISOString();
+  const logs = [
+    "[INFO] User Analysis Stage 2 Full Fetch started",
+    "[INFO] Data Source Mode: Live Jira API",
+    "[INFO] Connection Source: Current .env Jira Connection",
+    `[INFO] API Version: ${connection.apiVersion === "v3" ? "Jira Cloud v3" : "Jira Server/Data Center v2"}`,
+    `[INFO] Auth Type: ${connection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
+    "[INFO] Authorization: [masked]",
+    "[INFO] Execution Mode: Sequential read-only fetch",
+    `[INFO] Fetch Queue Count: ${fetchQueue.length}`,
+    "[INFO] No database write will be performed",
+    "[INFO] No Jira write will be performed",
+    "[INFO] No attachment file download will be performed"
+  ];
+  const client = createJiraClient({
+    baseUrl: connection.baseUrl,
+    email: connection.email || connection.username,
+    apiToken: connection.apiToken ?? "",
+    authType: connection.authType
+  });
+
+  const report: Record<string, unknown>[] = [];
+  const issueResults: Record<string, unknown>[] = [];
+  const rawIssueResponsesSanitized: unknown[] = [];
+  const rawCommentResponsesSanitized: unknown[] = [];
+  const endpointMetadata: Record<string, unknown>[] = [];
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  for (const candidate of fetchQueue) {
+    const issueKey = text(candidate.key).toUpperCase();
+    const issueStarted = Date.now();
+    logs.push(`[INFO] Full Fetch issue started: ${issueKey}`);
+    const issuePath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}?fields=*all&expand=names,schema,renderedFields,changelog`;
+    logs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}?fields=*all&expand=names,schema,renderedFields,changelog`);
+    const issue = await client.get(issuePath);
+    endpointMetadata.push({ issueKey, endpoint: `${apiPrefix}/issue/${issueKey}`, method: "GET", status: issue.status, contentType: issue.contentType });
+    rawIssueResponsesSanitized.push({ issueKey, endpoint: "issue", status: issue.status, json: sanitizeRawJson(issue.json), bodyPreview: issue.bodyPreview });
+    if (!issue.ok) {
+      const message = `HTTP ${issue.status} ${issue.message ?? issue.errorType ?? ""}`.trim();
+      logs.push(`[ERROR] Full Fetch issue failed: ${issueKey} ${message}`);
+      logs.push("[INFO] Continue with next issue");
+      errors.push(`${issueKey}: ${message}`);
+      const failedResult = { issue: {}, httpStatus: issue.status, changelogHistories: [], comments: [], attachments: [], links: [], parsedUsers: [] };
+      report.push(buildFullFetchReport(issueKey, candidate, failedResult, issueStarted, "failed", message));
+      issueResults.push({ issueKey, fetchStatus: "failed", error: message });
+      continue;
+    }
+
+    const issueJson = asRecord(issue.json);
+    const fields = asRecord(issueJson.fields);
+    let changelogRoot = asRecord(issueJson.changelog);
+    let changelogHistories = Array.isArray(changelogRoot.histories) ? changelogRoot.histories as Record<string, unknown>[] : [];
+    if (changelogHistories.length === 0) {
+      const changelogPath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}?expand=changelog`;
+      logs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}?expand=changelog`);
+      const changelogResponse = await client.get(changelogPath);
+      endpointMetadata.push({ issueKey, endpoint: `${apiPrefix}/issue/${issueKey}?expand=changelog`, method: "GET", status: changelogResponse.status, contentType: changelogResponse.contentType });
+      if (changelogResponse.ok) {
+        const changelogJson = asRecord(changelogResponse.json);
+        changelogRoot = asRecord(changelogJson.changelog);
+        changelogHistories = Array.isArray(changelogRoot.histories) ? changelogRoot.histories as Record<string, unknown>[] : [];
+        rawIssueResponsesSanitized.push({ issueKey, endpoint: "issue-changelog-fallback", status: changelogResponse.status, json: sanitizeRawJson(changelogResponse.json), bodyPreview: changelogResponse.bodyPreview });
+      } else {
+        const message = `Changelog fallback failed for ${issueKey}: HTTP ${changelogResponse.status} ${changelogResponse.message ?? changelogResponse.errorType ?? ""}`.trim();
+        warnings.push(message);
+        logs.push(`[WARN] ${message}`);
+      }
+    }
+    const comments: Record<string, unknown>[] = [];
+    let commentsStartAt = 0;
+    const commentMax = 100;
+    const commentSafetyLimit = 1000;
+    while (commentsStartAt < commentSafetyLimit) {
+      logs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}/comment?startAt=${commentsStartAt}&maxResults=${commentMax}`);
+      const commentsResponse = await client.get(`${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?startAt=${commentsStartAt}&maxResults=${commentMax}`);
+      endpointMetadata.push({ issueKey, endpoint: `${apiPrefix}/issue/${issueKey}/comment`, method: "GET", startAt: commentsStartAt, maxResults: commentMax, status: commentsResponse.status, contentType: commentsResponse.contentType });
+      rawCommentResponsesSanitized.push({ issueKey, startAt: commentsStartAt, status: commentsResponse.status, json: sanitizeRawJson(commentsResponse.json), bodyPreview: commentsResponse.bodyPreview });
+      if (!commentsResponse.ok) {
+        const message = `Comments pagination failed for ${issueKey}: HTTP ${commentsResponse.status} ${commentsResponse.message ?? commentsResponse.errorType ?? ""}`.trim();
+        warnings.push(message);
+        logs.push(`[WARN] ${message}`);
+        break;
+      }
+      const commentJson = asRecord(commentsResponse.json);
+      const pageComments = Array.isArray(commentJson.comments) ? commentJson.comments as Record<string, unknown>[] : [];
+      comments.push(...pageComments);
+      const total = Number(commentJson.total ?? pageComments.length) || pageComments.length;
+      commentsStartAt += pageComments.length;
+      if (pageComments.length === 0 || commentsStartAt >= total) break;
+    }
+
+    const attachments = Array.isArray(fields.attachment) ? fields.attachment as Record<string, unknown>[] : [];
+    const links = Array.isArray(fields.issuelinks) ? fields.issuelinks as Record<string, unknown>[] : [];
+    const changeItems = countChangeItems(changelogHistories);
+    const parsedUsers = uniqueUserNames([
+      fields.assignee,
+      fields.reporter,
+      fields.creator,
+      ...changelogHistories.map((history) => asRecord(history).author),
+      ...comments.map((comment) => asRecord(comment).author),
+      ...attachments.map((attachment) => asRecord(attachment).author)
+    ]);
+    const result = {
+      issueKey,
+      fetchStatus: "success",
+      httpStatus: issue.status,
+      issue: issueJson,
+      changelogHistories,
+      comments,
+      attachments,
+      links,
+      parsedUsers,
+      estimatedEvents: 1 + changeItems + comments.length + attachments.length + links.length
+    };
+    logs.push(`[INFO] Issue full fields parsed: ${Object.keys(fields).length}`);
+    logs.push(`[INFO] Changelog parsed: ${changelogHistories.length} histories / ${changeItems} items`);
+    logs.push(`[INFO] Comments parsed: ${comments.length}`);
+    logs.push(`[INFO] Attachments parsed: ${attachments.length} metadata only`);
+    logs.push("[INFO] No attachment file download performed");
+    logs.push(`[INFO] Issue links parsed: ${links.length}`);
+    logs.push(`[INFO] Parsed users: ${parsedUsers.length}`);
+    logs.push(`[INFO] Estimated activity events: ${result.estimatedEvents}`);
+    logs.push(`[SUCCESS] Full Fetch issue completed: ${issueKey}`);
+    issueResults.push(result);
+    report.push(buildFullFetchReport(issueKey, candidate, result, issueStarted, "success"));
+  }
+
+  const success = report.filter((item) => item.fetchStatus === "success").length;
+  const failed = report.filter((item) => item.fetchStatus === "failed").length;
+  const skipped = report.filter((item) => item.fetchStatus === "skipped").length;
+  const summary = {
+    totalIssues: fetchQueue.length,
+    pending: 0,
+    running: 0,
+    success,
+    failed,
+    skipped,
+    totalChangelogHistories: report.reduce((sum, item) => sum + Number(item.changelogHistories ?? 0), 0),
+    totalChangelogItems: report.reduce((sum, item) => sum + Number(item.changelogItems ?? 0), 0),
+    totalComments: report.reduce((sum, item) => sum + Number(item.comments ?? 0), 0),
+    totalAttachmentsMetadata: report.reduce((sum, item) => sum + Number(item.attachmentsMetadata ?? 0), 0),
+    totalIssueLinks: report.reduce((sum, item) => sum + Number(item.issueLinks ?? 0), 0),
+    totalParsedUsers: report.reduce((sum, item) => sum + Number(item.parsedUsers ?? 0), 0),
+    totalEstimatedEvents: report.reduce((sum, item) => sum + Number(item.estimatedEvents ?? 0), 0)
+  };
+  const status = failed > 0 ? "completed_with_errors" : "completed";
+  logs.push(`[INFO] Full Fetch completed: success=${success}, failed=${failed}, skipped=${skipped}`);
+  logs.push("[INFO] No database write performed");
+  return {
+    ok: true,
+    logs,
+    run: {
+      runId,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      status,
+      executionMode: "sequential"
+    },
+    summary,
+    fetchReport: report,
+    issueResults,
+    rawData: {
+      rawIssueResponsesSanitized,
+      rawCommentResponsesSanitized,
+      endpointMetadata
+    },
+    warnings,
+    errors
+  };
+});
+
 ipcMain.handle("user-analysis:save-export", async (_event, payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => {
   return saveExportJson(payload);
 });

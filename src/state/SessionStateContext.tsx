@@ -51,6 +51,40 @@ export type UserAnalysisCandidateIssue = {
   matchedReason: string;
 };
 
+export type UserAnalysisFullFetchReportRow = {
+  issueKey: string;
+  summary: string;
+  status: string;
+  fetchStatus: "pending" | "running" | "success" | "failed" | "skipped";
+  httpStatus: string;
+  changelogHistories: number;
+  changelogItems: number;
+  comments: number;
+  attachmentsMetadata: number;
+  issueLinks: number;
+  parsedUsers: number;
+  estimatedEvents: number;
+  duration: string;
+  error: string;
+  lastFetchedAt: string;
+};
+
+export type UserAnalysisFullFetchSummary = {
+  totalIssues: number;
+  pending: number;
+  running: number;
+  success: number;
+  failed: number;
+  skipped: number;
+  totalChangelogHistories: number;
+  totalChangelogItems: number;
+  totalComments: number;
+  totalAttachmentsMetadata: number;
+  totalIssueLinks: number;
+  totalParsedUsers: number;
+  totalEstimatedEvents: number;
+};
+
 export type UserAnalysisSessionState = {
   selectedUsersText: string;
   startDate: string;
@@ -69,7 +103,7 @@ export type UserAnalysisSessionState = {
   candidateIssues: UserAnalysisCandidateIssue[];
   selectedForFetch: string[];
   excludedIssues: string[];
-  activeTab: "candidates" | "queue";
+  activeTab: "candidates" | "queue" | "fetchReport";
   page: number;
   pageSize: number;
   search: string;
@@ -79,6 +113,21 @@ export type UserAnalysisSessionState = {
   lastSavedCandidateResultPath: string;
   lastSavedCandidateRawDataPath: string;
   lastSavedExportFolderPath: string;
+  fullFetchRunId: string;
+  fullFetchStartedAt: string;
+  fullFetchFinishedAt: string;
+  fullFetchStatus: "idle" | "running" | "completed" | "completed_with_errors" | "failed";
+  fullFetchSummary: UserAnalysisFullFetchSummary;
+  fullFetchReport: UserAnalysisFullFetchReportRow[];
+  fullFetchResultsByIssue: unknown[];
+  fullFetchRawDataByIssueSanitized: unknown | null;
+  fullFetchWarnings: string[];
+  fullFetchErrors: string[];
+  fetchReportPage: number;
+  fetchReportPageSize: number;
+  fetchReportFilter: "all" | "success" | "failed";
+  lastSavedFullFetchResultPath: string;
+  lastSavedFullFetchRawDataPath: string;
   rawSearchMetadata: unknown | null;
   saving: boolean;
   loading: boolean;
@@ -149,6 +198,35 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   lastSavedCandidateResultPath: "",
   lastSavedCandidateRawDataPath: "",
   lastSavedExportFolderPath: "",
+  fullFetchRunId: "",
+  fullFetchStartedAt: "",
+  fullFetchFinishedAt: "",
+  fullFetchStatus: "idle",
+  fullFetchSummary: {
+    totalIssues: 0,
+    pending: 0,
+    running: 0,
+    success: 0,
+    failed: 0,
+    skipped: 0,
+    totalChangelogHistories: 0,
+    totalChangelogItems: 0,
+    totalComments: 0,
+    totalAttachmentsMetadata: 0,
+    totalIssueLinks: 0,
+    totalParsedUsers: 0,
+    totalEstimatedEvents: 0
+  },
+  fullFetchReport: [],
+  fullFetchResultsByIssue: [],
+  fullFetchRawDataByIssueSanitized: null,
+  fullFetchWarnings: [],
+  fullFetchErrors: [],
+  fetchReportPage: 1,
+  fetchReportPageSize: 40,
+  fetchReportFilter: "all",
+  lastSavedFullFetchResultPath: "",
+  lastSavedFullFetchRawDataPath: "",
   rawSearchMetadata: null,
   saving: false,
   loading: false,

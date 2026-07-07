@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
   },
   userAnalysis: {
     discoverCandidates: (payload: unknown) => ipcRenderer.invoke("user-analysis:discover-candidates", payload),
+    fullFetch: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch", payload),
     saveExport: (payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => ipcRenderer.invoke("user-analysis:save-export", payload),
     openExportFolder: (payload?: { folderPath?: string }) => ipcRenderer.invoke("user-analysis:open-export-folder", payload)
   },

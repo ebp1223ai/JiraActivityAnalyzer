@@ -63,6 +63,7 @@ declare global {
       };
       userAnalysis?: {
         discoverCandidates: (payload: { connection: JiraConnection; jql: string; safetyLimit: number; selectedUsers: string[] }) => Promise<Record<string, unknown>>;
+        fullFetch: (payload: { connection: JiraConnection; fetchQueue: unknown[]; fetchLimit: number }) => Promise<Record<string, unknown>>;
         saveExport: (payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
         openExportFolder: (payload?: { folderPath?: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;
       };

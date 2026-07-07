@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, Copy, DatabaseZap, Download, Eye, FolderOpen, ListChecks, Play, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Copy, DatabaseZap, Download, Eye, FolderOpen, ListChecks, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel } from "../components/FormControls";
@@ -9,7 +9,7 @@ import { ResponsiveTableContainer } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useConnectionContext } from "../state/ConnectionContext";
-import { useSessionState, type UserAnalysisCandidateIssue } from "../state/SessionStateContext";
+import { useSessionState, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchReportRow } from "../state/SessionStateContext";
 
 const fetchLimitOptions = [10, 20, 40, 80, 160];
 const pageSizeOptions = [10, 20, 40, 80, 160];
@@ -162,6 +162,11 @@ export function AnalysisPage() {
   const pagedCandidates = filteredCandidates.slice((page - 1) * userAnalysis.pageSize, page * userAnalysis.pageSize);
   const fetchQueue = userAnalysis.candidateIssues.filter((issue) => userAnalysis.selectedForFetch.includes(issue.key));
   const fetchLimitExceeded = fetchQueue.length > userAnalysis.fetchLimit;
+  const filteredFetchReport = userAnalysis.fullFetchReport.filter((row) => userAnalysis.fetchReportFilter === "all" || row.fetchStatus === userAnalysis.fetchReportFilter);
+  const fetchReportPageCount = Math.max(1, Math.ceil(filteredFetchReport.length / userAnalysis.fetchReportPageSize));
+  const fetchReportPage = Math.min(userAnalysis.fetchReportPage, fetchReportPageCount);
+  const pagedFetchReport = filteredFetchReport.slice((fetchReportPage - 1) * userAnalysis.fetchReportPageSize, fetchReportPage * userAnalysis.fetchReportPageSize);
+  const hasFullFetchResult = userAnalysis.fullFetchStatus === "completed" || userAnalysis.fullFetchStatus === "completed_with_errors" || userAnalysis.fullFetchStatus === "failed";
   const dateRangeDays = userAnalysis.startDate && userAnalysis.endDate
     ? Math.round((Date.parse(userAnalysis.endDate) - Date.parse(userAnalysis.startDate)) / 86400000) + 1
     : 0;
@@ -348,6 +353,35 @@ export function AnalysisPage() {
       lastSavedCandidateResultPath: "",
       lastSavedCandidateRawDataPath: "",
       lastSavedExportFolderPath: "",
+      fullFetchRunId: "",
+      fullFetchStartedAt: "",
+      fullFetchFinishedAt: "",
+      fullFetchStatus: "idle",
+      fullFetchSummary: {
+        totalIssues: 0,
+        pending: 0,
+        running: 0,
+        success: 0,
+        failed: 0,
+        skipped: 0,
+        totalChangelogHistories: 0,
+        totalChangelogItems: 0,
+        totalComments: 0,
+        totalAttachmentsMetadata: 0,
+        totalIssueLinks: 0,
+        totalParsedUsers: 0,
+        totalEstimatedEvents: 0
+      },
+      fullFetchReport: [],
+      fullFetchResultsByIssue: [],
+      fullFetchRawDataByIssueSanitized: null,
+      fullFetchWarnings: [],
+      fullFetchErrors: [],
+      fetchReportPage: 1,
+      fetchReportPageSize: 40,
+      fetchReportFilter: "all",
+      lastSavedFullFetchResultPath: "",
+      lastSavedFullFetchRawDataPath: "",
       rawSearchMetadata: null,
       loading: false,
       saving: false,
@@ -432,6 +466,180 @@ export function AnalysisPage() {
     };
   }
 
+  async function handleRunFullFetch() {
+    if (fetchQueue.length === 0) {
+      patchState({ errors: ["Please select issues from Candidate Issues before running Full Fetch."], notice: "" });
+      appendDebugLog("analysis", ["[WARN] Please select issues from Candidate Issues before running Full Fetch."]);
+      return;
+    }
+    if (fetchLimitExceeded) {
+      const confirmed = window.confirm(`Selected issues exceed fetch limit ${userAnalysis.fetchLimit}. Full Fetch may take longer and call many Jira API endpoints. Continue?`);
+      if (!confirmed) {
+        appendDebugLog("analysis", ["[INFO] Full Fetch canceled before start"]);
+        return;
+      }
+    }
+    if (userAnalysis.fullFetchRunId) {
+      appendDebugLog("analysis", ["[INFO] Previous full fetch session replaced."]);
+    }
+    patchState({
+      fullFetchStatus: "running",
+      fullFetchStartedAt: new Date().toISOString(),
+      fullFetchFinishedAt: "",
+      fullFetchRunId: "",
+      fullFetchReport: [],
+      fullFetchResultsByIssue: [],
+      fullFetchRawDataByIssueSanitized: null,
+      fullFetchWarnings: [],
+      fullFetchErrors: [],
+      fetchReportPage: 1,
+      activeTab: "fetchReport",
+      errors: [],
+      notice: "Full Fetch running..."
+    });
+    try {
+      if (!activeConnection) throw new Error("No active Jira connection. Reload .env in Connections first.");
+      const response = await window.desktopApp?.userAnalysis?.fullFetch?.({
+        connection: activeConnection,
+        fetchQueue,
+        fetchLimit: userAnalysis.fetchLimit
+      });
+      if (!response) throw new Error("Electron User Analysis Full Fetch API is not available.");
+      appendDebugLog("analysis", Array.isArray(response.logs) ? response.logs as string[] : []);
+      const run = (response.run ?? {}) as Record<string, unknown>;
+      const status = String(run.status ?? (response.ok ? "completed" : "failed")) as typeof userAnalysis.fullFetchStatus;
+      patchState({
+        fullFetchRunId: String(run.runId ?? ""),
+        fullFetchStartedAt: String(run.startedAt ?? ""),
+        fullFetchFinishedAt: String(run.finishedAt ?? new Date().toISOString()),
+        fullFetchStatus: status,
+        fullFetchSummary: response.summary as typeof userAnalysis.fullFetchSummary,
+        fullFetchReport: (Array.isArray(response.fetchReport) ? response.fetchReport : []) as UserAnalysisFullFetchReportRow[],
+        fullFetchResultsByIssue: Array.isArray(response.issueResults) ? response.issueResults : [],
+        fullFetchRawDataByIssueSanitized: response.rawData ?? null,
+        fullFetchWarnings: Array.isArray(response.warnings) ? response.warnings as string[] : [],
+        fullFetchErrors: Array.isArray(response.errors) ? response.errors as string[] : [],
+        errors: Array.isArray(response.errors) ? response.errors as string[] : [],
+        warnings: [...userAnalysis.warnings, ...(Array.isArray(response.warnings) ? response.warnings as string[] : [])],
+        notice: `Full Fetch ${status}: ${(response.summary as Record<string, unknown> | undefined)?.success ?? 0} success, ${(response.summary as Record<string, unknown> | undefined)?.failed ?? 0} failed.`
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Full Fetch failed.";
+      patchState({
+        fullFetchStatus: "failed",
+        fullFetchFinishedAt: new Date().toISOString(),
+        fullFetchErrors: [message],
+        errors: [message],
+        notice: ""
+      });
+      appendDebugLog("analysis", [`[ERROR] Full Fetch failed: ${message}`, "[INFO] No database write performed"]);
+    }
+  }
+
+  function fullFetchResultPayload() {
+    return {
+      exportType: "user-analysis-full-fetch-result",
+      app: {
+        name: "Jira Activity Analyzer",
+        version: buildInfo.version.replace(/^v/, ""),
+        buildTime: buildInfo.buildTime,
+        gitCommit: buildInfo.gitCommit,
+        gitBranch: buildInfo.gitBranch
+      },
+      exportedAt: new Date().toISOString(),
+      ...sourcePayload(activeConnection),
+      stage: "user-analysis-stage-2-full-fetch",
+      selectedUsers,
+      dateRange: {
+        start: userAnalysis.startDate,
+        end: userAnalysis.endDate,
+        endInclusive: true
+      },
+      jqlDateRange: userAnalysis.jqlDateRange.startInclusive ? userAnalysis.jqlDateRange : currentJqlDateRange,
+      generatedBaseJql,
+      candidateIssuesCount: userAnalysis.candidateIssues.length,
+      selectedForFetch: fetchQueue,
+      fetchQueueCount: fetchQueue.length,
+      fullFetchRun: {
+        runId: userAnalysis.fullFetchRunId,
+        startedAt: userAnalysis.fullFetchStartedAt,
+        finishedAt: userAnalysis.fullFetchFinishedAt,
+        status: userAnalysis.fullFetchStatus,
+        executionMode: "sequential"
+      },
+      summary: userAnalysis.fullFetchSummary,
+      fetchReport: userAnalysis.fullFetchReport,
+      issueResults: userAnalysis.fullFetchResultsByIssue,
+      warnings: userAnalysis.fullFetchWarnings,
+      errors: userAnalysis.fullFetchErrors,
+      debugLogSanitized: getDebugLogs("analysis")
+    };
+  }
+
+  function fullFetchRawDataPayload() {
+    const rawData = (userAnalysis.fullFetchRawDataByIssueSanitized ?? {}) as Record<string, unknown>;
+    return {
+      exportType: "user-analysis-full-fetch-raw-data",
+      app: {
+        name: "Jira Activity Analyzer",
+        version: buildInfo.version.replace(/^v/, ""),
+        buildTime: buildInfo.buildTime,
+        gitCommit: buildInfo.gitCommit,
+        gitBranch: buildInfo.gitBranch
+      },
+      exportedAt: new Date().toISOString(),
+      ...sourcePayload(activeConnection),
+      requestContext: {
+        selectedUsers,
+        dateRange: {
+          start: userAnalysis.startDate,
+          end: userAnalysis.endDate,
+          endInclusive: true
+        },
+        jqlDateRange: userAnalysis.jqlDateRange.startInclusive ? userAnalysis.jqlDateRange : currentJqlDateRange,
+        fetchQueue
+      },
+      rawIssueResponsesSanitized: Array.isArray(rawData.rawIssueResponsesSanitized) ? rawData.rawIssueResponsesSanitized : [],
+      rawCommentResponsesSanitized: Array.isArray(rawData.rawCommentResponsesSanitized) ? rawData.rawCommentResponsesSanitized : [],
+      endpointMetadata: Array.isArray(rawData.endpointMetadata) ? rawData.endpointMetadata : [],
+      warnings: userAnalysis.fullFetchWarnings,
+      errors: userAnalysis.fullFetchErrors
+    };
+  }
+
+  async function saveFullFetchResult(raw = false) {
+    patchState({ saving: true, notice: "" });
+    try {
+      const result = await window.desktopApp?.userAnalysis?.saveExport?.({
+        category: raw ? "raw-data" : "user-analysis",
+        defaultFileName: raw ? `user-analysis-full-fetch-raw-${stamp()}.json` : `user-analysis-full-fetch-${stamp()}.json`,
+        data: raw ? fullFetchRawDataPayload() : fullFetchResultPayload()
+      });
+      if (!result) throw new Error("Electron export API is not available.");
+      if (result.canceled) {
+        patchState({ saving: false, notice: "Save canceled.", errors: [] });
+        appendDebugLog("analysis", [raw ? "[INFO] Save Full Fetch Raw Data canceled" : "[INFO] Save Full Fetch Result canceled"]);
+        return;
+      }
+      patchState({
+        saving: false,
+        notice: `Saved to: ${result.filePath}`,
+        errors: [],
+        lastSavedFullFetchResultPath: raw ? userAnalysis.lastSavedFullFetchResultPath : result.filePath ?? "",
+        lastSavedFullFetchRawDataPath: raw ? result.filePath ?? "" : userAnalysis.lastSavedFullFetchRawDataPath,
+        lastSavedExportFolderPath: result.folderPath ?? userAnalysis.lastSavedExportFolderPath
+      });
+      appendDebugLog("analysis", [
+        raw ? `[INFO] Full fetch raw data saved: ${result.filePath}` : `[INFO] Full fetch result saved: ${result.filePath}`,
+        "[INFO] Export data sanitized"
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Save failed.";
+      patchState({ saving: false, errors: [message], notice: "" });
+      appendDebugLog("analysis", [raw ? `[ERROR] Save Full Fetch Raw Data failed: ${message}` : `[ERROR] Save Full Fetch Result failed: ${message}`]);
+    }
+  }
+
   async function saveCandidateResult(raw = false) {
     patchState({ saving: true, notice: "" });
     try {
@@ -465,34 +673,53 @@ export function AnalysisPage() {
     }
   }
 
-  async function openSavedFolder(kind: "result" | "raw") {
-    const filePath = kind === "result" ? userAnalysis.lastSavedCandidateResultPath : userAnalysis.lastSavedCandidateRawDataPath;
+  async function openSavedFolder(kind: "result" | "raw" | "fullResult" | "fullRaw") {
+    const filePath = kind === "result"
+      ? userAnalysis.lastSavedCandidateResultPath
+      : kind === "raw"
+        ? userAnalysis.lastSavedCandidateRawDataPath
+        : kind === "fullResult"
+          ? userAnalysis.lastSavedFullFetchResultPath
+          : userAnalysis.lastSavedFullFetchRawDataPath;
     const folderPath = parentFolder(filePath);
     if (!folderPath) return;
     try {
       const result = await window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath });
       if (!result) throw new Error("Electron open folder API is not available.");
-      const label = kind === "result" ? "candidate result" : "candidate raw data";
+      const label = kind === "result" ? "candidate result" : kind === "raw" ? "candidate raw data" : kind === "fullResult" ? "full fetch result" : "full fetch raw data";
       patchState({ notice: result.ok ? `Opened ${label} folder: ${result.folderPath}` : `Open ${label} folder failed: ${result.error}`, errors: result.ok ? [] : [result.error ?? `Open ${label} folder failed.`] });
-      appendDebugLog("analysis", [result.ok ? `[INFO] Candidate ${kind === "result" ? "result" : "raw data"} folder opened: ${result.folderPath}` : `[ERROR] Open candidate ${kind === "result" ? "result" : "raw data"} folder failed: ${result.error}`]);
+      const successLog = kind === "fullResult"
+        ? `[INFO] Full fetch result folder opened: ${result.folderPath}`
+        : kind === "fullRaw"
+          ? `[INFO] Full fetch raw data folder opened: ${result.folderPath}`
+          : `[INFO] Candidate ${kind === "result" ? "result" : "raw data"} folder opened: ${result.folderPath}`;
+      appendDebugLog("analysis", [result.ok ? successLog : `[ERROR] Open ${label} folder failed: ${result.error}`]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Open export folder failed.";
       patchState({ errors: [message], notice: "" });
-      appendDebugLog("analysis", [`[ERROR] Open candidate ${kind === "result" ? "result" : "raw data"} folder failed: ${message}`]);
+      appendDebugLog("analysis", [`[ERROR] Open export folder failed: ${message}`]);
     }
   }
 
-  async function copySavedPath(kind: "result" | "raw") {
-    const filePath = kind === "result" ? userAnalysis.lastSavedCandidateResultPath : userAnalysis.lastSavedCandidateRawDataPath;
+  async function copySavedPath(kind: "result" | "raw" | "fullResult" | "fullRaw") {
+    const filePath = kind === "result"
+      ? userAnalysis.lastSavedCandidateResultPath
+      : kind === "raw"
+        ? userAnalysis.lastSavedCandidateRawDataPath
+        : kind === "fullResult"
+          ? userAnalysis.lastSavedFullFetchResultPath
+          : userAnalysis.lastSavedFullFetchRawDataPath;
     if (!filePath) return;
     try {
       await navigator.clipboard.writeText(filePath);
-      patchState({ notice: kind === "result" ? "Candidate result path copied." : "Candidate raw data path copied.", errors: [] });
-      appendDebugLog("analysis", [kind === "result" ? "[INFO] Candidate result path copied" : "[INFO] Candidate raw data path copied"]);
+      const notice = kind === "result" ? "Candidate result path copied." : kind === "raw" ? "Candidate raw data path copied." : kind === "fullResult" ? "Full fetch result path copied." : "Full fetch raw data path copied.";
+      const log = kind === "result" ? "[INFO] Candidate result path copied" : kind === "raw" ? "[INFO] Candidate raw data path copied" : kind === "fullResult" ? "[INFO] Full fetch result path copied" : "[INFO] Full fetch raw data path copied";
+      patchState({ notice, errors: [] });
+      appendDebugLog("analysis", [log]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Copy path failed.";
       patchState({ errors: [message], notice: "" });
-      appendDebugLog("analysis", [kind === "result" ? `[ERROR] Copy candidate result path failed: ${message}` : `[ERROR] Copy candidate raw data path failed: ${message}`]);
+      appendDebugLog("analysis", [`[ERROR] Copy path failed: ${message}`]);
     }
   }
 
@@ -607,6 +834,7 @@ export function AnalysisPage() {
           <div className="flex flex-wrap gap-2">
             <button className={`btn ${userAnalysis.activeTab === "candidates" ? "btn-primary" : ""}`} type="button" onClick={() => patchState({ activeTab: "candidates" })}><ListChecks size={16} />Candidate Issues</button>
             <button className={`btn ${userAnalysis.activeTab === "queue" ? "btn-primary" : ""}`} type="button" onClick={() => patchState({ activeTab: "queue" })}><DatabaseZap size={16} />Fetch Queue</button>
+            <button className={`btn ${userAnalysis.activeTab === "fetchReport" ? "btn-primary" : ""}`} type="button" onClick={() => patchState({ activeTab: "fetchReport" })}><ListChecks size={16} />Fetch Report</button>
           </div>
         }
       >
@@ -659,10 +887,10 @@ export function AnalysisPage() {
               </div>
             </div>
           </>
-        ) : (
+        ) : userAnalysis.activeTab === "queue" ? (
           <>
             <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">
-              Fetch Queue prepares selected issues for Stage 2 Full Fetch. Full Fetch will be implemented in Stage 2.
+              Fetch Queue prepares selected issues for Stage 2 Full Fetch. Full Fetch reads Jira through read-only GET endpoints only.
             </div>
             <ResponsiveTableContainer>
               <table className="table min-w-[980px]">
@@ -689,7 +917,65 @@ export function AnalysisPage() {
                 </tbody>
               </table>
             </ResponsiveTableContainer>
-            <button className="btn mt-3 opacity-60" type="button" disabled><Plus size={16} />Run Full Fetch - Stage 2 coming later</button>
+            <button className="btn btn-primary mt-3" type="button" onClick={() => void handleRunFullFetch()} disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"}>
+              <Play size={16} />{userAnalysis.fullFetchStatus === "running" ? "Running Full Fetch..." : "Run Full Fetch"}
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="mb-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[180px_180px_minmax(0,1fr)]">
+              <select className="field" value={userAnalysis.fetchReportFilter} onChange={(event) => patchState({ fetchReportFilter: event.target.value as typeof userAnalysis.fetchReportFilter, fetchReportPage: 1 })}>
+                <option value="all">All</option>
+                <option value="success">Success</option>
+                <option value="failed">Failed</option>
+              </select>
+              <select className="field" value={userAnalysis.fetchReportPageSize} onChange={(event) => patchState({ fetchReportPageSize: Number(event.target.value), fetchReportPage: 1 })}>
+                {pageSizeOptions.map((option) => <option key={option} value={option}>{option} rows</option>)}
+              </select>
+              <div className="flex items-center justify-end gap-2 text-sm font-bold text-muted">
+                Page {fetchReportPage} / {fetchReportPageCount}
+              </div>
+            </div>
+            <ResponsiveTableContainer>
+              <table className="table min-w-[1500px]">
+                <thead>
+                  <tr>
+                    {["Issue Key", "Summary", "Status", "Fetch Status", "HTTP Status", "Changelog Histories", "Changelog Items", "Comments", "Attachments Metadata", "Issue Links", "Parsed Users", "Estimated Events", "Duration", "Error / Warning", "Last Fetched At"].map((header) => <th key={header}>{header}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedFetchReport.map((row) => (
+                    <tr key={`${row.issueKey}-${row.lastFetchedAt}`}>
+                      <td className="font-black text-blue-700">{row.issueKey}</td>
+                      <td><span className="block max-w-[320px] truncate" title={row.summary} data-allow-truncate="true">{row.summary}</span></td>
+                      <td><StatusBadge>{row.status}</StatusBadge></td>
+                      <td><StatusBadge>{row.fetchStatus}</StatusBadge></td>
+                      <td data-no-clip="true">{row.httpStatus}</td>
+                      <td data-no-clip="true">{row.changelogHistories}</td>
+                      <td data-no-clip="true">{row.changelogItems}</td>
+                      <td data-no-clip="true">{row.comments}</td>
+                      <td data-no-clip="true">{row.attachmentsMetadata}</td>
+                      <td data-no-clip="true">{row.issueLinks}</td>
+                      <td data-no-clip="true">{row.parsedUsers}</td>
+                      <td data-no-clip="true">{row.estimatedEvents}</td>
+                      <td data-no-clip="true">{row.duration}</td>
+                      <td><span className="block max-w-[320px] truncate" title={row.error || "-"} data-allow-truncate="true">{row.error || "-"}</span></td>
+                      <td data-no-clip="true">{row.lastFetchedAt}</td>
+                    </tr>
+                  ))}
+                  {pagedFetchReport.length === 0 ? (
+                    <tr><td colSpan={15} className="text-center text-muted">No Fetch Report yet. Run Full Fetch from the Fetch Queue or Stage 2 panel.</td></tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </ResponsiveTableContainer>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-muted">Showing {pagedFetchReport.length} of {filteredFetchReport.length} fetch report rows.</div>
+              <div className="flex gap-2">
+                <button className="btn px-3 py-2" type="button" disabled={fetchReportPage <= 1} onClick={() => patchState({ fetchReportPage: fetchReportPage - 1 })}>Prev</button>
+                <button className="btn px-3 py-2" type="button" disabled={fetchReportPage >= fetchReportPageCount} onClick={() => patchState({ fetchReportPage: fetchReportPage + 1 })}>Next</button>
+              </div>
+            </div>
           </>
         )}
       </SectionCard>
@@ -738,10 +1024,81 @@ export function AnalysisPage() {
             Exports include globalDataSourceMode, masked source metadata, generatedJql, generatedBaseJql, jqlStrategy, updatedByStatus, candidateIssues, selectedForFetch, warnings, errors, and sanitized debug logs.
           </div>
         </SectionCard>
-        <SectionCard title="Stage 2 Placeholder" subtitle="Full Fetch">
-          <div className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-800">
-            <AlertTriangle className="mt-0.5 shrink-0" size={17} />
-            <span>Full Fetch, changelog, comments, attachments metadata, issue links, and user-focused statistics will be implemented in Stage 2.</span>
+        <SectionCard title="Stage 2 Full Fetch" subtitle="Full Fetch">
+          <div className="space-y-4">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">
+              <div className="font-black text-blue-950">Stage 2 Full Fetch / Full issue fetch</div>
+              <div className="mt-1">
+                Full Fetch will read selected Jira issues from the Fetch Queue using read-only Jira API. It will fetch issue fields, changelog, comments, attachments metadata, issue links, and parsed users. No database write, no Jira write, and no attachment file download will be performed.
+              </div>
+            </div>
+            {fetchQueue.length === 0 ? (
+              <div className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-800">
+                <AlertTriangle className="mt-0.5 shrink-0" size={17} />
+                <span>Please select issues from Candidate Issues before running Full Fetch.</span>
+              </div>
+            ) : null}
+            <div className="grid min-w-0 grid-cols-2 gap-3">
+              <MiniStat label="Total Issues" value={userAnalysis.fullFetchSummary.totalIssues || fetchQueue.length} />
+              <MiniStat label="Pending" value={userAnalysis.fullFetchSummary.pending} />
+              <MiniStat label="Running" value={userAnalysis.fullFetchStatus === "running" ? 1 : userAnalysis.fullFetchSummary.running} />
+              <MiniStat label="Success" value={userAnalysis.fullFetchSummary.success} />
+              <MiniStat label="Failed" value={userAnalysis.fullFetchSummary.failed} />
+              <MiniStat label="Skipped" value={userAnalysis.fullFetchSummary.skipped} />
+              <MiniStat label="Comments" value={userAnalysis.fullFetchSummary.totalComments} />
+              <MiniStat label="Attachments" value={userAnalysis.fullFetchSummary.totalAttachmentsMetadata} />
+              <MiniStat label="Changelog" value={userAnalysis.fullFetchSummary.totalChangelogHistories} />
+              <MiniStat label="Events" value={userAnalysis.fullFetchSummary.totalEstimatedEvents} />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button className="btn btn-primary" type="button" onClick={() => void handleRunFullFetch()} disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"}>
+                <Play size={16} />{userAnalysis.fullFetchStatus === "running" ? "Running Full Fetch..." : "Run Full Fetch"}
+              </button>
+              <button className="btn" type="button" disabled>
+                Cancel is not available in this version.
+              </button>
+            </div>
+            <div className="rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">
+              Execution Mode: Sequential read-only fetch. One issue is fetched at a time.
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button className="btn btn-primary" type="button" onClick={() => void saveFullFetchResult(false)} disabled={!hasFullFetchResult || userAnalysis.saving}>
+                <Download size={16} />Save Full Fetch Result
+              </button>
+              <button className="btn" type="button" onClick={() => void saveFullFetchResult(true)} disabled={!hasFullFetchResult || userAnalysis.saving}>
+                <Download size={16} />Save Full Fetch Raw Data
+              </button>
+            </div>
+            <div className="grid min-w-0 grid-cols-1 gap-3">
+              <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-3">
+                <div className="text-xs font-black uppercase text-muted">Last Saved Full Fetch Result</div>
+                <div className="mt-1 break-all text-sm font-bold text-ink" title={userAnalysis.lastSavedFullFetchResultPath || "Not saved yet"}>
+                  {userAnalysis.lastSavedFullFetchResultPath || "Not saved yet"}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedFullFetchResultPath} onClick={() => void openSavedFolder("fullResult")}>
+                    <FolderOpen size={15} />Open Full Fetch Result Folder
+                  </button>
+                  <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedFullFetchResultPath} onClick={() => void copySavedPath("fullResult")}>
+                    <Copy size={15} />Copy Full Fetch Result Path
+                  </button>
+                </div>
+              </div>
+              <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-3">
+                <div className="text-xs font-black uppercase text-muted">Last Saved Full Fetch Raw Data</div>
+                <div className="mt-1 break-all text-sm font-bold text-ink" title={userAnalysis.lastSavedFullFetchRawDataPath || "Not saved yet"}>
+                  {userAnalysis.lastSavedFullFetchRawDataPath || "Not saved yet"}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedFullFetchRawDataPath} onClick={() => void openSavedFolder("fullRaw")}>
+                    <FolderOpen size={15} />Open Full Fetch Raw Data Folder
+                  </button>
+                  <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedFullFetchRawDataPath} onClick={() => void copySavedPath("fullRaw")}>
+                    <Copy size={15} />Copy Full Fetch Raw Data Path
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </SectionCard>
       </div>
