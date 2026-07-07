@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, DatabaseZap, Download, Eye, FolderOpen, ListChecks, Play, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Copy, DatabaseZap, Download, Eye, FolderOpen, ListChecks, Play, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel } from "../components/FormControls";
@@ -100,6 +100,11 @@ function stamp() {
   const date = new Date();
   const pad = (part: number) => String(part).padStart(2, "0");
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+function parentFolder(filePath: string) {
+  const index = Math.max(filePath.lastIndexOf("\\"), filePath.lastIndexOf("/"));
+  return index > -1 ? filePath.slice(0, index) : "";
 }
 
 function sourcePayload(connection: ReturnType<typeof useConnectionContext>["activeConnection"]) {
@@ -460,16 +465,34 @@ export function AnalysisPage() {
     }
   }
 
-  async function openExportFolder() {
+  async function openSavedFolder(kind: "result" | "raw") {
+    const filePath = kind === "result" ? userAnalysis.lastSavedCandidateResultPath : userAnalysis.lastSavedCandidateRawDataPath;
+    const folderPath = parentFolder(filePath);
+    if (!folderPath) return;
     try {
-      const result = await window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath: userAnalysis.lastSavedExportFolderPath });
+      const result = await window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath });
       if (!result) throw new Error("Electron open folder API is not available.");
-      patchState({ notice: result.ok ? `Opened export folder: ${result.folderPath}` : `Open export folder failed: ${result.error}`, errors: result.ok ? [] : [result.error ?? "Open export folder failed."] });
-      appendDebugLog("analysis", [result.ok ? `[INFO] Export folder opened: ${result.folderPath}` : `[ERROR] Open export folder failed: ${result.error}`]);
+      const label = kind === "result" ? "candidate result" : "candidate raw data";
+      patchState({ notice: result.ok ? `Opened ${label} folder: ${result.folderPath}` : `Open ${label} folder failed: ${result.error}`, errors: result.ok ? [] : [result.error ?? `Open ${label} folder failed.`] });
+      appendDebugLog("analysis", [result.ok ? `[INFO] Candidate ${kind === "result" ? "result" : "raw data"} folder opened: ${result.folderPath}` : `[ERROR] Open candidate ${kind === "result" ? "result" : "raw data"} folder failed: ${result.error}`]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Open export folder failed.";
       patchState({ errors: [message], notice: "" });
-      appendDebugLog("analysis", [`[ERROR] Open export folder failed: ${message}`]);
+      appendDebugLog("analysis", [`[ERROR] Open candidate ${kind === "result" ? "result" : "raw data"} folder failed: ${message}`]);
+    }
+  }
+
+  async function copySavedPath(kind: "result" | "raw") {
+    const filePath = kind === "result" ? userAnalysis.lastSavedCandidateResultPath : userAnalysis.lastSavedCandidateRawDataPath;
+    if (!filePath) return;
+    try {
+      await navigator.clipboard.writeText(filePath);
+      patchState({ notice: kind === "result" ? "Candidate result path copied." : "Candidate raw data path copied.", errors: [] });
+      appendDebugLog("analysis", [kind === "result" ? "[INFO] Candidate result path copied" : "[INFO] Candidate raw data path copied"]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Copy path failed.";
+      patchState({ errors: [message], notice: "" });
+      appendDebugLog("analysis", [kind === "result" ? `[ERROR] Copy candidate result path failed: ${message}` : `[ERROR] Copy candidate raw data path failed: ${message}`]);
     }
   }
 
@@ -680,9 +703,6 @@ export function AnalysisPage() {
             <button className="btn" type="button" onClick={() => void saveCandidateResult(true)} disabled={userAnalysis.saving}>
               <Download size={16} />Save Candidate Raw Data
             </button>
-            <button className="btn" type="button" onClick={() => void openExportFolder()}>
-              <FolderOpen size={16} />Open Export Folder
-            </button>
           </div>
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
             <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-3">
@@ -690,11 +710,27 @@ export function AnalysisPage() {
               <div className="mt-1 break-all text-sm font-bold text-ink" title={userAnalysis.lastSavedCandidateResultPath || "Not saved yet"}>
                 {userAnalysis.lastSavedCandidateResultPath || "Not saved yet"}
               </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedCandidateResultPath} onClick={() => void openSavedFolder("result")}>
+                  <FolderOpen size={15} />Open Result Folder
+                </button>
+                <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedCandidateResultPath} onClick={() => void copySavedPath("result")}>
+                  <Copy size={15} />Copy Result Path
+                </button>
+              </div>
             </div>
             <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-3">
               <div className="text-xs font-black uppercase text-muted">Last Saved Candidate Raw Data</div>
               <div className="mt-1 break-all text-sm font-bold text-ink" title={userAnalysis.lastSavedCandidateRawDataPath || "Not saved yet"}>
                 {userAnalysis.lastSavedCandidateRawDataPath || "Not saved yet"}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedCandidateRawDataPath} onClick={() => void openSavedFolder("raw")}>
+                  <FolderOpen size={15} />Open Raw Data Folder
+                </button>
+                <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedCandidateRawDataPath} onClick={() => void copySavedPath("raw")}>
+                  <Copy size={15} />Copy Raw Data Path
+                </button>
               </div>
             </div>
           </div>

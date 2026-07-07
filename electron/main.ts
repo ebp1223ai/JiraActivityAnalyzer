@@ -587,7 +587,12 @@ ipcMain.handle("user-analysis:save-export", async (_event, payload: { category: 
 });
 
 ipcMain.handle("user-analysis:open-export-folder", async (_event, payload?: { folderPath?: string }) => {
-  const folderPath = payload?.folderPath || path.join(getExportsDir(), "user-analysis");
+  const exportsRoot = path.resolve(getExportsDir());
+  const folderPath = path.resolve(payload?.folderPath || path.join(exportsRoot, "user-analysis"));
+  const relative = path.relative(exportsRoot, folderPath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return { ok: false, folderPath, error: "Export folder must be inside the application exports directory." };
+  }
   ensureDir(folderPath);
   const error = await shell.openPath(folderPath);
   return error ? { ok: false, folderPath, error } : { ok: true, folderPath };
