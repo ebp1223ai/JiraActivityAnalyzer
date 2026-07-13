@@ -1,6 +1,6 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, ChevronDown, ChevronUp, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, ListChecks, Play, RotateCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel } from "../components/FormControls";
@@ -144,8 +144,6 @@ export function AnalysisPage() {
   const { activeConnection } = useConnectionContext();
   const { appendDebugLog, getDebugLogs } = useOutletContext<AppOutletContext>();
   const { userAnalysis, setUserAnalysis } = useSessionState();
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [expandedReportIssue, setExpandedReportIssue] = useState("");
 
   const selectedUsers = useMemo(() => parseUsers(userAnalysis.selectedUsersText), [userAnalysis.selectedUsersText]);
   const currentJqlDateRange = useMemo(
@@ -179,9 +177,14 @@ export function AnalysisPage() {
   }
 
   function showStep(step: "candidate" | "queue" | "fetchReport" | "exports") {
-    if (step === "queue" || step === "fetchReport") patchState({ activeTab: step });
-    document.getElementById(step === "candidate" ? "candidate-search" : step === "exports" ? "analysis-exports" : "stage-results")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    patchState({ activeTab: step === "candidate" ? "candidates" : step });
+  }
+
+  function toggleReportDetail(issueKey: string) {
+    const expanded = new Set(userAnalysis.expandedFetchReportIssues);
+    if (expanded.has(issueKey)) expanded.delete(issueKey);
+    else expanded.add(issueKey);
+    patchState({ expandedFetchReportIssues: Array.from(expanded) });
   }
 
   function validate() {
@@ -737,46 +740,57 @@ export function AnalysisPage() {
       <div className="mb-4 flex min-w-0 flex-wrap gap-2">
         <label className="btn cursor-pointer" title="Show or hide contextual guidance">
           <input className="h-4 w-4" type="checkbox" checked={userAnalysis.showHelpTips} onChange={(event) => patchState({ showHelpTips: event.target.checked })} />
-          Show Help Tips / 顯示操作說明
+          {userAnalysis.showHelpTips ? "Hide Help Tips / 隱藏操作說明" : "Show Help Tips / 顯示操作說明"}
         </label>
-        <button className="btn" type="button" onClick={() => setHelpOpen((value) => !value)}>
+        <button className="btn" type="button" onClick={() => patchState({ helpOpen: !userAnalysis.helpOpen })}>
           <HelpCircle size={16} />Help / 使用說明
         </button>
       </div>
+      {userAnalysis.showHelpTips ? <p className="mb-4 text-xs font-semibold leading-relaxed text-muted">Turn on contextual help for each User Analysis step.<br />開啟每個使用者分析步驟的操作說明。</p> : null}
       <p className="mb-4 max-w-3xl text-sm font-semibold leading-relaxed text-muted">
-        Find Jira issues touched by selected users in a date range. Stage 1 discovers candidate issues and prepares a fetch queue for Stage 2.
+        Find Jira issues touched by selected users in a date range. Stage 1 discovers candidate issues and prepares a fetch queue for Stage 2.<br />
+        依選定使用者與日期範圍搜尋相關 Jira，第一階段建立候選清單與抓取佇列，供第二階段完整抓取使用。
       </p>
 
       <SectionCard className="mb-4">
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {[
             ["candidate", "1", "Candidate Search", "候選搜尋"],
-            ["queue", "2", "Fetch Queue", "擷取佇列"],
-            ["fetchReport", "3", "Full Fetch Report", "完整擷取報告"],
+            ["queue", "2", "Fetch Queue", "抓取佇列"],
+            ["fetchReport", "3", "Full Fetch Report", "完整抓取報告"],
             ["exports", "4", "Exports", "匯出"]
-          ].map(([step, number, title, subtitle]) => (
-            <button key={step} className="flex min-w-0 items-center gap-3 rounded-lg border border-line bg-slate-50 p-3 text-left hover:border-blue-300 hover:bg-blue-50" type="button" onClick={() => showStep(step as "candidate" | "queue" | "fetchReport" | "exports")}>
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 font-black text-white">{number}</span>
+          ].map(([step, number, title, subtitle]) => {
+            const tab = step === "candidate" ? "candidates" : step;
+            const active = userAnalysis.activeTab === tab;
+            return <button key={step} className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition ${active ? "border-blue-600 bg-blue-50 shadow-sm" : "border-line bg-slate-50 hover:border-blue-300 hover:bg-blue-50"}`} type="button" aria-current={active ? "step" : undefined} onClick={() => showStep(step as "candidate" | "queue" | "fetchReport" | "exports")}>
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${active ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{number}</span>
               <span className="min-w-0 text-sm font-black leading-snug text-ink">{title}<br /><span className="text-xs font-semibold text-muted">{subtitle}</span></span>
-            </button>
-          ))}
+            </button>;
+          })}
         </div>
       </SectionCard>
 
-      {helpOpen ? (
+      {userAnalysis.helpOpen ? (
         <SectionCard title="User Analysis workflow" subtitle="使用者分析流程" className="mb-4">
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
-            <div className="rounded-lg bg-blue-50 p-3 text-sm leading-relaxed"><b>1. Candidate Search / 候選搜尋</b><br />Search Jira issues by users and date range.</div>
-            <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>2. Fetch Queue / 擷取佇列</b><br />Select issues that should be fully fetched.</div>
-            <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>3. Full Fetch Report / 完整擷取報告</b><br />Review fetch status, counts, warnings, and errors.</div>
-            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>4. Exports / 匯出</b><br />Save Stage 1 candidate data or Stage 2 full fetch data.</div>
+            <div className="rounded-lg bg-blue-50 p-3 text-sm leading-relaxed"><b>1. Candidate Search / 候選搜尋</b><br />Search Jira issues by users and date range.<br />依使用者與日期範圍搜尋候選 Jira。</div>
+            <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>2. Fetch Queue / 抓取佇列</b><br />Select issues that should be fully fetched.<br />選擇要完整抓取的 Jira。</div>
+            <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>3. Full Fetch Report / 完整抓取報告</b><br />Review fetch status, counts, warnings, and errors.<br />檢查抓取狀態、數量統計、警告與錯誤。</div>
+            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>4. Exports / 匯出</b><br />Save Stage 1 candidate data or Stage 2 full fetch data.<br />儲存第一階段候選資料或第二階段完整抓取資料。</div>
           </div>
           <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">
-            Stage 1: exports/user-analysis/user-analysis-candidates-YYYYMMDD_HHmmss.json<br />Stage 2: exports/user-analysis/user-analysis-full-fetch-YYYYMMDD_HHmmss.json
+            Stage 1 Candidate Result / 第一階段候選結果:<br />exports/user-analysis/user-analysis-candidates-YYYYMMDD_HHmmss.json<br /><br />
+            Stage 1 Candidate Raw Data / 第一階段候選 Raw Data:<br />exports/raw-data/user-analysis-candidates-raw-YYYYMMDD_HHmmss.json<br /><br />
+            Stage 2 Full Fetch Result / 第二階段完整抓取結果:<br />exports/user-analysis/user-analysis-full-fetch-YYYYMMDD_HHmmss.json<br /><br />
+            Stage 2 Full Fetch Raw Data / 第二階段完整抓取 Raw Data:<br />exports/raw-data/user-analysis-full-fetch-raw-YYYYMMDD_HHmmss.json
+          </div>
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold leading-relaxed text-emerald-900">
+            <b>Safety / 安全性</b><br />This tool uses read-only Jira API during Candidate Discovery and Full Fetch. / 本工具在候選搜尋與完整抓取時只使用唯讀 Jira API。<br />It does not write to Jira or the local database. / 不會寫入 Jira 或本地資料庫。<br />It does not download attachment file bodies. / 不會下載附件本體。<br />Tokens and Authorization values are masked in debug logs and exports. / Debug Log 與匯出檔會遮蔽 token 與 Authorization。
           </div>
         </SectionCard>
       ) : null}
 
+      {userAnalysis.activeTab === "candidates" ? <>
       <SectionCard title="Data Source Mode" subtitle="資料來源模式" className="mb-4">
         <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-5">
           {[
@@ -798,10 +812,10 @@ export function AnalysisPage() {
       </SectionCard>
 
       <SectionCard id="candidate-search" title="Candidate Search" subtitle="候選搜尋" className="mb-4">
-        {userAnalysis.showHelpTips ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Use this step to search for Jira issues related to selected users and date range. The result is a Candidate Issues list only; full comments, attachments, and changelog are fetched in Stage 2.</div> : null}
+        {userAnalysis.showHelpTips ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Use this step to search for Jira issues related to selected users and date range.<br />本步驟用來依使用者與日期範圍搜尋可能相關的 Jira。<br /><br /><b>Result / 結果：</b><br />This only creates a candidate issue list. Full comments, attachments, and changelog are not fully fetched yet.<br />這裡只會產生候選 Jira 清單，尚不會完整抓取 comments、attachments、changelog。</div> : null}
         <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <div className="min-w-0">
-            <FieldLabel label="Selected Users" sub="使用者" />
+            <FieldLabel label="Selected Users" sub="選擇使用者" />
             <textarea
               className="field min-h-28 resize-y leading-relaxed"
               value={userAnalysis.selectedUsersText}
@@ -830,30 +844,31 @@ export function AnalysisPage() {
               </select>
             </div>
             <div>
-              <FieldLabel label="Candidate Safety Limit" />
+              <FieldLabel label="Candidate Safety Limit" sub="候選安全上限" />
               <input className="field" value={userAnalysis.candidateSafetyLimit} readOnly />
             </div>
             <div>
-              <FieldLabel label="Fetch Limit" />
+              <FieldLabel label="Fetch Limit" sub="抓取上限" />
               <select className="field" value={userAnalysis.fetchLimit} onChange={(event) => patchState({ fetchLimit: Number(event.target.value) })}>
                 {fetchLimitOptions.map((option) => <option key={option} value={option}>{option}</option>)}
               </select>
             </div>
             <div className="rounded-lg border border-line bg-white p-3 text-xs font-semibold leading-relaxed text-muted">
-              updatedBy is disabled in Stage 1. Exact updatedBy actor requires Stage 2 Full Fetch.
+              updatedBy is disabled in Stage 1. Exact updatedBy actor requires Stage 2 Full Fetch.<br />第一階段不使用 updatedBy；精確的更新者資訊需由第二階段完整抓取取得。
             </div>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button className="btn" type="button" onClick={handlePreviewJql}><Eye size={16} />Preview JQL</button>
+          <button className="btn" type="button" onClick={handlePreviewJql}><Eye size={16} />Preview JQL / 預覽 JQL</button>
           <button className="btn btn-primary" type="button" onClick={handleRunDiscovery} disabled={userAnalysis.loading}>
-            <Play size={16} />{userAnalysis.loading ? "Running..." : "Run Candidate Discovery"}
+            <Play size={16} />{userAnalysis.loading ? "Running / 執行中..." : "Run Candidate Discovery / 執行候選搜尋"}
           </button>
-          <button className="btn" type="button" onClick={clearSession}><RotateCcw size={16} />Clear Candidate Session</button>
+          <button className="btn" type="button" onClick={clearSession}><RotateCcw size={16} />Clear Candidate Session / 清除候選工作階段</button>
         </div>
       </SectionCard>
 
-      <SectionCard title="Advanced / Debug" subtitle="Generated JQL" className="mb-4">
+      <SectionCard title="Generated JQL" subtitle="產生的 JQL" className="mb-4">
+        {userAnalysis.showHelpTips ? <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">This JQL is used only for read-only candidate discovery. / 此 JQL 只用於唯讀候選 Jira 搜尋。<br />The generated JQL does not use updatedBy because the current Jira Server/Data Center may not support it. / 產生的 JQL 不使用 updatedBy，因為目前 Jira Server/Data Center 可能不支援該條件。</div> : null}
         <pre className="thin-scroll max-h-72 min-w-0 overflow-auto whitespace-pre-wrap rounded-lg border border-line bg-slate-950 p-4 text-xs font-semibold leading-relaxed text-slate-100">
           {generatedJql || "Preview JQL to generate a Standard search query."}
         </pre>
@@ -869,25 +884,44 @@ export function AnalysisPage() {
       ) : null}
 
       <div className="mb-4 grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-4">
-        <MiniStat label="Candidate Issues" value={userAnalysis.candidateIssues.length} />
-        <MiniStat label="Fetch Queue" value={fetchQueue.length} />
-        <MiniStat label="Fetch Limit" value={userAnalysis.fetchLimit} />
-        <MiniStat label="Safety Limit" value={userAnalysis.candidateSafetyLimit} />
+        <MiniStat label="Candidate Issues / 候選 Jira" value={userAnalysis.candidateIssues.length} />
+        <MiniStat label="Fetch Queue / 抓取佇列" value={fetchQueue.length} />
+        <MiniStat label="Fetch Limit / 抓取上限" value={userAnalysis.fetchLimit} />
+        <MiniStat label="Safety Limit / 安全上限" value={userAnalysis.candidateSafetyLimit} />
       </div>
+      <div className="mb-4 flex justify-end">
+        <button className="btn btn-primary" type="button" onClick={() => showStep("queue")} disabled={userAnalysis.candidateIssues.length === 0}><DatabaseZap size={16} />Go to Fetch Queue / 前往抓取佇列</button>
+      </div>
+      </> : null}
 
-      <SectionCard
-        id="stage-results"
-        title="Stage 1 Results"
-        subtitle="Candidate Issues / Fetch Queue"
-        action={
-          <div className="flex flex-wrap gap-2">
-            <button className={`btn ${userAnalysis.activeTab === "candidates" ? "btn-primary" : ""}`} type="button" onClick={() => patchState({ activeTab: "candidates" })}><ListChecks size={16} />Candidate Issues</button>
-            <button className={`btn ${userAnalysis.activeTab === "queue" ? "btn-primary" : ""}`} type="button" onClick={() => patchState({ activeTab: "queue" })}><DatabaseZap size={16} />Fetch Queue</button>
-            <button className={`btn ${userAnalysis.activeTab === "fetchReport" ? "btn-primary" : ""}`} type="button" onClick={() => patchState({ activeTab: "fetchReport" })}><ListChecks size={16} />Fetch Report</button>
+      {userAnalysis.activeTab === "queue" ? (
+        <SectionCard title="Candidate Issues" subtitle="候選 Jira" className="mb-4">
+          {userAnalysis.showHelpTips ? <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Select candidate issues and add them to the Fetch Queue before running Full Fetch.<br />請先從候選 Jira 中選擇要分析的項目，加入抓取佇列後再執行完整抓取。<br />Only issues in the Fetch Queue will be processed by Full Fetch. / 只有抓取佇列中的 Jira 會被完整抓取。</div> : null}
+          <div className="mb-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_160px_220px]">
+            <div className="relative min-w-0"><Search className="absolute left-3 top-3 text-muted" size={16} /><input className="field pl-9" value={userAnalysis.search} placeholder="Filter candidates / 篩選候選 Jira..." onChange={(event) => patchState({ search: event.target.value, page: 1 })} /></div>
+            <select className="field" value={userAnalysis.pageSize} onChange={(event) => patchState({ pageSize: Number(event.target.value), page: 1 })}>{pageSizeOptions.map((option) => <option key={option} value={option}>{option} rows / 筆</option>)}</select>
+            <div className="flex items-center justify-end gap-2 text-sm font-bold text-muted">Page / 頁 {page} / {pageCount}</div>
           </div>
-        }
+          <ResponsiveTableContainer>
+            <table className="table min-w-[1160px]"><thead><tr>{["Selected / 選取", "Issue Key / Jira 編號", "Summary / 摘要", "Status / 狀態", "Assignee / 負責人", "Reporter / 回報者", "Creator / 建立者", "Updated / 更新時間", "Matched Reason / 符合原因"].map((header) => <th key={header}>{header}</th>)}</tr></thead>
+              <tbody>{pagedCandidates.map((issue) => <tr key={issue.key}>
+                <td><input type="checkbox" checked={userAnalysis.selectedForFetch.includes(issue.key)} onChange={(event) => toggleIssue(issue.key, event.target.checked)} aria-label={`Add ${issue.key} to Fetch Queue`} /></td>
+                <td><button className="font-black text-blue-700" type="button" onClick={() => toggleIssue(issue.key, !userAnalysis.selectedForFetch.includes(issue.key))}>{issue.key}</button></td>
+                <td><span className="block max-w-[340px] truncate" title={issue.summary} data-allow-truncate="true">{issue.summary}</span></td><td><StatusBadge>{issue.status}</StatusBadge></td>
+                <td><span className="block max-w-[160px] truncate" title={issue.assignee} data-allow-truncate="true">{issue.assignee}</span></td><td><span className="block max-w-[160px] truncate" title={issue.reporter} data-allow-truncate="true">{issue.reporter}</span></td><td><span className="block max-w-[160px] truncate" title={issue.creator} data-allow-truncate="true">{issue.creator}</span></td><td>{issue.updated}</td><td><span className="block max-w-[280px] truncate" title={issue.matchedReason} data-allow-truncate="true">{issue.matchedReason}</span></td>
+              </tr>)}{pagedCandidates.length === 0 ? <tr><td colSpan={9} className="text-center text-muted">No candidate issues / 尚無候選 Jira</td></tr> : null}</tbody>
+            </table>
+          </ResponsiveTableContainer>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><div className="text-sm font-semibold text-muted">Showing / 顯示 {pagedCandidates.length} of / 共 {filteredCandidates.length}</div><div className="flex flex-wrap gap-2"><button className="btn" type="button" disabled={userAnalysis.selectedForFetch.length === 0} onClick={() => patchState({ notice: `${userAnalysis.selectedForFetch.length} issue(s) added to Fetch Queue.`, errors: [] })}><DatabaseZap size={15} />Add to Fetch Queue / 加入抓取佇列</button><button className="btn px-3 py-2" type="button" disabled={page <= 1} onClick={() => patchState({ page: page - 1 })}>Prev / 上一頁</button><button className="btn px-3 py-2" type="button" disabled={page >= pageCount} onClick={() => patchState({ page: page + 1 })}>Next / 下一頁</button></div></div>
+        </SectionCard>
+      ) : null}
+
+      {(userAnalysis.activeTab === "queue" || userAnalysis.activeTab === "fetchReport") ? <SectionCard
+        id="stage-results"
+        title={userAnalysis.activeTab === "queue" ? "Fetch Queue Items" : "Full Fetch Report"}
+        subtitle={userAnalysis.activeTab === "queue" ? "抓取佇列項目" : "完整抓取報告"}
       >
-        {userAnalysis.activeTab === "candidates" ? (
+        {false ? (
           <>
             <div className="mb-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_160px_220px]">
               <div className="relative min-w-0">
@@ -895,7 +929,7 @@ export function AnalysisPage() {
                 <input className="field pl-9" value={userAnalysis.search} placeholder="Filter issue key, summary, assignee, reporter, creator..." onChange={(event) => patchState({ search: event.target.value, page: 1 })} />
               </div>
               <select className="field" value={userAnalysis.pageSize} onChange={(event) => patchState({ pageSize: Number(event.target.value), page: 1 })}>
-                {pageSizeOptions.map((option) => <option key={option} value={option}>{option} rows</option>)}
+                {pageSizeOptions.map((option) => <option key={option} value={option}>{option} rows / 筆</option>)}
               </select>
               <div className="flex items-center justify-end gap-2 text-sm font-bold text-muted">
                 Page {page} / {pageCount}
@@ -939,13 +973,13 @@ export function AnalysisPage() {
         ) : userAnalysis.activeTab === "queue" ? (
           <>
             <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">
-              Select candidate issues and add them to the Fetch Queue before running Full Fetch. This is the only Full Fetch action in User Analysis.
+              <b>Fetch Queue / 抓取佇列</b><br />Only issues in the Fetch Queue will be processed by Full Fetch. / 只有抓取佇列中的 Jira 會被完整抓取。
             </div>
             <ResponsiveTableContainer>
               <table className="table min-w-[980px]">
                 <thead>
                   <tr>
-                    {["Issue Key", "Summary", "Status", "Assignee", "Updated", "Matched Reason", "Remove"].map((header) => <th key={header}>{header}</th>)}
+                    {["Issue Key / Jira 編號", "Summary / 摘要", "Status / 狀態", "Assignee / 負責人", "Updated / 更新時間", "Matched Reason / 符合原因", "Remove / 移除"].map((header) => <th key={header}>{header}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -957,49 +991,51 @@ export function AnalysisPage() {
                       <td><span className="block max-w-[180px] truncate" title={issue.assignee} data-allow-truncate="true">{issue.assignee}</span></td>
                       <td>{issue.updated}</td>
                       <td><span className="block max-w-[300px] truncate" title={issue.matchedReason} data-allow-truncate="true">{issue.matchedReason}</span></td>
-                      <td><button className="btn px-3 py-2" type="button" onClick={() => removeFromQueue(issue.key)}><Trash2 size={14} />Remove</button></td>
+                      <td><button className="btn px-3 py-2" type="button" onClick={() => removeFromQueue(issue.key)}><Trash2 size={14} />Remove / 移除</button></td>
                     </tr>
                   ))}
                   {fetchQueue.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center text-muted">No issues selected for Fetch Queue.</td></tr>
+                    <tr><td colSpan={7} className="text-center text-muted">No issues selected for Fetch Queue. / 抓取佇列中尚無 Jira。</td></tr>
                   ) : null}
                 </tbody>
               </table>
             </ResponsiveTableContainer>
             <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold leading-relaxed text-muted">
-              This will fetch full read-only data for all issues currently in the Fetch Queue. No database write, no Jira write, and no attachment file download will be performed.
+              {userAnalysis.showHelpTips ? <><b>Run Full Fetch / 執行完整抓取</b><br />Run Full Fetch reads issue fields, changelog, comments, attachments metadata, issue links, and parsed users.<br />完整抓取會讀取 issue 欄位、changelog、comments、attachments metadata、issue links 與使用者資訊。<br /><br /><b>Safety / 安全性：</b> Read-only Jira API only. No database write, no Jira write, and no attachment body download.<br />只使用唯讀 Jira API，不寫入資料庫、不寫入 Jira，也不下載附件本體。</> : <>This will fetch full read-only data for all issues currently in the Fetch Queue. / 這會依目前抓取佇列執行唯讀完整抓取。</>}
             </div>
             <button className="btn btn-primary mt-3" type="button" onClick={() => void handleRunFullFetch()} disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"} title="Run a sequential read-only fetch for the current queue">
-              <Play size={16} />{userAnalysis.fullFetchStatus === "running" ? "Running Full Fetch..." : hasFullFetchResult ? "Re-run Full Fetch from Queue" : "Run Full Fetch from Queue"}
+              <Play size={16} />{userAnalysis.fullFetchStatus === "running" ? "Running Full Fetch / 完整抓取中..." : hasFullFetchResult ? "Re-run Full Fetch from Queue / 依佇列重新完整抓取" : "Run Full Fetch from Queue / 依佇列執行完整抓取"}
             </button>
+            {hasFullFetchResult ? <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800"><span>Full Fetch completed. Go to Full Fetch Report to review results.<br />完整抓取已完成。請前往完整抓取報告檢視結果。</span><button className="btn" type="button" onClick={() => showStep("fetchReport")}>Go to Full Fetch Report / 前往完整抓取報告</button></div> : null}
           </>
         ) : (
           <>
+            {userAnalysis.showHelpTips ? <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Review fetch status, counts, warnings, and errors for each fetched Jira issue.<br />檢查每張已抓取 Jira 的抓取狀態、統計數量、警告與錯誤。<br />Use View Detail / 查看詳細 to inspect HTTP status, changelog count, issue links, parsed users, and last fetched time.<br />使用 View Detail / 查看詳細 可檢查 HTTP 狀態、changelog 數量、issue links、parsed users 與最後抓取時間。</div> : null}
             <div className="mb-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[180px_180px_minmax(0,1fr)]">
               <select className="field" value={userAnalysis.fetchReportFilter} onChange={(event) => patchState({ fetchReportFilter: event.target.value as typeof userAnalysis.fetchReportFilter, fetchReportPage: 1 })}>
-                <option value="all">All</option>
-                <option value="success">Success</option>
-                <option value="failed">Failed</option>
+                <option value="all">All / 全部</option>
+                <option value="success">Success / 成功</option>
+                <option value="failed">Failed / 失敗</option>
               </select>
               <select className="field" value={userAnalysis.fetchReportPageSize} onChange={(event) => patchState({ fetchReportPageSize: Number(event.target.value), fetchReportPage: 1 })}>
-                {pageSizeOptions.map((option) => <option key={option} value={option}>{option} rows</option>)}
+                {pageSizeOptions.map((option) => <option key={option} value={option}>{option} rows / 筆</option>)}
               </select>
               <div className="flex items-center justify-end gap-2 text-sm font-bold text-muted">
-                Page {fetchReportPage} / {fetchReportPageCount}
+                Page / 頁 {fetchReportPage} / {fetchReportPageCount}
               </div>
             </div>
             <div className="mb-3 grid min-w-0 grid-cols-2 gap-3 md:grid-cols-5">
-              <MiniStat label="Total Issues" value={userAnalysis.fullFetchSummary.totalIssues} />
-              <MiniStat label="Success" value={userAnalysis.fullFetchSummary.success} />
-              <MiniStat label="Failed" value={userAnalysis.fullFetchSummary.failed} />
-              <MiniStat label="Comments" value={userAnalysis.fullFetchSummary.totalComments} />
-              <MiniStat label="Events" value={userAnalysis.fullFetchSummary.totalEstimatedEvents} />
+              <MiniStat label="Total Issues / Jira 總數" value={userAnalysis.fullFetchSummary.totalIssues} />
+              <MiniStat label="Success / 成功" value={userAnalysis.fullFetchSummary.success} />
+              <MiniStat label="Failed / 失敗" value={userAnalysis.fullFetchSummary.failed} />
+              <MiniStat label="Comments / 留言" value={userAnalysis.fullFetchSummary.totalComments} />
+              <MiniStat label="Events / 估算事件" value={userAnalysis.fullFetchSummary.totalEstimatedEvents} />
             </div>
             <ResponsiveTableContainer>
               <table className="table min-w-[940px]">
                 <thead>
                   <tr>
-                    {["Issue Key", "Summary", "Fetch Status", "Comments", "Attachments", "Events", "Duration", "Detail"].map((header) => <th key={header}>{header}</th>)}
+                    {["Issue Key / Jira 編號", "Summary / 摘要", "Fetch Status / 抓取狀態", "Comments / 留言", "Attachments / 附件 Metadata", "Events / 估算事件", "Duration / 耗時", "Detail / 詳細"].map((header) => <th key={header}>{header}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -1013,46 +1049,48 @@ export function AnalysisPage() {
                       <td data-no-clip="true">{row.attachmentsMetadata}</td>
                       <td data-no-clip="true">{row.estimatedEvents}</td>
                       <td data-no-clip="true">{row.duration}</td>
-                      <td><button className="btn px-3 py-2" type="button" onClick={() => setExpandedReportIssue((value) => value === row.issueKey ? "" : row.issueKey)}>{expandedReportIssue === row.issueKey ? <ChevronUp size={15} /> : <ChevronDown size={15} />}View Detail</button></td>
+                      <td><button className="btn px-3 py-2" type="button" onClick={() => toggleReportDetail(row.issueKey)}>{userAnalysis.expandedFetchReportIssues.includes(row.issueKey) ? <ChevronUp size={15} /> : <ChevronDown size={15} />}{userAnalysis.expandedFetchReportIssues.includes(row.issueKey) ? "Hide Detail / 隱藏詳細" : "View Detail / 查看詳細"}</button></td>
                     </tr>
-                    {expandedReportIssue === row.issueKey ? <tr><td colSpan={8} className="whitespace-normal bg-slate-50">
+                    {userAnalysis.expandedFetchReportIssues.includes(row.issueKey) ? <tr><td colSpan={8} className="whitespace-normal bg-slate-50">
                       <div className="grid min-w-0 grid-cols-2 gap-3 p-2 md:grid-cols-4">
-                        <MiniStat label="HTTP Status" value={row.httpStatus || "-"} />
-                        <MiniStat label="Changelog Histories" value={row.changelogHistories} />
-                        <MiniStat label="Changelog Items" value={row.changelogItems} />
-                        <MiniStat label="Issue Links" value={row.issueLinks} />
-                        <MiniStat label="Parsed Users" value={row.parsedUsers} />
-                        <div className="col-span-2 rounded-lg border border-line bg-white p-3 text-sm"><b>Error / Warning</b><div className="mt-1 break-words text-muted">{row.error || "-"}</div></div>
-                        <div className="rounded-lg border border-line bg-white p-3 text-sm"><b>Last Fetched At</b><div className="mt-1 text-muted">{row.lastFetchedAt || "-"}</div></div>
+                        <MiniStat label="HTTP Status / HTTP 狀態" value={row.httpStatus || "-"} />
+                        <MiniStat label="Changelog Histories / 歷史數" value={row.changelogHistories} />
+                        <MiniStat label="Changelog Items / 項目數" value={row.changelogItems} />
+                        <MiniStat label="Issue Links / 數量" value={row.issueLinks} />
+                        <MiniStat label="Parsed Users / 解析使用者數" value={row.parsedUsers} />
+                        <div className="col-span-2 rounded-lg border border-line bg-white p-3 text-sm"><b>Error / Warning / 錯誤與警告</b><div className="mt-1 break-words text-muted">{row.error || "-"}</div></div>
+                        <div className="rounded-lg border border-line bg-white p-3 text-sm"><b>Last Fetched At / 最後抓取時間</b><div className="mt-1 text-muted">{row.lastFetchedAt || "-"}</div></div>
                       </div>
                     </td></tr> : null}
                     </Fragment>
                   ))}
                   {pagedFetchReport.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center text-muted">No Fetch Report yet. Run Full Fetch from the Fetch Queue.</td></tr>
+                    <tr><td colSpan={8} className="text-center text-muted">No Fetch Report yet. Run Full Fetch from the Fetch Queue. / 尚無抓取報告，請先從抓取佇列執行完整抓取。</td></tr>
                   ) : null}
                 </tbody>
               </table>
             </ResponsiveTableContainer>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-muted">Showing {pagedFetchReport.length} of {filteredFetchReport.length} fetch report rows.</div>
+              <div className="text-sm font-semibold text-muted">Showing / 顯示 {pagedFetchReport.length} of / 共 {filteredFetchReport.length} fetch report rows / 筆抓取報告。</div>
               <div className="flex gap-2">
-                <button className="btn px-3 py-2" type="button" disabled={fetchReportPage <= 1} onClick={() => patchState({ fetchReportPage: fetchReportPage - 1 })}>Prev</button>
-                <button className="btn px-3 py-2" type="button" disabled={fetchReportPage >= fetchReportPageCount} onClick={() => patchState({ fetchReportPage: fetchReportPage + 1 })}>Next</button>
+                <button className="btn px-3 py-2" type="button" disabled={fetchReportPage <= 1} onClick={() => patchState({ fetchReportPage: fetchReportPage - 1 })}>Prev / 上一頁</button>
+                <button className="btn px-3 py-2" type="button" disabled={fetchReportPage >= fetchReportPageCount} onClick={() => patchState({ fetchReportPage: fetchReportPage + 1 })}>Next / 下一頁</button>
               </div>
             </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold text-muted"><span>This will replace the current Full Fetch session result.<br />這會取代目前的完整抓取工作階段結果。</span><button className="btn" type="button" onClick={() => void handleRunFullFetch()} disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"}><Play size={15} />Re-run Full Fetch from Queue / 依佇列重新完整抓取</button></div>
           </>
         )}
-      </SectionCard>
+      </SectionCard> : null}
 
-      <div id="analysis-exports" className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
-        <SectionCard title="Stage 1 Candidate Export" subtitle="候選資料匯出">
+      {userAnalysis.activeTab === "exports" ? <div id="analysis-exports" className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+        <SectionCard title="Stage 1 Candidate Export" subtitle="第一階段候選資料匯出">
+          {userAnalysis.showHelpTips ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Candidate exports are Stage 1 outputs. They contain candidate issue lists and search context, but not full comments, attachments, or changelog.<br />候選匯出是第一階段輸出，包含候選 Jira 清單與搜尋條件，但不包含完整 comments、attachments 或 changelog。<br /><br />Raw Data contains more original Jira response data and is mainly for debugging. / Raw Data 包含較完整的 Jira 原始回應資料，主要用於除錯與深入分析。</div> : null}
           <div className="flex flex-wrap gap-3">
             <button className="btn btn-primary" type="button" onClick={() => void saveCandidateResult(false)} disabled={userAnalysis.saving}>
-              <Download size={16} />Save Candidate Result
+              <Download size={16} />Save Candidate Result / 儲存候選結果
             </button>
             <button className="btn" type="button" onClick={() => void saveCandidateResult(true)} disabled={userAnalysis.saving}>
-              <Download size={16} />Save Candidate Raw Data
+              <Download size={16} />Save Candidate Raw Data / 儲存候選 Raw Data
             </button>
           </div>
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
@@ -1063,10 +1101,10 @@ export function AnalysisPage() {
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedCandidateResultPath} onClick={() => void openSavedFolder("result")}>
-                  <FolderOpen size={15} />Open Result Folder
+                  <FolderOpen size={15} />Open Result Folder / 開啟結果資料夾
                 </button>
                 <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedCandidateResultPath} onClick={() => void copySavedPath("result")}>
-                  <Copy size={15} />Copy Result Path
+                  <Copy size={15} />Copy Result Path / 複製結果路徑
                 </button>
               </div>
             </div>
@@ -1077,10 +1115,10 @@ export function AnalysisPage() {
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedCandidateRawDataPath} onClick={() => void openSavedFolder("raw")}>
-                  <FolderOpen size={15} />Open Raw Data Folder
+                  <FolderOpen size={15} />Open Raw Data Folder / 開啟 Raw Data 資料夾
                 </button>
                 <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedCandidateRawDataPath} onClick={() => void copySavedPath("raw")}>
-                  <Copy size={15} />Copy Raw Data Path
+                  <Copy size={15} />Copy Raw Data Path / 複製 Raw Data 路徑
                 </button>
               </div>
             </div>
@@ -1089,10 +1127,10 @@ export function AnalysisPage() {
             Exports include globalDataSourceMode, masked source metadata, generatedJql, generatedBaseJql, jqlStrategy, updatedByStatus, candidateIssues, selectedForFetch, warnings, errors, and sanitized debug logs.
           </div>
         </SectionCard>
-        <SectionCard title="Stage 2 Full Fetch Export" subtitle="完整擷取資料匯出">
+        <SectionCard title="Stage 2 Full Fetch Export" subtitle="第二階段完整抓取資料匯出">
           <div className="space-y-4">
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">
-              Stage 2 exports contain the complete read-only fetch result for later analysis. Run Full Fetch from the Fetch Queue first.
+              Full Fetch exports are Stage 2 outputs and should be used for later analysis.<br />完整抓取匯出是第二階段輸出，後續分析請優先使用這份資料。
             </div>
             {fetchQueue.length === 0 ? (
               <div className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-800">
@@ -1117,10 +1155,10 @@ export function AnalysisPage() {
             </div>
             <div className="flex flex-wrap gap-3">
               <button className="btn btn-primary" type="button" onClick={() => void saveFullFetchResult(false)} disabled={!hasFullFetchResult || userAnalysis.saving}>
-                <Download size={16} />Save Full Fetch Result
+                <Download size={16} />Save Full Fetch Result / 儲存完整抓取結果
               </button>
               <button className="btn" type="button" onClick={() => void saveFullFetchResult(true)} disabled={!hasFullFetchResult || userAnalysis.saving}>
-                <Download size={16} />Save Full Fetch Raw Data
+                <Download size={16} />Save Full Fetch Raw Data / 儲存完整抓取 Raw Data
               </button>
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-3">
@@ -1131,10 +1169,10 @@ export function AnalysisPage() {
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedFullFetchResultPath} onClick={() => void openSavedFolder("fullResult")}>
-                    <FolderOpen size={15} />Open Full Fetch Result Folder
+                    <FolderOpen size={15} />Open Full Fetch Result Folder / 開啟完整抓取結果資料夾
                   </button>
                   <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedFullFetchResultPath} onClick={() => void copySavedPath("fullResult")}>
-                    <Copy size={15} />Copy Full Fetch Result Path
+                    <Copy size={15} />Copy Full Fetch Result Path / 複製完整抓取結果路徑
                   </button>
                 </div>
               </div>
@@ -1145,17 +1183,17 @@ export function AnalysisPage() {
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedFullFetchRawDataPath} onClick={() => void openSavedFolder("fullRaw")}>
-                    <FolderOpen size={15} />Open Full Fetch Raw Data Folder
+                    <FolderOpen size={15} />Open Full Fetch Raw Data Folder / 開啟完整抓取 Raw Data 資料夾
                   </button>
                   <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.lastSavedFullFetchRawDataPath} onClick={() => void copySavedPath("fullRaw")}>
-                    <Copy size={15} />Copy Full Fetch Raw Data Path
+                    <Copy size={15} />Copy Full Fetch Raw Data Path / 複製完整抓取 Raw Data 路徑
                   </button>
                 </div>
               </div>
             </div>
           </div>
         </SectionCard>
-      </div>
+      </div> : null}
     </div>
   );
 }

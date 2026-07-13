@@ -98,12 +98,12 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: 
         className="flex h-screen w-[56px] min-w-[56px] max-w-[56px] shrink-0 flex-col items-center overflow-hidden border-l border-line bg-white p-2"
         data-debug-panel-state="collapsed"
       >
-        <button className="btn h-10 w-10 p-0" data-no-clip="true" onClick={onToggle} title="Expand Debug Log">
+        <button className="btn h-10 w-10 p-0" data-no-clip="true" onClick={onToggle} title="Expand Debug Log / 展開除錯紀錄">
           <ChevronLeft size={18} />
-          <span className="sr-only">Expand Debug Log</span>
+          <span className="sr-only">Expand Debug Log / 展開除錯紀錄</span>
         </button>
         <div className="mt-4 rotate-90 whitespace-nowrap text-xs font-black text-muted" data-no-clip="true">
-          Debug Log
+          Debug Log / 除錯紀錄
         </div>
       </aside>
     );
@@ -116,30 +116,35 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: 
     >
       <div className="flex min-w-0 items-center justify-between gap-2">
         <h2 className="text-lg font-black leading-snug text-ink" data-no-clip="true">
-          除錯紀錄 / Debug Log
+          Debug Log / 除錯紀錄
         </h2>
-        <button className="btn h-9 w-9 shrink-0 p-0" data-no-clip="true" onClick={onToggle} title="Collapse Debug Log">
+        <button className="btn shrink-0 px-2 py-2" data-no-clip="true" onClick={onToggle} title="Collapse Debug Log / 收合除錯紀錄">
           <ChevronRight size={18} />
-          <span className="sr-only">Collapse Debug Log</span>
+          <span className="text-[10px] leading-tight">Collapse<br />收合</span>
         </button>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <button className="btn min-w-[72px] flex-1 px-3" data-no-clip="true" title="Copy logs" onClick={handleCopy}>
+        <button className="btn min-w-[72px] flex-1 px-3" data-no-clip="true" title="Copy Debug Log / 複製除錯紀錄" onClick={handleCopy}>
           <Copy size={16} />
-          <span>Copy</span>
+          <span>Copy<br />複製</span>
         </button>
-        <button className="btn min-w-[46px] px-3" data-no-clip="true" title="Download TXT" onClick={handleDownload}>
+        <button className="btn min-w-[72px] flex-1 px-3" data-no-clip="true" title="Save Debug Log / 儲存除錯紀錄" onClick={handleDownload}>
           <Download size={16} />
-          <span className="sr-only">Download TXT</span>
+          <span>Save<br />儲存</span>
         </button>
-        <button className="btn btn-danger min-w-[46px] px-3" data-no-clip="true" title="Clear logs" onClick={handleClear}>
+        <button className="btn btn-danger min-w-[72px] flex-1 px-3" data-no-clip="true" title="Clear Debug Log / 清除除錯紀錄" onClick={handleClear}>
           <Trash2 size={16} />
-          <span>Clear</span>
+          <span>Clear<br />清除</span>
         </button>
       </div>
 
       {notice ? <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700" data-no-clip="true">{notice}</div> : null}
+
+      <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-900">
+        Debug Log records the current operation flow, API calls, warnings, and errors.<br />
+        除錯紀錄會記錄目前操作流程、API 呼叫、警告與錯誤。Sensitive values are masked. / 敏感資訊會被遮蔽。
+      </div>
 
       <div ref={logContainerRef} className="thin-scroll mt-4 min-h-0 flex-1 overflow-auto rounded-lg border border-line p-3">
         {logs.map((log, index) => {

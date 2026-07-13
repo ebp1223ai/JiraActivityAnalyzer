@@ -103,8 +103,10 @@ export type UserAnalysisSessionState = {
   candidateIssues: UserAnalysisCandidateIssue[];
   selectedForFetch: string[];
   excludedIssues: string[];
-  activeTab: "candidates" | "queue" | "fetchReport";
+  activeTab: "candidates" | "queue" | "fetchReport" | "exports";
   showHelpTips: boolean;
+  helpOpen: boolean;
+  expandedFetchReportIssues: string[];
   page: number;
   pageSize: number;
   search: string;
@@ -191,6 +193,8 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   excludedIssues: [],
   activeTab: "candidates",
   showHelpTips: true,
+  helpOpen: false,
+  expandedFetchReportIssues: [],
   page: 1,
   pageSize: 40,
   search: "",
