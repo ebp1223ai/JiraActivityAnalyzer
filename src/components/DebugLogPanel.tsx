@@ -69,6 +69,7 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, on
   }
 
   async function handleDownload() {
+    onUserAction?.("Save Debug Log requested / 要求儲存除錯紀錄");
     if (window.desktopApp?.appDebug?.saveTextFile) {
       const result = await window.desktopApp.appDebug.saveTextFile({
         defaultFileName: debugFileName(),

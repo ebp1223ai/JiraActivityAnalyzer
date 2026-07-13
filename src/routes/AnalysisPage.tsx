@@ -203,10 +203,27 @@ export function AnalysisPage() {
     setUserAnalysis((current) => ({ ...current, ...patch }));
   }
 
-  function logAnalysisAction(category: "USER_ACTION" | "GUARD" | "UI_MODAL", message: string) {
+  function logAnalysisAction(category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO", message: string) {
     appendDebugLog("analysis", [`[${category}] ${message}`]);
-    void window.desktopApp?.userAnalysis?.logAction?.({ category, message });
+    void window.desktopApp?.userAnalysis?.logAction?.({ category, message }).then((result) => {
+      if (!result?.actionLogPath) return;
+      setUserAnalysis((current) => ({
+        ...current,
+        actionLogPath: result.actionLogPath ?? current.actionLogPath,
+        actionLogAvailable: result.actionLogAvailable ?? current.actionLogAvailable
+      }));
+    });
   }
+
+  useEffect(() => {
+    let active = true;
+    void window.desktopApp?.userAnalysis?.actionLogDiagnostics?.().then((diagnostics) => {
+      if (active) {
+        patchState({ actionLogPath: diagnostics.actionLogPath, actionLogAvailable: diagnostics.actionLogAvailable });
+      }
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const subscribe = window.desktopApp?.userAnalysis?.onFullFetchProgress;
@@ -253,9 +270,16 @@ export function AnalysisPage() {
       }));
       setUserAnalysis((current) => ({ ...current, candidateIssues: issues, selectedForFetch: issues.map((issue) => issue.key), excludedIssues: [], activeTab: "queue" }));
     };
+    const churnDebugLog = () => {
+      appendDebugLog("analysis", Array.from({ length: 220 }, (_, index) => `[PROGRESS] Retention smoke progress ${index + 1}/220`));
+    };
     window.addEventListener("jaa:seed-large-queue", seedLargeQueue);
-    return () => window.removeEventListener("jaa:seed-large-queue", seedLargeQueue);
-  }, [setUserAnalysis]);
+    window.addEventListener("jaa:churn-debug-log", churnDebugLog);
+    return () => {
+      window.removeEventListener("jaa:seed-large-queue", seedLargeQueue);
+      window.removeEventListener("jaa:churn-debug-log", churnDebugLog);
+    };
+  }, [appendDebugLog, setUserAnalysis]);
 
   useEffect(() => {
     const subscribe = window.desktopApp?.userAnalysis?.onFullFetchLog;
@@ -664,6 +688,7 @@ export function AnalysisPage() {
   function handleLargeQueueConfirmationCancel() {
     logAnalysisAction("USER_ACTION", "Large queue confirmation cancelled / 大量抓取確認已取消");
     logAnalysisAction("GUARD", "Full Fetch cancelled before start by user");
+    logAnalysisAction("INFO", "Full Fetch cancelled before start / 完整抓取已在開始前取消");
     logAnalysisAction("UI_MODAL", "Large queue confirmation closed / 大量抓取確認已關閉");
     patchState({ largeQueueConfirmationOpen: false, largeQueueConfirmInput: "", largeQueueConfirmError: "" });
   }
@@ -684,6 +709,7 @@ export function AnalysisPage() {
     logAnalysisAction("GUARD", "Large queue confirmed by user");
     logAnalysisAction("USER_ACTION", "Large queue confirmation confirmed / 大量抓取已確認");
     logAnalysisAction("UI_MODAL", "Large queue confirmation closed / 大量抓取確認已關閉");
+    logAnalysisAction("INFO", "Full Fetch started after large queue confirmation");
     patchState({ largeQueueConfirmationOpen: false, largeQueueConfirmInput: "", largeQueueConfirmError: "" });
     if (window.desktopApp?.uiSmoke) {
       patchState({ notice: "Large queue confirmation smoke path passed. / 大量抓取確認測試路徑通過。" });
@@ -817,6 +843,33 @@ export function AnalysisPage() {
     patchState({ notice: "Diagnostics path copied. / 已複製診斷路徑。", errors: [] });
   }
 
+  async function openActionLogFolder() {
+    logAnalysisAction("USER_ACTION", "Open Action Log Folder clicked / 開啟使用者操作紀錄資料夾");
+    if (window.desktopApp?.uiSmoke) {
+      patchState({ notice: "Action log folder smoke path passed. / 使用者操作紀錄資料夾測試通過。", errors: [] });
+      return;
+    }
+    const result = await window.desktopApp?.userAnalysis?.openDiagnosticsFolder?.({ filePath: userAnalysis.actionLogPath });
+    patchState(result?.ok
+      ? { notice: `Opened action log folder: ${result.folderPath}`, errors: [] }
+      : { notice: "", errors: [result?.error ?? "Open action log folder failed."] });
+  }
+
+  async function copyActionLogPath() {
+    logAnalysisAction("USER_ACTION", "Copy Action Log Path clicked / 複製使用者操作紀錄路徑");
+    if (!userAnalysis.actionLogPath) return;
+    if (window.desktopApp?.uiSmoke) {
+      patchState({ notice: "Action log copy smoke path passed. / 使用者操作紀錄路徑複製測試通過。", errors: [] });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(userAnalysis.actionLogPath);
+      patchState({ notice: "Action log path copied. / 已複製使用者操作紀錄路徑。", errors: [] });
+    } catch (error) {
+      patchState({ notice: "", errors: [error instanceof Error ? error.message : "Copy action log path failed."] });
+    }
+  }
+
   function fullFetchResultPayload() {
     return {
       exportType: "user-analysis-full-fetch-result",
@@ -861,12 +914,18 @@ export function AnalysisPage() {
         rawDataMode: userAnalysis.rawDataMode,
         memory: userAnalysis.fullFetchMemory
       },
+      actionLogDiagnostics: {
+        actionLogPath: userAnalysis.actionLogPath,
+        actionLogAvailable: userAnalysis.actionLogAvailable,
+        actionLogNote: "USER_ACTION / GUARD / UI_MODAL are persisted separately to avoid UI debug buffer truncation."
+      },
       summary: userAnalysis.fullFetchSummary,
       fetchReport: userAnalysis.fullFetchReport,
       issueResults: userAnalysis.fullFetchResultsByIssue,
       warnings: userAnalysis.fullFetchWarnings,
       errors: userAnalysis.fullFetchErrors,
-      debugLogSanitized: getDebugLogs("analysis")
+      debugLogSanitized: getDebugLogs("analysis"),
+      debugLogNote: "debugLogSanitized may contain the recent UI debug buffer only. See actionLogDiagnostics.actionLogPath for complete USER_ACTION / GUARD / UI_MODAL timeline."
     };
   }
 
@@ -899,6 +958,13 @@ export function AnalysisPage() {
       rawDataManifest: Array.isArray(rawData.issues) ? rawData.issues : [],
       rawDataMessage: String(rawData.message ?? ""),
       endpointMetadata: Array.isArray(rawData.endpointMetadata) ? rawData.endpointMetadata : [],
+      actionLogDiagnostics: {
+        actionLogPath: userAnalysis.actionLogPath,
+        actionLogAvailable: userAnalysis.actionLogAvailable,
+        actionLogNote: "USER_ACTION / GUARD / UI_MODAL are persisted separately to avoid UI debug buffer truncation."
+      },
+      debugLogSanitized: getDebugLogs("analysis"),
+      debugLogNote: "debugLogSanitized may contain the recent UI debug buffer only. See actionLogDiagnostics.actionLogPath for complete USER_ACTION / GUARD / UI_MODAL timeline.",
       warnings: userAnalysis.fullFetchWarnings,
       errors: userAnalysis.fullFetchErrors
     };
@@ -1536,6 +1602,31 @@ export function AnalysisPage() {
       </SectionCard> : null}
 
       {userAnalysis.activeTab === "exports" ? <div id="analysis-exports" className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="min-w-0 xl:col-span-2">
+          <SectionCard title="User Action Log" subtitle="使用者操作紀錄">
+            <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm font-semibold leading-relaxed text-violet-950">
+              The complete USER_ACTION / GUARD / UI_MODAL timeline is persisted separately from the recent UI Debug Log buffer.<br />
+              完整操作時間線會獨立落盤，不受 UI Debug Log 最近 160 行限制。
+            </div>
+            <div className="mt-3 min-w-0 rounded-lg border border-line bg-slate-50 p-3">
+              <div className="text-xs font-black uppercase text-muted">Path / 路徑</div>
+              <div className="mt-1 break-all text-sm font-bold text-ink" title={userAnalysis.actionLogPath || "Loading action log path"}>
+                {userAnalysis.actionLogPath || "Loading... / 載入中..."}
+              </div>
+              <div className="mt-2 text-xs font-semibold text-muted">
+                Status / 狀態：{userAnalysis.actionLogAvailable ? "Available / 可用" : "Ready; the file is created on the first action / 已就緒，首次操作時建立檔案"}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.actionLogPath} onClick={() => void openActionLogFolder()}>
+                  <FolderOpen size={15} />Open Action Log Folder / 開啟使用者操作紀錄資料夾
+                </button>
+                <button className="btn px-3 py-2" type="button" disabled={!userAnalysis.actionLogPath} onClick={() => void copyActionLogPath()}>
+                  <Copy size={15} />Copy Action Log Path / 複製使用者操作紀錄路徑
+                </button>
+              </div>
+            </div>
+          </SectionCard>
+        </div>
         <SectionCard title="Stage 1 Candidate Export" subtitle="第一階段候選資料匯出">
           {userAnalysis.showHelpTips ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Candidate exports are Stage 1 outputs. They contain candidate issue lists and search context, but not full comments, attachments, or changelog.<br />候選匯出是第一階段輸出，包含候選 Jira 清單與搜尋條件，但不包含完整 comments、attachments 或 changelog。<br /><br />Raw Data contains more original Jira response data and is mainly for debugging. / Raw Data 包含較完整的 Jira 原始回應資料，主要用於除錯與深入分析。</div> : null}
           <div className="flex flex-wrap gap-3">

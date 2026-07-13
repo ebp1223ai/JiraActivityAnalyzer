@@ -52,6 +52,13 @@ User Analysis records important interactions with these diagnostic categories:
 
 These records appear in the UI Debug Log and `<runtime>/logs/app/app-YYYYMMDD.log`. While a Full Fetch run is active, subsequent related actions are also appended to its auto log. Confirmation input is never logged verbatim; diagnostics record only `confirmInputMatched=true/false`. Sensitive-value masking remains active for UI, app, Full Fetch, export, and crash logs.
 
+Version 0.2.5 additionally preserves the complete action timeline in `<runtime>/logs/app/user-actions-YYYYMMDD.log`. This append-only daily file contains `USER_ACTION`, `GUARD`, `UI_MODAL`, and directly related lifecycle entries without Full Fetch per-issue progress noise, so it is not affected by the UI Debug Log's recent 160-line buffer.
+
+- User Analysis > Exports displays the current action log path and provides Open Action Log Folder and Copy Action Log Path controls.
+- Save Debug Log still exports the timestamped, masked UI buffer and now appends the complete daily action timeline plus its source path.
+- Full Fetch result and raw manifest exports include `actionLogDiagnostics`; `debugLogNote` explains that `debugLogSanitized` may contain only the recent UI buffer.
+- Action log messages use the same token and Authorization masking as other diagnostics. Large-queue confirmation input is represented only by `confirmInputMatched=true/false`.
+
 ## Global Data Source Mode
 
 The current global data source mode is `live_jira_api`.

@@ -163,6 +163,8 @@ export type UserAnalysisSessionState = {
   fullFetchMemory: UserAnalysisFullFetchMemory;
   autoLogPath: string;
   checkpointPath: string;
+  actionLogPath: string;
+  actionLogAvailable: boolean;
   rawDataMode: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory";
   batchSize: 10 | 20 | 40 | "all";
   pauseAfterCurrentIssue: boolean;
@@ -299,6 +301,8 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   fullFetchMemory: { rssMB: 0, heapUsedMB: 0, heapTotalMB: 0, externalMB: 0, systemFreeMB: 0, rawDataEstimateMB: 0 },
   autoLogPath: "",
   checkpointPath: "",
+  actionLogPath: "",
+  actionLogAvailable: false,
   rawDataMode: "auto_save_raw_per_issue",
   batchSize: 10,
   pauseAfterCurrentIssue: false,

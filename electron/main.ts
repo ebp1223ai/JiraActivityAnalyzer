@@ -158,6 +158,42 @@ function appendRuntimeLog(filePath: string, level: string, message: string) {
   return line;
 }
 
+function getUserActionLogPath(date = new Date()) {
+  return path.join(ensureDir(getAppLogsDir()), `user-actions-${dateStamp(date)}.log`);
+}
+
+function getActionLogDiagnostics() {
+  const actionLogPath = getUserActionLogPath();
+  return {
+    actionLogPath,
+    actionLogAvailable: fs.existsSync(actionLogPath),
+    actionLogNote: "USER_ACTION / GUARD / UI_MODAL are persisted separately to avoid UI debug buffer truncation."
+  };
+}
+
+function appendUserActionLog(level: string, message: string) {
+  return appendRuntimeLog(getUserActionLogPath(), level, message);
+}
+
+function buildDebugLogExportContent(content: string) {
+  const diagnostics = getActionLogDiagnostics();
+  const actionTimeline = diagnostics.actionLogAvailable
+    ? fs.readFileSync(diagnostics.actionLogPath, "utf8").trimEnd()
+    : "No user action log entries are available for today. / 今日尚無使用者操作紀錄。";
+  return {
+    diagnostics,
+    mergedContent: [
+      maskDiagnosticText(content).trimEnd(),
+      "",
+      "===== User Action Timeline / 使用者操作時間線 =====",
+      `User Action Log Path / 使用者操作紀錄路徑: ${diagnostics.actionLogPath}`,
+      "",
+      maskDiagnosticText(actionTimeline),
+      ""
+    ].join("\n")
+  };
+}
+
 function writeJsonAtomic(filePath: string, data: unknown) {
   ensureDir(path.dirname(filePath));
   const temporaryPath = `${filePath}.tmp`;
@@ -1099,7 +1135,8 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
     rawDataMode,
     rawIssuesDir,
     memorySummary: { peakRssMB, peakHeapUsedMB, peakRawDataEstimateMB },
-    finalMemory: activeFullFetch?.memory ?? memorySnapshot(rawDataEstimateBytes)
+    finalMemory: activeFullFetch?.memory ?? memorySnapshot(rawDataEstimateBytes),
+    ...getActionLogDiagnostics()
   };
   const response = {
     ok: true,
@@ -1147,15 +1184,18 @@ ipcMain.handle("user-analysis:pause-full-fetch", async () => {
 });
 
 ipcMain.handle("user-analysis:log-action", async (_event, payload: { category?: string; message?: string }) => {
-  const allowedCategories = new Set(["USER_ACTION", "GUARD", "UI_MODAL"]);
+  const allowedCategories = new Set(["USER_ACTION", "GUARD", "UI_MODAL", "INFO"]);
   const category = allowedCategories.has(text(payload?.category)) ? text(payload.category) : "USER_ACTION";
   const message = maskDiagnosticText(text(payload?.message)).slice(0, 2000);
   if (!message) return { ok: false, error: "Action message is required." };
   const appLogPath = path.join(ensureDir(getAppLogsDir()), `app-${dateStamp()}.log`);
   appendRuntimeLog(appLogPath, category, message);
+  appendUserActionLog(category, message);
   if (activeFullFetch) appendRuntimeLog(activeFullFetch.autoLogPath, category, message);
-  return { ok: true, appLogPath, fullFetchLogPath: activeFullFetch?.autoLogPath ?? "" };
+  return { ok: true, appLogPath, ...getActionLogDiagnostics(), fullFetchLogPath: activeFullFetch?.autoLogPath ?? "" };
 });
+
+ipcMain.handle("user-analysis:action-log-diagnostics", async () => getActionLogDiagnostics());
 
 ipcMain.handle("user-analysis:latest-full-fetch-checkpoint", async () => {
   const directory = ensureDir(getFullFetchLogsDir());
@@ -1501,8 +1541,9 @@ ipcMain.handle("debug-log:save-text", async (_event, payload: { defaultFileName:
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  fs.writeFileSync(result.filePath, payload.content, "utf8");
-  return { canceled: false, filePath: result.filePath, folderPath: outputDir };
+  const { diagnostics, mergedContent } = buildDebugLogExportContent(payload.content);
+  fs.writeFileSync(result.filePath, mergedContent, "utf8");
+  return { canceled: false, filePath: result.filePath, folderPath: outputDir, ...diagnostics };
 });
 
 function getRendererEntry() {
@@ -1652,6 +1693,8 @@ async function runUiSmoke(window: BrowserWindow) {
   const fullFetchFilesBeforeConfirmationTest = fs.existsSync(getFullFetchLogsDir())
     ? new Set(fs.readdirSync(getFullFetchLogsDir()))
     : new Set<string>();
+  const actionLogPath = getUserActionLogPath();
+  const actionLogStartSize = fs.existsSync(actionLogPath) ? fs.statSync(actionLogPath).size : 0;
   window.setSize(1280, 720, false);
   await window.webContents.executeJavaScript(`window.location.hash = "#/analysis";`);
   await wait(350);
@@ -1732,6 +1775,40 @@ async function runUiSmoke(window: BrowserWindow) {
       };
     })()
   `);
+  await wait(500);
+  const actionLogBuffer = fs.existsSync(actionLogPath) ? fs.readFileSync(actionLogPath) : Buffer.alloc(0);
+  const retainedActionTimeline = actionLogBuffer.subarray(actionLogStartSize).toString("utf8");
+  await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:churn-debug-log"));`);
+  await wait(150);
+  const retentionAudit = await window.webContents.executeJavaScript(`
+    (() => {
+      const text = document.body.innerText;
+      return {
+        earlyActionStillInUiBuffer: text.includes("Button clicked: Run Full Fetch from Queue"),
+        latestProgressVisible: text.includes("Retention smoke progress 220/220")
+      };
+    })()
+  `);
+  await window.webContents.executeJavaScript(`
+    Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Exports") && button.textContent?.includes("匯出"))?.click();
+  `);
+  await wait(200);
+  const actionLogUiAudit = await window.webContents.executeJavaScript(`
+    (() => {
+      const openButton = Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Open Action Log Folder"));
+      const copyButton = Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Copy Action Log Path"));
+      openButton?.click();
+      copyButton?.click();
+      return {
+        pathVisible: document.body.innerText.includes(${JSON.stringify(actionLogPath)}),
+        openEnabled: openButton instanceof HTMLButtonElement && !openButton.disabled,
+        copyEnabled: copyButton instanceof HTMLButtonElement && !copyButton.disabled
+      };
+    })()
+  `);
+  await wait(300);
+  const finalActionTimeline = fs.existsSync(actionLogPath) ? fs.readFileSync(actionLogPath, "utf8") : "";
+  const debugExportAudit = buildDebugLogExportContent("2026/07/13 18:00:00.000 [INFO] UI buffer sample\nAuthorization: secret-value\ntoken: secret-value").mergedContent;
   const fullFetchFilesAfterConfirmationTest = fs.existsSync(getFullFetchLogsDir()) ? fs.readdirSync(getFullFetchLogsDir()) : [];
   const unexpectedFullFetchFiles = fullFetchFilesAfterConfirmationTest.filter((name) => !fullFetchFilesBeforeConfirmationTest.has(name));
   if (!largeQueueOpened.found || largeQueueOpened.disabled) failures.push(`large queue confirmation: Run Full Fetch button unavailable ${JSON.stringify(largeQueueOpened)}`);
@@ -1740,6 +1817,25 @@ async function runUiSmoke(window: BrowserWindow) {
   if (!largeQueueFinal.modalClosed || !largeQueueFinal.hasUserAction || !largeQueueFinal.hasGuard || !largeQueueFinal.hasUiModal) failures.push(`large queue confirmation: close/log audit failed ${JSON.stringify(largeQueueFinal)}`);
   if (!largeQueueConfirmed.modalClosed || !largeQueueConfirmed.confirmedLog || !largeQueueConfirmed.matchedLog) failures.push(`large queue confirmation: CONFIRM path failed ${JSON.stringify(largeQueueConfirmed)}`);
   if (unexpectedFullFetchFiles.length > 0) failures.push(`large queue confirmation: cancel created Full Fetch runtime files ${JSON.stringify(unexpectedFullFetchFiles)}`);
+  const requiredRetainedActions = [
+    "[USER_ACTION] Button clicked: Run Full Fetch from Queue",
+    "[GUARD] Large queue confirmation required",
+    "[UI_MODAL] Large queue confirmation opened",
+    "confirmInputMatched=false",
+    "Large queue confirmation rejected",
+    "Large queue confirmation cancelled",
+    "Full Fetch cancelled before start",
+    "confirmInputMatched=true",
+    "Large queue confirmed by user",
+    "Full Fetch started after large queue confirmation"
+  ];
+  const missingRetainedActions = requiredRetainedActions.filter((entry) => !retainedActionTimeline.includes(entry));
+  if (missingRetainedActions.length > 0) failures.push(`action log retention: missing ${JSON.stringify(missingRetainedActions)} in ${actionLogPath}`);
+  if (!/user-actions-\d{8}\.log$/.test(actionLogPath)) failures.push(`action log retention: unexpected path ${actionLogPath}`);
+  if (retentionAudit.earlyActionStillInUiBuffer || !retentionAudit.latestProgressVisible) failures.push(`action log retention: UI buffer churn was not demonstrated ${JSON.stringify(retentionAudit)}`);
+  if (!actionLogUiAudit.pathVisible || !actionLogUiAudit.openEnabled || !actionLogUiAudit.copyEnabled) failures.push(`action log diagnostics UI failed ${JSON.stringify(actionLogUiAudit)}`);
+  if (!finalActionTimeline.includes("Open Action Log Folder clicked") || !finalActionTimeline.includes("Copy Action Log Path clicked")) failures.push("action log diagnostics buttons did not persist USER_ACTION");
+  if (!debugExportAudit.includes("===== User Action Timeline / 使用者操作時間線 =====") || !debugExportAudit.includes(actionLogPath) || debugExportAudit.includes("secret-value")) failures.push("Save Debug Log merge/masking audit failed");
 
   if (failures.length > 0) {
     console.error("[electron ui smoke failed]");
