@@ -85,6 +85,39 @@ export type UserAnalysisFullFetchSummary = {
   totalEstimatedEvents: number;
 };
 
+export type UserAnalysisFullFetchMemory = {
+  rssMB: number;
+  heapUsedMB: number;
+  heapTotalMB: number;
+  externalMB: number;
+  systemFreeMB: number;
+  rawDataEstimateMB: number;
+};
+
+export type UserAnalysisFullFetchProgress = {
+  runId: string;
+  status: string;
+  total: number;
+  currentIndex: number;
+  currentIssueKey: string;
+  lastCompletedIndex: number;
+  lastCompletedIssueKey: string;
+  success: number;
+  failed: number;
+  skipped: number;
+  elapsedMs: number;
+  averageMsPerIssue: number;
+  estimatedRemainingMs: number;
+  batchSize: number;
+  currentBatch: number;
+  totalBatches: number;
+  rawDataMode: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory";
+  memory: UserAnalysisFullFetchMemory;
+  autoLogPath: string;
+  checkpointPath: string;
+  issueStatus: Array<{ index: number; issueKey: string; status: string; durationMs?: number; error?: string }>;
+};
+
 export type UserAnalysisSessionState = {
   selectedUsersText: string;
   startDate: string;
@@ -119,13 +152,22 @@ export type UserAnalysisSessionState = {
   fullFetchRunId: string;
   fullFetchStartedAt: string;
   fullFetchFinishedAt: string;
-  fullFetchStatus: "idle" | "running" | "completed" | "completed_with_errors" | "failed";
+  fullFetchStatus: "idle" | "running" | "paused" | "completed" | "completed_with_errors" | "failed";
   fullFetchSummary: UserAnalysisFullFetchSummary;
   fullFetchReport: UserAnalysisFullFetchReportRow[];
   fullFetchResultsByIssue: unknown[];
   fullFetchRawDataByIssueSanitized: unknown | null;
   fullFetchWarnings: string[];
   fullFetchErrors: string[];
+  fullFetchProgress: UserAnalysisFullFetchProgress;
+  fullFetchMemory: UserAnalysisFullFetchMemory;
+  autoLogPath: string;
+  checkpointPath: string;
+  rawDataMode: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory";
+  batchSize: 10 | 20 | 40 | "all";
+  pauseAfterCurrentIssue: boolean;
+  previousUnfinishedRun: Record<string, unknown> | null;
+  previousUnfinishedDismissed: boolean;
   fetchReportPage: number;
   fetchReportPageSize: number;
   fetchReportFilter: "all" | "success" | "failed";
@@ -228,6 +270,37 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   fullFetchRawDataByIssueSanitized: null,
   fullFetchWarnings: [],
   fullFetchErrors: [],
+  fullFetchProgress: {
+    runId: "",
+    status: "idle",
+    total: 0,
+    currentIndex: 0,
+    currentIssueKey: "",
+    lastCompletedIndex: 0,
+    lastCompletedIssueKey: "",
+    success: 0,
+    failed: 0,
+    skipped: 0,
+    elapsedMs: 0,
+    averageMsPerIssue: 0,
+    estimatedRemainingMs: 0,
+    batchSize: 10,
+    currentBatch: 0,
+    totalBatches: 0,
+    rawDataMode: "auto_save_raw_per_issue",
+    memory: { rssMB: 0, heapUsedMB: 0, heapTotalMB: 0, externalMB: 0, systemFreeMB: 0, rawDataEstimateMB: 0 },
+    autoLogPath: "",
+    checkpointPath: "",
+    issueStatus: []
+  },
+  fullFetchMemory: { rssMB: 0, heapUsedMB: 0, heapTotalMB: 0, externalMB: 0, systemFreeMB: 0, rawDataEstimateMB: 0 },
+  autoLogPath: "",
+  checkpointPath: "",
+  rawDataMode: "auto_save_raw_per_issue",
+  batchSize: 10,
+  pauseAfterCurrentIssue: false,
+  previousUnfinishedRun: null,
+  previousUnfinishedDismissed: false,
   fetchReportPage: 1,
   fetchReportPageSize: 40,
   fetchReportFilter: "all",

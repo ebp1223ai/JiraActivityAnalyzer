@@ -33,6 +33,14 @@ export function getLogsDir() {
   return path.join(getAppRuntimeDir(), "logs");
 }
 
+export function getFullFetchLogsDir() {
+  return path.join(getLogsDir(), "full-fetch");
+}
+
+export function getCrashLogsDir() {
+  return path.join(getLogsDir(), "crash");
+}
+
 export function getExportsDir() {
   return path.join(getAppRuntimeDir(), "exports");
 }
@@ -43,6 +51,10 @@ export function getProbeResultsDir() {
 
 export function getRawDataDir() {
   return path.join(getExportsDir(), "raw-data");
+}
+
+export function getFullFetchRawRunsDir() {
+  return getRawDataDir();
 }
 
 export function getBackupsDir() {

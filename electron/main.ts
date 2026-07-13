@@ -1,17 +1,24 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { ensureDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
+import { ensureDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
 import { createJiraClient } from "./jira/jiraClient.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
 import { sanitizeRawJson } from "./jira/safeJson.js";
 import type { ProbeRequest } from "./jira/jiraTypes.js";
 
+declare const __MAIN_APP_VERSION__: string;
+declare const __MAIN_BUILD_TIME__: string;
+declare const __MAIN_GIT_COMMIT__: string;
+declare const __MAIN_GIT_BRANCH__: string;
+
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 const shouldOpenDevTools = process.env.OPEN_DEVTOOLS === "1";
 const isUiSmoke = process.env.ELECTRON_UI_SMOKE === "1";
 const shouldCaptureUi = process.env.ELECTRON_UI_CAPTURE === "1";
+const shouldSimulateCrashDiagnostic = process.env.JAA_SIMULATE_CRASH_DIAGNOSTIC === "1";
 const captureDir = process.env.ELECTRON_UI_CAPTURE_DIR
   ? path.resolve(process.env.ELECTRON_UI_CAPTURE_DIR)
   : path.resolve(process.cwd(), "test-artifacts/screenshots");
@@ -77,6 +84,127 @@ function parseEnvText(text: string) {
 function formatLocalDateTime(date = new Date()) {
   const pad = (part: number) => String(part).padStart(2, "0");
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function formatLocalLogTimestamp(date = new Date()) {
+  return `${formatLocalDateTime(date)}.${String(date.getMilliseconds()).padStart(3, "0")}`;
+}
+
+function fileTimestamp(date = new Date()) {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+type FullFetchMemory = {
+  rssMB: number;
+  heapUsedMB: number;
+  heapTotalMB: number;
+  externalMB: number;
+  systemFreeMB: number;
+  rawDataEstimateMB: number;
+};
+
+type ActiveFullFetchDiagnostics = {
+  runId: string;
+  status: string;
+  queueCount: number;
+  currentIndex: number;
+  currentIssueKey: string;
+  lastCompletedIndex: number;
+  lastCompletedIssueKey: string;
+  success: number;
+  failed: number;
+  skipped: number;
+  startedAtMs: number;
+  autoLogPath: string;
+  checkpointPath: string;
+  lastLogs: string[];
+  memory: FullFetchMemory;
+  pauseRequested: boolean;
+};
+
+let activeFullFetch: ActiveFullFetchDiagnostics | null = null;
+
+function memorySnapshot(rawBytes = 0): FullFetchMemory {
+  const memory = process.memoryUsage();
+  const mb = (bytes: number) => Math.round((bytes / 1024 / 1024) * 10) / 10;
+  return {
+    rssMB: mb(memory.rss),
+    heapUsedMB: mb(memory.heapUsed),
+    heapTotalMB: mb(memory.heapTotal),
+    externalMB: mb(memory.external),
+    systemFreeMB: mb(os.freemem()),
+    rawDataEstimateMB: mb(rawBytes)
+  };
+}
+
+function maskDiagnosticText(value: string) {
+  return value
+    .replace(/(Authorization\s*:\s*)(?!\[masked\])[^\r\n]+/gi, "$1[masked]")
+    .replace(/((?:api[_ -]?)?token\s*[:=]\s*)(?!\[masked\])[^\s,;]+/gi, "$1[masked]");
+}
+
+function appendRuntimeLog(filePath: string, level: string, message: string) {
+  const line = `${formatLocalLogTimestamp()} [${level}] ${maskDiagnosticText(message)}`;
+  fs.appendFileSync(filePath, `${line}\n`, "utf8");
+  if (activeFullFetch?.autoLogPath === filePath) {
+    activeFullFetch.lastLogs = [...activeFullFetch.lastLogs, line].slice(-100);
+  }
+  return line;
+}
+
+function writeJsonAtomic(filePath: string, data: unknown) {
+  ensureDir(path.dirname(filePath));
+  const temporaryPath = `${filePath}.tmp`;
+  fs.writeFileSync(temporaryPath, JSON.stringify(sanitizeRawJson(data), null, 2), "utf8");
+  fs.renameSync(temporaryPath, filePath);
+}
+
+function crashDiagnostic(reason: string, details: Record<string, unknown> = {}) {
+  try {
+    const crashDir = ensureDir(getCrashLogsDir());
+    const crashPath = path.join(crashDir, `crash-${fileTimestamp()}.log`);
+    const active = activeFullFetch;
+    const payload = {
+      timestamp: new Date().toISOString(),
+      localTimestamp: formatLocalLogTimestamp(),
+      appVersion: __MAIN_APP_VERSION__ || app.getVersion(),
+      buildTime: __MAIN_BUILD_TIME__,
+      gitCommit: __MAIN_GIT_COMMIT__,
+      gitBranch: __MAIN_GIT_BRANCH__,
+      reason,
+      details: sanitizeRawJson(details),
+      activeFullFetch: active ? {
+        runId: active.runId,
+        status: active.status,
+        currentIndex: active.currentIndex,
+        total: active.queueCount,
+        currentIssueKey: active.currentIssueKey,
+        lastCompletedIssueKey: active.lastCompletedIssueKey,
+        success: active.success,
+        failed: active.failed,
+        skipped: active.skipped,
+        memory: active.memory,
+        autoLogPath: active.autoLogPath,
+        checkpointPath: active.checkpointPath
+      } : null,
+      lastDebugLogLines: active?.lastLogs ?? []
+    };
+    fs.writeFileSync(crashPath, maskDiagnosticText(JSON.stringify(payload, null, 2)), "utf8");
+    if (active) {
+      try {
+        const existing = fs.existsSync(active.checkpointPath) ? JSON.parse(fs.readFileSync(active.checkpointPath, "utf8")) : {};
+        writeJsonAtomic(active.checkpointPath, { ...existing, status: "crashed", lastUpdatedAt: new Date().toISOString(), crashPath, memory: active.memory });
+      } catch (checkpointError) {
+        console.error("[crash checkpoint update failed]", checkpointError);
+      }
+      appendRuntimeLog(active.autoLogPath, "ERROR", `Crash diagnostic written: ${crashPath}`);
+    }
+    return crashPath;
+  } catch (error) {
+    console.error("[crash diagnostic write failed]", error);
+    return "";
+  }
 }
 
 type AppConfig = {
@@ -618,25 +746,133 @@ function buildFullFetchReport(issueKey: string, candidate: Record<string, unknow
   };
 }
 
-ipcMain.handle("user-analysis:full-fetch", async (_event, payload: { connection: AppConnection; fetchQueue: Record<string, unknown>[]; fetchLimit: number }) => {
+ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
+  connection: AppConnection;
+  fetchQueue: Record<string, unknown>[];
+  fetchLimit: number;
+  batchSize?: number | "all";
+  rawDataMode?: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory";
+}) => {
   const connection = payload.connection;
   const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
   const fetchQueue = Array.isArray(payload.fetchQueue) ? payload.fetchQueue : [];
   const runId = `full-fetch-${Date.now()}`;
   const startedAt = new Date().toISOString();
-  const logs = [
-    "[INFO] User Analysis Stage 2 Full Fetch started",
-    "[INFO] Data Source Mode: Live Jira API",
-    "[INFO] Connection Source: Current .env Jira Connection",
-    `[INFO] API Version: ${connection.apiVersion === "v3" ? "Jira Cloud v3" : "Jira Server/Data Center v2"}`,
-    `[INFO] Auth Type: ${connection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`,
-    "[INFO] Authorization: [masked]",
-    "[INFO] Execution Mode: Sequential read-only fetch",
-    `[INFO] Fetch Queue Count: ${fetchQueue.length}`,
-    "[INFO] No database write will be performed",
-    "[INFO] No Jira write will be performed",
-    "[INFO] No attachment file download will be performed"
-  ];
+  const runStartedMs = Date.now();
+  const batchSize = payload.batchSize === "all" ? Math.max(fetchQueue.length, 1) : Math.max(1, Number(payload.batchSize ?? 10));
+  const rawDataMode = payload.rawDataMode ?? "auto_save_raw_per_issue";
+  const runStamp = fileTimestamp();
+  const fullFetchLogDir = ensureDir(getFullFetchLogsDir());
+  const autoLogPath = path.join(fullFetchLogDir, `full-fetch-${runStamp}.log`);
+  const checkpointPath = path.join(fullFetchLogDir, `full-fetch-${runStamp}.checkpoint.json`);
+  const rawIssuesDir = rawDataMode === "auto_save_raw_per_issue"
+    ? ensureDir(path.join(getFullFetchRawRunsDir(), `full-fetch-run-${runStamp}`, "issues"))
+    : "";
+  fs.writeFileSync(autoLogPath, "", "utf8");
+  const logs: string[] = [];
+  let rawDataEstimateBytes = 0;
+  let peakRssMB = 0;
+  let peakHeapUsedMB = 0;
+  let peakRawDataEstimateMB = 0;
+  const issueStatus: Record<string, unknown>[] = [];
+  const rawManifest: Record<string, unknown>[] = [];
+  activeFullFetch = {
+    runId,
+    status: "running",
+    queueCount: fetchQueue.length,
+    currentIndex: 0,
+    currentIssueKey: "",
+    lastCompletedIndex: 0,
+    lastCompletedIssueKey: "",
+    success: 0,
+    failed: 0,
+    skipped: 0,
+    startedAtMs: runStartedMs,
+    autoLogPath,
+    checkpointPath,
+    lastLogs: [],
+    memory: memorySnapshot(),
+    pauseRequested: false
+  };
+  const log = (level: string, message: string) => {
+    const rendererLine = `[${level}] ${maskDiagnosticText(message)}`;
+    logs.push(rendererLine);
+    appendRuntimeLog(autoLogPath, level, message);
+    event.sender.send("user-analysis:full-fetch-log", rendererLine);
+  };
+  const updateMemory = (context: string) => {
+    const memory = memorySnapshot(rawDataEstimateBytes);
+    if (activeFullFetch) activeFullFetch.memory = memory;
+    peakRssMB = Math.max(peakRssMB, memory.rssMB);
+    peakHeapUsedMB = Math.max(peakHeapUsedMB, memory.heapUsedMB);
+    peakRawDataEstimateMB = Math.max(peakRawDataEstimateMB, memory.rawDataEstimateMB);
+    log("MEMORY", `${context} rss=${memory.rssMB}MB heapUsed=${memory.heapUsedMB}MB heapTotal=${memory.heapTotalMB}MB external=${memory.externalMB}MB systemFree=${memory.systemFreeMB}MB rawEstimate=${memory.rawDataEstimateMB}MB`);
+    return memory;
+  };
+  const progressPayload = () => {
+    const active = activeFullFetch!;
+    const elapsedMs = Date.now() - active.startedAtMs;
+    const completed = active.success + active.failed + active.skipped;
+    const averageMsPerIssue = completed > 0 ? Math.round(elapsedMs / completed) : 0;
+    return {
+      runId,
+      status: active.status,
+      total: active.queueCount,
+      currentIndex: active.currentIndex,
+      currentIssueKey: active.currentIssueKey,
+      lastCompletedIndex: active.lastCompletedIndex,
+      lastCompletedIssueKey: active.lastCompletedIssueKey,
+      success: active.success,
+      failed: active.failed,
+      skipped: active.skipped,
+      elapsedMs,
+      averageMsPerIssue,
+      estimatedRemainingMs: averageMsPerIssue * Math.max(0, active.queueCount - completed),
+      batchSize,
+      currentBatch: Math.min(Math.ceil(Math.max(active.currentIndex, 1) / batchSize), Math.max(1, Math.ceil(active.queueCount / batchSize))),
+      totalBatches: Math.max(1, Math.ceil(active.queueCount / batchSize)),
+      rawDataMode,
+      memory: active.memory,
+      autoLogPath,
+      checkpointPath,
+      issueStatus: issueStatus.map((item) => ({ ...item }))
+    };
+  };
+  const updateCheckpoint = (status = activeFullFetch?.status ?? "running") => {
+    if (!activeFullFetch) return;
+    activeFullFetch.status = status;
+    const progress = progressPayload();
+    writeJsonAtomic(checkpointPath, {
+      version: app.getVersion(),
+      startedAt,
+      lastUpdatedAt: new Date().toISOString(),
+      queueCount: fetchQueue.length,
+      ...progress,
+      autoLogPath,
+      checkpointPath,
+      memory: activeFullFetch.memory,
+      issueStatus
+    });
+    event.sender.send("user-analysis:full-fetch-progress", progress);
+    log("INFO", `Checkpoint updated: status=${status} current=${progress.currentIndex}/${progress.total} lastCompleted=${progress.lastCompletedIndex}`);
+  };
+  log("INFO", "Full Fetch started");
+  log("INFO", `Run ID: ${runId}`);
+  log("INFO", `Queue Count: ${fetchQueue.length}`);
+  log("INFO", `Batch Size: ${batchSize}`);
+  log("INFO", `Raw Data Mode: ${rawDataMode}`);
+  log("INFO", `Auto Log Path: ${autoLogPath}`);
+  log("INFO", `Checkpoint Path: ${checkpointPath}`);
+  log("INFO", "Data Source Mode: Live Jira API");
+  log("INFO", `API Version: ${connection.apiVersion === "v3" ? "Jira Cloud v3" : "Jira Server/Data Center v2"}`);
+  log("INFO", `Auth Type: ${connection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`);
+  log("INFO", "Authorization: [masked]");
+  log("INFO", "Execution Mode: Sequential read-only fetch");
+  log("INFO", "No database write will be performed");
+  log("INFO", "No Jira write will be performed");
+  log("INFO", "No attachment file download will be performed");
+  updateMemory("Full Fetch started");
+  updateCheckpoint("running");
   const client = createJiraClient({
     baseUrl: connection.baseUrl,
     email: connection.email || connection.username,
@@ -652,23 +888,54 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: { connection:
   const warnings: string[] = [];
   const errors: string[] = [];
 
-  for (const candidate of fetchQueue) {
+  for (let queueIndex = 0; queueIndex < fetchQueue.length; queueIndex += 1) {
+    const candidate = fetchQueue[queueIndex];
     const issueKey = text(candidate.key).toUpperCase();
     const issueStarted = Date.now();
-    logs.push(`[INFO] Full Fetch issue started: ${issueKey}`);
+    if (activeFullFetch) {
+      activeFullFetch.currentIndex = queueIndex + 1;
+      activeFullFetch.currentIssueKey = issueKey;
+    }
+    issueStatus.push({ index: queueIndex + 1, issueKey, status: "running", startedAt: new Date().toISOString() });
+    log("PROGRESS", `${queueIndex + 1}/${fetchQueue.length} started: ${issueKey}`);
+    log("INFO", `Full Fetch issue started: ${issueKey}`);
+    updateMemory(`before issue ${issueKey}`);
+    updateCheckpoint("running");
     const issuePath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}?fields=*all&expand=names,schema,renderedFields,changelog`;
-    logs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}?fields=*all&expand=names,schema,renderedFields,changelog`);
+    log("DEBUG", `GET ${apiPrefix}/issue/${issueKey}?fields=*all&expand=names,schema,renderedFields,changelog`);
     const issue = await client.get(issuePath);
     endpointMetadata.push({ issueKey, endpoint: `${apiPrefix}/issue/${issueKey}`, method: "GET", status: issue.status, contentType: issue.contentType });
-    rawIssueResponsesSanitized.push({ issueKey, endpoint: "issue", status: issue.status, json: sanitizeRawJson(issue.json), bodyPreview: issue.bodyPreview });
+    const initialRawIssue = { issueKey, endpoint: "issue", status: issue.status, json: sanitizeRawJson(issue.json), bodyPreview: issue.bodyPreview };
+    rawDataEstimateBytes += Buffer.byteLength(JSON.stringify(initialRawIssue), "utf8");
+    if (rawDataMode === "full_raw_in_memory") rawIssueResponsesSanitized.push(initialRawIssue);
     if (!issue.ok) {
       const message = `HTTP ${issue.status} ${issue.message ?? issue.errorType ?? ""}`.trim();
-      logs.push(`[ERROR] Full Fetch issue failed: ${issueKey} ${message}`);
-      logs.push("[INFO] Continue with next issue");
+      log("ERROR", `Full Fetch issue failed: ${issueKey} ${message}`);
+      log("INFO", "Continue with next issue");
       errors.push(`${issueKey}: ${message}`);
       const failedResult = { issue: {}, httpStatus: issue.status, changelogHistories: [], comments: [], attachments: [], links: [], parsedUsers: [] };
       report.push(buildFullFetchReport(issueKey, candidate, failedResult, issueStarted, "failed", message));
       issueResults.push({ issueKey, fetchStatus: "failed", error: message });
+      if (activeFullFetch) {
+        activeFullFetch.failed += 1;
+        activeFullFetch.lastCompletedIndex = queueIndex + 1;
+        activeFullFetch.lastCompletedIssueKey = issueKey;
+      }
+      issueStatus[issueStatus.length - 1] = { index: queueIndex + 1, issueKey, status: "failed", durationMs: Date.now() - issueStarted, error: message };
+      if (rawDataMode !== "full_raw_in_memory") rawDataEstimateBytes = 0;
+      updateMemory(`after failed issue ${issueKey}`);
+      updateCheckpoint("running");
+      if ((queueIndex + 1) % batchSize === 0 || queueIndex + 1 === fetchQueue.length) {
+        const batchNumber = Math.ceil((queueIndex + 1) / batchSize);
+        log("BATCH", `${batchNumber}/${Math.max(1, Math.ceil(fetchQueue.length / batchSize))} completed: success=${activeFullFetch?.success ?? 0} failed=${activeFullFetch?.failed ?? 0} skipped=${activeFullFetch?.skipped ?? 0}`);
+        updateMemory(`after batch ${batchNumber}`);
+        updateCheckpoint("running");
+      }
+      if (activeFullFetch?.pauseRequested) {
+        log("INFO", `Paused after current failed issue: ${issueKey}`);
+        updateCheckpoint("paused");
+        break;
+      }
       continue;
     }
 
@@ -678,18 +945,20 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: { connection:
     let changelogHistories = Array.isArray(changelogRoot.histories) ? changelogRoot.histories as Record<string, unknown>[] : [];
     if (changelogHistories.length === 0) {
       const changelogPath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}?expand=changelog`;
-      logs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}?expand=changelog`);
+      log("DEBUG", `GET ${apiPrefix}/issue/${issueKey}?expand=changelog`);
       const changelogResponse = await client.get(changelogPath);
       endpointMetadata.push({ issueKey, endpoint: `${apiPrefix}/issue/${issueKey}?expand=changelog`, method: "GET", status: changelogResponse.status, contentType: changelogResponse.contentType });
       if (changelogResponse.ok) {
         const changelogJson = asRecord(changelogResponse.json);
         changelogRoot = asRecord(changelogJson.changelog);
         changelogHistories = Array.isArray(changelogRoot.histories) ? changelogRoot.histories as Record<string, unknown>[] : [];
-        rawIssueResponsesSanitized.push({ issueKey, endpoint: "issue-changelog-fallback", status: changelogResponse.status, json: sanitizeRawJson(changelogResponse.json), bodyPreview: changelogResponse.bodyPreview });
+        const fallbackRaw = { issueKey, endpoint: "issue-changelog-fallback", status: changelogResponse.status, json: sanitizeRawJson(changelogResponse.json), bodyPreview: changelogResponse.bodyPreview };
+        rawDataEstimateBytes += Buffer.byteLength(JSON.stringify(fallbackRaw), "utf8");
+        if (rawDataMode === "full_raw_in_memory") rawIssueResponsesSanitized.push(fallbackRaw);
       } else {
         const message = `Changelog fallback failed for ${issueKey}: HTTP ${changelogResponse.status} ${changelogResponse.message ?? changelogResponse.errorType ?? ""}`.trim();
         warnings.push(message);
-        logs.push(`[WARN] ${message}`);
+        log("WARN", message);
       }
     }
     const comments: Record<string, unknown>[] = [];
@@ -697,14 +966,16 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: { connection:
     const commentMax = 100;
     const commentSafetyLimit = 1000;
     while (commentsStartAt < commentSafetyLimit) {
-      logs.push(`[DEBUG] GET ${apiPrefix}/issue/${issueKey}/comment?startAt=${commentsStartAt}&maxResults=${commentMax}`);
+      log("DEBUG", `GET ${apiPrefix}/issue/${issueKey}/comment?startAt=${commentsStartAt}&maxResults=${commentMax}`);
       const commentsResponse = await client.get(`${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?startAt=${commentsStartAt}&maxResults=${commentMax}`);
       endpointMetadata.push({ issueKey, endpoint: `${apiPrefix}/issue/${issueKey}/comment`, method: "GET", startAt: commentsStartAt, maxResults: commentMax, status: commentsResponse.status, contentType: commentsResponse.contentType });
-      rawCommentResponsesSanitized.push({ issueKey, startAt: commentsStartAt, status: commentsResponse.status, json: sanitizeRawJson(commentsResponse.json), bodyPreview: commentsResponse.bodyPreview });
+      const commentRaw = { issueKey, startAt: commentsStartAt, status: commentsResponse.status, json: sanitizeRawJson(commentsResponse.json), bodyPreview: commentsResponse.bodyPreview };
+      rawDataEstimateBytes += Buffer.byteLength(JSON.stringify(commentRaw), "utf8");
+      if (rawDataMode === "full_raw_in_memory") rawCommentResponsesSanitized.push(commentRaw);
       if (!commentsResponse.ok) {
         const message = `Comments pagination failed for ${issueKey}: HTTP ${commentsResponse.status} ${commentsResponse.message ?? commentsResponse.errorType ?? ""}`.trim();
         warnings.push(message);
-        logs.push(`[WARN] ${message}`);
+        log("WARN", message);
         break;
       }
       const commentJson = asRecord(commentsResponse.json);
@@ -738,25 +1009,59 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: { connection:
       parsedUsers,
       estimatedEvents: 1 + changeItems + comments.length + attachments.length + links.length
     };
-    logs.push(`[INFO] Issue full fields parsed: ${Object.keys(fields).length}`);
-    logs.push(`[INFO] Changelog parsed: ${changelogHistories.length} histories / ${changeItems} items`);
-    logs.push(`[INFO] Comments parsed: ${comments.length}`);
-    logs.push(`[INFO] Attachments parsed: ${attachments.length} metadata only`);
-    logs.push("[INFO] No attachment file download performed");
-    logs.push(`[INFO] Issue links parsed: ${links.length}`);
-    logs.push(`[INFO] Parsed users: ${parsedUsers.length}`);
-    logs.push(`[INFO] Estimated activity events: ${result.estimatedEvents}`);
-    logs.push(`[SUCCESS] Full Fetch issue completed: ${issueKey}`);
-    issueResults.push(result);
-    report.push(buildFullFetchReport(issueKey, candidate, result, issueStarted, "success"));
+    log("INFO", `Issue full fields parsed: ${Object.keys(fields).length}`);
+    log("INFO", `Changelog parsed: ${changelogHistories.length} histories / ${changeItems} items`);
+    log("INFO", `Comments parsed: ${comments.length}`);
+    log("INFO", `Attachments parsed: ${attachments.length} metadata only`);
+    log("INFO", "No attachment file download performed");
+    log("INFO", `Issue links parsed: ${links.length}`);
+    log("INFO", `Parsed users: ${parsedUsers.length}`);
+    log("INFO", `Estimated activity events: ${result.estimatedEvents}`);
+    const reportRow = buildFullFetchReport(issueKey, candidate, result, issueStarted, "success");
+    report.push(reportRow);
+    const resultSummary = { ...reportRow, rawFilePath: "" };
+    if (rawDataMode === "auto_save_raw_per_issue") {
+      const rawFilePath = path.join(rawIssuesDir, `${issueKey.replace(/[^A-Z0-9_-]/g, "_")}.raw.json`);
+      writeJsonAtomic(rawFilePath, { issue: initialRawIssue, result: sanitizeRawJson(result), endpointMetadata: endpointMetadata.filter((item) => item.issueKey === issueKey) });
+      resultSummary.rawFilePath = rawFilePath;
+      rawManifest.push({ issueKey, rawFilePath });
+      log("INFO", `Raw data saved per issue: ${rawFilePath}`);
+    }
+    if (rawDataMode !== "full_raw_in_memory") rawDataEstimateBytes = 0;
+    issueResults.push(resultSummary);
+    if (activeFullFetch) {
+      activeFullFetch.success += 1;
+      activeFullFetch.lastCompletedIndex = queueIndex + 1;
+      activeFullFetch.lastCompletedIssueKey = issueKey;
+    }
+    const durationMs = Date.now() - issueStarted;
+    issueStatus[issueStatus.length - 1] = { index: queueIndex + 1, issueKey, status: "success", durationMs };
+    const progress = progressPayload();
+    log("PROGRESS", `${queueIndex + 1}/${fetchQueue.length} completed: ${issueKey} status=success duration=${durationMs}ms success=${progress.success} failed=${progress.failed} skipped=${progress.skipped} eta=${progress.estimatedRemainingMs}ms`);
+    log("SUCCESS", `Full Fetch issue completed: ${issueKey}`);
+    if ((queueIndex + 1) % 5 === 0 || rawDataEstimateBytes > 50 * 1024 * 1024) updateMemory(`after issue ${issueKey}`);
+    updateCheckpoint("running");
+    if ((queueIndex + 1) % batchSize === 0 || queueIndex + 1 === fetchQueue.length) {
+      const batchNumber = Math.ceil((queueIndex + 1) / batchSize);
+      log("BATCH", `${batchNumber}/${Math.max(1, Math.ceil(fetchQueue.length / batchSize))} completed: success=${activeFullFetch?.success ?? 0} failed=${activeFullFetch?.failed ?? 0} skipped=${activeFullFetch?.skipped ?? 0}`);
+      updateMemory(`after batch ${batchNumber}`);
+      updateCheckpoint("running");
+    }
+    if (activeFullFetch?.pauseRequested) {
+      log("INFO", `Paused after current issue: ${issueKey}`);
+      updateCheckpoint("paused");
+      break;
+    }
   }
 
-  const success = report.filter((item) => item.fetchStatus === "success").length;
-  const failed = report.filter((item) => item.fetchStatus === "failed").length;
+  const success = activeFullFetch?.success ?? report.filter((item) => item.fetchStatus === "success").length;
+  const failed = activeFullFetch?.failed ?? report.filter((item) => item.fetchStatus === "failed").length;
   const skipped = report.filter((item) => item.fetchStatus === "skipped").length;
+  const paused = activeFullFetch?.status === "paused";
+  const completedCount = success + failed + skipped;
   const summary = {
     totalIssues: fetchQueue.length,
-    pending: 0,
+    pending: Math.max(0, fetchQueue.length - completedCount),
     running: 0,
     success,
     failed,
@@ -769,10 +1074,28 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: { connection:
     totalParsedUsers: report.reduce((sum, item) => sum + Number(item.parsedUsers ?? 0), 0),
     totalEstimatedEvents: report.reduce((sum, item) => sum + Number(item.estimatedEvents ?? 0), 0)
   };
-  const status = failed > 0 ? "completed_with_errors" : "completed";
-  logs.push(`[INFO] Full Fetch completed: success=${success}, failed=${failed}, skipped=${skipped}`);
-  logs.push("[INFO] No database write performed");
-  return {
+  const status = paused ? "paused" : failed > 0 ? "completed_with_errors" : "completed";
+  if (paused) {
+    log("INFO", `Full Fetch paused: success=${success}, failed=${failed}, skipped=${skipped}`);
+    updateCheckpoint("paused");
+  } else {
+    log("SUCCESS", `Full Fetch completed: success=${success}, failed=${failed}, skipped=${skipped}`);
+    updateMemory("Full Fetch completed");
+    updateCheckpoint("completed");
+  }
+  log("INFO", `Auto log saved: ${autoLogPath}`);
+  log("INFO", `Checkpoint updated: status=${paused ? "paused" : "completed"}`);
+  log("INFO", "No database write performed");
+  const diagnostics = {
+    autoLogPath,
+    checkpointPath,
+    batchSize,
+    rawDataMode,
+    rawIssuesDir,
+    memorySummary: { peakRssMB, peakHeapUsedMB, peakRawDataEstimateMB },
+    finalMemory: activeFullFetch?.memory ?? memorySnapshot(rawDataEstimateBytes)
+  };
+  const response = {
     ok: true,
     logs,
     run: {
@@ -780,19 +1103,72 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: { connection:
       startedAt,
       finishedAt: new Date().toISOString(),
       status,
-      executionMode: "sequential"
+      executionMode: "sequential",
+      diagnostics
     },
     summary,
     fetchReport: report,
     issueResults,
-    rawData: {
+    rawData: rawDataMode === "full_raw_in_memory" ? {
+      exportType: "user-analysis-full-fetch-raw-data",
+      rawDataMode,
       rawIssueResponsesSanitized,
       rawCommentResponsesSanitized,
       endpointMetadata
+    } : rawDataMode === "auto_save_raw_per_issue" ? {
+      exportType: "user-analysis-full-fetch-raw-data-manifest",
+      rawDataMode,
+      issues: rawManifest,
+      endpointMetadata
+    } : {
+      exportType: "user-analysis-full-fetch-summary-only",
+      rawDataMode,
+      message: "Full raw responses were not retained in memory."
     },
+    diagnostics,
     warnings,
     errors
   };
+  activeFullFetch = null;
+  return response;
+});
+
+ipcMain.handle("user-analysis:pause-full-fetch", async () => {
+  if (!activeFullFetch || activeFullFetch.status !== "running") return { ok: false, message: "No Full Fetch is currently running." };
+  activeFullFetch.pauseRequested = true;
+  appendRuntimeLog(activeFullFetch.autoLogPath, "INFO", "Pause requested. Full Fetch will pause after the current issue.");
+  return { ok: true, runId: activeFullFetch.runId };
+});
+
+ipcMain.handle("user-analysis:latest-full-fetch-checkpoint", async () => {
+  const directory = ensureDir(getFullFetchLogsDir());
+  const files = fs.readdirSync(directory)
+    .filter((name) => name.endsWith(".checkpoint.json"))
+    .map((name) => ({ path: path.join(directory, name), modified: fs.statSync(path.join(directory, name)).mtimeMs }))
+    .sort((a, b) => b.modified - a.modified);
+  if (files.length === 0) return { found: false };
+  try {
+    const checkpoint = JSON.parse(fs.readFileSync(files[0].path, "utf8")) as Record<string, unknown>;
+    const status = text(checkpoint.status);
+    return {
+      found: true,
+      unfinished: !["completed", "failed", "cancelled"].includes(status),
+      checkpointPath: files[0].path,
+      checkpoint: sanitizeRawJson(checkpoint)
+    };
+  } catch (error) {
+    return { found: true, unfinished: false, checkpointPath: files[0].path, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle("user-analysis:open-diagnostics-folder", async (_event, payload?: { filePath?: string }) => {
+  const logsRoot = path.resolve(getLogsDir());
+  const target = path.resolve(payload?.filePath ? path.dirname(payload.filePath) : getFullFetchLogsDir());
+  const relative = path.relative(logsRoot, target);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) return { ok: false, error: "Diagnostics folder must be inside logs." };
+  ensureDir(target);
+  const error = await shell.openPath(target);
+  return error ? { ok: false, folderPath: target, error } : { ok: true, folderPath: target };
 });
 
 ipcMain.handle("user-analysis:save-export", async (_event, payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => {
@@ -1292,10 +1668,16 @@ function createMainWindow() {
 
   window.webContents.on("render-process-gone", (_event, details) => {
     console.error("[renderer render-process-gone]", details);
+    crashDiagnostic("render-process-gone", { reason: details.reason, exitCode: details.exitCode, processType: "renderer", currentRoute: window.webContents.getURL() });
   });
 
   window.on("unresponsive", () => {
     console.error("[window unresponsive]");
+    crashDiagnostic("window-unresponsive", { processType: "renderer", currentRoute: window.webContents.getURL() });
+  });
+
+  window.on("responsive", () => {
+    console.log("[window responsive]");
   });
 
   window.webContents.on("console-message", (_event, level, message, line, sourceId) => {
@@ -1347,6 +1729,24 @@ function createMainWindow() {
   }
 }
 
+process.on("uncaughtException", (error) => {
+  console.error("[main uncaughtException]", error);
+  crashDiagnostic("uncaughtException", { processType: "main", error: error.stack ?? error.message });
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[main unhandledRejection]", reason);
+  crashDiagnostic("unhandledRejection", { processType: "main", error: reason instanceof Error ? reason.stack ?? reason.message : String(reason) });
+});
+
+app.on("render-process-gone", (_event, webContents, details) => {
+  crashDiagnostic("app-render-process-gone", { processType: "renderer", reason: details.reason, exitCode: details.exitCode, currentRoute: webContents.getURL() });
+});
+
+app.on("child-process-gone", (_event, details) => {
+  crashDiagnostic("child-process-gone", { processType: details.type, reason: details.reason, exitCode: details.exitCode, serviceName: details.serviceName });
+});
+
 app.whenReady().then(() => {
   if (app.isPackaged || isUiSmoke) {
     Menu.setApplicationMenu(null);
@@ -1357,6 +1757,14 @@ app.whenReady().then(() => {
     console.log("[env] Default env file created", envState.envPath);
   } else {
     console.log("[env] Env file loaded", envState.envPath);
+  }
+
+  if (shouldSimulateCrashDiagnostic) {
+    setTimeout(() => {
+      void Promise.reject(new Error("Simulated unhandled rejection for crash diagnostic verification"));
+      setTimeout(() => app.quit(), 500);
+    }, 100);
+    return;
   }
 
   createMainWindow();

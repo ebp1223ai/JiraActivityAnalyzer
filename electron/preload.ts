@@ -25,6 +25,19 @@ contextBridge.exposeInMainWorld("desktopApp", {
   userAnalysis: {
     discoverCandidates: (payload: unknown) => ipcRenderer.invoke("user-analysis:discover-candidates", payload),
     fullFetch: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch", payload),
+    pauseFullFetch: () => ipcRenderer.invoke("user-analysis:pause-full-fetch"),
+    latestFullFetchCheckpoint: () => ipcRenderer.invoke("user-analysis:latest-full-fetch-checkpoint"),
+    openDiagnosticsFolder: (payload?: { filePath?: string }) => ipcRenderer.invoke("user-analysis:open-diagnostics-folder", payload),
+    onFullFetchProgress: (callback: (progress: unknown) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => callback(progress);
+      ipcRenderer.on("user-analysis:full-fetch-progress", listener);
+      return () => ipcRenderer.removeListener("user-analysis:full-fetch-progress", listener);
+    },
+    onFullFetchLog: (callback: (line: string) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, line: string) => callback(line);
+      ipcRenderer.on("user-analysis:full-fetch-log", listener);
+      return () => ipcRenderer.removeListener("user-analysis:full-fetch-log", listener);
+    },
     saveExport: (payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => ipcRenderer.invoke("user-analysis:save-export", payload),
     openExportFolder: (payload?: { folderPath?: string }) => ipcRenderer.invoke("user-analysis:open-export-folder", payload)
   },

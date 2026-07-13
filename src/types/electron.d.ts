@@ -63,7 +63,12 @@ declare global {
       };
       userAnalysis?: {
         discoverCandidates: (payload: { connection: JiraConnection; jql: string; safetyLimit: number; selectedUsers: string[] }) => Promise<Record<string, unknown>>;
-        fullFetch: (payload: { connection: JiraConnection; fetchQueue: unknown[]; fetchLimit: number }) => Promise<Record<string, unknown>>;
+        fullFetch: (payload: { connection: JiraConnection; fetchQueue: unknown[]; fetchLimit: number; batchSize: number | "all"; rawDataMode: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory" }) => Promise<Record<string, unknown>>;
+        pauseFullFetch: () => Promise<{ ok: boolean; runId?: string; message?: string }>;
+        latestFullFetchCheckpoint: () => Promise<{ found: boolean; unfinished?: boolean; checkpointPath?: string; checkpoint?: Record<string, unknown>; error?: string }>;
+        openDiagnosticsFolder: (payload?: { filePath?: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;
+        onFullFetchProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
+        onFullFetchLog: (callback: (line: string) => void) => () => void;
         saveExport: (payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
         openExportFolder: (payload?: { folderPath?: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;
       };

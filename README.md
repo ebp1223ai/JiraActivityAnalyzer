@@ -1,6 +1,6 @@
 # Jira Activity Analyzer
 
-First desktop UI prototype for Jira Activity Analyzer / Activity Builder.
+Electron desktop application for read-only Jira activity inspection and analysis.
 
 This is an Electron desktop app shell with a React renderer. The first version is a static UI prototype with one read-only Jira Probe diagnostics page. Import, database writes, token storage, and backup restore behavior are not implemented.
 
@@ -22,6 +22,23 @@ The app injects `__BUILD_TIME__` from `vite.config.ts`.
 - `npm run build` / `npm run dist`: Asia/Taipei timestamp in `YYYY/MM/DD HH:mm:ss` format
 
 Build Time is shown in the sidebar and in Settings > System Status.
+
+## Full Fetch Stability and Diagnostics
+
+User Analysis Full Fetch is a sequential, read-only Jira operation. Version 0.2.3 adds runtime diagnostics intended for larger queues:
+
+- An auto log is created immediately under `<runtime>/logs/full-fetch/` and appended throughout the run.
+- An atomic checkpoint JSON records the current issue, last completed issue, counts, timing, memory, and per-issue status.
+- The UI shows total/current progress, success/failed/skipped counts, elapsed time, average time, ETA, batch progress, and Node process memory snapshots.
+- Batch Size supports 10, 20, 40, or All; the default is 10.
+- Raw Data Mode supports Summary Only, Auto-save Raw per Issue, and Full Raw in Memory. Auto-save Raw per Issue is the default and writes sanitized issue files under `<runtime>/exports/raw-data/full-fetch-run-*/issues/`.
+- Auto-save and Summary Only keep full raw Jira responses out of renderer session memory. Full Raw in Memory is intended only for small queues and displays additional warnings.
+- Queues over 10 issues display a warning; queues over 40 require typing `CONFIRM` before requests begin.
+- Pause After Current Issue lets the active Jira request finish, writes a paused checkpoint, and does not start the next issue. Resume is not implemented in this version.
+- On the next visit to User Analysis, the newest unfinished checkpoint is shown with its current/last issue and diagnostic paths.
+- Main/renderer/child process failures and unresponsive windows write masked diagnostics under `<runtime>/logs/crash/`.
+
+Runtime logs, checkpoints, raw diagnostic files, exports, databases, and release artifacts are ignored by Git. Full Fetch does not write Jira, does not write a database, and does not download attachment bodies.
 
 ## Global Data Source Mode
 

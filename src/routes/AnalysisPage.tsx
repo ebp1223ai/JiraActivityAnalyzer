@@ -1,6 +1,6 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, ChevronDown, ChevronUp, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel } from "../components/FormControls";
@@ -9,7 +9,7 @@ import { ResponsiveTableContainer } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useConnectionContext } from "../state/ConnectionContext";
-import { useSessionState, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchReportRow } from "../state/SessionStateContext";
+import { useSessionState, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type UserAnalysisFullFetchReportRow } from "../state/SessionStateContext";
 
 const fetchLimitOptions = [10, 20, 40, 80, 160];
 const pageSizeOptions = [10, 20, 40, 80, 160];
@@ -102,6 +102,15 @@ function stamp() {
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
+function formatDuration(milliseconds: number) {
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) return "-";
+  const totalSeconds = Math.round(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours ? `${hours}h` : "", minutes ? `${minutes}m` : "", `${seconds}s`].filter(Boolean).join(" ");
+}
+
 function parentFolder(filePath: string) {
   const index = Math.max(filePath.lastIndexOf("\\"), filePath.lastIndexOf("/"));
   return index > -1 ? filePath.slice(0, index) : "";
@@ -166,15 +175,62 @@ export function AnalysisPage() {
   const fetchReportPageCount = Math.max(1, Math.ceil(filteredFetchReport.length / userAnalysis.fetchReportPageSize));
   const fetchReportPage = Math.min(userAnalysis.fetchReportPage, fetchReportPageCount);
   const pagedFetchReport = filteredFetchReport.slice((fetchReportPage - 1) * userAnalysis.fetchReportPageSize, fetchReportPage * userAnalysis.fetchReportPageSize);
-  const hasFullFetchResult = userAnalysis.fullFetchStatus === "completed" || userAnalysis.fullFetchStatus === "completed_with_errors" || userAnalysis.fullFetchStatus === "failed";
+  const hasFullFetchResult = userAnalysis.fullFetchStatus === "paused" || userAnalysis.fullFetchStatus === "completed" || userAnalysis.fullFetchStatus === "completed_with_errors" || userAnalysis.fullFetchStatus === "failed";
   const dateRangeDays = userAnalysis.startDate && userAnalysis.endDate
     ? Math.round((Date.parse(userAnalysis.endDate) - Date.parse(userAnalysis.startDate)) / 86400000) + 1
     : 0;
   const dateRangeWarning = dateRangeDays > 90 ? "Date range is over 90 days. Candidate Discovery may be slow; narrow the range if possible." : "";
+  const fullFetchCompletedCount = userAnalysis.fullFetchProgress.success + userAnalysis.fullFetchProgress.failed + userAnalysis.fullFetchProgress.skipped;
+  const fullFetchProgressPercent = userAnalysis.fullFetchProgress.total > 0
+    ? Math.min(100, Math.round((fullFetchCompletedCount / userAnalysis.fullFetchProgress.total) * 100))
+    : 0;
 
   function patchState(patch: Partial<typeof userAnalysis>) {
     setUserAnalysis((current) => ({ ...current, ...patch }));
   }
+
+  useEffect(() => {
+    const subscribe = window.desktopApp?.userAnalysis?.onFullFetchProgress;
+    if (!subscribe) return;
+    return subscribe((payload) => {
+      const progress = payload as unknown as UserAnalysisFullFetchProgress;
+      setUserAnalysis((current) => ({
+        ...current,
+        fullFetchStatus: progress.status === "paused"
+          ? "paused"
+          : progress.status === "completed"
+            ? "completed"
+            : progress.status === "failed" || progress.status === "crashed"
+              ? "failed"
+              : "running",
+        fullFetchRunId: progress.runId || current.fullFetchRunId,
+        fullFetchProgress: progress,
+        fullFetchMemory: progress.memory ?? current.fullFetchMemory,
+        autoLogPath: progress.autoLogPath || current.autoLogPath,
+        checkpointPath: progress.checkpointPath || current.checkpointPath,
+        pauseAfterCurrentIssue: current.pauseAfterCurrentIssue && progress.status !== "paused"
+      }));
+    });
+  }, [setUserAnalysis]);
+
+  useEffect(() => {
+    const subscribe = window.desktopApp?.userAnalysis?.onFullFetchLog;
+    if (!subscribe) return;
+    return subscribe((line) => appendDebugLog("analysis", [line]));
+  }, [appendDebugLog]);
+
+  useEffect(() => {
+    let active = true;
+    void window.desktopApp?.userAnalysis?.latestFullFetchCheckpoint?.().then((result) => {
+      if (!active || !result?.unfinished) return;
+      setUserAnalysis((current) => ({
+        ...current,
+        previousUnfinishedRun: { ...(result.checkpoint ?? {}), checkpointPath: result.checkpointPath ?? "" },
+        previousUnfinishedDismissed: false
+      }));
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [setUserAnalysis]);
 
   function showStep(step: "candidate" | "queue" | "fetchReport" | "exports") {
     patchState({ activeTab: step === "candidate" ? "candidates" : step });
@@ -341,6 +397,13 @@ export function AnalysisPage() {
     toggleIssue(issueKey, false);
   }
 
+  function fetchQueueRuntimeStatus(issueKey: string) {
+    const tracked = userAnalysis.fullFetchProgress.issueStatus.find((item) => item.issueKey === issueKey);
+    if (tracked) return tracked.status;
+    const completed = userAnalysis.fullFetchReport.find((item) => item.issueKey === issueKey);
+    return completed?.fetchStatus ?? "pending";
+  }
+
   function clearSession() {
     setUserAnalysis((current) => ({
       ...current,
@@ -388,6 +451,26 @@ export function AnalysisPage() {
       fullFetchRawDataByIssueSanitized: null,
       fullFetchWarnings: [],
       fullFetchErrors: [],
+      fullFetchProgress: {
+        ...current.fullFetchProgress,
+        status: "idle",
+        total: 0,
+        currentIndex: 0,
+        currentIssueKey: "",
+        lastCompletedIndex: 0,
+        lastCompletedIssueKey: "",
+        success: 0,
+        failed: 0,
+        skipped: 0,
+        elapsedMs: 0,
+        averageMsPerIssue: 0,
+        estimatedRemainingMs: 0,
+        issueStatus: []
+      },
+      fullFetchMemory: { rssMB: 0, heapUsedMB: 0, heapTotalMB: 0, externalMB: 0, systemFreeMB: 0, rawDataEstimateMB: 0 },
+      autoLogPath: "",
+      checkpointPath: "",
+      pauseAfterCurrentIssue: false,
       fetchReportPage: 1,
       fetchReportPageSize: 40,
       fetchReportFilter: "all",
@@ -490,6 +573,21 @@ export function AnalysisPage() {
         return;
       }
     }
+    if (fetchQueue.length > 40) {
+      const confirmation = window.prompt(`Large Full Fetch queue: ${fetchQueue.length} issues. This can take a long time and create many Jira GET requests. Type CONFIRM to continue.`);
+      if (confirmation !== "CONFIRM") {
+        appendDebugLog("analysis", ["[INFO] Large Full Fetch canceled before start"]);
+        return;
+      }
+    } else if (fetchQueue.length > 10 && !window.confirm(`Full Fetch will process ${fetchQueue.length} issues sequentially. Continue?`)) {
+      appendDebugLog("analysis", ["[INFO] Full Fetch canceled before start"]);
+      return;
+    }
+    if (userAnalysis.rawDataMode === "full_raw_in_memory" && fetchQueue.length > 20) {
+      if (!window.confirm("Full Raw in Memory with more than 20 issues can use substantial memory and increase crash risk. Continue?")) return;
+    } else if (userAnalysis.rawDataMode === "full_raw_in_memory" && fetchQueue.length > 10) {
+      appendDebugLog("analysis", ["[WARN] Full Raw in Memory selected for more than 10 issues"]);
+    }
     if (userAnalysis.fullFetchRunId) {
       appendDebugLog("analysis", ["[INFO] Previous full fetch session replaced."]);
     }
@@ -503,6 +601,30 @@ export function AnalysisPage() {
       fullFetchRawDataByIssueSanitized: null,
       fullFetchWarnings: [],
       fullFetchErrors: [],
+      fullFetchProgress: {
+        ...userAnalysis.fullFetchProgress,
+        status: "running",
+        total: fetchQueue.length,
+        currentIndex: 0,
+        currentIssueKey: "",
+        lastCompletedIndex: 0,
+        lastCompletedIssueKey: "",
+        success: 0,
+        failed: 0,
+        skipped: 0,
+        elapsedMs: 0,
+        averageMsPerIssue: 0,
+        estimatedRemainingMs: 0,
+        batchSize: userAnalysis.batchSize === "all" ? fetchQueue.length : userAnalysis.batchSize,
+        currentBatch: 0,
+        totalBatches: userAnalysis.batchSize === "all" ? 1 : Math.ceil(fetchQueue.length / userAnalysis.batchSize),
+        rawDataMode: userAnalysis.rawDataMode,
+        issueStatus: []
+      },
+      fullFetchMemory: { rssMB: 0, heapUsedMB: 0, heapTotalMB: 0, externalMB: 0, systemFreeMB: 0, rawDataEstimateMB: 0 },
+      autoLogPath: "",
+      checkpointPath: "",
+      pauseAfterCurrentIssue: false,
       fetchReportPage: 1,
       activeTab: "fetchReport",
       errors: [],
@@ -513,11 +635,14 @@ export function AnalysisPage() {
       const response = await window.desktopApp?.userAnalysis?.fullFetch?.({
         connection: activeConnection,
         fetchQueue,
-        fetchLimit: userAnalysis.fetchLimit
+        fetchLimit: userAnalysis.fetchLimit,
+        batchSize: userAnalysis.batchSize,
+        rawDataMode: userAnalysis.rawDataMode
       });
       if (!response) throw new Error("Electron User Analysis Full Fetch API is not available.");
-      appendDebugLog("analysis", Array.isArray(response.logs) ? response.logs as string[] : []);
       const run = (response.run ?? {}) as Record<string, unknown>;
+      const diagnostics = (response.diagnostics ?? run.diagnostics ?? {}) as Record<string, unknown>;
+      const finalMemory = (diagnostics.finalMemory ?? {}) as UserAnalysisFullFetchMemory;
       const status = String(run.status ?? (response.ok ? "completed" : "failed")) as typeof userAnalysis.fullFetchStatus;
       patchState({
         fullFetchRunId: String(run.runId ?? ""),
@@ -528,6 +653,10 @@ export function AnalysisPage() {
         fullFetchReport: (Array.isArray(response.fetchReport) ? response.fetchReport : []) as UserAnalysisFullFetchReportRow[],
         fullFetchResultsByIssue: Array.isArray(response.issueResults) ? response.issueResults : [],
         fullFetchRawDataByIssueSanitized: response.rawData ?? null,
+        fullFetchMemory: finalMemory.rssMB === undefined ? userAnalysis.fullFetchMemory : finalMemory,
+        autoLogPath: String(diagnostics.autoLogPath ?? ""),
+        checkpointPath: String(diagnostics.checkpointPath ?? ""),
+        pauseAfterCurrentIssue: false,
         fullFetchWarnings: Array.isArray(response.warnings) ? response.warnings as string[] : [],
         fullFetchErrors: Array.isArray(response.errors) ? response.errors as string[] : [],
         errors: Array.isArray(response.errors) ? response.errors as string[] : [],
@@ -545,6 +674,29 @@ export function AnalysisPage() {
       });
       appendDebugLog("analysis", [`[ERROR] Full Fetch failed: ${message}`, "[INFO] No database write performed"]);
     }
+  }
+
+  async function handlePauseFullFetch() {
+    patchState({ pauseAfterCurrentIssue: true, notice: "Pause requested. The current issue will finish first. / 已要求暫停，將先完成目前 Jira。" });
+    const result = await window.desktopApp?.userAnalysis?.pauseFullFetch?.();
+    if (!result?.ok) {
+      patchState({ pauseAfterCurrentIssue: false, errors: [result?.message ?? "Pause request failed."] });
+      return;
+    }
+    appendDebugLog("analysis", ["[INFO] Pause requested; waiting for current issue to complete"]);
+  }
+
+  async function openDiagnosticsFolder(filePath = userAnalysis.autoLogPath || userAnalysis.checkpointPath) {
+    const result = await window.desktopApp?.userAnalysis?.openDiagnosticsFolder?.({ filePath });
+    patchState(result?.ok
+      ? { notice: `Opened diagnostics folder: ${result.folderPath}`, errors: [] }
+      : { notice: "", errors: [result?.error ?? "Open diagnostics folder failed."] });
+  }
+
+  async function copyDiagnosticsPath(filePath: string) {
+    if (!filePath) return;
+    await navigator.clipboard.writeText(filePath);
+    patchState({ notice: "Diagnostics path copied. / 已複製診斷路徑。", errors: [] });
   }
 
   function fullFetchResultPayload() {
@@ -576,7 +728,20 @@ export function AnalysisPage() {
         startedAt: userAnalysis.fullFetchStartedAt,
         finishedAt: userAnalysis.fullFetchFinishedAt,
         status: userAnalysis.fullFetchStatus,
-        executionMode: "sequential"
+        executionMode: "sequential",
+        batchSize: userAnalysis.batchSize,
+        rawDataMode: userAnalysis.rawDataMode,
+        progress: userAnalysis.fullFetchProgress,
+        memory: userAnalysis.fullFetchMemory,
+        autoLogPath: userAnalysis.autoLogPath,
+        checkpointPath: userAnalysis.checkpointPath
+      },
+      fullFetchDiagnostics: {
+        autoLogPath: userAnalysis.autoLogPath,
+        checkpointPath: userAnalysis.checkpointPath,
+        batchSize: userAnalysis.batchSize,
+        rawDataMode: userAnalysis.rawDataMode,
+        memory: userAnalysis.fullFetchMemory
       },
       summary: userAnalysis.fullFetchSummary,
       fetchReport: userAnalysis.fullFetchReport,
@@ -590,7 +755,7 @@ export function AnalysisPage() {
   function fullFetchRawDataPayload() {
     const rawData = (userAnalysis.fullFetchRawDataByIssueSanitized ?? {}) as Record<string, unknown>;
     return {
-      exportType: "user-analysis-full-fetch-raw-data",
+      exportType: String(rawData.exportType ?? "user-analysis-full-fetch-raw-data"),
       app: {
         name: "Jira Activity Analyzer",
         version: buildInfo.version.replace(/^v/, ""),
@@ -612,6 +777,9 @@ export function AnalysisPage() {
       },
       rawIssueResponsesSanitized: Array.isArray(rawData.rawIssueResponsesSanitized) ? rawData.rawIssueResponsesSanitized : [],
       rawCommentResponsesSanitized: Array.isArray(rawData.rawCommentResponsesSanitized) ? rawData.rawCommentResponsesSanitized : [],
+      rawDataMode: userAnalysis.rawDataMode,
+      rawDataManifest: Array.isArray(rawData.issues) ? rawData.issues : [],
+      rawDataMessage: String(rawData.message ?? ""),
       endpointMetadata: Array.isArray(rawData.endpointMetadata) ? rawData.endpointMetadata : [],
       warnings: userAnalysis.fullFetchWarnings,
       errors: userAnalysis.fullFetchErrors
@@ -752,6 +920,27 @@ export function AnalysisPage() {
         依選定使用者與日期範圍搜尋相關 Jira，第一階段建立候選清單與抓取佇列，供第二階段完整抓取使用。
       </p>
 
+      {userAnalysis.previousUnfinishedRun && !userAnalysis.previousUnfinishedDismissed ? (
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-black">Previous Full Fetch may be unfinished / 前次完整抓取可能未完成</div>
+              <div className="mt-1 break-words">Last completed: {String(userAnalysis.previousUnfinishedRun.lastCompletedIndex ?? 0)} / {String(userAnalysis.previousUnfinishedRun.total ?? userAnalysis.previousUnfinishedRun.queueCount ?? 0)} · {String(userAnalysis.previousUnfinishedRun.lastCompletedIssueKey ?? "-")}</div>
+              <div className="mt-1 break-words">Crash or exit likely occurred near / 可能中斷於：{String(userAnalysis.previousUnfinishedRun.currentIssueKey ?? "-")}</div>
+              <div className="mt-1 break-all text-xs" title={String(userAnalysis.previousUnfinishedRun.autoLogPath ?? "")}>{String(userAnalysis.previousUnfinishedRun.autoLogPath ?? "")}</div>
+              <div className="mt-1 break-all text-xs" title={String(userAnalysis.previousUnfinishedRun.checkpointPath ?? "")}>{String(userAnalysis.previousUnfinishedRun.checkpointPath ?? "")}</div>
+              <div className="mt-2 font-semibold">Automatic resume is not performed. Review the checkpoint before starting a new run. / 系統不會自動續跑，請先檢查 checkpoint。</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button className="btn" type="button" onClick={() => void openDiagnosticsFolder(String(userAnalysis.previousUnfinishedRun?.checkpointPath ?? ""))}><FolderOpen size={15} />Open Diagnostics / 開啟診斷</button>
+              <button className="btn" type="button" disabled={!userAnalysis.previousUnfinishedRun.autoLogPath} onClick={() => void copyDiagnosticsPath(String(userAnalysis.previousUnfinishedRun?.autoLogPath ?? ""))}><Copy size={15} />Copy Log Path / 複製 Log 路徑</button>
+              <button className="btn" type="button" disabled={!userAnalysis.previousUnfinishedRun.checkpointPath} onClick={() => void copyDiagnosticsPath(String(userAnalysis.previousUnfinishedRun?.checkpointPath ?? ""))}><Copy size={15} />Copy Checkpoint Path / 複製 Checkpoint 路徑</button>
+              <button className="btn" type="button" onClick={() => patchState({ previousUnfinishedDismissed: true })}>Dismiss / 關閉</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <SectionCard className="mb-4">
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {[
@@ -769,6 +958,54 @@ export function AnalysisPage() {
           })}
         </div>
       </SectionCard>
+
+      {(userAnalysis.fullFetchStatus === "running" || userAnalysis.fullFetchStatus === "paused" || userAnalysis.autoLogPath) ? (
+        <SectionCard title="Full Fetch Progress" subtitle="完整抓取進度" className="mb-4">
+          <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <MiniStat label="Total Issues / 總數" value={userAnalysis.fullFetchProgress.total} />
+            <MiniStat label="Current / 目前" value={`${userAnalysis.fullFetchProgress.currentIndex} / ${userAnalysis.fullFetchProgress.total}`} />
+            <MiniStat label="Current Issue / 目前 Jira" value={userAnalysis.fullFetchProgress.currentIssueKey || "-"} />
+            <MiniStat label="Success / 成功" value={userAnalysis.fullFetchProgress.success} />
+            <MiniStat label="Failed / 失敗" value={userAnalysis.fullFetchProgress.failed} />
+            <MiniStat label="Skipped / 略過" value={userAnalysis.fullFetchProgress.skipped} />
+            <MiniStat label="Elapsed / 已耗時" value={formatDuration(userAnalysis.fullFetchProgress.elapsedMs)} />
+            <MiniStat label="ETA / 預估剩餘" value={formatDuration(userAnalysis.fullFetchProgress.estimatedRemainingMs)} />
+          </div>
+          <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200" aria-label={`Full Fetch progress ${fullFetchProgressPercent}%`}>
+            <div className="h-full bg-blue-600 transition-all" style={{ width: `${fullFetchProgressPercent}%` }} />
+          </div>
+          <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs font-bold text-muted">
+            <span>{fullFetchProgressPercent}% · Average / 平均 {formatDuration(userAnalysis.fullFetchProgress.averageMsPerIssue)} per issue</span>
+            <span>Batch / 批次 {userAnalysis.fullFetchProgress.currentBatch || 0} / {userAnalysis.fullFetchProgress.totalBatches || 0}</span>
+          </div>
+          <div className="mt-4 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+            <MiniStat label="RSS Memory" value={`${userAnalysis.fullFetchMemory.rssMB} MB`} />
+            <MiniStat label="Heap Used" value={`${userAnalysis.fullFetchMemory.heapUsedMB} MB`} />
+            <MiniStat label="Heap Total" value={`${userAnalysis.fullFetchMemory.heapTotalMB} MB`} />
+            <MiniStat label="External" value={`${userAnalysis.fullFetchMemory.externalMB} MB`} />
+            <MiniStat label="System Free" value={`${userAnalysis.fullFetchMemory.systemFreeMB} MB`} />
+            <MiniStat label="Raw Estimate" value={`${userAnalysis.fullFetchMemory.rawDataEstimateMB} MB`} />
+          </div>
+          <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2">
+            {[["Auto Log / 自動紀錄", userAnalysis.autoLogPath], ["Checkpoint / 檢查點", userAnalysis.checkpointPath]].map(([label, filePath]) => (
+              <div key={label} className="min-w-0 rounded-lg border border-line bg-slate-50 p-3">
+                <div className="text-xs font-black uppercase text-muted">{label}</div>
+                <div className="mt-1 break-all text-xs font-semibold" title={filePath}>{filePath || "Preparing... / 準備中..."}</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button className="btn px-3 py-2" type="button" disabled={!filePath} onClick={() => void openDiagnosticsFolder(filePath)}><FolderOpen size={14} />Open Folder / 開啟資料夾</button>
+                  <button className="btn px-3 py-2" type="button" disabled={!filePath} onClick={() => void copyDiagnosticsPath(filePath)}><Copy size={14} />Copy Path / 複製路徑</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {userAnalysis.fullFetchStatus === "running" ? (
+            <button className="btn mt-4" type="button" disabled={userAnalysis.pauseAfterCurrentIssue} onClick={() => void handlePauseFullFetch()}>
+              <PauseCircle size={16} />{userAnalysis.pauseAfterCurrentIssue ? "Pause requested / 已要求暫停" : "Pause after current issue / 完成目前 Jira 後暫停"}
+            </button>
+          ) : null}
+          {userAnalysis.fullFetchStatus === "paused" ? <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">Full Fetch paused after the last completed issue. / 完整抓取已於上一張 Jira 完成後暫停。</div> : null}
+        </SectionCard>
+      ) : null}
 
       {userAnalysis.helpOpen ? (
         <SectionCard title="User Analysis workflow" subtitle="使用者分析流程" className="mb-4">
@@ -975,11 +1212,41 @@ export function AnalysisPage() {
             <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">
               <b>Fetch Queue / 抓取佇列</b><br />Only issues in the Fetch Queue will be processed by Full Fetch. / 只有抓取佇列中的 Jira 會被完整抓取。
             </div>
+            <div className="mb-3 grid min-w-0 grid-cols-1 gap-4 rounded-lg border border-line bg-slate-50 p-4 lg:grid-cols-2">
+              <div className="min-w-0">
+                <FieldLabel label="Raw Data Mode" sub="原始資料模式" />
+                <select className="field" value={userAnalysis.rawDataMode} disabled={userAnalysis.fullFetchStatus === "running"} onChange={(event) => patchState({ rawDataMode: event.target.value as typeof userAnalysis.rawDataMode })}>
+                  <option value="summary_only">Summary Only / 僅摘要（最低記憶體）</option>
+                  <option value="auto_save_raw_per_issue">Auto-save Raw per Issue / 每張 Jira 自動存檔（建議）</option>
+                  <option value="full_raw_in_memory">Full Raw in Memory / 完整 Raw 保留於記憶體（高風險）</option>
+                </select>
+                <span className="mt-1 block text-xs font-semibold leading-snug text-muted">Auto-save writes sanitized per-issue diagnostic JSON outside the database. / 自動存檔只寫入清理後的診斷 JSON，不寫入資料庫。</span>
+              </div>
+              <div className="min-w-0">
+                <FieldLabel label="Batch Size" sub="批次大小" />
+                <select className="field" value={userAnalysis.batchSize} disabled={userAnalysis.fullFetchStatus === "running"} onChange={(event) => patchState({ batchSize: event.target.value === "all" ? "all" : Number(event.target.value) as 10 | 20 | 40 })}>
+                  <option value={10}>10 issues / 10 張</option>
+                  <option value={20}>20 issues / 20 張</option>
+                  <option value={40}>40 issues / 40 張</option>
+                  <option value="all">All / 全部（不建議大佇列）</option>
+                </select>
+                <span className="mt-1 block text-xs font-semibold leading-snug text-muted">Processing remains sequential; checkpoint and memory diagnostics are refreshed at each batch boundary. / 維持循序抓取，每批更新 checkpoint 與記憶體診斷。</span>
+              </div>
+            </div>
+            {fetchQueue.length > 10 ? (
+              <div className={`mb-3 flex gap-3 rounded-lg border p-3 text-sm font-semibold leading-relaxed ${fetchQueue.length > 40 ? "border-red-200 bg-red-50 text-red-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                <AlertTriangle className="mt-0.5 shrink-0" size={17} />
+                <span>Large queue: {fetchQueue.length} issues. Expect longer runtime and more Jira GET requests. / 大型佇列共 {fetchQueue.length} 張 Jira，執行時間與唯讀 GET 請求數會增加。{fetchQueue.length > 40 ? " Starting requires typing CONFIRM. / 啟動時需輸入 CONFIRM。" : ""}</span>
+              </div>
+            ) : null}
+            {userAnalysis.rawDataMode === "full_raw_in_memory" ? (
+              <div className="mb-3 flex gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold leading-relaxed text-red-900"><AlertTriangle className="mt-0.5 shrink-0" size={17} /><span>Full Raw in Memory increases memory and crash risk. Prefer Auto-save Raw per Issue for production-sized queues. / 完整 Raw 保留於記憶體會提高記憶體與當機風險，大型佇列請優先使用每張 Jira 自動存檔。</span></div>
+            ) : null}
             <ResponsiveTableContainer>
-              <table className="table min-w-[980px]">
+              <table className="table min-w-[1120px]">
                 <thead>
                   <tr>
-                    {["Issue Key / Jira 編號", "Summary / 摘要", "Status / 狀態", "Assignee / 負責人", "Updated / 更新時間", "Matched Reason / 符合原因", "Remove / 移除"].map((header) => <th key={header}>{header}</th>)}
+                    {["Issue Key / Jira 編號", "Summary / 摘要", "Jira Status / Jira 狀態", "Fetch Status / 抓取狀態", "Assignee / 負責人", "Updated / 更新時間", "Matched Reason / 符合原因", "Remove / 移除"].map((header) => <th key={header}>{header}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -988,6 +1255,7 @@ export function AnalysisPage() {
                       <td className="font-black text-blue-700">{issue.key}</td>
                       <td><span className="block max-w-[360px] truncate" title={issue.summary} data-allow-truncate="true">{issue.summary}</span></td>
                       <td><StatusBadge>{issue.status}</StatusBadge></td>
+                      <td><StatusBadge>{fetchQueueRuntimeStatus(issue.key)}</StatusBadge></td>
                       <td><span className="block max-w-[180px] truncate" title={issue.assignee} data-allow-truncate="true">{issue.assignee}</span></td>
                       <td>{issue.updated}</td>
                       <td><span className="block max-w-[300px] truncate" title={issue.matchedReason} data-allow-truncate="true">{issue.matchedReason}</span></td>
@@ -995,7 +1263,7 @@ export function AnalysisPage() {
                     </tr>
                   ))}
                   {fetchQueue.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center text-muted">No issues selected for Fetch Queue. / 抓取佇列中尚無 Jira。</td></tr>
+                    <tr><td colSpan={8} className="text-center text-muted">No issues selected for Fetch Queue. / 抓取佇列中尚無 Jira。</td></tr>
                   ) : null}
                 </tbody>
               </table>
