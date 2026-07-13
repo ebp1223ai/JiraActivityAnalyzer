@@ -7,6 +7,7 @@ type Props = {
   logs: string[];
   onClear: () => void;
   onAppend?: (lines: string[]) => void;
+  onUserAction?: (message: string) => void;
 };
 
 const levelClass: Record<string, string> = {
@@ -14,10 +15,16 @@ const levelClass: Record<string, string> = {
   WARN: "bg-amber-100 text-amber-700",
   DEBUG: "bg-blue-100 text-blue-700",
   INFO: "bg-green-100 text-green-700",
-  SUCCESS: "bg-emerald-100 text-emerald-700"
+  SUCCESS: "bg-emerald-100 text-emerald-700",
+  USER_ACTION: "bg-violet-100 text-violet-700",
+  GUARD: "bg-amber-100 text-amber-800",
+  UI_MODAL: "bg-cyan-100 text-cyan-800"
 };
 
 function levelFor(line: string, index: number) {
+  if (line.includes("[USER_ACTION]")) return "USER_ACTION";
+  if (line.includes("[GUARD]")) return "GUARD";
+  if (line.includes("[UI_MODAL]")) return "UI_MODAL";
   if (line.includes("[ERROR]")) return "ERROR";
   if (line.includes("[WARN]")) return "WARN";
   if (line.includes("[DEBUG]")) return "DEBUG";
@@ -37,7 +44,7 @@ function debugFileName() {
   return `jira-activity-analyzer-debug-${timestamp}.txt`;
 }
 
-export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: Props) {
+export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, onUserAction }: Props) {
   const [notice, setNotice] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
   const logContainerRef = useRef<HTMLDivElement>(null);
@@ -57,6 +64,7 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: 
       return;
     }
     await navigator.clipboard.writeText(content);
+    onUserAction?.("Debug Log copied / 除錯紀錄已複製");
     setNotice("Copied");
   }
 
@@ -67,6 +75,7 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: 
         content
       });
       setNotice(result.canceled ? "Download canceled" : "Downloaded");
+      onUserAction?.(result.canceled ? "Debug Log save cancelled / 除錯紀錄儲存已取消" : "Debug Log saved / 除錯紀錄已儲存");
       if (!result.canceled) {
         onAppend?.([
           `[INFO] Output folder ready: ${result.folderPath ?? ""}`,
@@ -84,11 +93,12 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: 
     link.click();
     URL.revokeObjectURL(url);
     setNotice("Downloaded");
+    onUserAction?.("Debug Log saved / 除錯紀錄已儲存");
   }
 
   function handleClear() {
     onClear();
-    onAppend?.(["[INFO] Debug log cleared"]);
+    onUserAction?.("Debug Log cleared / 除錯紀錄已清除");
     setNotice("Debug log cleared");
   }
 
@@ -98,7 +108,7 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: 
         className="flex h-screen w-[56px] min-w-[56px] max-w-[56px] shrink-0 flex-col items-center overflow-hidden border-l border-line bg-white p-2"
         data-debug-panel-state="collapsed"
       >
-        <button className="btn h-10 w-10 p-0" data-no-clip="true" onClick={onToggle} title="Expand Debug Log / 展開除錯紀錄">
+        <button className="btn h-10 w-10 p-0" data-no-clip="true" onClick={() => { onUserAction?.("Debug Log expanded / 除錯紀錄已展開"); onToggle(); }} title="Expand Debug Log / 展開除錯紀錄">
           <ChevronLeft size={18} />
           <span className="sr-only">Expand Debug Log / 展開除錯紀錄</span>
         </button>
@@ -118,7 +128,7 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: 
         <h2 className="text-lg font-black leading-snug text-ink" data-no-clip="true">
           Debug Log / 除錯紀錄
         </h2>
-        <button className="btn shrink-0 px-2 py-2" data-no-clip="true" onClick={onToggle} title="Collapse Debug Log / 收合除錯紀錄">
+        <button className="btn shrink-0 px-2 py-2" data-no-clip="true" onClick={() => { onUserAction?.("Debug Log collapsed / 除錯紀錄已收合"); onToggle(); }} title="Collapse Debug Log / 收合除錯紀錄">
           <ChevronRight size={18} />
           <span className="text-[10px] leading-tight">Collapse<br />收合</span>
         </button>
@@ -151,10 +161,10 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: 
           const level = levelFor(log, index);
           const parts = displayParts(log);
           return (
-            <div key={`${log}-${index}`} className="grid min-w-0 grid-cols-[86px_52px_minmax(0,1fr)] gap-2 py-2 text-xs" title={parts.date}>
+            <div key={`${log}-${index}`} className="grid min-w-0 grid-cols-[86px_76px_minmax(0,1fr)] gap-2 py-2 text-xs" title={parts.date}>
               <span className="font-mono text-slate-500" data-no-clip="true">{parts.time || "--:--:--.---"}</span>
               <span
-                className={`h-fit rounded px-1.5 py-0.5 text-[10px] font-black ${levelClass[level]}`}
+                className={`h-fit rounded px-1.5 py-0.5 text-[9px] font-black ${levelClass[level]}`}
                 data-no-clip="true"
               >
                 {level}

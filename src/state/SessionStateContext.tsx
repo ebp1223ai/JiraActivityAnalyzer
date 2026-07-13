@@ -168,6 +168,9 @@ export type UserAnalysisSessionState = {
   pauseAfterCurrentIssue: boolean;
   previousUnfinishedRun: Record<string, unknown> | null;
   previousUnfinishedDismissed: boolean;
+  largeQueueConfirmationOpen: boolean;
+  largeQueueConfirmInput: string;
+  largeQueueConfirmError: string;
   fetchReportPage: number;
   fetchReportPageSize: number;
   fetchReportFilter: "all" | "success" | "failed";
@@ -301,6 +304,9 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   pauseAfterCurrentIssue: false,
   previousUnfinishedRun: null,
   previousUnfinishedDismissed: false,
+  largeQueueConfirmationOpen: false,
+  largeQueueConfirmInput: "",
+  largeQueueConfirmError: "",
   fetchReportPage: 1,
   fetchReportPageSize: 40,
   fetchReportFilter: "all",

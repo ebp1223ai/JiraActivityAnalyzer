@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
   platform: process.platform,
   shell: "electron",
   nodeAccess: false,
+  uiSmoke: process.env.ELECTRON_UI_SMOKE === "1",
   jiraProbe: {
     run: (request: unknown) => ipcRenderer.invoke("jira-probe:run", request),
     loadEnv: () => ipcRenderer.invoke("jira-probe:load-env"),
@@ -26,6 +27,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
     discoverCandidates: (payload: unknown) => ipcRenderer.invoke("user-analysis:discover-candidates", payload),
     fullFetch: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch", payload),
     pauseFullFetch: () => ipcRenderer.invoke("user-analysis:pause-full-fetch"),
+    logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL"; message: string }) => ipcRenderer.invoke("user-analysis:log-action", payload),
     latestFullFetchCheckpoint: () => ipcRenderer.invoke("user-analysis:latest-full-fetch-checkpoint"),
     openDiagnosticsFolder: (payload?: { filePath?: string }) => ipcRenderer.invoke("user-analysis:open-diagnostics-folder", payload),
     onFullFetchProgress: (callback: (progress: unknown) => void) => {

@@ -41,6 +41,10 @@ export function getCrashLogsDir() {
   return path.join(getLogsDir(), "crash");
 }
 
+export function getAppLogsDir() {
+  return path.join(getLogsDir(), "app");
+}
+
 export function getExportsDir() {
   return path.join(getAppRuntimeDir(), "exports");
 }

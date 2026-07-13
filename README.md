@@ -40,6 +40,18 @@ User Analysis Full Fetch is a sequential, read-only Jira operation. Version 0.2.
 
 Runtime logs, checkpoints, raw diagnostic files, exports, databases, and release artifacts are ignored by Git. Full Fetch does not write Jira, does not write a database, and does not download attachment bodies.
 
+## Large Queue Confirmation and User Actions
+
+Version 0.2.4 replaces the browser prompt used for Full Fetch queues over 40 issues with an in-app bilingual confirmation dialog. The Run Full Fetch button remains available for large queues; the user must type `CONFIRM` before the renderer invokes the Full Fetch IPC. Cancelling or submitting a non-matching value does not create a Full Fetch run, auto log, or checkpoint.
+
+User Analysis records important interactions with these diagnostic categories:
+
+- `[USER_ACTION]` for workflow tabs, search controls, queue selection, Full Fetch, reports, exports, Help, and Debug Log controls.
+- `[GUARD]` when an action is blocked or confirmation is rejected/cancelled.
+- `[UI_MODAL]` when the large-queue dialog opens or closes.
+
+These records appear in the UI Debug Log and `<runtime>/logs/app/app-YYYYMMDD.log`. While a Full Fetch run is active, subsequent related actions are also appended to its auto log. Confirmation input is never logged verbatim; diagnostics record only `confirmInputMatched=true/false`. Sensitive-value masking remains active for UI, app, Full Fetch, export, and crash logs.
+
 ## Global Data Source Mode
 
 The current global data source mode is `live_jira_api`.

@@ -3,7 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import { AlertTriangle, ChevronDown, ChevronUp, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
-import { FieldLabel } from "../components/FormControls";
+import { FieldLabel, MockModal } from "../components/FormControls";
 import { PageHeader } from "../components/PageHeader";
 import { ResponsiveTableContainer } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
@@ -184,9 +184,28 @@ export function AnalysisPage() {
   const fullFetchProgressPercent = userAnalysis.fullFetchProgress.total > 0
     ? Math.min(100, Math.round((fullFetchCompletedCount / userAnalysis.fullFetchProgress.total) * 100))
     : 0;
+  const connectionReady = Boolean(window.desktopApp?.uiSmoke || (activeConnection?.baseUrl && activeConnection?.apiToken));
+  const fullFetchDisabledReason = fetchQueue.length === 0
+    ? "Fetch Queue is empty / 抓取佇列是空的"
+    : userAnalysis.fullFetchStatus === "running"
+      ? "Full Fetch is already running / 完整抓取正在執行中"
+      : !connectionReady
+        ? "Connection is not ready / Jira 連線尚未就緒"
+        : "";
+  const candidateSaveDisabledReason = userAnalysis.candidateIssues.length === 0 ? "No candidate result yet / 尚無候選結果" : "";
+  const fullFetchSaveDisabledReason = userAnalysis.fullFetchStatus === "running"
+    ? "Full Fetch is running / 完整抓取正在執行中"
+    : !hasFullFetchResult
+      ? "No Full Fetch result yet / 尚無完整抓取結果"
+      : "";
 
   function patchState(patch: Partial<typeof userAnalysis>) {
     setUserAnalysis((current) => ({ ...current, ...patch }));
+  }
+
+  function logAnalysisAction(category: "USER_ACTION" | "GUARD" | "UI_MODAL", message: string) {
+    appendDebugLog("analysis", [`[${category}] ${message}`]);
+    void window.desktopApp?.userAnalysis?.logAction?.({ category, message });
   }
 
   useEffect(() => {
@@ -214,6 +233,31 @@ export function AnalysisPage() {
   }, [setUserAnalysis]);
 
   useEffect(() => {
+    if (!window.desktopApp?.uiSmoke) return;
+    const seedLargeQueue = (event: Event) => {
+      const count = Math.max(41, Number((event as CustomEvent<{ count?: number }>).detail?.count ?? 41));
+      const issues: UserAnalysisCandidateIssue[] = Array.from({ length: count }, (_, index) => ({
+        id: `smoke-${index + 1}`,
+        key: `SMOKE-${index + 1}`,
+        summary: `UI smoke candidate ${index + 1}`,
+        status: "Open",
+        assignee: "smoke.user",
+        reporter: "smoke.user",
+        creator: "smoke.user",
+        updated: "2026-07-13 12:00:00",
+        created: "2026-07-13 12:00:00",
+        issueType: "Task",
+        priority: "Medium",
+        project: "SMOKE",
+        matchedReason: "UI smoke test"
+      }));
+      setUserAnalysis((current) => ({ ...current, candidateIssues: issues, selectedForFetch: issues.map((issue) => issue.key), excludedIssues: [], activeTab: "queue" }));
+    };
+    window.addEventListener("jaa:seed-large-queue", seedLargeQueue);
+    return () => window.removeEventListener("jaa:seed-large-queue", seedLargeQueue);
+  }, [setUserAnalysis]);
+
+  useEffect(() => {
     const subscribe = window.desktopApp?.userAnalysis?.onFullFetchLog;
     if (!subscribe) return;
     return subscribe((line) => appendDebugLog("analysis", [line]));
@@ -233,13 +277,25 @@ export function AnalysisPage() {
   }, [setUserAnalysis]);
 
   function showStep(step: "candidate" | "queue" | "fetchReport" | "exports") {
+    const labels = {
+      candidate: "Candidate Search / 候選搜尋",
+      queue: "Fetch Queue / 抓取佇列",
+      fetchReport: "Full Fetch Report / 完整抓取報告",
+      exports: "Exports / 匯出"
+    };
+    logAnalysisAction("USER_ACTION", `Workflow tab changed: ${labels[step]}`);
     patchState({ activeTab: step === "candidate" ? "candidates" : step });
   }
 
   function toggleReportDetail(issueKey: string) {
     const expanded = new Set(userAnalysis.expandedFetchReportIssues);
-    if (expanded.has(issueKey)) expanded.delete(issueKey);
-    else expanded.add(issueKey);
+    if (expanded.has(issueKey)) {
+      logAnalysisAction("USER_ACTION", `Hide Detail clicked / 隱藏詳細: issueKey=${issueKey}`);
+      expanded.delete(issueKey);
+    } else {
+      logAnalysisAction("USER_ACTION", `View Detail clicked / 查看詳細: issueKey=${issueKey}`);
+      expanded.add(issueKey);
+    }
     patchState({ expandedFetchReportIssues: Array.from(expanded) });
   }
 
@@ -251,6 +307,7 @@ export function AnalysisPage() {
   }
 
   function handlePreviewJql() {
+    logAnalysisAction("USER_ACTION", "Button clicked: Preview JQL / 預覽 JQL");
     const error = validate();
     if (error) {
       patchState({ errors: [error], notice: "" });
@@ -288,6 +345,7 @@ export function AnalysisPage() {
   }
 
   async function handleRunDiscovery() {
+    logAnalysisAction("USER_ACTION", "Button clicked: Run Candidate Discovery / 執行候選搜尋");
     const error = validate();
     if (error) {
       patchState({ errors: [error], notice: "" });
@@ -379,6 +437,7 @@ export function AnalysisPage() {
   }
 
   function toggleIssue(issueKey: string, checked: boolean) {
+    logAnalysisAction("USER_ACTION", `${checked ? "Candidate selected / 候選 Jira 已選取" : "Candidate unselected / 候選 Jira 取消選取"}: ${issueKey}`);
     setUserAnalysis((current) => {
       const selected = new Set(current.selectedForFetch);
       const excluded = new Set(current.excludedIssues);
@@ -394,7 +453,29 @@ export function AnalysisPage() {
   }
 
   function removeFromQueue(issueKey: string) {
+    logAnalysisAction("USER_ACTION", `Remove from Fetch Queue clicked / 從抓取佇列移除: ${issueKey}`);
     toggleIssue(issueKey, false);
+  }
+
+  function selectAllCandidates() {
+    const keys = filteredCandidates.map((issue) => issue.key);
+    logAnalysisAction("USER_ACTION", `Select all candidates clicked / 全選候選 Jira: selectedCount=${keys.length}`);
+    patchState({ selectedForFetch: keys, excludedIssues: [], notice: `${keys.length} candidate(s) selected.` });
+  }
+
+  function clearSelection() {
+    logAnalysisAction("USER_ACTION", `Clear selection clicked / 清除選取: previousCount=${userAnalysis.selectedForFetch.length}`);
+    patchState({ selectedForFetch: [], excludedIssues: userAnalysis.candidateIssues.map((issue) => issue.key), notice: "Selection cleared." });
+  }
+
+  function addSelectedToFetchQueue() {
+    logAnalysisAction("USER_ACTION", `Add to Fetch Queue clicked / 加入抓取佇列: selectedCount=${userAnalysis.selectedForFetch.length}`);
+    patchState({ notice: `${userAnalysis.selectedForFetch.length} issue(s) added to Fetch Queue.`, errors: [] });
+  }
+
+  function clearFetchQueue() {
+    logAnalysisAction("USER_ACTION", `Clear Fetch Queue clicked / 清除抓取佇列: previousCount=${fetchQueue.length}`);
+    patchState({ selectedForFetch: [], excludedIssues: userAnalysis.candidateIssues.map((issue) => issue.key), notice: "Fetch Queue cleared. / 抓取佇列已清除。" });
   }
 
   function fetchQueueRuntimeStatus(issueKey: string) {
@@ -405,6 +486,7 @@ export function AnalysisPage() {
   }
 
   function clearSession() {
+    logAnalysisAction("USER_ACTION", "Button clicked: Clear Candidate Session / 清除候選工作階段");
     setUserAnalysis((current) => ({
       ...current,
       generatedJql: "",
@@ -471,6 +553,9 @@ export function AnalysisPage() {
       autoLogPath: "",
       checkpointPath: "",
       pauseAfterCurrentIssue: false,
+      largeQueueConfirmationOpen: false,
+      largeQueueConfirmInput: "",
+      largeQueueConfirmError: "",
       fetchReportPage: 1,
       fetchReportPageSize: 40,
       fetchReportFilter: "all",
@@ -560,31 +645,61 @@ export function AnalysisPage() {
     };
   }
 
-  async function handleRunFullFetch() {
-    if (fetchQueue.length === 0) {
-      patchState({ errors: ["Please select issues from Candidate Issues before running Full Fetch."], notice: "" });
-      appendDebugLog("analysis", ["[WARN] Please select issues from Candidate Issues before running Full Fetch."]);
+  async function handleRunFullFetchClick() {
+    logAnalysisAction("USER_ACTION", "Button clicked: Run Full Fetch from Queue / 依佇列執行完整抓取");
+    logAnalysisAction("USER_ACTION", `Context: queueCount=${fetchQueue.length} batchSize=${userAnalysis.batchSize} rawDataMode=${userAnalysis.rawDataMode} activeStep=${userAnalysis.activeTab}`);
+    if (fullFetchDisabledReason) {
+      logAnalysisAction("GUARD", `Action blocked: reason=${fullFetchDisabledReason} queueCount=${fetchQueue.length}`);
       return;
-    }
-    if (fetchLimitExceeded) {
-      const confirmed = window.confirm(`Selected issues exceed fetch limit ${userAnalysis.fetchLimit}. Full Fetch may take longer and call many Jira API endpoints. Continue?`);
-      if (!confirmed) {
-        appendDebugLog("analysis", ["[INFO] Full Fetch canceled before start"]);
-        return;
-      }
     }
     if (fetchQueue.length > 40) {
-      const confirmation = window.prompt(`Large Full Fetch queue: ${fetchQueue.length} issues. This can take a long time and create many Jira GET requests. Type CONFIRM to continue.`);
-      if (confirmation !== "CONFIRM") {
-        appendDebugLog("analysis", ["[INFO] Large Full Fetch canceled before start"]);
-        return;
-      }
-    } else if (fetchQueue.length > 10 && !window.confirm(`Full Fetch will process ${fetchQueue.length} issues sequentially. Continue?`)) {
-      appendDebugLog("analysis", ["[INFO] Full Fetch canceled before start"]);
+      logAnalysisAction("GUARD", `Large queue confirmation required: queueCount=${fetchQueue.length} threshold=40`);
+      logAnalysisAction("UI_MODAL", "Large queue confirmation opened / 大量抓取確認已開啟");
+      patchState({ largeQueueConfirmationOpen: true, largeQueueConfirmInput: "", largeQueueConfirmError: "" });
       return;
     }
+    await runFullFetch();
+  }
+
+  function handleLargeQueueConfirmationCancel() {
+    logAnalysisAction("USER_ACTION", "Large queue confirmation cancelled / 大量抓取確認已取消");
+    logAnalysisAction("GUARD", "Full Fetch cancelled before start by user");
+    logAnalysisAction("UI_MODAL", "Large queue confirmation closed / 大量抓取確認已關閉");
+    patchState({ largeQueueConfirmationOpen: false, largeQueueConfirmInput: "", largeQueueConfirmError: "" });
+  }
+
+  function handleLargeQueueConfirmationInput(value: string) {
+    logAnalysisAction("USER_ACTION", `Large queue confirmation input changed: confirmInputMatched=${value.trim() === "CONFIRM"}`);
+    patchState({ largeQueueConfirmInput: value, largeQueueConfirmError: "" });
+  }
+
+  async function handleLargeQueueConfirmationSubmit() {
+    const matched = userAnalysis.largeQueueConfirmInput.trim() === "CONFIRM";
+    logAnalysisAction("USER_ACTION", `Large queue confirmation submitted: confirmInputMatched=${matched}`);
+    if (!matched) {
+      logAnalysisAction("GUARD", "Large queue confirmation rejected: input did not match CONFIRM");
+      patchState({ largeQueueConfirmError: "Please type CONFIRM exactly. / 請正確輸入 CONFIRM。" });
+      return;
+    }
+    logAnalysisAction("GUARD", "Large queue confirmed by user");
+    logAnalysisAction("USER_ACTION", "Large queue confirmation confirmed / 大量抓取已確認");
+    logAnalysisAction("UI_MODAL", "Large queue confirmation closed / 大量抓取確認已關閉");
+    patchState({ largeQueueConfirmationOpen: false, largeQueueConfirmInput: "", largeQueueConfirmError: "" });
+    if (window.desktopApp?.uiSmoke) {
+      patchState({ notice: "Large queue confirmation smoke path passed. / 大量抓取確認測試路徑通過。" });
+      return;
+    }
+    await runFullFetch();
+  }
+
+  async function runFullFetch() {
     if (userAnalysis.rawDataMode === "full_raw_in_memory" && fetchQueue.length > 20) {
-      if (!window.confirm("Full Raw in Memory with more than 20 issues can use substantial memory and increase crash risk. Continue?")) return;
+      const confirmed = window.confirm("Full Raw in Memory with more than 20 issues can use substantial memory and increase crash risk. Continue?");
+      logAnalysisAction("USER_ACTION", `Full Raw in Memory risk confirmation: confirmed=${confirmed}`);
+      if (!confirmed) {
+        logAnalysisAction("GUARD", "Full Fetch cancelled before start: full_raw_in_memory_risk_not_confirmed");
+        return;
+      }
     } else if (userAnalysis.rawDataMode === "full_raw_in_memory" && fetchQueue.length > 10) {
       appendDebugLog("analysis", ["[WARN] Full Raw in Memory selected for more than 10 issues"]);
     }
@@ -677,6 +792,7 @@ export function AnalysisPage() {
   }
 
   async function handlePauseFullFetch() {
+    logAnalysisAction("USER_ACTION", "Button clicked: Pause After Current Issue / 當前 Jira 完成後暫停");
     patchState({ pauseAfterCurrentIssue: true, notice: "Pause requested. The current issue will finish first. / 已要求暫停，將先完成目前 Jira。" });
     const result = await window.desktopApp?.userAnalysis?.pauseFullFetch?.();
     if (!result?.ok) {
@@ -687,6 +803,7 @@ export function AnalysisPage() {
   }
 
   async function openDiagnosticsFolder(filePath = userAnalysis.autoLogPath || userAnalysis.checkpointPath) {
+    logAnalysisAction("USER_ACTION", "Open Log Folder clicked / 開啟 Log 資料夾");
     const result = await window.desktopApp?.userAnalysis?.openDiagnosticsFolder?.({ filePath });
     patchState(result?.ok
       ? { notice: `Opened diagnostics folder: ${result.folderPath}`, errors: [] }
@@ -694,6 +811,7 @@ export function AnalysisPage() {
   }
 
   async function copyDiagnosticsPath(filePath: string) {
+    logAnalysisAction("USER_ACTION", "Copy diagnostics path clicked / 複製診斷路徑");
     if (!filePath) return;
     await navigator.clipboard.writeText(filePath);
     patchState({ notice: "Diagnostics path copied. / 已複製診斷路徑。", errors: [] });
@@ -787,6 +905,11 @@ export function AnalysisPage() {
   }
 
   async function saveFullFetchResult(raw = false) {
+    logAnalysisAction("USER_ACTION", raw ? "Button clicked: Save Full Fetch Raw Data / 儲存完整抓取 Raw Data" : "Button clicked: Save Full Fetch Result / 儲存完整抓取結果");
+    if (fullFetchSaveDisabledReason) {
+      logAnalysisAction("GUARD", `Action blocked: ${fullFetchSaveDisabledReason}`);
+      return;
+    }
     patchState({ saving: true, notice: "" });
     try {
       const result = await window.desktopApp?.userAnalysis?.saveExport?.({
@@ -820,6 +943,11 @@ export function AnalysisPage() {
   }
 
   async function saveCandidateResult(raw = false) {
+    logAnalysisAction("USER_ACTION", raw ? "Button clicked: Save Candidate Raw Data / 儲存候選 Raw Data" : "Button clicked: Save Candidate Result / 儲存候選結果");
+    if (candidateSaveDisabledReason) {
+      logAnalysisAction("GUARD", `Action blocked: ${candidateSaveDisabledReason}`);
+      return;
+    }
     patchState({ saving: true, notice: "" });
     try {
       const result = await window.desktopApp?.userAnalysis?.saveExport?.({
@@ -853,6 +981,13 @@ export function AnalysisPage() {
   }
 
   async function openSavedFolder(kind: "result" | "raw" | "fullResult" | "fullRaw") {
+    const actionLabels = {
+      result: "Open Candidate Result Folder clicked / 開啟候選結果資料夾",
+      raw: "Open Candidate Raw Data Folder clicked / 開啟候選 Raw Data 資料夾",
+      fullResult: "Open Full Fetch Result Folder clicked / 開啟完整抓取結果資料夾",
+      fullRaw: "Open Full Fetch Raw Data Folder clicked / 開啟完整抓取 Raw Data 資料夾"
+    };
+    logAnalysisAction("USER_ACTION", actionLabels[kind]);
     const filePath = kind === "result"
       ? userAnalysis.lastSavedCandidateResultPath
       : kind === "raw"
@@ -881,6 +1016,13 @@ export function AnalysisPage() {
   }
 
   async function copySavedPath(kind: "result" | "raw" | "fullResult" | "fullRaw") {
+    const actionLabels = {
+      result: "Copy Candidate Result Path clicked / 複製候選結果路徑",
+      raw: "Copy Candidate Raw Data Path clicked / 複製候選 Raw Data 路徑",
+      fullResult: "Copy Full Fetch Result Path clicked / 複製完整抓取結果路徑",
+      fullRaw: "Copy Full Fetch Raw Data Path clicked / 複製完整抓取 Raw Data 路徑"
+    };
+    logAnalysisAction("USER_ACTION", actionLabels[kind]);
     const filePath = kind === "result"
       ? userAnalysis.lastSavedCandidateResultPath
       : kind === "raw"
@@ -905,12 +1047,42 @@ export function AnalysisPage() {
   return (
     <div className="min-w-0">
       <PageHeader title="使用者分析" subtitle="User Analysis" />
+      {userAnalysis.largeQueueConfirmationOpen ? (
+        <MockModal
+          title="Large Full Fetch Confirmation / 大量完整抓取確認"
+          onClose={handleLargeQueueConfirmationCancel}
+          footer={<>
+            <button className="btn" type="button" onClick={handleLargeQueueConfirmationCancel}>Cancel / 取消</button>
+            <button className="btn btn-primary" type="button" onClick={() => void handleLargeQueueConfirmationSubmit()}><Play size={16} />Confirm and Run Full Fetch / 確認並執行完整抓取</button>
+          </>}
+        >
+          <div className="space-y-4 leading-relaxed">
+            <p>You are about to run Full Fetch for <b>{fetchQueue.length}</b> Jira issues.<br />你即將對 <b>{fetchQueue.length}</b> 張 Jira 執行完整抓取。</p>
+            <p>This may use significant memory and take a long time.<br />這可能會使用較多記憶體並花費較長時間。</p>
+            <div className="rounded-lg border border-line bg-slate-50 p-3">
+              <div className="font-black">Recommended settings / 建議設定</div>
+              <div className="mt-2">Batch Size / 每批數量：<b>{userAnalysis.batchSize}</b></div>
+              <div>Raw Data Mode / Raw Data 模式：<b className="break-words">{userAnalysis.rawDataMode}</b></div>
+              <ul className="mt-2 list-inside list-disc">
+                <li>Use Batch Size 10. / 建議使用每批 10 張。</li>
+                <li>Use Auto-save Raw Per Issue. / 建議使用逐張自動儲存 Raw。</li>
+                <li>Avoid Full Raw In Memory. / 避免使用全部 Raw 存記憶體模式。</li>
+              </ul>
+            </div>
+            <div>
+              <FieldLabel label="Type CONFIRM to continue" sub="請輸入 CONFIRM 才能繼續" />
+              <input className="field" autoFocus value={userAnalysis.largeQueueConfirmInput} onChange={(event) => handleLargeQueueConfirmationInput(event.target.value)} placeholder="CONFIRM" />
+              {userAnalysis.largeQueueConfirmError ? <div className="mt-2 text-sm font-bold text-red-700">{userAnalysis.largeQueueConfirmError}</div> : null}
+            </div>
+          </div>
+        </MockModal>
+      ) : null}
       <div className="mb-4 flex min-w-0 flex-wrap gap-2">
         <label className="btn cursor-pointer" title="Show or hide contextual guidance">
-          <input className="h-4 w-4" type="checkbox" checked={userAnalysis.showHelpTips} onChange={(event) => patchState({ showHelpTips: event.target.checked })} />
+          <input className="h-4 w-4" type="checkbox" checked={userAnalysis.showHelpTips} onChange={(event) => { logAnalysisAction("USER_ACTION", event.target.checked ? "Show Help Tips clicked / 顯示操作說明" : "Hide Help Tips clicked / 隱藏操作說明"); patchState({ showHelpTips: event.target.checked }); }} />
           {userAnalysis.showHelpTips ? "Hide Help Tips / 隱藏操作說明" : "Show Help Tips / 顯示操作說明"}
         </label>
-        <button className="btn" type="button" onClick={() => patchState({ helpOpen: !userAnalysis.helpOpen })}>
+        <button className="btn" type="button" onClick={() => { logAnalysisAction("USER_ACTION", userAnalysis.helpOpen ? "Help panel closed / 使用說明已關閉" : "Help panel opened / 使用說明已開啟"); patchState({ helpOpen: !userAnalysis.helpOpen }); }}>
           <HelpCircle size={16} />Help / 使用說明
         </button>
       </div>
@@ -1057,7 +1229,7 @@ export function AnalysisPage() {
               className="field min-h-28 resize-y leading-relaxed"
               value={userAnalysis.selectedUsersText}
               placeholder={"roger_hsieh\nch_kao\nsomeone@phison.com"}
-              onChange={(event) => patchState({ selectedUsersText: event.target.value })}
+              onChange={(event) => { logAnalysisAction("USER_ACTION", `Selected Users changed / 選擇使用者變更: userCount=${parseUsers(event.target.value).length}`); patchState({ selectedUsersText: event.target.value }); }}
             />
             <div className="mt-2 flex min-w-0 flex-wrap gap-2">
               {selectedUsers.map((user) => (
@@ -1068,11 +1240,11 @@ export function AnalysisPage() {
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
             <div>
               <FieldLabel label="Start Date" sub="開始日期" />
-              <input className="field" type="date" value={userAnalysis.startDate} onChange={(event) => patchState({ startDate: event.target.value })} />
+              <input className="field" type="date" value={userAnalysis.startDate} onChange={(event) => { logAnalysisAction("USER_ACTION", `Date Range changed / 日期範圍變更: startDate=${event.target.value}`); patchState({ startDate: event.target.value }); }} />
             </div>
             <div>
               <FieldLabel label="End Date" sub="結束日期" />
-              <input className="field" type="date" value={userAnalysis.endDate} onChange={(event) => patchState({ endDate: event.target.value })} />
+              <input className="field" type="date" value={userAnalysis.endDate} onChange={(event) => { logAnalysisAction("USER_ACTION", `Date Range changed / 日期範圍變更: endDate=${event.target.value}`); patchState({ endDate: event.target.value }); }} />
             </div>
             <div>
               <FieldLabel label="Search Mode" sub="搜尋模式" />
@@ -1086,7 +1258,7 @@ export function AnalysisPage() {
             </div>
             <div>
               <FieldLabel label="Fetch Limit" sub="抓取上限" />
-              <select className="field" value={userAnalysis.fetchLimit} onChange={(event) => patchState({ fetchLimit: Number(event.target.value) })}>
+              <select className="field" value={userAnalysis.fetchLimit} onChange={(event) => { logAnalysisAction("USER_ACTION", `Fetch Limit changed / 抓取上限變更: value=${event.target.value}`); patchState({ fetchLimit: Number(event.target.value) }); }}>
                 {fetchLimitOptions.map((option) => <option key={option} value={option}>{option}</option>)}
               </select>
             </div>
@@ -1136,7 +1308,7 @@ export function AnalysisPage() {
           {userAnalysis.showHelpTips ? <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Select candidate issues and add them to the Fetch Queue before running Full Fetch.<br />請先從候選 Jira 中選擇要分析的項目，加入抓取佇列後再執行完整抓取。<br />Only issues in the Fetch Queue will be processed by Full Fetch. / 只有抓取佇列中的 Jira 會被完整抓取。</div> : null}
           <div className="mb-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_160px_220px]">
             <div className="relative min-w-0"><Search className="absolute left-3 top-3 text-muted" size={16} /><input className="field pl-9" value={userAnalysis.search} placeholder="Filter candidates / 篩選候選 Jira..." onChange={(event) => patchState({ search: event.target.value, page: 1 })} /></div>
-            <select className="field" value={userAnalysis.pageSize} onChange={(event) => patchState({ pageSize: Number(event.target.value), page: 1 })}>{pageSizeOptions.map((option) => <option key={option} value={option}>{option} rows / 筆</option>)}</select>
+          <select className="field" value={userAnalysis.pageSize} onChange={(event) => { logAnalysisAction("USER_ACTION", `Rows per page changed / 每頁筆數變更: value=${event.target.value}`); patchState({ pageSize: Number(event.target.value), page: 1 }); }}>{pageSizeOptions.map((option) => <option key={option} value={option}>{option} rows / 筆</option>)}</select>
             <div className="flex items-center justify-end gap-2 text-sm font-bold text-muted">Page / 頁 {page} / {pageCount}</div>
           </div>
           <ResponsiveTableContainer>
@@ -1149,7 +1321,16 @@ export function AnalysisPage() {
               </tr>)}{pagedCandidates.length === 0 ? <tr><td colSpan={9} className="text-center text-muted">No candidate issues / 尚無候選 Jira</td></tr> : null}</tbody>
             </table>
           </ResponsiveTableContainer>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><div className="text-sm font-semibold text-muted">Showing / 顯示 {pagedCandidates.length} of / 共 {filteredCandidates.length}</div><div className="flex flex-wrap gap-2"><button className="btn" type="button" disabled={userAnalysis.selectedForFetch.length === 0} onClick={() => patchState({ notice: `${userAnalysis.selectedForFetch.length} issue(s) added to Fetch Queue.`, errors: [] })}><DatabaseZap size={15} />Add to Fetch Queue / 加入抓取佇列</button><button className="btn px-3 py-2" type="button" disabled={page <= 1} onClick={() => patchState({ page: page - 1 })}>Prev / 上一頁</button><button className="btn px-3 py-2" type="button" disabled={page >= pageCount} onClick={() => patchState({ page: page + 1 })}>Next / 下一頁</button></div></div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-muted">Showing / 顯示 {pagedCandidates.length} of / 共 {filteredCandidates.length}</div>
+            <div className="flex flex-wrap gap-2">
+              <button className="btn" type="button" disabled={filteredCandidates.length === 0} onClick={selectAllCandidates}>Select All / 全選</button>
+              <button className="btn" type="button" disabled={userAnalysis.selectedForFetch.length === 0} onClick={clearSelection}>Clear Selection / 清除選取</button>
+              <button className="btn" type="button" disabled={userAnalysis.selectedForFetch.length === 0} onClick={addSelectedToFetchQueue}><DatabaseZap size={15} />Add to Fetch Queue / 加入抓取佇列</button>
+              <button className="btn px-3 py-2" type="button" disabled={page <= 1} onClick={() => { logAnalysisAction("USER_ACTION", `Page changed / 分頁變更: page=${page - 1}`); patchState({ page: page - 1 }); }}>Prev / 上一頁</button>
+              <button className="btn px-3 py-2" type="button" disabled={page >= pageCount} onClick={() => { logAnalysisAction("USER_ACTION", `Page changed / 分頁變更: page=${page + 1}`); patchState({ page: page + 1 }); }}>Next / 下一頁</button>
+            </div>
+          </div>
         </SectionCard>
       ) : null}
 
@@ -1215,7 +1396,7 @@ export function AnalysisPage() {
             <div className="mb-3 grid min-w-0 grid-cols-1 gap-4 rounded-lg border border-line bg-slate-50 p-4 lg:grid-cols-2">
               <div className="min-w-0">
                 <FieldLabel label="Raw Data Mode" sub="原始資料模式" />
-                <select className="field" value={userAnalysis.rawDataMode} disabled={userAnalysis.fullFetchStatus === "running"} onChange={(event) => patchState({ rawDataMode: event.target.value as typeof userAnalysis.rawDataMode })}>
+                <select className="field" value={userAnalysis.rawDataMode} disabled={userAnalysis.fullFetchStatus === "running"} onChange={(event) => { logAnalysisAction("USER_ACTION", `Raw Data Mode changed / Raw Data 模式變更: value=${event.target.value}`); patchState({ rawDataMode: event.target.value as typeof userAnalysis.rawDataMode }); }}>
                   <option value="summary_only">Summary Only / 僅摘要（最低記憶體）</option>
                   <option value="auto_save_raw_per_issue">Auto-save Raw per Issue / 每張 Jira 自動存檔（建議）</option>
                   <option value="full_raw_in_memory">Full Raw in Memory / 完整 Raw 保留於記憶體（高風險）</option>
@@ -1224,7 +1405,7 @@ export function AnalysisPage() {
               </div>
               <div className="min-w-0">
                 <FieldLabel label="Batch Size" sub="批次大小" />
-                <select className="field" value={userAnalysis.batchSize} disabled={userAnalysis.fullFetchStatus === "running"} onChange={(event) => patchState({ batchSize: event.target.value === "all" ? "all" : Number(event.target.value) as 10 | 20 | 40 })}>
+                <select className="field" value={userAnalysis.batchSize} disabled={userAnalysis.fullFetchStatus === "running"} onChange={(event) => { logAnalysisAction("USER_ACTION", `Batch Size changed / 每批數量變更: value=${event.target.value}`); patchState({ batchSize: event.target.value === "all" ? "all" : Number(event.target.value) as 10 | 20 | 40 }); }}>
                   <option value={10}>10 issues / 10 張</option>
                   <option value={20}>20 issues / 20 張</option>
                   <option value={40}>40 issues / 40 張</option>
@@ -1242,6 +1423,9 @@ export function AnalysisPage() {
             {userAnalysis.rawDataMode === "full_raw_in_memory" ? (
               <div className="mb-3 flex gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold leading-relaxed text-red-900"><AlertTriangle className="mt-0.5 shrink-0" size={17} /><span>Full Raw in Memory increases memory and crash risk. Prefer Auto-save Raw per Issue for production-sized queues. / 完整 Raw 保留於記憶體會提高記憶體與當機風險，大型佇列請優先使用每張 Jira 自動存檔。</span></div>
             ) : null}
+            <div className="mb-3 flex flex-wrap justify-end gap-2">
+              <button className="btn" type="button" disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"} onClick={clearFetchQueue}><Trash2 size={15} />Clear Fetch Queue / 清除抓取佇列</button>
+            </div>
             <ResponsiveTableContainer>
               <table className="table min-w-[1120px]">
                 <thead>
@@ -1271,21 +1455,22 @@ export function AnalysisPage() {
             <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold leading-relaxed text-muted">
               {userAnalysis.showHelpTips ? <><b>Run Full Fetch / 執行完整抓取</b><br />Run Full Fetch reads issue fields, changelog, comments, attachments metadata, issue links, and parsed users.<br />完整抓取會讀取 issue 欄位、changelog、comments、attachments metadata、issue links 與使用者資訊。<br /><br /><b>Safety / 安全性：</b> Read-only Jira API only. No database write, no Jira write, and no attachment body download.<br />只使用唯讀 Jira API，不寫入資料庫、不寫入 Jira，也不下載附件本體。</> : <>This will fetch full read-only data for all issues currently in the Fetch Queue. / 這會依目前抓取佇列執行唯讀完整抓取。</>}
             </div>
-            <button className="btn btn-primary mt-3" type="button" onClick={() => void handleRunFullFetch()} disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"} title="Run a sequential read-only fetch for the current queue">
+            <button className="btn btn-primary mt-3" type="button" onClick={() => void handleRunFullFetchClick()} disabled={Boolean(fullFetchDisabledReason)} title={fullFetchDisabledReason || "Run a sequential read-only fetch for the current queue"}>
               <Play size={16} />{userAnalysis.fullFetchStatus === "running" ? "Running Full Fetch / 完整抓取中..." : hasFullFetchResult ? "Re-run Full Fetch from Queue / 依佇列重新完整抓取" : "Run Full Fetch from Queue / 依佇列執行完整抓取"}
             </button>
+            {fullFetchDisabledReason ? <div className="mt-2 text-sm font-bold text-amber-800">Disabled reason / 無法執行原因：{fullFetchDisabledReason}</div> : null}
             {hasFullFetchResult ? <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800"><span>Full Fetch completed. Go to Full Fetch Report to review results.<br />完整抓取已完成。請前往完整抓取報告檢視結果。</span><button className="btn" type="button" onClick={() => showStep("fetchReport")}>Go to Full Fetch Report / 前往完整抓取報告</button></div> : null}
           </>
         ) : (
           <>
             {userAnalysis.showHelpTips ? <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Review fetch status, counts, warnings, and errors for each fetched Jira issue.<br />檢查每張已抓取 Jira 的抓取狀態、統計數量、警告與錯誤。<br />Use View Detail / 查看詳細 to inspect HTTP status, changelog count, issue links, parsed users, and last fetched time.<br />使用 View Detail / 查看詳細 可檢查 HTTP 狀態、changelog 數量、issue links、parsed users 與最後抓取時間。</div> : null}
             <div className="mb-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[180px_180px_minmax(0,1fr)]">
-              <select className="field" value={userAnalysis.fetchReportFilter} onChange={(event) => patchState({ fetchReportFilter: event.target.value as typeof userAnalysis.fetchReportFilter, fetchReportPage: 1 })}>
+              <select className="field" value={userAnalysis.fetchReportFilter} onChange={(event) => { logAnalysisAction("USER_ACTION", `Status filter changed / 狀態篩選變更: value=${event.target.value}`); patchState({ fetchReportFilter: event.target.value as typeof userAnalysis.fetchReportFilter, fetchReportPage: 1 }); }}>
                 <option value="all">All / 全部</option>
                 <option value="success">Success / 成功</option>
                 <option value="failed">Failed / 失敗</option>
               </select>
-              <select className="field" value={userAnalysis.fetchReportPageSize} onChange={(event) => patchState({ fetchReportPageSize: Number(event.target.value), fetchReportPage: 1 })}>
+              <select className="field" value={userAnalysis.fetchReportPageSize} onChange={(event) => { logAnalysisAction("USER_ACTION", `Rows per page changed / 每頁筆數變更: value=${event.target.value}`); patchState({ fetchReportPageSize: Number(event.target.value), fetchReportPage: 1 }); }}>
                 {pageSizeOptions.map((option) => <option key={option} value={option}>{option} rows / 筆</option>)}
               </select>
               <div className="flex items-center justify-end gap-2 text-sm font-bold text-muted">
@@ -1341,11 +1526,11 @@ export function AnalysisPage() {
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm font-semibold text-muted">Showing / 顯示 {pagedFetchReport.length} of / 共 {filteredFetchReport.length} fetch report rows / 筆抓取報告。</div>
               <div className="flex gap-2">
-                <button className="btn px-3 py-2" type="button" disabled={fetchReportPage <= 1} onClick={() => patchState({ fetchReportPage: fetchReportPage - 1 })}>Prev / 上一頁</button>
-                <button className="btn px-3 py-2" type="button" disabled={fetchReportPage >= fetchReportPageCount} onClick={() => patchState({ fetchReportPage: fetchReportPage + 1 })}>Next / 下一頁</button>
+                <button className="btn px-3 py-2" type="button" disabled={fetchReportPage <= 1} onClick={() => { logAnalysisAction("USER_ACTION", `Page changed / 分頁變更: page=${fetchReportPage - 1}`); patchState({ fetchReportPage: fetchReportPage - 1 }); }}>Prev / 上一頁</button>
+                <button className="btn px-3 py-2" type="button" disabled={fetchReportPage >= fetchReportPageCount} onClick={() => { logAnalysisAction("USER_ACTION", `Page changed / 分頁變更: page=${fetchReportPage + 1}`); patchState({ fetchReportPage: fetchReportPage + 1 }); }}>Next / 下一頁</button>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold text-muted"><span>This will replace the current Full Fetch session result.<br />這會取代目前的完整抓取工作階段結果。</span><button className="btn" type="button" onClick={() => void handleRunFullFetch()} disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"}><Play size={15} />Re-run Full Fetch from Queue / 依佇列重新完整抓取</button></div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold text-muted"><span>This will replace the current Full Fetch session result.<br />這會取代目前的完整抓取工作階段結果。</span><button className="btn" type="button" onClick={() => void handleRunFullFetchClick()} disabled={Boolean(fullFetchDisabledReason)} title={fullFetchDisabledReason}><Play size={15} />Re-run Full Fetch from Queue / 依佇列重新完整抓取</button></div>
           </>
         )}
       </SectionCard> : null}
@@ -1354,13 +1539,14 @@ export function AnalysisPage() {
         <SectionCard title="Stage 1 Candidate Export" subtitle="第一階段候選資料匯出">
           {userAnalysis.showHelpTips ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Candidate exports are Stage 1 outputs. They contain candidate issue lists and search context, but not full comments, attachments, or changelog.<br />候選匯出是第一階段輸出，包含候選 Jira 清單與搜尋條件，但不包含完整 comments、attachments 或 changelog。<br /><br />Raw Data contains more original Jira response data and is mainly for debugging. / Raw Data 包含較完整的 Jira 原始回應資料，主要用於除錯與深入分析。</div> : null}
           <div className="flex flex-wrap gap-3">
-            <button className="btn btn-primary" type="button" onClick={() => void saveCandidateResult(false)} disabled={userAnalysis.saving}>
+            <button className="btn btn-primary" type="button" onClick={() => void saveCandidateResult(false)} disabled={userAnalysis.saving || Boolean(candidateSaveDisabledReason)} title={candidateSaveDisabledReason}>
               <Download size={16} />Save Candidate Result / 儲存候選結果
             </button>
-            <button className="btn" type="button" onClick={() => void saveCandidateResult(true)} disabled={userAnalysis.saving}>
+            <button className="btn" type="button" onClick={() => void saveCandidateResult(true)} disabled={userAnalysis.saving || Boolean(candidateSaveDisabledReason)} title={candidateSaveDisabledReason}>
               <Download size={16} />Save Candidate Raw Data / 儲存候選 Raw Data
             </button>
           </div>
+          {candidateSaveDisabledReason ? <div className="mt-2 text-sm font-bold text-amber-800">Disabled reason / 無法執行原因：{candidateSaveDisabledReason}</div> : null}
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
             <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-3">
               <div className="text-xs font-black uppercase text-muted">Last Saved Candidate Result</div>
@@ -1422,13 +1608,14 @@ export function AnalysisPage() {
               Execution Mode: Sequential read-only fetch. One issue is fetched at a time.
             </div>
             <div className="flex flex-wrap gap-3">
-              <button className="btn btn-primary" type="button" onClick={() => void saveFullFetchResult(false)} disabled={!hasFullFetchResult || userAnalysis.saving}>
+              <button className="btn btn-primary" type="button" onClick={() => void saveFullFetchResult(false)} disabled={userAnalysis.saving || Boolean(fullFetchSaveDisabledReason)} title={fullFetchSaveDisabledReason}>
                 <Download size={16} />Save Full Fetch Result / 儲存完整抓取結果
               </button>
-              <button className="btn" type="button" onClick={() => void saveFullFetchResult(true)} disabled={!hasFullFetchResult || userAnalysis.saving}>
+              <button className="btn" type="button" onClick={() => void saveFullFetchResult(true)} disabled={userAnalysis.saving || Boolean(fullFetchSaveDisabledReason)} title={fullFetchSaveDisabledReason}>
                 <Download size={16} />Save Full Fetch Raw Data / 儲存完整抓取 Raw Data
               </button>
             </div>
+            {fullFetchSaveDisabledReason ? <div className="text-sm font-bold text-amber-800">Disabled reason / 無法執行原因：{fullFetchSaveDisabledReason}</div> : null}
             <div className="grid min-w-0 grid-cols-1 gap-3">
               <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-3">
                 <div className="text-xs font-black uppercase text-muted">Last Saved Full Fetch Result</div>

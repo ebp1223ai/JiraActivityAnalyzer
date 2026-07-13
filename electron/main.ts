@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ensureDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
+import { ensureDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
 import { createJiraClient } from "./jira/jiraClient.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
@@ -93,6 +93,11 @@ function formatLocalLogTimestamp(date = new Date()) {
 function fileTimestamp(date = new Date()) {
   const pad = (part: number) => String(part).padStart(2, "0");
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+function dateStamp(date = new Date()) {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
 }
 
 type FullFetchMemory = {
@@ -863,6 +868,7 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
   log("INFO", `Raw Data Mode: ${rawDataMode}`);
   log("INFO", `Auto Log Path: ${autoLogPath}`);
   log("INFO", `Checkpoint Path: ${checkpointPath}`);
+  log("USER_ACTION", `Full Fetch execution started: queueCount=${fetchQueue.length} batchSize=${batchSize} rawDataMode=${rawDataMode}`);
   log("INFO", "Data Source Mode: Live Jira API");
   log("INFO", `API Version: ${connection.apiVersion === "v3" ? "Jira Cloud v3" : "Jira Server/Data Center v2"}`);
   log("INFO", `Auth Type: ${connection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`);
@@ -1138,6 +1144,17 @@ ipcMain.handle("user-analysis:pause-full-fetch", async () => {
   activeFullFetch.pauseRequested = true;
   appendRuntimeLog(activeFullFetch.autoLogPath, "INFO", "Pause requested. Full Fetch will pause after the current issue.");
   return { ok: true, runId: activeFullFetch.runId };
+});
+
+ipcMain.handle("user-analysis:log-action", async (_event, payload: { category?: string; message?: string }) => {
+  const allowedCategories = new Set(["USER_ACTION", "GUARD", "UI_MODAL"]);
+  const category = allowedCategories.has(text(payload?.category)) ? text(payload.category) : "USER_ACTION";
+  const message = maskDiagnosticText(text(payload?.message)).slice(0, 2000);
+  if (!message) return { ok: false, error: "Action message is required." };
+  const appLogPath = path.join(ensureDir(getAppLogsDir()), `app-${dateStamp()}.log`);
+  appendRuntimeLog(appLogPath, category, message);
+  if (activeFullFetch) appendRuntimeLog(activeFullFetch.autoLogPath, category, message);
+  return { ok: true, appLogPath, fullFetchLogPath: activeFullFetch?.autoLogPath ?? "" };
 });
 
 ipcMain.handle("user-analysis:latest-full-fetch-checkpoint", async () => {
@@ -1631,6 +1648,98 @@ async function runUiSmoke(window: BrowserWindow) {
       }
     }
   }
+
+  const fullFetchFilesBeforeConfirmationTest = fs.existsSync(getFullFetchLogsDir())
+    ? new Set(fs.readdirSync(getFullFetchLogsDir()))
+    : new Set<string>();
+  window.setSize(1280, 720, false);
+  await window.webContents.executeJavaScript(`window.location.hash = "#/analysis";`);
+  await wait(350);
+  await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:seed-large-queue", { detail: { count: 41 } }));`);
+  await wait(250);
+  const largeQueueOpened = await window.webContents.executeJavaScript(`
+    (() => {
+      const panel = document.querySelector("[data-debug-panel-state='collapsed']");
+      panel?.querySelector("button")?.click();
+      const runButton = Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Run Full Fetch from Queue"));
+      const disabled = runButton instanceof HTMLButtonElement ? runButton.disabled : true;
+      runButton?.click();
+      return { found: Boolean(runButton), disabled };
+    })()
+  `);
+  await wait(250);
+  const largeQueueRejected = await window.webContents.executeJavaScript(`
+    (() => {
+      const modalVisible = document.body.innerText.includes("Large Full Fetch Confirmation");
+      const input = Array.from(document.querySelectorAll("input")).find((element) => element.getAttribute("placeholder") === "CONFIRM");
+      if (input instanceof HTMLInputElement) {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+        setter?.call(input, "WRONG");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      const confirmButton = Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Confirm and Run Full Fetch"));
+      confirmButton?.click();
+      return { modalVisible, hasInput: Boolean(input), hasConfirmButton: Boolean(confirmButton) };
+    })()
+  `);
+  await wait(250);
+  const largeQueueCancelled = await window.webContents.executeJavaScript(`
+    (() => {
+      const rejected = document.body.innerText.includes("Please type CONFIRM exactly");
+      const cancelButton = Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Cancel / 取消"));
+      cancelButton?.click();
+      return { rejected, hasCancelButton: Boolean(cancelButton) };
+    })()
+  `);
+  await wait(250);
+  const largeQueueFinal = await window.webContents.executeJavaScript(`
+    (() => {
+      const text = document.body.innerText;
+      return {
+        modalClosed: !text.includes("Large Full Fetch Confirmation"),
+        hasUserAction: text.includes("[USER_ACTION]"),
+        hasGuard: text.includes("[GUARD]"),
+        hasUiModal: text.includes("[UI_MODAL]")
+      };
+    })()
+  `);
+  await window.webContents.executeJavaScript(`
+    Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Run Full Fetch from Queue"))?.click();
+  `);
+  await wait(150);
+  await window.webContents.executeJavaScript(`
+    (() => {
+      const input = Array.from(document.querySelectorAll("input")).find((element) => element.getAttribute("placeholder") === "CONFIRM");
+      if (input instanceof HTMLInputElement) {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+        setter?.call(input, "CONFIRM");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    })()
+  `);
+  await wait(150);
+  await window.webContents.executeJavaScript(`
+    Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Confirm and Run Full Fetch"))?.click();
+  `);
+  await wait(250);
+  const largeQueueConfirmed = await window.webContents.executeJavaScript(`
+    (() => {
+      const text = document.body.innerText;
+      return {
+        modalClosed: !text.includes("Large Full Fetch Confirmation"),
+        confirmedLog: text.includes("Large queue confirmation confirmed"),
+        matchedLog: text.includes("confirmInputMatched=true")
+      };
+    })()
+  `);
+  const fullFetchFilesAfterConfirmationTest = fs.existsSync(getFullFetchLogsDir()) ? fs.readdirSync(getFullFetchLogsDir()) : [];
+  const unexpectedFullFetchFiles = fullFetchFilesAfterConfirmationTest.filter((name) => !fullFetchFilesBeforeConfirmationTest.has(name));
+  if (!largeQueueOpened.found || largeQueueOpened.disabled) failures.push(`large queue confirmation: Run Full Fetch button unavailable ${JSON.stringify(largeQueueOpened)}`);
+  if (!largeQueueRejected.modalVisible || !largeQueueRejected.hasInput || !largeQueueRejected.hasConfirmButton) failures.push(`large queue confirmation: modal did not open correctly ${JSON.stringify(largeQueueRejected)}`);
+  if (!largeQueueCancelled.rejected || !largeQueueCancelled.hasCancelButton) failures.push(`large queue confirmation: invalid input was not rejected ${JSON.stringify(largeQueueCancelled)}`);
+  if (!largeQueueFinal.modalClosed || !largeQueueFinal.hasUserAction || !largeQueueFinal.hasGuard || !largeQueueFinal.hasUiModal) failures.push(`large queue confirmation: close/log audit failed ${JSON.stringify(largeQueueFinal)}`);
+  if (!largeQueueConfirmed.modalClosed || !largeQueueConfirmed.confirmedLog || !largeQueueConfirmed.matchedLog) failures.push(`large queue confirmation: CONFIRM path failed ${JSON.stringify(largeQueueConfirmed)}`);
+  if (unexpectedFullFetchFiles.length > 0) failures.push(`large queue confirmation: cancel created Full Fetch runtime files ${JSON.stringify(unexpectedFullFetchFiles)}`);
 
   if (failures.length > 0) {
     console.error("[electron ui smoke failed]");

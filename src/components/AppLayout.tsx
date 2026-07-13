@@ -50,6 +50,10 @@ export function AppLayout() {
         logs={logsByPage[page]}
         onClear={() => setLogsByPage((current) => clearDebugLogPage(current, page))}
         onAppend={(lines) => setLogsByPage((current) => appendDebugLogLines(current, page, lines))}
+        onUserAction={(message) => {
+          setLogsByPage((current) => appendDebugLogLines(current, page, [`[USER_ACTION] ${message}`]));
+          void window.desktopApp?.userAnalysis?.logAction?.({ category: "USER_ACTION", message });
+        }}
       />
     </div>
   );
