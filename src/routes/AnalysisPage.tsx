@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, Copy, DatabaseZap, Download, Eye, FolderOpen, ListChecks, Play, RotateCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, ListChecks, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel } from "../components/FormControls";
@@ -144,6 +144,8 @@ export function AnalysisPage() {
   const { activeConnection } = useConnectionContext();
   const { appendDebugLog, getDebugLogs } = useOutletContext<AppOutletContext>();
   const { userAnalysis, setUserAnalysis } = useSessionState();
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [expandedReportIssue, setExpandedReportIssue] = useState("");
 
   const selectedUsers = useMemo(() => parseUsers(userAnalysis.selectedUsersText), [userAnalysis.selectedUsersText]);
   const currentJqlDateRange = useMemo(
@@ -174,6 +176,12 @@ export function AnalysisPage() {
 
   function patchState(patch: Partial<typeof userAnalysis>) {
     setUserAnalysis((current) => ({ ...current, ...patch }));
+  }
+
+  function showStep(step: "candidate" | "queue" | "fetchReport" | "exports") {
+    if (step === "queue" || step === "fetchReport") patchState({ activeTab: step });
+    document.getElementById(step === "candidate" ? "candidate-search" : step === "exports" ? "analysis-exports" : "stage-results")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function validate() {
@@ -726,9 +734,48 @@ export function AnalysisPage() {
   return (
     <div className="min-w-0">
       <PageHeader title="使用者分析" subtitle="User Analysis" />
+      <div className="mb-4 flex min-w-0 flex-wrap gap-2">
+        <label className="btn cursor-pointer" title="Show or hide contextual guidance">
+          <input className="h-4 w-4" type="checkbox" checked={userAnalysis.showHelpTips} onChange={(event) => patchState({ showHelpTips: event.target.checked })} />
+          Show Help Tips / 顯示操作說明
+        </label>
+        <button className="btn" type="button" onClick={() => setHelpOpen((value) => !value)}>
+          <HelpCircle size={16} />Help / 使用說明
+        </button>
+      </div>
       <p className="mb-4 max-w-3xl text-sm font-semibold leading-relaxed text-muted">
         Find Jira issues touched by selected users in a date range. Stage 1 discovers candidate issues and prepares a fetch queue for Stage 2.
       </p>
+
+      <SectionCard className="mb-4">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            ["candidate", "1", "Candidate Search", "候選搜尋"],
+            ["queue", "2", "Fetch Queue", "擷取佇列"],
+            ["fetchReport", "3", "Full Fetch Report", "完整擷取報告"],
+            ["exports", "4", "Exports", "匯出"]
+          ].map(([step, number, title, subtitle]) => (
+            <button key={step} className="flex min-w-0 items-center gap-3 rounded-lg border border-line bg-slate-50 p-3 text-left hover:border-blue-300 hover:bg-blue-50" type="button" onClick={() => showStep(step as "candidate" | "queue" | "fetchReport" | "exports")}>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 font-black text-white">{number}</span>
+              <span className="min-w-0 text-sm font-black leading-snug text-ink">{title}<br /><span className="text-xs font-semibold text-muted">{subtitle}</span></span>
+            </button>
+          ))}
+        </div>
+      </SectionCard>
+
+      {helpOpen ? (
+        <SectionCard title="User Analysis workflow" subtitle="使用者分析流程" className="mb-4">
+          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="rounded-lg bg-blue-50 p-3 text-sm leading-relaxed"><b>1. Candidate Search / 候選搜尋</b><br />Search Jira issues by users and date range.</div>
+            <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>2. Fetch Queue / 擷取佇列</b><br />Select issues that should be fully fetched.</div>
+            <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>3. Full Fetch Report / 完整擷取報告</b><br />Review fetch status, counts, warnings, and errors.</div>
+            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>4. Exports / 匯出</b><br />Save Stage 1 candidate data or Stage 2 full fetch data.</div>
+          </div>
+          <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">
+            Stage 1: exports/user-analysis/user-analysis-candidates-YYYYMMDD_HHmmss.json<br />Stage 2: exports/user-analysis/user-analysis-full-fetch-YYYYMMDD_HHmmss.json
+          </div>
+        </SectionCard>
+      ) : null}
 
       <SectionCard title="Data Source Mode" subtitle="資料來源模式" className="mb-4">
         <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-5">
@@ -750,7 +797,8 @@ export function AnalysisPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Candidate Discovery" subtitle="候選 Issue 搜尋" className="mb-4">
+      <SectionCard id="candidate-search" title="Candidate Search" subtitle="候選搜尋" className="mb-4">
+        {userAnalysis.showHelpTips ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Use this step to search for Jira issues related to selected users and date range. The result is a Candidate Issues list only; full comments, attachments, and changelog are fetched in Stage 2.</div> : null}
         <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <div className="min-w-0">
             <FieldLabel label="Selected Users" sub="使用者" />
@@ -828,6 +876,7 @@ export function AnalysisPage() {
       </div>
 
       <SectionCard
+        id="stage-results"
         title="Stage 1 Results"
         subtitle="Candidate Issues / Fetch Queue"
         action={
@@ -890,7 +939,7 @@ export function AnalysisPage() {
         ) : userAnalysis.activeTab === "queue" ? (
           <>
             <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">
-              Fetch Queue prepares selected issues for Stage 2 Full Fetch. Full Fetch reads Jira through read-only GET endpoints only.
+              Select candidate issues and add them to the Fetch Queue before running Full Fetch. This is the only Full Fetch action in User Analysis.
             </div>
             <ResponsiveTableContainer>
               <table className="table min-w-[980px]">
@@ -917,8 +966,11 @@ export function AnalysisPage() {
                 </tbody>
               </table>
             </ResponsiveTableContainer>
-            <button className="btn btn-primary mt-3" type="button" onClick={() => void handleRunFullFetch()} disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"}>
-              <Play size={16} />{userAnalysis.fullFetchStatus === "running" ? "Running Full Fetch..." : "Run Full Fetch"}
+            <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold leading-relaxed text-muted">
+              This will fetch full read-only data for all issues currently in the Fetch Queue. No database write, no Jira write, and no attachment file download will be performed.
+            </div>
+            <button className="btn btn-primary mt-3" type="button" onClick={() => void handleRunFullFetch()} disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"} title="Run a sequential read-only fetch for the current queue">
+              <Play size={16} />{userAnalysis.fullFetchStatus === "running" ? "Running Full Fetch..." : hasFullFetchResult ? "Re-run Full Fetch from Queue" : "Run Full Fetch from Queue"}
             </button>
           </>
         ) : (
@@ -936,35 +988,48 @@ export function AnalysisPage() {
                 Page {fetchReportPage} / {fetchReportPageCount}
               </div>
             </div>
+            <div className="mb-3 grid min-w-0 grid-cols-2 gap-3 md:grid-cols-5">
+              <MiniStat label="Total Issues" value={userAnalysis.fullFetchSummary.totalIssues} />
+              <MiniStat label="Success" value={userAnalysis.fullFetchSummary.success} />
+              <MiniStat label="Failed" value={userAnalysis.fullFetchSummary.failed} />
+              <MiniStat label="Comments" value={userAnalysis.fullFetchSummary.totalComments} />
+              <MiniStat label="Events" value={userAnalysis.fullFetchSummary.totalEstimatedEvents} />
+            </div>
             <ResponsiveTableContainer>
-              <table className="table min-w-[1500px]">
+              <table className="table min-w-[940px]">
                 <thead>
                   <tr>
-                    {["Issue Key", "Summary", "Status", "Fetch Status", "HTTP Status", "Changelog Histories", "Changelog Items", "Comments", "Attachments Metadata", "Issue Links", "Parsed Users", "Estimated Events", "Duration", "Error / Warning", "Last Fetched At"].map((header) => <th key={header}>{header}</th>)}
+                    {["Issue Key", "Summary", "Fetch Status", "Comments", "Attachments", "Events", "Duration", "Detail"].map((header) => <th key={header}>{header}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {pagedFetchReport.map((row) => (
-                    <tr key={`${row.issueKey}-${row.lastFetchedAt}`}>
+                    <Fragment key={`${row.issueKey}-${row.lastFetchedAt}`}>
+                    <tr>
                       <td className="font-black text-blue-700">{row.issueKey}</td>
                       <td><span className="block max-w-[320px] truncate" title={row.summary} data-allow-truncate="true">{row.summary}</span></td>
-                      <td><StatusBadge>{row.status}</StatusBadge></td>
                       <td><StatusBadge>{row.fetchStatus}</StatusBadge></td>
-                      <td data-no-clip="true">{row.httpStatus}</td>
-                      <td data-no-clip="true">{row.changelogHistories}</td>
-                      <td data-no-clip="true">{row.changelogItems}</td>
                       <td data-no-clip="true">{row.comments}</td>
                       <td data-no-clip="true">{row.attachmentsMetadata}</td>
-                      <td data-no-clip="true">{row.issueLinks}</td>
-                      <td data-no-clip="true">{row.parsedUsers}</td>
                       <td data-no-clip="true">{row.estimatedEvents}</td>
                       <td data-no-clip="true">{row.duration}</td>
-                      <td><span className="block max-w-[320px] truncate" title={row.error || "-"} data-allow-truncate="true">{row.error || "-"}</span></td>
-                      <td data-no-clip="true">{row.lastFetchedAt}</td>
+                      <td><button className="btn px-3 py-2" type="button" onClick={() => setExpandedReportIssue((value) => value === row.issueKey ? "" : row.issueKey)}>{expandedReportIssue === row.issueKey ? <ChevronUp size={15} /> : <ChevronDown size={15} />}View Detail</button></td>
                     </tr>
+                    {expandedReportIssue === row.issueKey ? <tr><td colSpan={8} className="whitespace-normal bg-slate-50">
+                      <div className="grid min-w-0 grid-cols-2 gap-3 p-2 md:grid-cols-4">
+                        <MiniStat label="HTTP Status" value={row.httpStatus || "-"} />
+                        <MiniStat label="Changelog Histories" value={row.changelogHistories} />
+                        <MiniStat label="Changelog Items" value={row.changelogItems} />
+                        <MiniStat label="Issue Links" value={row.issueLinks} />
+                        <MiniStat label="Parsed Users" value={row.parsedUsers} />
+                        <div className="col-span-2 rounded-lg border border-line bg-white p-3 text-sm"><b>Error / Warning</b><div className="mt-1 break-words text-muted">{row.error || "-"}</div></div>
+                        <div className="rounded-lg border border-line bg-white p-3 text-sm"><b>Last Fetched At</b><div className="mt-1 text-muted">{row.lastFetchedAt || "-"}</div></div>
+                      </div>
+                    </td></tr> : null}
+                    </Fragment>
                   ))}
                   {pagedFetchReport.length === 0 ? (
-                    <tr><td colSpan={15} className="text-center text-muted">No Fetch Report yet. Run Full Fetch from the Fetch Queue or Stage 2 panel.</td></tr>
+                    <tr><td colSpan={8} className="text-center text-muted">No Fetch Report yet. Run Full Fetch from the Fetch Queue.</td></tr>
                   ) : null}
                 </tbody>
               </table>
@@ -980,8 +1045,8 @@ export function AnalysisPage() {
         )}
       </SectionCard>
 
-      <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <SectionCard title="Save Candidate Result" subtitle="Stage 1 Export">
+      <div id="analysis-exports" className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+        <SectionCard title="Stage 1 Candidate Export" subtitle="候選資料匯出">
           <div className="flex flex-wrap gap-3">
             <button className="btn btn-primary" type="button" onClick={() => void saveCandidateResult(false)} disabled={userAnalysis.saving}>
               <Download size={16} />Save Candidate Result
@@ -1024,13 +1089,10 @@ export function AnalysisPage() {
             Exports include globalDataSourceMode, masked source metadata, generatedJql, generatedBaseJql, jqlStrategy, updatedByStatus, candidateIssues, selectedForFetch, warnings, errors, and sanitized debug logs.
           </div>
         </SectionCard>
-        <SectionCard title="Stage 2 Full Fetch" subtitle="Full Fetch">
+        <SectionCard title="Stage 2 Full Fetch Export" subtitle="完整擷取資料匯出">
           <div className="space-y-4">
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">
-              <div className="font-black text-blue-950">Stage 2 Full Fetch / Full issue fetch</div>
-              <div className="mt-1">
-                Full Fetch will read selected Jira issues from the Fetch Queue using read-only Jira API. It will fetch issue fields, changelog, comments, attachments metadata, issue links, and parsed users. No database write, no Jira write, and no attachment file download will be performed.
-              </div>
+              Stage 2 exports contain the complete read-only fetch result for later analysis. Run Full Fetch from the Fetch Queue first.
             </div>
             {fetchQueue.length === 0 ? (
               <div className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-800">
@@ -1049,14 +1111,6 @@ export function AnalysisPage() {
               <MiniStat label="Attachments" value={userAnalysis.fullFetchSummary.totalAttachmentsMetadata} />
               <MiniStat label="Changelog" value={userAnalysis.fullFetchSummary.totalChangelogHistories} />
               <MiniStat label="Events" value={userAnalysis.fullFetchSummary.totalEstimatedEvents} />
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button className="btn btn-primary" type="button" onClick={() => void handleRunFullFetch()} disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"}>
-                <Play size={16} />{userAnalysis.fullFetchStatus === "running" ? "Running Full Fetch..." : "Run Full Fetch"}
-              </button>
-              <button className="btn" type="button" disabled>
-                Cancel is not available in this version.
-              </button>
             </div>
             <div className="rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">
               Execution Mode: Sequential read-only fetch. One issue is fetched at a time.

@@ -4,11 +4,12 @@ type Props = {
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  id?: string;
 };
 
-export function SectionCard({ title, subtitle, action, children, className = "" }: Props) {
+export function SectionCard({ title, subtitle, action, children, className = "", id }: Props) {
   return (
-    <section className={`card min-w-0 max-w-full p-4 ${className}`}>
+    <section id={id} className={`card min-w-0 max-w-full p-4 ${className}`}>
       {(title || action) && (
         <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3">
           {title ? (

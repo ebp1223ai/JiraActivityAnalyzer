@@ -13,24 +13,27 @@ const levelClass: Record<string, string> = {
   ERROR: "bg-red-100 text-red-700",
   WARN: "bg-amber-100 text-amber-700",
   DEBUG: "bg-blue-100 text-blue-700",
-  INFO: "bg-green-100 text-green-700"
+  INFO: "bg-green-100 text-green-700",
+  SUCCESS: "bg-emerald-100 text-emerald-700"
 };
 
 function levelFor(line: string, index: number) {
   if (line.includes("[ERROR]")) return "ERROR";
   if (line.includes("[WARN]")) return "WARN";
   if (line.includes("[DEBUG]")) return "DEBUG";
-  return index % 3 === 0 ? "DEBUG" : "INFO";
+  if (line.includes("[SUCCESS]")) return "SUCCESS";
+  return "INFO";
 }
 
-function timestampFor(index: number) {
-  const minutes = String(40 + Math.floor(index / 12)).padStart(2, "0");
-  const seconds = String(21 + (index % 12)).padStart(2, "0");
-  return `15:${minutes}:${seconds}.${120 + index}`;
+function displayParts(line: string) {
+  const match = /^(\d{4}\/\d{2}\/\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3}) (.*)$/.exec(line);
+  return match ? { date: match[1], time: match[2], message: match[3] } : { date: "", time: "", message: line };
 }
 
 function debugFileName() {
-  const timestamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "_").slice(0, 15);
+  const date = new Date();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const timestamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
   return `jira-activity-analyzer-debug-${timestamp}.txt`;
 }
 
@@ -141,16 +144,17 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend }: 
       <div ref={logContainerRef} className="thin-scroll mt-4 min-h-0 flex-1 overflow-auto rounded-lg border border-line p-3">
         {logs.map((log, index) => {
           const level = levelFor(log, index);
+          const parts = displayParts(log);
           return (
-            <div key={`${log}-${index}`} className="grid min-w-0 grid-cols-[82px_44px_minmax(0,1fr)] gap-2 py-2 text-xs">
-              <span className="font-mono text-slate-500" data-no-clip="true">{timestampFor(index)}</span>
+            <div key={`${log}-${index}`} className="grid min-w-0 grid-cols-[86px_52px_minmax(0,1fr)] gap-2 py-2 text-xs" title={parts.date}>
+              <span className="font-mono text-slate-500" data-no-clip="true">{parts.time || "--:--:--.---"}</span>
               <span
                 className={`h-fit rounded px-1.5 py-0.5 text-[10px] font-black ${levelClass[level]}`}
                 data-no-clip="true"
               >
                 {level}
               </span>
-              <span className="min-w-0 break-words font-mono leading-relaxed text-slate-700">{log}</span>
+              <span className="min-w-0 break-words font-mono leading-relaxed text-slate-700">{parts.message}</span>
             </div>
           );
         })}
