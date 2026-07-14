@@ -213,6 +213,18 @@ The smoke test checks:
 - both Debug Log expanded and collapsed states work across `1024x768`, `1280x720`, `1366x768`, `1600x900`, and `1920x1080`
 - screenshots are generated only when `npm run capture:ui` is used
 
+## Activity Stream Precision Probe
+
+The standalone User Activity Precision Probe is a read-only compatibility and diagnostics tool. Activity Stream Query Mode defaults to Auto and tries deduplicated username and email variants in an order based on the supplied user value. Username only, Email only, and Custom only modes are also available.
+
+- Each variant records reachability, endpoint support, HTTP status, content type, Atom entry count, parsed activity count, extracted Jira keys, and a diagnosis.
+- Diagnoses distinguish `parsed`, `no_entries`, `parser_failed`, `html_login`, `http_error`, `blocked`, and `unknown` instead of treating HTTP 200 alone as a successful parse.
+- Atom parsing counts every `<entry>` and keeps only the first three sanitized summaries, limited to 500 characters per field. Complete XML, HTML login pages, cookies, tokens, and Authorization values are not retained.
+- Issue keys are extracted from title, link, summary, content, and a sanitized raw-entry fallback. Multiple keys per entry are deduplicated.
+- Activity Stream keys are preferred for `recommendedIssueKeys` only after successful parsing. `updatedBy` remains a candidate source and is never described as confirmed user activity.
+- Precision Probe exports include `activityStream.variantResults`, `firstEntriesSanitized`, and separate Activity Stream, updatedBy candidate, CHANGED BY, broad baseline, and recommended issue-key sets.
+- The probe never writes Jira or the database and never downloads attachment bodies.
+
 ## Electron Security
 
 - `contextIsolation: true`

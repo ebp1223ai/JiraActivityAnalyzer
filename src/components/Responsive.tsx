@@ -19,9 +19,9 @@ export function ResponsiveCard({ children, className = "" }: { children: React.R
   return <div className={`card min-w-0 max-w-full p-4 ${className}`}>{children}</div>;
 }
 
-export function ResponsiveTableContainer({ children }: { children: React.ReactNode }) {
+export function ResponsiveTableContainer({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="thin-scroll min-w-0 max-w-full overflow-x-auto overflow-y-hidden rounded-lg border border-line">
+    <div className={`thin-scroll min-w-0 max-w-full overflow-x-auto overflow-y-hidden rounded-lg border border-line ${className}`}>
       {children}
     </div>
   );

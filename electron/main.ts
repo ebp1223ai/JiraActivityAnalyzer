@@ -794,9 +794,15 @@ type ActivityStreamEntry = {
   activityTitle: string;
   activityAuthor: string;
   activityTime: string;
-  activityType: "comment" | "update" | "status" | "attachment" | "unknown";
+  activityType: "comment" | "update" | "status" | "attachment" | "link" | "unknown";
   source: "activity_stream";
+  variant: string;
+  extractedIssueKeysPerEntry: string[];
 };
+
+type ActivityStreamQueryMode = "auto" | "username" | "email" | "custom";
+type ActivityStreamDiagnosis = "parsed" | "no_entries" | "parser_failed" | "html_login" | "http_error" | "blocked" | "unknown";
+type ActivityStreamVariant = { variant: "username" | "email" | "custom"; user: string };
 
 function decodeXmlText(value: string) {
   return value
@@ -822,109 +828,209 @@ function activityType(value: string): ActivityStreamEntry["activityType"] {
   if (/comment|留言|評論/.test(lower)) return "comment";
   if (/status|transition|狀態/.test(lower)) return "status";
   if (/attachment|附件/.test(lower)) return "attachment";
+  if (/link|連結/.test(lower)) return "link";
   if (/update|change|edit|更新|變更|修改/.test(lower)) return "update";
   return "unknown";
 }
 
-function activityEntry(values: { title?: unknown; author?: unknown; time?: unknown; content?: unknown; link?: unknown }): ActivityStreamEntry {
+function activityEntry(values: { title?: unknown; author?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown }, variant: string): ActivityStreamEntry {
   const title = sanitizeResponseText(typeof values.title === "string" ? values.title : text(asRecord(values.title).value ?? asRecord(values.title).text ?? values.title));
   const authorRecord = asRecord(values.author);
-  const author = sanitizeResponseText(typeof values.author === "string" ? values.author : text(authorRecord.email ?? authorRecord.name ?? authorRecord.displayName ?? authorRecord.username));
+  const author = sanitizeResponseText(typeof values.author === "string" ? values.author : text(authorRecord.name ?? authorRecord.displayName ?? authorRecord.email ?? authorRecord.username));
   const time = text(values.time);
   const content = typeof values.content === "string" ? values.content : JSON.stringify(values.content ?? "");
   const link = typeof values.link === "string" ? values.link : JSON.stringify(values.link ?? "");
-  const combined = `${title} ${content} ${link}`;
+  const raw = typeof values.raw === "string" ? values.raw : JSON.stringify(values.raw ?? "");
+  const combined = `${title} ${content} ${link} ${raw}`;
+  const extractedIssueKeysPerEntry = issueKeysFrom(combined).sort();
   return {
-    issueKey: issueKeysFrom(combined)[0] ?? "",
+    issueKey: extractedIssueKeysPerEntry[0] ?? "",
     activityTitle: title === "-" ? "" : title.slice(0, 1000),
     activityAuthor: author === "-" ? "" : author.slice(0, 300),
     activityTime: time === "-" ? "" : time,
     activityType: activityType(combined),
-    source: "activity_stream"
+    source: "activity_stream",
+    variant,
+    extractedIssueKeysPerEntry
   };
 }
 
-function parseActivityJson(value: unknown) {
+function sanitizedFirstEntry(entry: Record<string, unknown>) {
+  const authorRecord = asRecord(entry.author);
+  const rawText = JSON.stringify(entry);
+  return {
+    rawTitleText: sanitizeResponseText(text(entry.title)).slice(0, 500),
+    rawAuthorText: sanitizeResponseText(text(authorRecord.name ?? authorRecord.email ?? authorRecord.displayName ?? entry.author)).slice(0, 500),
+    rawUpdatedText: sanitizeResponseText(text(entry.updated ?? entry.timestamp ?? entry.date)).slice(0, 500),
+    rawPublishedText: sanitizeResponseText(text(entry.published)).slice(0, 500),
+    rawLinkHref: sanitizeResponseText(text(entry.link ?? entry.url)).slice(0, 500),
+    rawSummaryText: sanitizeResponseText(text(entry.summary ?? entry.content ?? entry.description)).slice(0, 500),
+    extractedIssueKeys: issueKeysFrom(rawText).sort()
+  };
+}
+
+function parseActivityJson(value: unknown, variant: string) {
   const root = asRecord(value);
   const feed = asRecord(root.feed);
   const candidateCollections = [root.entries, root.entry, root.activities, feed.entries, feed.entry];
   const records = candidateCollections.flatMap((collection) => Array.isArray(collection) ? collection : collection ? [collection] : []).filter((item) => item && typeof item === "object") as Record<string, unknown>[];
-  return records.map((entry) => activityEntry({
+  return {
+    rawEntryCount: records.length,
+    atomEntryCount: 0,
+    firstEntriesSanitized: records.slice(0, 3).map(sanitizedFirstEntry),
+    entries: records.map((entry) => activityEntry({
     title: entry.title,
     author: entry.author,
     time: entry.updated ?? entry.published ?? entry.timestamp ?? entry.date,
     content: entry.summary ?? entry.content ?? entry.description,
-    link: entry.link ?? entry.url
-  }));
+    link: entry.link ?? entry.url,
+    raw: entry
+  }, variant))
+  };
 }
 
-function parseActivityAtom(xml: string) {
-  return Array.from(xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)).map((match) => {
-    const block = match[1];
+function parseActivityAtom(xml: string, variant: string) {
+  const blocks = Array.from(xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)).map((match) => match[1]);
+  const firstEntriesSanitized = blocks.slice(0, 3).map((block) => ({
+    rawTitleText: xmlTag(block, "title").slice(0, 500),
+    rawAuthorText: xmlTag(/<author(?:\s[^>]*)?>([\s\S]*?)<\/author>/i.exec(block)?.[1] ?? "", "name").slice(0, 500) || xmlTag(/<author(?:\s[^>]*)?>([\s\S]*?)<\/author>/i.exec(block)?.[1] ?? "", "email").slice(0, 500),
+    rawUpdatedText: xmlTag(block, "updated").slice(0, 500),
+    rawPublishedText: xmlTag(block, "published").slice(0, 500),
+    rawLinkHref: sanitizeResponseText(/<link\b[^>]*href=["']([^"']+)["'][^>]*>/i.exec(block)?.[1] ?? "").slice(0, 500),
+    rawSummaryText: (xmlTag(block, "summary") || xmlTag(block, "content")).slice(0, 500),
+    extractedIssueKeys: issueKeysFrom(block).sort()
+  }));
+  return { rawEntryCount: blocks.length, atomEntryCount: blocks.length, firstEntriesSanitized, entries: blocks.map((block) => {
     const authorBlock = /<author(?:\s[^>]*)?>([\s\S]*?)<\/author>/i.exec(block)?.[1] ?? "";
     const title = xmlTag(block, "title");
     const content = xmlTag(block, "summary") || xmlTag(block, "content");
     const link = /<link\b[^>]*href=["']([^"']+)["'][^>]*>/i.exec(block)?.[1] ?? "";
-    return activityEntry({ title, author: xmlTag(authorBlock, "email") || xmlTag(authorBlock, "name"), time: xmlTag(block, "updated") || xmlTag(block, "published"), content, link });
-  });
+    return activityEntry({ title, author: xmlTag(authorBlock, "name") || xmlTag(authorBlock, "email") || decodeXmlText(authorBlock), time: xmlTag(block, "updated") || xmlTag(block, "published") || xmlTag(block, "date"), content, link, raw: block }, variant);
+  }) };
 }
 
-function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: string, user: string) {
+function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: string, user: string, variant: ActivityStreamVariant["variant"] = "custom") {
   const contentType = response.contentType || "";
   const isHtml = /text\/html/i.test(contentType) || /html|login page|SSO/i.test(response.message ?? "");
   const bodyText = response.bodyTextSanitized ?? "";
-  const entries = response.json
-    ? parseActivityJson(response.json)
-    : /atom|xml/i.test(contentType) || /^\s*<feed\b/i.test(bodyText) ? parseActivityAtom(bodyText) : [];
-  const parsedIssueKeys = Array.from(new Set(entries.map((entry) => entry.issueKey).filter(Boolean))).sort();
+  const parsedFeed = response.json
+    ? parseActivityJson(response.json, variant)
+    : /atom|xml/i.test(contentType) || /^\s*<feed\b/i.test(bodyText) ? parseActivityAtom(bodyText, variant) : { rawEntryCount: 0, atomEntryCount: 0, firstEntriesSanitized: [], entries: [] as ActivityStreamEntry[] };
+  const parsedIssueKeys = Array.from(new Set(parsedFeed.entries.flatMap((entry) => entry.extractedIssueKeysPerEntry))).sort();
   const endpointUnavailable = response.status === 403 || response.status === 404;
-  const status = response.ok ? "success" : isHtml ? "failed" : endpointUnavailable ? "unsupported" : "failed";
+  const blocked = /blocked|read.only|guard/i.test(`${response.errorType ?? ""} ${response.message ?? ""}`);
+  const parsedEntries = parsedFeed.entries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 0);
+  const diagnosis: ActivityStreamDiagnosis = blocked ? "blocked" : isHtml ? "html_login" : !response.ok ? "http_error" : parsedEntries.length > 0 ? "parsed" : parsedFeed.rawEntryCount > 0 ? "parser_failed" : "no_entries";
+  const status = diagnosis === "parsed" || diagnosis === "no_entries" ? "success" : endpointUnavailable || blocked ? "unsupported" : "failed";
   return {
+    variant,
+    reachable: !blocked && response.status !== "-",
+    parsed: diagnosis === "parsed",
+    diagnosis,
     status,
-    supported: response.ok ? "yes" : isHtml ? "unknown" : endpointUnavailable ? "no" : "unknown",
+    supported: response.ok ? "yes" : endpointUnavailable || blocked ? "no" : "unknown",
     httpStatus: String(response.status),
     contentType,
     requestUrlSanitized,
     activityStreamUser: user,
     activityStreamDateSemantics: "unknown" as const,
-    parsedActivityCount: entries.length,
+    atomEntryCount: parsedFeed.atomEntryCount,
+    parsedActivityCount: parsedEntries.length,
     parsedIssueKeys,
-    entriesSanitized: entries,
-    error: response.ok ? "" : isHtml ? "Activity Stream returned HTML or a login page." : precisionError(response),
+    entriesSanitized: parsedFeed.entries,
+    firstEntriesSanitized: parsedFeed.firstEntriesSanitized,
+    error: response.ok ? (diagnosis === "parser_failed" ? "Activity Stream entries were found, but no Jira issue keys could be parsed." : "") : isHtml ? "Activity Stream returned HTML or a login page." : precisionError(response),
     rawSummary: response.bodyPreview ?? ""
   };
 }
 
-async function runActivityStreamProbe(connection: AppConnection, user: string, startDate: string, endDate: string, maxResults: number) {
+function activityStreamVariants(connection: AppConnection, selectedUsers: string[], customUser: string, mode: ActivityStreamQueryMode): ActivityStreamVariant[] {
+  const selected = selectedUsers.map((item) => item.trim()).filter(Boolean);
+  const seed = customUser.trim() || selected[0] || connection.email || connection.username || "";
+  const username = seed.includes("@") ? seed.split("@")[0] : seed;
+  const knownEmail = [customUser, ...selected, connection.email, connection.username].find((item) => String(item || "").includes("@")) || "";
+  const email = seed.includes("@") ? seed : knownEmail ? `${username}@${String(knownEmail).split("@")[1]}` : "";
+  const candidates: ActivityStreamVariant[] = mode === "custom"
+    ? [{ variant: "custom", user: customUser.trim() }]
+    : mode === "username" ? [{ variant: "username", user: username }]
+      : mode === "email" ? [{ variant: "email", user: email }]
+        : seed.includes("@") ? [{ variant: "email", user: email }, { variant: "username", user: username }]
+          : [{ variant: "username", user: username }, { variant: "email", user: email }];
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => candidate.user && !seen.has(candidate.user.toLowerCase()) && seen.add(candidate.user.toLowerCase()));
+}
+
+function aggregateActivityStream(variantResults: ReturnType<typeof activityStreamResult>[], fallbackUser: string) {
+  const ranked = [...variantResults].sort((a, b) => Number(b.parsed) - Number(a.parsed) || b.atomEntryCount - a.atomEntryCount || Number(b.reachable) - Number(a.reachable));
+  const best = ranked[0];
+  const activityStreamIssueKeys = Array.from(new Set(variantResults.flatMap((result) => result.parsedIssueKeys))).sort();
+  const parsed = activityStreamIssueKeys.length > 0;
+  const reachable = variantResults.some((result) => result.reachable);
+  const supported = variantResults.some((result) => result.supported === "yes") ? "yes" : variantResults.every((result) => result.supported === "no") ? "no" : "unknown";
+  const diagnosis: ActivityStreamDiagnosis = parsed ? "parsed" : variantResults.some((result) => result.diagnosis === "no_entries") ? "no_entries" : best?.diagnosis ?? "unknown";
+  const overallStatus = parsed ? "success" : reachable && supported === "yes" ? "partial" : "failed";
+  return {
+    status: parsed || diagnosis === "no_entries" ? "success" : supported === "no" ? "unsupported" : "failed",
+    overallStatus,
+    reachable,
+    supported,
+    parsed,
+    diagnosis,
+    bestVariant: best?.variant ?? "",
+    bestActivityStreamUser: best?.activityStreamUser ?? fallbackUser,
+    bestParsedIssueKeys: best?.parsedIssueKeys ?? [],
+    httpStatus: best?.httpStatus ?? "-",
+    contentType: best?.contentType ?? "",
+    requestUrlSanitized: best?.requestUrlSanitized ?? "",
+    activityStreamUser: fallbackUser,
+    activityStreamDateSemantics: "unknown" as const,
+    parsedActivityCount: variantResults.reduce((sum, result) => sum + result.parsedActivityCount, 0),
+    parsedIssueKeys: activityStreamIssueKeys,
+    atomEntryCount: variantResults.reduce((sum, result) => sum + result.atomEntryCount, 0),
+    variantResults,
+    activityStreamIssueKeys,
+    entriesSanitized: variantResults.flatMap((result) => result.entriesSanitized),
+    firstEntriesSanitized: best?.firstEntriesSanitized ?? [],
+    error: parsed || diagnosis === "no_entries" ? "" : best?.error || "Activity Stream could not be parsed.",
+    rawSummary: best?.rawSummary ?? ""
+  };
+}
+
+async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number) {
   const requestMaxResults = maxResults === 0 ? 1 : Math.min(Math.max(maxResults || 10, 1), 50);
-  const params = new URLSearchParams({ maxResults: String(requestMaxResults), streams: `user IS ${user}`, startDate, endDate });
-  const requestUrlSanitized = `/plugins/servlet/streams?${params.toString()}`;
+  const variants = activityStreamVariants(connection, selectedUsers, user, queryMode);
   const logs = [
-    `[INFO] Activity Stream probe started: user=${user} date=${startDate}..${endDate}`,
-    `[DEBUG] GET ${requestUrlSanitized} (credentials masked)`,
+    `[USER_ACTION] Run Activity Stream Probe: mode=${queryMode} user=${user || "auto"}`,
+    `[INFO] Activity Stream probe started: mode=${queryMode} variants=${variants.map((item) => `${item.variant}:${item.user}`).join(",")} date=${startDate}..${endDate}`,
+    `[INFO] Activity Stream variants planned: ${variants.map((item) => `${item.variant}=${item.user}`).join(" ")}`,
     "[INFO] Authorization: [masked]",
     "[INFO] Token: [masked]"
   ];
-  if (isUiSmoke) {
-    const activityStream = {
-      status: "success", supported: "yes", httpStatus: "200", contentType: "application/atom+xml",
-      requestUrlSanitized, activityStreamUser: user, activityStreamDateSemantics: "unknown" as const,
-      parsedActivityCount: 1, parsedIssueKeys: ["SMOKE-101"],
-      entriesSanitized: [{ issueKey: "SMOKE-101", activityTitle: "SMOKE-101 updated", activityAuthor: user, activityTime: "2026-07-02T09:00:00+08:00", activityType: "update", source: "activity_stream" }],
-      error: "", rawSummary: ""
-    };
-    logs.push("[INFO] Activity Stream probe completed: httpStatus=200 contentType=application/atom+xml parsedActivities=1 parsedIssueKeys=1", "[INFO] No database write performed", "[INFO] No Jira write performed");
-    return { activityStream, logs };
+  const client = isUiSmoke ? null : createJiraClient({ baseUrl: connection.baseUrl, email: connection.email || connection.username, apiToken: connection.apiToken ?? "", authType: connection.authType });
+  const variantResults = [] as ReturnType<typeof activityStreamResult>[];
+  for (const variant of variants) {
+    const params = new URLSearchParams({ maxResults: String(requestMaxResults), streams: `user IS ${variant.user}`, startDate, endDate });
+    const requestUrlSanitized = `/plugins/servlet/streams?${params.toString()}`;
+    logs.push(`[INFO] Activity Stream variant started: variant=${variant.variant} user=${variant.user}`, `[DEBUG] GET ${requestUrlSanitized} (credentials masked)`);
+    let result: ReturnType<typeof activityStreamResult>;
+    if (isUiSmoke) {
+      const response = variant.variant === "username"
+        ? { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: "<feed></feed>", bodyPreview: "", json: null } as JiraHttpResult
+        : { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: `<feed><entry><title>SMOKE-101 updated</title><author><email>${variant.user}</email></author><updated>2026-07-02T09:00:00+08:00</updated><summary>Changed SMOKE-101</summary><link href="/browse/SMOKE-101" /></entry></feed>`, bodyPreview: "", json: null } as JiraHttpResult;
+      result = activityStreamResult(response, requestUrlSanitized, variant.user, variant.variant);
+    } else {
+      result = activityStreamResult(await client!.get(requestUrlSanitized), requestUrlSanitized, variant.user, variant.variant);
+    }
+    variantResults.push(result);
+    logs.push(`${result.parsed ? "[INFO]" : "[WARN]"} Activity Stream variant completed: variant=${variant.variant} httpStatus=${result.httpStatus} diagnosis=${result.diagnosis} atomEntries=${result.atomEntryCount} parsedActivities=${result.parsedActivityCount} parsedIssueKeys=${result.parsedIssueKeys.length}`);
   }
-  const client = createJiraClient({ baseUrl: connection.baseUrl, email: connection.email || connection.username, apiToken: connection.apiToken ?? "", authType: connection.authType });
-  const response = await client.get(requestUrlSanitized);
-  const activityStream = activityStreamResult(response, requestUrlSanitized, user);
-  logs.push(`${activityStream.status === "success" ? "[INFO]" : "[WARN]"} Activity Stream probe completed: httpStatus=${activityStream.httpStatus} contentType=${activityStream.contentType || "unknown"} parsedActivities=${activityStream.parsedActivityCount} parsedIssueKeys=${activityStream.parsedIssueKeys.length}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
+  const activityStream = aggregateActivityStream(variantResults, user);
+  logs.push(`[INFO] Activity Stream best variant: ${activityStream.bestVariant || "none"}`, `[INFO] Activity Stream probe completed: overallStatus=${activityStream.overallStatus} bestVariant=${activityStream.bestVariant || "none"} diagnosis=${activityStream.diagnosis} parsedIssueKeys=${activityStream.activityStreamIssueKeys.length}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
   return { activityStream, logs };
 }
 
-ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; activityStreamUser: string; startDate: string; endDate: string; maxResults: 0 | 10 | 20 | 50 }) => {
-  return runActivityStreamProbe(payload.connection, String(payload.activityStreamUser || "").trim(), payload.startDate, payload.endDate, Number(payload.maxResults));
+ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: 0 | 10 | 20 | 50 }) => {
+  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults));
 });
 
 ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
@@ -934,6 +1040,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   endExclusive: string;
   projectScope: string;
   activityStreamUser?: string;
+  activityStreamQueryMode?: ActivityStreamQueryMode;
   maxResults: 0 | 10 | 20 | 50;
   broadJql: string;
 }) => {
@@ -951,14 +1058,8 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   ];
 
   if (isUiSmoke) {
-    const activityStream = {
-      status: "success", supported: "yes", httpStatus: "200", contentType: "application/atom+xml",
-      requestUrlSanitized: "/plugins/servlet/streams?maxResults=10&streams=user%20IS%20smoke.user%40example.com&startDate=2026-07-01&endDate=2026-07-08",
-      activityStreamUser: payload.activityStreamUser || "smoke.user@example.com", activityStreamDateSemantics: "unknown",
-      parsedActivityCount: 1, parsedIssueKeys: ["SMOKE-101"],
-      entriesSanitized: [{ issueKey: "SMOKE-101", activityTitle: "SMOKE-101 updated", activityAuthor: "smoke.user@example.com", activityTime: "2026-07-02T09:00:00+08:00", activityType: "update", source: "activity_stream" }],
-      error: "", rawSummary: ""
-    };
+    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults);
+    const activityStream = activityStreamRun.activityStream;
     const results: PrecisionProbeResult[] = [
       { method: "updatedBy Candidate JQL", status: "success", httpStatus: "200", supported: "yes", resultCount: 113, sampleIssueKeys: ["SMOKE-101", "SMOKE-102"], candidateSource: "updatedBy_candidate", error: "", recommendation: "Potential precision source; validate against Activity Stream", jql: "updatedBy(\"smoke.user\") ..." },
       { method: "status CHANGED BY", status: "success", httpStatus: "200", supported: "yes", resultCount: 1, sampleIssueKeys: ["SMOKE-102"], candidateSource: "status_changed_by", error: "", recommendation: "Can be used as supplemental precision source" },
@@ -967,15 +1068,17 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
       { method: "Activity Stream", status: "success", httpStatus: "200", supported: "yes", resultCount: 1, sampleIssueKeys: ["SMOKE-101"], candidateSource: "activity_stream", error: "", recommendation: "Preferred actual activity validation source", contentType: "application/atom+xml" },
       { method: "Broad Candidate Baseline", status: "success", httpStatus: "200", supported: "yes", resultCount: 93, sampleIssueKeys: ["SMOKE-101", "SMOKE-102"], candidateSource: "broad_role_baseline", error: "", recommendation: "Fallback only" }
     ];
-    logs.push("[DEBUG] Precision Probe updatedBy variant fallback validated", "[WARN] Precision Probe assignee CHANGED BY unsupported: httpStatus=400 error=JQL syntax is not supported", "[INFO] Activity Stream probe completed: httpStatus=200 contentType=application/atom+xml parsedActivities=1 parsedIssueKeys=1", "[WARN] updatedBy differs from Activity Stream: updatedByCount=113 activityStreamIssueCount=1", "[INFO] Precision Probe recommendation: activity_stream", "[INFO] No database write performed");
+    const issueKeySets = { activityStreamIssueKeys: ["SMOKE-101"], updatedByCandidateIssueKeys: ["SMOKE-101", "SMOKE-102"], changedByIssueKeys: ["SMOKE-102"], broadBaselineIssueKeys: ["SMOKE-101", "SMOKE-102"], recommendedIssueKeys: ["SMOKE-101"] };
+    logs.push(...activityStreamRun.logs, "[DEBUG] Precision Probe updatedBy variant fallback validated", "[WARN] Precision Probe assignee CHANGED BY unsupported: httpStatus=400 error=JQL syntax is not supported", "[WARN] updatedBy differs from Activity Stream: updatedByCount=113 activityStreamIssueCount=1", "[INFO] Precision Probe recommendation: activity_stream", "[INFO] No database write performed");
     return {
       ok: true,
       status: "partial",
       results,
       summary: { overallStatus: "partial", updatedBySupported: "yes", activityStreamSupported: "yes", changedBySupported: "partial", broadCandidateCount: 93, uniquePreciseIssueCount: 2, potentialFullFetchReductionPercent: 97.8, recommendedStage1Mode: "activity_stream" },
       activityStream,
-      uniquePreciseIssueKeys: ["SMOKE-101", "SMOKE-102"],
-      issueSources: { "SMOKE-101": ["updatedBy"], "SMOKE-102": ["updatedBy", "status_changed_by"] },
+      issueKeySets,
+      uniquePreciseIssueKeys: issueKeySets.recommendedIssueKeys,
+      issueSources: { "SMOKE-101": ["activity_stream"] },
       warnings: ["updatedBy result count differs from Activity Stream parsed issue count. Do not treat updatedBy as exact user activity without validation. / updatedBy 結果數與 Activity Stream 解析 Jira 數差異較大，請勿直接把 updatedBy 視為精準使用者活動。"], errors: [], logs
     };
   }
@@ -1034,7 +1137,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   results.push(await runJqlMethod("priority CHANGED BY", "priority_changed_by", (user) => `priority CHANGED BY ${quoted(user)} ${dates}`));
 
   const activityStreamUser = String(payload.activityStreamUser || selectedUsers[0] || "").trim();
-  const activityStreamRun = await runActivityStreamProbe(connection, activityStreamUser, payload.startInclusive, payload.endExclusive, requestedMaxResults);
+  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults);
   const activityStreamData = activityStreamRun.activityStream;
   logs.push(...activityStreamRun.logs);
   results.push({
@@ -1042,8 +1145,8 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
     status: activityStreamData.status === "success" ? "success" : activityStreamData.status === "unsupported" ? "unsupported" : "failed",
     httpStatus: activityStreamData.httpStatus,
     supported: activityStreamData.supported as "yes" | "no" | "unknown",
-    resultCount: activityStreamData.parsedIssueKeys.length,
-    sampleIssueKeys: activityStreamData.parsedIssueKeys.slice(0, requestedMaxResults || 0),
+    resultCount: activityStreamData.activityStreamIssueKeys.length,
+    sampleIssueKeys: activityStreamData.activityStreamIssueKeys.slice(0, requestedMaxResults || 0),
     candidateSource: "activity_stream",
     error: activityStreamData.error,
     recommendation: activityStreamData.supported === "yes" ? "Preferred actual activity validation source" : activityStreamData.supported === "no" ? "Unsupported in this Jira environment" : "Activity Stream returned HTML, login page, or an unverified response",
@@ -1054,22 +1157,30 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   const baseline = await search(payload.broadJql);
   results.push({ method: "Broad Candidate Baseline", status: baseline.response.ok ? "success" : "failed", httpStatus: String(baseline.response.status), supported: baseline.response.ok ? "yes" : "unknown", resultCount: baseline.response.ok ? baseline.total : 0, sampleIssueKeys: baseline.keys.slice(0, requestedMaxResults || 0), candidateSource: "broad_role_baseline", error: baseline.response.ok ? "" : precisionError(baseline.response), recommendation: "Fallback only", jql: baseline.finalJql });
 
-  const preciseResults = results.filter((result) => result.candidateSource !== "broad_role_baseline");
-  const issueSources: Record<string, string[]> = {};
-  for (const result of preciseResults) for (const key of result.sampleIssueKeys) issueSources[key] = Array.from(new Set([...(issueSources[key] ?? []), result.candidateSource]));
-  const uniquePreciseIssueKeys = Object.keys(issueSources).sort();
   const updatedBy = results[0];
   const activityStreamProbe = results[4];
   const changed = results.slice(1, 4);
   const broadCandidateCount = results[5].resultCount;
+  const issueKeySets = {
+    activityStreamIssueKeys: activityStreamData.activityStreamIssueKeys,
+    updatedByCandidateIssueKeys: updatedBy.sampleIssueKeys,
+    changedByIssueKeys: Array.from(new Set(changed.flatMap((item) => item.sampleIssueKeys))).sort(),
+    broadBaselineIssueKeys: results[5].sampleIssueKeys,
+    recommendedIssueKeys: activityStreamData.activityStreamIssueKeys.length > 0 ? activityStreamData.activityStreamIssueKeys : updatedBy.sampleIssueKeys
+  };
+  const issueSources: Record<string, string[]> = {};
+  for (const key of issueKeySets.recommendedIssueKeys) issueSources[key] = activityStreamData.activityStreamIssueKeys.includes(key) ? ["activity_stream"] : ["updatedBy_candidate"];
+  const uniquePreciseIssueKeys = issueKeySets.recommendedIssueKeys;
   const changedSupported = changed.every((item) => item.supported === "yes") ? "yes" : changed.some((item) => item.supported === "yes") ? "partial" : changed.every((item) => item.supported === "no") ? "no" : "unknown";
-  const recommendedStage1Mode = activityStreamProbe.supported === "yes" && activityStreamProbe.resultCount > 0 ? "activity_stream" : updatedBy.supported === "yes" ? "updatedBy_candidate" : changed.some((item) => item.supported === "yes" && item.resultCount > 0) ? "changed_by_hybrid" : "broad_fallback";
+  const recommendedStage1Mode = activityStreamData.parsed ? "activity_stream" : activityStreamData.diagnosis === "no_entries" ? "no_activity_found" : updatedBy.supported === "yes" ? "updatedBy_candidate" : changed.some((item) => item.supported === "yes" && item.resultCount > 0) ? "changed_by_hybrid" : "broad_fallback";
   const failedCount = results.filter((item) => item.status === "failed" || item.status === "unsupported" || item.status === "partial").length;
   const overallStatus = failedCount === 0 ? "success" : failedCount < results.length ? "partial" : "failed";
   const reduction = broadCandidateCount > 0 ? Math.max(0, Math.round((1 - uniquePreciseIssueKeys.length / broadCandidateCount) * 1000) / 10) : null;
   const countDiffers = updatedBy.supported === "yes" && activityStreamProbe.supported === "yes" && Math.abs(updatedBy.resultCount - activityStreamProbe.resultCount) > Math.max(5, activityStreamProbe.resultCount * 0.5);
+  const activityEmptyWarning = "updatedBy returned issues, but Activity Stream returned no entries. Treat updatedBy only as candidate source. / updatedBy 有結果，但 Activity Stream 沒有活動紀錄，請只把 updatedBy 當候選來源。";
   const differenceWarning = "updatedBy result count differs from Activity Stream parsed issue count. Do not treat updatedBy as exact user activity without validation. / updatedBy 結果數與 Activity Stream 解析 Jira 數差異較大，請勿直接把 updatedBy 視為精準使用者活動。";
   if (countDiffers) logs.push(`[WARN] updatedBy differs from Activity Stream: updatedByCount=${updatedBy.resultCount} activityStreamIssueCount=${activityStreamProbe.resultCount}`);
+  if (updatedBy.resultCount > 0 && activityStreamData.diagnosis === "no_entries") logs.push(`[WARN] ${activityEmptyWarning}`);
   logs.push(`[INFO] Precision Probe recommendation: ${recommendedStage1Mode}`, "[INFO] No database write performed", "[INFO] No Jira write performed", "[INFO] No attachment body downloaded");
   return {
     ok: overallStatus !== "failed",
@@ -1077,9 +1188,10 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
     results,
     summary: { overallStatus, updatedBySupported: updatedBy.supported, activityStreamSupported: activityStreamProbe.supported, changedBySupported: changedSupported, broadCandidateCount, uniquePreciseIssueCount: uniquePreciseIssueKeys.length, potentialFullFetchReductionPercent: reduction, recommendedStage1Mode },
     activityStream: activityStreamData,
+    issueKeySets,
     uniquePreciseIssueKeys,
     issueSources,
-    warnings: [...results.filter((item) => item.status === "unsupported" || item.status === "partial").map((item) => `${item.method}: ${item.error || item.status}`), ...(countDiffers ? [differenceWarning] : [])],
+    warnings: [...results.filter((item) => item.status === "unsupported" || item.status === "partial").map((item) => `${item.method}: ${item.error || item.status}`), ...(countDiffers ? [differenceWarning] : []), ...(updatedBy.resultCount > 0 && activityStreamData.diagnosis === "no_entries" ? [activityEmptyWarning] : [])],
     errors: results.filter((item) => item.status === "failed").map((item) => `${item.method}: ${item.error || item.status}`),
     logs
   };
@@ -2048,16 +2160,18 @@ async function runUiSmoke(window: BrowserWindow) {
       // Expected read-only guard rejection.
     }
   }
-  const parserFixtures: Array<{ name: string; response: JiraHttpResult; expectedStatus: string; expectedIssueCount: number }> = [
-    { name: "json", response: { ok: true, status: 200, contentType: "application/json", json: { entries: [{ title: "SMOKE-201 updated", author: { email: "smoke@example.com" }, updated: "2026-07-02T10:00:00Z" }] } }, expectedStatus: "success", expectedIssueCount: 1 },
-    { name: "atom", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed><entry><title>Commented on SMOKE-202</title><author><email>smoke@example.com</email></author><updated>2026-07-02T11:00:00Z</updated><summary>comment added</summary></entry></feed>" }, expectedStatus: "success", expectedIssueCount: 1 },
-    { name: "html", response: { ok: false, status: 200, contentType: "text/html", json: null, errorType: "NON_JSON_RESPONSE", message: "HTML login page", bodyPreview: "login" }, expectedStatus: "failed", expectedIssueCount: 0 },
-    { name: "403", response: { ok: false, status: 403, contentType: "application/json", json: { error: "forbidden" }, errorType: "HTTP_ERROR", message: "Forbidden" }, expectedStatus: "unsupported", expectedIssueCount: 0 },
-    { name: "404", response: { ok: false, status: 404, contentType: "text/plain", json: null, errorType: "NON_JSON_RESPONSE", message: "Not found", bodyPreview: "Not found" }, expectedStatus: "unsupported", expectedIssueCount: 0 }
+  const parserFixtures: Array<{ name: string; response: JiraHttpResult; expectedStatus: string; expectedIssueCount: number; expectedDiagnosis: ActivityStreamDiagnosis; expectedAtomEntries: number }> = [
+    { name: "json", response: { ok: true, status: 200, contentType: "application/json", json: { entries: [{ title: "SMOKE-201 updated", author: { email: "smoke@example.com" }, updated: "2026-07-02T10:00:00Z" }] } }, expectedStatus: "success", expectedIssueCount: 1, expectedDiagnosis: "parsed", expectedAtomEntries: 0 },
+    { name: "atom", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed><entry><title>Commented on SMOKE-202</title><author><email>smoke@example.com</email></author><updated>2026-07-02T11:00:00Z</updated><summary>comment added</summary></entry></feed>" }, expectedStatus: "success", expectedIssueCount: 1, expectedDiagnosis: "parsed", expectedAtomEntries: 1 },
+    { name: "no_entries", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed></feed>" }, expectedStatus: "success", expectedIssueCount: 0, expectedDiagnosis: "no_entries", expectedAtomEntries: 0 },
+    { name: "parser_failed", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed><entry><title>Updated an issue</title><summary>No key in this fixture</summary></entry></feed>" }, expectedStatus: "failed", expectedIssueCount: 0, expectedDiagnosis: "parser_failed", expectedAtomEntries: 1 },
+    { name: "html", response: { ok: false, status: 200, contentType: "text/html", json: null, errorType: "NON_JSON_RESPONSE", message: "HTML login page", bodyPreview: "login" }, expectedStatus: "failed", expectedIssueCount: 0, expectedDiagnosis: "html_login", expectedAtomEntries: 0 },
+    { name: "403", response: { ok: false, status: 403, contentType: "application/json", json: { error: "forbidden" }, errorType: "HTTP_ERROR", message: "Forbidden" }, expectedStatus: "unsupported", expectedIssueCount: 0, expectedDiagnosis: "http_error", expectedAtomEntries: 0 },
+    { name: "404", response: { ok: false, status: 404, contentType: "text/plain", json: null, errorType: "NON_JSON_RESPONSE", message: "Not found", bodyPreview: "Not found" }, expectedStatus: "unsupported", expectedIssueCount: 0, expectedDiagnosis: "http_error", expectedAtomEntries: 0 }
   ];
   for (const fixture of parserFixtures) {
     const parsed = activityStreamResult(fixture.response, "/plugins/servlet/streams?maxResults=10", "smoke@example.com");
-    if (parsed.status !== fixture.expectedStatus || parsed.parsedIssueKeys.length !== fixture.expectedIssueCount) failures.push(`activity stream ${fixture.name} parser failed: ${JSON.stringify(parsed)}`);
+    if (parsed.status !== fixture.expectedStatus || parsed.parsedIssueKeys.length !== fixture.expectedIssueCount || parsed.diagnosis !== fixture.expectedDiagnosis || parsed.atomEntryCount !== fixture.expectedAtomEntries) failures.push(`activity stream ${fixture.name} parser failed: ${JSON.stringify(parsed)}`);
     if (fixture.name === "html" && (parsed as Record<string, unknown>).bodyTextSanitized) failures.push("activity stream HTML parser retained full body");
   }
   window.setSize(1280, 720, false);
@@ -2069,6 +2183,14 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(350);
   await window.webContents.executeJavaScript(`
     (() => {
+      const mode = document.querySelector("[data-testid='activity-stream-query-mode']");
+      if (mode instanceof HTMLSelectElement) {
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+        setter?.call(mode, "username");
+        mode.dispatchEvent(new Event("change", { bubbles: true }));
+        setter?.call(mode, "auto");
+        mode.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       const input = document.querySelector("[data-testid='activity-stream-user']");
       if (input instanceof HTMLInputElement) {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -2080,7 +2202,7 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(150);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
   await wait(350);
-  const activityStreamAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length, hasEmailInput: Boolean(document.querySelector("[data-testid='activity-stream-user']")), issueKey: document.body.innerText.includes("SMOKE-101"), contentType: document.body.innerText.includes("application/atom+xml") }))()`);
+  const activityStreamAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length, variantRows: document.querySelectorAll("[data-testid='activity-stream-variants'] tbody tr").length, mode: document.querySelector("[data-testid='activity-stream-query-mode']")?.value, hasEmailInput: Boolean(document.querySelector("[data-testid='activity-stream-user']")), issueKey: document.body.innerText.includes("SMOKE-101"), hasUsername: document.body.innerText.includes("username"), hasEmail: document.body.innerText.includes("email"), diagnosis: document.body.innerText.includes("no_entries") && document.body.innerText.includes("parsed"), contentType: document.body.innerText.includes("application/atom+xml") }))()`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-precision-probe']")?.click();`);
   await wait(500);
   const precisionAudit = await window.webContents.executeJavaScript(`
@@ -2116,13 +2238,14 @@ async function runUiSmoke(window: BrowserWindow) {
   const precisionActionLogBuffer = fs.existsSync(precisionActionLogPath) ? fs.readFileSync(precisionActionLogPath) : Buffer.alloc(0);
   const precisionActionTimeline = precisionActionLogBuffer.subarray(precisionActionLogStartSize).toString("utf8");
   const precisionUnexpectedFullFetchFiles = precisionFullFetchFilesAfter.filter((name) => !precisionFullFetchFilesBefore.has(name));
-  if (!activityStreamAudit.hasEmailInput || !activityStreamAudit.issueKey || !activityStreamAudit.contentType || activityStreamAudit.rows !== 1) failures.push(`activity stream UI audit failed ${JSON.stringify(activityStreamAudit)}`);
+  if (!activityStreamAudit.hasEmailInput || activityStreamAudit.mode !== "auto" || !activityStreamAudit.issueKey || !activityStreamAudit.contentType || !activityStreamAudit.hasUsername || !activityStreamAudit.hasEmail || !activityStreamAudit.diagnosis || activityStreamAudit.rows !== 1 || activityStreamAudit.variantRows !== 2) failures.push(`activity stream UI audit failed ${JSON.stringify(activityStreamAudit)}`);
   if (!precisionAudit.panel || precisionAudit.rows !== 6 || !precisionAudit.recommendation.includes("activity_stream") || !precisionAudit.hasUpdatedBy || !precisionAudit.hasUnsupported || !precisionAudit.preciseCount) failures.push(`precision probe UI audit failed ${JSON.stringify(precisionAudit)}`);
   if (!precisionQueueAudit.noAutoFetch || !precisionQueueAudit.addEnabled) failures.push(`precision probe queue audit failed ${JSON.stringify(precisionQueueAudit)}`);
   if (precisionUnexpectedFullFetchFiles.length > 0) failures.push(`precision probe add-to-queue started Full Fetch ${JSON.stringify(precisionUnexpectedFullFetchFiles)}`);
-  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || precisionActivityStream.parsedActivityCount !== 1 || !Array.isArray(precisionActivityStream.entriesSanitized)) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
+  const precisionIssueKeySets = asRecord(precisionExport?.issueKeySets);
+  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || precisionActivityStream.parsedActivityCount !== 1 || !Array.isArray(precisionActivityStream.entriesSanitized) || !Array.isArray(precisionActivityStream.variantResults) || !Array.isArray(precisionActivityStream.firstEntriesSanitized) || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys)) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
   if (precisionSource.token !== "[masked]" || precisionSource.authorization !== "[masked]" || precisionSource.readOnly !== true || precisionSource.databaseWrite !== false || precisionSource.attachmentDownload !== false) failures.push(`precision probe export safety flags/masking failed ${JSON.stringify(precisionSource)}`);
-  const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream User changed: value=smoke.user@example.com", "Button clicked: Run Activity Stream Probe", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
+  const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User changed: value=smoke.user@example.com", "Button clicked: Run Activity Stream Probe", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
   const missingPrecisionActions = requiredPrecisionActions.filter((entry) => !precisionActionTimeline.includes(entry));
   if (missingPrecisionActions.length > 0) failures.push(`precision probe action log missing ${JSON.stringify(missingPrecisionActions)}`);
 

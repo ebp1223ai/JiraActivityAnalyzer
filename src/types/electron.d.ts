@@ -64,8 +64,8 @@ declare global {
       };
       userAnalysis?: {
         discoverCandidates: (payload: { connection: JiraConnection; jql: string; safetyLimit: number; selectedUsers: string[] }) => Promise<Record<string, unknown>>;
-        activityStreamProbe: (payload: { connection: JiraConnection; activityStreamUser: string; startDate: string; endDate: string; maxResults: 0 | 10 | 20 | 50 }) => Promise<Record<string, unknown>>;
-        precisionProbe: (payload: { connection: JiraConnection; selectedUsers: string[]; startInclusive: string; endExclusive: string; projectScope: string; activityStreamUser: string; maxResults: 0 | 10 | 20 | 50; broadJql: string }) => Promise<Record<string, unknown>>;
+        activityStreamProbe: (payload: { connection: JiraConnection; selectedUsers: string[]; activityStreamUser: string; queryMode: "auto" | "username" | "email" | "custom"; startDate: string; endDate: string; maxResults: 0 | 10 | 20 | 50 }) => Promise<Record<string, unknown>>;
+        precisionProbe: (payload: { connection: JiraConnection; selectedUsers: string[]; startInclusive: string; endExclusive: string; projectScope: string; activityStreamUser: string; activityStreamQueryMode: "auto" | "username" | "email" | "custom"; maxResults: 0 | 10 | 20 | 50; broadJql: string }) => Promise<Record<string, unknown>>;
         fullFetch: (payload: { connection: JiraConnection; fetchQueue: unknown[]; fetchLimit: number; batchSize: number | "all"; rawDataMode: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory" }) => Promise<Record<string, unknown>>;
         pauseFullFetch: () => Promise<{ ok: boolean; runId?: string; message?: string }>;
         logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO"; message: string }) => Promise<{ ok: boolean; appLogPath?: string; actionLogPath?: string; actionLogAvailable?: boolean; fullFetchLogPath?: string; error?: string }>;

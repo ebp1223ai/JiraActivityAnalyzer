@@ -71,13 +71,53 @@ export type UserActivityStreamEntry = {
   activityTitle: string;
   activityAuthor: string;
   activityTime: string;
-  activityType: "comment" | "update" | "status" | "attachment" | "unknown";
+  activityType: "comment" | "update" | "status" | "attachment" | "link" | "unknown";
   source: "activity_stream";
+  variant: string;
+  extractedIssueKeysPerEntry: string[];
+};
+
+export type UserActivityStreamDiagnosis = "parsed" | "no_entries" | "parser_failed" | "html_login" | "http_error" | "blocked" | "unknown";
+
+export type UserActivityStreamFirstEntry = {
+  rawTitleText: string;
+  rawAuthorText: string;
+  rawUpdatedText: string;
+  rawPublishedText: string;
+  rawLinkHref: string;
+  rawSummaryText: string;
+  extractedIssueKeys: string[];
+};
+
+export type UserActivityStreamVariantResult = {
+  variant: "username" | "email" | "custom";
+  activityStreamUser: string;
+  requestUrlSanitized: string;
+  httpStatus: string;
+  contentType: string;
+  reachable: boolean;
+  supported: "yes" | "no" | "unknown";
+  parsed: boolean;
+  atomEntryCount: number;
+  parsedActivityCount: number;
+  parsedIssueKeys: string[];
+  diagnosis: UserActivityStreamDiagnosis;
+  entriesSanitized: UserActivityStreamEntry[];
+  firstEntriesSanitized: UserActivityStreamFirstEntry[];
+  error: string;
+  rawSummary: string;
 };
 
 export type UserActivityStreamResult = {
   status: "not_run" | "success" | "failed" | "unsupported";
+  overallStatus: "not_run" | "success" | "partial" | "failed";
+  reachable: boolean;
   supported: "yes" | "no" | "unknown";
+  parsed: boolean;
+  diagnosis: UserActivityStreamDiagnosis;
+  bestVariant: string;
+  bestActivityStreamUser: string;
+  bestParsedIssueKeys: string[];
   httpStatus: string;
   contentType: string;
   requestUrlSanitized: string;
@@ -85,7 +125,11 @@ export type UserActivityStreamResult = {
   activityStreamDateSemantics: "unknown";
   parsedActivityCount: number;
   parsedIssueKeys: string[];
+  atomEntryCount: number;
+  variantResults: UserActivityStreamVariantResult[];
+  activityStreamIssueKeys: string[];
   entriesSanitized: UserActivityStreamEntry[];
+  firstEntriesSanitized: UserActivityStreamFirstEntry[];
   error: string;
   rawSummary: string;
 };
@@ -98,7 +142,15 @@ export type UserAnalysisPrecisionProbeSummary = {
   broadCandidateCount: number;
   uniquePreciseIssueCount: number;
   potentialFullFetchReductionPercent: number | null;
-  recommendedStage1Mode: "updatedBy_candidate" | "activity_stream" | "changed_by_hybrid" | "broad_fallback";
+  recommendedStage1Mode: "updatedBy_candidate" | "activity_stream" | "no_activity_found" | "changed_by_hybrid" | "broad_fallback";
+};
+
+export type UserAnalysisPrecisionIssueKeySets = {
+  activityStreamIssueKeys: string[];
+  updatedByCandidateIssueKeys: string[];
+  changedByIssueKeys: string[];
+  broadBaselineIssueKeys: string[];
+  recommendedIssueKeys: string[];
 };
 
 export type UserAnalysisFullFetchReportRow = {
@@ -190,7 +242,9 @@ export type UserAnalysisSessionState = {
   precisionProbeMaxResults: 0 | 10 | 20 | 50;
   precisionProjectScope: string;
   activityStreamUser: string;
+  activityStreamQueryMode: "auto" | "username" | "email" | "custom";
   activityStream: UserActivityStreamResult;
+  precisionIssueKeySets: UserAnalysisPrecisionIssueKeySets;
   precisionProbeStatus: "idle" | "running" | "completed" | "partial" | "failed";
   precisionProbeResults: UserAnalysisPrecisionProbeResult[];
   precisionProbeSummary: UserAnalysisPrecisionProbeSummary;
@@ -305,9 +359,17 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   precisionProbeMaxResults: 10,
   precisionProjectScope: "",
   activityStreamUser: "roger_hsieh",
+  activityStreamQueryMode: "auto",
   activityStream: {
     status: "not_run",
+    overallStatus: "not_run",
+    reachable: false,
     supported: "unknown",
+    parsed: false,
+    diagnosis: "unknown",
+    bestVariant: "",
+    bestActivityStreamUser: "",
+    bestParsedIssueKeys: [],
     httpStatus: "-",
     contentType: "",
     requestUrlSanitized: "",
@@ -315,9 +377,20 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     activityStreamDateSemantics: "unknown",
     parsedActivityCount: 0,
     parsedIssueKeys: [],
+    atomEntryCount: 0,
+    variantResults: [],
+    activityStreamIssueKeys: [],
     entriesSanitized: [],
+    firstEntriesSanitized: [],
     error: "",
     rawSummary: ""
+  },
+  precisionIssueKeySets: {
+    activityStreamIssueKeys: [],
+    updatedByCandidateIssueKeys: [],
+    changedByIssueKeys: [],
+    broadBaselineIssueKeys: [],
+    recommendedIssueKeys: []
   },
   precisionProbeStatus: "idle",
   precisionProbeResults: [],

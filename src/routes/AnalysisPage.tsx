@@ -500,6 +500,7 @@ export function AnalysisPage() {
         endExclusive: currentJqlDateRange.endExclusive,
         projectScope: userAnalysis.precisionProjectScope,
         activityStreamUser: userAnalysis.activityStreamUser,
+        activityStreamQueryMode: userAnalysis.activityStreamQueryMode,
         maxResults: userAnalysis.precisionProbeMaxResults,
         broadJql: buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate)
       });
