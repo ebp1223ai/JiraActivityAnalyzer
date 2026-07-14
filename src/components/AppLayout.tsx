@@ -46,6 +46,7 @@ export function AppLayout() {
         </div>
       </main>
       <DebugLogPanel
+        currentPage={pathname}
         collapsed={debugCollapsed}
         onToggle={() => setDebugCollapsed((value) => !value)}
         logs={logsByPage[page]}

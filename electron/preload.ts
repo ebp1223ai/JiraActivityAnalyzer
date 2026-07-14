@@ -45,9 +45,12 @@ contextBridge.exposeInMainWorld("desktopApp", {
       return () => ipcRenderer.removeListener("user-analysis:full-fetch-log", listener);
     },
     saveExport: (payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => ipcRenderer.invoke("user-analysis:save-export", payload),
-    openExportFolder: (payload?: { folderPath?: string }) => ipcRenderer.invoke("user-analysis:open-export-folder", payload)
+    openExportFolder: (payload?: { folderPath?: string }) => ipcRenderer.invoke("user-analysis:open-export-folder", payload),
+    autoSaveRun: (payload: unknown) => ipcRenderer.invoke("user-analysis:auto-save-run", payload)
   },
   appDebug: {
-    saveTextFile: (payload: { defaultFileName: string; content: string }) => ipcRenderer.invoke("debug-log:save-text", payload)
+    saveTextFile: (payload: { defaultFileName: string; content: string }) => ipcRenderer.invoke("debug-log:save-text", payload),
+    saveBundle: (payload: { debugLog: string; currentPage: string }) => ipcRenderer.invoke("debug-log:save-bundle", payload),
+    openFolder: (payload: { folderPath: string }) => ipcRenderer.invoke("debug-log:open-folder", payload)
   }
 });

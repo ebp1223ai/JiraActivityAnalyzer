@@ -77,9 +77,12 @@ declare global {
         onFullFetchLog: (callback: (line: string) => void) => () => void;
         saveExport: (payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
         openExportFolder: (payload?: { folderPath?: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;
+        autoSaveRun: (payload: { resultType: "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test"; runId: string; status: string; data: unknown }) => Promise<{ canceled: boolean; runId: string; resultType: string; status: string; savedAt: string; filePath: string; folderPath: string }>;
       };
       appDebug?: {
         saveTextFile: (payload: { defaultFileName: string; content: string }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string; actionLogPath?: string; actionLogAvailable?: boolean }>;
+        saveBundle: (payload: { debugLog: string; currentPage: string }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string; createdAt?: string; includedFiles?: string[]; crossPageDebugBundleTodo?: string[] }>;
+        openFolder: (payload: { folderPath: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;
       };
     };
   }

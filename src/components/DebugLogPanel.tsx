@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Copy, Download, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Download, FolderOpen, Trash2 } from "lucide-react";
 
 type Props = {
   collapsed: boolean;
@@ -8,6 +8,7 @@ type Props = {
   onClear: () => void;
   onAppend?: (lines: string[]) => void;
   onUserAction?: (message: string) => void;
+  currentPage: string;
 };
 
 const levelClass: Record<string, string> = {
@@ -44,8 +45,9 @@ function debugFileName() {
   return `jira-activity-analyzer-debug-${timestamp}.txt`;
 }
 
-export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, onUserAction }: Props) {
+export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, onUserAction, currentPage }: Props) {
   const [notice, setNotice] = useState("");
+  const [lastBundlePath, setLastBundlePath] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
   const logContainerRef = useRef<HTMLDivElement>(null);
   const content = logs.join("\n");
@@ -69,7 +71,17 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, on
   }
 
   async function handleDownload() {
-    onUserAction?.("Save Debug Log requested / 要求儲存除錯紀錄");
+    onUserAction?.("Save Debug Bundle requested / 要求儲存除錯套件");
+    if (window.desktopApp?.appDebug?.saveBundle) {
+      const result = await window.desktopApp.appDebug.saveBundle({ debugLog: content, currentPage });
+      setNotice(result.canceled ? "Save canceled" : "Debug Bundle saved");
+      onUserAction?.(result.canceled ? "Debug Bundle save cancelled / 除錯套件儲存已取消" : "Debug Bundle saved / 除錯套件已儲存");
+      if (!result.canceled && result.folderPath) {
+        setLastBundlePath(result.folderPath);
+        onAppend?.([`[INFO] Debug Bundle saved: ${result.folderPath}`, `[INFO] Included files: ${(result.includedFiles ?? []).join(", ")}`]);
+      }
+      return;
+    }
     if (window.desktopApp?.appDebug?.saveTextFile) {
       const result = await window.desktopApp.appDebug.saveTextFile({
         defaultFileName: debugFileName(),
@@ -142,7 +154,7 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, on
         </button>
         <button className="btn min-w-[72px] flex-1 px-3" data-no-clip="true" title="Save Debug Log / 儲存除錯紀錄" onClick={handleDownload}>
           <Download size={16} />
-          <span>Save<br />儲存</span>
+          <span>Bundle<br />套件</span>
         </button>
         <button className="btn btn-danger min-w-[72px] flex-1 px-3" data-no-clip="true" title="Clear Debug Log / 清除除錯紀錄" onClick={handleClear}>
           <Trash2 size={16} />
@@ -151,6 +163,7 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, on
       </div>
 
       {notice ? <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700" data-no-clip="true">{notice}</div> : null}
+      {lastBundlePath ? <div className="mt-3 min-w-0 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-900"><div className="font-black">Last Debug Bundle / 最後 Debug Bundle</div><div className="mt-1 break-all" data-testid="last-debug-bundle-path">{lastBundlePath}</div><div className="mt-2 flex flex-wrap gap-2"><button data-testid="open-debug-bundle" className="btn px-2 py-1 text-xs" type="button" onClick={() => void window.desktopApp?.appDebug?.openFolder?.({ folderPath: lastBundlePath })}><FolderOpen size={14} />Open Folder</button><button data-testid="copy-debug-bundle-path" className="btn px-2 py-1 text-xs" type="button" onClick={() => void navigator.clipboard?.writeText(lastBundlePath)}><Copy size={14} />Copy Path</button></div></div> : null}
 
       <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-900">
         Debug Log records the current operation flow, API calls, warnings, and errors.<br />

@@ -218,7 +218,7 @@ The smoke test checks:
 The standalone User Activity Precision Probe is a read-only compatibility and diagnostics tool. Activity Stream Query Mode defaults to Auto and tries deduplicated username and email variants in an order based on the supplied user value. Username only, Email only, and Custom only modes are also available.
 
 - Each variant records reachability, endpoint support, HTTP status, content type, Atom entry count, parsed activity count, extracted Jira keys, and a diagnosis.
-- Diagnoses distinguish `parsed`, `no_entries`, `parser_failed`, `html_login`, `http_error`, `blocked`, and `unknown` instead of treating HTTP 200 alone as a successful parse.
+- Diagnoses distinguish `parsed`, `parsed_no_issue_keys`, `parsed_confluence_only`, `no_entries`, `parser_failed`, `html_login`, `http_error`, `blocked`, and `unknown` instead of treating HTTP 200 alone as a successful parse.
 - Atom parsing counts every `<entry>` and keeps only the first three sanitized summaries, limited to 500 characters per field. Complete XML, HTML login pages, cookies, tokens, and Authorization values are not retained.
 - Issue keys are extracted from title, link, summary, content, and a sanitized raw-entry fallback. Multiple keys per entry are deduplicated.
 - Activity Stream keys are preferred for `recommendedIssueKeys` only after successful parsing. `updatedBy` remains a candidate source and is never described as confirmed user activity.
@@ -234,9 +234,17 @@ The standalone User Activity Precision Probe is a read-only compatibility and di
 - Every automatic, precision, and manual Activity Stream run receives a unique `asrun-...` ID. Each variant and parsed entry carries that same ID.
 - While a run is active, all Activity Stream entry points are disabled. A result can update renderer state only when its run ID still matches the latest run; stale results are ignored and logged.
 - Starting a run clears the visible current result, variants, parsed entries, issue-key sets, manual result, and parser diagnostics. The last successful result and five most recent run summaries remain available separately.
-- Parser diagnostics compare Atom entries with parsed and skipped entries, report missing key/author/time/title counts, and retain at most five sanitized skipped-entry summaries. A parsed ratio below 50%, or at most one parsed entry out of 20 or more Atom entries, is marked as an anomaly.
-- Parsed Entries can be filtered without changing the original sanitized entries by activity type, partial Jira key, key presence, date range, query variant, source, and author. The UI also reports filtered counts, unique keys, and activity-type totals.
-- Precision Probe exports retain the complete sanitized current entries, current filter state and statistics, and at most 200 filtered entries. They also include run history and parser diagnostics, but never tokens, Authorization headers, cookies, sessions, full XML, or HTML login pages.
+- Parser diagnostics count an Atom entry as parsed when it has usable activity fields. A missing Jira issue key is diagnostic information, not a skipped entry or parser failure. Confluence-only feeds can therefore report `parsed_confluence_only` with zero Jira keys and no parser anomaly.
+- Parsed Entries can be filtered without changing the original sanitized entries by activity type, partial Jira key, key presence, date range, query variant, source, and author. The table paginates at 10, 20, 40, 80, or 160 rows (default 40), resets to page 1 after filter changes, and exposes sanitized expandable details and Copy Entry JSON.
+- Precision Probe exports retain the complete sanitized current entries, current filter state and statistics, `activityEntryStats`, `parsedEntriesTableState`, and at most 200 filtered entries. They also include run history and parser diagnostics, but never tokens, Authorization headers, cookies, sessions, full XML, or HTML login pages.
+
+### Run Auto-Save And Debug Bundles
+
+- Successful and partial Activity Stream, Precision Probe, Manual URL Replay, and MaxResults Cap Test runs are automatically saved as sanitized JSON under `<runtime>/exports/user-analysis/` in their corresponding `activity-stream-runs`, `precision-probe-runs`, `manual-url-replay-runs`, and `maxresults-cap-tests` folders.
+- Last Auto-Saved Result shows the path, save time, run ID, result type, and status, with Open Folder and Copy Path actions.
+- Save Debug Log creates an app-scoped folder under `<runtime>/exports/debug-bundles/`. It includes the sanitized debug log, user action log, app metadata, request context, latest result, run histories, auto-saved result paths, available latest probe results, and `README_for_GPT.txt`.
+- Debug bundles exclude `.env`, tokens, Authorization headers, cookies, session identifiers, raw login HTML, and database data. The bundle metadata lists unavailable result files and the remaining cross-page auto-save/debug-bundle integration checklist.
+- Cross-page integration remains a documented follow-up for Jira Probe, Jira Analysis, Candidate Discovery, Full Fetch, and Connections/Data Source tests; v0.2.12 does not silently claim those flows are auto-saved.
 
 ### Date Semantics And MaxResults Diagnostics
 

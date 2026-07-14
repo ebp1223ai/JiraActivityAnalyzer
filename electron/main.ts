@@ -6,6 +6,7 @@ import { ensureDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getConfigDir
 import { createJiraClient } from "./jira/jiraClient.js";
 import { assertReadOnlyRequest, ReadOnlyViolationError } from "./jira/jiraReadOnlyGuard.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
+import { sanitizeExportData } from "./export/sanitizeExport.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
 import { sanitizeRawJson, sanitizeResponseText } from "./jira/safeJson.js";
 import type { JiraHttpResult, ProbeRequest } from "./jira/jiraTypes.js";
@@ -23,6 +24,19 @@ const shouldSimulateCrashDiagnostic = process.env.JAA_SIMULATE_CRASH_DIAGNOSTIC 
 const captureDir = process.env.ELECTRON_UI_CAPTURE_DIR
   ? path.resolve(process.env.ELECTRON_UI_CAPTURE_DIR)
   : path.resolve(process.cwd(), "test-artifacts/screenshots");
+
+type AutoSaveResultType = "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test";
+type AutoSavedRun = { runId: string; resultType: AutoSaveResultType; status: string; savedAt: string; filePath: string; folderPath: string; data: Record<string, unknown> };
+const latestAutoSavedRuns = new Map<AutoSaveResultType, AutoSavedRun>();
+let lastDebugBundle = { path: "", createdAt: "" };
+const crossPageDebugBundleTodo = [
+  "Jira Probe: verify debug bundle includes latest probe result",
+  "Jira Analysis: verify debug bundle includes latest analysis result",
+  "Candidate Discovery: verify debug bundle includes latest candidate result",
+  "Fetch Queue: verify run history and latest queue snapshot",
+  "Full Fetch: verify debug bundle includes latest fetch report",
+  "Connections / Data Source Test: verify latest connection test result"
+];
 
 if (isUiSmoke) {
   app.disableHardwareAcceleration();
@@ -800,10 +814,18 @@ type ActivityStreamEntry = {
   source: "activity_stream" | "manual_url";
   variant: string;
   extractedIssueKeysPerEntry: string[];
+  rawTitle: string;
+  rawSummary: string;
+  rawContent: string;
+  activityApplication: "Jira" | "Confluence" | "Other";
+  objectType: string;
+  target: string;
+  links: string[];
+  entryIndex: number;
 };
 
 type ActivityStreamQueryMode = "auto" | "username" | "email" | "custom";
-type ActivityStreamDiagnosis = "parsed" | "no_entries" | "parser_failed" | "html_login" | "http_error" | "blocked" | "unknown";
+type ActivityStreamDiagnosis = "parsed" | "parsed_no_issue_keys" | "parsed_confluence_only" | "no_entries" | "parser_failed" | "html_login" | "http_error" | "blocked" | "unknown";
 type ActivityStreamVariant = { variant: "username" | "escaped_username" | "email" | "custom" | "manual_url"; user: string };
 type ActivityStreamDateQueryMode = "none" | "startDate_endDate" | "update_date_after_before" | "both";
 type ActivityStreamDateTestMode = Exclude<ActivityStreamDateQueryMode, "both">;
@@ -841,7 +863,7 @@ function activityType(value: string): ActivityStreamEntry["activityType"] {
   return "unknown";
 }
 
-function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown }, variant: string, runId: string): ActivityStreamEntry {
+function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown; application?: unknown; objectType?: unknown; target?: unknown }, variant: string, runId: string, entryIndex: number): ActivityStreamEntry {
   const title = sanitizeResponseText(typeof values.title === "string" ? values.title : text(asRecord(values.title).value ?? asRecord(values.title).text ?? values.title));
   const authorRecord = asRecord(values.author);
   const author = sanitizeResponseText(typeof values.author === "string" ? values.author : text(authorRecord.name ?? authorRecord.displayName ?? authorRecord.email ?? authorRecord.username));
@@ -852,6 +874,8 @@ function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?
   const raw = typeof values.raw === "string" ? values.raw : JSON.stringify(values.raw ?? "");
   const combined = `${title} ${content} ${link} ${raw}`;
   const extractedIssueKeysPerEntry = issueKeysFrom(combined).sort();
+  const applicationText = sanitizeResponseText(text(values.application));
+  const activityApplication = /confluence/i.test(`${applicationText} ${raw}`) ? "Confluence" : extractedIssueKeysPerEntry.length > 0 || /jira/i.test(applicationText) ? "Jira" : "Other";
   return {
     runId,
     issueKey: extractedIssueKeysPerEntry[0] ?? "",
@@ -862,7 +886,15 @@ function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?
     activityType: activityType(combined),
     source: variant === "manual_url" ? "manual_url" : "activity_stream",
     variant,
-    extractedIssueKeysPerEntry
+    extractedIssueKeysPerEntry,
+    rawTitle: title === "-" ? "" : title.slice(0, 2000),
+    rawSummary: sanitizeResponseText(content).slice(0, 2000),
+    rawContent: sanitizeResponseText(`${content} ${raw}`).slice(0, 4000),
+    activityApplication,
+    objectType: sanitizeResponseText(text(values.objectType)).slice(0, 300),
+    target: sanitizeResponseText(text(values.target)).slice(0, 500),
+    links: [sanitizeResponseText(link)].filter((item) => item && item !== "-").slice(0, 10),
+    entryIndex
   };
 }
 
@@ -889,15 +921,18 @@ function parseActivityJson(value: unknown, variant: string, runId: string) {
     rawEntryCount: records.length,
     atomEntryCount: 0,
     firstEntriesSanitized: records.slice(0, 3).map(sanitizedFirstEntry),
-    entries: records.map((entry) => activityEntry({
+    entries: records.map((entry, entryIndex) => activityEntry({
     title: entry.title,
     author: entry.author,
     authorEmail: asRecord(entry.author).email,
     time: entry.updated ?? entry.published ?? entry.timestamp ?? entry.date,
     content: entry.summary ?? entry.content ?? entry.description,
     link: entry.link ?? entry.url,
-    raw: entry
-  }, variant, runId))
+    raw: entry,
+    application: entry.application,
+    objectType: entry.objectType ?? entry.type,
+    target: entry.target
+  }, variant, runId, entryIndex))
   };
 }
 
@@ -912,12 +947,15 @@ function parseActivityAtom(xml: string, variant: string, runId: string) {
     rawSummaryText: (xmlTag(block, "summary") || xmlTag(block, "content")).slice(0, 500),
     extractedIssueKeys: issueKeysFrom(block).sort()
   }));
-  return { rawEntryCount: blocks.length, atomEntryCount: blocks.length, firstEntriesSanitized, entries: blocks.map((block) => {
+  return { rawEntryCount: blocks.length, atomEntryCount: blocks.length, firstEntriesSanitized, entries: blocks.map((block, entryIndex) => {
     const authorBlock = /<author(?:\s[^>]*)?>([\s\S]*?)<\/author>/i.exec(block)?.[1] ?? "";
     const title = xmlTag(block, "title");
     const content = xmlTag(block, "summary") || xmlTag(block, "content");
     const link = /<link\b[^>]*href=["']([^"']+)["'][^>]*>/i.exec(block)?.[1] ?? "";
-    return activityEntry({ title, author: xmlTag(authorBlock, "name") || xmlTag(authorBlock, "email") || decodeXmlText(authorBlock), authorEmail: xmlTag(authorBlock, "email"), time: xmlTag(block, "updated") || xmlTag(block, "published") || xmlTag(block, "date"), content, link, raw: block }, variant, runId);
+    const application = /(?:activity:)?application(?:\s[^>]*)?>([\s\S]*?)<\/(?:activity:)?application>/i.exec(block)?.[1] ?? "";
+    const objectType = /<(?:activity:)?object-type(?:\s[^>]*)?>([\s\S]*?)<\/(?:activity:)?object-type>/i.exec(block)?.[1] ?? "";
+    const target = /<(?:activity:)?target(?:\s[^>]*)?>([\s\S]*?)<\/(?:activity:)?target>/i.exec(block)?.[1] ?? "";
+    return activityEntry({ title, author: xmlTag(authorBlock, "name") || xmlTag(authorBlock, "email") || decodeXmlText(authorBlock), authorEmail: xmlTag(authorBlock, "email"), time: xmlTag(block, "updated") || xmlTag(block, "published") || xmlTag(block, "date"), content, link, raw: block, application, objectType: decodeXmlText(objectType), target: decodeXmlText(target) }, variant, runId, entryIndex);
   }) };
 }
 
@@ -931,32 +969,38 @@ function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: str
   const parsedIssueKeys = Array.from(new Set(parsedFeed.entries.flatMap((entry) => entry.extractedIssueKeysPerEntry))).sort();
   const endpointUnavailable = response.status === 403 || response.status === 404;
   const blocked = /blocked|read.only|guard/i.test(`${response.errorType ?? ""} ${response.message ?? ""}`);
-  const parsedEntries = parsedFeed.entries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 0);
-  const skippedEntries = parsedFeed.entries.map((entry, entryIndex) => ({ entry, entryIndex })).filter(({ entry }) => entry.extractedIssueKeysPerEntry.length === 0);
+  const parsedEntries = parsedFeed.entries.filter((entry) => Boolean(entry.activityTitle || entry.activityAuthor || entry.activityTime || entry.activityType !== "unknown"));
+  const skippedEntries = parsedFeed.entries.map((entry, entryIndex) => ({ entry, entryIndex })).filter(({ entry }) => !parsedEntries.includes(entry));
+  const entriesWithIssueKey = parsedEntries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 0);
+  const entriesWithoutIssueKey = parsedEntries.filter((entry) => entry.extractedIssueKeysPerEntry.length === 0);
+  const confluenceOnlyEntries = entriesWithoutIssueKey.filter((entry) => entry.activityApplication === "Confluence");
   const parsedRatio = parsedFeed.atomEntryCount > 0 ? parsedEntries.length / parsedFeed.atomEntryCount : 1;
   const parserAnomaly = parsedFeed.atomEntryCount > 0 && parsedRatio < 0.5 || parsedFeed.atomEntryCount >= 20 && parsedEntries.length <= 1;
   const parserDiagnostics = {
     atomEntryCount: parsedFeed.atomEntryCount,
     parsedEntryCount: parsedEntries.length,
     skippedEntryCount: skippedEntries.length,
-    entriesWithoutIssueKeyCount: skippedEntries.length,
+    entriesWithoutIssueKeyCount: entriesWithoutIssueKey.length,
+    entriesWithIssueKeyCount: entriesWithIssueKey.length,
+    confluenceOnlyEntryCount: confluenceOnlyEntries.length,
     entriesWithoutAuthorCount: parsedFeed.entries.filter((entry) => !entry.activityAuthor && !entry.activityAuthorEmail).length,
     entriesWithoutTimeCount: parsedFeed.entries.filter((entry) => !entry.activityTime).length,
     entriesWithoutTitleCount: parsedFeed.entries.filter((entry) => !entry.activityTitle).length,
     entriesWithMultipleIssueKeysCount: parsedFeed.entries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 1).length,
     parserErrorCount: 0,
     parserErrorsSanitized: [] as string[],
-    skippedEntriesSanitized: skippedEntries.slice(0, 5).map(({ entry, entryIndex }) => ({ entryIndex, reason: "no_issue_key", rawTitleText: entry.activityTitle.slice(0, 500), rawUpdatedText: entry.activityTime.slice(0, 500), rawAuthorText: (entry.activityAuthor || entry.activityAuthorEmail).slice(0, 500) })),
+    skippedEntriesSanitized: skippedEntries.slice(0, 5).map(({ entry, entryIndex }) => ({ entryIndex, reason: "missing_activity_fields", rawTitleText: entry.activityTitle.slice(0, 500), rawUpdatedText: entry.activityTime.slice(0, 500), rawAuthorText: (entry.activityAuthor || entry.activityAuthorEmail).slice(0, 500) })),
     parserAnomaly,
     parserAnomalyReason: parserAnomaly ? "Parsed entry ratio below 50%" : ""
   };
-  const diagnosis: ActivityStreamDiagnosis = blocked ? "blocked" : isHtml ? "html_login" : !response.ok ? "http_error" : parsedEntries.length > 0 ? "parsed" : parsedFeed.rawEntryCount > 0 ? "parser_failed" : "no_entries";
-  const status = diagnosis === "parsed" || diagnosis === "no_entries" ? "success" : endpointUnavailable || blocked ? "unsupported" : "failed";
+  const diagnosis: ActivityStreamDiagnosis = blocked ? "blocked" : isHtml ? "html_login" : !response.ok ? "http_error" : parsedEntries.length > 0 && entriesWithIssueKey.length > 0 ? "parsed" : parsedEntries.length > 0 && confluenceOnlyEntries.length === parsedEntries.length ? "parsed_confluence_only" : parsedEntries.length > 0 ? "parsed_no_issue_keys" : parsedFeed.rawEntryCount > 0 ? "parser_failed" : "no_entries";
+  const status = diagnosis.startsWith("parsed") || diagnosis === "no_entries" ? "success" : endpointUnavailable || blocked ? "unsupported" : "failed";
+  const activityEntryStats = { totalAtomEntries: parsedFeed.atomEntryCount, parsedActivityEntryCount: parsedEntries.length, parsedIssueActivityCount: entriesWithIssueKey.length, entriesWithIssueKeyCount: entriesWithIssueKey.length, entriesWithoutIssueKeyCount: entriesWithoutIssueKey.length, confluenceOnlyEntryCount: confluenceOnlyEntries.length, nonJiraEntryCount: entriesWithoutIssueKey.length, jiraIssueEntryCount: entriesWithIssueKey.length, uniqueIssueKeyCount: parsedIssueKeys.length };
   return {
     runId,
     variant,
     reachable: !blocked && response.status !== "-",
-    parsed: diagnosis === "parsed",
+    parsed: diagnosis.startsWith("parsed"),
     diagnosis,
     status,
     supported: response.ok ? "yes" : endpointUnavailable || blocked ? "no" : "unknown",
@@ -970,9 +1014,10 @@ function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: str
     parsedIssueKeys,
     entriesSanitized: parsedFeed.entries,
     firstEntriesSanitized: parsedFeed.firstEntriesSanitized,
-    error: response.ok ? (diagnosis === "parser_failed" ? "Activity Stream entries were found, but no Jira issue keys could be parsed." : "") : isHtml ? "Activity Stream returned HTML or a login page." : precisionError(response),
+    error: response.ok ? (diagnosis === "parser_failed" ? "Activity Stream entries were found, but required activity fields could not be parsed." : "") : isHtml ? "Activity Stream returned HTML or a login page." : precisionError(response),
     rawSummary: response.bodyPreview ?? "",
-    parserDiagnostics
+    parserDiagnostics,
+    activityEntryStats
   };
 }
 
@@ -982,7 +1027,7 @@ function escapeActivityStreamUser(user: string) {
 
 function createActivityStreamRunId() {
   const now = new Date();
-  const stamp = now.toISOString().replace(/[-:TZ]/g, "").slice(0, 17);
+  const stamp = now.toISOString().split("-").join("").split(":").join("").replace("T", "").replace("Z", "").slice(0, 17);
   return `asrun-${stamp}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
@@ -1007,10 +1052,10 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
   const ranked = [...variantResults].sort((a, b) => Number(b.parsed) - Number(a.parsed) || b.atomEntryCount - a.atomEntryCount || Number(b.reachable) - Number(a.reachable));
   const best = ranked[0];
   const activityStreamIssueKeys = Array.from(new Set(variantResults.flatMap((result) => result.parsedIssueKeys))).sort();
-  const parsed = activityStreamIssueKeys.length > 0;
+  const parsed = variantResults.some((result) => result.parsed);
   const reachable = variantResults.some((result) => result.reachable);
   const supported = variantResults.some((result) => result.supported === "yes") ? "yes" : variantResults.every((result) => result.supported === "no") ? "no" : "unknown";
-  const diagnosis: ActivityStreamDiagnosis = parsed ? "parsed" : variantResults.some((result) => result.diagnosis === "no_entries") ? "no_entries" : best?.diagnosis ?? "unknown";
+  const diagnosis: ActivityStreamDiagnosis = best?.diagnosis ?? (variantResults.some((result) => result.diagnosis === "no_entries") ? "no_entries" : "unknown");
   const overallStatus = parsed ? "success" : reachable && supported === "yes" ? "partial" : "failed";
   return {
     runId: best?.runId ?? variantResults[0]?.runId ?? "",
@@ -1037,7 +1082,8 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
     firstEntriesSanitized: best?.firstEntriesSanitized ?? [],
     error: parsed || diagnosis === "no_entries" ? "" : best?.error || "Activity Stream could not be parsed.",
     rawSummary: best?.rawSummary ?? "",
-    parserDiagnostics: best?.parserDiagnostics ?? { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" }
+    parserDiagnostics: best?.parserDiagnostics ?? { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithIssueKeyCount: 0, confluenceOnlyEntryCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" },
+    activityEntryStats: best?.activityEntryStats ?? { totalAtomEntries: 0, parsedActivityEntryCount: 0, parsedIssueActivityCount: 0, entriesWithIssueKeyCount: 0, entriesWithoutIssueKeyCount: 0, confluenceOnlyEntryCount: 0, nonJiraEntryCount: 0, jiraIssueEntryCount: 0, uniqueIssueKeyCount: 0 }
   };
 }
 
@@ -1082,10 +1128,9 @@ function dateQueryDiagnostics(mode: ActivityStreamDateTestMode, runId: string, s
     return Number.isFinite(epoch) && epoch >= range.startEpochMs && epoch < range.endExclusiveEpochMs;
   }).length;
   const outside = Math.max(stream.parsedActivityCount - inside, 0);
-  const ratio = stream.parsedActivityCount > 0 ? inside / stream.parsedActivityCount : 0;
   let effective: ActivityStreamDateEffectiveness = "unknown";
   if (mode !== "none" && stream.atomEntryCount > 0 && stream.parsedActivityCount > 0) {
-    effective = outside === 0 ? true : ratio >= 0.95 ? "likely_true" : false;
+    effective = outside === 0 ? true : false;
   }
   const warnings = mode === "startDate_endDate" && outside > 0
     ? ["startDate/endDate returned entries outside requested range; server date filter may be ignored. / startDate/endDate 回傳了指定日期外的資料，server 可能忽略此日期條件。"]
@@ -1139,8 +1184,9 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
       let response: JiraHttpResult;
       if (isUiSmoke) {
         const insideEntry = `<entry><title type="html">created a link from <a href="/browse/SMOKE-101">SMOKE-101</a></title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><published>2026-07-02T09:00:00Z</published><activity:object><title>SMOKE-101</title><summary>Smoke fixture</summary></activity:object></entry>`;
+        const confluenceEntries = Array.from({ length: Math.max(0, Math.min(requestMaxResults, 67) - 1) }, (_, index) => `<entry><title>attached a file to Smoke Confluence page ${index + 1}</title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><updated>2026-07-${String(index % 6 + 1).padStart(2, "0")}T10:00:00Z</updated><activity:application>com.atlassian.confluence</activity:application><activity:object-type>page</activity:object-type><summary>Long sanitized detail ${"x".repeat(300)} ${index + 1}</summary></entry>`).join("");
         const outsideEntry = `<entry><title>commented on SMOKE-099</title><author><name>Smoke User</name></author><updated>2026-06-18T02:28:51Z</updated><summary>Outside requested range</summary></entry>`;
-        const body = variant.variant === "escaped_username" ? `<feed>${insideEntry}${dateMode === "startDate_endDate" ? outsideEntry : ""}</feed>` : "<feed></feed>";
+        const body = variant.variant === "escaped_username" ? `<feed>${insideEntry}${confluenceEntries}${dateMode === "startDate_endDate" ? outsideEntry : ""}</feed>` : "<feed></feed>";
         response = { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: body, bodyPreview: "", json: null } as JiraHttpResult;
       } else {
         response = await client!.get(requestUrlSanitized);
@@ -1164,7 +1210,7 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   });
   const dateWarnings = dateQueryResults.flatMap((item) => item.warnings);
   for (const result of dateQueryResults) logs.push(`[INFO] Date semantics result: mode=${result.mode} atomEntries=${result.atomEntryCount} insideRange=${result.entriesInsideRequestedRange} outsideRange=${result.entriesOutsideRequestedRange} effective=${result.dateFilterEffective}`, ...result.warnings.map((warning) => `[WARN] ${warning}`));
-  const bestDateQueryMode = selectedDateResult && (selectedDateResult.dateFilterEffective === true || selectedDateResult.dateFilterEffective === "likely_true") ? selectedDateResult.mode : "client_side_only";
+  const bestDateQueryMode = selectedDateResult?.dateFilterEffective === true ? selectedDateResult.mode : "client_side_only";
   const dateSemantics = { requestedDateRange: { start: range.start, end: range.end, endInclusive: range.endInclusive, timezone: range.timezone, startEpochMs: range.startEpochMs, endExclusiveEpochMs: range.endExclusiveEpochMs }, dateQueryModesTested: dateModes, bestDateQueryMode, serverDateFilterEffective: selectedDateResult?.dateFilterEffective ?? "unknown", clientDateFilterApplied: true, rawReturnedEntries: activityStream.parsedActivityCount, clientDateFilteredEntries: clientDateFilteredEntriesSanitized.length, warnings: dateWarnings };
   const maxResultsDiagnostics = { requestedMaxResults: requestMaxResults, maxResultsSource, actualAtomEntryCount: activityStream.atomEntryCount, parsedActivityCount: activityStream.parsedActivityCount, serverCapDetected: "unknown" as const, serverCapValueEstimated: null, responseTimeMs: Date.now() - requestStartedAt, responseSizeKB: Number((responseBytes / 1024).toFixed(2)), largeMaxResultsWarningShown: requestMaxResults > 500, largeMaxResultsConfirmed, warnings: [...(requestMaxResults > 500 ? ["Large maxResults requested."] : []), ...(requestMaxResults > 10000 ? ["Very large maxResults may timeout, stall the UI, or increase Jira server load."] : [])] };
   logs.push(`[INFO] Activity Stream best variant: ${activityStream.bestVariant || "none"}`, `[INFO] Activity Stream probe completed: overallStatus=${activityStream.overallStatus} bestVariant=${activityStream.bestVariant || "none"} diagnosis=${activityStream.diagnosis} parsedIssueKeys=${activityStream.activityStreamIssueKeys.length}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
@@ -2174,6 +2220,81 @@ ipcMain.handle("jira-probe:save-raw-data", async (_event, payload: { defaultFile
   });
 });
 
+function autoSaveRun(payload: { resultType: AutoSaveResultType; runId: string; status: string; data: unknown }) {
+  const directoryByType: Record<AutoSaveResultType, string> = {
+    activity_stream_run: "activity-stream-runs",
+    precision_probe_run: "precision-probe-runs",
+    manual_url_replay_run: "manual-url-replay-runs",
+    maxresults_cap_test: "maxresults-cap-tests"
+  };
+  const prefixByType: Record<AutoSaveResultType, string> = {
+    activity_stream_run: "activity-stream-run",
+    precision_probe_run: "precision-probe-run",
+    manual_url_replay_run: "manual-url-replay-run",
+    maxresults_cap_test: "maxresults-cap-test"
+  };
+  const savedAt = new Date().toISOString();
+  const stamp = fileTimestamp();
+  const safeRunId = String(payload.runId || "missing-run-id").replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 100);
+  const folderPath = ensureDir(path.join(getExportsDir(), "user-analysis", directoryByType[payload.resultType]));
+  const filePath = path.join(folderPath, `${prefixByType[payload.resultType]}-${stamp}_${safeRunId}.json`);
+  const data = asRecord(payload.data);
+  const document = sanitizeExportData({
+    ...data,
+    autoSave: { enabled: true, savedAt, path: filePath, resultType: payload.resultType },
+    debugBundleHints: { includeInDebugBundle: true, resultType: payload.resultType, latestResult: true },
+    debugBundle: { lastBundlePath: lastDebugBundle.path, lastBundleCreatedAt: lastDebugBundle.createdAt },
+    crossPageDebugBundleTodo
+  }) as Record<string, unknown>;
+  fs.writeFileSync(filePath, `${JSON.stringify(document, null, 2)}\n`, "utf8");
+  const saved = { runId: payload.runId, resultType: payload.resultType, status: payload.status, savedAt, filePath, folderPath, data: document };
+  latestAutoSavedRuns.delete(payload.resultType);
+  latestAutoSavedRuns.set(payload.resultType, saved);
+  return { canceled: false, ...saved, data: undefined };
+}
+
+ipcMain.handle("user-analysis:auto-save-run", async (_event, payload: { resultType: AutoSaveResultType; runId: string; status: string; data: unknown }) => autoSaveRun(payload));
+
+function writeBundleJson(folderPath: string, fileName: string, data: unknown) {
+  fs.writeFileSync(path.join(folderPath, fileName), `${JSON.stringify(sanitizeExportData(data), null, 2)}\n`, "utf8");
+}
+
+ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: string; currentPage: string }) => {
+  const createdAt = new Date().toISOString();
+  const folderPath = ensureDir(path.join(getExportsDir(), "debug-bundles", `jira-activity-analyzer-debug-bundle-${fileTimestamp()}`));
+  const savedRuns = Array.from(latestAutoSavedRuns.values());
+  const latest = savedRuns.at(-1);
+  const actionLogPath = getUserActionLogPath();
+  const actionLog = fs.existsSync(actionLogPath) ? fs.readFileSync(actionLogPath, "utf8") : "No user action log available.";
+  const debugContent = buildDebugLogExportContent(payload.debugLog).mergedContent;
+  fs.writeFileSync(path.join(folderPath, "debug-log.txt"), debugContent, "utf8");
+  fs.writeFileSync(path.join(folderPath, "user-action-log.txt"), buildDebugLogExportContent(actionLog).mergedContent, "utf8");
+  writeBundleJson(folderPath, "app-metadata.json", { name: "Jira Activity Analyzer", version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__, generatedAt: createdAt, currentPage: payload.currentPage });
+  writeBundleJson(folderPath, "request-context.json", asRecord(latest?.data.requestContext));
+  writeBundleJson(folderPath, "latest-result.json", latest?.data ?? { status: "not_run", message: "No auto-saved result available" });
+  writeBundleJson(folderPath, "run-history.json", latest?.data.activityStreamRunHistory ?? []);
+  writeBundleJson(folderPath, "activity-stream-run-history.json", latest?.data.activityStreamRunHistory ?? []);
+  writeBundleJson(folderPath, "auto-saved-result-paths.json", savedRuns.map((run) => ({ runId: run.runId, resultType: run.resultType, status: run.status, savedAt: run.savedAt, path: run.filePath })));
+  const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
+  for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
+    const run = latestAutoSavedRuns.get(resultType);
+    if (run) writeBundleJson(folderPath, fileName, run.data);
+  }
+  const included = fs.readdirSync(folderPath);
+  const missing = (Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>).filter(([type]) => !latestAutoSavedRuns.has(type)).map(([, fileName]) => `${fileName}: not_run / no result available`);
+  fs.writeFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Jira Activity Analyzer Debug Bundle", `Version: ${__MAIN_APP_VERSION__}`, `Build Time: ${__MAIN_BUILD_TIME__}`, `Git Commit: ${__MAIN_GIT_COMMIT__}`, `Generated At: ${createdAt}`, `Current Page: ${payload.currentPage}`, "Included Files:", ...included.map((file) => `- ${file}`), "How to analyze:", "- Check app-metadata.json", "- Check latest-result.json", "- Check debug-log.txt", "- Check user-action-log.txt", "Security:", "- token / Authorization / cookie are masked or not included", "Known missing files:", ...(missing.length ? missing : ["- none"]), "Cross-page TODO:", ...crossPageDebugBundleTodo.map((item) => `- ${item}`)].join("\n"), "utf8");
+  lastDebugBundle = { path: folderPath, createdAt };
+  return { canceled: false, folderPath, filePath: folderPath, createdAt, includedFiles: fs.readdirSync(folderPath), crossPageDebugBundleTodo };
+});
+
+ipcMain.handle("debug-log:open-folder", async (_event, payload: { folderPath: string }) => {
+  const target = path.resolve(payload.folderPath || getExportsDir());
+  const root = path.resolve(getAppRuntimeDir());
+  if (target !== root && !target.startsWith(`${root}${path.sep}`)) return { ok: false, error: "Path is outside the app runtime directory." };
+  const error = await shell.openPath(target);
+  return { ok: !error, folderPath: target, error };
+});
+
 ipcMain.handle("debug-log:save-text", async (_event, payload: { defaultFileName: string; content: string }) => {
   const outputDir = ensureDir(getLogsDir());
   const result = await dialog.showSaveDialog({
@@ -2336,6 +2457,15 @@ async function runUiSmoke(window: BrowserWindow) {
 
   const precisionExportDir = path.join(getExportsDir(), "user-analysis");
   ensureDir(precisionExportDir);
+  const autoSaveDirs = {
+    activity_stream_run: ensureDir(path.join(precisionExportDir, "activity-stream-runs")),
+    precision_probe_run: ensureDir(path.join(precisionExportDir, "precision-probe-runs")),
+    manual_url_replay_run: ensureDir(path.join(precisionExportDir, "manual-url-replay-runs")),
+    maxresults_cap_test: ensureDir(path.join(precisionExportDir, "maxresults-cap-tests"))
+  };
+  const autoSaveFilesBefore = Object.fromEntries(Object.entries(autoSaveDirs).map(([type, dir]) => [type, new Set(fs.readdirSync(dir))])) as Record<AutoSaveResultType, Set<string>>;
+  const debugBundlesDir = ensureDir(path.join(getExportsDir(), "debug-bundles"));
+  const debugBundlesBefore = new Set(fs.readdirSync(debugBundlesDir));
   const precisionExportsBefore = new Set(fs.readdirSync(precisionExportDir));
   const precisionFullFetchFilesBefore = fs.existsSync(getFullFetchLogsDir()) ? new Set(fs.readdirSync(getFullFetchLogsDir())) : new Set<string>();
   const precisionActionLogPath = getUserActionLogPath();
@@ -2383,7 +2513,7 @@ async function runUiSmoke(window: BrowserWindow) {
     { name: "atom", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed><entry><title>Commented on SMOKE-202</title><author><email>smoke@example.com</email></author><updated>2026-07-02T11:00:00Z</updated><summary>comment added</summary></entry></feed>" }, expectedStatus: "success", expectedIssueCount: 1, expectedDiagnosis: "parsed", expectedAtomEntries: 1 },
     { name: "manual_atom", response: { ok: true, status: 200, contentType: "application/atom+xml;charset=UTF-8", json: null, bodyTextSanitized: `<feed><entry><title type="html">created a link from <a href="/browse/COPGEN1-138930" class="issue-link">COPGEN1-138930</a></title><author><name>謝正洪(roger_hsieh)</name><email>roger_hsieh@phison.com</email></author><published>2026-07-09T05:36:18.000Z</published><activity:object><title type="text">COPGEN1-138930</title><summary type="text">[JACKSONQLC-3024] IOFULLSEQWRT Failure</summary></activity:object></entry></feed>` }, expectedStatus: "success", expectedIssueCount: 2, expectedDiagnosis: "parsed", expectedAtomEntries: 1 },
     { name: "no_entries", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed></feed>" }, expectedStatus: "success", expectedIssueCount: 0, expectedDiagnosis: "no_entries", expectedAtomEntries: 0 },
-    { name: "parser_failed", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed><entry><title>Updated an issue</title><summary>No key in this fixture</summary></entry></feed>" }, expectedStatus: "failed", expectedIssueCount: 0, expectedDiagnosis: "parser_failed", expectedAtomEntries: 1 },
+    { name: "parser_failed", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed><entry><title></title></entry></feed>" }, expectedStatus: "failed", expectedIssueCount: 0, expectedDiagnosis: "parser_failed", expectedAtomEntries: 1 },
     { name: "html", response: { ok: false, status: 200, contentType: "text/html", json: null, errorType: "NON_JSON_RESPONSE", message: "HTML login page", bodyPreview: "login" }, expectedStatus: "failed", expectedIssueCount: 0, expectedDiagnosis: "html_login", expectedAtomEntries: 0 },
     { name: "403", response: { ok: false, status: 403, contentType: "application/json", json: { error: "forbidden" }, errorType: "HTTP_ERROR", message: "Forbidden" }, expectedStatus: "unsupported", expectedIssueCount: 0, expectedDiagnosis: "http_error", expectedAtomEntries: 0 },
     { name: "404", response: { ok: false, status: 404, contentType: "text/plain", json: null, errorType: "NON_JSON_RESPONSE", message: "Not found", bodyPreview: "Not found" }, expectedStatus: "unsupported", expectedIssueCount: 0, expectedDiagnosis: "http_error", expectedAtomEntries: 0 }
@@ -2396,7 +2526,13 @@ async function runUiSmoke(window: BrowserWindow) {
   }
   const anomalyXml = `<feed>${Array.from({ length: 20 }, (_, index) => `<entry><title>${index === 0 ? "SMOKE-999 updated" : `Entry without key ${index}`}</title><author><name>Smoke User</name></author><updated>2026-07-02T11:00:00Z</updated></entry>`).join("")}</feed>`;
   const anomalyResult = activityStreamResult({ ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: anomalyXml }, "/plugins/servlet/streams?maxResults=20", "smoke_user", "escaped_username", "asrun-anomaly");
-  if (!anomalyResult.parserDiagnostics.parserAnomaly || anomalyResult.parserDiagnostics.atomEntryCount !== 20 || anomalyResult.parserDiagnostics.parsedEntryCount !== 1 || anomalyResult.parserDiagnostics.skippedEntryCount !== 19 || anomalyResult.parserDiagnostics.skippedEntriesSanitized.length !== 5) failures.push(`activity stream parser anomaly diagnostics failed: ${JSON.stringify(anomalyResult.parserDiagnostics)}`);
+  if (anomalyResult.parserDiagnostics.parserAnomaly || anomalyResult.parserDiagnostics.atomEntryCount !== 20 || anomalyResult.parserDiagnostics.parsedEntryCount !== 20 || anomalyResult.parserDiagnostics.skippedEntryCount !== 0 || anomalyResult.diagnosis !== "parsed") failures.push(`activity stream no-key activity diagnostics failed: ${JSON.stringify(anomalyResult.parserDiagnostics)}`);
+  const trueAnomalyXml = `<feed><entry><title>SMOKE-998 updated</title><author><name>Smoke User</name></author><updated>2026-07-02T11:00:00Z</updated></entry>${Array.from({ length: 19 }, () => "<entry><title></title></entry>").join("")}</feed>`;
+  const trueAnomalyResult = activityStreamResult({ ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: trueAnomalyXml }, "/plugins/servlet/streams?maxResults=20", "smoke_user", "escaped_username", "asrun-true-anomaly");
+  if (!trueAnomalyResult.parserDiagnostics.parserAnomaly || trueAnomalyResult.parserDiagnostics.parsedEntryCount !== 1 || trueAnomalyResult.parserDiagnostics.skippedEntryCount !== 19 || trueAnomalyResult.parserDiagnostics.skippedEntriesSanitized.length !== 5) failures.push(`activity stream true parser anomaly diagnostics failed: ${JSON.stringify(trueAnomalyResult.parserDiagnostics)}`);
+  const confluenceOnlyXml = `<feed>${Array.from({ length: 67 }, (_, index) => `<entry><title>attached a file to E33 SSV9Q Sustain page ${index + 1}</title><author><name>Smoke Confluence User</name><email>smoke.confluence@example.com</email></author><updated>2026-01-${String(index % 28 + 1).padStart(2, "0")}T08:00:00+08:00</updated><activity:application>com.atlassian.confluence</activity:application><activity:object-type>page</activity:object-type><summary>Confluence-only activity ${index + 1}</summary></entry>`).join("")}</feed>`;
+  const confluenceOnlyResult = activityStreamResult({ ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: confluenceOnlyXml }, "/plugins/servlet/streams?maxResults=67", "smoke_user", "escaped_username", "asrun-confluence-67");
+  if (confluenceOnlyResult.diagnosis !== "parsed_confluence_only" || !confluenceOnlyResult.parsed || confluenceOnlyResult.parsedActivityCount !== 67 || confluenceOnlyResult.parsedIssueKeys.length !== 0 || confluenceOnlyResult.parserDiagnostics.parsedEntryCount !== 67 || confluenceOnlyResult.parserDiagnostics.skippedEntryCount !== 0 || confluenceOnlyResult.parserDiagnostics.entriesWithoutIssueKeyCount !== 67 || confluenceOnlyResult.parserDiagnostics.confluenceOnlyEntryCount !== 67 || confluenceOnlyResult.parserDiagnostics.parserAnomaly || confluenceOnlyResult.activityEntryStats.confluenceOnlyEntryCount !== 67) failures.push(`67-entry Confluence-only diagnosis failed: ${JSON.stringify({ diagnosis: confluenceOnlyResult.diagnosis, parserDiagnostics: confluenceOnlyResult.parserDiagnostics, activityEntryStats: confluenceOnlyResult.activityEntryStats })}`);
   const typeFixtures: Array<[string, ActivityStreamEntry["activityType"]]> = [["attached one file to COPGEN1-1", "attachment"], ["changed the status", "status"], ["changed the Assignee", "assignee_change"], ["updated the Description", "description_update"], ["updated the Priority", "field_change"], ["commented on COPGEN1-1", "comment"], ["created a link from COPGEN1-1", "link"], ["Confluence page edited", "page"], ["performed an activity", "unknown"]];
   for (const [textValue, expected] of typeFixtures) if (activityType(textValue) !== expected) failures.push(`activity type classification failed: ${textValue} => ${activityType(textValue)} expected ${expected}`);
   window.setSize(1280, 720, false);
@@ -2467,7 +2603,7 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(150);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-manual-activity-stream']")?.click();`);
   await wait(350);
-  const manualReplayAudit = await window.webContents.executeJavaScript(`(() => ({ accepted: document.body.innerText.includes("Manual URL validated"), manualVariant: document.body.innerText.includes("manual_url"), escapedVariant: document.body.innerText.includes("escaped_username"), issueKey: document.body.innerText.includes("COPGEN1-138930"), authorEmail: document.body.innerText.includes("roger_hsieh@phison.com"), linkType: document.body.innerText.includes("link") }))()`);
+  const manualReplayAudit = await window.webContents.executeJavaScript(`(async () => { const base = { accepted: document.body.innerText.includes("Manual URL validated"), manualVariant: document.body.innerText.includes("manual_url"), escapedVariant: document.body.innerText.includes("escaped_username"), issueKey: document.body.innerText.includes("COPGEN1-138930"), linkType: document.body.innerText.includes("link") }; document.querySelector("[data-testid='entry-detail-0']")?.click(); await new Promise((resolve) => setTimeout(resolve, 50)); const authorEmail = document.body.innerText.includes("roger_hsieh@phison.com"); document.querySelector("[data-testid='entry-detail-0']")?.click(); return { ...base, authorEmail }; })()`);
   await window.webContents.executeJavaScript(`(() => { const max = document.querySelector("[data-testid='probe-max-results']"); if (max instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(max, "5000"); max.dispatchEvent(new Event("input", { bubbles: true })); max.dispatchEvent(new Event("change", { bubbles: true })); } document.querySelector("[data-testid='run-cap-test']")?.click(); })()`);
   await wait(150);
   const largeMaxModalAudit = await window.webContents.executeJavaScript(`(() => { const input = document.querySelector("[data-testid='large-max-confirm-input']"); if (input instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(input, "WRONG"); input.dispatchEvent(new Event("input", { bubbles: true })); } document.querySelector("[data-testid='confirm-large-max']")?.click(); return { modal: document.body.innerText.includes("Large Activity Stream Query Confirmation"), warning: Boolean(document.querySelector("[data-testid='large-max-warning']")) }; })()`);
@@ -2496,6 +2632,26 @@ async function runUiSmoke(window: BrowserWindow) {
       effective: document.querySelector("[data-testid='date-query-results']")?.textContent?.includes("true") && document.querySelector("[data-testid='date-query-results']")?.textContent?.includes("false"),
       clientFilter: document.querySelector("[data-testid='apply-client-date-filter']")?.checked === true
     }))()
+  `);
+  const paginationAudit = await window.webContents.executeJavaScript(`
+    (async () => {
+      const firstPageRows = document.querySelectorAll("[data-testid='activity-stream-results'] tbody > tr").length;
+      const pageSize = document.querySelector("[data-testid='parsed-page-size']");
+      const optionCount = pageSize instanceof HTMLSelectElement ? pageSize.options.length : 0;
+      document.querySelector("[data-testid='parsed-next-page']")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      const secondPageRows = document.querySelectorAll("[data-testid='activity-stream-results'] tbody > tr").length;
+      const pageTwo = document.querySelector("[data-testid='parsed-entries-pagination']")?.textContent?.includes("Page 2 of 2");
+      const detailButton = document.querySelector("[data-testid='entry-detail-0']");
+      detailButton?.click();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const detailVisible = Boolean(document.querySelector("[data-testid='entry-detail-panel']"));
+      const copyVisible = Boolean(document.querySelector("[data-testid='copy-entry-0']"));
+      detailButton?.click();
+      if (pageSize instanceof HTMLSelectElement) { const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set; setter?.call(pageSize, "10"); pageSize.dispatchEvent(new Event("change", { bubbles: true })); }
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      return { firstPageRows, secondPageRows, pageTwo, detailVisible, copyVisible, optionCount, resetToPageOne: document.querySelector("[data-testid='parsed-entries-pagination']")?.textContent?.includes("Page 1 of 5"), tenRows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody > tr").length };
+    })()
   `);
   await window.webContents.executeJavaScript(`
     (() => {
@@ -2560,9 +2716,10 @@ async function runUiSmoke(window: BrowserWindow) {
   const precisionUnexpectedFullFetchFiles = precisionFullFetchFilesAfter.filter((name) => !precisionFullFetchFilesBefore.has(name));
   if (!maxValidationAudit.rejectsLow || !maxValidationAudit.rejectsHigh || maxValidationAudit.quickValue !== "10" || maxValidationAudit.quickCount !== 7 || maxValidationAudit.dateMode !== "both") failures.push(`maxResults validation/quick values audit failed ${JSON.stringify(maxValidationAudit)}`);
   if (!runningAudit.banner || !runningAudit.runId || !runningAudit.autoDisabled || !runningAudit.precisionDisabled || !runningAudit.manualDisabled) failures.push(`activity stream running lock audit failed ${JSON.stringify(runningAudit)}`);
-  if (!activityStreamAudit.hasEmailInput || activityStreamAudit.mode !== "auto" || !activityStreamAudit.issueKey || !activityStreamAudit.contentType || !activityStreamAudit.hasUsername || !activityStreamAudit.hasEscaped || !activityStreamAudit.hasEmail || !activityStreamAudit.relativeLinks || !activityStreamAudit.diagnosis || activityStreamAudit.rows !== 1 || activityStreamAudit.variantRows !== 3) failures.push(`activity stream UI audit failed ${JSON.stringify(activityStreamAudit)}`);
+  if (!activityStreamAudit.hasEmailInput || activityStreamAudit.mode !== "auto" || !activityStreamAudit.issueKey || !activityStreamAudit.contentType || !activityStreamAudit.hasUsername || !activityStreamAudit.hasEscaped || !activityStreamAudit.hasEmail || !activityStreamAudit.relativeLinks || !activityStreamAudit.diagnosis || activityStreamAudit.rows !== 10 || activityStreamAudit.variantRows !== 3) failures.push(`activity stream UI audit failed ${JSON.stringify(activityStreamAudit)}`);
   if (!manualReplayAudit.accepted || !manualReplayAudit.manualVariant || !manualReplayAudit.escapedVariant || !manualReplayAudit.issueKey || !manualReplayAudit.authorEmail || !manualReplayAudit.linkType) failures.push(`manual replay UI audit failed ${JSON.stringify(manualReplayAudit)}`);
   if (!largeMaxModalAudit.modal || !largeMaxModalAudit.warning || !largeMaxRejectAudit.rejected || !strongWarningAudit.strong || capTestAudit.rows !== 2 || !capTestAudit.likely || !capTestAudit.estimated) failures.push(`large maxResults/cap test UI audit failed ${JSON.stringify({ largeMaxModalAudit, largeMaxRejectAudit, strongWarningAudit, capTestAudit })}`);
+  if (paginationAudit.firstPageRows !== 40 || paginationAudit.secondPageRows !== 10 || !paginationAudit.pageTwo || !paginationAudit.detailVisible || !paginationAudit.copyVisible || paginationAudit.optionCount !== 5 || !paginationAudit.resetToPageOne || paginationAudit.tenRows !== 10) failures.push(`parsed entries pagination/detail audit failed ${JSON.stringify(paginationAudit)}`);
   if (!precisionAudit.panel || precisionAudit.rows !== 6 || !precisionAudit.recommendation.includes("activity_stream") || !precisionAudit.hasUpdatedBy || !precisionAudit.hasUnsupported || !precisionAudit.preciseCount || precisionAudit.dateRows !== 2 || !precisionAudit.bestDateMode || !precisionAudit.effective || !precisionAudit.clientFilter) failures.push(`precision probe UI audit failed ${JSON.stringify(precisionAudit)}`);
   if (filterAudit.rows !== 1 || !filterAudit.hasFilteredStats || filterAudit.issue !== "SMOKE-101" || filterAudit.author !== "Smoke User" || !filterAudit.onlyKey || !filterAudit.activityTypes.includes("link") || !filterAudit.variants.includes("escaped_username") || !filterAudit.sources.includes("activity_stream")) failures.push(`parsed entries filter UI audit failed ${JSON.stringify(filterAudit)}`);
   if (historyAudit.rows !== 5 || !historyAudit.text.includes("10") || !historyAudit.text.includes("20") || !historyAudit.text.includes("50") || !historyAudit.text.includes("5000") || !historyAudit.text.includes("10001") || !historyAudit.text.includes("manual") || !historyAudit.text.includes("precision")) failures.push(`activity stream run history audit failed ${JSON.stringify(historyAudit)}`);
@@ -2570,7 +2727,9 @@ async function runUiSmoke(window: BrowserWindow) {
   if (precisionUnexpectedFullFetchFiles.length > 0) failures.push(`precision probe add-to-queue started Full Fetch ${JSON.stringify(precisionUnexpectedFullFetchFiles)}`);
   const precisionIssueKeySets = asRecord(precisionExport?.issueKeySets);
   const exportedVariants = Array.isArray(precisionActivityStream.variantResults) ? precisionActivityStream.variantResults.map(asRecord) : [];
-  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || !String(precisionActivityStream.runId).startsWith("asrun-") || Number(precisionActivityStream.parsedActivityCount) < 1 || !Array.isArray(precisionActivityStream.entriesSanitized) || exportedVariants.length !== 3 || exportedVariants.some((variant) => variant.runId !== precisionActivityStream.runId) || Number(precisionParserDiagnostics.parsedEntryCount) !== 1 || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys) || !precisionIssueKeySets.recommendedIssueKeys.includes("SMOKE-101") || !Array.isArray(precisionExport.activityStreamRunHistory) || precisionExport.activityStreamRunHistory.length !== 5 || !Array.isArray(precisionExport.filteredEntriesSanitized) || precisionExport.filteredEntriesSanitized.length !== 1 || !Array.isArray(precisionExport.clientDateFilteredEntriesSanitized) || precisionExport.clientDateFilteredEntriesSanitized.length !== 1 || !Array.isArray(precisionExport.dateQueryResults) || precisionExport.dateQueryResults.length !== 2 || !Array.isArray(precisionExport.maxResultsCapTestResults) || precisionExport.maxResultsCapTestResults.length !== 2 || precisionDateSemantics.bestDateQueryMode !== "update_date_after_before" || Number(precisionRequestedDateRange.startEpochMs) !== 1782835200000 || Number(precisionRequestedDateRange.endExclusiveEpochMs) !== 1783440000000 || Number(precisionMaxDiagnostics.requestedMaxResults) !== 50 || precisionFilter.issueKeyQuery !== "SMOKE-101" || Number(precisionFilterStats.filteredEntries) !== 1) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
+  const precisionActivityStats = asRecord(precisionExport?.activityEntryStats);
+  const precisionTableState = asRecord(precisionExport?.parsedEntriesTableState);
+  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || !String(precisionActivityStream.runId).startsWith("asrun-") || Number(precisionActivityStream.parsedActivityCount) !== 50 || !Array.isArray(precisionActivityStream.entriesSanitized) || exportedVariants.length !== 3 || exportedVariants.some((variant) => variant.runId !== precisionActivityStream.runId) || Number(precisionParserDiagnostics.parsedEntryCount) !== 50 || Number(precisionParserDiagnostics.skippedEntryCount) !== 0 || Number(precisionActivityStats.parsedActivityEntryCount) !== 50 || Number(precisionActivityStats.entriesWithIssueKeyCount) !== 1 || Number(precisionActivityStats.confluenceOnlyEntryCount) !== 49 || Number(precisionTableState.pageSize) !== 10 || Number(precisionTableState.currentPage) !== 1 || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys) || !precisionIssueKeySets.recommendedIssueKeys.includes("SMOKE-101") || !Array.isArray(precisionExport.activityStreamRunHistory) || precisionExport.activityStreamRunHistory.length !== 5 || !Array.isArray(precisionExport.filteredEntriesSanitized) || precisionExport.filteredEntriesSanitized.length !== 1 || !Array.isArray(precisionExport.clientDateFilteredEntriesSanitized) || precisionExport.clientDateFilteredEntriesSanitized.length !== 50 || !Array.isArray(precisionExport.dateQueryResults) || precisionExport.dateQueryResults.length !== 2 || !Array.isArray(precisionExport.maxResultsCapTestResults) || precisionExport.maxResultsCapTestResults.length !== 2 || !Array.isArray(precisionExport.crossPageDebugBundleTodo) || precisionDateSemantics.bestDateQueryMode !== "update_date_after_before" || Number(precisionRequestedDateRange.startEpochMs) !== 1782835200000 || Number(precisionRequestedDateRange.endExclusiveEpochMs) !== 1783440000000 || Number(precisionMaxDiagnostics.requestedMaxResults) !== 50 || precisionFilter.issueKeyQuery !== "SMOKE-101" || Number(precisionFilterStats.filteredEntries) !== 1) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
   if (precisionSource.token !== "[masked]" || precisionSource.authorization !== "[masked]" || precisionSource.readOnly !== true || precisionSource.databaseWrite !== false || precisionSource.attachmentDownload !== false) failures.push(`precision probe export safety flags/masking failed ${JSON.stringify(precisionSource)}`);
   const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User changed: value=smoke_user@example.com", "Button clicked: Run Activity Stream Probe", "Manual Activity Stream URL changed", "Button clicked: Run Manual URL Replay", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
   const missingPrecisionActions = requiredPrecisionActions.filter((entry) => !precisionActionTimeline.includes(entry));
@@ -2579,6 +2738,25 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(150);
   const resetFilterAudit = await window.webContents.executeJavaScript(`(() => ({ issue: document.querySelector("[data-testid='filter-issue-key']")?.value, author: document.querySelector("[data-testid='filter-author']")?.value, onlyKey: document.querySelector("[data-testid='filter-only-key']")?.checked, activityTypes: document.querySelector("[data-testid='filter-activity-types']")?.selectedOptions.length, variants: document.querySelector("[data-testid='filter-variants']")?.selectedOptions.length, sources: document.querySelector("[data-testid='filter-sources']")?.selectedOptions.length, rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length }))()`);
   if (resetFilterAudit.issue !== "" || resetFilterAudit.author !== "" || resetFilterAudit.onlyKey || resetFilterAudit.activityTypes !== 0 || resetFilterAudit.variants !== 0 || resetFilterAudit.sources !== 0 || resetFilterAudit.rows < 1) failures.push(`parsed entries filter reset audit failed ${JSON.stringify(resetFilterAudit)}`);
+  const autoSaveUiAudit = await window.webContents.executeJavaScript(`(() => { const text = document.querySelector("[data-testid='last-auto-saved-result']")?.textContent || ""; return { visible: Boolean(text), precision: text.includes("precision_probe_run"), path: text.includes("precision-probe-runs"), open: Boolean(document.querySelector("[data-testid='open-auto-save-folder']")), copy: Boolean(document.querySelector("[data-testid='copy-auto-save-path']")) }; })()`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-debug-panel-state='collapsed']")?.querySelector("button")?.click();`);
+  await wait(100);
+  await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll("button")).find((button) => button.title?.includes("Save Debug Log"))?.click();`);
+  await wait(500);
+  const debugBundleUiAudit = await window.webContents.executeJavaScript(`(() => ({ path: document.querySelector("[data-testid='last-debug-bundle-path']")?.textContent || "", open: Boolean(document.querySelector("[data-testid='open-debug-bundle']")), copy: Boolean(document.querySelector("[data-testid='copy-debug-bundle-path']")) }))()`);
+  const autoSavedFiles = Object.fromEntries(Object.entries(autoSaveDirs).map(([type, dir]) => [type, fs.readdirSync(dir).filter((name) => !autoSaveFilesBefore[type as AutoSaveResultType].has(name))])) as Record<AutoSaveResultType, string[]>;
+  for (const [type, files] of Object.entries(autoSavedFiles)) if (files.length < 1) failures.push(`auto-save missing for ${type}: ${JSON.stringify(files)}`);
+  const autoSavedDocuments = Object.entries(autoSavedFiles).flatMap(([type, files]) => files.map((name) => JSON.parse(fs.readFileSync(path.join(autoSaveDirs[type as AutoSaveResultType], name), "utf8")) as Record<string, unknown>));
+  if (autoSavedDocuments.some((document) => !asRecord(document.autoSave).path || asRecord(document.autoSave).enabled !== true || asRecord(document.debugBundleHints).includeInDebugBundle !== true || !Array.isArray(document.crossPageDebugBundleTodo))) failures.push("auto-save metadata/debug bundle hints audit failed");
+  const newDebugBundles = fs.readdirSync(debugBundlesDir).filter((name) => !debugBundlesBefore.has(name));
+  const debugBundlePath = newDebugBundles.length > 0 ? path.join(debugBundlesDir, newDebugBundles.at(-1)!) : "";
+  const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "README_for_GPT.txt"];
+  const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
+  const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
+  const bundleText = debugBundlePath ? actualBundleFiles.map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
+  if (!autoSaveUiAudit.visible || !autoSaveUiAudit.precision || !autoSaveUiAudit.path || !autoSaveUiAudit.open || !autoSaveUiAudit.copy) failures.push(`last auto-save UI audit failed ${JSON.stringify(autoSaveUiAudit)}`);
+  if (!debugBundleUiAudit.path || !debugBundleUiAudit.open || !debugBundleUiAudit.copy || missingBundleFiles.length > 0) failures.push(`debug bundle UI/files audit failed ${JSON.stringify({ debugBundleUiAudit, missingBundleFiles })}`);
+  if (!bundleText.includes("Jira Activity Analyzer Debug Bundle") || !bundleText.includes("Cross-page TODO") || /secret-value|JSESSIONID|Authorization:\s*(?!\[masked\])/i.test(bundleText)) failures.push("debug bundle README or sensitive-data audit failed");
 
   const fullFetchFilesBeforeConfirmationTest = fs.existsSync(getFullFetchLogsDir())
     ? new Set(fs.readdirSync(getFullFetchLogsDir()))

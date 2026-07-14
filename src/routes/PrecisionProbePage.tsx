@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { DatabaseZap, Download, Play, Radio } from "lucide-react";
+import { Copy, DatabaseZap, Download, FolderOpen, Play, Radio } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel, MockModal } from "../components/FormControls";
@@ -29,23 +29,26 @@ function addDays(dateText: string, days: number) {
 }
 
 function newActivityStreamRunId() {
-  const stamp = new Date().toISOString().replace(/[-:TZ]/g, "").slice(0, 17);
+  const stamp = new Date().toISOString().split("-").join("").split(":").join("").replace("T", "").replace("Z", "").slice(0, 17);
   return `asrun-${stamp}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
 const emptyParserDiagnostics = {
   atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0,
+  entriesWithIssueKeyCount: 0, confluenceOnlyEntryCount: 0,
   entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0,
   entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [] as string[],
   skippedEntriesSanitized: [] as Array<{ entryIndex: number; reason: string; rawTitleText: string; rawUpdatedText: string; rawAuthorText: string }>,
   parserAnomaly: false, parserAnomalyReason: ""
 };
+const emptyActivityEntryStats = { totalAtomEntries: 0, parsedActivityEntryCount: 0, parsedIssueActivityCount: 0, entriesWithIssueKeyCount: 0, entriesWithoutIssueKeyCount: 0, confluenceOnlyEntryCount: 0, nonJiraEntryCount: 0, jiraIssueEntryCount: 0, uniqueIssueKeyCount: 0 };
 
 const activityTypeOptions = ["link", "comment", "attachment", "status", "assignee_change", "field_change", "description_update", "page", "unknown"] as const;
 const variantOptions = ["username", "escaped_username", "email", "manual_url"] as const;
 const sourceOptions = ["activity_stream", "manual_url"] as const;
 const maxResultsQuickValues = [10, 20, 50, 100, 200, 500, 1000] as const;
 const capTestValues = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 65535] as const;
+const crossPageDebugBundleTodo = ["Jira Probe: verify debug bundle includes latest probe result", "Jira Analysis: verify debug bundle includes latest analysis result", "Candidate Discovery: verify debug bundle includes latest candidate result", "Fetch Queue: verify run history and latest queue snapshot", "Full Fetch: verify debug bundle includes latest fetch report", "Connections / Data Source Test: verify latest connection test result"];
 
 function buildBaseJql(users: string[], startDate: string, endDate: string) {
   const endExclusive = addDays(endDate, 1);
@@ -101,6 +104,11 @@ export function PrecisionProbePage() {
     uniqueIssueKeyCount: new Set(filteredEntries.flatMap((entry) => entry.extractedIssueKeysPerEntry)).size,
     activityTypeCounts: filteredEntries.reduce<Record<string, number>>((counts, entry) => ({ ...counts, [entry.activityType]: (counts[entry.activityType] ?? 0) + 1 }), {})
   }), [allEntries, filteredEntries]);
+  const totalEntryPages = Math.max(1, Math.ceil(filteredEntries.length / userAnalysis.parsedEntriesPageSize));
+  const currentEntryPage = Math.min(userAnalysis.parsedEntriesPage, totalEntryPages);
+  const paginatedEntries = useMemo(() => filteredEntries.slice((currentEntryPage - 1) * userAnalysis.parsedEntriesPageSize, currentEntryPage * userAnalysis.parsedEntriesPageSize), [filteredEntries, currentEntryPage, userAnalysis.parsedEntriesPageSize]);
+  const showingStart = filteredEntries.length === 0 ? 0 : (currentEntryPage - 1) * userAnalysis.parsedEntriesPageSize + 1;
+  const showingEnd = Math.min(currentEntryPage * userAnalysis.parsedEntriesPageSize, filteredEntries.length);
   const clientDateFilteredEntries = useMemo(() => allEntries.filter((entry) => {
     const date = entry.activityTime.slice(0, 10);
     return Boolean(date && (!userAnalysis.startDate || date >= userAnalysis.startDate) && (!userAnalysis.endDate || date <= userAnalysis.endDate));
@@ -108,6 +116,18 @@ export function PrecisionProbePage() {
 
   function patchState(patch: Partial<typeof userAnalysis>) {
     setUserAnalysis((current) => ({ ...current, ...patch }));
+  }
+
+  useEffect(() => {
+    setUserAnalysis((current) => current.parsedEntriesPage === 1 ? current : { ...current, parsedEntriesPage: 1 });
+  }, [userAnalysis.parsedEntriesFilter, setUserAnalysis]);
+
+  async function autoSaveRun(resultType: "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test", runId: string, status: string, data: unknown) {
+    if (!window.desktopApp?.userAnalysis?.autoSaveRun || !["success", "partial", "completed"].includes(status)) return;
+    const saved = await window.desktopApp.userAnalysis.autoSaveRun({ resultType, runId, status, data });
+    const metadata = { path: saved.filePath, folderPath: saved.folderPath, savedAt: saved.savedAt, runId: saved.runId, resultType: saved.resultType, status: saved.status };
+    setUserAnalysis((current) => ({ ...current, lastAutoSavedResult: metadata, autoSavedResultPaths: [metadata, ...current.autoSavedResultPaths].slice(0, 20) }));
+    appendDebugLog("precision", [`[INFO] Auto-saved ${resultType}: ${saved.filePath}`]);
   }
 
   function logAction(category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO", message: string) {
@@ -162,7 +182,8 @@ export function PrecisionProbePage() {
         firstEntriesSanitized: [],
         error: "",
         rawSummary: "",
-        parserDiagnostics: emptyParserDiagnostics
+        parserDiagnostics: emptyParserDiagnostics,
+        activityEntryStats: emptyActivityEntryStats
       }
     }));
     return runId;
@@ -249,6 +270,7 @@ export function PrecisionProbePage() {
         return { ...current, activityStream, activityStreamDateSemantics: { ...dateSemantics, clientDateFilterApplied: current.parsedEntriesFilter.applyClientDateFilter }, activityStreamDateQueryResults: dateQueryResults, activityStreamMaxResultsDiagnostics: diagnostics, activityStreamCapTestResults: capTest ? [diagnostics, ...current.activityStreamCapTestResults].slice(0, 9) : current.activityStreamCapTestResults, precisionIssueKeySets: { ...current.precisionIssueKeySets, activityStreamIssueKeys: activityStream.activityStreamIssueKeys, recommendedIssueKeys }, uniquePreciseIssueKeys: recommendedIssueKeys, precisionProbeStatus: activityStream.overallStatus === "failed" ? "failed" : "completed", precisionProbeErrors: activityStream.error ? [activityStream.error] : [], notice: `${capTest ? "MaxResults Cap Test" : "Activity Stream Probe"} completed: ${activityStream.parsedActivityCount} activities, ${activityStream.activityStreamIssueKeys.length} issue key(s). / Activity Stream 測試完成。` };
       });
       finishRun(runId, activityStream, { startedAt: String(response.startedAt || ""), completedAt: String(response.completedAt || ""), mode: userAnalysis.activityStreamQueryMode, user: userAnalysis.activityStreamUser.trim(), maxResults: userAnalysis.precisionProbeMaxResults, start: userAnalysis.startDate, end: endExclusive });
+      if (activityStream.overallStatus !== "failed") await autoSaveRun(capTest ? "maxresults_cap_test" : "activity_stream_run", runId, activityStream.overallStatus === "success" ? "success" : "partial", { app: { name: "Jira Activity Analyzer", version: buildInfo.version.replace(/^v/, ""), buildTime: buildInfo.buildTime, gitCommit: buildInfo.gitCommit, gitBranch: buildInfo.gitBranch }, requestContext: { activityStreamUser: userAnalysis.activityStreamUser, dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, dateQueryMode: capTest ? "none" : userAnalysis.activityStreamDateQueryMode, maxResults: userAnalysis.precisionProbeMaxResults }, activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, clientDateFilteredEntriesSanitized: Array.isArray(response.clientDateFilteredEntriesSanitized) ? response.clientDateFilteredEntriesSanitized : [], activityStreamRunHistory: userAnalysis.activityStreamRunHistory });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Activity Stream Probe failed.";
       failRun(runId, message);
@@ -304,6 +326,7 @@ export function PrecisionProbePage() {
         notice: `Precision Probe completed: ${summary.uniquePreciseIssueCount} unique candidate(s). / 精準查詢測試完成。`
       });
       finishRun(runId, activityStream, { mode: `precision:${userAnalysis.activityStreamQueryMode}`, user: userAnalysis.activityStreamUser.trim(), maxResults: userAnalysis.precisionProbeMaxResults, start: userAnalysis.startDate, end: endExclusive });
+      if (status === "success" || status === "partial") await autoSaveRun("precision_probe_run", runId, status, { app: { name: "Jira Activity Analyzer", version: buildInfo.version.replace(/^v/, ""), buildTime: buildInfo.buildTime, gitCommit: buildInfo.gitCommit, gitBranch: buildInfo.gitBranch }, requestContext: { selectedUsers, activityStreamUser: userAnalysis.activityStreamUser, dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, dateQueryMode: userAnalysis.activityStreamDateQueryMode, maxResults: userAnalysis.precisionProbeMaxResults }, summary, probeResults: response.results, activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, issueKeySets: mergedSets, activityStreamRunHistory: userAnalysis.activityStreamRunHistory });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Precision Probe failed.";
       failRun(runId, message);
@@ -338,6 +361,7 @@ export function PrecisionProbePage() {
         return { ...current, activityStream, manualActivityStreamResult: variantResult, manualUrlReplayDiagnostics: diagnostics, precisionIssueKeySets: { ...current.precisionIssueKeySets, manualActivityStreamIssueKeys: manualKeys, recommendedIssueKeys: manualKeys }, uniquePreciseIssueKeys: manualKeys, precisionIssueSources: Object.fromEntries(manualKeys.map((key) => [key, ["activity_stream_manual"]])), precisionProbeSummary: { ...current.precisionProbeSummary, activityStreamSupported: variantResult.supported, uniquePreciseIssueCount: manualKeys.length, recommendedStage1Mode: variantResult.parsed ? "activity_stream_manual" : "no_activity_found" }, precisionProbeStatus: variantResult.parsed ? "completed" : "partial", notice: `Manual URL replay ${variantResult.parsed ? "parsed" : "completed without parsed Jira keys"}. / 手動 URL 重放完成。` };
       });
       finishRun(runId, manualActivityStream, { startedAt: String(response.startedAt || ""), completedAt: String(response.completedAt || ""), mode: "manual_url", user: "manual", maxResults: userAnalysis.precisionProbeMaxResults, start: userAnalysis.startDate, end: endExclusive });
+      if (variantResult.status === "success") await autoSaveRun("manual_url_replay_run", runId, "success", { app: { name: "Jira Activity Analyzer", version: buildInfo.version.replace(/^v/, ""), buildTime: buildInfo.buildTime, gitCommit: buildInfo.gitCommit, gitBranch: buildInfo.gitBranch }, requestContext: { manualUrlReplay: true, requestUrlSanitized: diagnostics.requestUrlSanitized }, activityStream: manualActivityStream, manualUrlReplayDiagnostics: diagnostics, variantResult, activityStreamRunHistory: userAnalysis.activityStreamRunHistory });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Manual URL Replay failed.";
       failRun(runId, message);
@@ -400,7 +424,7 @@ export function PrecisionProbePage() {
       bestVariant: manual?.parsed ? "manual_url" : userAnalysis.activityStream.bestVariant,
       bestActivityStreamUser: manual?.parsed ? "manual" : userAnalysis.activityStream.bestActivityStreamUser,
       bestParsedIssueKeys: manual?.parsed ? manual.parsedIssueKeys : userAnalysis.activityStream.bestParsedIssueKeys,
-      parsedActivityCount: userAnalysis.activityStream.entriesSanitized.filter((entry) => entry.variant !== "manual_url" && entry.extractedIssueKeysPerEntry.length > 0).length + (manual?.parsedActivityCount ?? 0),
+      parsedActivityCount: userAnalysis.activityStream.entriesSanitized.filter((entry) => entry.variant !== "manual_url" && Boolean(entry.activityTitle || entry.activityAuthor || entry.activityTime || entry.activityType !== "unknown")).length + (manual?.parsedActivityCount ?? 0),
       parsedIssueKeys: Array.from(new Set([...userAnalysis.activityStream.parsedIssueKeys, ...(manual?.parsedIssueKeys ?? [])])).sort(),
       atomEntryCount: userAnalysis.activityStream.variantResults.filter((item) => item.variant !== "manual_url").reduce((sum, item) => sum + item.atomEntryCount, 0) + (manual?.atomEntryCount ?? 0),
       variantResults: [...userAnalysis.activityStream.variantResults.filter((item) => item.variant !== "manual_url"), ...(manual ? [manual] : [])],
@@ -427,6 +451,12 @@ export function PrecisionProbePage() {
       parsedEntriesFilter: userAnalysis.parsedEntriesFilter,
       parsedEntriesFilterStats: filterStats,
       filteredEntriesSanitized: filteredEntries.slice(0, 200),
+      parsedEntriesTableState: { pageSize: userAnalysis.parsedEntriesPageSize, currentPage: currentEntryPage, totalPages: totalEntryPages, filteredEntries: filteredEntries.length },
+      activityEntryStats: userAnalysis.activityStream.activityEntryStats,
+      autoSave: userAnalysis.lastAutoSavedResult ? { enabled: true, savedAt: userAnalysis.lastAutoSavedResult.savedAt, path: userAnalysis.lastAutoSavedResult.path, resultType: userAnalysis.lastAutoSavedResult.resultType } : { enabled: true, savedAt: "", path: "", resultType: "not_run" },
+      debugBundleHints: { includeInDebugBundle: true, resultType: "precision_probe_export", latestResult: true },
+      autoSavedResultPaths: userAnalysis.autoSavedResultPaths,
+      crossPageDebugBundleTodo,
       issueKeySets: userAnalysis.precisionIssueKeySets,
       uniquePreciseIssueKeys: userAnalysis.uniquePreciseIssueKeys,
       recommendations: [`Recommended Stage 1 Mode: ${userAnalysis.precisionProbeSummary.recommendedStage1Mode}`, "updatedBy may not exactly match Activity Stream user actions in this Jira environment. / updatedBy 在此 Jira 環境中不一定等同於 Activity Stream 實際使用者操作紀錄。"],
@@ -474,6 +504,10 @@ export function PrecisionProbePage() {
       {userAnalysis.notice ? <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm font-bold text-green-800">{userAnalysis.notice}</div> : null}
     </SectionCard>
 
+    <SectionCard title="Last Auto-Saved Result" subtitle="最後自動儲存結果" className="mb-4">
+      {userAnalysis.lastAutoSavedResult ? <div data-testid="last-auto-saved-result" className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]"><div className="min-w-0 text-sm font-semibold leading-relaxed"><div className="break-all"><b>Path:</b> {userAnalysis.lastAutoSavedResult.path}</div><div><b>Saved At:</b> {userAnalysis.lastAutoSavedResult.savedAt}</div><div><b>Run ID:</b> {userAnalysis.lastAutoSavedResult.runId}</div><div><b>Result Type:</b> {userAnalysis.lastAutoSavedResult.resultType}</div><div><b>Status:</b> {userAnalysis.lastAutoSavedResult.status}</div></div><div className="flex flex-wrap items-start gap-2"><button data-testid="open-auto-save-folder" className="btn" type="button" onClick={() => void window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath: userAnalysis.lastAutoSavedResult?.folderPath })}><FolderOpen size={16} />Open Folder / 開啟資料夾</button><button data-testid="copy-auto-save-path" className="btn" type="button" onClick={() => void navigator.clipboard?.writeText(userAnalysis.lastAutoSavedResult?.path ?? "")}><Copy size={16} />Copy Path / 複製路徑</button></div></div> : <div className="text-sm font-semibold text-muted">No auto-saved run yet. / 尚無自動儲存結果。</div>}
+    </SectionCard>
+
     <SectionCard title="Manual Activity Stream URL Replay" subtitle="手動 Activity Stream URL 重放" className="mb-4">
       <FieldLabel label="Manual Activity Stream URL" sub="手動 Activity Stream URL" />
       <textarea data-testid="manual-activity-stream-url" className="field min-h-24 break-all" value={userAnalysis.manualActivityStreamUrl} placeholder="https://jira.example.com/plugins/servlet/streams?maxResults=10&relativeLinks=true&streams=user+IS+roger%5C_hsieh" onChange={(event) => { logAction("USER_ACTION", "Manual Activity Stream URL changed"); patchState({ manualActivityStreamUrl: event.target.value }); }} />
@@ -495,12 +529,12 @@ export function PrecisionProbePage() {
     </SectionCard>
 
     <SectionCard title="Activity Stream Result" subtitle="Activity Stream 結果" className="mb-4">
-      <div className="mb-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3"><MiniStat label="Overall Status / 整體狀態" value={stream.overallStatus} /><MiniStat label="Reachable / 可連線" value={stream.reachable ? "yes" : "no"} /><MiniStat label="Supported / 是否支援" value={stream.supported} /><MiniStat label="Parsed / 已解析" value={stream.parsed ? "yes" : "no"} /><MiniStat label="Diagnosis / 診斷" value={stream.diagnosis} /><MiniStat label="Best Variant / 最佳變體" value={userAnalysis.manualActivityStreamResult?.parsed ? "manual_url" : stream.bestVariant || "-"} /><MiniStat label="Atom Entries / Atom 項目" value={stream.atomEntryCount} /><MiniStat label="Parsed Activities / 活動數" value={stream.parsedActivityCount} /><MiniStat label="Parsed Issue Keys / 解析 Jira 數" value={userAnalysis.precisionIssueKeySets.recommendedIssueKeys.length} /></div>
+      <div className="mb-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3" data-testid="activity-entry-summary"><MiniStat label="Overall Status / 整體狀態" value={stream.overallStatus} /><MiniStat label="Diagnosis / 診斷" value={stream.diagnosis} /><MiniStat label="Total Activity Entries / 全部活動筆數" value={stream.activityEntryStats.totalAtomEntries} /><MiniStat label="Parsed Activity Entries / 已解析活動筆數" value={stream.activityEntryStats.parsedActivityEntryCount} /><MiniStat label="Entries with Jira Key / 含 Jira Key 活動" value={stream.activityEntryStats.entriesWithIssueKeyCount} /><MiniStat label="Confluence-only Entries / Confluence-only 活動" value={stream.activityEntryStats.confluenceOnlyEntryCount} /><MiniStat label="Non-Jira Entries / 非 Jira 活動" value={stream.activityEntryStats.nonJiraEntryCount} /><MiniStat label="Unique Jira Issue Keys / 去重 Jira 數" value={stream.activityEntryStats.uniqueIssueKeyCount} /><MiniStat label="Best Variant / 最佳變體" value={userAnalysis.manualActivityStreamResult?.parsed ? "manual_url" : stream.bestVariant || "-"} /></div>
       <div className="mb-3 break-all rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold text-muted">GET {stream.requestUrlSanitized || "/plugins/servlet/streams?..."}<br />Best date query mode / 最佳日期查詢模式：{userAnalysis.activityStreamDateSemantics.bestDateQueryMode}</div>
       <h3 className="mb-2 text-sm font-black text-ink">Query Variants / 查詢變體</h3>
       <ResponsiveTableContainer className="mb-4"><table className="table min-w-[1200px]" data-testid="activity-stream-variants"><thead><tr>{["Variant", "User", "HTTP", "Content Type", "Reachable", "Supported", "Atom Entries", "Parsed", "Jira Keys", "Diagnosis"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{[...stream.variantResults.filter((item) => item.variant !== "manual_url"), ...(userAnalysis.manualActivityStreamResult ? [userAnalysis.manualActivityStreamResult] : [])].map((result) => <tr key={`${result.variant}-${result.activityStreamUser}`}><td className="font-bold">{result.variant}</td><td>{result.activityStreamUser}</td><td>{result.httpStatus}</td><td>{result.contentType || "-"}</td><td>{result.reachable ? "yes" : "no"}</td><td>{result.supported}</td><td>{result.atomEntryCount}</td><td>{result.parsedActivityCount}</td><td>{result.parsedIssueKeys.join(", ") || "-"}</td><td><StatusBadge>{result.diagnosis}</StatusBadge></td></tr>)}{stream.variantResults.length === 0 && !userAnalysis.manualActivityStreamResult ? <tr><td colSpan={10} className="text-center text-muted">No query variants yet / 尚無查詢變體</td></tr> : null}</tbody></table></ResponsiveTableContainer>
       <h3 className="mb-2 text-sm font-black text-ink">Parser Diagnostics / 解析診斷</h3>
-      <div className="mb-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3" data-testid="parser-diagnostics"><MiniStat label="Atom Entries" value={stream.parserDiagnostics.atomEntryCount} /><MiniStat label="Parsed Entries" value={stream.parserDiagnostics.parsedEntryCount} /><MiniStat label="Skipped Entries" value={stream.parserDiagnostics.skippedEntryCount} /><MiniStat label="Without Issue Key" value={stream.parserDiagnostics.entriesWithoutIssueKeyCount} /><MiniStat label="Without Author" value={stream.parserDiagnostics.entriesWithoutAuthorCount} /><MiniStat label="Without Time" value={stream.parserDiagnostics.entriesWithoutTimeCount} /><MiniStat label="Multiple Keys" value={stream.parserDiagnostics.entriesWithMultipleIssueKeysCount} /></div>
+      <div className="mb-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3" data-testid="parser-diagnostics"><MiniStat label="Atom Entries" value={stream.parserDiagnostics.atomEntryCount} /><MiniStat label="Parsed Entries" value={stream.parserDiagnostics.parsedEntryCount} /><MiniStat label="Skipped Entries" value={stream.parserDiagnostics.skippedEntryCount} /><MiniStat label="With Issue Key" value={stream.parserDiagnostics.entriesWithIssueKeyCount} /><MiniStat label="Without Issue Key" value={stream.parserDiagnostics.entriesWithoutIssueKeyCount} /><MiniStat label="Confluence-only" value={stream.parserDiagnostics.confluenceOnlyEntryCount} /><MiniStat label="Without Author" value={stream.parserDiagnostics.entriesWithoutAuthorCount} /><MiniStat label="Without Time" value={stream.parserDiagnostics.entriesWithoutTimeCount} /></div>
       {stream.parserDiagnostics.parserAnomaly ? <div data-testid="parser-anomaly" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">Parser anomaly detected: Atom entries were returned, but few entries were parsed.<br />解析異常：Activity Stream 回傳了 Atom entries，但只有少數 entries 被解析。<br />{stream.parserDiagnostics.parserAnomalyReason}</div> : null}
       {stream.parserDiagnostics.skippedEntriesSanitized.length > 0 ? <ResponsiveTableContainer className="mb-4"><table className="table min-w-[800px]"><thead><tr><th>Entry</th><th>Reason</th><th>Title</th><th>Time</th><th>Author</th></tr></thead><tbody>{stream.parserDiagnostics.skippedEntriesSanitized.map((entry) => <tr key={entry.entryIndex}><td>{entry.entryIndex}</td><td>{entry.reason}</td><td>{entry.rawTitleText || "-"}</td><td>{entry.rawUpdatedText || "-"}</td><td>{entry.rawAuthorText || "-"}</td></tr>)}</tbody></table></ResponsiveTableContainer> : null}
       <h3 className="mb-2 text-sm font-black text-ink">Parsed Entries / 解析項目</h3>
@@ -512,7 +546,8 @@ export function PrecisionProbePage() {
         <div><FieldLabel label="Variant" sub="查詢變體（Ctrl/Cmd 多選；未選即 All）" /><select data-testid="filter-variants" multiple className="field min-h-32" value={userAnalysis.parsedEntriesFilter.variants} onChange={(event) => patchState({ parsedEntriesFilter: { ...userAnalysis.parsedEntriesFilter, variants: Array.from(event.currentTarget.selectedOptions, (option) => option.value) } })}>{variantOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
         <div><FieldLabel label="Source" sub="來源（Ctrl/Cmd 多選；未選即 All）" /><select data-testid="filter-sources" multiple className="field min-h-24" value={userAnalysis.parsedEntriesFilter.sources} onChange={(event) => patchState({ parsedEntriesFilter: { ...userAnalysis.parsedEntriesFilter, sources: Array.from(event.currentTarget.selectedOptions, (option) => option.value) as typeof userAnalysis.parsedEntriesFilter.sources } })}>{sourceOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
       </div><div className="mt-3 flex flex-wrap items-center gap-3"><label className="flex items-center gap-2 text-sm font-bold"><input data-testid="apply-client-date-filter" type="checkbox" checked={userAnalysis.parsedEntriesFilter.applyClientDateFilter} onChange={(event) => patchState({ parsedEntriesFilter: { ...userAnalysis.parsedEntriesFilter, applyClientDateFilter: event.target.checked }, activityStreamDateSemantics: { ...userAnalysis.activityStreamDateSemantics, clientDateFilterApplied: event.target.checked } })} />Apply Client Date Filter / 套用本機日期篩選</label><button data-testid="reset-entry-filters" className="btn" type="button" onClick={() => patchState({ parsedEntriesFilter: { activityTypes: [], issueKeyQuery: "", onlyWithIssueKey: false, dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, variants: [], sources: [], authorQuery: "", applyClientDateFilter: true } })}>Reset Filters / 重設篩選</button><span className="text-sm font-bold text-muted">Total Parsed Entries / 全部解析項目：{filterStats.totalParsedEntries} · Filtered Entries / 篩選後項目：{filterStats.filteredEntries} · Unique Issue Keys / 去重 Jira：{filterStats.uniqueIssueKeyCount}</span></div><div className="mt-2 text-xs font-semibold text-muted">Activity Types / 活動類型統計：{Object.entries(filterStats.activityTypeCounts).map(([type, count]) => `${type}: ${count}`).join(" · ") || "-"}</div></div>
-      <ResponsiveTableContainer><table className="table min-w-[1400px]" data-testid="activity-stream-results"><thead><tr>{["Run ID", "Variant", "Source / 來源", "Activity Type / 活動類型", "Issue Key / Jira", "Time / 時間", "Author / 作者", "Author Email", "Title / 標題"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{filteredEntries.map((entry, index) => <tr key={`${entry.runId}-${entry.issueKey}-${entry.activityTime}-${index}`}><td>{entry.runId || "-"}</td><td>{entry.variant || "-"}</td><td>{entry.source}</td><td>{entry.activityType}</td><td className="font-black text-blue-700">{entry.issueKey || "-"}</td><td>{entry.activityTime || "-"}</td><td>{entry.activityAuthor || "-"}</td><td>{entry.activityAuthorEmail || "-"}</td><td><span className="block max-w-[360px] truncate" title={entry.activityTitle} data-allow-truncate="true">{entry.activityTitle || "-"}</span></td></tr>)}{filteredEntries.length === 0 ? <tr><td colSpan={9} className="text-center text-muted">No entries match the current filters / 沒有符合目前篩選條件的項目</td></tr> : null}</tbody></table></ResponsiveTableContainer>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-white p-3" data-testid="parsed-entries-pagination"><label className="flex items-center gap-2 text-sm font-bold">Page Size / 每頁筆數<select data-testid="parsed-page-size" className="field w-24" value={userAnalysis.parsedEntriesPageSize} onChange={(event) => patchState({ parsedEntriesPageSize: Number(event.target.value) as typeof userAnalysis.parsedEntriesPageSize, parsedEntriesPage: 1 })}>{[10, 20, 40, 80, 160].map((size) => <option key={size} value={size}>{size}</option>)}</select></label><div className="text-sm font-bold text-muted">Showing {showingStart}-{showingEnd} of {filteredEntries.length} / 第 {showingStart}-{showingEnd} 筆，共 {filteredEntries.length} 筆</div><div className="flex items-center gap-2"><button data-testid="parsed-prev-page" className="btn" type="button" disabled={currentEntryPage <= 1} onClick={() => patchState({ parsedEntriesPage: Math.max(1, currentEntryPage - 1) })}>Previous / 上一頁</button><span className="text-sm font-black">Page {currentEntryPage} of {totalEntryPages}</span><button data-testid="parsed-next-page" className="btn" type="button" disabled={currentEntryPage >= totalEntryPages} onClick={() => patchState({ parsedEntriesPage: Math.min(totalEntryPages, currentEntryPage + 1) })}>Next / 下一頁</button></div></div>
+      <ResponsiveTableContainer><table className="table min-w-[1300px]" data-testid="activity-stream-results"><thead><tr>{["Run ID", "Variant", "Source", "Activity Type", "Issue Key", "Time", "Author", "Title Summary", "Details"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{paginatedEntries.map((entry, index) => { const entryKey = `${entry.runId}-${entry.variant}-${entry.entryIndex}-${entry.activityTime}`; const expanded = userAnalysis.expandedActivityEntries.includes(entryKey); return [<tr key={entryKey}><td>{entry.runId || "-"}</td><td>{entry.variant || "-"}</td><td>{entry.source}</td><td>{entry.activityType}</td><td className="font-black text-blue-700">{entry.issueKey || "-"}</td><td>{entry.activityTime || "-"}</td><td>{entry.activityAuthor || "-"}</td><td><span className="block max-w-[320px] truncate" title={entry.activityTitle} data-allow-truncate="true">{entry.activityTitle.slice(0, 200) || "-"}</span></td><td><button data-testid={`entry-detail-${index}`} className="btn px-2 py-1 text-xs" type="button" onClick={() => patchState({ expandedActivityEntries: expanded ? userAnalysis.expandedActivityEntries.filter((key) => key !== entryKey) : [...userAnalysis.expandedActivityEntries, entryKey] })}>{expanded ? "Hide Details / 收合詳細" : "Show Details / 顯示詳細"}</button></td></tr>, expanded ? <tr key={`${entryKey}-detail`} data-testid="entry-detail-panel"><td colSpan={9}><div className="max-h-80 overflow-auto rounded-lg border border-blue-200 bg-blue-50 p-4 text-xs font-semibold leading-relaxed text-blue-950"><div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2"><div><b>Raw Title:</b> <span className="break-words">{entry.rawTitle || entry.activityTitle || "-"}</span></div><div><b>Raw Summary:</b> <span className="break-words">{entry.rawSummary || "-"}</span></div><div><b>Activity Application:</b> {entry.activityApplication}</div><div><b>Object Type:</b> {entry.objectType || "-"}</div><div><b>Target:</b> {entry.target || "-"}</div><div><b>Links:</b> {entry.links.join(", ") || "-"}</div><div><b>Author Email:</b> {entry.activityAuthorEmail || "-"}</div><div><b>Extracted Issue Keys:</b> {entry.extractedIssueKeysPerEntry.join(", ") || "-"}</div><div><b>Entry Index:</b> {entry.entryIndex}</div><div><b>Run / Variant / Source:</b> {entry.runId} / {entry.variant} / {entry.source}</div></div><div className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded border border-blue-100 bg-white p-2"><b>Raw Content:</b> {entry.rawContent || "-"}</div><button data-testid={`copy-entry-${index}`} className="btn mt-3 px-2 py-1 text-xs" type="button" onClick={() => void navigator.clipboard?.writeText(JSON.stringify(entry, null, 2))}><Copy size={14} />Copy Entry JSON</button></div></td></tr> : null]; })}{filteredEntries.length === 0 ? <tr><td colSpan={9} className="text-center text-muted">No entries match the current filters / 沒有符合目前篩選條件的項目</td></tr> : null}</tbody></table></ResponsiveTableContainer>
       {stream.error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">{stream.error}</div> : null}
     </SectionCard>
 

@@ -77,9 +77,17 @@ export type UserActivityStreamEntry = {
   source: "activity_stream" | "manual_url";
   variant: string;
   extractedIssueKeysPerEntry: string[];
+  rawTitle: string;
+  rawSummary: string;
+  rawContent: string;
+  activityApplication: "Jira" | "Confluence" | "Other";
+  objectType: string;
+  target: string;
+  links: string[];
+  entryIndex: number;
 };
 
-export type UserActivityStreamDiagnosis = "parsed" | "no_entries" | "parser_failed" | "html_login" | "http_error" | "blocked" | "unknown";
+export type UserActivityStreamDiagnosis = "parsed" | "parsed_no_issue_keys" | "parsed_confluence_only" | "no_entries" | "parser_failed" | "html_login" | "http_error" | "blocked" | "unknown";
 
 export type UserActivityStreamFirstEntry = {
   rawTitleText: string;
@@ -111,6 +119,7 @@ export type UserActivityStreamVariantResult = {
   error: string;
   rawSummary: string;
   parserDiagnostics: UserActivityStreamParserDiagnostics;
+  activityEntryStats: UserActivityStreamEntryStats;
   dateQueryMode?: UserActivityStreamDateQueryResult["mode"];
 };
 
@@ -171,6 +180,8 @@ export type UserActivityStreamParserDiagnostics = {
   parsedEntryCount: number;
   skippedEntryCount: number;
   entriesWithoutIssueKeyCount: number;
+  entriesWithIssueKeyCount: number;
+  confluenceOnlyEntryCount: number;
   entriesWithoutAuthorCount: number;
   entriesWithoutTimeCount: number;
   entriesWithoutTitleCount: number;
@@ -180,6 +191,18 @@ export type UserActivityStreamParserDiagnostics = {
   skippedEntriesSanitized: UserActivityStreamSkippedEntry[];
   parserAnomaly: boolean;
   parserAnomalyReason: string;
+};
+
+export type UserActivityStreamEntryStats = {
+  totalAtomEntries: number;
+  parsedActivityEntryCount: number;
+  parsedIssueActivityCount: number;
+  entriesWithIssueKeyCount: number;
+  entriesWithoutIssueKeyCount: number;
+  confluenceOnlyEntryCount: number;
+  nonJiraEntryCount: number;
+  jiraIssueEntryCount: number;
+  uniqueIssueKeyCount: number;
 };
 
 export type UserActivityStreamResult = {
@@ -208,6 +231,7 @@ export type UserActivityStreamResult = {
   error: string;
   rawSummary: string;
   parserDiagnostics: UserActivityStreamParserDiagnostics;
+  activityEntryStats: UserActivityStreamEntryStats;
 };
 
 export type UserActivityStreamRunHistory = {
@@ -236,6 +260,8 @@ export type UserActivityStreamFilter = {
   authorQuery: string;
   applyClientDateFilter: boolean;
 };
+
+export type UserActivityStreamAutoSave = { path: string; savedAt: string; runId: string; resultType: string; status: string; folderPath: string };
 
 export type UserActivityStreamManualDiagnostics = {
   manualUrlProvided: boolean;
@@ -369,6 +395,11 @@ export type UserAnalysisSessionState = {
   activityStreamRunHistory: UserActivityStreamRunHistory[];
   lastSuccessfulActivityStreamResult: UserActivityStreamResult | null;
   parsedEntriesFilter: UserActivityStreamFilter;
+  parsedEntriesPage: number;
+  parsedEntriesPageSize: 10 | 20 | 40 | 80 | 160;
+  expandedActivityEntries: string[];
+  lastAutoSavedResult: UserActivityStreamAutoSave | null;
+  autoSavedResultPaths: UserActivityStreamAutoSave[];
   activityStream: UserActivityStreamResult;
   precisionIssueKeySets: UserAnalysisPrecisionIssueKeySets;
   precisionProbeStatus: "idle" | "running" | "completed" | "partial" | "failed";
@@ -501,6 +532,11 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   activityStreamRunHistory: [],
   lastSuccessfulActivityStreamResult: null,
   parsedEntriesFilter: { activityTypes: [], issueKeyQuery: "", onlyWithIssueKey: false, dateRange: { start: "2026-07-01", end: "2026-07-07" }, variants: [], sources: [], authorQuery: "", applyClientDateFilter: true },
+  parsedEntriesPage: 1,
+  parsedEntriesPageSize: 40,
+  expandedActivityEntries: [],
+  lastAutoSavedResult: null,
+  autoSavedResultPaths: [],
   activityStream: {
     runId: "",
     status: "not_run",
@@ -526,7 +562,8 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     firstEntriesSanitized: [],
     error: "",
     rawSummary: "",
-    parserDiagnostics: { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" }
+    parserDiagnostics: { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithIssueKeyCount: 0, confluenceOnlyEntryCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" },
+    activityEntryStats: { totalAtomEntries: 0, parsedActivityEntryCount: 0, parsedIssueActivityCount: 0, entriesWithIssueKeyCount: 0, entriesWithoutIssueKeyCount: 0, confluenceOnlyEntryCount: 0, nonJiraEntryCount: 0, jiraIssueEntryCount: 0, uniqueIssueKeyCount: 0 }
   },
   precisionIssueKeySets: {
     activityStreamIssueKeys: [],
