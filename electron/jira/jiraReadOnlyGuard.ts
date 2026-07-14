@@ -26,7 +26,8 @@ const activityStreamQueryKeys = new Set([
   "relativeLinks",
   "local",
   "title",
-  "timeout"
+  "timeout",
+  "_"
 ]);
 
 export function assertReadOnlyRequest(method: string, pathName: string) {

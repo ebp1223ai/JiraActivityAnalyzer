@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { ensureDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
 import { createJiraClient } from "./jira/jiraClient.js";
-import { assertReadOnlyRequest } from "./jira/jiraReadOnlyGuard.js";
+import { assertReadOnlyRequest, ReadOnlyViolationError } from "./jira/jiraReadOnlyGuard.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
 import { sanitizeRawJson, sanitizeResponseText } from "./jira/safeJson.js";
@@ -793,8 +793,9 @@ type ActivityStreamEntry = {
   issueKey: string;
   activityTitle: string;
   activityAuthor: string;
+  activityAuthorEmail: string;
   activityTime: string;
-  activityType: "comment" | "update" | "status" | "attachment" | "link" | "unknown";
+  activityType: "comment" | "update" | "status" | "attachment" | "link" | "page" | "unknown";
   source: "activity_stream";
   variant: string;
   extractedIssueKeysPerEntry: string[];
@@ -802,7 +803,7 @@ type ActivityStreamEntry = {
 
 type ActivityStreamQueryMode = "auto" | "username" | "email" | "custom";
 type ActivityStreamDiagnosis = "parsed" | "no_entries" | "parser_failed" | "html_login" | "http_error" | "blocked" | "unknown";
-type ActivityStreamVariant = { variant: "username" | "email" | "custom"; user: string };
+type ActivityStreamVariant = { variant: "username" | "escaped_username" | "email" | "custom" | "manual_url"; user: string };
 
 function decodeXmlText(value: string) {
   return value
@@ -825,18 +826,21 @@ function xmlTag(block: string, tag: string) {
 
 function activityType(value: string): ActivityStreamEntry["activityType"] {
   const lower = value.toLowerCase();
+  if (/created a link from|linked to|issue-link|建立.*連結/.test(lower)) return "link";
   if (/comment|留言|評論/.test(lower)) return "comment";
   if (/status|transition|狀態/.test(lower)) return "status";
   if (/attachment|附件/.test(lower)) return "attachment";
   if (/link|連結/.test(lower)) return "link";
+  if (/category[^>]*page|application[^>]*confluence|\bconfluence\b|\bpage\b|頁面/.test(lower)) return "page";
   if (/update|change|edit|更新|變更|修改/.test(lower)) return "update";
   return "unknown";
 }
 
-function activityEntry(values: { title?: unknown; author?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown }, variant: string): ActivityStreamEntry {
+function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown }, variant: string): ActivityStreamEntry {
   const title = sanitizeResponseText(typeof values.title === "string" ? values.title : text(asRecord(values.title).value ?? asRecord(values.title).text ?? values.title));
   const authorRecord = asRecord(values.author);
   const author = sanitizeResponseText(typeof values.author === "string" ? values.author : text(authorRecord.name ?? authorRecord.displayName ?? authorRecord.email ?? authorRecord.username));
+  const authorEmail = sanitizeResponseText(text(values.authorEmail ?? authorRecord.email));
   const time = text(values.time);
   const content = typeof values.content === "string" ? values.content : JSON.stringify(values.content ?? "");
   const link = typeof values.link === "string" ? values.link : JSON.stringify(values.link ?? "");
@@ -847,6 +851,7 @@ function activityEntry(values: { title?: unknown; author?: unknown; time?: unkno
     issueKey: extractedIssueKeysPerEntry[0] ?? "",
     activityTitle: title === "-" ? "" : title.slice(0, 1000),
     activityAuthor: author === "-" ? "" : author.slice(0, 300),
+    activityAuthorEmail: authorEmail === "-" ? "" : authorEmail.slice(0, 300),
     activityTime: time === "-" ? "" : time,
     activityType: activityType(combined),
     source: "activity_stream",
@@ -881,6 +886,7 @@ function parseActivityJson(value: unknown, variant: string) {
     entries: records.map((entry) => activityEntry({
     title: entry.title,
     author: entry.author,
+    authorEmail: asRecord(entry.author).email,
     time: entry.updated ?? entry.published ?? entry.timestamp ?? entry.date,
     content: entry.summary ?? entry.content ?? entry.description,
     link: entry.link ?? entry.url,
@@ -905,7 +911,7 @@ function parseActivityAtom(xml: string, variant: string) {
     const title = xmlTag(block, "title");
     const content = xmlTag(block, "summary") || xmlTag(block, "content");
     const link = /<link\b[^>]*href=["']([^"']+)["'][^>]*>/i.exec(block)?.[1] ?? "";
-    return activityEntry({ title, author: xmlTag(authorBlock, "name") || xmlTag(authorBlock, "email") || decodeXmlText(authorBlock), time: xmlTag(block, "updated") || xmlTag(block, "published") || xmlTag(block, "date"), content, link, raw: block }, variant);
+    return activityEntry({ title, author: xmlTag(authorBlock, "name") || xmlTag(authorBlock, "email") || decodeXmlText(authorBlock), authorEmail: xmlTag(authorBlock, "email"), time: xmlTag(block, "updated") || xmlTag(block, "published") || xmlTag(block, "date"), content, link, raw: block }, variant);
   }) };
 }
 
@@ -944,18 +950,23 @@ function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: str
   };
 }
 
+function escapeActivityStreamUser(user: string) {
+  return user.replace(/(^|[^\\])_/g, "$1\\_");
+}
+
 function activityStreamVariants(connection: AppConnection, selectedUsers: string[], customUser: string, mode: ActivityStreamQueryMode): ActivityStreamVariant[] {
   const selected = selectedUsers.map((item) => item.trim()).filter(Boolean);
   const seed = customUser.trim() || selected[0] || connection.email || connection.username || "";
   const username = seed.includes("@") ? seed.split("@")[0] : seed;
+  const escapedUsername = escapeActivityStreamUser(username);
   const knownEmail = [customUser, ...selected, connection.email, connection.username].find((item) => String(item || "").includes("@")) || "";
   const email = seed.includes("@") ? seed : knownEmail ? `${username}@${String(knownEmail).split("@")[1]}` : "";
   const candidates: ActivityStreamVariant[] = mode === "custom"
     ? [{ variant: "custom", user: customUser.trim() }]
     : mode === "username" ? [{ variant: "username", user: username }]
       : mode === "email" ? [{ variant: "email", user: email }]
-        : seed.includes("@") ? [{ variant: "email", user: email }, { variant: "username", user: username }]
-          : [{ variant: "username", user: username }, { variant: "email", user: email }];
+        : seed.includes("@") ? [{ variant: "email", user: email }, { variant: "username", user: username }, { variant: "escaped_username", user: escapedUsername }]
+          : [{ variant: "username", user: username }, { variant: "escaped_username", user: escapedUsername }, { variant: "email", user: email }];
   const seen = new Set<string>();
   return candidates.filter((candidate) => candidate.user && !seen.has(candidate.user.toLowerCase()) && seen.add(candidate.user.toLowerCase()));
 }
@@ -996,7 +1007,7 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
   };
 }
 
-async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number) {
+async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true) {
   const requestMaxResults = maxResults === 0 ? 1 : Math.min(Math.max(maxResults || 10, 1), 50);
   const variants = activityStreamVariants(connection, selectedUsers, user, queryMode);
   const logs = [
@@ -1009,14 +1020,16 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   const client = isUiSmoke ? null : createJiraClient({ baseUrl: connection.baseUrl, email: connection.email || connection.username, apiToken: connection.apiToken ?? "", authType: connection.authType });
   const variantResults = [] as ReturnType<typeof activityStreamResult>[];
   for (const variant of variants) {
-    const params = new URLSearchParams({ maxResults: String(requestMaxResults), streams: `user IS ${variant.user}`, startDate, endDate });
+    const params = new URLSearchParams({ maxResults: String(requestMaxResults), relativeLinks: String(relativeLinks), streams: `user IS ${variant.user}`, startDate, endDate });
     const requestUrlSanitized = `/plugins/servlet/streams?${params.toString()}`;
     logs.push(`[INFO] Activity Stream variant started: variant=${variant.variant} user=${variant.user}`, `[DEBUG] GET ${requestUrlSanitized} (credentials masked)`);
     let result: ReturnType<typeof activityStreamResult>;
     if (isUiSmoke) {
-      const response = variant.variant === "username"
+      const response = variant.variant === "escaped_username"
+        ? { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: `<feed><entry><title type="html">created a link from <a href="/browse/SMOKE-101">SMOKE-101</a></title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><published>2026-07-02T09:00:00Z</published><activity:object><title>SMOKE-101</title><summary>Smoke fixture</summary></activity:object></entry></feed>`, bodyPreview: "", json: null } as JiraHttpResult
+        : variant.variant === "username"
         ? { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: "<feed></feed>", bodyPreview: "", json: null } as JiraHttpResult
-        : { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: `<feed><entry><title>SMOKE-101 updated</title><author><email>${variant.user}</email></author><updated>2026-07-02T09:00:00+08:00</updated><summary>Changed SMOKE-101</summary><link href="/browse/SMOKE-101" /></entry></feed>`, bodyPreview: "", json: null } as JiraHttpResult;
+        : { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: "<feed></feed>", bodyPreview: "", json: null } as JiraHttpResult;
       result = activityStreamResult(response, requestUrlSanitized, variant.user, variant.variant);
     } else {
       result = activityStreamResult(await client!.get(requestUrlSanitized), requestUrlSanitized, variant.user, variant.variant);
@@ -1029,8 +1042,45 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   return { activityStream, logs };
 }
 
-ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: 0 | 10 | 20 | 50 }) => {
-  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults));
+ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: 0 | 10 | 20 | 50; relativeLinks?: boolean }) => {
+  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults), payload.relativeLinks !== false);
+});
+
+const sensitiveReplayQueryKey = /token|password|passwd|secret|session|cookie|authorization|auth_token/i;
+
+function validateManualActivityStreamUrl(baseUrl: string, input: string) {
+  const diagnostics = { manualUrlProvided: Boolean(input.trim()), manualUrlAccepted: false, rejectReason: "", requestUrlSanitized: "" };
+  if (!diagnostics.manualUrlProvided) return { diagnostics: { ...diagnostics, rejectReason: "empty_url" }, pathName: "" };
+  try {
+    const base = new URL(baseUrl);
+    const candidate = new URL(input.trim(), base);
+    if (!/^https?:$/.test(candidate.protocol)) return { diagnostics: { ...diagnostics, rejectReason: "invalid_scheme" }, pathName: "" };
+    if (candidate.origin !== base.origin) return { diagnostics: { ...diagnostics, rejectReason: "external_origin" }, pathName: "" };
+    if (candidate.pathname !== "/plugins/servlet/streams") return { diagnostics: { ...diagnostics, rejectReason: "invalid_path" }, pathName: "" };
+    if (Array.from(candidate.searchParams.keys()).some((key) => sensitiveReplayQueryKey.test(key))) return { diagnostics: { ...diagnostics, rejectReason: "sensitive_query_key" }, pathName: "" };
+    const pathName = `${candidate.pathname}${candidate.search}`;
+    assertReadOnlyRequest("GET", pathName);
+    return { diagnostics: { ...diagnostics, manualUrlAccepted: true, requestUrlSanitized: pathName }, pathName };
+  } catch (error) {
+    return { diagnostics: { ...diagnostics, rejectReason: error instanceof ReadOnlyViolationError ? "query_not_allowed" : "invalid_url" }, pathName: "" };
+  }
+}
+
+ipcMain.handle("user-analysis:activity-stream-manual-replay", async (_event, payload: { connection: AppConnection; manualUrl: string }) => {
+  const validated = validateManualActivityStreamUrl(payload.connection.baseUrl, String(payload.manualUrl || ""));
+  const logs = ["[USER_ACTION] Button clicked: Run Manual URL Replay / 執行手動 URL 重放", "[INFO] Authorization: [masked]", "[INFO] Token: [masked]"];
+  if (!validated.diagnostics.manualUrlAccepted) {
+    logs.push(`[WARN] Manual URL replay rejected: reason=${validated.diagnostics.rejectReason}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
+    return { ok: false, manualUrlReplayDiagnostics: validated.diagnostics, variantResult: null, logs };
+  }
+  logs.push("[INFO] Manual URL replay accepted: path=/plugins/servlet/streams", `[DEBUG] GET ${validated.pathName} (credentials masked)`);
+  const response = isUiSmoke
+    ? { ok: true, status: 200, contentType: "application/atom+xml;charset=UTF-8", json: null, bodyTextSanitized: `<feed><entry><title type="html">Smoke User created a link from <a href="/browse/COPGEN1-138930" class="issue-link">COPGEN1-138930</a></title><author><name>謝正洪(roger_hsieh)</name><email>roger_hsieh@phison.com</email><usr:username>roger_hsieh</usr:username></author><published>2026-07-09T05:36:18.000Z</published><updated>2026-07-09T05:36:18.000Z</updated><activity:object><title type="text">COPGEN1-138930</title><summary type="text">[JACKSONQLC-3024] IOFULLSEQWRT Failure</summary></activity:object></entry></feed>`, bodyPreview: "" } as JiraHttpResult
+    : await createJiraClient({ baseUrl: payload.connection.baseUrl, email: payload.connection.email || payload.connection.username, apiToken: payload.connection.apiToken ?? "", authType: payload.connection.authType }).get(validated.pathName);
+  const variantResult = activityStreamResult(response, validated.pathName, "manual", "manual_url");
+  const activityStream = { ...aggregateActivityStream([variantResult], "manual"), manualReplay: { enabled: true, status: variantResult.status, requestUrlSanitized: validated.pathName } };
+  logs.push(`${variantResult.parsed ? "[INFO]" : "[WARN]"} Manual URL replay completed: httpStatus=${variantResult.httpStatus} atomEntryCount=${variantResult.atomEntryCount} parsedIssueKeys=${variantResult.parsedIssueKeys.length} diagnosis=${variantResult.diagnosis}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
+  return { ok: variantResult.parsed, manualUrlReplayDiagnostics: validated.diagnostics, variantResult, activityStream, logs };
 });
 
 ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
@@ -1041,6 +1091,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   projectScope: string;
   activityStreamUser?: string;
   activityStreamQueryMode?: ActivityStreamQueryMode;
+  activityStreamRelativeLinks?: boolean;
   maxResults: 0 | 10 | 20 | 50;
   broadJql: string;
 }) => {
@@ -1058,7 +1109,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   ];
 
   if (isUiSmoke) {
-    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults);
+    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults, payload.activityStreamRelativeLinks !== false);
     const activityStream = activityStreamRun.activityStream;
     const results: PrecisionProbeResult[] = [
       { method: "updatedBy Candidate JQL", status: "success", httpStatus: "200", supported: "yes", resultCount: 113, sampleIssueKeys: ["SMOKE-101", "SMOKE-102"], candidateSource: "updatedBy_candidate", error: "", recommendation: "Potential precision source; validate against Activity Stream", jql: "updatedBy(\"smoke.user\") ..." },
@@ -1068,7 +1119,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
       { method: "Activity Stream", status: "success", httpStatus: "200", supported: "yes", resultCount: 1, sampleIssueKeys: ["SMOKE-101"], candidateSource: "activity_stream", error: "", recommendation: "Preferred actual activity validation source", contentType: "application/atom+xml" },
       { method: "Broad Candidate Baseline", status: "success", httpStatus: "200", supported: "yes", resultCount: 93, sampleIssueKeys: ["SMOKE-101", "SMOKE-102"], candidateSource: "broad_role_baseline", error: "", recommendation: "Fallback only" }
     ];
-    const issueKeySets = { activityStreamIssueKeys: ["SMOKE-101"], updatedByCandidateIssueKeys: ["SMOKE-101", "SMOKE-102"], changedByIssueKeys: ["SMOKE-102"], broadBaselineIssueKeys: ["SMOKE-101", "SMOKE-102"], recommendedIssueKeys: ["SMOKE-101"] };
+    const issueKeySets = { activityStreamIssueKeys: ["SMOKE-101"], manualActivityStreamIssueKeys: [], updatedByCandidateIssueKeys: ["SMOKE-101", "SMOKE-102"], changedByIssueKeys: ["SMOKE-102"], broadBaselineIssueKeys: ["SMOKE-101", "SMOKE-102"], recommendedIssueKeys: ["SMOKE-101"] };
     logs.push(...activityStreamRun.logs, "[DEBUG] Precision Probe updatedBy variant fallback validated", "[WARN] Precision Probe assignee CHANGED BY unsupported: httpStatus=400 error=JQL syntax is not supported", "[WARN] updatedBy differs from Activity Stream: updatedByCount=113 activityStreamIssueCount=1", "[INFO] Precision Probe recommendation: activity_stream", "[INFO] No database write performed");
     return {
       ok: true,
@@ -1137,7 +1188,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   results.push(await runJqlMethod("priority CHANGED BY", "priority_changed_by", (user) => `priority CHANGED BY ${quoted(user)} ${dates}`));
 
   const activityStreamUser = String(payload.activityStreamUser || selectedUsers[0] || "").trim();
-  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults);
+  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults, payload.activityStreamRelativeLinks !== false);
   const activityStreamData = activityStreamRun.activityStream;
   logs.push(...activityStreamRun.logs);
   results.push({
@@ -1163,16 +1214,17 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   const broadCandidateCount = results[5].resultCount;
   const issueKeySets = {
     activityStreamIssueKeys: activityStreamData.activityStreamIssueKeys,
+    manualActivityStreamIssueKeys: [] as string[],
     updatedByCandidateIssueKeys: updatedBy.sampleIssueKeys,
     changedByIssueKeys: Array.from(new Set(changed.flatMap((item) => item.sampleIssueKeys))).sort(),
     broadBaselineIssueKeys: results[5].sampleIssueKeys,
-    recommendedIssueKeys: activityStreamData.activityStreamIssueKeys.length > 0 ? activityStreamData.activityStreamIssueKeys : updatedBy.sampleIssueKeys
+    recommendedIssueKeys: activityStreamData.activityStreamIssueKeys.length > 0 ? activityStreamData.activityStreamIssueKeys : []
   };
   const issueSources: Record<string, string[]> = {};
   for (const key of issueKeySets.recommendedIssueKeys) issueSources[key] = activityStreamData.activityStreamIssueKeys.includes(key) ? ["activity_stream"] : ["updatedBy_candidate"];
   const uniquePreciseIssueKeys = issueKeySets.recommendedIssueKeys;
   const changedSupported = changed.every((item) => item.supported === "yes") ? "yes" : changed.some((item) => item.supported === "yes") ? "partial" : changed.every((item) => item.supported === "no") ? "no" : "unknown";
-  const recommendedStage1Mode = activityStreamData.parsed ? "activity_stream" : activityStreamData.diagnosis === "no_entries" ? "no_activity_found" : updatedBy.supported === "yes" ? "updatedBy_candidate" : changed.some((item) => item.supported === "yes" && item.resultCount > 0) ? "changed_by_hybrid" : "broad_fallback";
+  const recommendedStage1Mode = activityStreamData.parsed ? "activity_stream" : "no_activity_found";
   const failedCount = results.filter((item) => item.status === "failed" || item.status === "unsupported" || item.status === "partial").length;
   const overallStatus = failedCount === 0 ? "success" : failedCount < results.length ? "partial" : "failed";
   const reduction = broadCandidateCount > 0 ? Math.max(0, Math.round((1 - uniquePreciseIssueKeys.length / broadCandidateCount) * 1000) / 10) : null;
@@ -2144,10 +2196,19 @@ async function runUiSmoke(window: BrowserWindow) {
   const precisionActionLogPath = getUserActionLogPath();
   const precisionActionLogStartSize = fs.existsSync(precisionActionLogPath) ? fs.statSync(precisionActionLogPath).size : 0;
   try {
-    assertReadOnlyRequest("GET", "/plugins/servlet/streams?maxResults=10&streams=user%20IS%20smoke.user&startDate=2026-07-01&endDate=2026-07-08");
+    assertReadOnlyRequest("GET", "/plugins/servlet/streams?maxResults=10&relativeLinks=true&streams=user%20IS%20smoke.user&startDate=2026-07-01&endDate=2026-07-08&_=1784004289793");
   } catch (error) {
     failures.push(`activity stream guard rejected valid GET: ${String(error)}`);
   }
+  const escapedVariants = activityStreamVariants({ baseUrl: "https://jira.example.invalid", email: "roger_hsieh@phison.com" } as AppConnection, ["roger_hsieh"], "roger_hsieh", "auto");
+  const escapedVariant = escapedVariants.find((item) => item.variant === "escaped_username");
+  const escapedParams = new URLSearchParams({ streams: `user IS ${escapedVariant?.user ?? ""}` });
+  if (escapedVariant?.user !== "roger\\_hsieh" || !escapedParams.toString().includes("roger%5C_hsieh")) failures.push(`escaped username variant failed ${JSON.stringify({ escapedVariants, encoded: escapedParams.toString() })}`);
+  const acceptedReplay = validateManualActivityStreamUrl("https://jira.example.invalid", "https://jira.example.invalid/plugins/servlet/streams?maxResults=10&relativeLinks=true&streams=user+IS+roger%5C_hsieh&_=1784004289793");
+  const rejectedExternal = validateManualActivityStreamUrl("https://jira.example.invalid", "https://example.com/plugins/servlet/streams?maxResults=10");
+  const rejectedPath = validateManualActivityStreamUrl("https://jira.example.invalid", "https://jira.example.invalid/rest/api/2/myself");
+  const rejectedSensitive = validateManualActivityStreamUrl("https://jira.example.invalid", "https://jira.example.invalid/plugins/servlet/streams?token=secret");
+  if (!acceptedReplay.diagnostics.manualUrlAccepted || acceptedReplay.pathName.includes("jira.example.invalid") || rejectedExternal.diagnostics.rejectReason !== "external_origin" || rejectedPath.diagnostics.rejectReason !== "invalid_path" || rejectedSensitive.diagnostics.rejectReason !== "sensitive_query_key") failures.push(`manual replay URL validation failed ${JSON.stringify({ acceptedReplay, rejectedExternal, rejectedPath, rejectedSensitive })}`);
   for (const blocked of [
     { method: "POST", pathName: "/plugins/servlet/streams?maxResults=10" },
     { method: "GET", pathName: "/plugins/servlet/streams?unsafeUrl=https://example.com" },
@@ -2163,6 +2224,7 @@ async function runUiSmoke(window: BrowserWindow) {
   const parserFixtures: Array<{ name: string; response: JiraHttpResult; expectedStatus: string; expectedIssueCount: number; expectedDiagnosis: ActivityStreamDiagnosis; expectedAtomEntries: number }> = [
     { name: "json", response: { ok: true, status: 200, contentType: "application/json", json: { entries: [{ title: "SMOKE-201 updated", author: { email: "smoke@example.com" }, updated: "2026-07-02T10:00:00Z" }] } }, expectedStatus: "success", expectedIssueCount: 1, expectedDiagnosis: "parsed", expectedAtomEntries: 0 },
     { name: "atom", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed><entry><title>Commented on SMOKE-202</title><author><email>smoke@example.com</email></author><updated>2026-07-02T11:00:00Z</updated><summary>comment added</summary></entry></feed>" }, expectedStatus: "success", expectedIssueCount: 1, expectedDiagnosis: "parsed", expectedAtomEntries: 1 },
+    { name: "manual_atom", response: { ok: true, status: 200, contentType: "application/atom+xml;charset=UTF-8", json: null, bodyTextSanitized: `<feed><entry><title type="html">created a link from <a href="/browse/COPGEN1-138930" class="issue-link">COPGEN1-138930</a></title><author><name>謝正洪(roger_hsieh)</name><email>roger_hsieh@phison.com</email></author><published>2026-07-09T05:36:18.000Z</published><activity:object><title type="text">COPGEN1-138930</title><summary type="text">[JACKSONQLC-3024] IOFULLSEQWRT Failure</summary></activity:object></entry></feed>` }, expectedStatus: "success", expectedIssueCount: 2, expectedDiagnosis: "parsed", expectedAtomEntries: 1 },
     { name: "no_entries", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed></feed>" }, expectedStatus: "success", expectedIssueCount: 0, expectedDiagnosis: "no_entries", expectedAtomEntries: 0 },
     { name: "parser_failed", response: { ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed><entry><title>Updated an issue</title><summary>No key in this fixture</summary></entry></feed>" }, expectedStatus: "failed", expectedIssueCount: 0, expectedDiagnosis: "parser_failed", expectedAtomEntries: 1 },
     { name: "html", response: { ok: false, status: 200, contentType: "text/html", json: null, errorType: "NON_JSON_RESPONSE", message: "HTML login page", bodyPreview: "login" }, expectedStatus: "failed", expectedIssueCount: 0, expectedDiagnosis: "html_login", expectedAtomEntries: 0 },
@@ -2172,6 +2234,7 @@ async function runUiSmoke(window: BrowserWindow) {
   for (const fixture of parserFixtures) {
     const parsed = activityStreamResult(fixture.response, "/plugins/servlet/streams?maxResults=10", "smoke@example.com");
     if (parsed.status !== fixture.expectedStatus || parsed.parsedIssueKeys.length !== fixture.expectedIssueCount || parsed.diagnosis !== fixture.expectedDiagnosis || parsed.atomEntryCount !== fixture.expectedAtomEntries) failures.push(`activity stream ${fixture.name} parser failed: ${JSON.stringify(parsed)}`);
+    if (fixture.name === "manual_atom" && (parsed.parsedIssueKeys[0] !== "COPGEN1-138930" || parsed.entriesSanitized[0]?.activityType !== "link" || parsed.entriesSanitized[0]?.activityAuthorEmail !== "roger_hsieh@phison.com")) failures.push(`activity stream manual Atom fields failed: ${JSON.stringify(parsed)}`);
     if (fixture.name === "html" && (parsed as Record<string, unknown>).bodyTextSanitized) failures.push("activity stream HTML parser retained full body");
   }
   window.setSize(1280, 720, false);
@@ -2194,7 +2257,7 @@ async function runUiSmoke(window: BrowserWindow) {
       const input = document.querySelector("[data-testid='activity-stream-user']");
       if (input instanceof HTMLInputElement) {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-        setter?.call(input, "smoke.user@example.com");
+        setter?.call(input, "smoke_user@example.com");
         input.dispatchEvent(new Event("input", { bubbles: true }));
       }
     })()
@@ -2202,7 +2265,21 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(150);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
   await wait(350);
-  const activityStreamAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length, variantRows: document.querySelectorAll("[data-testid='activity-stream-variants'] tbody tr").length, mode: document.querySelector("[data-testid='activity-stream-query-mode']")?.value, hasEmailInput: Boolean(document.querySelector("[data-testid='activity-stream-user']")), issueKey: document.body.innerText.includes("SMOKE-101"), hasUsername: document.body.innerText.includes("username"), hasEmail: document.body.innerText.includes("email"), diagnosis: document.body.innerText.includes("no_entries") && document.body.innerText.includes("parsed"), contentType: document.body.innerText.includes("application/atom+xml") }))()`);
+  const activityStreamAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length, variantRows: document.querySelectorAll("[data-testid='activity-stream-variants'] tbody tr").length, mode: document.querySelector("[data-testid='activity-stream-query-mode']")?.value, hasEmailInput: Boolean(document.querySelector("[data-testid='activity-stream-user']")), issueKey: document.body.innerText.includes("SMOKE-101"), hasUsername: document.body.innerText.includes("username"), hasEscaped: document.body.innerText.includes("escaped_username"), hasEmail: document.body.innerText.includes("email"), relativeLinks: document.body.innerText.includes("relativeLinks=true"), diagnosis: document.body.innerText.includes("no_entries") && document.body.innerText.includes("parsed"), contentType: document.body.innerText.includes("application/atom+xml") }))()`);
+  await window.webContents.executeJavaScript(`
+    (() => {
+      const input = document.querySelector("[data-testid='manual-activity-stream-url']");
+      if (input instanceof HTMLTextAreaElement) {
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+        setter?.call(input, "/plugins/servlet/streams?maxResults=10&relativeLinks=true&streams=user+IS+roger%5C_hsieh&_=1784004289793");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    })()
+  `);
+  await wait(150);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-manual-activity-stream']")?.click();`);
+  await wait(350);
+  const manualReplayAudit = await window.webContents.executeJavaScript(`(() => ({ accepted: document.body.innerText.includes("Manual URL validated"), manualVariant: document.body.innerText.includes("manual_url"), escapedVariant: document.body.innerText.includes("escaped_username"), issueKey: document.body.innerText.includes("COPGEN1-138930"), authorEmail: document.body.innerText.includes("roger_hsieh@phison.com"), linkType: document.body.innerText.includes("link") }))()`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-precision-probe']")?.click();`);
   await wait(500);
   const precisionAudit = await window.webContents.executeJavaScript(`
@@ -2238,14 +2315,16 @@ async function runUiSmoke(window: BrowserWindow) {
   const precisionActionLogBuffer = fs.existsSync(precisionActionLogPath) ? fs.readFileSync(precisionActionLogPath) : Buffer.alloc(0);
   const precisionActionTimeline = precisionActionLogBuffer.subarray(precisionActionLogStartSize).toString("utf8");
   const precisionUnexpectedFullFetchFiles = precisionFullFetchFilesAfter.filter((name) => !precisionFullFetchFilesBefore.has(name));
-  if (!activityStreamAudit.hasEmailInput || activityStreamAudit.mode !== "auto" || !activityStreamAudit.issueKey || !activityStreamAudit.contentType || !activityStreamAudit.hasUsername || !activityStreamAudit.hasEmail || !activityStreamAudit.diagnosis || activityStreamAudit.rows !== 1 || activityStreamAudit.variantRows !== 2) failures.push(`activity stream UI audit failed ${JSON.stringify(activityStreamAudit)}`);
+  if (!activityStreamAudit.hasEmailInput || activityStreamAudit.mode !== "auto" || !activityStreamAudit.issueKey || !activityStreamAudit.contentType || !activityStreamAudit.hasUsername || !activityStreamAudit.hasEscaped || !activityStreamAudit.hasEmail || !activityStreamAudit.relativeLinks || !activityStreamAudit.diagnosis || activityStreamAudit.rows !== 1 || activityStreamAudit.variantRows !== 3) failures.push(`activity stream UI audit failed ${JSON.stringify(activityStreamAudit)}`);
+  if (!manualReplayAudit.accepted || !manualReplayAudit.manualVariant || !manualReplayAudit.escapedVariant || !manualReplayAudit.issueKey || !manualReplayAudit.authorEmail || !manualReplayAudit.linkType) failures.push(`manual replay UI audit failed ${JSON.stringify(manualReplayAudit)}`);
   if (!precisionAudit.panel || precisionAudit.rows !== 6 || !precisionAudit.recommendation.includes("activity_stream") || !precisionAudit.hasUpdatedBy || !precisionAudit.hasUnsupported || !precisionAudit.preciseCount) failures.push(`precision probe UI audit failed ${JSON.stringify(precisionAudit)}`);
   if (!precisionQueueAudit.noAutoFetch || !precisionQueueAudit.addEnabled) failures.push(`precision probe queue audit failed ${JSON.stringify(precisionQueueAudit)}`);
   if (precisionUnexpectedFullFetchFiles.length > 0) failures.push(`precision probe add-to-queue started Full Fetch ${JSON.stringify(precisionUnexpectedFullFetchFiles)}`);
   const precisionIssueKeySets = asRecord(precisionExport?.issueKeySets);
-  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || precisionActivityStream.parsedActivityCount !== 1 || !Array.isArray(precisionActivityStream.entriesSanitized) || !Array.isArray(precisionActivityStream.variantResults) || !Array.isArray(precisionActivityStream.firstEntriesSanitized) || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys)) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
+  const manualReplayDiagnostics = asRecord(precisionExport?.manualUrlReplayDiagnostics);
+  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || Number(precisionActivityStream.parsedActivityCount) < 1 || !Array.isArray(precisionActivityStream.entriesSanitized) || !Array.isArray(precisionActivityStream.variantResults) || !Array.isArray(precisionActivityStream.firstEntriesSanitized) || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys) || !Array.isArray(precisionIssueKeySets.manualActivityStreamIssueKeys) || !precisionIssueKeySets.recommendedIssueKeys.includes("COPGEN1-138930") || manualReplayDiagnostics.manualUrlAccepted !== true) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
   if (precisionSource.token !== "[masked]" || precisionSource.authorization !== "[masked]" || precisionSource.readOnly !== true || precisionSource.databaseWrite !== false || precisionSource.attachmentDownload !== false) failures.push(`precision probe export safety flags/masking failed ${JSON.stringify(precisionSource)}`);
-  const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User changed: value=smoke.user@example.com", "Button clicked: Run Activity Stream Probe", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
+  const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User changed: value=smoke_user@example.com", "Button clicked: Run Activity Stream Probe", "Manual Activity Stream URL changed", "Button clicked: Run Manual URL Replay", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
   const missingPrecisionActions = requiredPrecisionActions.filter((entry) => !precisionActionTimeline.includes(entry));
   if (missingPrecisionActions.length > 0) failures.push(`precision probe action log missing ${JSON.stringify(missingPrecisionActions)}`);
 

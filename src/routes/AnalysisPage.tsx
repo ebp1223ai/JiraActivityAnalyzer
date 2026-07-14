@@ -501,6 +501,7 @@ export function AnalysisPage() {
         projectScope: userAnalysis.precisionProjectScope,
         activityStreamUser: userAnalysis.activityStreamUser,
         activityStreamQueryMode: userAnalysis.activityStreamQueryMode,
+        activityStreamRelativeLinks: userAnalysis.activityStreamRelativeLinks,
         maxResults: userAnalysis.precisionProbeMaxResults,
         broadJql: buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate)
       });

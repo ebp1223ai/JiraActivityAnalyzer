@@ -224,6 +224,10 @@ The standalone User Activity Precision Probe is a read-only compatibility and di
 - Activity Stream keys are preferred for `recommendedIssueKeys` only after successful parsing. `updatedBy` remains a candidate source and is never described as confirmed user activity.
 - Precision Probe exports include `activityStream.variantResults`, `firstEntriesSanitized`, and separate Activity Stream, updatedBy candidate, CHANGED BY, broad baseline, and recommended issue-key sets.
 - The probe never writes Jira or the database and never downloads attachment bodies.
+- Auto mode also tries an escaped username variant for Jira Activity Stream compatibility. For example, `roger_hsieh` becomes `roger\_hsieh` and is encoded once as `roger%5C_hsieh`; generated requests include `relativeLinks=true` by default.
+- Manual Activity Stream URL Replay accepts only the configured Jira origin and `/plugins/servlet/streams` path. External origins, other paths, unsupported query keys, and sensitive query keys such as token, password, session, cookie, or authorization are rejected before any request is sent.
+- Manual replay uses the existing authenticated read-only GET client. Exports retain only sanitized path and query diagnostics; origins, cookies, session values, tokens, and Authorization values are not stored.
+- Successfully parsed manual replay keys take recommendation priority over automatic Activity Stream keys. `updatedBy` remains only a candidate set and is never used as a fallback recommended set when Activity Stream has no entries.
 
 ## Electron Security
 

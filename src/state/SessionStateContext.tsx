@@ -70,8 +70,9 @@ export type UserActivityStreamEntry = {
   issueKey: string;
   activityTitle: string;
   activityAuthor: string;
+  activityAuthorEmail: string;
   activityTime: string;
-  activityType: "comment" | "update" | "status" | "attachment" | "link" | "unknown";
+  activityType: "comment" | "update" | "status" | "attachment" | "link" | "page" | "unknown";
   source: "activity_stream";
   variant: string;
   extractedIssueKeysPerEntry: string[];
@@ -90,7 +91,8 @@ export type UserActivityStreamFirstEntry = {
 };
 
 export type UserActivityStreamVariantResult = {
-  variant: "username" | "email" | "custom";
+  status: "success" | "failed" | "unsupported";
+  variant: "username" | "escaped_username" | "email" | "custom" | "manual_url";
   activityStreamUser: string;
   requestUrlSanitized: string;
   httpStatus: string;
@@ -134,6 +136,13 @@ export type UserActivityStreamResult = {
   rawSummary: string;
 };
 
+export type UserActivityStreamManualDiagnostics = {
+  manualUrlProvided: boolean;
+  manualUrlAccepted: boolean;
+  rejectReason: string;
+  requestUrlSanitized: string;
+};
+
 export type UserAnalysisPrecisionProbeSummary = {
   overallStatus: "not_run" | "running" | "success" | "partial" | "failed";
   updatedBySupported: "yes" | "no" | "unknown";
@@ -142,11 +151,12 @@ export type UserAnalysisPrecisionProbeSummary = {
   broadCandidateCount: number;
   uniquePreciseIssueCount: number;
   potentialFullFetchReductionPercent: number | null;
-  recommendedStage1Mode: "updatedBy_candidate" | "activity_stream" | "no_activity_found" | "changed_by_hybrid" | "broad_fallback";
+  recommendedStage1Mode: "updatedBy_candidate" | "activity_stream" | "activity_stream_manual" | "no_activity_found" | "changed_by_hybrid" | "broad_fallback";
 };
 
 export type UserAnalysisPrecisionIssueKeySets = {
   activityStreamIssueKeys: string[];
+  manualActivityStreamIssueKeys: string[];
   updatedByCandidateIssueKeys: string[];
   changedByIssueKeys: string[];
   broadBaselineIssueKeys: string[];
@@ -243,6 +253,10 @@ export type UserAnalysisSessionState = {
   precisionProjectScope: string;
   activityStreamUser: string;
   activityStreamQueryMode: "auto" | "username" | "email" | "custom";
+  activityStreamRelativeLinks: boolean;
+  manualActivityStreamUrl: string;
+  manualActivityStreamResult: UserActivityStreamVariantResult | null;
+  manualUrlReplayDiagnostics: UserActivityStreamManualDiagnostics;
   activityStream: UserActivityStreamResult;
   precisionIssueKeySets: UserAnalysisPrecisionIssueKeySets;
   precisionProbeStatus: "idle" | "running" | "completed" | "partial" | "failed";
@@ -360,6 +374,10 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   precisionProjectScope: "",
   activityStreamUser: "roger_hsieh",
   activityStreamQueryMode: "auto",
+  activityStreamRelativeLinks: true,
+  manualActivityStreamUrl: "",
+  manualActivityStreamResult: null,
+  manualUrlReplayDiagnostics: { manualUrlProvided: false, manualUrlAccepted: false, rejectReason: "", requestUrlSanitized: "" },
   activityStream: {
     status: "not_run",
     overallStatus: "not_run",
@@ -387,6 +405,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   },
   precisionIssueKeySets: {
     activityStreamIssueKeys: [],
+    manualActivityStreamIssueKeys: [],
     updatedByCandidateIssueKeys: [],
     changedByIssueKeys: [],
     broadBaselineIssueKeys: [],
