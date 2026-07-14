@@ -46,7 +46,7 @@ export function createJiraClient(options: JiraClientOptions) {
       });
       const contentType = response.headers.get("content-type") ?? "";
       const text = await response.text();
-      return parseJiraResponse(response.status, contentType, text, response.ok);
+      return parseJiraResponse(response.status, contentType, text, response.ok, pathName.startsWith("/plugins/servlet/streams"));
     } catch {
       return {
         ok: false,

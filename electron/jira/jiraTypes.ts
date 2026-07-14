@@ -25,6 +25,7 @@ export type JiraHttpResult = {
   errorType?: "HTTP_ERROR" | "NON_JSON_RESPONSE" | "INVALID_JSON" | "NETWORK_ERROR" | "READ_ONLY_VIOLATION";
   message?: string;
   bodyPreview?: string;
+  bodyTextSanitized?: string;
 };
 
 export type ProbeEndpointResult = {

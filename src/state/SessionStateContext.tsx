@@ -66,6 +66,30 @@ export type UserAnalysisPrecisionProbeResult = {
   rawSummary?: string;
 };
 
+export type UserActivityStreamEntry = {
+  issueKey: string;
+  activityTitle: string;
+  activityAuthor: string;
+  activityTime: string;
+  activityType: "comment" | "update" | "status" | "attachment" | "unknown";
+  source: "activity_stream";
+};
+
+export type UserActivityStreamResult = {
+  status: "not_run" | "success" | "failed" | "unsupported";
+  supported: "yes" | "no" | "unknown";
+  httpStatus: string;
+  contentType: string;
+  requestUrlSanitized: string;
+  activityStreamUser: string;
+  activityStreamDateSemantics: "unknown";
+  parsedActivityCount: number;
+  parsedIssueKeys: string[];
+  entriesSanitized: UserActivityStreamEntry[];
+  error: string;
+  rawSummary: string;
+};
+
 export type UserAnalysisPrecisionProbeSummary = {
   overallStatus: "not_run" | "running" | "success" | "partial" | "failed";
   updatedBySupported: "yes" | "no" | "unknown";
@@ -74,7 +98,7 @@ export type UserAnalysisPrecisionProbeSummary = {
   broadCandidateCount: number;
   uniquePreciseIssueCount: number;
   potentialFullFetchReductionPercent: number | null;
-  recommendedStage1Mode: "updatedBy" | "activity_stream" | "changed_by_hybrid" | "broad_fallback";
+  recommendedStage1Mode: "updatedBy_candidate" | "activity_stream" | "changed_by_hybrid" | "broad_fallback";
 };
 
 export type UserAnalysisFullFetchReportRow = {
@@ -162,9 +186,11 @@ export type UserAnalysisSessionState = {
   candidateIssues: UserAnalysisCandidateIssue[];
   selectedForFetch: string[];
   excludedIssues: string[];
-  activeTab: "candidates" | "precision" | "queue" | "fetchReport" | "exports";
+  activeTab: "candidates" | "queue" | "fetchReport" | "exports";
   precisionProbeMaxResults: 0 | 10 | 20 | 50;
   precisionProjectScope: string;
+  activityStreamUser: string;
+  activityStream: UserActivityStreamResult;
   precisionProbeStatus: "idle" | "running" | "completed" | "partial" | "failed";
   precisionProbeResults: UserAnalysisPrecisionProbeResult[];
   precisionProbeSummary: UserAnalysisPrecisionProbeSummary;
@@ -278,6 +304,21 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   activeTab: "candidates",
   precisionProbeMaxResults: 10,
   precisionProjectScope: "",
+  activityStreamUser: "roger_hsieh",
+  activityStream: {
+    status: "not_run",
+    supported: "unknown",
+    httpStatus: "-",
+    contentType: "",
+    requestUrlSanitized: "",
+    activityStreamUser: "",
+    activityStreamDateSemantics: "unknown",
+    parsedActivityCount: 0,
+    parsedIssueKeys: [],
+    entriesSanitized: [],
+    error: "",
+    rawSummary: ""
+  },
   precisionProbeStatus: "idle",
   precisionProbeResults: [],
   precisionProbeSummary: {

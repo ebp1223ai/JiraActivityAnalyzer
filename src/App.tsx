@@ -8,6 +8,7 @@ import { DashboardPage } from "./routes/DashboardPage";
 import { ImportPage } from "./routes/ImportPage";
 import { JiraAnalysisPage } from "./routes/JiraAnalysisPage";
 import { JiraProbePage } from "./routes/JiraProbePage";
+import { PrecisionProbePage } from "./routes/PrecisionProbePage";
 import { SettingsPage } from "./routes/SettingsPage";
 import { TimelinePage } from "./routes/TimelinePage";
 import { ConnectionProvider } from "./state/ConnectionContext";
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/import" element={<ImportPage />} />
             <Route path="/timeline" element={<TimelinePage />} />
             <Route path="/analysis" element={<AnalysisPage />} />
+            <Route path="/precision-probe" element={<PrecisionProbePage />} />
             <Route path="/jira-analysis" element={<JiraAnalysisPage />} />
             <Route path="/jira-probe" element={<JiraProbePage />} />
             <Route path="/settings" element={<SettingsPage />} />

@@ -300,10 +300,9 @@ export function AnalysisPage() {
     return () => { active = false; };
   }, [setUserAnalysis]);
 
-  function showStep(step: "candidate" | "precision" | "queue" | "fetchReport" | "exports") {
+  function showStep(step: "candidate" | "queue" | "fetchReport" | "exports") {
     const labels = {
       candidate: "Candidate Search / 候選搜尋",
-      precision: "Precision Probe / 精準查詢測試",
       queue: "Fetch Queue / 抓取佇列",
       fetchReport: "Full Fetch Report / 完整抓取報告",
       exports: "Exports / 匯出"
@@ -500,6 +499,7 @@ export function AnalysisPage() {
         startInclusive: currentJqlDateRange.startInclusive,
         endExclusive: currentJqlDateRange.endExclusive,
         projectScope: userAnalysis.precisionProjectScope,
+        activityStreamUser: userAnalysis.activityStreamUser,
         maxResults: userAnalysis.precisionProbeMaxResults,
         broadJql: buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate)
       });
@@ -1337,17 +1337,16 @@ export function AnalysisPage() {
       ) : null}
 
       <SectionCard className="mb-4">
-        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {[
             ["candidate", "1", "Candidate Search", "候選搜尋"],
-            ["precision", "2", "Precision Probe", "精準查詢測試"],
-            ["queue", "3", "Fetch Queue", "抓取佇列"],
-            ["fetchReport", "4", "Full Fetch Report", "完整抓取報告"],
-            ["exports", "5", "Exports", "匯出"]
+            ["queue", "2", "Fetch Queue", "抓取佇列"],
+            ["fetchReport", "3", "Full Fetch Report", "完整抓取報告"],
+            ["exports", "4", "Exports", "匯出"]
           ].map(([step, number, title, subtitle]) => {
             const tab = step === "candidate" ? "candidates" : step;
             const active = userAnalysis.activeTab === tab;
-            return <button key={step} data-testid={`workflow-${step}`} className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition ${active ? "border-blue-600 bg-blue-50 shadow-sm" : "border-line bg-slate-50 hover:border-blue-300 hover:bg-blue-50"}`} type="button" aria-current={active ? "step" : undefined} onClick={() => showStep(step as "candidate" | "precision" | "queue" | "fetchReport" | "exports")}>
+            return <button key={step} data-testid={`workflow-${step}`} className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition ${active ? "border-blue-600 bg-blue-50 shadow-sm" : "border-line bg-slate-50 hover:border-blue-300 hover:bg-blue-50"}`} type="button" aria-current={active ? "step" : undefined} onClick={() => showStep(step as "candidate" | "queue" | "fetchReport" | "exports")}>
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${active ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{number}</span>
               <span className="min-w-0 text-sm font-black leading-snug text-ink">{title}<br /><span className="text-xs font-semibold text-muted">{subtitle}</span></span>
             </button>;
@@ -1407,10 +1406,9 @@ export function AnalysisPage() {
         <SectionCard title="User Analysis workflow" subtitle="使用者分析流程" className="mb-4">
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
             <div className="rounded-lg bg-blue-50 p-3 text-sm leading-relaxed"><b>1. Candidate Search / 候選搜尋</b><br />Search Jira issues by users and date range.<br />依使用者與日期範圍搜尋候選 Jira。</div>
-            <div className="rounded-lg bg-cyan-50 p-3 text-sm leading-relaxed"><b>2. Precision Probe / 精準查詢測試</b><br />Test low-cost, read-only activity query support.<br />測試低成本唯讀精準活動查詢。</div>
-            <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>3. Fetch Queue / 抓取佇列</b><br />Select issues that should be fully fetched.<br />選擇要完整抓取的 Jira。</div>
-            <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>4. Full Fetch Report / 完整抓取報告</b><br />Review fetch status, counts, warnings, and errors.<br />檢查抓取狀態、數量統計、警告與錯誤。</div>
-            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>5. Exports / 匯出</b><br />Save Stage 1 candidate data, probe results, or Stage 2 full fetch data.<br />儲存候選資料、測試結果或完整抓取資料。</div>
+            <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>2. Fetch Queue / 抓取佇列</b><br />Select issues that should be fully fetched.<br />選擇要完整抓取的 Jira。</div>
+            <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>3. Full Fetch Report / 完整抓取報告</b><br />Review fetch status, counts, warnings, and errors.<br />檢查抓取狀態、數量統計、警告與錯誤。</div>
+            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>4. Exports / 匯出</b><br />Save Stage 1 candidate data or Stage 2 full fetch data.<br />儲存第一階段候選資料或第二階段完整抓取資料。</div>
           </div>
           <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">
             Stage 1 Candidate Result / 第一階段候選結果:<br />exports/user-analysis/user-analysis-candidates-YYYYMMDD_HHmmss.json<br /><br />
@@ -1528,7 +1526,7 @@ export function AnalysisPage() {
       </div>
       </> : null}
 
-      {userAnalysis.activeTab === "precision" ? (
+      {false ? (
         <div data-testid="precision-probe-panel">
           <SectionCard title="User Activity Precision Probe" subtitle="使用者活動精準查詢測試" className="mb-4">
             <div className="mb-4 rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm font-semibold leading-relaxed text-cyan-950">
