@@ -67,13 +67,14 @@ export type UserAnalysisPrecisionProbeResult = {
 };
 
 export type UserActivityStreamEntry = {
+  runId: string;
   issueKey: string;
   activityTitle: string;
   activityAuthor: string;
   activityAuthorEmail: string;
   activityTime: string;
-  activityType: "comment" | "update" | "status" | "attachment" | "link" | "page" | "unknown";
-  source: "activity_stream";
+  activityType: "link" | "comment" | "attachment" | "status" | "assignee_change" | "field_change" | "description_update" | "page" | "unknown";
+  source: "activity_stream" | "manual_url";
   variant: string;
   extractedIssueKeysPerEntry: string[];
 };
@@ -91,6 +92,7 @@ export type UserActivityStreamFirstEntry = {
 };
 
 export type UserActivityStreamVariantResult = {
+  runId: string;
   status: "success" | "failed" | "unsupported";
   variant: "username" | "escaped_username" | "email" | "custom" | "manual_url";
   activityStreamUser: string;
@@ -108,11 +110,37 @@ export type UserActivityStreamVariantResult = {
   firstEntriesSanitized: UserActivityStreamFirstEntry[];
   error: string;
   rawSummary: string;
+  parserDiagnostics: UserActivityStreamParserDiagnostics;
+};
+
+export type UserActivityStreamSkippedEntry = {
+  entryIndex: number;
+  reason: string;
+  rawTitleText: string;
+  rawUpdatedText: string;
+  rawAuthorText: string;
+};
+
+export type UserActivityStreamParserDiagnostics = {
+  atomEntryCount: number;
+  parsedEntryCount: number;
+  skippedEntryCount: number;
+  entriesWithoutIssueKeyCount: number;
+  entriesWithoutAuthorCount: number;
+  entriesWithoutTimeCount: number;
+  entriesWithoutTitleCount: number;
+  entriesWithMultipleIssueKeysCount: number;
+  parserErrorCount: number;
+  parserErrorsSanitized: string[];
+  skippedEntriesSanitized: UserActivityStreamSkippedEntry[];
+  parserAnomaly: boolean;
+  parserAnomalyReason: string;
 };
 
 export type UserActivityStreamResult = {
-  status: "not_run" | "success" | "failed" | "unsupported";
-  overallStatus: "not_run" | "success" | "partial" | "failed";
+  runId: string;
+  status: "not_run" | "running" | "success" | "failed" | "unsupported";
+  overallStatus: "not_run" | "running" | "success" | "partial" | "failed";
   reachable: boolean;
   supported: "yes" | "no" | "unknown";
   parsed: boolean;
@@ -134,6 +162,33 @@ export type UserActivityStreamResult = {
   firstEntriesSanitized: UserActivityStreamFirstEntry[];
   error: string;
   rawSummary: string;
+  parserDiagnostics: UserActivityStreamParserDiagnostics;
+};
+
+export type UserActivityStreamRunHistory = {
+  runId: string;
+  startedAt: string;
+  completedAt: string;
+  mode: string;
+  activityStreamUser: string;
+  maxResults: number;
+  dateRange: { start: string; end: string };
+  bestVariant: string;
+  atomEntryCount: number;
+  parsedActivityCount: number;
+  parsedIssueKeyCount: number;
+  diagnosis: UserActivityStreamDiagnosis;
+  staleIgnored: boolean;
+};
+
+export type UserActivityStreamFilter = {
+  activityTypes: UserActivityStreamEntry["activityType"][];
+  issueKeyQuery: string;
+  onlyWithIssueKey: boolean;
+  dateRange: { start: string; end: string };
+  variants: string[];
+  sources: UserActivityStreamEntry["source"][];
+  authorQuery: string;
 };
 
 export type UserActivityStreamManualDiagnostics = {
@@ -257,6 +312,11 @@ export type UserAnalysisSessionState = {
   manualActivityStreamUrl: string;
   manualActivityStreamResult: UserActivityStreamVariantResult | null;
   manualUrlReplayDiagnostics: UserActivityStreamManualDiagnostics;
+  currentActivityStreamRunId: string;
+  isActivityStreamRunning: boolean;
+  activityStreamRunHistory: UserActivityStreamRunHistory[];
+  lastSuccessfulActivityStreamResult: UserActivityStreamResult | null;
+  parsedEntriesFilter: UserActivityStreamFilter;
   activityStream: UserActivityStreamResult;
   precisionIssueKeySets: UserAnalysisPrecisionIssueKeySets;
   precisionProbeStatus: "idle" | "running" | "completed" | "partial" | "failed";
@@ -378,7 +438,13 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   manualActivityStreamUrl: "",
   manualActivityStreamResult: null,
   manualUrlReplayDiagnostics: { manualUrlProvided: false, manualUrlAccepted: false, rejectReason: "", requestUrlSanitized: "" },
+  currentActivityStreamRunId: "",
+  isActivityStreamRunning: false,
+  activityStreamRunHistory: [],
+  lastSuccessfulActivityStreamResult: null,
+  parsedEntriesFilter: { activityTypes: [], issueKeyQuery: "", onlyWithIssueKey: false, dateRange: { start: "2026-07-01", end: "2026-07-07" }, variants: [], sources: [], authorQuery: "" },
   activityStream: {
+    runId: "",
     status: "not_run",
     overallStatus: "not_run",
     reachable: false,
@@ -401,7 +467,8 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     entriesSanitized: [],
     firstEntriesSanitized: [],
     error: "",
-    rawSummary: ""
+    rawSummary: "",
+    parserDiagnostics: { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" }
   },
   precisionIssueKeySets: {
     activityStreamIssueKeys: [],

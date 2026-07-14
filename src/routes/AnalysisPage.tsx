@@ -502,6 +502,7 @@ export function AnalysisPage() {
         activityStreamUser: userAnalysis.activityStreamUser,
         activityStreamQueryMode: userAnalysis.activityStreamQueryMode,
         activityStreamRelativeLinks: userAnalysis.activityStreamRelativeLinks,
+        activityStreamRunId: `asrun-${Date.now()}-analysis`,
         maxResults: userAnalysis.precisionProbeMaxResults,
         broadJql: buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate)
       });

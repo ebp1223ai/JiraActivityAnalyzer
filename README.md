@@ -229,6 +229,15 @@ The standalone User Activity Precision Probe is a read-only compatibility and di
 - Manual replay uses the existing authenticated read-only GET client. Exports retain only sanitized path and query diagnostics; origins, cookies, session values, tokens, and Authorization values are not stored.
 - Successfully parsed manual replay keys take recommendation priority over automatic Activity Stream keys. `updatedBy` remains only a candidate set and is never used as a fallback recommended set when Activity Stream has no entries.
 
+### Run Stability And Parsed Entry Diagnostics
+
+- Every automatic, precision, and manual Activity Stream run receives a unique `asrun-...` ID. Each variant and parsed entry carries that same ID.
+- While a run is active, all Activity Stream entry points are disabled. A result can update renderer state only when its run ID still matches the latest run; stale results are ignored and logged.
+- Starting a run clears the visible current result, variants, parsed entries, issue-key sets, manual result, and parser diagnostics. The last successful result and five most recent run summaries remain available separately.
+- Parser diagnostics compare Atom entries with parsed and skipped entries, report missing key/author/time/title counts, and retain at most five sanitized skipped-entry summaries. A parsed ratio below 50%, or at most one parsed entry out of 20 or more Atom entries, is marked as an anomaly.
+- Parsed Entries can be filtered without changing the original sanitized entries by activity type, partial Jira key, key presence, date range, query variant, source, and author. The UI also reports filtered counts, unique keys, and activity-type totals.
+- Precision Probe exports retain the complete sanitized current entries, current filter state and statistics, and at most 200 filtered entries. They also include run history and parser diagnostics, but never tokens, Authorization headers, cookies, sessions, full XML, or HTML login pages.
+
 ## Electron Security
 
 - `contextIsolation: true`

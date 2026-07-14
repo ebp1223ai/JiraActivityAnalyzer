@@ -790,13 +790,14 @@ function issueKeysFrom(value: unknown) {
 }
 
 type ActivityStreamEntry = {
+  runId: string;
   issueKey: string;
   activityTitle: string;
   activityAuthor: string;
   activityAuthorEmail: string;
   activityTime: string;
-  activityType: "comment" | "update" | "status" | "attachment" | "link" | "page" | "unknown";
-  source: "activity_stream";
+  activityType: "link" | "comment" | "attachment" | "status" | "assignee_change" | "field_change" | "description_update" | "page" | "unknown";
+  source: "activity_stream" | "manual_url";
   variant: string;
   extractedIssueKeysPerEntry: string[];
 };
@@ -827,16 +828,17 @@ function xmlTag(block: string, tag: string) {
 function activityType(value: string): ActivityStreamEntry["activityType"] {
   const lower = value.toLowerCase();
   if (/created a link from|linked to|issue-link|建立.*連結/.test(lower)) return "link";
-  if (/comment|留言|評論/.test(lower)) return "comment";
-  if (/status|transition|狀態/.test(lower)) return "status";
-  if (/attachment|附件/.test(lower)) return "attachment";
-  if (/link|連結/.test(lower)) return "link";
+  if (/attached (?:one|\d+|a)?\s*files?|attachment|附件/.test(lower)) return "attachment";
+  if (/changed (?:the )?status|status (?:changed|to)|transition|狀態/.test(lower)) return "status";
+  if (/changed (?:the )?assignee|assignee to|指派/.test(lower)) return "assignee_change";
+  if (/updated (?:the )?description|description (?:updated|changed)|更新.*描述/.test(lower)) return "description_update";
+  if (/commented on|\bcomment\b|留言|評論/.test(lower)) return "comment";
   if (/category[^>]*page|application[^>]*confluence|\bconfluence\b|\bpage\b|頁面/.test(lower)) return "page";
-  if (/update|change|edit|更新|變更|修改/.test(lower)) return "update";
+  if (/(?:updated|changed) (?:the )?\w+|field (?:updated|changed)|欄位.*(?:更新|變更|修改)/.test(lower)) return "field_change";
   return "unknown";
 }
 
-function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown }, variant: string): ActivityStreamEntry {
+function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown }, variant: string, runId: string): ActivityStreamEntry {
   const title = sanitizeResponseText(typeof values.title === "string" ? values.title : text(asRecord(values.title).value ?? asRecord(values.title).text ?? values.title));
   const authorRecord = asRecord(values.author);
   const author = sanitizeResponseText(typeof values.author === "string" ? values.author : text(authorRecord.name ?? authorRecord.displayName ?? authorRecord.email ?? authorRecord.username));
@@ -848,13 +850,14 @@ function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?
   const combined = `${title} ${content} ${link} ${raw}`;
   const extractedIssueKeysPerEntry = issueKeysFrom(combined).sort();
   return {
+    runId,
     issueKey: extractedIssueKeysPerEntry[0] ?? "",
     activityTitle: title === "-" ? "" : title.slice(0, 1000),
     activityAuthor: author === "-" ? "" : author.slice(0, 300),
     activityAuthorEmail: authorEmail === "-" ? "" : authorEmail.slice(0, 300),
     activityTime: time === "-" ? "" : time,
     activityType: activityType(combined),
-    source: "activity_stream",
+    source: variant === "manual_url" ? "manual_url" : "activity_stream",
     variant,
     extractedIssueKeysPerEntry
   };
@@ -874,7 +877,7 @@ function sanitizedFirstEntry(entry: Record<string, unknown>) {
   };
 }
 
-function parseActivityJson(value: unknown, variant: string) {
+function parseActivityJson(value: unknown, variant: string, runId: string) {
   const root = asRecord(value);
   const feed = asRecord(root.feed);
   const candidateCollections = [root.entries, root.entry, root.activities, feed.entries, feed.entry];
@@ -891,11 +894,11 @@ function parseActivityJson(value: unknown, variant: string) {
     content: entry.summary ?? entry.content ?? entry.description,
     link: entry.link ?? entry.url,
     raw: entry
-  }, variant))
+  }, variant, runId))
   };
 }
 
-function parseActivityAtom(xml: string, variant: string) {
+function parseActivityAtom(xml: string, variant: string, runId: string) {
   const blocks = Array.from(xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)).map((match) => match[1]);
   const firstEntriesSanitized = blocks.slice(0, 3).map((block) => ({
     rawTitleText: xmlTag(block, "title").slice(0, 500),
@@ -911,24 +914,43 @@ function parseActivityAtom(xml: string, variant: string) {
     const title = xmlTag(block, "title");
     const content = xmlTag(block, "summary") || xmlTag(block, "content");
     const link = /<link\b[^>]*href=["']([^"']+)["'][^>]*>/i.exec(block)?.[1] ?? "";
-    return activityEntry({ title, author: xmlTag(authorBlock, "name") || xmlTag(authorBlock, "email") || decodeXmlText(authorBlock), authorEmail: xmlTag(authorBlock, "email"), time: xmlTag(block, "updated") || xmlTag(block, "published") || xmlTag(block, "date"), content, link, raw: block }, variant);
+    return activityEntry({ title, author: xmlTag(authorBlock, "name") || xmlTag(authorBlock, "email") || decodeXmlText(authorBlock), authorEmail: xmlTag(authorBlock, "email"), time: xmlTag(block, "updated") || xmlTag(block, "published") || xmlTag(block, "date"), content, link, raw: block }, variant, runId);
   }) };
 }
 
-function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: string, user: string, variant: ActivityStreamVariant["variant"] = "custom") {
+function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: string, user: string, variant: ActivityStreamVariant["variant"] = "custom", runId = "") {
   const contentType = response.contentType || "";
   const isHtml = /text\/html/i.test(contentType) || /html|login page|SSO/i.test(response.message ?? "");
   const bodyText = response.bodyTextSanitized ?? "";
   const parsedFeed = response.json
-    ? parseActivityJson(response.json, variant)
-    : /atom|xml/i.test(contentType) || /^\s*<feed\b/i.test(bodyText) ? parseActivityAtom(bodyText, variant) : { rawEntryCount: 0, atomEntryCount: 0, firstEntriesSanitized: [], entries: [] as ActivityStreamEntry[] };
+    ? parseActivityJson(response.json, variant, runId)
+    : /atom|xml/i.test(contentType) || /^\s*<feed\b/i.test(bodyText) ? parseActivityAtom(bodyText, variant, runId) : { rawEntryCount: 0, atomEntryCount: 0, firstEntriesSanitized: [], entries: [] as ActivityStreamEntry[] };
   const parsedIssueKeys = Array.from(new Set(parsedFeed.entries.flatMap((entry) => entry.extractedIssueKeysPerEntry))).sort();
   const endpointUnavailable = response.status === 403 || response.status === 404;
   const blocked = /blocked|read.only|guard/i.test(`${response.errorType ?? ""} ${response.message ?? ""}`);
   const parsedEntries = parsedFeed.entries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 0);
+  const skippedEntries = parsedFeed.entries.map((entry, entryIndex) => ({ entry, entryIndex })).filter(({ entry }) => entry.extractedIssueKeysPerEntry.length === 0);
+  const parsedRatio = parsedFeed.atomEntryCount > 0 ? parsedEntries.length / parsedFeed.atomEntryCount : 1;
+  const parserAnomaly = parsedFeed.atomEntryCount > 0 && parsedRatio < 0.5 || parsedFeed.atomEntryCount >= 20 && parsedEntries.length <= 1;
+  const parserDiagnostics = {
+    atomEntryCount: parsedFeed.atomEntryCount,
+    parsedEntryCount: parsedEntries.length,
+    skippedEntryCount: skippedEntries.length,
+    entriesWithoutIssueKeyCount: skippedEntries.length,
+    entriesWithoutAuthorCount: parsedFeed.entries.filter((entry) => !entry.activityAuthor && !entry.activityAuthorEmail).length,
+    entriesWithoutTimeCount: parsedFeed.entries.filter((entry) => !entry.activityTime).length,
+    entriesWithoutTitleCount: parsedFeed.entries.filter((entry) => !entry.activityTitle).length,
+    entriesWithMultipleIssueKeysCount: parsedFeed.entries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 1).length,
+    parserErrorCount: 0,
+    parserErrorsSanitized: [] as string[],
+    skippedEntriesSanitized: skippedEntries.slice(0, 5).map(({ entry, entryIndex }) => ({ entryIndex, reason: "no_issue_key", rawTitleText: entry.activityTitle.slice(0, 500), rawUpdatedText: entry.activityTime.slice(0, 500), rawAuthorText: (entry.activityAuthor || entry.activityAuthorEmail).slice(0, 500) })),
+    parserAnomaly,
+    parserAnomalyReason: parserAnomaly ? "Parsed entry ratio below 50%" : ""
+  };
   const diagnosis: ActivityStreamDiagnosis = blocked ? "blocked" : isHtml ? "html_login" : !response.ok ? "http_error" : parsedEntries.length > 0 ? "parsed" : parsedFeed.rawEntryCount > 0 ? "parser_failed" : "no_entries";
   const status = diagnosis === "parsed" || diagnosis === "no_entries" ? "success" : endpointUnavailable || blocked ? "unsupported" : "failed";
   return {
+    runId,
     variant,
     reachable: !blocked && response.status !== "-",
     parsed: diagnosis === "parsed",
@@ -946,12 +968,19 @@ function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: str
     entriesSanitized: parsedFeed.entries,
     firstEntriesSanitized: parsedFeed.firstEntriesSanitized,
     error: response.ok ? (diagnosis === "parser_failed" ? "Activity Stream entries were found, but no Jira issue keys could be parsed." : "") : isHtml ? "Activity Stream returned HTML or a login page." : precisionError(response),
-    rawSummary: response.bodyPreview ?? ""
+    rawSummary: response.bodyPreview ?? "",
+    parserDiagnostics
   };
 }
 
 function escapeActivityStreamUser(user: string) {
   return user.replace(/(^|[^\\])_/g, "$1\\_");
+}
+
+function createActivityStreamRunId() {
+  const now = new Date();
+  const stamp = now.toISOString().replace(/[-:TZ]/g, "").slice(0, 17);
+  return `asrun-${stamp}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
 function activityStreamVariants(connection: AppConnection, selectedUsers: string[], customUser: string, mode: ActivityStreamQueryMode): ActivityStreamVariant[] {
@@ -981,6 +1010,7 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
   const diagnosis: ActivityStreamDiagnosis = parsed ? "parsed" : variantResults.some((result) => result.diagnosis === "no_entries") ? "no_entries" : best?.diagnosis ?? "unknown";
   const overallStatus = parsed ? "success" : reachable && supported === "yes" ? "partial" : "failed";
   return {
+    runId: best?.runId ?? variantResults[0]?.runId ?? "",
     status: parsed || diagnosis === "no_entries" ? "success" : supported === "no" ? "unsupported" : "failed",
     overallStatus,
     reachable,
@@ -995,24 +1025,27 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
     requestUrlSanitized: best?.requestUrlSanitized ?? "",
     activityStreamUser: fallbackUser,
     activityStreamDateSemantics: "unknown" as const,
-    parsedActivityCount: variantResults.reduce((sum, result) => sum + result.parsedActivityCount, 0),
+    parsedActivityCount: best?.parsedActivityCount ?? 0,
     parsedIssueKeys: activityStreamIssueKeys,
-    atomEntryCount: variantResults.reduce((sum, result) => sum + result.atomEntryCount, 0),
+    atomEntryCount: best?.atomEntryCount ?? 0,
     variantResults,
     activityStreamIssueKeys,
     entriesSanitized: variantResults.flatMap((result) => result.entriesSanitized),
     firstEntriesSanitized: best?.firstEntriesSanitized ?? [],
     error: parsed || diagnosis === "no_entries" ? "" : best?.error || "Activity Stream could not be parsed.",
-    rawSummary: best?.rawSummary ?? ""
+    rawSummary: best?.rawSummary ?? "",
+    parserDiagnostics: best?.parserDiagnostics ?? { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" }
   };
 }
 
-async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true) {
+async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true, requestedRunId?: string) {
+  const runId = requestedRunId || createActivityStreamRunId();
+  const startedAt = new Date().toISOString();
   const requestMaxResults = maxResults === 0 ? 1 : Math.min(Math.max(maxResults || 10, 1), 50);
   const variants = activityStreamVariants(connection, selectedUsers, user, queryMode);
   const logs = [
-    `[USER_ACTION] Run Activity Stream Probe: mode=${queryMode} user=${user || "auto"}`,
-    `[INFO] Activity Stream probe started: mode=${queryMode} variants=${variants.map((item) => `${item.variant}:${item.user}`).join(",")} date=${startDate}..${endDate}`,
+    `[USER_ACTION] Run Activity Stream Probe: runId=${runId} mode=${queryMode} user=${user || "auto"}`,
+    `[INFO] Activity Stream probe started: runId=${runId} mode=${queryMode} variants=${variants.map((item) => `${item.variant}:${item.user}`).join(",")} date=${startDate}..${endDate}`,
     `[INFO] Activity Stream variants planned: ${variants.map((item) => `${item.variant}=${item.user}`).join(" ")}`,
     "[INFO] Authorization: [masked]",
     "[INFO] Token: [masked]"
@@ -1020,6 +1053,7 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   const client = isUiSmoke ? null : createJiraClient({ baseUrl: connection.baseUrl, email: connection.email || connection.username, apiToken: connection.apiToken ?? "", authType: connection.authType });
   const variantResults = [] as ReturnType<typeof activityStreamResult>[];
   for (const variant of variants) {
+    if (isUiSmoke) await new Promise((resolve) => setTimeout(resolve, 25));
     const params = new URLSearchParams({ maxResults: String(requestMaxResults), relativeLinks: String(relativeLinks), streams: `user IS ${variant.user}`, startDate, endDate });
     const requestUrlSanitized = `/plugins/servlet/streams?${params.toString()}`;
     logs.push(`[INFO] Activity Stream variant started: variant=${variant.variant} user=${variant.user}`, `[DEBUG] GET ${requestUrlSanitized} (credentials masked)`);
@@ -1030,20 +1064,20 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
         : variant.variant === "username"
         ? { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: "<feed></feed>", bodyPreview: "", json: null } as JiraHttpResult
         : { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: "<feed></feed>", bodyPreview: "", json: null } as JiraHttpResult;
-      result = activityStreamResult(response, requestUrlSanitized, variant.user, variant.variant);
+      result = activityStreamResult(response, requestUrlSanitized, variant.user, variant.variant, runId);
     } else {
-      result = activityStreamResult(await client!.get(requestUrlSanitized), requestUrlSanitized, variant.user, variant.variant);
+      result = activityStreamResult(await client!.get(requestUrlSanitized), requestUrlSanitized, variant.user, variant.variant, runId);
     }
     variantResults.push(result);
     logs.push(`${result.parsed ? "[INFO]" : "[WARN]"} Activity Stream variant completed: variant=${variant.variant} httpStatus=${result.httpStatus} diagnosis=${result.diagnosis} atomEntries=${result.atomEntryCount} parsedActivities=${result.parsedActivityCount} parsedIssueKeys=${result.parsedIssueKeys.length}`);
   }
   const activityStream = aggregateActivityStream(variantResults, user);
   logs.push(`[INFO] Activity Stream best variant: ${activityStream.bestVariant || "none"}`, `[INFO] Activity Stream probe completed: overallStatus=${activityStream.overallStatus} bestVariant=${activityStream.bestVariant || "none"} diagnosis=${activityStream.diagnosis} parsedIssueKeys=${activityStream.activityStreamIssueKeys.length}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
-  return { activityStream, logs };
+  return { runId, startedAt, completedAt: new Date().toISOString(), activityStream, logs };
 }
 
-ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: 0 | 10 | 20 | 50; relativeLinks?: boolean }) => {
-  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults), payload.relativeLinks !== false);
+ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: 0 | 10 | 20 | 50; relativeLinks?: boolean; runId?: string }) => {
+  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults), payload.relativeLinks !== false, payload.runId);
 });
 
 const sensitiveReplayQueryKey = /token|password|passwd|secret|session|cookie|authorization|auth_token/i;
@@ -1066,21 +1100,23 @@ function validateManualActivityStreamUrl(baseUrl: string, input: string) {
   }
 }
 
-ipcMain.handle("user-analysis:activity-stream-manual-replay", async (_event, payload: { connection: AppConnection; manualUrl: string }) => {
+ipcMain.handle("user-analysis:activity-stream-manual-replay", async (_event, payload: { connection: AppConnection; manualUrl: string; runId?: string }) => {
+  const runId = payload.runId || createActivityStreamRunId();
+  const startedAt = new Date().toISOString();
   const validated = validateManualActivityStreamUrl(payload.connection.baseUrl, String(payload.manualUrl || ""));
   const logs = ["[USER_ACTION] Button clicked: Run Manual URL Replay / 執行手動 URL 重放", "[INFO] Authorization: [masked]", "[INFO] Token: [masked]"];
   if (!validated.diagnostics.manualUrlAccepted) {
     logs.push(`[WARN] Manual URL replay rejected: reason=${validated.diagnostics.rejectReason}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
-    return { ok: false, manualUrlReplayDiagnostics: validated.diagnostics, variantResult: null, logs };
+    return { ok: false, runId, startedAt, completedAt: new Date().toISOString(), manualUrlReplayDiagnostics: validated.diagnostics, variantResult: null, logs };
   }
   logs.push("[INFO] Manual URL replay accepted: path=/plugins/servlet/streams", `[DEBUG] GET ${validated.pathName} (credentials masked)`);
   const response = isUiSmoke
     ? { ok: true, status: 200, contentType: "application/atom+xml;charset=UTF-8", json: null, bodyTextSanitized: `<feed><entry><title type="html">Smoke User created a link from <a href="/browse/COPGEN1-138930" class="issue-link">COPGEN1-138930</a></title><author><name>謝正洪(roger_hsieh)</name><email>roger_hsieh@phison.com</email><usr:username>roger_hsieh</usr:username></author><published>2026-07-09T05:36:18.000Z</published><updated>2026-07-09T05:36:18.000Z</updated><activity:object><title type="text">COPGEN1-138930</title><summary type="text">[JACKSONQLC-3024] IOFULLSEQWRT Failure</summary></activity:object></entry></feed>`, bodyPreview: "" } as JiraHttpResult
     : await createJiraClient({ baseUrl: payload.connection.baseUrl, email: payload.connection.email || payload.connection.username, apiToken: payload.connection.apiToken ?? "", authType: payload.connection.authType }).get(validated.pathName);
-  const variantResult = activityStreamResult(response, validated.pathName, "manual", "manual_url");
+  const variantResult = activityStreamResult(response, validated.pathName, "manual", "manual_url", runId);
   const activityStream = { ...aggregateActivityStream([variantResult], "manual"), manualReplay: { enabled: true, status: variantResult.status, requestUrlSanitized: validated.pathName } };
   logs.push(`${variantResult.parsed ? "[INFO]" : "[WARN]"} Manual URL replay completed: httpStatus=${variantResult.httpStatus} atomEntryCount=${variantResult.atomEntryCount} parsedIssueKeys=${variantResult.parsedIssueKeys.length} diagnosis=${variantResult.diagnosis}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
-  return { ok: variantResult.parsed, manualUrlReplayDiagnostics: validated.diagnostics, variantResult, activityStream, logs };
+  return { ok: variantResult.parsed, runId, startedAt, completedAt: new Date().toISOString(), manualUrlReplayDiagnostics: validated.diagnostics, variantResult, activityStream, logs };
 });
 
 ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
@@ -1092,6 +1128,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   activityStreamUser?: string;
   activityStreamQueryMode?: ActivityStreamQueryMode;
   activityStreamRelativeLinks?: boolean;
+  activityStreamRunId?: string;
   maxResults: 0 | 10 | 20 | 50;
   broadJql: string;
 }) => {
@@ -1109,7 +1146,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   ];
 
   if (isUiSmoke) {
-    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults, payload.activityStreamRelativeLinks !== false);
+    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId);
     const activityStream = activityStreamRun.activityStream;
     const results: PrecisionProbeResult[] = [
       { method: "updatedBy Candidate JQL", status: "success", httpStatus: "200", supported: "yes", resultCount: 113, sampleIssueKeys: ["SMOKE-101", "SMOKE-102"], candidateSource: "updatedBy_candidate", error: "", recommendation: "Potential precision source; validate against Activity Stream", jql: "updatedBy(\"smoke.user\") ..." },
@@ -1188,7 +1225,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   results.push(await runJqlMethod("priority CHANGED BY", "priority_changed_by", (user) => `priority CHANGED BY ${quoted(user)} ${dates}`));
 
   const activityStreamUser = String(payload.activityStreamUser || selectedUsers[0] || "").trim();
-  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults, payload.activityStreamRelativeLinks !== false);
+  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId);
   const activityStreamData = activityStreamRun.activityStream;
   logs.push(...activityStreamRun.logs);
   results.push({
@@ -2237,6 +2274,11 @@ async function runUiSmoke(window: BrowserWindow) {
     if (fixture.name === "manual_atom" && (parsed.parsedIssueKeys[0] !== "COPGEN1-138930" || parsed.entriesSanitized[0]?.activityType !== "link" || parsed.entriesSanitized[0]?.activityAuthorEmail !== "roger_hsieh@phison.com")) failures.push(`activity stream manual Atom fields failed: ${JSON.stringify(parsed)}`);
     if (fixture.name === "html" && (parsed as Record<string, unknown>).bodyTextSanitized) failures.push("activity stream HTML parser retained full body");
   }
+  const anomalyXml = `<feed>${Array.from({ length: 20 }, (_, index) => `<entry><title>${index === 0 ? "SMOKE-999 updated" : `Entry without key ${index}`}</title><author><name>Smoke User</name></author><updated>2026-07-02T11:00:00Z</updated></entry>`).join("")}</feed>`;
+  const anomalyResult = activityStreamResult({ ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: anomalyXml }, "/plugins/servlet/streams?maxResults=20", "smoke_user", "escaped_username", "asrun-anomaly");
+  if (!anomalyResult.parserDiagnostics.parserAnomaly || anomalyResult.parserDiagnostics.atomEntryCount !== 20 || anomalyResult.parserDiagnostics.parsedEntryCount !== 1 || anomalyResult.parserDiagnostics.skippedEntryCount !== 19 || anomalyResult.parserDiagnostics.skippedEntriesSanitized.length !== 5) failures.push(`activity stream parser anomaly diagnostics failed: ${JSON.stringify(anomalyResult.parserDiagnostics)}`);
+  const typeFixtures: Array<[string, ActivityStreamEntry["activityType"]]> = [["attached one file to COPGEN1-1", "attachment"], ["changed the status", "status"], ["changed the Assignee", "assignee_change"], ["updated the Description", "description_update"], ["updated the Priority", "field_change"], ["commented on COPGEN1-1", "comment"], ["created a link from COPGEN1-1", "link"], ["Confluence page edited", "page"], ["performed an activity", "unknown"]];
+  for (const [textValue, expected] of typeFixtures) if (activityType(textValue) !== expected) failures.push(`activity type classification failed: ${textValue} => ${activityType(textValue)} expected ${expected}`);
   window.setSize(1280, 720, false);
   await window.webContents.executeJavaScript(`window.location.hash = "#/analysis";`);
   await wait(350);
@@ -2264,8 +2306,18 @@ async function runUiSmoke(window: BrowserWindow) {
   `);
   await wait(150);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
+  await wait(10);
+  const runningAudit = await window.webContents.executeJavaScript(`(() => ({ banner: Boolean(document.querySelector("[data-testid='activity-stream-running']")), runId: document.body.innerText.includes("asrun-"), autoDisabled: document.querySelector("[data-testid='run-activity-stream']")?.disabled === true, precisionDisabled: document.querySelector("[data-testid='run-precision-probe']")?.disabled === true, manualDisabled: document.querySelector("[data-testid='run-manual-activity-stream']")?.disabled === true }))()`);
   await wait(350);
   const activityStreamAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length, variantRows: document.querySelectorAll("[data-testid='activity-stream-variants'] tbody tr").length, mode: document.querySelector("[data-testid='activity-stream-query-mode']")?.value, hasEmailInput: Boolean(document.querySelector("[data-testid='activity-stream-user']")), issueKey: document.body.innerText.includes("SMOKE-101"), hasUsername: document.body.innerText.includes("username"), hasEscaped: document.body.innerText.includes("escaped_username"), hasEmail: document.body.innerText.includes("email"), relativeLinks: document.body.innerText.includes("relativeLinks=true"), diagnosis: document.body.innerText.includes("no_entries") && document.body.innerText.includes("parsed"), contentType: document.body.innerText.includes("application/atom+xml") }))()`);
+  await window.webContents.executeJavaScript(`
+    (() => {
+      const max = document.querySelector("[data-testid='probe-max-results']");
+      if (max instanceof HTMLSelectElement) { const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set; setter?.call(max, "20"); max.dispatchEvent(new Event("change", { bubbles: true })); }
+      const end = document.querySelector("[data-testid='filter-end']");
+      if (end instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(end, "2026-07-14"); end.dispatchEvent(new Event("input", { bubbles: true })); }
+    })()
+  `);
   await window.webContents.executeJavaScript(`
     (() => {
       const input = document.querySelector("[data-testid='manual-activity-stream-url']");
@@ -2280,8 +2332,10 @@ async function runUiSmoke(window: BrowserWindow) {
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-manual-activity-stream']")?.click();`);
   await wait(350);
   const manualReplayAudit = await window.webContents.executeJavaScript(`(() => ({ accepted: document.body.innerText.includes("Manual URL validated"), manualVariant: document.body.innerText.includes("manual_url"), escapedVariant: document.body.innerText.includes("escaped_username"), issueKey: document.body.innerText.includes("COPGEN1-138930"), authorEmail: document.body.innerText.includes("roger_hsieh@phison.com"), linkType: document.body.innerText.includes("link") }))()`);
+  await window.webContents.executeJavaScript(`(() => { const max = document.querySelector("[data-testid='probe-max-results']"); if (max instanceof HTMLSelectElement) { const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set; setter?.call(max, "50"); max.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
+  await wait(100);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-precision-probe']")?.click();`);
-  await wait(500);
+  await wait(750);
   const precisionAudit = await window.webContents.executeJavaScript(`
     (() => ({
       panel: document.body.innerText.includes("User Activity Precision Probe"),
@@ -2292,6 +2346,38 @@ async function runUiSmoke(window: BrowserWindow) {
       preciseCount: document.body.innerText.includes("SMOKE-101") && document.body.innerText.includes("SMOKE-102")
     }))()
   `);
+  await window.webContents.executeJavaScript(`
+    (() => {
+      const setInput = (selector, value) => {
+        const input = document.querySelector(selector);
+        if (input instanceof HTMLInputElement) {
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+          setter?.call(input, value);
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      };
+      const setMulti = (selector, values) => {
+        const select = document.querySelector(selector);
+        if (select instanceof HTMLSelectElement) {
+          Array.from(select.options).forEach((option) => { option.selected = values.includes(option.value); });
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      };
+      setInput("[data-testid='filter-issue-key']", "SMOKE-101");
+      setInput("[data-testid='filter-author']", "Smoke User");
+      setInput("[data-testid='filter-start']", "2026-07-01");
+      setInput("[data-testid='filter-end']", "2026-07-14");
+      setMulti("[data-testid='filter-activity-types']", ["link"]);
+      setMulti("[data-testid='filter-variants']", ["escaped_username"]);
+      setMulti("[data-testid='filter-sources']", ["activity_stream"]);
+      const onlyKey = document.querySelector("[data-testid='filter-only-key']");
+      if (onlyKey instanceof HTMLInputElement && !onlyKey.checked) onlyKey.click();
+    })()
+  `);
+  await wait(250);
+  const filterAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length, hasFilteredStats: document.body.innerText.includes("Filtered Entries / 篩選後項目：1"), issue: document.querySelector("[data-testid='filter-issue-key']")?.value, author: document.querySelector("[data-testid='filter-author']")?.value, onlyKey: document.querySelector("[data-testid='filter-only-key']")?.checked, activityTypes: Array.from(document.querySelector("[data-testid='filter-activity-types']")?.selectedOptions || []).map((item) => item.value), variants: Array.from(document.querySelector("[data-testid='filter-variants']")?.selectedOptions || []).map((item) => item.value), sources: Array.from(document.querySelector("[data-testid='filter-sources']")?.selectedOptions || []).map((item) => item.value) }))()`);
+  const historyAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='activity-stream-run-history'] tbody tr").length, text: document.querySelector("[data-testid='activity-stream-run-history']")?.innerText || "" }))()`);
   if (shouldCaptureUi) {
     const precisionImage = await window.capturePage();
     fs.writeFileSync(path.join(captureDir, "1280x720-expanded-precision-probe-result.png"), precisionImage.toPNG());
@@ -2311,22 +2397,32 @@ async function runUiSmoke(window: BrowserWindow) {
   const precisionSource = asRecord(precisionExport?.source);
   const precisionActionDiagnostics = asRecord(precisionExport?.actionLogDiagnostics);
   const precisionActivityStream = asRecord(precisionExport?.activityStream);
+  const precisionParserDiagnostics = asRecord(precisionActivityStream.parserDiagnostics);
+  const precisionFilter = asRecord(precisionExport?.parsedEntriesFilter);
+  const precisionFilterStats = asRecord(precisionExport?.parsedEntriesFilterStats);
   const precisionFullFetchFilesAfter = fs.existsSync(getFullFetchLogsDir()) ? fs.readdirSync(getFullFetchLogsDir()) : [];
   const precisionActionLogBuffer = fs.existsSync(precisionActionLogPath) ? fs.readFileSync(precisionActionLogPath) : Buffer.alloc(0);
   const precisionActionTimeline = precisionActionLogBuffer.subarray(precisionActionLogStartSize).toString("utf8");
   const precisionUnexpectedFullFetchFiles = precisionFullFetchFilesAfter.filter((name) => !precisionFullFetchFilesBefore.has(name));
+  if (!runningAudit.banner || !runningAudit.runId || !runningAudit.autoDisabled || !runningAudit.precisionDisabled || !runningAudit.manualDisabled) failures.push(`activity stream running lock audit failed ${JSON.stringify(runningAudit)}`);
   if (!activityStreamAudit.hasEmailInput || activityStreamAudit.mode !== "auto" || !activityStreamAudit.issueKey || !activityStreamAudit.contentType || !activityStreamAudit.hasUsername || !activityStreamAudit.hasEscaped || !activityStreamAudit.hasEmail || !activityStreamAudit.relativeLinks || !activityStreamAudit.diagnosis || activityStreamAudit.rows !== 1 || activityStreamAudit.variantRows !== 3) failures.push(`activity stream UI audit failed ${JSON.stringify(activityStreamAudit)}`);
   if (!manualReplayAudit.accepted || !manualReplayAudit.manualVariant || !manualReplayAudit.escapedVariant || !manualReplayAudit.issueKey || !manualReplayAudit.authorEmail || !manualReplayAudit.linkType) failures.push(`manual replay UI audit failed ${JSON.stringify(manualReplayAudit)}`);
   if (!precisionAudit.panel || precisionAudit.rows !== 6 || !precisionAudit.recommendation.includes("activity_stream") || !precisionAudit.hasUpdatedBy || !precisionAudit.hasUnsupported || !precisionAudit.preciseCount) failures.push(`precision probe UI audit failed ${JSON.stringify(precisionAudit)}`);
+  if (filterAudit.rows !== 1 || !filterAudit.hasFilteredStats || filterAudit.issue !== "SMOKE-101" || filterAudit.author !== "Smoke User" || !filterAudit.onlyKey || !filterAudit.activityTypes.includes("link") || !filterAudit.variants.includes("escaped_username") || !filterAudit.sources.includes("activity_stream")) failures.push(`parsed entries filter UI audit failed ${JSON.stringify(filterAudit)}`);
+  if (historyAudit.rows !== 3 || !historyAudit.text.includes("10") || !historyAudit.text.includes("20") || !historyAudit.text.includes("50") || !historyAudit.text.includes("manual") || !historyAudit.text.includes("precision")) failures.push(`activity stream run history audit failed ${JSON.stringify(historyAudit)}`);
   if (!precisionQueueAudit.noAutoFetch || !precisionQueueAudit.addEnabled) failures.push(`precision probe queue audit failed ${JSON.stringify(precisionQueueAudit)}`);
   if (precisionUnexpectedFullFetchFiles.length > 0) failures.push(`precision probe add-to-queue started Full Fetch ${JSON.stringify(precisionUnexpectedFullFetchFiles)}`);
   const precisionIssueKeySets = asRecord(precisionExport?.issueKeySets);
-  const manualReplayDiagnostics = asRecord(precisionExport?.manualUrlReplayDiagnostics);
-  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || Number(precisionActivityStream.parsedActivityCount) < 1 || !Array.isArray(precisionActivityStream.entriesSanitized) || !Array.isArray(precisionActivityStream.variantResults) || !Array.isArray(precisionActivityStream.firstEntriesSanitized) || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys) || !Array.isArray(precisionIssueKeySets.manualActivityStreamIssueKeys) || !precisionIssueKeySets.recommendedIssueKeys.includes("COPGEN1-138930") || manualReplayDiagnostics.manualUrlAccepted !== true) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
+  const exportedVariants = Array.isArray(precisionActivityStream.variantResults) ? precisionActivityStream.variantResults.map(asRecord) : [];
+  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || !String(precisionActivityStream.runId).startsWith("asrun-") || Number(precisionActivityStream.parsedActivityCount) < 1 || !Array.isArray(precisionActivityStream.entriesSanitized) || exportedVariants.length !== 3 || exportedVariants.some((variant) => variant.runId !== precisionActivityStream.runId) || Number(precisionParserDiagnostics.parsedEntryCount) !== 1 || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys) || !precisionIssueKeySets.recommendedIssueKeys.includes("SMOKE-101") || !Array.isArray(precisionExport.activityStreamRunHistory) || precisionExport.activityStreamRunHistory.length !== 3 || !Array.isArray(precisionExport.filteredEntriesSanitized) || precisionExport.filteredEntriesSanitized.length !== 1 || precisionFilter.issueKeyQuery !== "SMOKE-101" || Number(precisionFilterStats.filteredEntries) !== 1) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
   if (precisionSource.token !== "[masked]" || precisionSource.authorization !== "[masked]" || precisionSource.readOnly !== true || precisionSource.databaseWrite !== false || precisionSource.attachmentDownload !== false) failures.push(`precision probe export safety flags/masking failed ${JSON.stringify(precisionSource)}`);
   const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User changed: value=smoke_user@example.com", "Button clicked: Run Activity Stream Probe", "Manual Activity Stream URL changed", "Button clicked: Run Manual URL Replay", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
   const missingPrecisionActions = requiredPrecisionActions.filter((entry) => !precisionActionTimeline.includes(entry));
   if (missingPrecisionActions.length > 0) failures.push(`precision probe action log missing ${JSON.stringify(missingPrecisionActions)}`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='reset-entry-filters']")?.click();`);
+  await wait(150);
+  const resetFilterAudit = await window.webContents.executeJavaScript(`(() => ({ issue: document.querySelector("[data-testid='filter-issue-key']")?.value, author: document.querySelector("[data-testid='filter-author']")?.value, onlyKey: document.querySelector("[data-testid='filter-only-key']")?.checked, activityTypes: document.querySelector("[data-testid='filter-activity-types']")?.selectedOptions.length, variants: document.querySelector("[data-testid='filter-variants']")?.selectedOptions.length, sources: document.querySelector("[data-testid='filter-sources']")?.selectedOptions.length, rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length }))()`);
+  if (resetFilterAudit.issue !== "" || resetFilterAudit.author !== "" || resetFilterAudit.onlyKey || resetFilterAudit.activityTypes !== 0 || resetFilterAudit.variants !== 0 || resetFilterAudit.sources !== 0 || resetFilterAudit.rows < 1) failures.push(`parsed entries filter reset audit failed ${JSON.stringify(resetFilterAudit)}`);
 
   const fullFetchFilesBeforeConfirmationTest = fs.existsSync(getFullFetchLogsDir())
     ? new Set(fs.readdirSync(getFullFetchLogsDir()))
