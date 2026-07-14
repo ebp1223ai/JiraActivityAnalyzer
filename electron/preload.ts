@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
   },
   userAnalysis: {
     discoverCandidates: (payload: unknown) => ipcRenderer.invoke("user-analysis:discover-candidates", payload),
+    precisionProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:precision-probe", payload),
     fullFetch: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch", payload),
     pauseFullFetch: () => ipcRenderer.invoke("user-analysis:pause-full-fetch"),
     logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO"; message: string }) => ipcRenderer.invoke("user-analysis:log-action", payload),

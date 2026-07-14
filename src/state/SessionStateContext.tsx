@@ -51,6 +51,32 @@ export type UserAnalysisCandidateIssue = {
   matchedReason: string;
 };
 
+export type UserAnalysisPrecisionProbeResult = {
+  method: string;
+  status: "not_run" | "running" | "success" | "unsupported" | "failed" | "partial";
+  httpStatus: string;
+  supported: "yes" | "no" | "unknown";
+  resultCount: number;
+  sampleIssueKeys: string[];
+  candidateSource: string;
+  error: string;
+  recommendation: string;
+  contentType?: string;
+  jql?: string;
+  rawSummary?: string;
+};
+
+export type UserAnalysisPrecisionProbeSummary = {
+  overallStatus: "not_run" | "running" | "success" | "partial" | "failed";
+  updatedBySupported: "yes" | "no" | "unknown";
+  activityStreamSupported: "yes" | "no" | "unknown";
+  changedBySupported: "yes" | "no" | "partial" | "unknown";
+  broadCandidateCount: number;
+  uniquePreciseIssueCount: number;
+  potentialFullFetchReductionPercent: number | null;
+  recommendedStage1Mode: "updatedBy" | "activity_stream" | "changed_by_hybrid" | "broad_fallback";
+};
+
 export type UserAnalysisFullFetchReportRow = {
   issueKey: string;
   summary: string;
@@ -136,7 +162,18 @@ export type UserAnalysisSessionState = {
   candidateIssues: UserAnalysisCandidateIssue[];
   selectedForFetch: string[];
   excludedIssues: string[];
-  activeTab: "candidates" | "queue" | "fetchReport" | "exports";
+  activeTab: "candidates" | "precision" | "queue" | "fetchReport" | "exports";
+  precisionProbeMaxResults: 0 | 10 | 20 | 50;
+  precisionProjectScope: string;
+  precisionProbeStatus: "idle" | "running" | "completed" | "partial" | "failed";
+  precisionProbeResults: UserAnalysisPrecisionProbeResult[];
+  precisionProbeSummary: UserAnalysisPrecisionProbeSummary;
+  uniquePreciseIssueKeys: string[];
+  precisionIssueSources: Record<string, string[]>;
+  precisionProbeWarnings: string[];
+  precisionProbeErrors: string[];
+  precisionProbeLastRunAt: string;
+  lastSavedPrecisionProbePath: string;
   showHelpTips: boolean;
   helpOpen: boolean;
   expandedFetchReportIssues: string[];
@@ -239,6 +276,26 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   selectedForFetch: [],
   excludedIssues: [],
   activeTab: "candidates",
+  precisionProbeMaxResults: 10,
+  precisionProjectScope: "",
+  precisionProbeStatus: "idle",
+  precisionProbeResults: [],
+  precisionProbeSummary: {
+    overallStatus: "not_run",
+    updatedBySupported: "unknown",
+    activityStreamSupported: "unknown",
+    changedBySupported: "unknown",
+    broadCandidateCount: 0,
+    uniquePreciseIssueCount: 0,
+    potentialFullFetchReductionPercent: null,
+    recommendedStage1Mode: "broad_fallback"
+  },
+  uniquePreciseIssueKeys: [],
+  precisionIssueSources: {},
+  precisionProbeWarnings: [],
+  precisionProbeErrors: [],
+  precisionProbeLastRunAt: "",
+  lastSavedPrecisionProbePath: "",
   showHelpTips: true,
   helpOpen: false,
   expandedFetchReportIssues: [],

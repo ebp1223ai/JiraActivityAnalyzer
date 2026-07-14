@@ -751,6 +751,194 @@ ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { co
   };
 });
 
+type PrecisionProbeResult = {
+  method: string;
+  status: "success" | "unsupported" | "failed" | "partial";
+  httpStatus: string;
+  supported: "yes" | "no" | "unknown";
+  resultCount: number;
+  sampleIssueKeys: string[];
+  candidateSource: string;
+  error: string;
+  recommendation: string;
+  contentType?: string;
+  jql?: string;
+  rawSummary?: string;
+};
+
+function precisionError(response: { status: number | "-"; message?: string; errorType?: string; bodyPreview?: string }) {
+  return String(response.message || response.errorType || response.bodyPreview || `HTTP ${response.status}`).slice(0, 300);
+}
+
+function scopedJql(jql: string, projectScope: string) {
+  const projects = projectScope.split(/[\s,;]+/).map((item) => item.trim()).filter(Boolean);
+  if (projects.length === 0) return jql;
+  const orderIndex = jql.toUpperCase().lastIndexOf("ORDER BY");
+  const body = orderIndex >= 0 ? jql.slice(0, orderIndex).trim() : jql.trim();
+  const order = orderIndex >= 0 ? jql.slice(orderIndex).trim() : "";
+  const projectClause = projects.length === 1
+    ? `project = "${projects[0].replace(/"/g, "\\\"")}"`
+    : `project in (${projects.map((item) => `"${item.replace(/"/g, "\\\"")}"`).join(", ")})`;
+  return `${projectClause} AND (${body})${order ? ` ${order}` : ""}`;
+}
+
+function issueKeysFrom(value: unknown) {
+  const matches = JSON.stringify(value ?? "").match(/\b[A-Z][A-Z0-9_]+-\d+\b/g) ?? [];
+  return Array.from(new Set(matches));
+}
+
+ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
+  connection: AppConnection;
+  selectedUsers: string[];
+  startInclusive: string;
+  endExclusive: string;
+  projectScope: string;
+  maxResults: 0 | 10 | 20 | 50;
+  broadJql: string;
+}) => {
+  const selectedUsers = Array.from(new Set((payload.selectedUsers ?? []).map(String).map((item) => item.trim()).filter(Boolean)));
+  const requestedMaxResults = [0, 10, 20, 50].includes(Number(payload.maxResults)) ? Number(payload.maxResults) : 10;
+  const requestMaxResults = requestedMaxResults === 0 ? 1 : requestedMaxResults;
+  const connection = payload.connection;
+  const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
+  const logs = [
+    `[INFO] Precision Probe started: users=${selectedUsers.length} date=${payload.startInclusive}..${payload.endExclusive} project=${payload.projectScope || "all"}`,
+    `[INFO] Probe Max Results: ${requestedMaxResults}${requestedMaxResults === 0 ? " (Jira request fallback maxResults=1)" : ""}`,
+    "[INFO] Authorization: [masked]",
+    "[INFO] Token: [masked]",
+    "[INFO] Read-only GET requests only"
+  ];
+
+  if (isUiSmoke) {
+    const results: PrecisionProbeResult[] = [
+      { method: "updatedBy JQL", status: "success", httpStatus: "200", supported: "yes", resultCount: 2, sampleIssueKeys: ["SMOKE-101", "SMOKE-102"], candidateSource: "updatedBy", error: "", recommendation: "Recommended as primary precision source", jql: "updatedBy(\"smoke.user\") ..." },
+      { method: "status CHANGED BY", status: "success", httpStatus: "200", supported: "yes", resultCount: 1, sampleIssueKeys: ["SMOKE-102"], candidateSource: "status_changed_by", error: "", recommendation: "Can be used as supplemental precision source" },
+      { method: "assignee CHANGED BY", status: "unsupported", httpStatus: "400", supported: "no", resultCount: 0, sampleIssueKeys: [], candidateSource: "assignee_changed_by", error: "JQL syntax is not supported", recommendation: "Unsupported in this Jira environment" },
+      { method: "priority CHANGED BY", status: "success", httpStatus: "200", supported: "yes", resultCount: 0, sampleIssueKeys: [], candidateSource: "priority_changed_by", error: "", recommendation: "Can be used as supplemental precision source" },
+      { method: "Activity Stream", status: "unsupported", httpStatus: "404", supported: "no", resultCount: 0, sampleIssueKeys: [], candidateSource: "activity_stream", error: "Endpoint unavailable", recommendation: "Unsupported in this Jira environment", contentType: "text/html" },
+      { method: "Broad Candidate Baseline", status: "success", httpStatus: "200", supported: "yes", resultCount: 12, sampleIssueKeys: ["SMOKE-101", "SMOKE-102"], candidateSource: "broad_role_baseline", error: "", recommendation: "Fallback only" }
+    ];
+    logs.push("[DEBUG] Precision Probe updatedBy variant fallback validated", "[WARN] Precision Probe assignee CHANGED BY unsupported: httpStatus=400 error=JQL syntax is not supported", "[WARN] Precision Probe activity stream unsupported: httpStatus=404", "[INFO] Precision Probe recommendation: updatedBy", "[INFO] No database write performed");
+    return {
+      ok: true,
+      status: "partial",
+      results,
+      summary: { overallStatus: "partial", updatedBySupported: "yes", activityStreamSupported: "no", changedBySupported: "partial", broadCandidateCount: 12, uniquePreciseIssueCount: 2, potentialFullFetchReductionPercent: 83.3, recommendedStage1Mode: "updatedBy" },
+      uniquePreciseIssueKeys: ["SMOKE-101", "SMOKE-102"],
+      issueSources: { "SMOKE-101": ["updatedBy"], "SMOKE-102": ["updatedBy", "status_changed_by"] },
+      warnings: ["Some precision methods are unsupported in this Jira environment."], errors: [], logs
+    };
+  }
+
+  const client = createJiraClient({ baseUrl: connection.baseUrl, email: connection.email || connection.username, apiToken: connection.apiToken ?? "", authType: connection.authType });
+  const fields = "key";
+
+  async function search(jql: string) {
+    const finalJql = scopedJql(jql, payload.projectScope || "");
+    logs.push(`[DEBUG] Precision Probe JQL: ${finalJql}`);
+    const pathName = `${apiPrefix}/search?jql=${encodeURIComponent(finalJql)}&fields=${fields}&startAt=0&maxResults=${requestMaxResults}`;
+    const response = await client.get(pathName);
+    const json = asRecord(response.json);
+    const issues = Array.isArray(json.issues) ? json.issues as Record<string, unknown>[] : [];
+    const keys = issues.map((issue) => text(issue.key)).filter((key) => key !== "-");
+    return { response, finalJql, keys, total: Number(json.total ?? keys.length) || keys.length };
+  }
+
+  async function runJqlMethod(method: string, source: string, build: (user: string) => string, fallback?: (user: string) => string): Promise<PrecisionProbeResult> {
+    const keys = new Set<string>();
+    let total = 0;
+    let success = 0;
+    const failures: Array<{ status: number | "-"; error: string }> = [];
+    let lastJql = "";
+    for (const user of selectedUsers) {
+      let attempt = await search(build(user));
+      if (!attempt.response.ok && fallback) {
+        logs.push(`[WARN] Precision Probe ${method} primary syntax failed: httpStatus=${attempt.response.status}; trying variant`);
+        attempt = await search(fallback(user));
+      }
+      lastJql = attempt.finalJql;
+      if (attempt.response.ok) {
+        success += 1;
+        total += attempt.total;
+        attempt.keys.forEach((key) => keys.add(key));
+      } else {
+        failures.push({ status: attempt.response.status, error: precisionError(attempt.response) });
+      }
+    }
+    const unsupported = success === 0 && failures.length > 0 && failures.every((item) => item.status === 400 || item.status === 404);
+    const status = success > 0 && failures.length > 0 ? "partial" : success > 0 ? "success" : unsupported ? "unsupported" : "failed";
+    const supported = success > 0 ? "yes" : unsupported ? "no" : "unknown";
+    const httpStatus = success > 0 ? (failures.length ? "200 / mixed" : "200") : String(failures[0]?.status ?? "-");
+    const error = failures.map((item) => item.error).join("; ");
+    logs.push(`${status === "unsupported" || status === "failed" ? "[WARN]" : "[INFO]"} Precision Probe ${method} completed: status=${status} httpStatus=${httpStatus} count=${total}${error ? ` error=${error}` : ""}`);
+    return { method, status, httpStatus, supported, resultCount: total, sampleIssueKeys: Array.from(keys).slice(0, requestedMaxResults || 0), candidateSource: source, error, recommendation: source === "updatedBy" && supported === "yes" ? "Recommended as primary precision source" : supported === "yes" ? "Can be used as supplemental precision source" : supported === "no" ? "Unsupported in this Jira environment" : "Fallback only", jql: lastJql };
+  }
+
+  const quoted = (value: string) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
+  const dates = `AFTER "${payload.startInclusive}" BEFORE "${payload.endExclusive}" ORDER BY updated DESC`;
+  const updatedDates = `AND updated >= "${payload.startInclusive}" AND updated < "${payload.endExclusive}" ORDER BY updated DESC`;
+  const results: PrecisionProbeResult[] = [];
+  results.push(await runJqlMethod("updatedBy JQL", "updatedBy", (user) => `updatedBy(${quoted(user)}) ${updatedDates}`, (user) => `issue in updatedBy(${quoted(user)}) ${updatedDates}`));
+  results.push(await runJqlMethod("status CHANGED BY", "status_changed_by", (user) => `status CHANGED BY ${quoted(user)} ${dates}`));
+  results.push(await runJqlMethod("assignee CHANGED BY", "assignee_changed_by", (user) => `assignee CHANGED BY ${quoted(user)} ${dates}`));
+  results.push(await runJqlMethod("priority CHANGED BY", "priority_changed_by", (user) => `priority CHANGED BY ${quoted(user)} ${dates}`));
+
+  const streamKeys = new Set<string>();
+  let streamSuccess = 0;
+  let streamStatus: number | "-" = "-";
+  let streamContentType = "";
+  let streamErrorType = "";
+  let streamError = "";
+  let streamRawSummary = "";
+  for (const user of selectedUsers) {
+    const streamPath = `/plugins/servlet/streams?maxResults=${requestMaxResults}&streams=${encodeURIComponent(`user IS ${user}`)}&startDate=${encodeURIComponent(payload.startInclusive)}&endDate=${encodeURIComponent(payload.endExclusive)}`;
+    logs.push("[DEBUG] GET /plugins/servlet/streams (credentials masked)");
+    const response = await client.get(streamPath);
+    streamStatus = response.status;
+    streamContentType = response.contentType;
+    streamErrorType = response.errorType ?? "";
+    const parsed = issueKeysFrom(response.json ?? response.bodyPreview ?? "");
+    parsed.forEach((key) => streamKeys.add(key));
+    if (response.ok) streamSuccess += 1;
+    else {
+      streamError = precisionError(response);
+      streamRawSummary = response.bodyPreview ?? "";
+    }
+  }
+  const streamUnsupported = streamSuccess === 0 && (streamStatus === 403 || streamStatus === 404 || streamStatus === 400 || streamErrorType === "NON_JSON_RESPONSE" || streamContentType.includes("html") || streamContentType.includes("atom") || streamContentType.includes("xml"));
+  results.push({ method: "Activity Stream", status: streamSuccess > 0 ? "success" : streamUnsupported ? "unsupported" : "failed", httpStatus: String(streamStatus), supported: streamSuccess > 0 ? "yes" : streamUnsupported ? "no" : "unknown", resultCount: streamKeys.size, sampleIssueKeys: Array.from(streamKeys).slice(0, requestedMaxResults || 0), candidateSource: "activity_stream", error: streamError, recommendation: streamSuccess > 0 ? "Can be used as supplemental precision source" : streamUnsupported ? "Unsupported in this Jira environment" : "Fallback only", contentType: streamContentType, rawSummary: streamRawSummary });
+  logs.push(`${streamSuccess > 0 ? "[INFO]" : "[WARN]"} Precision Probe activity stream completed: httpStatus=${streamStatus} parsedIssueKeys=${streamKeys.size}`);
+
+  const baseline = await search(payload.broadJql);
+  results.push({ method: "Broad Candidate Baseline", status: baseline.response.ok ? "success" : "failed", httpStatus: String(baseline.response.status), supported: baseline.response.ok ? "yes" : "unknown", resultCount: baseline.response.ok ? baseline.total : 0, sampleIssueKeys: baseline.keys.slice(0, requestedMaxResults || 0), candidateSource: "broad_role_baseline", error: baseline.response.ok ? "" : precisionError(baseline.response), recommendation: "Fallback only", jql: baseline.finalJql });
+
+  const preciseResults = results.filter((result) => result.candidateSource !== "broad_role_baseline");
+  const issueSources: Record<string, string[]> = {};
+  for (const result of preciseResults) for (const key of result.sampleIssueKeys) issueSources[key] = Array.from(new Set([...(issueSources[key] ?? []), result.candidateSource]));
+  const uniquePreciseIssueKeys = Object.keys(issueSources).sort();
+  const updatedBy = results[0];
+  const activityStream = results[4];
+  const changed = results.slice(1, 4);
+  const broadCandidateCount = results[5].resultCount;
+  const changedSupported = changed.every((item) => item.supported === "yes") ? "yes" : changed.some((item) => item.supported === "yes") ? "partial" : changed.every((item) => item.supported === "no") ? "no" : "unknown";
+  const recommendedStage1Mode = updatedBy.supported === "yes" && updatedBy.resultCount > 0 ? "updatedBy" : activityStream.supported === "yes" && activityStream.resultCount > 0 ? "activity_stream" : changed.some((item) => item.supported === "yes") ? "changed_by_hybrid" : "broad_fallback";
+  const failedCount = results.filter((item) => item.status === "failed" || item.status === "unsupported" || item.status === "partial").length;
+  const overallStatus = failedCount === 0 ? "success" : failedCount < results.length ? "partial" : "failed";
+  const reduction = broadCandidateCount > 0 ? Math.max(0, Math.round((1 - uniquePreciseIssueKeys.length / broadCandidateCount) * 1000) / 10) : null;
+  logs.push(`[INFO] Precision Probe recommendation: ${recommendedStage1Mode}`, "[INFO] No database write performed", "[INFO] No Jira write performed", "[INFO] No attachment body downloaded");
+  return {
+    ok: overallStatus !== "failed",
+    status: overallStatus,
+    results,
+    summary: { overallStatus, updatedBySupported: updatedBy.supported, activityStreamSupported: activityStream.supported, changedBySupported: changedSupported, broadCandidateCount, uniquePreciseIssueCount: uniquePreciseIssueKeys.length, potentialFullFetchReductionPercent: reduction, recommendedStage1Mode },
+    uniquePreciseIssueKeys,
+    issueSources,
+    warnings: results.filter((item) => item.status === "unsupported" || item.status === "partial").map((item) => `${item.method}: ${item.error || item.status}`),
+    errors: results.filter((item) => item.status === "failed").map((item) => `${item.method}: ${item.error || item.status}`),
+    logs
+  };
+});
+
 function uniqueUserNames(values: unknown[]) {
   return Array.from(new Set(values.map(text).filter((item) => item && item !== "-"))).sort();
 }
@@ -1689,6 +1877,53 @@ async function runUiSmoke(window: BrowserWindow) {
       }
     }
   }
+
+  const precisionExportDir = path.join(getExportsDir(), "user-analysis");
+  ensureDir(precisionExportDir);
+  const precisionExportsBefore = new Set(fs.readdirSync(precisionExportDir));
+  const precisionFullFetchFilesBefore = fs.existsSync(getFullFetchLogsDir()) ? new Set(fs.readdirSync(getFullFetchLogsDir())) : new Set<string>();
+  window.setSize(1280, 720, false);
+  await window.webContents.executeJavaScript(`window.location.hash = "#/analysis";`);
+  await wait(350);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='workflow-precision']")?.click();`);
+  await wait(200);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-precision-probe']")?.click();`);
+  await wait(500);
+  const precisionAudit = await window.webContents.executeJavaScript(`
+    (() => ({
+      panel: Boolean(document.querySelector("[data-testid='precision-probe-panel']")),
+      rows: document.querySelectorAll("[data-testid='precision-results-table'] tbody tr").length,
+      recommendation: document.querySelector("[data-testid='precision-recommendation']")?.textContent || "",
+      hasUpdatedBy: document.body.innerText.includes("updatedBy JQL"),
+      hasUnsupported: document.body.innerText.includes("unsupported"),
+      preciseCount: document.body.innerText.includes("SMOKE-101") && document.body.innerText.includes("SMOKE-102")
+    }))()
+  `);
+  if (shouldCaptureUi) {
+    const precisionImage = await window.capturePage();
+    fs.writeFileSync(path.join(captureDir, "1280x720-expanded-analysis-precision-probe.png"), precisionImage.toPNG());
+  }
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='add-precision-queue']")?.click();`);
+  await wait(200);
+  const precisionQueueAudit = await window.webContents.executeJavaScript(`
+    (() => ({
+      noAutoFetch: document.body.innerText.includes("Full Fetch was not started") || document.body.innerText.includes("未自動執行完整抓取"),
+      addEnabled: !(document.querySelector("[data-testid='add-precision-queue']") instanceof HTMLButtonElement) || !document.querySelector("[data-testid='add-precision-queue']").disabled
+    }))()
+  `);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='save-precision-probe']")?.click();`);
+  await wait(350);
+  const precisionExportFiles = fs.readdirSync(precisionExportDir).filter((name) => !precisionExportsBefore.has(name) && name.startsWith("user-activity-precision-probe-") && name.endsWith(".json"));
+  const precisionExport = precisionExportFiles.length > 0 ? JSON.parse(fs.readFileSync(path.join(precisionExportDir, precisionExportFiles[0]), "utf8")) as Record<string, unknown> : null;
+  const precisionSource = asRecord(precisionExport?.source);
+  const precisionActionDiagnostics = asRecord(precisionExport?.actionLogDiagnostics);
+  const precisionFullFetchFilesAfter = fs.existsSync(getFullFetchLogsDir()) ? fs.readdirSync(getFullFetchLogsDir()) : [];
+  const precisionUnexpectedFullFetchFiles = precisionFullFetchFilesAfter.filter((name) => !precisionFullFetchFilesBefore.has(name));
+  if (!precisionAudit.panel || precisionAudit.rows !== 6 || !precisionAudit.recommendation.includes("updatedBy") || !precisionAudit.hasUpdatedBy || !precisionAudit.hasUnsupported || !precisionAudit.preciseCount) failures.push(`precision probe UI audit failed ${JSON.stringify(precisionAudit)}`);
+  if (!precisionQueueAudit.noAutoFetch || !precisionQueueAudit.addEnabled) failures.push(`precision probe queue audit failed ${JSON.stringify(precisionQueueAudit)}`);
+  if (precisionUnexpectedFullFetchFiles.length > 0) failures.push(`precision probe add-to-queue started Full Fetch ${JSON.stringify(precisionUnexpectedFullFetchFiles)}`);
+  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
+  if (precisionSource.token !== "[masked]" || precisionSource.authorization !== "[masked]" || precisionSource.readOnly !== true || precisionSource.databaseWrite !== false || precisionSource.attachmentDownload !== false) failures.push(`precision probe export safety flags/masking failed ${JSON.stringify(precisionSource)}`);
 
   const fullFetchFilesBeforeConfirmationTest = fs.existsSync(getFullFetchLogsDir())
     ? new Set(fs.readdirSync(getFullFetchLogsDir()))

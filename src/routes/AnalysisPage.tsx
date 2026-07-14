@@ -9,7 +9,7 @@ import { ResponsiveTableContainer } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useConnectionContext } from "../state/ConnectionContext";
-import { useSessionState, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type UserAnalysisFullFetchReportRow } from "../state/SessionStateContext";
+import { useSessionState, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type UserAnalysisFullFetchReportRow, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
 
 const fetchLimitOptions = [10, 20, 40, 80, 160];
 const pageSizeOptions = [10, 20, 40, 80, 160];
@@ -300,9 +300,10 @@ export function AnalysisPage() {
     return () => { active = false; };
   }, [setUserAnalysis]);
 
-  function showStep(step: "candidate" | "queue" | "fetchReport" | "exports") {
+  function showStep(step: "candidate" | "precision" | "queue" | "fetchReport" | "exports") {
     const labels = {
       candidate: "Candidate Search / 候選搜尋",
+      precision: "Precision Probe / 精準查詢測試",
       queue: "Fetch Queue / 抓取佇列",
       fetchReport: "Full Fetch Report / 完整抓取報告",
       exports: "Exports / 匯出"
@@ -457,6 +458,162 @@ export function AnalysisPage() {
       const message = error instanceof Error ? error.message : "Candidate Discovery failed.";
       patchState({ loading: false, errors: [message], warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning], notice: "" });
       appendDebugLog("analysis", [`[ERROR] ${message}`, "[INFO] No database write performed"]);
+    }
+  }
+
+  async function handleRunPrecisionProbe() {
+    logAnalysisAction("USER_ACTION", "Button clicked: Run Precision Probe / 執行精準查詢測試");
+    const error = validate();
+    if (error) {
+      patchState({ precisionProbeErrors: [error], notice: "" });
+      appendDebugLog("analysis", [`[WARN] ${error}`]);
+      return;
+    }
+    const probeConnection = activeConnection ?? (window.desktopApp?.uiSmoke ? {
+      id: "ui-smoke",
+      name: "UI Smoke Connection",
+      baseUrl: "https://jira.example.invalid",
+      authType: "bearer" as const,
+      apiVersion: "v2" as const,
+      username: "smoke.user",
+      email: "smoke.user@example.invalid",
+      apiToken: "ui-smoke-masked",
+      tokenSource: "session" as const,
+      tokenMasked: "****",
+      status: "not_tested" as const,
+      lastTestedAt: "",
+      authenticatedUser: "",
+      accessibleProjectsCount: 0,
+      active: true
+    } : null);
+    if (!probeConnection) {
+      const message = "No active Jira connection. Reload .env in Connections first.";
+      patchState({ precisionProbeErrors: [message], notice: "" });
+      appendDebugLog("analysis", [`[ERROR] ${message}`]);
+      return;
+    }
+    patchState({ precisionProbeStatus: "running", precisionProbeErrors: [], precisionProbeWarnings: [], notice: "" });
+    try {
+      const response = await window.desktopApp?.userAnalysis?.precisionProbe?.({
+        connection: probeConnection,
+        selectedUsers,
+        startInclusive: currentJqlDateRange.startInclusive,
+        endExclusive: currentJqlDateRange.endExclusive,
+        projectScope: userAnalysis.precisionProjectScope,
+        maxResults: userAnalysis.precisionProbeMaxResults,
+        broadJql: buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate)
+      });
+      if (!response) throw new Error("Electron Precision Probe API is not available.");
+      appendDebugLog("analysis", Array.isArray(response.logs) ? response.logs as string[] : []);
+      const summary = response.summary as unknown as UserAnalysisPrecisionProbeSummary;
+      const status = String(response.status ?? "failed");
+      patchState({
+        precisionProbeStatus: status === "success" ? "completed" : status === "partial" ? "partial" : "failed",
+        precisionProbeResults: (Array.isArray(response.results) ? response.results : []) as UserAnalysisPrecisionProbeResult[],
+        precisionProbeSummary: summary,
+        uniquePreciseIssueKeys: (Array.isArray(response.uniquePreciseIssueKeys) ? response.uniquePreciseIssueKeys : []) as string[],
+        precisionIssueSources: (response.issueSources ?? {}) as Record<string, string[]>,
+        precisionProbeWarnings: (Array.isArray(response.warnings) ? response.warnings : []) as string[],
+        precisionProbeErrors: (Array.isArray(response.errors) ? response.errors : []) as string[],
+        precisionProbeLastRunAt: new Date().toISOString(),
+        notice: `Precision Probe completed: ${summary?.uniquePreciseIssueCount ?? 0} unique precise issue(s). / 精準查詢測試完成。`
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Precision Probe failed.";
+      patchState({ precisionProbeStatus: "failed", precisionProbeErrors: [message], notice: "" });
+      appendDebugLog("analysis", [`[ERROR] ${message}`, "[INFO] No database write performed"]);
+    }
+  }
+
+  function addPreciseCandidatesToQueue() {
+    logAnalysisAction("USER_ACTION", "Button clicked: Add Precise Candidates to Fetch Queue / 加入精準候選到抓取佇列");
+    setUserAnalysis((current) => {
+      const existingByKey = new Map(current.candidateIssues.map((issue) => [issue.key, issue]));
+      for (const key of current.uniquePreciseIssueKeys) {
+        const sources = current.precisionIssueSources[key] ?? [];
+        const matchedReason = `Precision Probe matched: ${sources.join(", ") || "unknown"}`;
+        const existing = existingByKey.get(key);
+        existingByKey.set(key, existing ? { ...existing, matchedReason: existing.matchedReason.includes(matchedReason) ? existing.matchedReason : `${existing.matchedReason}; ${matchedReason}` } : {
+          id: key,
+          key,
+          summary: "",
+          status: "",
+          assignee: "",
+          reporter: "",
+          creator: "",
+          updated: "",
+          created: "",
+          issueType: "",
+          priority: "",
+          project: key.split("-")[0] ?? "",
+          matchedReason
+        });
+      }
+      return {
+        ...current,
+        candidateIssues: Array.from(existingByKey.values()),
+        selectedForFetch: Array.from(new Set([...current.selectedForFetch, ...current.uniquePreciseIssueKeys])),
+        excludedIssues: current.excludedIssues.filter((key) => !current.uniquePreciseIssueKeys.includes(key)),
+        notice: `${current.uniquePreciseIssueKeys.length} precise candidate(s) added to Fetch Queue. Full Fetch was not started. / 已加入精準候選，未自動執行完整抓取。`
+      };
+    });
+    appendDebugLog("analysis", ["[INFO] Precise candidates appended to Fetch Queue", "[INFO] Full Fetch not started"]);
+  }
+
+  function precisionProbePayload() {
+    return {
+      exportType: "user-activity-precision-probe",
+      app: {
+        name: "Jira Activity Analyzer",
+        version: buildInfo.version.replace(/^v/, ""),
+        buildTime: buildInfo.buildTime,
+        gitCommit: buildInfo.gitCommit,
+        gitBranch: buildInfo.gitBranch
+      },
+      exportedAt: new Date().toISOString(),
+      ...sourcePayload(activeConnection),
+      requestContext: {
+        selectedUsers,
+        dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate, endInclusive: true },
+        jqlDateRange: currentJqlDateRange,
+        projectScope: userAnalysis.precisionProjectScope,
+        probeMaxResults: userAnalysis.precisionProbeMaxResults
+      },
+      summary: userAnalysis.precisionProbeSummary,
+      probeResults: userAnalysis.precisionProbeResults,
+      uniquePreciseIssueKeys: userAnalysis.uniquePreciseIssueKeys,
+      recommendations: [`Recommended Stage 1 Mode: ${userAnalysis.precisionProbeSummary.recommendedStage1Mode}`],
+      warnings: userAnalysis.precisionProbeWarnings,
+      errors: userAnalysis.precisionProbeErrors,
+      debugLogSanitized: getDebugLogs("analysis"),
+      debugLogNote: "debugLogSanitized may contain the recent UI debug buffer only. See actionLogDiagnostics.actionLogPath for complete USER_ACTION / GUARD / UI_MODAL timeline.",
+      actionLogDiagnostics: {
+        actionLogPath: userAnalysis.actionLogPath,
+        actionLogAvailable: userAnalysis.actionLogAvailable
+      }
+    };
+  }
+
+  async function savePrecisionProbeResult() {
+    logAnalysisAction("USER_ACTION", "Button clicked: Save Precision Probe Result / 儲存精準查詢測試結果");
+    if (userAnalysis.precisionProbeResults.length === 0) {
+      logAnalysisAction("GUARD", "Action blocked: No Precision Probe result yet / 尚無精準查詢測試結果");
+      return;
+    }
+    patchState({ saving: true, notice: "" });
+    try {
+      const result = await window.desktopApp?.userAnalysis?.saveExport?.({ category: "user-analysis", defaultFileName: `user-activity-precision-probe-${stamp()}.json`, data: precisionProbePayload() });
+      if (!result) throw new Error("Electron export API is not available.");
+      if (result.canceled) {
+        patchState({ saving: false, notice: "Save canceled." });
+        return;
+      }
+      patchState({ saving: false, lastSavedPrecisionProbePath: result.filePath ?? "", lastSavedExportFolderPath: result.folderPath ?? userAnalysis.lastSavedExportFolderPath, notice: `Saved to: ${result.filePath}`, errors: [] });
+      appendDebugLog("analysis", [`[INFO] Precision Probe result saved: ${result.filePath}`, "[INFO] Token: [masked]", "[INFO] Authorization: [masked]"]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Save failed.";
+      patchState({ saving: false, errors: [message], notice: "" });
+      appendDebugLog("analysis", [`[ERROR] Save Precision Probe Result failed: ${message}`]);
     }
   }
 
@@ -1180,16 +1337,17 @@ export function AnalysisPage() {
       ) : null}
 
       <SectionCard className="mb-4">
-        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {[
             ["candidate", "1", "Candidate Search", "候選搜尋"],
-            ["queue", "2", "Fetch Queue", "抓取佇列"],
-            ["fetchReport", "3", "Full Fetch Report", "完整抓取報告"],
-            ["exports", "4", "Exports", "匯出"]
+            ["precision", "2", "Precision Probe", "精準查詢測試"],
+            ["queue", "3", "Fetch Queue", "抓取佇列"],
+            ["fetchReport", "4", "Full Fetch Report", "完整抓取報告"],
+            ["exports", "5", "Exports", "匯出"]
           ].map(([step, number, title, subtitle]) => {
             const tab = step === "candidate" ? "candidates" : step;
             const active = userAnalysis.activeTab === tab;
-            return <button key={step} className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition ${active ? "border-blue-600 bg-blue-50 shadow-sm" : "border-line bg-slate-50 hover:border-blue-300 hover:bg-blue-50"}`} type="button" aria-current={active ? "step" : undefined} onClick={() => showStep(step as "candidate" | "queue" | "fetchReport" | "exports")}>
+            return <button key={step} data-testid={`workflow-${step}`} className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition ${active ? "border-blue-600 bg-blue-50 shadow-sm" : "border-line bg-slate-50 hover:border-blue-300 hover:bg-blue-50"}`} type="button" aria-current={active ? "step" : undefined} onClick={() => showStep(step as "candidate" | "precision" | "queue" | "fetchReport" | "exports")}>
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${active ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{number}</span>
               <span className="min-w-0 text-sm font-black leading-snug text-ink">{title}<br /><span className="text-xs font-semibold text-muted">{subtitle}</span></span>
             </button>;
@@ -1249,9 +1407,10 @@ export function AnalysisPage() {
         <SectionCard title="User Analysis workflow" subtitle="使用者分析流程" className="mb-4">
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
             <div className="rounded-lg bg-blue-50 p-3 text-sm leading-relaxed"><b>1. Candidate Search / 候選搜尋</b><br />Search Jira issues by users and date range.<br />依使用者與日期範圍搜尋候選 Jira。</div>
-            <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>2. Fetch Queue / 抓取佇列</b><br />Select issues that should be fully fetched.<br />選擇要完整抓取的 Jira。</div>
-            <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>3. Full Fetch Report / 完整抓取報告</b><br />Review fetch status, counts, warnings, and errors.<br />檢查抓取狀態、數量統計、警告與錯誤。</div>
-            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>4. Exports / 匯出</b><br />Save Stage 1 candidate data or Stage 2 full fetch data.<br />儲存第一階段候選資料或第二階段完整抓取資料。</div>
+            <div className="rounded-lg bg-cyan-50 p-3 text-sm leading-relaxed"><b>2. Precision Probe / 精準查詢測試</b><br />Test low-cost, read-only activity query support.<br />測試低成本唯讀精準活動查詢。</div>
+            <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>3. Fetch Queue / 抓取佇列</b><br />Select issues that should be fully fetched.<br />選擇要完整抓取的 Jira。</div>
+            <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>4. Full Fetch Report / 完整抓取報告</b><br />Review fetch status, counts, warnings, and errors.<br />檢查抓取狀態、數量統計、警告與錯誤。</div>
+            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>5. Exports / 匯出</b><br />Save Stage 1 candidate data, probe results, or Stage 2 full fetch data.<br />儲存候選資料、測試結果或完整抓取資料。</div>
           </div>
           <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">
             Stage 1 Candidate Result / 第一階段候選結果:<br />exports/user-analysis/user-analysis-candidates-YYYYMMDD_HHmmss.json<br /><br />
@@ -1368,6 +1527,72 @@ export function AnalysisPage() {
         <button className="btn btn-primary" type="button" onClick={() => showStep("queue")} disabled={userAnalysis.candidateIssues.length === 0}><DatabaseZap size={16} />Go to Fetch Queue / 前往抓取佇列</button>
       </div>
       </> : null}
+
+      {userAnalysis.activeTab === "precision" ? (
+        <div data-testid="precision-probe-panel">
+          <SectionCard title="User Activity Precision Probe" subtitle="使用者活動精準查詢測試" className="mb-4">
+            <div className="mb-4 rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm font-semibold leading-relaxed text-cyan-950">
+              This read-only tool tests lower-cost activity queries without replacing Broad Candidate Discovery. / 此唯讀工具測試較低成本的活動查詢，不會取代既有寬鬆候選搜尋。<br />
+              No Jira write, database write, or attachment body download. / 不寫入 Jira、不寫入資料庫，也不下載附件本體。
+            </div>
+            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div><FieldLabel label="Selected Users" sub="選擇使用者" /><div className="field min-h-11 break-words bg-slate-50">{selectedUsers.join(", ") || "-"}</div></div>
+              <div><FieldLabel label="Date Range" sub="日期範圍" /><div className="field min-h-11 bg-slate-50">{userAnalysis.startDate || "-"} ~ {userAnalysis.endDate || "-"}</div></div>
+              <div><FieldLabel label="Project Scope" sub="專案範圍（選填）" /><input className="field" value={userAnalysis.precisionProjectScope} placeholder="COPGEN1, FW" onChange={(event) => { logAnalysisAction("USER_ACTION", `Project Scope changed / 專案範圍變更: projectCount=${event.target.value.split(/[\s,;]+/).filter(Boolean).length}`); patchState({ precisionProjectScope: event.target.value }); }} /></div>
+              <div><FieldLabel label="Probe Max Results" sub="測試最大筆數" /><select data-testid="precision-max-results" className="field" value={userAnalysis.precisionProbeMaxResults} onChange={(event) => { const value = Number(event.target.value) as 0 | 10 | 20 | 50; logAnalysisAction("USER_ACTION", `Probe Max Results changed: value=${value}`); patchState({ precisionProbeMaxResults: value }); }}>{[0, 10, 20, 50].map((value) => <option key={value} value={value}>{value}{value === 0 ? " - syntax/count only / 僅語法與數量" : ""}</option>)}</select></div>
+            </div>
+            <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">
+              Connection / 連線：{activeConnection?.name || "Not ready / 尚未就緒"} · API {activeConnection?.apiVersion || "-"} · {activeConnection?.authType === "basic" ? "Basic Auth" : "Bearer Token / PAT"}<br />
+              Probe Max Results 0 requests one record only when Jira cannot reliably validate with maxResults=0; sample keys remain hidden. / Jira 無法可靠支援 maxResults=0 時會以 1 筆驗證，但不顯示範例 Jira。
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button data-testid="run-precision-probe" className="btn btn-primary" type="button" disabled={userAnalysis.precisionProbeStatus === "running" || !connectionReady} onClick={() => void handleRunPrecisionProbe()}><Play size={16} />{userAnalysis.precisionProbeStatus === "running" ? "Running... / 執行中..." : "Run Precision Probe / 執行精準查詢測試"}</button>
+              <button data-testid="save-precision-probe" className="btn" type="button" disabled={userAnalysis.precisionProbeResults.length === 0 || userAnalysis.saving} onClick={() => void savePrecisionProbeResult()}><Download size={16} />Save Precision Probe Result / 儲存精準查詢測試結果</button>
+              <button data-testid="add-precision-queue" className="btn" type="button" disabled={userAnalysis.uniquePreciseIssueKeys.length === 0} onClick={addPreciseCandidatesToQueue}><DatabaseZap size={16} />Add Precise Candidates to Fetch Queue / 加入精準候選到抓取佇列</button>
+            </div>
+            {userAnalysis.notice ? <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm font-bold leading-relaxed text-green-800">{userAnalysis.notice}</div> : null}
+          </SectionCard>
+
+          {userAnalysis.precisionProbeResults.length > 0 ? <>
+            <SectionCard title="Precision Probe Summary" subtitle="精準查詢測試摘要" className="mb-4">
+              <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+                <MiniStat label="updatedBy Supported / 是否支援" value={userAnalysis.precisionProbeSummary.updatedBySupported} />
+                <MiniStat label="Activity Stream / 活動串流" value={userAnalysis.precisionProbeSummary.activityStreamSupported} />
+                <MiniStat label="CHANGED BY / 欄位歷程" value={userAnalysis.precisionProbeSummary.changedBySupported} />
+                <MiniStat label="Broad Baseline / 寬鬆基準" value={userAnalysis.precisionProbeSummary.broadCandidateCount} />
+                <MiniStat label="Unique Precise Issues / 精準去重" value={userAnalysis.precisionProbeSummary.uniquePreciseIssueCount} />
+                <MiniStat label="Potential Reduction / 預估減少" value={userAnalysis.precisionProbeSummary.potentialFullFetchReductionPercent === null ? "N/A" : `${userAnalysis.precisionProbeSummary.potentialFullFetchReductionPercent}%`} />
+              </div>
+              <div data-testid="precision-recommendation" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold leading-relaxed text-emerald-900">
+                Recommended Stage 1 Mode / 建議第一階段模式：<span data-no-clip="true">{userAnalysis.precisionProbeSummary.recommendedStage1Mode}</span>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Probe Results" subtitle="測試結果" className="mb-4">
+              <ResponsiveTableContainer>
+                <table className="table min-w-[1280px]" data-testid="precision-results-table">
+                  <thead><tr>{["Probe Method / 測試方法", "Status / 狀態", "HTTP Status", "Supported / 支援", "Result Count / 數量", "Sample Issue Keys / 範例 Jira", "Candidate Source / 候選來源", "Error / 錯誤", "Recommendation / 建議"].map((header) => <th key={header}>{header}</th>)}</tr></thead>
+                  <tbody>{userAnalysis.precisionProbeResults.map((result) => <tr key={result.candidateSource}>
+                    <td className="font-bold">{result.method}</td>
+                    <td><StatusBadge>{result.status}</StatusBadge></td>
+                    <td>{result.httpStatus}</td>
+                    <td>{result.supported}</td>
+                    <td data-no-clip="true" className="font-black">{result.resultCount}</td>
+                    <td><span className="block max-w-[220px] truncate" title={result.sampleIssueKeys.join(", ")} data-allow-truncate="true">{result.sampleIssueKeys.join(", ") || "-"}</span></td>
+                    <td>{result.candidateSource}</td>
+                    <td><span className="block max-w-[260px] truncate" title={result.error} data-allow-truncate="true">{result.error || "-"}</span></td>
+                    <td><span className="block max-w-[280px] whitespace-normal leading-snug">{result.recommendation}</span></td>
+                  </tr>)}</tbody>
+                </table>
+              </ResponsiveTableContainer>
+              {userAnalysis.uniquePreciseIssueKeys.length > 0 ? <div className="mt-3 break-words rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold">Unique Precise Issue Keys / 精準候選 Jira 去重：{userAnalysis.uniquePreciseIssueKeys.join(", ")}</div> : null}
+            </SectionCard>
+          </> : <SectionCard title="Probe Results" subtitle="測試結果" className="mb-4"><div className="text-sm font-semibold text-muted">Run Precision Probe to test Jira query support. / 執行精準查詢測試以確認 Jira 查詢支援狀態。</div></SectionCard>}
+
+          {[...userAnalysis.precisionProbeErrors.map((item) => ({ kind: "error", item })), ...userAnalysis.precisionProbeWarnings.map((item) => ({ kind: "warning", item }))].map(({ kind, item }) => <div key={`${kind}-${item}`} className={`mb-3 rounded-lg border p-3 text-sm font-bold ${kind === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{item}</div>)}
+          {userAnalysis.lastSavedPrecisionProbePath ? <div className="mb-4 break-all rounded-lg border border-green-200 bg-green-50 p-3 text-sm font-semibold text-green-800">Saved / 已儲存：{userAnalysis.lastSavedPrecisionProbePath}</div> : null}
+        </div>
+      ) : null}
 
       {userAnalysis.activeTab === "queue" ? (
         <SectionCard title="Candidate Issues" subtitle="候選 Jira" className="mb-4">
