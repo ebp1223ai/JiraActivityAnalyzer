@@ -805,6 +805,9 @@ type ActivityStreamEntry = {
 type ActivityStreamQueryMode = "auto" | "username" | "email" | "custom";
 type ActivityStreamDiagnosis = "parsed" | "no_entries" | "parser_failed" | "html_login" | "http_error" | "blocked" | "unknown";
 type ActivityStreamVariant = { variant: "username" | "escaped_username" | "email" | "custom" | "manual_url"; user: string };
+type ActivityStreamDateQueryMode = "none" | "startDate_endDate" | "update_date_after_before" | "both";
+type ActivityStreamDateTestMode = Exclude<ActivityStreamDateQueryMode, "both">;
+type ActivityStreamDateEffectiveness = true | false | "likely_true" | "unknown";
 
 function decodeXmlText(value: string) {
   return value
@@ -1038,46 +1041,138 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
   };
 }
 
-async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true, requestedRunId?: string) {
+function taipeiEpochMs(dateText: string) {
+  return Date.parse(`${dateText}T00:00:00+08:00`);
+}
+
+function addIsoDays(dateText: string, days: number) {
+  const value = new Date(`${dateText}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function requestedDateRange(start: string, end: string) {
+  const endExclusive = addIsoDays(end, 1);
+  return { start, end, endInclusive: true as const, timezone: "Asia/Taipei" as const, startEpochMs: taipeiEpochMs(start), endExclusiveEpochMs: taipeiEpochMs(endExclusive), endExclusive };
+}
+
+function activityStreamDateModes(mode: ActivityStreamDateQueryMode): ActivityStreamDateTestMode[] {
+  if (mode === "both") return ["startDate_endDate", "update_date_after_before"];
+  return [mode];
+}
+
+function activityStreamRequestPath(maxResults: number, relativeLinks: boolean, user: string, mode: ActivityStreamDateTestMode, range: ReturnType<typeof requestedDateRange>) {
+  const params = new URLSearchParams({ maxResults: String(maxResults), relativeLinks: String(relativeLinks) });
+  params.append("streams", `user IS ${user}`);
+  if (mode === "startDate_endDate") {
+    params.set("startDate", range.start);
+    params.set("endDate", range.endExclusive);
+  } else if (mode === "update_date_after_before") {
+    params.append("streams", `update-date AFTER ${range.startEpochMs}`);
+    params.append("streams", `update-date BEFORE ${range.endExclusiveEpochMs}`);
+  }
+  return `/plugins/servlet/streams?${params.toString()}`;
+}
+
+function dateQueryDiagnostics(mode: ActivityStreamDateTestMode, runId: string, stream: ReturnType<typeof aggregateActivityStream>, range: ReturnType<typeof requestedDateRange>) {
+  const diagnosticEntries = stream.entriesSanitized.filter((entry) => !stream.bestVariant || entry.variant === stream.bestVariant);
+  const times = diagnosticEntries.map((entry) => entry.activityTime).filter(Boolean).sort();
+  const inside = times.filter((time) => {
+    const epoch = Date.parse(time);
+    return Number.isFinite(epoch) && epoch >= range.startEpochMs && epoch < range.endExclusiveEpochMs;
+  }).length;
+  const outside = Math.max(stream.parsedActivityCount - inside, 0);
+  const ratio = stream.parsedActivityCount > 0 ? inside / stream.parsedActivityCount : 0;
+  let effective: ActivityStreamDateEffectiveness = "unknown";
+  if (mode !== "none" && stream.atomEntryCount > 0 && stream.parsedActivityCount > 0) {
+    effective = outside === 0 ? true : ratio >= 0.95 ? "likely_true" : false;
+  }
+  const warnings = mode === "startDate_endDate" && outside > 0
+    ? ["startDate/endDate returned entries outside requested range; server date filter may be ignored. / startDate/endDate 回傳了指定日期外的資料，server 可能忽略此日期條件。"]
+    : [];
+  return {
+    mode,
+    runId,
+    requestUrlSanitized: stream.requestUrlSanitized,
+    dateFilterKeyTested: mode === "update_date_after_before" ? "update-date" as const : "" as const,
+    dateParameterSemantics: mode === "startDate_endDate" ? "end_exclusive" as const : "none" as const,
+    atomEntryCount: stream.atomEntryCount,
+    parsedActivityCount: stream.parsedActivityCount,
+    entriesInsideRequestedRange: inside,
+    entriesOutsideRequestedRange: outside,
+    newestEntryTime: times.at(-1) ?? "",
+    oldestEntryTime: times[0] ?? "",
+    dateFilterEffective: effective,
+    warnings
+  };
+}
+
+async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true, requestedRunId?: string, dateQueryMode: ActivityStreamDateQueryMode = "both", maxResultsSource: "custom" | "quick" = "custom", largeMaxResultsConfirmed = false) {
   const runId = requestedRunId || createActivityStreamRunId();
   const startedAt = new Date().toISOString();
-  const requestMaxResults = maxResults === 0 ? 1 : Math.min(Math.max(maxResults || 10, 1), 50);
+  const requestMaxResults = Math.trunc(maxResults);
+  if (requestMaxResults < 1 || requestMaxResults > 65535) throw new Error("maxResults must be between 1 and 65535. / maxResults 必須介於 1 到 65535。");
+  const range = requestedDateRange(startDate, endDate);
   const variants = activityStreamVariants(connection, selectedUsers, user, queryMode);
+  const dateModes = activityStreamDateModes(dateQueryMode);
   const logs = [
     `[USER_ACTION] Run Activity Stream Probe: runId=${runId} mode=${queryMode} user=${user || "auto"}`,
     `[INFO] Activity Stream probe started: runId=${runId} mode=${queryMode} variants=${variants.map((item) => `${item.variant}:${item.user}`).join(",")} date=${startDate}..${endDate}`,
+    `[INFO] Activity Stream date query mode: ${dateQueryMode}`,
+    `[INFO] Requested date range: ${startDate}..${range.endExclusive} timezone=Asia/Taipei startEpochMs=${range.startEpochMs} endEpochMs=${range.endExclusiveEpochMs}`,
     `[INFO] Activity Stream variants planned: ${variants.map((item) => `${item.variant}=${item.user}`).join(" ")}`,
     "[INFO] Authorization: [masked]",
     "[INFO] Token: [masked]"
   ];
+  if (requestMaxResults > 500) logs.push(`[WARN] Large maxResults requested: ${requestMaxResults}`);
+  if (requestMaxResults > 10000) logs.push("[WARN] Very large maxResults may cause timeout, UI stalls, or increased Jira server load.");
   const client = isUiSmoke ? null : createJiraClient({ baseUrl: connection.baseUrl, email: connection.email || connection.username, apiToken: connection.apiToken ?? "", authType: connection.authType });
-  const variantResults = [] as ReturnType<typeof activityStreamResult>[];
-  for (const variant of variants) {
-    if (isUiSmoke) await new Promise((resolve) => setTimeout(resolve, 25));
-    const params = new URLSearchParams({ maxResults: String(requestMaxResults), relativeLinks: String(relativeLinks), streams: `user IS ${variant.user}`, startDate, endDate });
-    const requestUrlSanitized = `/plugins/servlet/streams?${params.toString()}`;
-    logs.push(`[INFO] Activity Stream variant started: variant=${variant.variant} user=${variant.user}`, `[DEBUG] GET ${requestUrlSanitized} (credentials masked)`);
-    let result: ReturnType<typeof activityStreamResult>;
-    if (isUiSmoke) {
-      const response = variant.variant === "escaped_username"
-        ? { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: `<feed><entry><title type="html">created a link from <a href="/browse/SMOKE-101">SMOKE-101</a></title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><published>2026-07-02T09:00:00Z</published><activity:object><title>SMOKE-101</title><summary>Smoke fixture</summary></activity:object></entry></feed>`, bodyPreview: "", json: null } as JiraHttpResult
-        : variant.variant === "username"
-        ? { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: "<feed></feed>", bodyPreview: "", json: null } as JiraHttpResult
-        : { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: "<feed></feed>", bodyPreview: "", json: null } as JiraHttpResult;
-      result = activityStreamResult(response, requestUrlSanitized, variant.user, variant.variant, runId);
-    } else {
-      result = activityStreamResult(await client!.get(requestUrlSanitized), requestUrlSanitized, variant.user, variant.variant, runId);
+  const modeRuns: Array<{ mode: ActivityStreamDateTestMode; stream: ReturnType<typeof aggregateActivityStream>; variants: ReturnType<typeof activityStreamResult>[] }> = [];
+  let responseBytes = 0;
+  const requestStartedAt = Date.now();
+  for (const dateMode of dateModes) {
+    const variantResults = [] as ReturnType<typeof activityStreamResult>[];
+    for (const variant of variants) {
+      if (isUiSmoke) await new Promise((resolve) => setTimeout(resolve, 25));
+      const requestUrlSanitized = activityStreamRequestPath(requestMaxResults, relativeLinks, variant.user, dateMode, range);
+      logs.push(`[INFO] Activity Stream variant started: variant=${variant.variant} dateMode=${dateMode} user=${variant.user}`, `[DEBUG] GET ${requestUrlSanitized} (credentials masked)`);
+      let response: JiraHttpResult;
+      if (isUiSmoke) {
+        const insideEntry = `<entry><title type="html">created a link from <a href="/browse/SMOKE-101">SMOKE-101</a></title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><published>2026-07-02T09:00:00Z</published><activity:object><title>SMOKE-101</title><summary>Smoke fixture</summary></activity:object></entry>`;
+        const outsideEntry = `<entry><title>commented on SMOKE-099</title><author><name>Smoke User</name></author><updated>2026-06-18T02:28:51Z</updated><summary>Outside requested range</summary></entry>`;
+        const body = variant.variant === "escaped_username" ? `<feed>${insideEntry}${dateMode === "startDate_endDate" ? outsideEntry : ""}</feed>` : "<feed></feed>";
+        response = { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: body, bodyPreview: "", json: null } as JiraHttpResult;
+      } else {
+        response = await client!.get(requestUrlSanitized);
+      }
+      responseBytes += Buffer.byteLength(String(response.bodyTextSanitized ?? response.bodyPreview ?? JSON.stringify(response.json ?? "")), "utf8");
+      const result = { ...activityStreamResult(response, requestUrlSanitized, variant.user, variant.variant, runId), dateQueryMode: dateMode };
+      variantResults.push(result);
+      logs.push(`${result.parsed ? "[INFO]" : "[WARN]"} Activity Stream variant completed: variant=${variant.variant} dateMode=${dateMode} httpStatus=${result.httpStatus} diagnosis=${result.diagnosis} atomEntries=${result.atomEntryCount} parsedActivities=${result.parsedActivityCount} parsedIssueKeys=${result.parsedIssueKeys.length}`);
     }
-    variantResults.push(result);
-    logs.push(`${result.parsed ? "[INFO]" : "[WARN]"} Activity Stream variant completed: variant=${variant.variant} httpStatus=${result.httpStatus} diagnosis=${result.diagnosis} atomEntries=${result.atomEntryCount} parsedActivities=${result.parsedActivityCount} parsedIssueKeys=${result.parsedIssueKeys.length}`);
+    modeRuns.push({ mode: dateMode, variants: variantResults, stream: aggregateActivityStream(variantResults, user) });
   }
-  const activityStream = aggregateActivityStream(variantResults, user);
+  const dateQueryResults = modeRuns.map((item) => dateQueryDiagnostics(item.mode, runId, item.stream, range));
+  const effectivenessRank = (value: ActivityStreamDateEffectiveness) => value === true ? 3 : value === "likely_true" ? 2 : value === "unknown" ? 1 : 0;
+  const selectedModeRun = [...modeRuns].sort((a, b) => effectivenessRank(dateQueryDiagnostics(b.mode, runId, b.stream, range).dateFilterEffective) - effectivenessRank(dateQueryDiagnostics(a.mode, runId, a.stream, range).dateFilterEffective))[0];
+  const activityStream = selectedModeRun?.stream ?? aggregateActivityStream([], user);
+  const selectedDateResult = dateQueryResults.find((item) => item.mode === selectedModeRun?.mode) ?? dateQueryResults[0];
+  const clientDateFilteredEntriesSanitized = activityStream.entriesSanitized.filter((entry) => {
+    if (activityStream.bestVariant && entry.variant !== activityStream.bestVariant) return false;
+    const epoch = Date.parse(entry.activityTime);
+    return Number.isFinite(epoch) && epoch >= range.startEpochMs && epoch < range.endExclusiveEpochMs;
+  });
+  const dateWarnings = dateQueryResults.flatMap((item) => item.warnings);
+  for (const result of dateQueryResults) logs.push(`[INFO] Date semantics result: mode=${result.mode} atomEntries=${result.atomEntryCount} insideRange=${result.entriesInsideRequestedRange} outsideRange=${result.entriesOutsideRequestedRange} effective=${result.dateFilterEffective}`, ...result.warnings.map((warning) => `[WARN] ${warning}`));
+  const bestDateQueryMode = selectedDateResult && (selectedDateResult.dateFilterEffective === true || selectedDateResult.dateFilterEffective === "likely_true") ? selectedDateResult.mode : "client_side_only";
+  const dateSemantics = { requestedDateRange: { start: range.start, end: range.end, endInclusive: range.endInclusive, timezone: range.timezone, startEpochMs: range.startEpochMs, endExclusiveEpochMs: range.endExclusiveEpochMs }, dateQueryModesTested: dateModes, bestDateQueryMode, serverDateFilterEffective: selectedDateResult?.dateFilterEffective ?? "unknown", clientDateFilterApplied: true, rawReturnedEntries: activityStream.parsedActivityCount, clientDateFilteredEntries: clientDateFilteredEntriesSanitized.length, warnings: dateWarnings };
+  const maxResultsDiagnostics = { requestedMaxResults: requestMaxResults, maxResultsSource, actualAtomEntryCount: activityStream.atomEntryCount, parsedActivityCount: activityStream.parsedActivityCount, serverCapDetected: "unknown" as const, serverCapValueEstimated: null, responseTimeMs: Date.now() - requestStartedAt, responseSizeKB: Number((responseBytes / 1024).toFixed(2)), largeMaxResultsWarningShown: requestMaxResults > 500, largeMaxResultsConfirmed, warnings: [...(requestMaxResults > 500 ? ["Large maxResults requested."] : []), ...(requestMaxResults > 10000 ? ["Very large maxResults may timeout, stall the UI, or increase Jira server load."] : [])] };
   logs.push(`[INFO] Activity Stream best variant: ${activityStream.bestVariant || "none"}`, `[INFO] Activity Stream probe completed: overallStatus=${activityStream.overallStatus} bestVariant=${activityStream.bestVariant || "none"} diagnosis=${activityStream.diagnosis} parsedIssueKeys=${activityStream.activityStreamIssueKeys.length}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
-  return { runId, startedAt, completedAt: new Date().toISOString(), activityStream, logs };
+  return { runId, startedAt, completedAt: new Date().toISOString(), activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, clientDateFilteredEntriesSanitized, logs };
 }
 
-ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: 0 | 10 | 20 | 50; relativeLinks?: boolean; runId?: string }) => {
-  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults), payload.relativeLinks !== false, payload.runId);
+ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: number; maxResultsSource?: "custom" | "quick"; largeMaxResultsConfirmed?: boolean; dateQueryMode?: ActivityStreamDateQueryMode; relativeLinks?: boolean; runId?: string }) => {
+  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults), payload.relativeLinks !== false, payload.runId, payload.dateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true);
 });
 
 const sensitiveReplayQueryKey = /token|password|passwd|secret|session|cookie|authorization|auth_token/i;
@@ -1129,12 +1224,17 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   activityStreamQueryMode?: ActivityStreamQueryMode;
   activityStreamRelativeLinks?: boolean;
   activityStreamRunId?: string;
-  maxResults: 0 | 10 | 20 | 50;
+  activityStreamEndInclusive?: string;
+  activityStreamDateQueryMode?: ActivityStreamDateQueryMode;
+  maxResults: number;
+  maxResultsSource?: "custom" | "quick";
+  largeMaxResultsConfirmed?: boolean;
   broadJql: string;
 }) => {
   const selectedUsers = Array.from(new Set((payload.selectedUsers ?? []).map(String).map((item) => item.trim()).filter(Boolean)));
-  const requestedMaxResults = [0, 10, 20, 50].includes(Number(payload.maxResults)) ? Number(payload.maxResults) : 10;
-  const requestMaxResults = requestedMaxResults === 0 ? 1 : requestedMaxResults;
+  const requestedMaxResults = Math.trunc(Number(payload.maxResults));
+  if (requestedMaxResults < 1 || requestedMaxResults > 65535) throw new Error("maxResults must be between 1 and 65535. / maxResults 必須介於 1 到 65535。");
+  const requestMaxResults = requestedMaxResults;
   const connection = payload.connection;
   const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
   const logs = [
@@ -1146,7 +1246,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   ];
 
   if (isUiSmoke) {
-    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId);
+    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.activityStreamEndInclusive ?? addIsoDays(payload.endExclusive, -1), requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId, payload.activityStreamDateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true);
     const activityStream = activityStreamRun.activityStream;
     const results: PrecisionProbeResult[] = [
       { method: "updatedBy Candidate JQL", status: "success", httpStatus: "200", supported: "yes", resultCount: 113, sampleIssueKeys: ["SMOKE-101", "SMOKE-102"], candidateSource: "updatedBy_candidate", error: "", recommendation: "Potential precision source; validate against Activity Stream", jql: "updatedBy(\"smoke.user\") ..." },
@@ -1164,6 +1264,10 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
       results,
       summary: { overallStatus: "partial", updatedBySupported: "yes", activityStreamSupported: "yes", changedBySupported: "partial", broadCandidateCount: 93, uniquePreciseIssueCount: 2, potentialFullFetchReductionPercent: 97.8, recommendedStage1Mode: "activity_stream" },
       activityStream,
+      dateSemantics: activityStreamRun.dateSemantics,
+      dateQueryResults: activityStreamRun.dateQueryResults,
+      maxResultsDiagnostics: activityStreamRun.maxResultsDiagnostics,
+      clientDateFilteredEntriesSanitized: activityStreamRun.clientDateFilteredEntriesSanitized,
       issueKeySets,
       uniquePreciseIssueKeys: issueKeySets.recommendedIssueKeys,
       issueSources: { "SMOKE-101": ["activity_stream"] },
@@ -1225,7 +1329,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   results.push(await runJqlMethod("priority CHANGED BY", "priority_changed_by", (user) => `priority CHANGED BY ${quoted(user)} ${dates}`));
 
   const activityStreamUser = String(payload.activityStreamUser || selectedUsers[0] || "").trim();
-  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.endExclusive, requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId);
+  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.activityStreamEndInclusive ?? addIsoDays(payload.endExclusive, -1), requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId, payload.activityStreamDateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true);
   const activityStreamData = activityStreamRun.activityStream;
   logs.push(...activityStreamRun.logs);
   results.push({
@@ -1277,6 +1381,10 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
     results,
     summary: { overallStatus, updatedBySupported: updatedBy.supported, activityStreamSupported: activityStreamProbe.supported, changedBySupported: changedSupported, broadCandidateCount, uniquePreciseIssueCount: uniquePreciseIssueKeys.length, potentialFullFetchReductionPercent: reduction, recommendedStage1Mode },
     activityStream: activityStreamData,
+    dateSemantics: activityStreamRun.dateSemantics,
+    dateQueryResults: activityStreamRun.dateQueryResults,
+    maxResultsDiagnostics: activityStreamRun.maxResultsDiagnostics,
+    clientDateFilteredEntriesSanitized: activityStreamRun.clientDateFilteredEntriesSanitized,
     issueKeySets,
     uniquePreciseIssueKeys,
     issueSources,
@@ -2241,6 +2349,18 @@ async function runUiSmoke(window: BrowserWindow) {
   const escapedVariant = escapedVariants.find((item) => item.variant === "escaped_username");
   const escapedParams = new URLSearchParams({ streams: `user IS ${escapedVariant?.user ?? ""}` });
   if (escapedVariant?.user !== "roger\\_hsieh" || !escapedParams.toString().includes("roger%5C_hsieh")) failures.push(`escaped username variant failed ${JSON.stringify({ escapedVariants, encoded: escapedParams.toString() })}`);
+  const epochFixture = requestedDateRange("2026-01-01", "2026-01-31");
+  if (epochFixture.startEpochMs !== 1767196800000 || epochFixture.endExclusiveEpochMs !== 1769875200000) failures.push(`Asia/Taipei epoch conversion failed ${JSON.stringify(epochFixture)}`);
+  const startEndPathFixture = activityStreamRequestPath(50, true, "roger\\_hsieh", "startDate_endDate", epochFixture);
+  const updateDatePathFixture = activityStreamRequestPath(50, true, "roger\\_hsieh", "update_date_after_before", epochFixture);
+  if (!startEndPathFixture.includes("startDate=2026-01-01") || !startEndPathFixture.includes("endDate=2026-02-01")) failures.push(`startDate/endDate URL failed ${startEndPathFixture}`);
+  if ((updateDatePathFixture.match(/streams=/g) ?? []).length !== 3 || !updateDatePathFixture.includes("update-date+AFTER+1767196800000") || !updateDatePathFixture.includes("update-date+BEFORE+1769875200000")) failures.push(`update-date multiple streams URL failed ${updateDatePathFixture}`);
+  const dateFixtureRunId = "asrun-date-fixture";
+  const insideDateFixture = activityStreamResult({ ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed><entry><title>commented on SMOKE-301</title><author><name>Smoke</name></author><updated>2026-01-15T12:00:00+08:00</updated></entry></feed>" }, updateDatePathFixture, "roger\\_hsieh", "escaped_username", dateFixtureRunId);
+  const outsideDateFixture = activityStreamResult({ ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed><entry><title>commented on SMOKE-301</title><author><name>Smoke</name></author><updated>2026-01-15T12:00:00+08:00</updated></entry><entry><title>commented on SMOKE-302</title><author><name>Smoke</name></author><updated>2025-12-15T12:00:00+08:00</updated></entry></feed>" }, startEndPathFixture, "roger\\_hsieh", "escaped_username", dateFixtureRunId);
+  const effectiveDateFixture = dateQueryDiagnostics("update_date_after_before", dateFixtureRunId, aggregateActivityStream([insideDateFixture], "roger_hsieh"), epochFixture);
+  const ineffectiveDateFixture = dateQueryDiagnostics("startDate_endDate", dateFixtureRunId, aggregateActivityStream([outsideDateFixture], "roger_hsieh"), epochFixture);
+  if (effectiveDateFixture.dateFilterEffective !== true || effectiveDateFixture.entriesInsideRequestedRange !== 1 || ineffectiveDateFixture.dateFilterEffective !== false || ineffectiveDateFixture.entriesOutsideRequestedRange !== 1) failures.push(`date effectiveness diagnostics failed ${JSON.stringify({ effectiveDateFixture, ineffectiveDateFixture })}`);
   const acceptedReplay = validateManualActivityStreamUrl("https://jira.example.invalid", "https://jira.example.invalid/plugins/servlet/streams?maxResults=10&relativeLinks=true&streams=user+IS+roger%5C_hsieh&_=1784004289793");
   const rejectedExternal = validateManualActivityStreamUrl("https://jira.example.invalid", "https://example.com/plugins/servlet/streams?maxResults=10");
   const rejectedPath = validateManualActivityStreamUrl("https://jira.example.invalid", "https://jira.example.invalid/rest/api/2/myself");
@@ -2305,6 +2425,22 @@ async function runUiSmoke(window: BrowserWindow) {
     })()
   `);
   await wait(150);
+  const maxValidationAudit = await window.webContents.executeJavaScript(`
+    (async () => {
+      const max = document.querySelector("[data-testid='probe-max-results']");
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      const setMax = (value) => { if (max instanceof HTMLInputElement) { setter?.call(max, value); max.dispatchEvent(new Event("input", { bubbles: true })); max.dispatchEvent(new Event("change", { bubbles: true })); } };
+      setMax("0"); document.querySelector("[data-testid='run-activity-stream']")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const rejectsLow = document.body.innerText.includes("maxResults must be between 1 and 65535");
+      setMax("65536"); document.querySelector("[data-testid='run-activity-stream']")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const rejectsHigh = document.body.innerText.includes("maxResults must be between 1 and 65535");
+      document.querySelector("[data-testid='max-quick-10']")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return { rejectsLow, rejectsHigh, quickValue: max instanceof HTMLInputElement ? max.value : "", quickCount: document.querySelectorAll("[data-testid^='max-quick-']").length, dateMode: document.querySelector("[data-testid='activity-stream-date-query-mode']")?.value };
+    })()
+  `);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
   await wait(10);
   const runningAudit = await window.webContents.executeJavaScript(`(() => ({ banner: Boolean(document.querySelector("[data-testid='activity-stream-running']")), runId: document.body.innerText.includes("asrun-"), autoDisabled: document.querySelector("[data-testid='run-activity-stream']")?.disabled === true, precisionDisabled: document.querySelector("[data-testid='run-precision-probe']")?.disabled === true, manualDisabled: document.querySelector("[data-testid='run-manual-activity-stream']")?.disabled === true }))()`);
@@ -2313,7 +2449,7 @@ async function runUiSmoke(window: BrowserWindow) {
   await window.webContents.executeJavaScript(`
     (() => {
       const max = document.querySelector("[data-testid='probe-max-results']");
-      if (max instanceof HTMLSelectElement) { const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set; setter?.call(max, "20"); max.dispatchEvent(new Event("change", { bubbles: true })); }
+      if (max instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(max, "20"); max.dispatchEvent(new Event("input", { bubbles: true })); max.dispatchEvent(new Event("change", { bubbles: true })); }
       const end = document.querySelector("[data-testid='filter-end']");
       if (end instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(end, "2026-07-14"); end.dispatchEvent(new Event("input", { bubbles: true })); }
     })()
@@ -2332,7 +2468,18 @@ async function runUiSmoke(window: BrowserWindow) {
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-manual-activity-stream']")?.click();`);
   await wait(350);
   const manualReplayAudit = await window.webContents.executeJavaScript(`(() => ({ accepted: document.body.innerText.includes("Manual URL validated"), manualVariant: document.body.innerText.includes("manual_url"), escapedVariant: document.body.innerText.includes("escaped_username"), issueKey: document.body.innerText.includes("COPGEN1-138930"), authorEmail: document.body.innerText.includes("roger_hsieh@phison.com"), linkType: document.body.innerText.includes("link") }))()`);
-  await window.webContents.executeJavaScript(`(() => { const max = document.querySelector("[data-testid='probe-max-results']"); if (max instanceof HTMLSelectElement) { const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set; setter?.call(max, "50"); max.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
+  await window.webContents.executeJavaScript(`(() => { const max = document.querySelector("[data-testid='probe-max-results']"); if (max instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(max, "5000"); max.dispatchEvent(new Event("input", { bubbles: true })); max.dispatchEvent(new Event("change", { bubbles: true })); } document.querySelector("[data-testid='run-cap-test']")?.click(); })()`);
+  await wait(150);
+  const largeMaxModalAudit = await window.webContents.executeJavaScript(`(() => { const input = document.querySelector("[data-testid='large-max-confirm-input']"); if (input instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(input, "WRONG"); input.dispatchEvent(new Event("input", { bubbles: true })); } document.querySelector("[data-testid='confirm-large-max']")?.click(); return { modal: document.body.innerText.includes("Large Activity Stream Query Confirmation"), warning: Boolean(document.querySelector("[data-testid='large-max-warning']")) }; })()`);
+  await wait(100);
+  const largeMaxRejectAudit = await window.webContents.executeJavaScript(`(() => { const rejected = document.body.innerText.includes("Please type CONFIRM exactly"); const input = document.querySelector("[data-testid='large-max-confirm-input']"); if (input instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(input, "CONFIRM"); input.dispatchEvent(new Event("input", { bubbles: true })); } document.querySelector("[data-testid='confirm-large-max']")?.click(); return { rejected }; })()`);
+  await wait(450);
+  await window.webContents.executeJavaScript(`(() => { const max = document.querySelector("[data-testid='probe-max-results']"); if (max instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(max, "10001"); max.dispatchEvent(new Event("input", { bubbles: true })); max.dispatchEvent(new Event("change", { bubbles: true })); } document.querySelector("[data-testid='run-cap-test']")?.click(); })()`);
+  await wait(150);
+  const strongWarningAudit = await window.webContents.executeJavaScript(`(() => { const warning = document.querySelector("[data-testid='large-max-warning']")?.textContent || ""; const input = document.querySelector("[data-testid='large-max-confirm-input']"); if (input instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(input, "CONFIRM"); input.dispatchEvent(new Event("input", { bubbles: true })); } document.querySelector("[data-testid='confirm-large-max']")?.click(); return { strong: warning.includes("Strong warning") }; })()`);
+  await wait(450);
+  const capTestAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='cap-test-results'] tbody tr").length, likely: document.querySelector("[data-testid='max-results-diagnostics']")?.textContent?.includes("likely"), estimated: document.querySelector("[data-testid='max-results-diagnostics']")?.textContent?.includes("1") }))()`);
+  await window.webContents.executeJavaScript(`(() => { const max = document.querySelector("[data-testid='probe-max-results']"); if (max instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(max, "50"); max.dispatchEvent(new Event("input", { bubbles: true })); max.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
   await wait(100);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-precision-probe']")?.click();`);
   await wait(750);
@@ -2343,7 +2490,11 @@ async function runUiSmoke(window: BrowserWindow) {
       recommendation: document.querySelector("[data-testid='precision-recommendation']")?.textContent || "",
       hasUpdatedBy: document.body.innerText.includes("updatedBy Candidate JQL"),
       hasUnsupported: document.body.innerText.includes("unsupported"),
-      preciseCount: document.body.innerText.includes("SMOKE-101") && document.body.innerText.includes("SMOKE-102")
+      preciseCount: document.body.innerText.includes("SMOKE-101") && document.body.innerText.includes("SMOKE-102"),
+      dateRows: document.querySelectorAll("[data-testid='date-query-results'] tbody tr").length,
+      bestDateMode: document.querySelector("[data-testid='date-semantics-result']")?.textContent?.includes("update_date_after_before"),
+      effective: document.querySelector("[data-testid='date-query-results']")?.textContent?.includes("true") && document.querySelector("[data-testid='date-query-results']")?.textContent?.includes("false"),
+      clientFilter: document.querySelector("[data-testid='apply-client-date-filter']")?.checked === true
     }))()
   `);
   await window.webContents.executeJavaScript(`
@@ -2400,21 +2551,26 @@ async function runUiSmoke(window: BrowserWindow) {
   const precisionParserDiagnostics = asRecord(precisionActivityStream.parserDiagnostics);
   const precisionFilter = asRecord(precisionExport?.parsedEntriesFilter);
   const precisionFilterStats = asRecord(precisionExport?.parsedEntriesFilterStats);
+  const precisionDateSemantics = asRecord(precisionExport?.dateSemantics);
+  const precisionRequestedDateRange = asRecord(precisionDateSemantics.requestedDateRange);
+  const precisionMaxDiagnostics = asRecord(precisionExport?.maxResultsDiagnostics);
   const precisionFullFetchFilesAfter = fs.existsSync(getFullFetchLogsDir()) ? fs.readdirSync(getFullFetchLogsDir()) : [];
   const precisionActionLogBuffer = fs.existsSync(precisionActionLogPath) ? fs.readFileSync(precisionActionLogPath) : Buffer.alloc(0);
   const precisionActionTimeline = precisionActionLogBuffer.subarray(precisionActionLogStartSize).toString("utf8");
   const precisionUnexpectedFullFetchFiles = precisionFullFetchFilesAfter.filter((name) => !precisionFullFetchFilesBefore.has(name));
+  if (!maxValidationAudit.rejectsLow || !maxValidationAudit.rejectsHigh || maxValidationAudit.quickValue !== "10" || maxValidationAudit.quickCount !== 7 || maxValidationAudit.dateMode !== "both") failures.push(`maxResults validation/quick values audit failed ${JSON.stringify(maxValidationAudit)}`);
   if (!runningAudit.banner || !runningAudit.runId || !runningAudit.autoDisabled || !runningAudit.precisionDisabled || !runningAudit.manualDisabled) failures.push(`activity stream running lock audit failed ${JSON.stringify(runningAudit)}`);
   if (!activityStreamAudit.hasEmailInput || activityStreamAudit.mode !== "auto" || !activityStreamAudit.issueKey || !activityStreamAudit.contentType || !activityStreamAudit.hasUsername || !activityStreamAudit.hasEscaped || !activityStreamAudit.hasEmail || !activityStreamAudit.relativeLinks || !activityStreamAudit.diagnosis || activityStreamAudit.rows !== 1 || activityStreamAudit.variantRows !== 3) failures.push(`activity stream UI audit failed ${JSON.stringify(activityStreamAudit)}`);
   if (!manualReplayAudit.accepted || !manualReplayAudit.manualVariant || !manualReplayAudit.escapedVariant || !manualReplayAudit.issueKey || !manualReplayAudit.authorEmail || !manualReplayAudit.linkType) failures.push(`manual replay UI audit failed ${JSON.stringify(manualReplayAudit)}`);
-  if (!precisionAudit.panel || precisionAudit.rows !== 6 || !precisionAudit.recommendation.includes("activity_stream") || !precisionAudit.hasUpdatedBy || !precisionAudit.hasUnsupported || !precisionAudit.preciseCount) failures.push(`precision probe UI audit failed ${JSON.stringify(precisionAudit)}`);
+  if (!largeMaxModalAudit.modal || !largeMaxModalAudit.warning || !largeMaxRejectAudit.rejected || !strongWarningAudit.strong || capTestAudit.rows !== 2 || !capTestAudit.likely || !capTestAudit.estimated) failures.push(`large maxResults/cap test UI audit failed ${JSON.stringify({ largeMaxModalAudit, largeMaxRejectAudit, strongWarningAudit, capTestAudit })}`);
+  if (!precisionAudit.panel || precisionAudit.rows !== 6 || !precisionAudit.recommendation.includes("activity_stream") || !precisionAudit.hasUpdatedBy || !precisionAudit.hasUnsupported || !precisionAudit.preciseCount || precisionAudit.dateRows !== 2 || !precisionAudit.bestDateMode || !precisionAudit.effective || !precisionAudit.clientFilter) failures.push(`precision probe UI audit failed ${JSON.stringify(precisionAudit)}`);
   if (filterAudit.rows !== 1 || !filterAudit.hasFilteredStats || filterAudit.issue !== "SMOKE-101" || filterAudit.author !== "Smoke User" || !filterAudit.onlyKey || !filterAudit.activityTypes.includes("link") || !filterAudit.variants.includes("escaped_username") || !filterAudit.sources.includes("activity_stream")) failures.push(`parsed entries filter UI audit failed ${JSON.stringify(filterAudit)}`);
-  if (historyAudit.rows !== 3 || !historyAudit.text.includes("10") || !historyAudit.text.includes("20") || !historyAudit.text.includes("50") || !historyAudit.text.includes("manual") || !historyAudit.text.includes("precision")) failures.push(`activity stream run history audit failed ${JSON.stringify(historyAudit)}`);
+  if (historyAudit.rows !== 5 || !historyAudit.text.includes("10") || !historyAudit.text.includes("20") || !historyAudit.text.includes("50") || !historyAudit.text.includes("5000") || !historyAudit.text.includes("10001") || !historyAudit.text.includes("manual") || !historyAudit.text.includes("precision")) failures.push(`activity stream run history audit failed ${JSON.stringify(historyAudit)}`);
   if (!precisionQueueAudit.noAutoFetch || !precisionQueueAudit.addEnabled) failures.push(`precision probe queue audit failed ${JSON.stringify(precisionQueueAudit)}`);
   if (precisionUnexpectedFullFetchFiles.length > 0) failures.push(`precision probe add-to-queue started Full Fetch ${JSON.stringify(precisionUnexpectedFullFetchFiles)}`);
   const precisionIssueKeySets = asRecord(precisionExport?.issueKeySets);
   const exportedVariants = Array.isArray(precisionActivityStream.variantResults) ? precisionActivityStream.variantResults.map(asRecord) : [];
-  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || !String(precisionActivityStream.runId).startsWith("asrun-") || Number(precisionActivityStream.parsedActivityCount) < 1 || !Array.isArray(precisionActivityStream.entriesSanitized) || exportedVariants.length !== 3 || exportedVariants.some((variant) => variant.runId !== precisionActivityStream.runId) || Number(precisionParserDiagnostics.parsedEntryCount) !== 1 || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys) || !precisionIssueKeySets.recommendedIssueKeys.includes("SMOKE-101") || !Array.isArray(precisionExport.activityStreamRunHistory) || precisionExport.activityStreamRunHistory.length !== 3 || !Array.isArray(precisionExport.filteredEntriesSanitized) || precisionExport.filteredEntriesSanitized.length !== 1 || precisionFilter.issueKeyQuery !== "SMOKE-101" || Number(precisionFilterStats.filteredEntries) !== 1) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
+  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || !String(precisionActivityStream.runId).startsWith("asrun-") || Number(precisionActivityStream.parsedActivityCount) < 1 || !Array.isArray(precisionActivityStream.entriesSanitized) || exportedVariants.length !== 3 || exportedVariants.some((variant) => variant.runId !== precisionActivityStream.runId) || Number(precisionParserDiagnostics.parsedEntryCount) !== 1 || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys) || !precisionIssueKeySets.recommendedIssueKeys.includes("SMOKE-101") || !Array.isArray(precisionExport.activityStreamRunHistory) || precisionExport.activityStreamRunHistory.length !== 5 || !Array.isArray(precisionExport.filteredEntriesSanitized) || precisionExport.filteredEntriesSanitized.length !== 1 || !Array.isArray(precisionExport.clientDateFilteredEntriesSanitized) || precisionExport.clientDateFilteredEntriesSanitized.length !== 1 || !Array.isArray(precisionExport.dateQueryResults) || precisionExport.dateQueryResults.length !== 2 || !Array.isArray(precisionExport.maxResultsCapTestResults) || precisionExport.maxResultsCapTestResults.length !== 2 || precisionDateSemantics.bestDateQueryMode !== "update_date_after_before" || Number(precisionRequestedDateRange.startEpochMs) !== 1782835200000 || Number(precisionRequestedDateRange.endExclusiveEpochMs) !== 1783440000000 || Number(precisionMaxDiagnostics.requestedMaxResults) !== 50 || precisionFilter.issueKeyQuery !== "SMOKE-101" || Number(precisionFilterStats.filteredEntries) !== 1) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
   if (precisionSource.token !== "[masked]" || precisionSource.authorization !== "[masked]" || precisionSource.readOnly !== true || precisionSource.databaseWrite !== false || precisionSource.attachmentDownload !== false) failures.push(`precision probe export safety flags/masking failed ${JSON.stringify(precisionSource)}`);
   const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User changed: value=smoke_user@example.com", "Button clicked: Run Activity Stream Probe", "Manual Activity Stream URL changed", "Button clicked: Run Manual URL Replay", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
   const missingPrecisionActions = requiredPrecisionActions.filter((entry) => !precisionActionTimeline.includes(entry));

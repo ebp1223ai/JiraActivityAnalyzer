@@ -1,15 +1,15 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { DatabaseZap, Download, Play, Radio } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
-import { FieldLabel } from "../components/FormControls";
+import { FieldLabel, MockModal } from "../components/FormControls";
 import { PageHeader } from "../components/PageHeader";
 import { ResponsiveTableContainer } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useConnectionContext } from "../state/ConnectionContext";
-import { useSessionState, type UserActivityStreamResult, type UserActivityStreamVariantResult, type UserAnalysisCandidateIssue, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
+import { useSessionState, type UserActivityStreamDateQueryResult, type UserActivityStreamDateSemantics, type UserActivityStreamMaxResultsDiagnostics, type UserActivityStreamResult, type UserActivityStreamVariantResult, type UserAnalysisCandidateIssue, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
 
 function parseUsers(input: string) {
   return Array.from(new Set(input.split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean)));
@@ -44,6 +44,8 @@ const emptyParserDiagnostics = {
 const activityTypeOptions = ["link", "comment", "attachment", "status", "assignee_change", "field_change", "description_update", "page", "unknown"] as const;
 const variantOptions = ["username", "escaped_username", "email", "manual_url"] as const;
 const sourceOptions = ["activity_stream", "manual_url"] as const;
+const maxResultsQuickValues = [10, 20, 50, 100, 200, 500, 1000] as const;
+const capTestValues = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 65535] as const;
 
 function buildBaseJql(users: string[], startDate: string, endDate: string) {
   const endExclusive = addDays(endDate, 1);
@@ -72,6 +74,7 @@ export function PrecisionProbePage() {
   const connectionReady = Boolean(window.desktopApp?.uiSmoke || (activeConnection?.baseUrl && activeConnection?.apiToken));
   const latestRunIdRef = useRef(userAnalysis.currentActivityStreamRunId);
   const runningRef = useRef(userAnalysis.isActivityStreamRunning);
+  const [largeQueryConfirmation, setLargeQueryConfirmation] = useState<{ open: boolean; input: string; error: string; action: "activity" | "precision" | "cap" | "" }>({ open: false, input: "", error: "", action: "" });
   const allEntries = useMemo(() => [
     ...userAnalysis.activityStream.entriesSanitized.filter((entry) => entry.variant !== "manual_url"),
     ...(userAnalysis.manualActivityStreamResult?.entriesSanitized ?? [])
@@ -84,8 +87,8 @@ export function PrecisionProbePage() {
       if (filter.activityTypes.length > 0 && !filter.activityTypes.includes(entry.activityType)) return false;
       if (issueQuery && !entry.extractedIssueKeysPerEntry.some((key) => key.toLowerCase().includes(issueQuery))) return false;
       if (filter.onlyWithIssueKey && entry.extractedIssueKeysPerEntry.length === 0) return false;
-      if (filter.dateRange.start && entry.activityTime && entry.activityTime.slice(0, 10) < filter.dateRange.start) return false;
-      if (filter.dateRange.end && entry.activityTime && entry.activityTime.slice(0, 10) > filter.dateRange.end) return false;
+      if (filter.applyClientDateFilter && filter.dateRange.start && entry.activityTime && entry.activityTime.slice(0, 10) < filter.dateRange.start) return false;
+      if (filter.applyClientDateFilter && filter.dateRange.end && entry.activityTime && entry.activityTime.slice(0, 10) > filter.dateRange.end) return false;
       if (filter.variants.length > 0 && !filter.variants.includes(entry.variant)) return false;
       if (filter.sources.length > 0 && !filter.sources.includes(entry.source)) return false;
       if (authorQuery && !`${entry.activityAuthor} ${entry.activityAuthorEmail}`.toLowerCase().includes(authorQuery)) return false;
@@ -98,6 +101,10 @@ export function PrecisionProbePage() {
     uniqueIssueKeyCount: new Set(filteredEntries.flatMap((entry) => entry.extractedIssueKeysPerEntry)).size,
     activityTypeCounts: filteredEntries.reduce<Record<string, number>>((counts, entry) => ({ ...counts, [entry.activityType]: (counts[entry.activityType] ?? 0) + 1 }), {})
   }), [allEntries, filteredEntries]);
+  const clientDateFilteredEntries = useMemo(() => allEntries.filter((entry) => {
+    const date = entry.activityTime.slice(0, 10);
+    return Boolean(date && (!userAnalysis.startDate || date >= userAnalysis.startDate) && (!userAnalysis.endDate || date <= userAnalysis.endDate));
+  }), [allEntries, userAnalysis.startDate, userAnalysis.endDate]);
 
   function patchState(patch: Partial<typeof userAnalysis>) {
     setUserAnalysis((current) => ({ ...current, ...patch }));
@@ -129,6 +136,8 @@ export function PrecisionProbePage() {
       manualUrlReplayDiagnostics: { manualUrlProvided: false, manualUrlAccepted: false, rejectReason: "", requestUrlSanitized: "" },
       precisionIssueKeySets: { ...current.precisionIssueKeySets, activityStreamIssueKeys: [], manualActivityStreamIssueKeys: [], recommendedIssueKeys: [] },
       uniquePreciseIssueKeys: [],
+      activityStreamDateQueryResults: [],
+      activityStreamDateSemantics: { ...current.activityStreamDateSemantics, dateQueryModesTested: [], bestDateQueryMode: "client_side_only", serverDateFilterEffective: "unknown", rawReturnedEntries: 0, clientDateFilteredEntries: 0, warnings: [] },
       activityStream: {
         ...current.activityStream,
         runId,
@@ -207,11 +216,12 @@ export function PrecisionProbePage() {
     if (selectedUsers.length === 0) return "Please enter at least one selected user. / 請輸入至少一位使用者。";
     if (!userAnalysis.activityStreamUser.trim()) return "Please enter Activity Stream User. / 請輸入 Activity Stream 使用者。";
     if (!userAnalysis.startDate || !userAnalysis.endDate || userAnalysis.startDate > userAnalysis.endDate) return "Please enter a valid date range. / 請輸入有效日期範圍。";
+    if (!Number.isInteger(userAnalysis.precisionProbeMaxResults) || userAnalysis.precisionProbeMaxResults < 1 || userAnalysis.precisionProbeMaxResults > 65535) return "maxResults must be between 1 and 65535. / maxResults 必須介於 1 到 65535。";
     if (!smokeConnection()) return "Jira connection is not ready. / Jira 連線尚未就緒。";
     return "";
   }
 
-  async function runActivityStreamOnly() {
+  async function runActivityStreamOnly(largeMaxResultsConfirmed = false, capTest = false) {
     logAction("USER_ACTION", "Button clicked: Run Activity Stream Probe / 執行 Activity Stream 測試");
     const error = validate();
     if (error) return patchState({ precisionProbeErrors: [error] });
@@ -220,16 +230,23 @@ export function PrecisionProbePage() {
     try {
       const response = await window.desktopApp?.userAnalysis?.activityStreamProbe?.({
         connection: smokeConnection()!, selectedUsers, activityStreamUser: userAnalysis.activityStreamUser.trim(), queryMode: userAnalysis.activityStreamQueryMode, startDate: userAnalysis.startDate,
-        endDate: endExclusive, maxResults: userAnalysis.precisionProbeMaxResults, relativeLinks: userAnalysis.activityStreamRelativeLinks, runId
+        endDate: userAnalysis.endDate, maxResults: userAnalysis.precisionProbeMaxResults, maxResultsSource: userAnalysis.precisionProbeMaxResultsSource, largeMaxResultsConfirmed,
+        dateQueryMode: capTest ? "none" : userAnalysis.activityStreamDateQueryMode, relativeLinks: userAnalysis.activityStreamRelativeLinks, runId
       });
       if (!response) throw new Error("Electron Activity Stream API is not available.");
       appendDebugLog("precision", Array.isArray(response.logs) ? response.logs as string[] : []);
       const activityStream = response.activityStream as unknown as UserActivityStreamResult;
+      const dateSemantics = response.dateSemantics as unknown as UserActivityStreamDateSemantics;
+      const dateQueryResults = (Array.isArray(response.dateQueryResults) ? response.dateQueryResults : []) as UserActivityStreamDateQueryResult[];
+      const maxResultsDiagnostics = response.maxResultsDiagnostics as unknown as UserActivityStreamMaxResultsDiagnostics;
       if (staleResult(String(response.runId || activityStream.runId || ""))) return;
       setUserAnalysis((current) => {
         const manualKeys = current.precisionIssueKeySets.manualActivityStreamIssueKeys;
         const recommendedIssueKeys = manualKeys.length > 0 ? manualKeys : activityStream.activityStreamIssueKeys;
-        return { ...current, activityStream, precisionIssueKeySets: { ...current.precisionIssueKeySets, activityStreamIssueKeys: activityStream.activityStreamIssueKeys, recommendedIssueKeys }, uniquePreciseIssueKeys: recommendedIssueKeys, precisionProbeStatus: activityStream.overallStatus === "failed" ? "failed" : "completed", precisionProbeErrors: activityStream.error ? [activityStream.error] : [], notice: `Activity Stream Probe completed: ${activityStream.parsedActivityCount} activities, ${activityStream.activityStreamIssueKeys.length} issue key(s). / Activity Stream 測試完成。` };
+        let diagnostics = maxResultsDiagnostics;
+        const previous = current.activityStreamCapTestResults[0];
+        if (capTest && previous && diagnostics.requestedMaxResults > previous.requestedMaxResults && diagnostics.actualAtomEntryCount > 0 && diagnostics.actualAtomEntryCount === previous.actualAtomEntryCount) diagnostics = { ...diagnostics, serverCapDetected: "likely", serverCapValueEstimated: diagnostics.actualAtomEntryCount, warnings: [...diagnostics.warnings, `Likely server cap detected near ${diagnostics.actualAtomEntryCount} entries.`] };
+        return { ...current, activityStream, activityStreamDateSemantics: { ...dateSemantics, clientDateFilterApplied: current.parsedEntriesFilter.applyClientDateFilter }, activityStreamDateQueryResults: dateQueryResults, activityStreamMaxResultsDiagnostics: diagnostics, activityStreamCapTestResults: capTest ? [diagnostics, ...current.activityStreamCapTestResults].slice(0, 9) : current.activityStreamCapTestResults, precisionIssueKeySets: { ...current.precisionIssueKeySets, activityStreamIssueKeys: activityStream.activityStreamIssueKeys, recommendedIssueKeys }, uniquePreciseIssueKeys: recommendedIssueKeys, precisionProbeStatus: activityStream.overallStatus === "failed" ? "failed" : "completed", precisionProbeErrors: activityStream.error ? [activityStream.error] : [], notice: `${capTest ? "MaxResults Cap Test" : "Activity Stream Probe"} completed: ${activityStream.parsedActivityCount} activities, ${activityStream.activityStreamIssueKeys.length} issue key(s). / Activity Stream 測試完成。` };
       });
       finishRun(runId, activityStream, { startedAt: String(response.startedAt || ""), completedAt: String(response.completedAt || ""), mode: userAnalysis.activityStreamQueryMode, user: userAnalysis.activityStreamUser.trim(), maxResults: userAnalysis.precisionProbeMaxResults, start: userAnalysis.startDate, end: endExclusive });
     } catch (error) {
@@ -239,7 +256,7 @@ export function PrecisionProbePage() {
     }
   }
 
-  async function runPrecisionProbe() {
+  async function runPrecisionProbe(largeMaxResultsConfirmed = false) {
     logAction("USER_ACTION", "Button clicked: Run Precision Probe / 執行精準查詢測試");
     const error = validate();
     if (error) return patchState({ precisionProbeErrors: [error] });
@@ -249,16 +266,21 @@ export function PrecisionProbePage() {
     try {
       const response = await window.desktopApp?.userAnalysis?.precisionProbe?.({
         connection: smokeConnection()!, selectedUsers, startInclusive: userAnalysis.startDate, endExclusive,
+        activityStreamEndInclusive: userAnalysis.endDate,
         projectScope: userAnalysis.precisionProjectScope, activityStreamUser: userAnalysis.activityStreamUser.trim(),
         activityStreamQueryMode: userAnalysis.activityStreamQueryMode,
         activityStreamRelativeLinks: userAnalysis.activityStreamRelativeLinks,
         activityStreamRunId: runId,
-        maxResults: userAnalysis.precisionProbeMaxResults, broadJql: buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate)
+        activityStreamDateQueryMode: userAnalysis.activityStreamDateQueryMode,
+        maxResults: userAnalysis.precisionProbeMaxResults, maxResultsSource: userAnalysis.precisionProbeMaxResultsSource, largeMaxResultsConfirmed, broadJql: buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate)
       });
       if (!response) throw new Error("Electron Precision Probe API is not available.");
       appendDebugLog("precision", Array.isArray(response.logs) ? response.logs as string[] : []);
       const summary = response.summary as unknown as UserAnalysisPrecisionProbeSummary;
       const activityStream = response.activityStream as unknown as UserActivityStreamResult;
+      const dateSemantics = response.dateSemantics as unknown as UserActivityStreamDateSemantics;
+      const dateQueryResults = (Array.isArray(response.dateQueryResults) ? response.dateQueryResults : []) as UserActivityStreamDateQueryResult[];
+      const maxResultsDiagnostics = response.maxResultsDiagnostics as unknown as UserActivityStreamMaxResultsDiagnostics;
       if (staleResult(activityStream.runId)) return;
       const status = String(response.status ?? "failed");
       const responseSets = (response.issueKeySets ?? {
@@ -270,6 +292,9 @@ export function PrecisionProbePage() {
         precisionProbeResults: (Array.isArray(response.results) ? response.results : []) as UserAnalysisPrecisionProbeResult[],
         precisionProbeSummary: summary,
         activityStream,
+        activityStreamDateSemantics: { ...dateSemantics, clientDateFilterApplied: userAnalysis.parsedEntriesFilter.applyClientDateFilter },
+        activityStreamDateQueryResults: dateQueryResults,
+        activityStreamMaxResultsDiagnostics: maxResultsDiagnostics,
         precisionIssueKeySets: mergedSets,
         uniquePreciseIssueKeys: mergedSets.recommendedIssueKeys,
         precisionIssueSources: (response.issueSources ?? {}) as Record<string, string[]>,
@@ -319,6 +344,36 @@ export function PrecisionProbePage() {
     }
   }
 
+  function requestLargeQuery(action: "activity" | "precision" | "cap") {
+    const error = validate();
+    if (error) return patchState({ precisionProbeErrors: [error] });
+    if (userAnalysis.precisionProbeMaxResults > 2000) {
+      logAction("UI_MODAL", `Large Activity Stream query confirmation opened: maxResults=${userAnalysis.precisionProbeMaxResults} action=${action}`);
+      setLargeQueryConfirmation({ open: true, input: "", error: "", action });
+      return;
+    }
+    if (action === "precision") void runPrecisionProbe(false);
+    else void runActivityStreamOnly(false, action === "cap");
+  }
+
+  function cancelLargeQuery() {
+    logAction("USER_ACTION", "Large Activity Stream query confirmation cancelled");
+    setLargeQueryConfirmation({ open: false, input: "", error: "", action: "" });
+  }
+
+  function confirmLargeQuery() {
+    if (largeQueryConfirmation.input !== "CONFIRM") {
+      logAction("GUARD", "Large Activity Stream query confirmation rejected: confirmation text mismatch");
+      setLargeQueryConfirmation((current) => ({ ...current, error: "Please type CONFIRM exactly. / 請完整輸入 CONFIRM。" }));
+      return;
+    }
+    const action = largeQueryConfirmation.action;
+    logAction("USER_ACTION", `Large Activity Stream query confirmed: maxResults=${userAnalysis.precisionProbeMaxResults} action=${action}`);
+    setLargeQueryConfirmation({ open: false, input: "", error: "", action: "" });
+    if (action === "precision") void runPrecisionProbe(true);
+    else void runActivityStreamOnly(true, action === "cap");
+  }
+
   function addToFetchQueue() {
     logAction("USER_ACTION", "Button clicked: Add Precise Candidates to Fetch Queue / 加入精準候選到抓取佇列");
     setUserAnalysis((current) => {
@@ -362,6 +417,11 @@ export function PrecisionProbePage() {
       summary: userAnalysis.precisionProbeSummary,
       probeResults: userAnalysis.precisionProbeResults,
       activityStream,
+      dateSemantics: { ...userAnalysis.activityStreamDateSemantics, clientDateFilterApplied: userAnalysis.parsedEntriesFilter.applyClientDateFilter },
+      dateQueryResults: userAnalysis.activityStreamDateQueryResults,
+      maxResultsDiagnostics: userAnalysis.activityStreamMaxResultsDiagnostics,
+      maxResultsCapTestResults: userAnalysis.activityStreamCapTestResults,
+      clientDateFilteredEntriesSanitized: clientDateFilteredEntries.slice(0, 200),
       manualUrlReplayDiagnostics: userAnalysis.manualUrlReplayDiagnostics,
       activityStreamRunHistory: userAnalysis.activityStreamRunHistory,
       parsedEntriesFilter: userAnalysis.parsedEntriesFilter,
@@ -394,6 +454,7 @@ export function PrecisionProbePage() {
   const stream = userAnalysis.activityStream;
   return <>
     <PageHeader title="User Activity Precision Probe" subtitle="使用者活動精準查詢測試" />
+    {largeQueryConfirmation.open ? <MockModal title="Large Activity Stream Query Confirmation / 大型查詢確認" onClose={cancelLargeQuery} footer={<><button className="btn" type="button" onClick={cancelLargeQuery}>Cancel / 取消</button><button data-testid="confirm-large-max" className="btn btn-primary" type="button" onClick={confirmLargeQuery}><Play size={16} />Confirm and Run / 確認並執行</button></>}><div className="space-y-3 leading-relaxed"><p>You are about to request up to <b>{userAnalysis.precisionProbeMaxResults}</b> Activity Stream entries.<br />你即將要求最多 <b>{userAnalysis.precisionProbeMaxResults}</b> 筆 Activity Stream entries。</p><p>This can increase response time and Jira server load. No Jira or database write will occur.<br />這可能增加回應時間與 Jira server 負載，但不會寫入 Jira 或資料庫。</p><div><FieldLabel label="Type CONFIRM to continue" sub="請輸入 CONFIRM 才能繼續" /><input data-testid="large-max-confirm-input" className="field" autoFocus value={largeQueryConfirmation.input} onChange={(event) => setLargeQueryConfirmation((current) => ({ ...current, input: event.target.value, error: "" }))} placeholder="CONFIRM" />{largeQueryConfirmation.error ? <div className="mt-2 text-sm font-bold text-red-700">{largeQueryConfirmation.error}</div> : null}</div></div></MockModal> : null}
     <SectionCard className="mb-4">
       <div className="rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm font-semibold leading-relaxed text-cyan-950">Activity Stream is the preferred actual-activity validation source. updatedBy remains a candidate source and may include automation or indexing effects.<br />Activity Stream 優先作為實際活動驗證來源；updatedBy 僅為候選來源，可能包含自動化或索引影響。</div>
       <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -402,11 +463,13 @@ export function PrecisionProbePage() {
         <div><FieldLabel label="Activity Stream User Query Mode" sub="Activity Stream 使用者查詢模式" /><select data-testid="activity-stream-query-mode" className="field" value={userAnalysis.activityStreamQueryMode} onChange={(event) => { const value = event.target.value as typeof userAnalysis.activityStreamQueryMode; logAction("USER_ACTION", `Activity Stream Query Mode changed: value=${value}`); patchState({ activityStreamQueryMode: value }); }}><option value="auto">Auto / 自動（建議）</option><option value="username">Username only / 只用帳號</option><option value="email">Email only / 只用 Email</option><option value="custom">Custom only / 只用自訂輸入</option></select><div className="mt-2 text-xs font-semibold leading-relaxed text-muted">Auto tries username, escaped username, and email variants without duplicates. / 自動模式會依序測試帳號、跳脫帳號與 Email。</div></div>
         <div className="grid grid-cols-2 gap-2"><div><FieldLabel label="Start Date" sub="開始日期" /><input className="field" type="date" value={userAnalysis.startDate} onChange={(event) => patchState({ startDate: event.target.value })} /></div><div><FieldLabel label="End Date" sub="結束日期" /><input className="field" type="date" value={userAnalysis.endDate} onChange={(event) => patchState({ endDate: event.target.value })} /></div></div>
         <div><FieldLabel label="Project Scope" sub="專案範圍（選填）" /><input className="field" value={userAnalysis.precisionProjectScope} placeholder="COPGEN1, FW" onChange={(event) => patchState({ precisionProjectScope: event.target.value })} /></div>
-        <div><FieldLabel label="Probe Max Results" sub="測試最大筆數" /><select data-testid="probe-max-results" className="field" value={userAnalysis.precisionProbeMaxResults} onChange={(event) => { const value = Number(event.target.value) as 0 | 10 | 20 | 50; logAction("USER_ACTION", `Probe Max Results changed: value=${value}`); patchState({ precisionProbeMaxResults: value }); }}>{[0, 10, 20, 50].map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+        <div><FieldLabel label="Probe Max Results" sub="最大回傳筆數（1–65535）" /><input data-testid="probe-max-results" className="field" type="number" min={1} max={65535} value={userAnalysis.precisionProbeMaxResults} onChange={(event) => { const value = Number(event.target.value); logAction("USER_ACTION", `Probe Max Results changed: value=${value}`); patchState({ precisionProbeMaxResults: value, precisionProbeMaxResultsSource: "custom" }); }} /><div className="mt-2 flex flex-wrap gap-1">{maxResultsQuickValues.map((value) => <button data-testid={`max-quick-${value}`} key={value} className="btn px-2 py-1 text-xs" type="button" onClick={() => patchState({ precisionProbeMaxResults: value, precisionProbeMaxResultsSource: "quick" })}>{value}</button>)}</div></div>
+        <div><FieldLabel label="Activity Stream Date Query Mode" sub="Activity Stream 日期查詢模式" /><select data-testid="activity-stream-date-query-mode" className="field" value={userAnalysis.activityStreamDateQueryMode} onChange={(event) => patchState({ activityStreamDateQueryMode: event.target.value as typeof userAnalysis.activityStreamDateQueryMode })}><option value="none">None / 不使用 server 日期條件</option><option value="startDate_endDate">startDate/endDate query</option><option value="update_date_after_before">update-date AFTER/BEFORE query</option><option value="both">Both / 同時測試（建議）</option></select></div>
         <label className="flex min-w-0 items-center gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-bold text-ink"><input type="checkbox" checked={userAnalysis.activityStreamRelativeLinks} onChange={(event) => patchState({ activityStreamRelativeLinks: event.target.checked })} />Use relativeLinks=true / 使用 relativeLinks=true</label>
-        <div className="rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">Activity Stream request range: {userAnalysis.startDate || "-"} .. {endExclusive || "-"}<br />activityStreamDateSemantics: unknown</div>
+        <div className="rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">Requested range: {userAnalysis.startDate || "-"} .. {userAnalysis.endDate || "-"} inclusive<br />Server endExclusive: {endExclusive || "-"}<br />Timezone: Asia/Taipei / UTC+8</div>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2"><button data-testid="run-activity-stream" className="btn" type="button" disabled={!connectionReady || userAnalysis.isActivityStreamRunning} onClick={() => void runActivityStreamOnly()}><Radio size={16} />Run Activity Stream Probe / 執行 Activity Stream 測試</button><button data-testid="run-precision-probe" className="btn btn-primary" type="button" disabled={!connectionReady || userAnalysis.isActivityStreamRunning} onClick={() => void runPrecisionProbe()}><Play size={16} />Run Precision Probe / 執行精準查詢測試</button><button data-testid="save-precision-probe" className="btn" type="button" disabled={userAnalysis.saving || userAnalysis.isActivityStreamRunning || (userAnalysis.precisionProbeResults.length === 0 && stream.status === "not_run")} onClick={() => void saveResult()}><Download size={16} />Save Precision Probe Result / 儲存精準查詢測試結果</button><button data-testid="add-precision-queue" className="btn" type="button" disabled={userAnalysis.isActivityStreamRunning || userAnalysis.precisionIssueKeySets.recommendedIssueKeys.length === 0} onClick={addToFetchQueue}><DatabaseZap size={16} />Add Recommended Keys to Fetch Queue / 加入建議 Jira 到抓取佇列</button></div>
+      {userAnalysis.precisionProbeMaxResults > 500 ? <div data-testid="large-max-warning" className={`mt-3 rounded-lg border p-3 text-sm font-bold ${userAnalysis.precisionProbeMaxResults > 10000 ? "border-red-300 bg-red-50 text-red-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}>{userAnalysis.precisionProbeMaxResults > 10000 ? "Strong warning: this query may timeout, stall the UI, or increase Jira server load. / 強烈警告：此查詢可能逾時、造成 UI 卡頓或增加 Jira server 負載。" : "Large Activity Stream query requested. / 大型 Activity Stream 查詢提醒。"}{userAnalysis.precisionProbeMaxResults > 2000 ? <><br />Type CONFIRM before this request can run. / 執行前必須輸入 CONFIRM。</> : null}</div> : null}
+      <div className="mt-4 flex flex-wrap gap-2"><button data-testid="run-activity-stream" className="btn" type="button" disabled={!connectionReady || userAnalysis.isActivityStreamRunning} onClick={() => requestLargeQuery("activity")}><Radio size={16} />Run Activity Stream Probe / 執行 Activity Stream 測試</button><button data-testid="run-precision-probe" className="btn btn-primary" type="button" disabled={!connectionReady || userAnalysis.isActivityStreamRunning} onClick={() => requestLargeQuery("precision")}><Play size={16} />Run Precision Probe / 執行精準查詢測試</button><button data-testid="save-precision-probe" className="btn" type="button" disabled={userAnalysis.saving || userAnalysis.isActivityStreamRunning || (userAnalysis.precisionProbeResults.length === 0 && stream.status === "not_run")} onClick={() => void saveResult()}><Download size={16} />Save Precision Probe Result / 儲存精準查詢測試結果</button><button data-testid="add-precision-queue" className="btn" type="button" disabled={userAnalysis.isActivityStreamRunning || userAnalysis.precisionIssueKeySets.recommendedIssueKeys.length === 0} onClick={addToFetchQueue}><DatabaseZap size={16} />Add Recommended Keys to Fetch Queue / 加入建議 Jira 到抓取佇列</button></div>
       {userAnalysis.isActivityStreamRunning ? <div data-testid="activity-stream-running" className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-900">Running Activity Stream Probe...<br />Run ID: {userAnalysis.currentActivityStreamRunId}</div> : null}
       {userAnalysis.notice ? <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm font-bold text-green-800">{userAnalysis.notice}</div> : null}
     </SectionCard>
@@ -419,9 +482,21 @@ export function PrecisionProbePage() {
       {userAnalysis.manualUrlReplayDiagnostics.requestUrlSanitized ? <div className="mt-3 break-all rounded-lg border border-green-200 bg-green-50 p-3 text-xs font-semibold text-green-900">{userAnalysis.manualUrlReplayDiagnostics.requestUrlSanitized}</div> : null}
     </SectionCard>
 
+    <SectionCard title="Date Semantics Result" subtitle="日期語意驗證結果" className="mb-4">
+      <div data-testid="date-semantics-result" className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3"><MiniStat label="Date Query Mode" value={userAnalysis.activityStreamDateQueryMode} /><MiniStat label="Requested Range" value={`${userAnalysis.startDate} .. ${userAnalysis.endDate}`} /><MiniStat label="Timezone" value="Asia/Taipei UTC+8" /><MiniStat label="Server Returned Entries" value={userAnalysis.activityStreamDateSemantics.rawReturnedEntries} /><MiniStat label="Client Date Filtered Entries" value={userAnalysis.activityStreamDateSemantics.clientDateFilteredEntries} /><MiniStat label="Date Filter Effective" value={String(userAnalysis.activityStreamDateSemantics.serverDateFilterEffective)} /><MiniStat label="Best Date Query Mode" value={userAnalysis.activityStreamDateSemantics.bestDateQueryMode} /></div>
+      <ResponsiveTableContainer className="mt-4"><table data-testid="date-query-results" className="table min-w-[1200px]"><thead><tr>{["Mode", "Atom", "Parsed", "Inside", "Outside", "Newest", "Oldest", "Effective", "Filter Key"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{userAnalysis.activityStreamDateQueryResults.map((result) => <tr key={result.mode}><td>{result.mode}</td><td>{result.atomEntryCount}</td><td>{result.parsedActivityCount}</td><td>{result.entriesInsideRequestedRange}</td><td>{result.entriesOutsideRequestedRange}</td><td>{result.newestEntryTime || "-"}</td><td>{result.oldestEntryTime || "-"}</td><td><StatusBadge>{String(result.dateFilterEffective)}</StatusBadge></td><td>{result.dateFilterKeyTested || "-"}</td></tr>)}{userAnalysis.activityStreamDateQueryResults.length === 0 ? <tr><td colSpan={9} className="text-center text-muted">Run Activity Stream Probe to verify date semantics. / 請先執行 Activity Stream 測試。</td></tr> : null}</tbody></table></ResponsiveTableContainer>
+      {userAnalysis.activityStreamDateSemantics.warnings.map((warning) => <div key={warning} className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">{warning}</div>)}
+    </SectionCard>
+
+    <SectionCard title="MaxResults Cap Test" subtitle="最大回傳上限測試" className="mb-4">
+      <div className="flex flex-wrap items-end gap-3"><div className="min-w-[220px]"><FieldLabel label="Test Value" sub="測試筆數" /><select data-testid="cap-test-value" className="field" value={capTestValues.includes(userAnalysis.precisionProbeMaxResults as typeof capTestValues[number]) ? userAnalysis.precisionProbeMaxResults : 50} onChange={(event) => patchState({ precisionProbeMaxResults: Number(event.target.value), precisionProbeMaxResultsSource: "quick" })}>{capTestValues.map((value) => <option key={value} value={value}>{value}</option>)}</select></div><button data-testid="run-cap-test" className="btn btn-primary" type="button" disabled={!connectionReady || userAnalysis.isActivityStreamRunning} onClick={() => requestLargeQuery("cap")}><Radio size={16} />Run MaxResults Cap Test / 執行上限測試</button></div>
+      <div data-testid="max-results-diagnostics" className="mt-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3"><MiniStat label="Requested MaxResults" value={userAnalysis.activityStreamMaxResultsDiagnostics.requestedMaxResults} /><MiniStat label="Actual Atom Entries" value={userAnalysis.activityStreamMaxResultsDiagnostics.actualAtomEntryCount} /><MiniStat label="Parsed Activities" value={userAnalysis.activityStreamMaxResultsDiagnostics.parsedActivityCount} /><MiniStat label="Response Time" value={`${userAnalysis.activityStreamMaxResultsDiagnostics.responseTimeMs} ms`} /><MiniStat label="Response Size" value={`${userAnalysis.activityStreamMaxResultsDiagnostics.responseSizeKB} KB`} /><MiniStat label="Server Cap Detected" value={String(userAnalysis.activityStreamMaxResultsDiagnostics.serverCapDetected)} /><MiniStat label="Estimated Cap" value={userAnalysis.activityStreamMaxResultsDiagnostics.serverCapValueEstimated ?? "-"} /></div>
+      <ResponsiveTableContainer className="mt-4"><table data-testid="cap-test-results" className="table min-w-[900px]"><thead><tr>{["Requested", "Actual Atom", "Parsed", "Response", "Size KB", "Cap", "Estimated"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{userAnalysis.activityStreamCapTestResults.map((result, index) => <tr key={`${result.requestedMaxResults}-${index}`}><td>{result.requestedMaxResults}</td><td>{result.actualAtomEntryCount}</td><td>{result.parsedActivityCount}</td><td>{result.responseTimeMs} ms</td><td>{result.responseSizeKB}</td><td>{String(result.serverCapDetected)}</td><td>{result.serverCapValueEstimated ?? "-"}</td></tr>)}{userAnalysis.activityStreamCapTestResults.length === 0 ? <tr><td colSpan={7} className="text-center text-muted">No cap tests yet. A single short result cannot prove a server cap. / 尚無上限測試，單次結果不足以判定 server cap。</td></tr> : null}</tbody></table></ResponsiveTableContainer>
+    </SectionCard>
+
     <SectionCard title="Activity Stream Result" subtitle="Activity Stream 結果" className="mb-4">
       <div className="mb-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3"><MiniStat label="Overall Status / 整體狀態" value={stream.overallStatus} /><MiniStat label="Reachable / 可連線" value={stream.reachable ? "yes" : "no"} /><MiniStat label="Supported / 是否支援" value={stream.supported} /><MiniStat label="Parsed / 已解析" value={stream.parsed ? "yes" : "no"} /><MiniStat label="Diagnosis / 診斷" value={stream.diagnosis} /><MiniStat label="Best Variant / 最佳變體" value={userAnalysis.manualActivityStreamResult?.parsed ? "manual_url" : stream.bestVariant || "-"} /><MiniStat label="Atom Entries / Atom 項目" value={stream.atomEntryCount} /><MiniStat label="Parsed Activities / 活動數" value={stream.parsedActivityCount} /><MiniStat label="Parsed Issue Keys / 解析 Jira 數" value={userAnalysis.precisionIssueKeySets.recommendedIssueKeys.length} /></div>
-      <div className="mb-3 break-all rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold text-muted">GET {stream.requestUrlSanitized || "/plugins/servlet/streams?..."}<br />Date semantics / 日期語意：{stream.activityStreamDateSemantics}</div>
+      <div className="mb-3 break-all rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold text-muted">GET {stream.requestUrlSanitized || "/plugins/servlet/streams?..."}<br />Best date query mode / 最佳日期查詢模式：{userAnalysis.activityStreamDateSemantics.bestDateQueryMode}</div>
       <h3 className="mb-2 text-sm font-black text-ink">Query Variants / 查詢變體</h3>
       <ResponsiveTableContainer className="mb-4"><table className="table min-w-[1200px]" data-testid="activity-stream-variants"><thead><tr>{["Variant", "User", "HTTP", "Content Type", "Reachable", "Supported", "Atom Entries", "Parsed", "Jira Keys", "Diagnosis"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{[...stream.variantResults.filter((item) => item.variant !== "manual_url"), ...(userAnalysis.manualActivityStreamResult ? [userAnalysis.manualActivityStreamResult] : [])].map((result) => <tr key={`${result.variant}-${result.activityStreamUser}`}><td className="font-bold">{result.variant}</td><td>{result.activityStreamUser}</td><td>{result.httpStatus}</td><td>{result.contentType || "-"}</td><td>{result.reachable ? "yes" : "no"}</td><td>{result.supported}</td><td>{result.atomEntryCount}</td><td>{result.parsedActivityCount}</td><td>{result.parsedIssueKeys.join(", ") || "-"}</td><td><StatusBadge>{result.diagnosis}</StatusBadge></td></tr>)}{stream.variantResults.length === 0 && !userAnalysis.manualActivityStreamResult ? <tr><td colSpan={10} className="text-center text-muted">No query variants yet / 尚無查詢變體</td></tr> : null}</tbody></table></ResponsiveTableContainer>
       <h3 className="mb-2 text-sm font-black text-ink">Parser Diagnostics / 解析診斷</h3>
@@ -436,7 +511,7 @@ export function PrecisionProbePage() {
         <div className="grid grid-cols-2 gap-2"><div><FieldLabel label="Filter Start" sub="篩選開始日期" /><input data-testid="filter-start" className="field" type="date" value={userAnalysis.parsedEntriesFilter.dateRange.start} onChange={(event) => patchState({ parsedEntriesFilter: { ...userAnalysis.parsedEntriesFilter, dateRange: { ...userAnalysis.parsedEntriesFilter.dateRange, start: event.target.value } } })} /></div><div><FieldLabel label="Filter End" sub="篩選結束日期" /><input data-testid="filter-end" className="field" type="date" value={userAnalysis.parsedEntriesFilter.dateRange.end} onChange={(event) => patchState({ parsedEntriesFilter: { ...userAnalysis.parsedEntriesFilter, dateRange: { ...userAnalysis.parsedEntriesFilter.dateRange, end: event.target.value } } })} /></div></div>
         <div><FieldLabel label="Variant" sub="查詢變體（Ctrl/Cmd 多選；未選即 All）" /><select data-testid="filter-variants" multiple className="field min-h-32" value={userAnalysis.parsedEntriesFilter.variants} onChange={(event) => patchState({ parsedEntriesFilter: { ...userAnalysis.parsedEntriesFilter, variants: Array.from(event.currentTarget.selectedOptions, (option) => option.value) } })}>{variantOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
         <div><FieldLabel label="Source" sub="來源（Ctrl/Cmd 多選；未選即 All）" /><select data-testid="filter-sources" multiple className="field min-h-24" value={userAnalysis.parsedEntriesFilter.sources} onChange={(event) => patchState({ parsedEntriesFilter: { ...userAnalysis.parsedEntriesFilter, sources: Array.from(event.currentTarget.selectedOptions, (option) => option.value) as typeof userAnalysis.parsedEntriesFilter.sources } })}>{sourceOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
-      </div><div className="mt-3 flex flex-wrap items-center gap-3"><button data-testid="reset-entry-filters" className="btn" type="button" onClick={() => patchState({ parsedEntriesFilter: { activityTypes: [], issueKeyQuery: "", onlyWithIssueKey: false, dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, variants: [], sources: [], authorQuery: "" } })}>Reset Filters / 重設篩選</button><span className="text-sm font-bold text-muted">Total Parsed Entries / 全部解析項目：{filterStats.totalParsedEntries} · Filtered Entries / 篩選後項目：{filterStats.filteredEntries} · Unique Issue Keys / 去重 Jira：{filterStats.uniqueIssueKeyCount}</span></div><div className="mt-2 text-xs font-semibold text-muted">Activity Types / 活動類型統計：{Object.entries(filterStats.activityTypeCounts).map(([type, count]) => `${type}: ${count}`).join(" · ") || "-"}</div></div>
+      </div><div className="mt-3 flex flex-wrap items-center gap-3"><label className="flex items-center gap-2 text-sm font-bold"><input data-testid="apply-client-date-filter" type="checkbox" checked={userAnalysis.parsedEntriesFilter.applyClientDateFilter} onChange={(event) => patchState({ parsedEntriesFilter: { ...userAnalysis.parsedEntriesFilter, applyClientDateFilter: event.target.checked }, activityStreamDateSemantics: { ...userAnalysis.activityStreamDateSemantics, clientDateFilterApplied: event.target.checked } })} />Apply Client Date Filter / 套用本機日期篩選</label><button data-testid="reset-entry-filters" className="btn" type="button" onClick={() => patchState({ parsedEntriesFilter: { activityTypes: [], issueKeyQuery: "", onlyWithIssueKey: false, dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, variants: [], sources: [], authorQuery: "", applyClientDateFilter: true } })}>Reset Filters / 重設篩選</button><span className="text-sm font-bold text-muted">Total Parsed Entries / 全部解析項目：{filterStats.totalParsedEntries} · Filtered Entries / 篩選後項目：{filterStats.filteredEntries} · Unique Issue Keys / 去重 Jira：{filterStats.uniqueIssueKeyCount}</span></div><div className="mt-2 text-xs font-semibold text-muted">Activity Types / 活動類型統計：{Object.entries(filterStats.activityTypeCounts).map(([type, count]) => `${type}: ${count}`).join(" · ") || "-"}</div></div>
       <ResponsiveTableContainer><table className="table min-w-[1400px]" data-testid="activity-stream-results"><thead><tr>{["Run ID", "Variant", "Source / 來源", "Activity Type / 活動類型", "Issue Key / Jira", "Time / 時間", "Author / 作者", "Author Email", "Title / 標題"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{filteredEntries.map((entry, index) => <tr key={`${entry.runId}-${entry.issueKey}-${entry.activityTime}-${index}`}><td>{entry.runId || "-"}</td><td>{entry.variant || "-"}</td><td>{entry.source}</td><td>{entry.activityType}</td><td className="font-black text-blue-700">{entry.issueKey || "-"}</td><td>{entry.activityTime || "-"}</td><td>{entry.activityAuthor || "-"}</td><td>{entry.activityAuthorEmail || "-"}</td><td><span className="block max-w-[360px] truncate" title={entry.activityTitle} data-allow-truncate="true">{entry.activityTitle || "-"}</span></td></tr>)}{filteredEntries.length === 0 ? <tr><td colSpan={9} className="text-center text-muted">No entries match the current filters / 沒有符合目前篩選條件的項目</td></tr> : null}</tbody></table></ResponsiveTableContainer>
       {stream.error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">{stream.error}</div> : null}
     </SectionCard>

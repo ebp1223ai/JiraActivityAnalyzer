@@ -238,6 +238,15 @@ The standalone User Activity Precision Probe is a read-only compatibility and di
 - Parsed Entries can be filtered without changing the original sanitized entries by activity type, partial Jira key, key presence, date range, query variant, source, and author. The UI also reports filtered counts, unique keys, and activity-type totals.
 - Precision Probe exports retain the complete sanitized current entries, current filter state and statistics, and at most 200 filtered entries. They also include run history and parser diagnostics, but never tokens, Authorization headers, cookies, sessions, full XML, or HTML login pages.
 
+### Date Semantics And MaxResults Diagnostics
+
+- Probe Max Results accepts a custom integer from 1 through 65535, defaults to 50, and provides quick values for 10, 20, 50, 100, 200, 500, and 1000.
+- Values above 500 show a large-query warning. Values above 2000 require typing `CONFIRM`; values above 10000 also warn about timeout, UI responsiveness, and Jira server load.
+- Date Query Mode can omit server date parameters, test `startDate/endDate`, test repeated `streams=update-date AFTER/BEFORE` parameters, or compare both methods. UI end dates are inclusive and server comparisons use an Asia/Taipei end-exclusive timestamp.
+- Every returned entry is checked again against the requested date range. The diagnostics show server-returned, inside-range, outside-range, newest/oldest, and client-filtered counts without deleting the sanitized raw result.
+- A single response shorter than requested does not prove a Jira server cap. Cap diagnostics become `likely` only when a larger follow-up request stops at the same non-zero Atom count.
+- Exports include `dateSemantics`, `dateQueryResults`, `maxResultsDiagnostics`, cap-test history, and at most 200 `clientDateFilteredEntriesSanitized` entries. No token, Authorization header, cookie, session, Jira write, database write, or attachment body is added.
+
 ## Electron Security
 
 - `contextIsolation: true`

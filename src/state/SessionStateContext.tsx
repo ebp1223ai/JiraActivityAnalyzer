@@ -111,6 +111,51 @@ export type UserActivityStreamVariantResult = {
   error: string;
   rawSummary: string;
   parserDiagnostics: UserActivityStreamParserDiagnostics;
+  dateQueryMode?: UserActivityStreamDateQueryResult["mode"];
+};
+
+export type UserActivityStreamDateQueryMode = "none" | "startDate_endDate" | "update_date_after_before" | "both";
+export type UserActivityStreamDateEffectiveness = true | false | "likely_true" | "unknown";
+
+export type UserActivityStreamDateQueryResult = {
+  mode: "none" | "startDate_endDate" | "update_date_after_before";
+  runId: string;
+  requestUrlSanitized: string;
+  dateFilterKeyTested: "" | "update-date" | "last-update-date";
+  dateParameterSemantics: "none" | "end_exclusive";
+  atomEntryCount: number;
+  parsedActivityCount: number;
+  entriesInsideRequestedRange: number;
+  entriesOutsideRequestedRange: number;
+  newestEntryTime: string;
+  oldestEntryTime: string;
+  dateFilterEffective: UserActivityStreamDateEffectiveness;
+  warnings: string[];
+};
+
+export type UserActivityStreamDateSemantics = {
+  requestedDateRange: { start: string; end: string; endInclusive: true; timezone: "Asia/Taipei"; startEpochMs: number; endExclusiveEpochMs: number };
+  dateQueryModesTested: UserActivityStreamDateQueryResult["mode"][];
+  bestDateQueryMode: UserActivityStreamDateQueryResult["mode"] | "client_side_only";
+  serverDateFilterEffective: UserActivityStreamDateEffectiveness;
+  clientDateFilterApplied: boolean;
+  rawReturnedEntries: number;
+  clientDateFilteredEntries: number;
+  warnings: string[];
+};
+
+export type UserActivityStreamMaxResultsDiagnostics = {
+  requestedMaxResults: number;
+  maxResultsSource: "custom" | "quick";
+  actualAtomEntryCount: number;
+  parsedActivityCount: number;
+  serverCapDetected: true | false | "likely" | "unknown";
+  serverCapValueEstimated: number | null;
+  responseTimeMs: number;
+  responseSizeKB: number;
+  largeMaxResultsWarningShown: boolean;
+  largeMaxResultsConfirmed: boolean;
+  warnings: string[];
 };
 
 export type UserActivityStreamSkippedEntry = {
@@ -189,6 +234,7 @@ export type UserActivityStreamFilter = {
   variants: string[];
   sources: UserActivityStreamEntry["source"][];
   authorQuery: string;
+  applyClientDateFilter: boolean;
 };
 
 export type UserActivityStreamManualDiagnostics = {
@@ -304,7 +350,13 @@ export type UserAnalysisSessionState = {
   selectedForFetch: string[];
   excludedIssues: string[];
   activeTab: "candidates" | "queue" | "fetchReport" | "exports";
-  precisionProbeMaxResults: 0 | 10 | 20 | 50;
+  precisionProbeMaxResults: number;
+  precisionProbeMaxResultsSource: "custom" | "quick";
+  activityStreamDateQueryMode: UserActivityStreamDateQueryMode;
+  activityStreamDateSemantics: UserActivityStreamDateSemantics;
+  activityStreamDateQueryResults: UserActivityStreamDateQueryResult[];
+  activityStreamMaxResultsDiagnostics: UserActivityStreamMaxResultsDiagnostics;
+  activityStreamCapTestResults: UserActivityStreamMaxResultsDiagnostics[];
   precisionProjectScope: string;
   activityStreamUser: string;
   activityStreamQueryMode: "auto" | "username" | "email" | "custom";
@@ -430,7 +482,13 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   selectedForFetch: [],
   excludedIssues: [],
   activeTab: "candidates",
-  precisionProbeMaxResults: 10,
+  precisionProbeMaxResults: 50,
+  precisionProbeMaxResultsSource: "quick",
+  activityStreamDateQueryMode: "both",
+  activityStreamDateSemantics: { requestedDateRange: { start: "2026-07-01", end: "2026-07-07", endInclusive: true, timezone: "Asia/Taipei", startEpochMs: 0, endExclusiveEpochMs: 0 }, dateQueryModesTested: [], bestDateQueryMode: "client_side_only", serverDateFilterEffective: "unknown", clientDateFilterApplied: true, rawReturnedEntries: 0, clientDateFilteredEntries: 0, warnings: [] },
+  activityStreamDateQueryResults: [],
+  activityStreamMaxResultsDiagnostics: { requestedMaxResults: 50, maxResultsSource: "quick", actualAtomEntryCount: 0, parsedActivityCount: 0, serverCapDetected: "unknown", serverCapValueEstimated: null, responseTimeMs: 0, responseSizeKB: 0, largeMaxResultsWarningShown: false, largeMaxResultsConfirmed: false, warnings: [] },
+  activityStreamCapTestResults: [],
   precisionProjectScope: "",
   activityStreamUser: "roger_hsieh",
   activityStreamQueryMode: "auto",
@@ -442,7 +500,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   isActivityStreamRunning: false,
   activityStreamRunHistory: [],
   lastSuccessfulActivityStreamResult: null,
-  parsedEntriesFilter: { activityTypes: [], issueKeyQuery: "", onlyWithIssueKey: false, dateRange: { start: "2026-07-01", end: "2026-07-07" }, variants: [], sources: [], authorQuery: "" },
+  parsedEntriesFilter: { activityTypes: [], issueKeyQuery: "", onlyWithIssueKey: false, dateRange: { start: "2026-07-01", end: "2026-07-07" }, variants: [], sources: [], authorQuery: "", applyClientDateFilter: true },
   activityStream: {
     runId: "",
     status: "not_run",

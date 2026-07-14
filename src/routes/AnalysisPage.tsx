@@ -498,12 +498,16 @@ export function AnalysisPage() {
         selectedUsers,
         startInclusive: currentJqlDateRange.startInclusive,
         endExclusive: currentJqlDateRange.endExclusive,
+        activityStreamEndInclusive: userAnalysis.endDate,
         projectScope: userAnalysis.precisionProjectScope,
         activityStreamUser: userAnalysis.activityStreamUser,
         activityStreamQueryMode: userAnalysis.activityStreamQueryMode,
         activityStreamRelativeLinks: userAnalysis.activityStreamRelativeLinks,
         activityStreamRunId: `asrun-${Date.now()}-analysis`,
+        activityStreamDateQueryMode: userAnalysis.activityStreamDateQueryMode,
         maxResults: userAnalysis.precisionProbeMaxResults,
+        maxResultsSource: userAnalysis.precisionProbeMaxResultsSource,
+        largeMaxResultsConfirmed: false,
         broadJql: buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate)
       });
       if (!response) throw new Error("Electron Precision Probe API is not available.");
