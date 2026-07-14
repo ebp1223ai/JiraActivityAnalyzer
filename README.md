@@ -77,6 +77,18 @@ Local database import, database reads, database writes, backup/restore, and prod
 
 Jira Analysis and Jira Probe keep their current issue key, last result, active tab, table pagination, filters, notices, and errors in an in-memory React session store. Navigating to another route and returning to these pages preserves the loaded result without triggering a new Jira request. This session store is reset when the app window is closed and does not write tokens, Authorization headers, passwords, cookies, session IDs, or `.env` contents to localStorage or app config.
 
+## Activity Stream Standard Flow
+
+Version 0.2.14 simplifies the normal single-user Activity Stream workflow. The standard flow uses the only Selected User, escapes underscores in the username, applies update-date `AFTER` / `BEFORE`, enables Auto date-range chunking, and sends one `escaped_username` request per chunk with `maxResults=500`.
+
+- No selected user: the UI asks for one user.
+- More than one selected user: the standard flow is blocked. Multi-user Activity Stream aggregation is not implemented.
+- Activity Stream User Override, query mode, date mode, maxResults, chunk settings, Manual URL Replay, and MaxResults Cap Test remain available under the collapsed Advanced Diagnostics section.
+- `startDate` / `endDate` query parameters remain available for diagnostics but are marked unreliable in the verified Jira environment.
+- Standard and advanced results remain read-only, do not write a database or Jira, and do not download attachment bodies.
+
+Activity entries use a deterministic rule-based classifier. Comment rules have priority 100 and are evaluated before attachment rules, so `commented on` cannot be misclassified as an attachment. Parsed entries include the matched rule, matched text, priority, source field, previous type, and final type. Exports and Debug Bundles include classifier diagnostics, rules version `1.0`, Standard Activity Stream Flow metadata, and whether Advanced Diagnostics was used.
+
 ## Export Result / Raw Data
 
 Runtime export files are written under `<runtime>/exports/`. The app creates these common folders:

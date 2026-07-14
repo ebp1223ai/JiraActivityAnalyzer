@@ -73,7 +73,8 @@ export type UserActivityStreamEntry = {
   activityAuthor: string;
   activityAuthorEmail: string;
   activityTime: string;
-  activityType: "link" | "comment" | "attachment" | "status" | "assignee_change" | "field_change" | "description_update" | "page" | "unknown";
+  activityType: "link" | "comment" | "attachment" | "status_change" | "resolution_change" | "assignee_change" | "field_change" | "description_update" | "page" | "unknown";
+  activityTypeClassifier: UserActivityTypeClassifierResult;
   source: "activity_stream" | "manual_url";
   variant: string;
   extractedIssueKeysPerEntry: string[];
@@ -85,6 +86,37 @@ export type UserActivityStreamEntry = {
   target: string;
   links: string[];
   entryIndex: number;
+};
+
+export type UserActivityTypeClassifierResult = {
+  matchedRule: string;
+  matchedText: string;
+  priority: number;
+  sourceField: "title" | "rawTitle" | "";
+  previousType: string;
+  finalType: UserActivityStreamEntry["activityType"];
+};
+
+export type UserActivityTypeClassifierDiagnostics = {
+  enabled: boolean;
+  rulesVersion: string;
+  commentPriorityHigherThanAttachment: boolean;
+  totalEntries: number;
+  correctedEntryCount: number;
+  matchedRuleCounts: Record<string, number>;
+  finalTypeCounts: Record<string, number>;
+};
+
+export type UserStandardActivityStreamFlow = {
+  enabled: boolean;
+  selectedUser: string;
+  activityStreamQueryUser: string;
+  activityStreamQueryUserEncoded: string;
+  variant: string;
+  dateQueryMode: string;
+  chunkingMode: string;
+  perChunkMaxResults: number;
+  advancedOverrideUsed: boolean;
 };
 
 export type UserActivityStreamDiagnosis = "parsed" | "parsed_no_issue_keys" | "parsed_confluence_only" | "no_entries" | "parser_failed" | "html_login" | "http_error" | "blocked" | "unknown";
@@ -119,6 +151,7 @@ export type UserActivityStreamVariantResult = {
   error: string;
   rawSummary: string;
   parserDiagnostics: UserActivityStreamParserDiagnostics;
+  activityTypeClassifierDiagnostics: UserActivityTypeClassifierDiagnostics;
   activityEntryStats: UserActivityStreamEntryStats;
   dateQueryMode?: UserActivityStreamDateQueryResult["mode"];
 };
@@ -232,6 +265,7 @@ export type UserActivityStreamResult = {
   error: string;
   rawSummary: string;
   parserDiagnostics: UserActivityStreamParserDiagnostics;
+  activityTypeClassifierDiagnostics: UserActivityTypeClassifierDiagnostics;
   activityEntryStats: UserActivityStreamEntryStats;
 };
 
@@ -405,7 +439,10 @@ export type UserAnalysisSessionState = {
   activityStreamCapTestResults: UserActivityStreamMaxResultsDiagnostics[];
   precisionProjectScope: string;
   activityStreamUser: string;
-  activityStreamQueryMode: "auto" | "username" | "email" | "custom";
+  activityStreamQueryMode: "auto" | "username" | "escaped_username" | "email" | "custom";
+  advancedDiagnosticsOpen: boolean;
+  advancedDiagnosticsUsed: boolean;
+  standardActivityStreamFlow: UserStandardActivityStreamFlow;
   activityStreamRelativeLinks: boolean;
   manualActivityStreamUrl: string;
   manualActivityStreamResult: UserActivityStreamVariantResult | null;
@@ -518,7 +555,7 @@ const initialJiraProbe: JiraProbeSessionState = {
 };
 
 const initialUserAnalysis: UserAnalysisSessionState = {
-  selectedUsersText: "roger_hsieh\nch_kao",
+  selectedUsersText: "roger_hsieh",
   startDate: "2026-07-01",
   endDate: "2026-07-07",
   searchMode: "standard",
@@ -549,8 +586,11 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   activityStreamMaxResultsDiagnostics: { requestedMaxResults: 50, maxResultsSource: "quick", actualAtomEntryCount: 0, parsedActivityCount: 0, serverCapDetected: "unknown", serverCapValueEstimated: null, responseTimeMs: 0, responseSizeKB: 0, largeMaxResultsWarningShown: false, largeMaxResultsConfirmed: false, warnings: [] },
   activityStreamCapTestResults: [],
   precisionProjectScope: "",
-  activityStreamUser: "roger_hsieh",
+  activityStreamUser: "",
   activityStreamQueryMode: "auto",
+  advancedDiagnosticsOpen: false,
+  advancedDiagnosticsUsed: false,
+  standardActivityStreamFlow: { enabled: true, selectedUser: "", activityStreamQueryUser: "", activityStreamQueryUserEncoded: "", variant: "escaped_username", dateQueryMode: "update_date_after_before", chunkingMode: "auto", perChunkMaxResults: 500, advancedOverrideUsed: false },
   activityStreamRelativeLinks: true,
   manualActivityStreamUrl: "",
   manualActivityStreamResult: null,
@@ -595,6 +635,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     error: "",
     rawSummary: "",
     parserDiagnostics: { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithIssueKeyCount: 0, confluenceOnlyEntryCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" },
+    activityTypeClassifierDiagnostics: { enabled: true, rulesVersion: "1.0", commentPriorityHigherThanAttachment: true, totalEntries: 0, correctedEntryCount: 0, matchedRuleCounts: {}, finalTypeCounts: {} },
     activityEntryStats: { totalAtomEntries: 0, parsedActivityEntryCount: 0, parsedIssueActivityCount: 0, entriesWithIssueKeyCount: 0, entriesWithoutIssueKeyCount: 0, confluenceOnlyEntryCount: 0, nonJiraEntryCount: 0, jiraIssueEntryCount: 0, uniqueIssueKeyCount: 0 }
   },
   precisionIssueKeySets: {

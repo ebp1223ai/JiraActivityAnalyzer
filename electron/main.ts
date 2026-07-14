@@ -815,7 +815,8 @@ type ActivityStreamEntry = {
   activityAuthor: string;
   activityAuthorEmail: string;
   activityTime: string;
-  activityType: "link" | "comment" | "attachment" | "status" | "assignee_change" | "field_change" | "description_update" | "page" | "unknown";
+  activityType: "link" | "comment" | "attachment" | "status_change" | "resolution_change" | "assignee_change" | "field_change" | "description_update" | "page" | "unknown";
+  activityTypeClassifier: ActivityTypeClassifierResult;
   source: "activity_stream" | "manual_url";
   variant: string;
   extractedIssueKeysPerEntry: string[];
@@ -829,7 +830,16 @@ type ActivityStreamEntry = {
   entryIndex: number;
 };
 
-type ActivityStreamQueryMode = "auto" | "username" | "email" | "custom";
+type ActivityTypeClassifierResult = {
+  matchedRule: string;
+  matchedText: string;
+  priority: number;
+  sourceField: "title" | "rawTitle" | "";
+  previousType: string;
+  finalType: ActivityStreamEntry["activityType"];
+};
+
+type ActivityStreamQueryMode = "auto" | "username" | "escaped_username" | "email" | "custom";
 type ActivityStreamDiagnosis = "parsed" | "parsed_no_issue_keys" | "parsed_confluence_only" | "no_entries" | "parser_failed" | "html_login" | "http_error" | "blocked" | "unknown";
 type ActivityStreamVariant = { variant: "username" | "escaped_username" | "email" | "custom" | "manual_url"; user: string };
 type ActivityStreamDateQueryMode = "none" | "startDate_endDate" | "update_date_after_before" | "both";
@@ -856,7 +866,7 @@ function xmlTag(block: string, tag: string) {
   return match ? decodeXmlText(match[1]) : "";
 }
 
-function activityType(value: string): ActivityStreamEntry["activityType"] {
+function legacyActivityType(value: string) {
   const lower = value.toLowerCase();
   if (/created a link from|linked to|issue-link|建立.*連結/.test(lower)) return "link";
   if (/attached (?:one|\d+|a)?\s*files?|attachment|附件/.test(lower)) return "attachment";
@@ -867,6 +877,48 @@ function activityType(value: string): ActivityStreamEntry["activityType"] {
   if (/category[^>]*page|application[^>]*confluence|\bconfluence\b|\bpage\b|頁面/.test(lower)) return "page";
   if (/(?:updated|changed) (?:the )?\w+|field (?:updated|changed)|欄位.*(?:更新|變更|修改)/.test(lower)) return "field_change";
   return "unknown";
+}
+
+function classifyActivityType(values: { title?: string; rawTitle?: string; application?: string; objectType?: string; combined?: string }): ActivityTypeClassifierResult {
+  const title = sanitizeResponseText(values.title || "");
+  const rawTitle = sanitizeResponseText(values.rawTitle || "");
+  const sourceField: ActivityTypeClassifierResult["sourceField"] = title ? "title" : rawTitle ? "rawTitle" : "";
+  const source = (title || rawTitle).toLowerCase().replace(/\s+/g, " ").trim();
+  const application = String(values.application || "").toLowerCase();
+  const objectType = String(values.objectType || "").toLowerCase();
+  const previousType = legacyActivityType(values.combined || source);
+  const match = (matchedRule: string, pattern: RegExp, finalType: ActivityStreamEntry["activityType"], priority: number, condition = true): ActivityTypeClassifierResult | null => {
+    if (!condition) return null;
+    const found = source.match(pattern);
+    return found ? { matchedRule, matchedText: found[0], priority, sourceField, previousType, finalType } : null;
+  };
+  return match("commented_on", /commented on/, "comment", 100)
+    || match("comment_action", /added a comment|updated comment|deleted comment/, "comment", 100)
+    || match("attachment_action", /attached(?: file| files)?|uploaded|added attachment/, "attachment", 90)
+    || match("link_action", /linked|created (?:a )?link|added (?:a )?link|related to/, "link", 80)
+    || match("confluence_page_action", /created page|added page|edited page|updated page|page edited/, "page", 70, /confluence/.test(application))
+    || match("assignee_change", /changed the assignee|updated the assignee/, "assignee_change", 60)
+    || match("status_change", /changed the status|updated the status|transitioned/, "status_change", 55)
+    || match("resolution_change", /changed the resolution|updated the resolution/, "resolution_change", 50)
+    || match("field_change", /changed the|updated the|updated \d+ fields?|set the|cleared the/, "field_change", 40, /jira/.test(application) || /issue/.test(objectType))
+    || { matchedRule: "fallback_unknown", matchedText: "", priority: 0, sourceField: "", previousType: previousType === "unknown" ? "" : previousType, finalType: "unknown" };
+}
+
+function activityType(value: string, application = "Jira", objectType = "issue"): ActivityStreamEntry["activityType"] {
+  return classifyActivityType({ title: value, rawTitle: value, application, objectType, combined: value }).finalType;
+}
+
+function activityTypeClassifierDiagnostics(entries: ActivityStreamEntry[]) {
+  const matchedRuleCounts: Record<string, number> = {};
+  const finalTypeCounts: Record<string, number> = {};
+  let correctedEntryCount = 0;
+  for (const entry of entries) {
+    const diagnostic = entry.activityTypeClassifier;
+    matchedRuleCounts[diagnostic.matchedRule] = (matchedRuleCounts[diagnostic.matchedRule] || 0) + 1;
+    finalTypeCounts[diagnostic.finalType] = (finalTypeCounts[diagnostic.finalType] || 0) + 1;
+    if (diagnostic.previousType && diagnostic.previousType !== diagnostic.finalType) correctedEntryCount += 1;
+  }
+  return { enabled: true, rulesVersion: "1.0", commentPriorityHigherThanAttachment: true, totalEntries: entries.length, correctedEntryCount, matchedRuleCounts, finalTypeCounts };
 }
 
 function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown; application?: unknown; objectType?: unknown; target?: unknown }, variant: string, runId: string, entryIndex: number): ActivityStreamEntry {
@@ -882,6 +934,8 @@ function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?
   const extractedIssueKeysPerEntry = issueKeysFrom(combined).sort();
   const applicationText = sanitizeResponseText(text(values.application));
   const activityApplication = /confluence/i.test(`${applicationText} ${raw}`) ? "Confluence" : extractedIssueKeysPerEntry.length > 0 || /jira/i.test(applicationText) ? "Jira" : "Other";
+  const objectType = sanitizeResponseText(text(values.objectType)).slice(0, 300);
+  const activityTypeClassifier = classifyActivityType({ title, rawTitle: title, application: activityApplication, objectType, combined });
   return {
     runId,
     issueKey: extractedIssueKeysPerEntry[0] ?? "",
@@ -889,7 +943,8 @@ function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?
     activityAuthor: author === "-" ? "" : author.slice(0, 300),
     activityAuthorEmail: authorEmail === "-" ? "" : authorEmail.slice(0, 300),
     activityTime: time === "-" ? "" : time,
-    activityType: activityType(combined),
+    activityType: activityTypeClassifier.finalType,
+    activityTypeClassifier,
     source: variant === "manual_url" ? "manual_url" : "activity_stream",
     variant,
     extractedIssueKeysPerEntry,
@@ -897,7 +952,7 @@ function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?
     rawSummary: sanitizeResponseText(content).slice(0, 2000),
     rawContent: sanitizeResponseText(`${content} ${raw}`).slice(0, 4000),
     activityApplication,
-    objectType: sanitizeResponseText(text(values.objectType)).slice(0, 300),
+    objectType,
     target: sanitizeResponseText(text(values.target)).slice(0, 500),
     links: [sanitizeResponseText(link)].filter((item) => item && item !== "-").slice(0, 10),
     entryIndex
@@ -1002,6 +1057,7 @@ function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: str
   const diagnosis: ActivityStreamDiagnosis = blocked ? "blocked" : isHtml ? "html_login" : !response.ok ? "http_error" : parsedEntries.length > 0 && entriesWithIssueKey.length > 0 ? "parsed" : parsedEntries.length > 0 && confluenceOnlyEntries.length === parsedEntries.length ? "parsed_confluence_only" : parsedEntries.length > 0 ? "parsed_no_issue_keys" : parsedFeed.rawEntryCount > 0 ? "parser_failed" : "no_entries";
   const status = diagnosis.startsWith("parsed") || diagnosis === "no_entries" ? "success" : endpointUnavailable || blocked ? "unsupported" : "failed";
   const activityEntryStats = { totalAtomEntries: parsedFeed.atomEntryCount, parsedActivityEntryCount: parsedEntries.length, parsedIssueActivityCount: entriesWithIssueKey.length, entriesWithIssueKeyCount: entriesWithIssueKey.length, entriesWithoutIssueKeyCount: entriesWithoutIssueKey.length, confluenceOnlyEntryCount: confluenceOnlyEntries.length, nonJiraEntryCount: entriesWithoutIssueKey.length, jiraIssueEntryCount: entriesWithIssueKey.length, uniqueIssueKeyCount: parsedIssueKeys.length };
+  const classifierDiagnostics = activityTypeClassifierDiagnostics(parsedFeed.entries);
   return {
     runId,
     variant,
@@ -1023,6 +1079,7 @@ function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: str
     error: response.ok ? (diagnosis === "parser_failed" ? "Activity Stream entries were found, but required activity fields could not be parsed." : "") : isHtml ? "Activity Stream returned HTML or a login page." : precisionError(response),
     rawSummary: response.bodyPreview ?? "",
     parserDiagnostics,
+    activityTypeClassifierDiagnostics: classifierDiagnostics,
     activityEntryStats
   };
 }
@@ -1047,6 +1104,7 @@ function activityStreamVariants(connection: AppConnection, selectedUsers: string
   const candidates: ActivityStreamVariant[] = mode === "custom"
     ? [{ variant: "custom", user: customUser.trim() }]
     : mode === "username" ? [{ variant: "username", user: username }]
+      : mode === "escaped_username" ? [{ variant: "escaped_username", user: escapedUsername }]
       : mode === "email" ? [{ variant: "email", user: email }]
         : seed.includes("@") ? [{ variant: "email", user: email }, { variant: "username", user: username }, { variant: "escaped_username", user: escapedUsername }]
           : [{ variant: "username", user: username }, { variant: "escaped_username", user: escapedUsername }, { variant: "email", user: email }];
@@ -1066,6 +1124,7 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
   const supported = variantResults.some((result) => result.supported === "yes") ? "yes" : variantResults.every((result) => result.supported === "no") ? "no" : "unknown";
   const diagnosis: ActivityStreamDiagnosis = allVariantsNoEntries ? "no_entries" : best?.diagnosis ?? (variantResults.some((result) => result.diagnosis === "no_entries") ? "no_entries" : "unknown");
   const overallStatus = parsed ? "success" : diagnosis === "no_entries" ? "no_entries" : reachable && supported === "yes" ? "partial" : "failed";
+  const entriesSanitized = variantResults.flatMap((result) => result.entriesSanitized);
   return {
     runId: best?.runId ?? variantResults[0]?.runId ?? "",
     status: parsed || diagnosis === "no_entries" ? "success" : supported === "no" ? "unsupported" : "failed",
@@ -1088,11 +1147,12 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
     atomEntryCount: best?.atomEntryCount ?? 0,
     variantResults,
     activityStreamIssueKeys,
-    entriesSanitized: variantResults.flatMap((result) => result.entriesSanitized),
+    entriesSanitized,
     firstEntriesSanitized: best?.firstEntriesSanitized ?? [],
     error: parsed || diagnosis === "no_entries" ? "" : best?.error || "Activity Stream could not be parsed.",
     rawSummary: best?.rawSummary ?? "",
     parserDiagnostics: best?.parserDiagnostics ?? { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithIssueKeyCount: 0, confluenceOnlyEntryCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" },
+    activityTypeClassifierDiagnostics: activityTypeClassifierDiagnostics(entriesSanitized),
     activityEntryStats: best?.activityEntryStats ?? { totalAtomEntries: 0, parsedActivityEntryCount: 0, parsedIssueActivityCount: 0, entriesWithIssueKeyCount: 0, entriesWithoutIssueKeyCount: 0, confluenceOnlyEntryCount: 0, nonJiraEntryCount: 0, jiraIssueEntryCount: 0, uniqueIssueKeyCount: 0 }
   };
 }
@@ -1155,6 +1215,7 @@ function mergeVariantChunkResults(results: ReturnType<typeof activityStreamResul
       parserAnomaly,
       parserAnomalyReason: parserAnomaly ? "One or more chunks reported a parser anomaly" : ""
     },
+    activityTypeClassifierDiagnostics: activityTypeClassifierDiagnostics(entries),
     activityEntryStats: { totalAtomEntries, parsedActivityEntryCount: entries.length, parsedIssueActivityCount: withIssueKey.length, entriesWithIssueKeyCount: withIssueKey.length, entriesWithoutIssueKeyCount: withoutIssueKey.length, confluenceOnlyEntryCount: confluenceOnly.length, nonJiraEntryCount: withoutIssueKey.length, jiraIssueEntryCount: withIssueKey.length, uniqueIssueKeyCount: issueKeys.length }
   };
 }
@@ -1270,7 +1331,19 @@ function dateQueryDiagnostics(mode: ActivityStreamDateTestMode, runId: string, s
   };
 }
 
-async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true, requestedRunId?: string, dateQueryMode: ActivityStreamDateQueryMode = "both", maxResultsSource: "custom" | "quick" = "custom", largeMaxResultsConfirmed = false, chunkingMode: ActivityStreamChunkingMode = "auto", customChunkDays = 14) {
+async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true, requestedRunId?: string, dateQueryMode: ActivityStreamDateQueryMode = "both", maxResultsSource: "custom" | "quick" = "custom", largeMaxResultsConfirmed = false, chunkingMode: ActivityStreamChunkingMode = "auto", customChunkDays = 14, standardFlow = false, advancedOverrideUsed = false) {
+  const normalizedSelectedUsers = Array.from(new Set(selectedUsers.map((item) => item.trim()).filter(Boolean)));
+  if (standardFlow) {
+    if (normalizedSelectedUsers.length !== 1) throw new Error("Activity Stream standard flow requires exactly one selected user.");
+    user = normalizedSelectedUsers[0];
+    queryMode = "escaped_username";
+    dateQueryMode = "update_date_after_before";
+    chunkingMode = "auto";
+    maxResults = 500;
+    maxResultsSource = "custom";
+    largeMaxResultsConfirmed = false;
+    advancedOverrideUsed = false;
+  }
   const runId = requestedRunId || createActivityStreamRunId();
   const startedAt = new Date().toISOString();
   const requestMaxResults = Math.trunc(maxResults);
@@ -1279,6 +1352,19 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   const dateRangeChunking = buildDateRangeChunking(range, chunkingMode, customChunkDays);
   const variants = activityStreamVariants(connection, selectedUsers, user, queryMode);
   const dateModes = activityStreamDateModes(dateQueryMode);
+  const selectedUser = normalizedSelectedUsers[0] || "";
+  const queryUser = standardFlow ? escapeActivityStreamUser(selectedUser) : variants[0]?.user || user;
+  const standardActivityStreamFlow = {
+    enabled: standardFlow,
+    selectedUser,
+    activityStreamQueryUser: queryUser,
+    activityStreamQueryUserEncoded: encodeURIComponent(queryUser),
+    variant: standardFlow ? "escaped_username" : variants[0]?.variant || "",
+    dateQueryMode: standardFlow ? "update_date_after_before" : dateQueryMode,
+    chunkingMode: standardFlow ? "auto" : chunkingMode,
+    perChunkMaxResults: requestMaxResults,
+    advancedOverrideUsed
+  };
   const logs = [
     `[USER_ACTION] Run Activity Stream Probe: runId=${runId} mode=${queryMode} user=${user || "auto"}`,
     `[INFO] Activity Stream probe started: runId=${runId} mode=${queryMode} variants=${variants.map((item) => `${item.variant}:${item.user}`).join(",")} date=${startDate}..${endDate}`,
@@ -1356,11 +1442,11 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   const totalChunkParsedEntries = activityStreamChunkResults.reduce((sum, item) => sum + Number(item.parsedActivityCount || 0), 0);
   const chunkMergeStats = { totalChunkAtomEntries, mergedActivityEntries: activityStream.parsedActivityCount, duplicateEntriesRemoved: Math.max(0, totalChunkParsedEntries - activityStream.parsedActivityCount), mergedEntriesWithIssueKeyCount: activityStream.activityEntryStats.entriesWithIssueKeyCount, mergedConfluenceOnlyEntryCount: activityStream.activityEntryStats.confluenceOnlyEntryCount, uniqueIssueKeyCount: activityStream.activityEntryStats.uniqueIssueKeyCount, successfulChunks: activityStreamChunkResults.filter((item) => String(item.status) === "success").length, noEntryChunks: activityStreamChunkResults.filter((item) => String(item.diagnosis) === "no_entries").length, failedChunks: activityStreamChunkResults.filter((item) => !["success", "no_entries"].includes(String(item.status))).length };
   logs.push(`[INFO] Activity Stream best variant: ${activityStream.bestVariant || "none"}`, `[INFO] Activity Stream probe completed: overallStatus=${activityStream.overallStatus} bestVariant=${activityStream.bestVariant || "none"} diagnosis=${activityStream.diagnosis} parsedIssueKeys=${activityStream.activityStreamIssueKeys.length}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
-  return { runId, startedAt, completedAt: new Date().toISOString(), activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, dateRangeChunking, activityStreamChunkResults, chunkMergeStats, clientDateFilteredEntriesSanitized, logs };
+  return { runId, startedAt, completedAt: new Date().toISOString(), activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, dateRangeChunking, activityStreamChunkResults, chunkMergeStats, clientDateFilteredEntriesSanitized, standardActivityStreamFlow, advancedDiagnosticsUsed: !standardFlow, activityTypeClassifierDiagnostics: activityStream.activityTypeClassifierDiagnostics, logs };
 }
 
-ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: number; maxResultsSource?: "custom" | "quick"; largeMaxResultsConfirmed?: boolean; dateQueryMode?: ActivityStreamDateQueryMode; relativeLinks?: boolean; runId?: string; chunkingMode?: ActivityStreamChunkingMode; customChunkDays?: number }) => {
-  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults), payload.relativeLinks !== false, payload.runId, payload.dateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true, payload.chunkingMode ?? "auto", Number(payload.customChunkDays ?? 14));
+ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: number; maxResultsSource?: "custom" | "quick"; largeMaxResultsConfirmed?: boolean; dateQueryMode?: ActivityStreamDateQueryMode; relativeLinks?: boolean; runId?: string; chunkingMode?: ActivityStreamChunkingMode; customChunkDays?: number; standardFlow?: boolean; advancedOverrideUsed?: boolean }) => {
+  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults), payload.relativeLinks !== false, payload.runId, payload.dateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true, payload.chunkingMode ?? "auto", Number(payload.customChunkDays ?? 14), payload.standardFlow === true, payload.advancedOverrideUsed === true);
 });
 
 const sensitiveReplayQueryKey = /token|password|passwd|secret|session|cookie|authorization|auth_token/i;
@@ -1419,6 +1505,8 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   maxResults: number;
   maxResultsSource?: "custom" | "quick";
   largeMaxResultsConfirmed?: boolean;
+  standardFlow?: boolean;
+  advancedOverrideUsed?: boolean;
   broadJql: string;
 }) => {
   const selectedUsers = Array.from(new Set((payload.selectedUsers ?? []).map(String).map((item) => item.trim()).filter(Boolean)));
@@ -1436,7 +1524,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   ];
 
   if (isUiSmoke) {
-    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.activityStreamEndInclusive ?? addIsoDays(payload.endExclusive, -1), requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId, payload.activityStreamDateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true, payload.activityStreamChunkingMode ?? "auto", Number(payload.activityStreamCustomChunkDays ?? 14));
+    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.activityStreamEndInclusive ?? addIsoDays(payload.endExclusive, -1), requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId, payload.activityStreamDateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true, payload.activityStreamChunkingMode ?? "auto", Number(payload.activityStreamCustomChunkDays ?? 14), payload.standardFlow === true, payload.advancedOverrideUsed === true);
     const activityStream = activityStreamRun.activityStream;
     const results: PrecisionProbeResult[] = [
       { method: "updatedBy Candidate JQL", status: "success", httpStatus: "200", supported: "yes", resultCount: 113, sampleIssueKeys: ["SMOKE-101", "SMOKE-102"], candidateSource: "updatedBy_candidate", error: "", recommendation: "Potential precision source; validate against Activity Stream", jql: "updatedBy(\"smoke.user\") ..." },
@@ -1461,6 +1549,9 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
       activityStreamChunkResults: activityStreamRun.activityStreamChunkResults,
       chunkMergeStats: activityStreamRun.chunkMergeStats,
       clientDateFilteredEntriesSanitized: activityStreamRun.clientDateFilteredEntriesSanitized,
+      standardActivityStreamFlow: activityStreamRun.standardActivityStreamFlow,
+      advancedDiagnosticsUsed: activityStreamRun.advancedDiagnosticsUsed,
+      activityTypeClassifierDiagnostics: activityStreamRun.activityTypeClassifierDiagnostics,
       issueKeySets,
       uniquePreciseIssueKeys: issueKeySets.recommendedIssueKeys,
       issueSources: { "SMOKE-101": ["activity_stream"] },
@@ -1522,7 +1613,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   results.push(await runJqlMethod("priority CHANGED BY", "priority_changed_by", (user) => `priority CHANGED BY ${quoted(user)} ${dates}`));
 
   const activityStreamUser = String(payload.activityStreamUser || selectedUsers[0] || "").trim();
-  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.activityStreamEndInclusive ?? addIsoDays(payload.endExclusive, -1), requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId, payload.activityStreamDateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true, payload.activityStreamChunkingMode ?? "auto", Number(payload.activityStreamCustomChunkDays ?? 14));
+  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.activityStreamEndInclusive ?? addIsoDays(payload.endExclusive, -1), requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId, payload.activityStreamDateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true, payload.activityStreamChunkingMode ?? "auto", Number(payload.activityStreamCustomChunkDays ?? 14), payload.standardFlow === true, payload.advancedOverrideUsed === true);
   const activityStreamData = activityStreamRun.activityStream;
   logs.push(...activityStreamRun.logs);
   results.push({
@@ -1581,6 +1672,9 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
     activityStreamChunkResults: activityStreamRun.activityStreamChunkResults,
     chunkMergeStats: activityStreamRun.chunkMergeStats,
     clientDateFilteredEntriesSanitized: activityStreamRun.clientDateFilteredEntriesSanitized,
+    standardActivityStreamFlow: activityStreamRun.standardActivityStreamFlow,
+    advancedDiagnosticsUsed: activityStreamRun.advancedDiagnosticsUsed,
+    activityTypeClassifierDiagnostics: activityStreamRun.activityTypeClassifierDiagnostics,
     issueKeySets,
     uniquePreciseIssueKeys,
     issueSources,
@@ -2450,7 +2544,13 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     ?? autoSavedRunHistory.find((run) => Array.isArray(run.data.activityStreamChunkResults) && run.data.activityStreamChunkResults.length > 0);
   writeBundleJson(folderPath, "activity-stream-chunk-results.json", latestChunkedRun?.data.activityStreamChunkResults ?? []);
   writeBundleJson(folderPath, "activity-stream-merged-result.json", latestChunkedRun ? { runId: latestChunkedRun.runId, dateRangeChunking: latestChunkedRun.data.dateRangeChunking, chunkMergeStats: latestChunkedRun.data.chunkMergeStats, activityStream: latestChunkedRun.data.activityStream } : unavailable);
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {} });
+  const diagnosticsRun = autoSavedRunHistory.find((run) => asRecord(run.data.standardActivityStreamFlow).enabled === true) ?? latest;
+  const standardActivityStreamFlow = asRecord(diagnosticsRun?.data.standardActivityStreamFlow);
+  const classifierDiagnostics = asRecord(diagnosticsRun?.data.activityTypeClassifierDiagnostics ?? asRecord(diagnosticsRun?.data.activityStream).activityTypeClassifierDiagnostics);
+  const advancedDiagnosticsUsed = diagnosticsRun?.data.advancedDiagnosticsUsed === true;
+  writeBundleJson(folderPath, "standard-activity-stream-flow.json", Object.keys(standardActivityStreamFlow).length > 0 ? standardActivityStreamFlow : unavailable);
+  writeBundleJson(folderPath, "activity-type-classifier-diagnostics.json", Object.keys(classifierDiagnostics).length > 0 ? classifierDiagnostics : unavailable);
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {}, standardActivityStreamFlow, activityTypeClassifierDiagnostics: classifierDiagnostics, advancedDiagnosticsUsed });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -2461,7 +2561,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const trackingLines = (label: string, run: AutoSavedRun | null) => run ? [`${label}:`, `- runId: ${run.runId}`, `- status: ${run.status}`, `- diagnosis: ${String(asRecord(run.data.activityStream).diagnosis ?? "unknown")}`, `- parsedActivityCount: ${Number(asRecord(run.data.activityStream).parsedActivityCount ?? 0)}`, `- path: ${run.filePath}`] : [`${label}:`, "- not_available"];
   const chunking = asRecord(latestChunkedRun?.data.dateRangeChunking);
   const mergeStats = asRecord(latestChunkedRun?.data.chunkMergeStats);
-  fs.writeFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Jira Activity Analyzer Debug Bundle", `Version: ${__MAIN_APP_VERSION__}`, `Build Time: ${__MAIN_BUILD_TIME__}`, `Git Commit: ${__MAIN_GIT_COMMIT__}`, `Generated At: ${createdAt}`, `Current Page: ${payload.currentPage}`, ...trackingLines("Latest Run Result", latestRunResult), ...trackingLines("Last Successful Result", lastSuccessfulResult), ...trackingLines("Last Parsed Result", lastParsedResult), ...trackingLines("Latest No Entries Result", latestNoEntriesResult), "Date Range Chunking:", `- enabled: ${Boolean(chunking.enabled)}`, `- mode: ${String(chunking.mode ?? "off")}`, `- chunkCount: ${Number(chunking.chunkCount ?? 0)}`, `- successfulChunks: ${Number(mergeStats.successfulChunks ?? 0)}`, `- failedChunks: ${Number(mergeStats.failedChunks ?? 0)}`, `- mergedActivityEntries: ${Number(mergeStats.mergedActivityEntries ?? 0)}`, "Included Files:", ...included.map((file) => `- ${file}`), "How to analyze:", "- Check debug-bundle-summary.json", "- Check latest-run-result.json", "- Check run-history.json", "- Check debug-log.txt", "- Check user-action-log.txt", "Security:", "- token / Authorization / cookie are masked or not included", "Known missing files:", ...(missing.length ? missing : ["- none"]), "Cross-page TODO:", ...crossPageDebugBundleTodo.map((item) => `- ${item}`)].join("\n"), "utf8");
+  fs.writeFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Jira Activity Analyzer Debug Bundle", `Version: ${__MAIN_APP_VERSION__}`, `Build Time: ${__MAIN_BUILD_TIME__}`, `Git Commit: ${__MAIN_GIT_COMMIT__}`, `Generated At: ${createdAt}`, `Current Page: ${payload.currentPage}`, ...trackingLines("Latest Run Result", latestRunResult), ...trackingLines("Last Successful Result", lastSuccessfulResult), ...trackingLines("Last Parsed Result", lastParsedResult), ...trackingLines("Latest No Entries Result", latestNoEntriesResult), "Standard Activity Stream Flow:", `- selectedUser: ${String(standardActivityStreamFlow.selectedUser ?? "not_available")}`, `- queryUser: ${String(standardActivityStreamFlow.activityStreamQueryUser ?? "not_available")}`, `- variant: ${String(standardActivityStreamFlow.variant ?? "not_available")}`, `- dateQueryMode: ${String(standardActivityStreamFlow.dateQueryMode ?? "not_available")}`, `- chunkingMode: ${String(standardActivityStreamFlow.chunkingMode ?? "not_available")}`, `- perChunkMaxResults: ${Number(standardActivityStreamFlow.perChunkMaxResults ?? 0)}`, `- advancedOverrideUsed: ${Boolean(standardActivityStreamFlow.advancedOverrideUsed)}`, `- advancedDiagnosticsUsed: ${advancedDiagnosticsUsed}`, "Activity Type Classifier:", `- enabled: ${classifierDiagnostics.enabled !== false}`, `- rulesVersion: ${String(classifierDiagnostics.rulesVersion ?? "1.0")}`, `- commentPriorityHigherThanAttachment: ${classifierDiagnostics.commentPriorityHigherThanAttachment !== false}`, "Date Range Chunking:", `- enabled: ${Boolean(chunking.enabled)}`, `- mode: ${String(chunking.mode ?? "off")}`, `- chunkCount: ${Number(chunking.chunkCount ?? 0)}`, `- successfulChunks: ${Number(mergeStats.successfulChunks ?? 0)}`, `- failedChunks: ${Number(mergeStats.failedChunks ?? 0)}`, `- mergedActivityEntries: ${Number(mergeStats.mergedActivityEntries ?? 0)}`, "Included Files:", ...included.map((file) => `- ${file}`), "How to analyze:", "- Check debug-bundle-summary.json", "- Check latest-run-result.json", "- Check run-history.json", "- Check debug-log.txt", "- Check user-action-log.txt", "Security:", "- token / Authorization / cookie are masked or not included", "Known missing files:", ...(missing.length ? missing : ["- none"]), "Cross-page TODO:", ...crossPageDebugBundleTodo.map((item) => `- ${item}`)].join("\n"), "utf8");
   lastDebugBundle = { path: folderPath, createdAt };
   return { canceled: false, folderPath, filePath: folderPath, createdAt, includedFiles: fs.readdirSync(folderPath), crossPageDebugBundleTodo };
 });
@@ -2658,6 +2758,8 @@ async function runUiSmoke(window: BrowserWindow) {
   const escapedVariant = escapedVariants.find((item) => item.variant === "escaped_username");
   const escapedParams = new URLSearchParams({ streams: `user IS ${escapedVariant?.user ?? ""}` });
   if (escapedVariant?.user !== "roger\\_hsieh" || !escapedParams.toString().includes("roger%5C_hsieh")) failures.push(`escaped username variant failed ${JSON.stringify({ escapedVariants, encoded: escapedParams.toString() })}`);
+  const standardFlowFixture = await runActivityStreamProbe({ baseUrl: "https://jira.example.invalid", email: "roger_hsieh@phison.com" } as AppConnection, ["roger_hsieh"], "ignored_override", "auto", "2026-07-01", "2026-07-07", 10, true, "asrun-standard-flow", "both", "quick", false, "off", 14, true, false);
+  if (standardFlowFixture.standardActivityStreamFlow.selectedUser !== "roger_hsieh" || standardFlowFixture.standardActivityStreamFlow.activityStreamQueryUser !== "roger\\_hsieh" || standardFlowFixture.standardActivityStreamFlow.activityStreamQueryUserEncoded !== "roger%5C_hsieh" || standardFlowFixture.standardActivityStreamFlow.variant !== "escaped_username" || standardFlowFixture.standardActivityStreamFlow.dateQueryMode !== "update_date_after_before" || standardFlowFixture.standardActivityStreamFlow.chunkingMode !== "auto" || standardFlowFixture.standardActivityStreamFlow.perChunkMaxResults !== 500 || standardFlowFixture.activityStream.variantResults.length !== 1 || !standardFlowFixture.activityStream.requestUrlSanitized.includes("roger%5C_hsieh") || !standardFlowFixture.activityStream.requestUrlSanitized.includes("maxResults=500") || !standardFlowFixture.activityStream.requestUrlSanitized.includes("update-date+AFTER") || !standardFlowFixture.activityStream.requestUrlSanitized.includes("update-date+BEFORE")) failures.push(`standard Activity Stream flow failed: ${JSON.stringify(standardFlowFixture.standardActivityStreamFlow)}`);
   const epochFixture = requestedDateRange("2026-01-01", "2026-01-31");
   if (epochFixture.startEpochMs !== 1767196800000 || epochFixture.endExclusiveEpochMs !== 1769875200000) failures.push(`Asia/Taipei epoch conversion failed ${JSON.stringify(epochFixture)}`);
   const startEndPathFixture = activityStreamRequestPath(50, true, "roger\\_hsieh", "startDate_endDate", epochFixture);
@@ -2724,8 +2826,23 @@ async function runUiSmoke(window: BrowserWindow) {
   try { buildDateRangeChunking(requestedDateRange("2026-07-01", "2026-07-31"), "custom_days", 32); } catch { invalidCustomDaysRejected = true; }
   if (!invalidCustomDaysRejected) failures.push("custom chunk days validation did not reject values above 31");
   if (chunkOverallStatus([{ status: "success", diagnosis: "parsed" }, { status: "failed", diagnosis: "http_error" }]) !== "partial" || chunkOverallStatus([{ status: "success", diagnosis: "no_entries" }]) !== "no_entries" || chunkOverallStatus([{ status: "failed", diagnosis: "http_error" }]) !== "failed") failures.push("partial/no_entries/failed chunk status classification failed");
-  const typeFixtures: Array<[string, ActivityStreamEntry["activityType"]]> = [["attached one file to COPGEN1-1", "attachment"], ["changed the status", "status"], ["changed the Assignee", "assignee_change"], ["updated the Description", "description_update"], ["updated the Priority", "field_change"], ["commented on COPGEN1-1", "comment"], ["created a link from COPGEN1-1", "link"], ["Confluence page edited", "page"], ["performed an activity", "unknown"]];
-  for (const [textValue, expected] of typeFixtures) if (activityType(textValue) !== expected) failures.push(`activity type classification failed: ${textValue} => ${activityType(textValue)} expected ${expected}`);
+  const typeFixtures: Array<{ title: string; expected: ActivityStreamEntry["activityType"]; application?: string; objectType?: string }> = [
+    { title: "commented on COPGEN1-138930", expected: "comment" },
+    { title: "attached file to COPGEN1-138930", expected: "attachment" },
+    { title: "created a link from COPGEN1-138930 to Confluence Page", expected: "link" },
+    { title: "edited page Weekly Report", expected: "page", application: "Confluence", objectType: "page" },
+    { title: "changed the Assignee", expected: "assignee_change" },
+    { title: "changed the Status", expected: "status_change" },
+    { title: "changed the Resolution", expected: "resolution_change" },
+    { title: "updated 4 fields", expected: "field_change" },
+    { title: "performed an activity", expected: "unknown" }
+  ];
+  for (const fixture of typeFixtures) {
+    const actual = activityType(fixture.title, fixture.application ?? "Jira", fixture.objectType ?? "issue");
+    if (actual !== fixture.expected) failures.push(`activity type classification failed: ${fixture.title} => ${actual} expected ${fixture.expected}`);
+  }
+  const commentRegressionEntry = activityEntry({ title: "謝正洪(roger_hsieh) commented on COPGEN1-138930 - [JACKSONQLC-3024] IOFULLSEQWRT Failure", content: "attachment metadata exists elsewhere", raw: "<activity:object-type>attachment</activity:object-type>", application: "Jira", objectType: "issue" }, "escaped_username", "asrun-classifier", 0);
+  if (commentRegressionEntry.activityType !== "comment" || commentRegressionEntry.issueKey !== "COPGEN1-138930" || commentRegressionEntry.activityApplication !== "Jira" || commentRegressionEntry.activityTypeClassifier.matchedRule !== "commented_on" || commentRegressionEntry.activityTypeClassifier.finalType !== "comment" || commentRegressionEntry.activityTypeClassifier.priority !== 100) failures.push(`commented-on classifier regression failed: ${JSON.stringify(commentRegressionEntry)}`);
   window.setSize(1280, 720, false);
   await window.webContents.executeJavaScript(`window.location.hash = "#/analysis";`);
   await wait(350);
@@ -2733,6 +2850,28 @@ async function runUiSmoke(window: BrowserWindow) {
   if (analysisWorkflowAudit.count !== 4 || analysisWorkflowAudit.hasPrecisionTab) failures.push(`User Analysis workflow was not restored to four steps: ${JSON.stringify(analysisWorkflowAudit)}`);
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll("a")).find((link) => link.getAttribute("href") === "#/precision-probe")?.click();`);
   await wait(350);
+  const standardFlowUiAudit = await window.webContents.executeJavaScript(`(() => ({ panel: Boolean(document.querySelector("[data-testid='standard-activity-stream-flow']")), selected: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("roger_hsieh"), escaped: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("roger\\_hsieh"), date: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("update-date AFTER/BEFORE"), chunking: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("Auto"), limit: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("500"), advancedClosed: !document.querySelector("[data-testid='advanced-diagnostics']"), noMainUserInput: !document.querySelector("[data-testid='activity-stream-user']"), noMainQueryMode: !document.querySelector("[data-testid='activity-stream-query-mode']"), noMainDateMode: !document.querySelector("[data-testid='activity-stream-date-query-mode']"), noMainMax: !document.querySelector("[data-testid='probe-max-results']") }))()`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
+  await wait(700);
+  const standardFlowRunAudit = await window.webContents.executeJavaScript(`(() => ({ variants: document.querySelectorAll("[data-testid='activity-stream-variants'] tbody tr").length, escaped: document.body.innerText.includes("escaped_username"), encoded: (document.body.innerText || "").includes("roger%5C_hsieh"), classifier: Boolean(document.querySelector("[data-testid='activity-type-classifier-diagnostics']")) }))()`);
+  const standardSelectionGuardAudit = await window.webContents.executeJavaScript(`(async () => {
+    const input = document.querySelector("[data-testid='selected-users']");
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+    const setUsers = async (value) => { if (input instanceof HTMLTextAreaElement) { setter?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); await new Promise((resolve) => setTimeout(resolve, 80)); } };
+    await setUsers("");
+    document.querySelector("[data-testid='run-activity-stream']")?.click();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const noUser = Boolean(document.querySelector("[data-testid='standard-flow-no-user']")) && document.body.innerText.includes("Please enter at least one selected user");
+    await setUsers("roger_hsieh\\nch_kao");
+    document.querySelector("[data-testid='run-activity-stream']")?.click();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const multiUser = Boolean(document.querySelector("[data-testid='standard-flow-multi-user-warning']")) && document.body.innerText.includes("currently supports one selected user");
+    await setUsers("roger_hsieh");
+    return { noUser, multiUser };
+  })()`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='toggle-advanced-diagnostics']")?.click();`);
+  await wait(100);
+  const advancedFlowUiAudit = await window.webContents.executeJavaScript(`(() => ({ open: Boolean(document.querySelector("[data-testid='advanced-diagnostics']")), user: Boolean(document.querySelector("[data-testid='activity-stream-user']")), query: Boolean(document.querySelector("[data-testid='activity-stream-query-mode']")), date: Boolean(document.querySelector("[data-testid='activity-stream-date-query-mode']")), max: Boolean(document.querySelector("[data-testid='probe-max-results']")), manual: Boolean(document.querySelector("[data-testid='manual-activity-stream-url']")), cap: Boolean(document.querySelector("[data-testid='run-cap-test']")) }))()`);
   await window.webContents.executeJavaScript(`
     (() => {
       const mode = document.querySelector("[data-testid='activity-stream-query-mode']");
@@ -2757,10 +2896,10 @@ async function runUiSmoke(window: BrowserWindow) {
       const max = document.querySelector("[data-testid='probe-max-results']");
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
       const setMax = (value) => { if (max instanceof HTMLInputElement) { setter?.call(max, value); max.dispatchEvent(new Event("input", { bubbles: true })); max.dispatchEvent(new Event("change", { bubbles: true })); } };
-      setMax("0"); document.querySelector("[data-testid='run-activity-stream']")?.click();
+      setMax("0"); document.querySelector("[data-testid='run-advanced-activity-stream']")?.click();
       await new Promise((resolve) => setTimeout(resolve, 50));
       const rejectsLow = document.body.innerText.includes("maxResults must be between 1 and 65535");
-      setMax("65536"); document.querySelector("[data-testid='run-activity-stream']")?.click();
+      setMax("65536"); document.querySelector("[data-testid='run-advanced-activity-stream']")?.click();
       await new Promise((resolve) => setTimeout(resolve, 50));
       const rejectsHigh = document.body.innerText.includes("maxResults must be between 1 and 65535");
       document.querySelector("[data-testid='max-quick-10']")?.click();
@@ -2768,11 +2907,11 @@ async function runUiSmoke(window: BrowserWindow) {
       return { rejectsLow, rejectsHigh, quickValue: max instanceof HTMLInputElement ? max.value : "", quickCount: document.querySelectorAll("[data-testid^='max-quick-']").length, dateMode: document.querySelector("[data-testid='activity-stream-date-query-mode']")?.value };
     })()
   `);
-  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-advanced-activity-stream']")?.click();`);
   await wait(10);
-  const runningAudit = await window.webContents.executeJavaScript(`(() => ({ banner: Boolean(document.querySelector("[data-testid='activity-stream-running']")), runId: document.body.innerText.includes("asrun-"), autoDisabled: document.querySelector("[data-testid='run-activity-stream']")?.disabled === true, precisionDisabled: document.querySelector("[data-testid='run-precision-probe']")?.disabled === true, manualDisabled: document.querySelector("[data-testid='run-manual-activity-stream']")?.disabled === true }))()`);
+  const runningAudit = await window.webContents.executeJavaScript(`(() => ({ banner: Boolean(document.querySelector("[data-testid='activity-stream-running']")), runId: document.body.innerText.includes("asrun-"), autoDisabled: document.querySelector("[data-testid='run-advanced-activity-stream']")?.disabled === true, precisionDisabled: document.querySelector("[data-testid='run-advanced-precision-probe']")?.disabled === true, manualDisabled: document.querySelector("[data-testid='run-manual-activity-stream']")?.disabled === true }))()`);
   await wait(350);
-  const activityStreamAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length, variantRows: document.querySelectorAll("[data-testid='activity-stream-variants'] tbody tr").length, mode: document.querySelector("[data-testid='activity-stream-query-mode']")?.value, hasEmailInput: Boolean(document.querySelector("[data-testid='activity-stream-user']")), issueKey: document.body.innerText.includes("SMOKE-101"), hasUsername: document.body.innerText.includes("username"), hasEscaped: document.body.innerText.includes("escaped_username"), hasEmail: document.body.innerText.includes("email"), relativeLinks: document.body.innerText.includes("relativeLinks=true"), diagnosis: document.body.innerText.includes("no_entries") && document.body.innerText.includes("parsed"), contentType: document.body.innerText.includes("application/atom+xml") }))()`);
+  const activityStreamAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length, variantRows: document.querySelectorAll("[data-testid='activity-stream-variants'] tbody tr").length, mode: document.querySelector("[data-testid='activity-stream-query-mode']")?.value, hasEmailInput: Boolean(document.querySelector("[data-testid='activity-stream-user']")), overrideWarning: Boolean(document.querySelector("[data-testid='advanced-override-warning']")), issueKey: document.body.innerText.includes("SMOKE-101"), hasUsername: document.body.innerText.includes("username"), hasEscaped: document.body.innerText.includes("escaped_username"), hasEmail: document.body.innerText.includes("email"), relativeLinks: document.body.innerText.includes("relativeLinks=true"), diagnosis: document.body.innerText.includes("no_entries") && document.body.innerText.includes("parsed"), contentType: document.body.innerText.includes("application/atom+xml") }))()`);
   await window.webContents.executeJavaScript(`
     (() => {
       const max = document.querySelector("[data-testid='probe-max-results']");
@@ -2808,7 +2947,7 @@ async function runUiSmoke(window: BrowserWindow) {
   const capTestAudit = await window.webContents.executeJavaScript(`(() => ({ rows: document.querySelectorAll("[data-testid='cap-test-results'] tbody tr").length, likely: document.querySelector("[data-testid='max-results-diagnostics']")?.textContent?.includes("likely"), estimated: document.querySelector("[data-testid='max-results-diagnostics']")?.textContent?.includes("1") }))()`);
   await window.webContents.executeJavaScript(`(() => { const max = document.querySelector("[data-testid='probe-max-results']"); if (max instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(max, "50"); max.dispatchEvent(new Event("input", { bubbles: true })); max.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
   await wait(100);
-  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-precision-probe']")?.click();`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-advanced-precision-probe']")?.click();`);
   await wait(750);
   const precisionAudit = await window.webContents.executeJavaScript(`
     (() => ({
@@ -2901,13 +3040,19 @@ async function runUiSmoke(window: BrowserWindow) {
   const precisionDateSemantics = asRecord(precisionExport?.dateSemantics);
   const precisionRequestedDateRange = asRecord(precisionDateSemantics.requestedDateRange);
   const precisionMaxDiagnostics = asRecord(precisionExport?.maxResultsDiagnostics);
+  const precisionStandardFlow = asRecord(precisionExport?.standardActivityStreamFlow);
+  const precisionClassifierDiagnostics = asRecord(precisionExport?.activityTypeClassifierDiagnostics);
   const precisionFullFetchFilesAfter = fs.existsSync(getFullFetchLogsDir()) ? fs.readdirSync(getFullFetchLogsDir()) : [];
   const precisionActionLogBuffer = fs.existsSync(precisionActionLogPath) ? fs.readFileSync(precisionActionLogPath) : Buffer.alloc(0);
   const precisionActionTimeline = precisionActionLogBuffer.subarray(precisionActionLogStartSize).toString("utf8");
   const precisionUnexpectedFullFetchFiles = precisionFullFetchFilesAfter.filter((name) => !precisionFullFetchFilesBefore.has(name));
+  if (!standardFlowUiAudit.panel || !standardFlowUiAudit.selected || !standardFlowUiAudit.escaped || !standardFlowUiAudit.date || !standardFlowUiAudit.chunking || !standardFlowUiAudit.limit || !standardFlowUiAudit.advancedClosed || !standardFlowUiAudit.noMainUserInput || !standardFlowUiAudit.noMainQueryMode || !standardFlowUiAudit.noMainDateMode || !standardFlowUiAudit.noMainMax) failures.push(`standard flow UI audit failed ${JSON.stringify(standardFlowUiAudit)}`);
+  if (standardFlowRunAudit.variants !== 1 || !standardFlowRunAudit.escaped || !standardFlowRunAudit.encoded || !standardFlowRunAudit.classifier) failures.push(`standard flow run audit failed ${JSON.stringify(standardFlowRunAudit)}`);
+  if (!standardSelectionGuardAudit.noUser || !standardSelectionGuardAudit.multiUser) failures.push(`standard flow selected-user guard audit failed ${JSON.stringify(standardSelectionGuardAudit)}`);
+  if (!advancedFlowUiAudit.open || !advancedFlowUiAudit.user || !advancedFlowUiAudit.query || !advancedFlowUiAudit.date || !advancedFlowUiAudit.max || !advancedFlowUiAudit.manual || !advancedFlowUiAudit.cap) failures.push(`advanced diagnostics UI audit failed ${JSON.stringify(advancedFlowUiAudit)}`);
   if (!maxValidationAudit.rejectsLow || !maxValidationAudit.rejectsHigh || maxValidationAudit.quickValue !== "10" || maxValidationAudit.quickCount !== 7 || maxValidationAudit.dateMode !== "both") failures.push(`maxResults validation/quick values audit failed ${JSON.stringify(maxValidationAudit)}`);
   if (!runningAudit.banner || !runningAudit.runId || !runningAudit.autoDisabled || !runningAudit.precisionDisabled || !runningAudit.manualDisabled) failures.push(`activity stream running lock audit failed ${JSON.stringify(runningAudit)}`);
-  if (!activityStreamAudit.hasEmailInput || activityStreamAudit.mode !== "auto" || !activityStreamAudit.issueKey || !activityStreamAudit.contentType || !activityStreamAudit.hasUsername || !activityStreamAudit.hasEscaped || !activityStreamAudit.hasEmail || !activityStreamAudit.relativeLinks || !activityStreamAudit.diagnosis || activityStreamAudit.rows !== 10 || activityStreamAudit.variantRows !== 3) failures.push(`activity stream UI audit failed ${JSON.stringify(activityStreamAudit)}`);
+  if (!activityStreamAudit.hasEmailInput || !activityStreamAudit.overrideWarning || activityStreamAudit.mode !== "auto" || !activityStreamAudit.issueKey || !activityStreamAudit.contentType || !activityStreamAudit.hasUsername || !activityStreamAudit.hasEscaped || !activityStreamAudit.hasEmail || !activityStreamAudit.relativeLinks || !activityStreamAudit.diagnosis || activityStreamAudit.rows !== 10 || activityStreamAudit.variantRows !== 3) failures.push(`activity stream UI audit failed ${JSON.stringify(activityStreamAudit)}`);
   if (!manualReplayAudit.accepted || !manualReplayAudit.manualVariant || !manualReplayAudit.escapedVariant || !manualReplayAudit.issueKey || !manualReplayAudit.authorEmail || !manualReplayAudit.linkType) failures.push(`manual replay UI audit failed ${JSON.stringify(manualReplayAudit)}`);
   if (!largeMaxModalAudit.modal || !largeMaxModalAudit.warning || !largeMaxRejectAudit.rejected || !strongWarningAudit.strong || capTestAudit.rows !== 2 || !capTestAudit.likely || !capTestAudit.estimated) failures.push(`large maxResults/cap test UI audit failed ${JSON.stringify({ largeMaxModalAudit, largeMaxRejectAudit, strongWarningAudit, capTestAudit })}`);
   if (paginationAudit.firstPageRows !== 40 || paginationAudit.secondPageRows !== 10 || !paginationAudit.pageTwo || !paginationAudit.detailVisible || !paginationAudit.copyVisible || paginationAudit.optionCount !== 5 || !paginationAudit.resetToPageOne || paginationAudit.tenRows !== 10) failures.push(`parsed entries pagination/detail audit failed ${JSON.stringify(paginationAudit)}`);
@@ -2920,9 +3065,9 @@ async function runUiSmoke(window: BrowserWindow) {
   const exportedVariants = Array.isArray(precisionActivityStream.variantResults) ? precisionActivityStream.variantResults.map(asRecord) : [];
   const precisionActivityStats = asRecord(precisionExport?.activityEntryStats);
   const precisionTableState = asRecord(precisionExport?.parsedEntriesTableState);
-  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || !String(precisionActivityStream.runId).startsWith("asrun-") || Number(precisionActivityStream.parsedActivityCount) !== 50 || !Array.isArray(precisionActivityStream.entriesSanitized) || exportedVariants.length !== 3 || exportedVariants.some((variant) => variant.runId !== precisionActivityStream.runId) || Number(precisionParserDiagnostics.parsedEntryCount) !== 50 || Number(precisionParserDiagnostics.skippedEntryCount) !== 0 || Number(precisionActivityStats.parsedActivityEntryCount) !== 50 || Number(precisionActivityStats.entriesWithIssueKeyCount) !== 1 || Number(precisionActivityStats.confluenceOnlyEntryCount) !== 49 || Number(precisionTableState.pageSize) !== 10 || Number(precisionTableState.currentPage) !== 1 || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys) || !precisionIssueKeySets.recommendedIssueKeys.includes("SMOKE-101") || !Array.isArray(precisionExport.activityStreamRunHistory) || precisionExport.activityStreamRunHistory.length !== 5 || !Array.isArray(precisionExport.filteredEntriesSanitized) || precisionExport.filteredEntriesSanitized.length !== 1 || !Array.isArray(precisionExport.clientDateFilteredEntriesSanitized) || precisionExport.clientDateFilteredEntriesSanitized.length !== 50 || !Array.isArray(precisionExport.dateQueryResults) || precisionExport.dateQueryResults.length !== 2 || !Array.isArray(precisionExport.maxResultsCapTestResults) || precisionExport.maxResultsCapTestResults.length !== 2 || !Array.isArray(precisionExport.crossPageDebugBundleTodo) || precisionDateSemantics.bestDateQueryMode !== "update_date_after_before" || Number(precisionRequestedDateRange.startEpochMs) !== 1782835200000 || Number(precisionRequestedDateRange.endExclusiveEpochMs) !== 1783440000000 || Number(precisionMaxDiagnostics.requestedMaxResults) !== 50 || precisionFilter.issueKeyQuery !== "SMOKE-101" || Number(precisionFilterStats.filteredEntries) !== 1) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
+  if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || !String(precisionActivityStream.runId).startsWith("asrun-") || Number(precisionActivityStream.parsedActivityCount) !== 50 || !Array.isArray(precisionActivityStream.entriesSanitized) || exportedVariants.length !== 3 || exportedVariants.some((variant) => variant.runId !== precisionActivityStream.runId) || Number(precisionParserDiagnostics.parsedEntryCount) !== 50 || Number(precisionParserDiagnostics.skippedEntryCount) !== 0 || Number(precisionActivityStats.parsedActivityEntryCount) !== 50 || Number(precisionActivityStats.entriesWithIssueKeyCount) !== 1 || Number(precisionActivityStats.confluenceOnlyEntryCount) !== 49 || Number(precisionTableState.pageSize) !== 10 || Number(precisionTableState.currentPage) !== 1 || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys) || !precisionIssueKeySets.recommendedIssueKeys.includes("SMOKE-101") || !Array.isArray(precisionExport.activityStreamRunHistory) || precisionExport.activityStreamRunHistory.length !== 5 || !Array.isArray(precisionExport.filteredEntriesSanitized) || precisionExport.filteredEntriesSanitized.length !== 1 || !Array.isArray(precisionExport.clientDateFilteredEntriesSanitized) || precisionExport.clientDateFilteredEntriesSanitized.length !== 50 || !Array.isArray(precisionExport.dateQueryResults) || precisionExport.dateQueryResults.length !== 2 || !Array.isArray(precisionExport.maxResultsCapTestResults) || precisionExport.maxResultsCapTestResults.length !== 2 || !Array.isArray(precisionExport.crossPageDebugBundleTodo) || precisionDateSemantics.bestDateQueryMode !== "update_date_after_before" || Number(precisionRequestedDateRange.startEpochMs) !== 1782835200000 || Number(precisionRequestedDateRange.endExclusiveEpochMs) !== 1783440000000 || Number(precisionMaxDiagnostics.requestedMaxResults) !== 50 || precisionFilter.issueKeyQuery !== "SMOKE-101" || Number(precisionFilterStats.filteredEntries) !== 1 || !precisionStandardFlow.variant || precisionExport.advancedDiagnosticsUsed !== true || precisionClassifierDiagnostics.enabled !== true || precisionClassifierDiagnostics.commentPriorityHigherThanAttachment !== true) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
   if (precisionSource.token !== "[masked]" || precisionSource.authorization !== "[masked]" || precisionSource.readOnly !== true || precisionSource.databaseWrite !== false || precisionSource.attachmentDownload !== false) failures.push(`precision probe export safety flags/masking failed ${JSON.stringify(precisionSource)}`);
-  const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User changed: value=smoke_user@example.com", "Button clicked: Run Activity Stream Probe", "Manual Activity Stream URL changed", "Button clicked: Run Manual URL Replay", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
+  const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User Override changed: value=smoke_user@example.com", "Button clicked: Run Activity Stream Probe", "Manual Activity Stream URL changed", "Button clicked: Run Manual URL Replay", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
   const missingPrecisionActions = requiredPrecisionActions.filter((entry) => !precisionActionTimeline.includes(entry));
   if (missingPrecisionActions.length > 0) failures.push(`precision probe action log missing ${JSON.stringify(missingPrecisionActions)}`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='reset-entry-filters']")?.click();`);
@@ -2931,13 +3076,13 @@ async function runUiSmoke(window: BrowserWindow) {
   if (resetFilterAudit.issue !== "" || resetFilterAudit.author !== "" || resetFilterAudit.onlyKey || resetFilterAudit.activityTypes !== 0 || resetFilterAudit.variants !== 0 || resetFilterAudit.sources !== 0 || resetFilterAudit.rows < 1) failures.push(`parsed entries filter reset audit failed ${JSON.stringify(resetFilterAudit)}`);
   await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) { const prototype = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); } }; set("[data-testid='activity-stream-start-date']", "2026-01-01"); set("[data-testid='activity-stream-end-date']", "2026-07-14"); set("[data-testid='activity-stream-date-query-mode']", "update_date_after_before"); set("[data-testid='activity-stream-chunking-mode']", "auto"); set("[data-testid='activity-stream-query-mode']", "auto"); })()`);
   await wait(100);
-  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-advanced-activity-stream']")?.click();`);
   await wait(1200);
   const chunkingUiAudit = await window.webContents.executeJavaScript(`(() => { const summary = document.querySelector("[data-testid='chunking-summary']")?.textContent || ""; const requests = Array.from(document.querySelectorAll("[data-testid='activity-stream-chunk-results'] tbody tr")).map((row) => row.textContent || ""); return { rows: requests.length, monthly: summary.includes("monthly"), seven: summary.includes("7"), merged: summary.includes("8"), duplicates: summary.includes("6"), urls: requests.every((text) => text.includes("update-date+AFTER") && text.includes("update-date+BEFORE")) }; })()`);
   if (chunkingUiAudit.rows !== 7 || !chunkingUiAudit.monthly || !chunkingUiAudit.seven || !chunkingUiAudit.merged || !chunkingUiAudit.duplicates || !chunkingUiAudit.urls) failures.push(`date range chunking UI/merge audit failed ${JSON.stringify(chunkingUiAudit)}`);
   await window.webContents.executeJavaScript(`(() => { const select = document.querySelector("[data-testid='activity-stream-query-mode']"); if (select instanceof HTMLSelectElement) { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, "custom"); select.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
   await wait(100);
-  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-advanced-activity-stream']")?.click();`);
   await wait(900);
   const noEntriesTrackingAudit = await window.webContents.executeJavaScript(`(() => ({ banner: Boolean(document.querySelector("[data-testid='all-variants-no-entries']")), latest: document.querySelector("[data-testid='latest-run-auto-save']")?.textContent || "", successful: document.querySelector("[data-testid='last-successful-auto-save']")?.textContent || "", parsed: document.querySelector("[data-testid='last-parsed-auto-save']")?.textContent || "", noEntries: document.querySelector("[data-testid='latest-no-entries-auto-save']")?.textContent || "" }))()`);
   if (!noEntriesTrackingAudit.banner || !noEntriesTrackingAudit.latest.includes("no_entries") || !noEntriesTrackingAudit.successful.includes("parsed_confluence_only") || !noEntriesTrackingAudit.parsed.includes("parsed_confluence_only") || !noEntriesTrackingAudit.noEntries.includes("no_entries")) failures.push(`no_entries/result tracking UI audit failed ${JSON.stringify(noEntriesTrackingAudit)}`);
@@ -2953,22 +3098,25 @@ async function runUiSmoke(window: BrowserWindow) {
   if (autoSavedDocuments.some((document) => !asRecord(document.autoSave).path || asRecord(document.autoSave).enabled !== true || asRecord(document.debugBundleHints).includeInDebugBundle !== true || !Array.isArray(document.crossPageDebugBundleTodo))) failures.push("auto-save metadata/debug bundle hints audit failed");
   const newDebugBundles = fs.readdirSync(debugBundlesDir).filter((name) => !debugBundlesBefore.has(name));
   const debugBundlePath = newDebugBundles.length > 0 ? path.join(debugBundlesDir, newDebugBundles.at(-1)!) : "";
-  const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-run-result.json", "last-successful-result.json", "last-parsed-result.json", "latest-no-entries-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "activity-stream-chunk-results.json", "activity-stream-merged-result.json", "debug-bundle-summary.json", "README_for_GPT.txt"];
+  const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-run-result.json", "last-successful-result.json", "last-parsed-result.json", "latest-no-entries-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "activity-stream-chunk-results.json", "activity-stream-merged-result.json", "standard-activity-stream-flow.json", "activity-type-classifier-diagnostics.json", "debug-bundle-summary.json", "README_for_GPT.txt"];
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
   const bundleText = debugBundlePath ? actualBundleFiles.map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
   if (!autoSaveUiAudit.visible || !autoSaveUiAudit.activity || !autoSaveUiAudit.path || !autoSaveUiAudit.open || !autoSaveUiAudit.copy) failures.push(`last auto-save UI audit failed ${JSON.stringify(autoSaveUiAudit)}`);
   if (!debugBundleUiAudit.path || !debugBundleUiAudit.open || !debugBundleUiAudit.copy || missingBundleFiles.length > 0) failures.push(`debug bundle UI/files audit failed ${JSON.stringify({ debugBundleUiAudit, missingBundleFiles })}`);
-  if (!bundleText.includes("Jira Activity Analyzer Debug Bundle") || !bundleText.includes("Cross-page TODO") || /secret-value|JSESSIONID|Authorization:\s*(?!\[masked\])/i.test(bundleText)) failures.push("debug bundle README or sensitive-data audit failed");
+  if (!bundleText.includes("Jira Activity Analyzer Debug Bundle") || !bundleText.includes("Standard Activity Stream Flow:") || !bundleText.includes("Activity Type Classifier:") || !bundleText.includes("commentPriorityHigherThanAttachment: true") || !bundleText.includes("Cross-page TODO") || /secret-value|JSESSIONID|Authorization:\s*(?!\[masked\])/i.test(bundleText)) failures.push("debug bundle README/classifier/sensitive-data audit failed");
   if (debugBundlePath) {
     const latestBundleResult = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "latest-run-result.json"), "utf8")));
     const bundleHistory = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "run-history.json"), "utf8")) as Array<Record<string, unknown>>;
     const bundlePaths = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "auto-saved-result-paths.json"), "utf8")));
     const bundleSummary = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "debug-bundle-summary.json"), "utf8")));
+    const bundleStandardFlow = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "standard-activity-stream-flow.json"), "utf8")));
+    const bundleClassifier = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-type-classifier-diagnostics.json"), "utf8")));
     const bundleChunks = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-chunk-results.json"), "utf8")) as Array<Record<string, unknown>>;
     const bundleMerged = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-merged-result.json"), "utf8")));
     const latestBundleRunId = String(latestBundleResult.runId || "");
     if (!latestBundleRunId || !bundleHistory.some((run) => String(run?.runId || "") === latestBundleRunId) || String(asRecord(bundlePaths.latestRunResult).runId || "") !== latestBundleRunId || bundleSummary.snapshotConsistent !== true) failures.push(`debug bundle snapshot consistency failed: latest=${latestBundleRunId}`);
+    if (bundleStandardFlow.enabled !== true || bundleStandardFlow.variant !== "escaped_username" || bundleStandardFlow.activityStreamQueryUser !== "roger\\_hsieh" || Number(bundleStandardFlow.perChunkMaxResults) !== 500 || bundleClassifier.enabled !== true || bundleClassifier.commentPriorityHigherThanAttachment !== true || bundleClassifier.rulesVersion !== "1.0" || !asRecord(bundleSummary.standardActivityStreamFlow).selectedUser || !bundleSummary.activityTypeClassifierDiagnostics) failures.push(`debug bundle standard flow/classifier diagnostics failed: ${JSON.stringify({ bundleStandardFlow, bundleClassifier })}`);
     const lastSuccessfulBundle = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "last-successful-result.json"), "utf8")));
     if (String(asRecord(latestBundleResult.activityStream).diagnosis) !== "no_entries" || !["parsed", "parsed_confluence_only", "parsed_no_issue_keys"].includes(String(asRecord(lastSuccessfulBundle.activityStream).diagnosis))) failures.push("latest no_entries overwrote or invalidated last successful result");
     if (bundleChunks.length !== 7 || Number(asRecord(bundleMerged.chunkMergeStats).duplicateEntriesRemoved) !== 6 || Number(asRecord(bundleMerged.chunkMergeStats).mergedActivityEntries) !== 8) failures.push(`debug bundle chunk result audit failed: chunks=${bundleChunks.length} merge=${JSON.stringify(bundleMerged.chunkMergeStats)}`);
