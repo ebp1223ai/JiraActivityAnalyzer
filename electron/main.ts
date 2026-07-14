@@ -28,6 +28,11 @@ const captureDir = process.env.ELECTRON_UI_CAPTURE_DIR
 type AutoSaveResultType = "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test";
 type AutoSavedRun = { runId: string; resultType: AutoSaveResultType; status: string; savedAt: string; filePath: string; folderPath: string; data: Record<string, unknown> };
 const latestAutoSavedRuns = new Map<AutoSaveResultType, AutoSavedRun>();
+const autoSavedRunHistory: AutoSavedRun[] = [];
+let latestRunResult: AutoSavedRun | null = null;
+let lastSuccessfulResult: AutoSavedRun | null = null;
+let lastParsedResult: AutoSavedRun | null = null;
+let latestNoEntriesResult: AutoSavedRun | null = null;
 let lastDebugBundle = { path: "", createdAt: "" };
 const crossPageDebugBundleTodo = [
   "Jira Probe: verify debug bundle includes latest probe result",
@@ -830,6 +835,7 @@ type ActivityStreamVariant = { variant: "username" | "escaped_username" | "email
 type ActivityStreamDateQueryMode = "none" | "startDate_endDate" | "update_date_after_before" | "both";
 type ActivityStreamDateTestMode = Exclude<ActivityStreamDateQueryMode, "both">;
 type ActivityStreamDateEffectiveness = true | false | "likely_true" | "unknown";
+type ActivityStreamChunkingMode = "off" | "auto" | "monthly" | "weekly" | "custom_days";
 
 function decodeXmlText(value: string) {
   return value
@@ -1049,14 +1055,17 @@ function activityStreamVariants(connection: AppConnection, selectedUsers: string
 }
 
 function aggregateActivityStream(variantResults: ReturnType<typeof activityStreamResult>[], fallbackUser: string) {
-  const ranked = [...variantResults].sort((a, b) => Number(b.parsed) - Number(a.parsed) || b.atomEntryCount - a.atomEntryCount || Number(b.reachable) - Number(a.reachable));
-  const best = ranked[0];
+  const diagnosisRank = (result: ReturnType<typeof activityStreamResult>) => result.diagnosis === "parsed" ? 4 : result.diagnosis === "parsed_confluence_only" || result.diagnosis === "parsed_no_issue_keys" ? 3 : result.diagnosis === "no_entries" ? 2 : 1;
+  const variantRank = (variant: string) => variant === "escaped_username" ? 3 : variant === "username" ? 2 : variant === "email" ? 1 : 0;
+  const ranked = [...variantResults].sort((a, b) => diagnosisRank(b) - diagnosisRank(a) || b.parsedActivityCount - a.parsedActivityCount || b.atomEntryCount - a.atomEntryCount || variantRank(b.variant) - variantRank(a.variant));
+  const allVariantsNoEntries = variantResults.length > 0 && variantResults.every((result) => result.diagnosis === "no_entries");
+  const best = allVariantsNoEntries ? undefined : ranked[0];
   const activityStreamIssueKeys = Array.from(new Set(variantResults.flatMap((result) => result.parsedIssueKeys))).sort();
   const parsed = variantResults.some((result) => result.parsed);
   const reachable = variantResults.some((result) => result.reachable);
   const supported = variantResults.some((result) => result.supported === "yes") ? "yes" : variantResults.every((result) => result.supported === "no") ? "no" : "unknown";
-  const diagnosis: ActivityStreamDiagnosis = best?.diagnosis ?? (variantResults.some((result) => result.diagnosis === "no_entries") ? "no_entries" : "unknown");
-  const overallStatus = parsed ? "success" : reachable && supported === "yes" ? "partial" : "failed";
+  const diagnosis: ActivityStreamDiagnosis = allVariantsNoEntries ? "no_entries" : best?.diagnosis ?? (variantResults.some((result) => result.diagnosis === "no_entries") ? "no_entries" : "unknown");
+  const overallStatus = parsed ? "success" : diagnosis === "no_entries" ? "no_entries" : reachable && supported === "yes" ? "partial" : "failed";
   return {
     runId: best?.runId ?? variantResults[0]?.runId ?? "",
     status: parsed || diagnosis === "no_entries" ? "success" : supported === "no" ? "unsupported" : "failed",
@@ -1066,6 +1075,7 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
     parsed,
     diagnosis,
     bestVariant: best?.variant ?? "",
+    bestVariantReason: allVariantsNoEntries ? "all_variants_no_entries" : best ? "ranked_by_parse_quality" : "no_variant_available",
     bestActivityStreamUser: best?.activityStreamUser ?? fallbackUser,
     bestParsedIssueKeys: best?.parsedIssueKeys ?? [],
     httpStatus: best?.httpStatus ?? "-",
@@ -1087,6 +1097,68 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
   };
 }
 
+function activityEntryDedupKey(entry: ActivityStreamEntry) {
+  const normalizedTitle = entry.activityTitle.toLowerCase().replace(/\s+/g, " ").trim();
+  return [entry.activityTime, entry.activityAuthorEmail.toLowerCase(), normalizedTitle, entry.links[0] ?? ""].join("|");
+}
+
+function mergeVariantChunkResults(results: ReturnType<typeof activityStreamResult>[], variant: ActivityStreamVariant) {
+  if (results.length === 1) return results[0];
+  const first = results[0];
+  const uniqueEntries = new Map<string, ActivityStreamEntry>();
+  for (const entry of results.flatMap((result) => result.entriesSanitized)) {
+    const key = activityEntryDedupKey(entry);
+    if (!uniqueEntries.has(key)) uniqueEntries.set(key, entry);
+  }
+  const entries = Array.from(uniqueEntries.values());
+  const issueKeys = Array.from(new Set(entries.flatMap((entry) => entry.extractedIssueKeysPerEntry))).sort();
+  const withIssueKey = entries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 0);
+  const withoutIssueKey = entries.filter((entry) => entry.extractedIssueKeysPerEntry.length === 0);
+  const confluenceOnly = withoutIssueKey.filter((entry) => entry.activityApplication === "Confluence");
+  const anyParsed = entries.length > 0;
+  const allNoEntries = results.every((result) => result.diagnosis === "no_entries");
+  const diagnosis: Exclude<ActivityStreamDiagnosis, "unknown"> = anyParsed && withIssueKey.length > 0 ? "parsed" : anyParsed && confluenceOnly.length === entries.length ? "parsed_confluence_only" : anyParsed ? "parsed_no_issue_keys" : allNoEntries ? "no_entries" : results.find((result) => result.diagnosis !== "no_entries")?.diagnosis ?? "http_error";
+  const totalAtomEntries = results.reduce((sum, result) => sum + result.atomEntryCount, 0);
+  const skippedEntryCount = results.reduce((sum, result) => sum + result.parserDiagnostics.skippedEntryCount, 0);
+  const parserAnomaly = results.some((result) => result.parserDiagnostics.parserAnomaly);
+  return {
+    ...first,
+    variant: variant.variant,
+    activityStreamUser: variant.user,
+    parsed: diagnosis.startsWith("parsed"),
+    diagnosis,
+    status: diagnosis.startsWith("parsed") || diagnosis === "no_entries" ? "success" as const : results.every((result) => result.status === "unsupported") ? "unsupported" as const : "failed" as const,
+    reachable: results.some((result) => result.reachable),
+    supported: results.some((result) => result.supported === "yes") ? "yes" as const : results.every((result) => result.supported === "no") ? "no" as const : "unknown" as const,
+    httpStatus: Array.from(new Set(results.map((result) => result.httpStatus))).join(","),
+    requestUrlSanitized: results.map((result) => result.requestUrlSanitized).join("\n"),
+    atomEntryCount: totalAtomEntries,
+    parsedActivityCount: entries.length,
+    parsedIssueKeys: issueKeys,
+    entriesSanitized: entries,
+    firstEntriesSanitized: results.flatMap((result) => result.firstEntriesSanitized).slice(0, 3),
+    error: diagnosis.startsWith("parsed") || diagnosis === "no_entries" ? "" : results.map((result) => result.error).filter(Boolean).join("; "),
+    parserDiagnostics: {
+      atomEntryCount: totalAtomEntries,
+      parsedEntryCount: entries.length,
+      skippedEntryCount,
+      entriesWithoutIssueKeyCount: withoutIssueKey.length,
+      entriesWithIssueKeyCount: withIssueKey.length,
+      confluenceOnlyEntryCount: confluenceOnly.length,
+      entriesWithoutAuthorCount: entries.filter((entry) => !entry.activityAuthor && !entry.activityAuthorEmail).length,
+      entriesWithoutTimeCount: entries.filter((entry) => !entry.activityTime).length,
+      entriesWithoutTitleCount: entries.filter((entry) => !entry.activityTitle).length,
+      entriesWithMultipleIssueKeysCount: entries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 1).length,
+      parserErrorCount: results.reduce((sum, result) => sum + result.parserDiagnostics.parserErrorCount, 0),
+      parserErrorsSanitized: results.flatMap((result) => result.parserDiagnostics.parserErrorsSanitized).slice(0, 5),
+      skippedEntriesSanitized: results.flatMap((result) => result.parserDiagnostics.skippedEntriesSanitized).slice(0, 5),
+      parserAnomaly,
+      parserAnomalyReason: parserAnomaly ? "One or more chunks reported a parser anomaly" : ""
+    },
+    activityEntryStats: { totalAtomEntries, parsedActivityEntryCount: entries.length, parsedIssueActivityCount: withIssueKey.length, entriesWithIssueKeyCount: withIssueKey.length, entriesWithoutIssueKeyCount: withoutIssueKey.length, confluenceOnlyEntryCount: confluenceOnly.length, nonJiraEntryCount: withoutIssueKey.length, jiraIssueEntryCount: withIssueKey.length, uniqueIssueKeyCount: issueKeys.length }
+  };
+}
+
 function taipeiEpochMs(dateText: string) {
   return Date.parse(`${dateText}T00:00:00+08:00`);
 }
@@ -1097,9 +1169,55 @@ function addIsoDays(dateText: string, days: number) {
   return value.toISOString().slice(0, 10);
 }
 
+function addIsoMonths(dateText: string, months: number) {
+  const value = new Date(`${dateText}T00:00:00Z`);
+  const day = value.getUTCDate();
+  value.setUTCDate(1);
+  value.setUTCMonth(value.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + 1, 0)).getUTCDate();
+  value.setUTCDate(Math.min(day, lastDay));
+  return value.toISOString().slice(0, 10);
+}
+
 function requestedDateRange(start: string, end: string) {
   const endExclusive = addIsoDays(end, 1);
   return { start, end, endInclusive: true as const, timezone: "Asia/Taipei" as const, startEpochMs: taipeiEpochMs(start), endExclusiveEpochMs: taipeiEpochMs(endExclusive), endExclusive };
+}
+
+function buildDateRangeChunking(range: ReturnType<typeof requestedDateRange>, requestedMode: ActivityStreamChunkingMode, customDays: number) {
+  if (!Number.isInteger(customDays) || customDays < 1 || customDays > 31) throw new Error("Custom chunk days must be between 1 and 31.");
+  const totalDays = Math.max(1, Math.round((range.endExclusiveEpochMs - range.startEpochMs) / 86400000));
+  const mode: Exclude<ActivityStreamChunkingMode, "auto"> = requestedMode === "auto" ? totalDays <= 31 ? "off" : "monthly" : requestedMode;
+  const enabled = mode !== "off";
+  const chunks: Array<{ chunkIndex: number; chunkStart: string; chunkEndExclusive: string; startEpochMs: number; endEpochMs: number }> = [];
+  let cursor = range.start;
+  while (cursor < range.endExclusive) {
+    const proposedEnd = mode === "monthly" ? addIsoMonths(cursor, 1) : mode === "weekly" ? addIsoDays(cursor, 7) : mode === "custom_days" ? addIsoDays(cursor, customDays) : range.endExclusive;
+    const chunkEndExclusive = proposedEnd < range.endExclusive ? proposedEnd : range.endExclusive;
+    chunks.push({ chunkIndex: chunks.length + 1, chunkStart: cursor, chunkEndExclusive, startEpochMs: taipeiEpochMs(cursor), endEpochMs: taipeiEpochMs(chunkEndExclusive) });
+    cursor = chunkEndExclusive;
+  }
+  return {
+    enabled,
+    requestedMode,
+    mode,
+    chunkCount: chunks.length,
+    chunkSizeDays: mode === "custom_days" ? customDays : mode === "weekly" ? 7 : null,
+    requestedDateRange: { start: range.start, end: range.end, endExclusive: range.endExclusive, timezone: range.timezone },
+    largeRangeWarning: totalDays > 180,
+    chunks
+  };
+}
+
+function chunkOverallStatus(chunks: Array<{ status?: unknown; diagnosis?: unknown }>) {
+  if (chunks.length === 0) return "success" as const;
+  const successful = chunks.filter((chunk) => String(chunk.status) === "success" && String(chunk.diagnosis) !== "no_entries").length;
+  const noEntries = chunks.filter((chunk) => String(chunk.diagnosis) === "no_entries").length;
+  const failed = chunks.length - successful - noEntries;
+  if (successful === 0 && noEntries === chunks.length) return "no_entries" as const;
+  if (successful === 0 && failed > 0) return "failed" as const;
+  if (failed > 0 || noEntries > 0) return "partial" as const;
+  return "success" as const;
 }
 
 function activityStreamDateModes(mode: ActivityStreamDateQueryMode): ActivityStreamDateTestMode[] {
@@ -1152,18 +1270,20 @@ function dateQueryDiagnostics(mode: ActivityStreamDateTestMode, runId: string, s
   };
 }
 
-async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true, requestedRunId?: string, dateQueryMode: ActivityStreamDateQueryMode = "both", maxResultsSource: "custom" | "quick" = "custom", largeMaxResultsConfirmed = false) {
+async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true, requestedRunId?: string, dateQueryMode: ActivityStreamDateQueryMode = "both", maxResultsSource: "custom" | "quick" = "custom", largeMaxResultsConfirmed = false, chunkingMode: ActivityStreamChunkingMode = "auto", customChunkDays = 14) {
   const runId = requestedRunId || createActivityStreamRunId();
   const startedAt = new Date().toISOString();
   const requestMaxResults = Math.trunc(maxResults);
   if (requestMaxResults < 1 || requestMaxResults > 65535) throw new Error("maxResults must be between 1 and 65535. / maxResults 必須介於 1 到 65535。");
   const range = requestedDateRange(startDate, endDate);
+  const dateRangeChunking = buildDateRangeChunking(range, chunkingMode, customChunkDays);
   const variants = activityStreamVariants(connection, selectedUsers, user, queryMode);
   const dateModes = activityStreamDateModes(dateQueryMode);
   const logs = [
     `[USER_ACTION] Run Activity Stream Probe: runId=${runId} mode=${queryMode} user=${user || "auto"}`,
     `[INFO] Activity Stream probe started: runId=${runId} mode=${queryMode} variants=${variants.map((item) => `${item.variant}:${item.user}`).join(",")} date=${startDate}..${endDate}`,
     `[INFO] Activity Stream date query mode: ${dateQueryMode}`,
+    `[INFO] Date range chunking: requested=${chunkingMode} resolved=${dateRangeChunking.mode} enabled=${dateRangeChunking.enabled} chunks=${dateRangeChunking.chunkCount}`,
     `[INFO] Requested date range: ${startDate}..${range.endExclusive} timezone=Asia/Taipei startEpochMs=${range.startEpochMs} endEpochMs=${range.endExclusiveEpochMs}`,
     `[INFO] Activity Stream variants planned: ${variants.map((item) => `${item.variant}=${item.user}`).join(" ")}`,
     "[INFO] Authorization: [masked]",
@@ -1172,36 +1292,55 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   if (requestMaxResults > 500) logs.push(`[WARN] Large maxResults requested: ${requestMaxResults}`);
   if (requestMaxResults > 10000) logs.push("[WARN] Very large maxResults may cause timeout, UI stalls, or increased Jira server load.");
   const client = isUiSmoke ? null : createJiraClient({ baseUrl: connection.baseUrl, email: connection.email || connection.username, apiToken: connection.apiToken ?? "", authType: connection.authType });
-  const modeRuns: Array<{ mode: ActivityStreamDateTestMode; stream: ReturnType<typeof aggregateActivityStream>; variants: ReturnType<typeof activityStreamResult>[] }> = [];
+  const modeRuns: Array<{ mode: ActivityStreamDateTestMode; stream: ReturnType<typeof aggregateActivityStream>; variants: ReturnType<typeof activityStreamResult>[]; chunkResults: Array<Record<string, unknown>> }> = [];
   let responseBytes = 0;
   const requestStartedAt = Date.now();
   for (const dateMode of dateModes) {
     const variantResults = [] as ReturnType<typeof activityStreamResult>[];
-    for (const variant of variants) {
-      if (isUiSmoke) await new Promise((resolve) => setTimeout(resolve, 25));
-      const requestUrlSanitized = activityStreamRequestPath(requestMaxResults, relativeLinks, variant.user, dateMode, range);
-      logs.push(`[INFO] Activity Stream variant started: variant=${variant.variant} dateMode=${dateMode} user=${variant.user}`, `[DEBUG] GET ${requestUrlSanitized} (credentials masked)`);
-      let response: JiraHttpResult;
-      if (isUiSmoke) {
-        const insideEntry = `<entry><title type="html">created a link from <a href="/browse/SMOKE-101">SMOKE-101</a></title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><published>2026-07-02T09:00:00Z</published><activity:object><title>SMOKE-101</title><summary>Smoke fixture</summary></activity:object></entry>`;
-        const confluenceEntries = Array.from({ length: Math.max(0, Math.min(requestMaxResults, 67) - 1) }, (_, index) => `<entry><title>attached a file to Smoke Confluence page ${index + 1}</title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><updated>2026-07-${String(index % 6 + 1).padStart(2, "0")}T10:00:00Z</updated><activity:application>com.atlassian.confluence</activity:application><activity:object-type>page</activity:object-type><summary>Long sanitized detail ${"x".repeat(300)} ${index + 1}</summary></entry>`).join("");
-        const outsideEntry = `<entry><title>commented on SMOKE-099</title><author><name>Smoke User</name></author><updated>2026-06-18T02:28:51Z</updated><summary>Outside requested range</summary></entry>`;
-        const body = variant.variant === "escaped_username" ? `<feed>${insideEntry}${confluenceEntries}${dateMode === "startDate_endDate" ? outsideEntry : ""}</feed>` : "<feed></feed>";
-        response = { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: body, bodyPreview: "", json: null } as JiraHttpResult;
-      } else {
-        response = await client!.get(requestUrlSanitized);
+    const useChunks = dateMode === "update_date_after_before" && dateRangeChunking.enabled;
+    const requestRanges = useChunks ? dateRangeChunking.chunks : [{ chunkIndex: 1, chunkStart: range.start, chunkEndExclusive: range.endExclusive, startEpochMs: range.startEpochMs, endEpochMs: range.endExclusiveEpochMs }];
+    const resultsByVariant = new Map<string, ReturnType<typeof activityStreamResult>[]>();
+    const chunkResults: Array<Record<string, unknown>> = [];
+    for (const chunk of requestRanges) {
+      const chunkRange = { ...range, start: chunk.chunkStart, end: addIsoDays(chunk.chunkEndExclusive, -1), endExclusive: chunk.chunkEndExclusive, startEpochMs: chunk.startEpochMs, endExclusiveEpochMs: chunk.endEpochMs };
+      const currentChunkResults = [] as ReturnType<typeof activityStreamResult>[];
+      for (const variant of variants) {
+        if (isUiSmoke) await new Promise((resolve) => setTimeout(resolve, 10));
+        const requestUrlSanitized = activityStreamRequestPath(requestMaxResults, relativeLinks, variant.user, dateMode, chunkRange);
+        logs.push(`[INFO] Activity Stream chunk started: chunk=${chunk.chunkIndex}/${requestRanges.length} variant=${variant.variant} dateMode=${dateMode} range=${chunk.chunkStart}..${chunk.chunkEndExclusive}`, `[DEBUG] GET ${requestUrlSanitized} (credentials masked)`);
+        let response: JiraHttpResult;
+        if (isUiSmoke) {
+          const chunkedEntry = `<entry><title>updated Smoke Confluence chunk ${chunk.chunkIndex}</title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><updated>${chunk.chunkStart}T10:00:00+08:00</updated><activity:application>com.atlassian.confluence</activity:application><activity:object-type>page</activity:object-type><summary>Chunk ${chunk.chunkIndex}</summary></entry>`;
+          const duplicateEntry = `<entry><title>shared Smoke Confluence activity</title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><updated>${range.start}T09:00:00+08:00</updated><activity:application>com.atlassian.confluence</activity:application><activity:object-type>page</activity:object-type><summary>Duplicate across chunks</summary></entry>`;
+          const insideEntry = `<entry><title type="html">created a link from <a href="/browse/SMOKE-101">SMOKE-101</a></title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><published>2026-07-02T09:00:00Z</published><activity:object><title>SMOKE-101</title><summary>Smoke fixture</summary></activity:object></entry>`;
+          const confluenceEntries = Array.from({ length: Math.max(0, Math.min(requestMaxResults, 67) - 1) }, (_, index) => `<entry><title>attached a file to Smoke Confluence page ${index + 1}</title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><updated>2026-07-${String(index % 6 + 1).padStart(2, "0")}T10:00:00Z</updated><activity:application>com.atlassian.confluence</activity:application><activity:object-type>page</activity:object-type><summary>Long sanitized detail ${"x".repeat(300)} ${index + 1}</summary></entry>`).join("");
+          const outsideEntry = `<entry><title>commented on SMOKE-099</title><author><name>Smoke User</name></author><updated>2026-06-18T02:28:51Z</updated><summary>Outside requested range</summary></entry>`;
+          const body = variant.variant === "escaped_username" ? useChunks ? `<feed>${chunkedEntry}${duplicateEntry}</feed>` : `<feed>${insideEntry}${confluenceEntries}${dateMode === "startDate_endDate" ? outsideEntry : ""}</feed>` : "<feed></feed>";
+          response = { ok: true, status: 200, contentType: "application/atom+xml", bodyTextSanitized: body, bodyPreview: "", json: null } as JiraHttpResult;
+        } else {
+          response = await client!.get(requestUrlSanitized);
+        }
+        responseBytes += Buffer.byteLength(String(response.bodyTextSanitized ?? response.bodyPreview ?? JSON.stringify(response.json ?? "")), "utf8");
+        const result = { ...activityStreamResult(response, requestUrlSanitized, variant.user, variant.variant, runId), dateQueryMode: dateMode };
+        currentChunkResults.push(result);
+        resultsByVariant.set(variant.variant, [...(resultsByVariant.get(variant.variant) ?? []), result]);
+        logs.push(`${result.parsed ? "[INFO]" : "[WARN]"} Activity Stream chunk completed: chunk=${chunk.chunkIndex} variant=${variant.variant} diagnosis=${result.diagnosis} atomEntries=${result.atomEntryCount} parsedActivities=${result.parsedActivityCount}`);
       }
-      responseBytes += Buffer.byteLength(String(response.bodyTextSanitized ?? response.bodyPreview ?? JSON.stringify(response.json ?? "")), "utf8");
-      const result = { ...activityStreamResult(response, requestUrlSanitized, variant.user, variant.variant, runId), dateQueryMode: dateMode };
-      variantResults.push(result);
-      logs.push(`${result.parsed ? "[INFO]" : "[WARN]"} Activity Stream variant completed: variant=${variant.variant} dateMode=${dateMode} httpStatus=${result.httpStatus} diagnosis=${result.diagnosis} atomEntries=${result.atomEntryCount} parsedActivities=${result.parsedActivityCount} parsedIssueKeys=${result.parsedIssueKeys.length}`);
+      if (useChunks) {
+        const chunkStream = aggregateActivityStream(currentChunkResults, user);
+        chunkResults.push({ chunkIndex: chunk.chunkIndex, chunkStart: chunk.chunkStart, chunkEndExclusive: chunk.chunkEndExclusive, startEpochMs: chunk.startEpochMs, endEpochMs: chunk.endEpochMs, requestUrlSanitized: chunkStream.requestUrlSanitized, httpStatus: chunkStream.httpStatus, diagnosis: chunkStream.diagnosis, status: chunkStream.overallStatus, atomEntryCount: chunkStream.atomEntryCount, parsedActivityCount: chunkStream.parsedActivityCount, entriesWithIssueKeyCount: chunkStream.activityEntryStats.entriesWithIssueKeyCount, confluenceOnlyEntryCount: chunkStream.activityEntryStats.confluenceOnlyEntryCount, uniqueIssueKeyCount: chunkStream.activityEntryStats.uniqueIssueKeyCount, error: chunkStream.error });
+      }
     }
-    modeRuns.push({ mode: dateMode, variants: variantResults, stream: aggregateActivityStream(variantResults, user) });
+    for (const variant of variants) variantResults.push(mergeVariantChunkResults(resultsByVariant.get(variant.variant) ?? [], variant));
+    const stream = aggregateActivityStream(variantResults, user);
+    if (useChunks) stream.overallStatus = chunkOverallStatus(chunkResults);
+    modeRuns.push({ mode: dateMode, variants: variantResults, stream, chunkResults });
   }
   const dateQueryResults = modeRuns.map((item) => dateQueryDiagnostics(item.mode, runId, item.stream, range));
   const effectivenessRank = (value: ActivityStreamDateEffectiveness) => value === true ? 3 : value === "likely_true" ? 2 : value === "unknown" ? 1 : 0;
   const selectedModeRun = [...modeRuns].sort((a, b) => effectivenessRank(dateQueryDiagnostics(b.mode, runId, b.stream, range).dateFilterEffective) - effectivenessRank(dateQueryDiagnostics(a.mode, runId, a.stream, range).dateFilterEffective))[0];
   const activityStream = selectedModeRun?.stream ?? aggregateActivityStream([], user);
+  const activityStreamChunkResults = selectedModeRun?.chunkResults ?? [];
   const selectedDateResult = dateQueryResults.find((item) => item.mode === selectedModeRun?.mode) ?? dateQueryResults[0];
   const clientDateFilteredEntriesSanitized = activityStream.entriesSanitized.filter((entry) => {
     if (activityStream.bestVariant && entry.variant !== activityStream.bestVariant) return false;
@@ -1213,12 +1352,15 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   const bestDateQueryMode = selectedDateResult?.dateFilterEffective === true ? selectedDateResult.mode : "client_side_only";
   const dateSemantics = { requestedDateRange: { start: range.start, end: range.end, endInclusive: range.endInclusive, timezone: range.timezone, startEpochMs: range.startEpochMs, endExclusiveEpochMs: range.endExclusiveEpochMs }, dateQueryModesTested: dateModes, bestDateQueryMode, serverDateFilterEffective: selectedDateResult?.dateFilterEffective ?? "unknown", clientDateFilterApplied: true, rawReturnedEntries: activityStream.parsedActivityCount, clientDateFilteredEntries: clientDateFilteredEntriesSanitized.length, warnings: dateWarnings };
   const maxResultsDiagnostics = { requestedMaxResults: requestMaxResults, maxResultsSource, actualAtomEntryCount: activityStream.atomEntryCount, parsedActivityCount: activityStream.parsedActivityCount, serverCapDetected: "unknown" as const, serverCapValueEstimated: null, responseTimeMs: Date.now() - requestStartedAt, responseSizeKB: Number((responseBytes / 1024).toFixed(2)), largeMaxResultsWarningShown: requestMaxResults > 500, largeMaxResultsConfirmed, warnings: [...(requestMaxResults > 500 ? ["Large maxResults requested."] : []), ...(requestMaxResults > 10000 ? ["Very large maxResults may timeout, stall the UI, or increase Jira server load."] : [])] };
+  const totalChunkAtomEntries = activityStreamChunkResults.reduce((sum, item) => sum + Number(item.atomEntryCount || 0), 0);
+  const totalChunkParsedEntries = activityStreamChunkResults.reduce((sum, item) => sum + Number(item.parsedActivityCount || 0), 0);
+  const chunkMergeStats = { totalChunkAtomEntries, mergedActivityEntries: activityStream.parsedActivityCount, duplicateEntriesRemoved: Math.max(0, totalChunkParsedEntries - activityStream.parsedActivityCount), mergedEntriesWithIssueKeyCount: activityStream.activityEntryStats.entriesWithIssueKeyCount, mergedConfluenceOnlyEntryCount: activityStream.activityEntryStats.confluenceOnlyEntryCount, uniqueIssueKeyCount: activityStream.activityEntryStats.uniqueIssueKeyCount, successfulChunks: activityStreamChunkResults.filter((item) => String(item.status) === "success").length, noEntryChunks: activityStreamChunkResults.filter((item) => String(item.diagnosis) === "no_entries").length, failedChunks: activityStreamChunkResults.filter((item) => !["success", "no_entries"].includes(String(item.status))).length };
   logs.push(`[INFO] Activity Stream best variant: ${activityStream.bestVariant || "none"}`, `[INFO] Activity Stream probe completed: overallStatus=${activityStream.overallStatus} bestVariant=${activityStream.bestVariant || "none"} diagnosis=${activityStream.diagnosis} parsedIssueKeys=${activityStream.activityStreamIssueKeys.length}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
-  return { runId, startedAt, completedAt: new Date().toISOString(), activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, clientDateFilteredEntriesSanitized, logs };
+  return { runId, startedAt, completedAt: new Date().toISOString(), activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, dateRangeChunking, activityStreamChunkResults, chunkMergeStats, clientDateFilteredEntriesSanitized, logs };
 }
 
-ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: number; maxResultsSource?: "custom" | "quick"; largeMaxResultsConfirmed?: boolean; dateQueryMode?: ActivityStreamDateQueryMode; relativeLinks?: boolean; runId?: string }) => {
-  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults), payload.relativeLinks !== false, payload.runId, payload.dateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true);
+ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: number; maxResultsSource?: "custom" | "quick"; largeMaxResultsConfirmed?: boolean; dateQueryMode?: ActivityStreamDateQueryMode; relativeLinks?: boolean; runId?: string; chunkingMode?: ActivityStreamChunkingMode; customChunkDays?: number }) => {
+  return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults), payload.relativeLinks !== false, payload.runId, payload.dateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true, payload.chunkingMode ?? "auto", Number(payload.customChunkDays ?? 14));
 });
 
 const sensitiveReplayQueryKey = /token|password|passwd|secret|session|cookie|authorization|auth_token/i;
@@ -1272,6 +1414,8 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   activityStreamRunId?: string;
   activityStreamEndInclusive?: string;
   activityStreamDateQueryMode?: ActivityStreamDateQueryMode;
+  activityStreamChunkingMode?: ActivityStreamChunkingMode;
+  activityStreamCustomChunkDays?: number;
   maxResults: number;
   maxResultsSource?: "custom" | "quick";
   largeMaxResultsConfirmed?: boolean;
@@ -1292,7 +1436,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   ];
 
   if (isUiSmoke) {
-    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.activityStreamEndInclusive ?? addIsoDays(payload.endExclusive, -1), requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId, payload.activityStreamDateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true);
+    const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, payload.activityStreamUser || "smoke.user@example.com", payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.activityStreamEndInclusive ?? addIsoDays(payload.endExclusive, -1), requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId, payload.activityStreamDateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true, payload.activityStreamChunkingMode ?? "auto", Number(payload.activityStreamCustomChunkDays ?? 14));
     const activityStream = activityStreamRun.activityStream;
     const results: PrecisionProbeResult[] = [
       { method: "updatedBy Candidate JQL", status: "success", httpStatus: "200", supported: "yes", resultCount: 113, sampleIssueKeys: ["SMOKE-101", "SMOKE-102"], candidateSource: "updatedBy_candidate", error: "", recommendation: "Potential precision source; validate against Activity Stream", jql: "updatedBy(\"smoke.user\") ..." },
@@ -1313,6 +1457,9 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
       dateSemantics: activityStreamRun.dateSemantics,
       dateQueryResults: activityStreamRun.dateQueryResults,
       maxResultsDiagnostics: activityStreamRun.maxResultsDiagnostics,
+      dateRangeChunking: activityStreamRun.dateRangeChunking,
+      activityStreamChunkResults: activityStreamRun.activityStreamChunkResults,
+      chunkMergeStats: activityStreamRun.chunkMergeStats,
       clientDateFilteredEntriesSanitized: activityStreamRun.clientDateFilteredEntriesSanitized,
       issueKeySets,
       uniquePreciseIssueKeys: issueKeySets.recommendedIssueKeys,
@@ -1375,7 +1522,7 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
   results.push(await runJqlMethod("priority CHANGED BY", "priority_changed_by", (user) => `priority CHANGED BY ${quoted(user)} ${dates}`));
 
   const activityStreamUser = String(payload.activityStreamUser || selectedUsers[0] || "").trim();
-  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.activityStreamEndInclusive ?? addIsoDays(payload.endExclusive, -1), requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId, payload.activityStreamDateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true);
+  const activityStreamRun = await runActivityStreamProbe(connection, selectedUsers, activityStreamUser, payload.activityStreamQueryMode ?? "auto", payload.startInclusive, payload.activityStreamEndInclusive ?? addIsoDays(payload.endExclusive, -1), requestedMaxResults, payload.activityStreamRelativeLinks !== false, payload.activityStreamRunId, payload.activityStreamDateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true, payload.activityStreamChunkingMode ?? "auto", Number(payload.activityStreamCustomChunkDays ?? 14));
   const activityStreamData = activityStreamRun.activityStream;
   logs.push(...activityStreamRun.logs);
   results.push({
@@ -1430,6 +1577,9 @@ ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
     dateSemantics: activityStreamRun.dateSemantics,
     dateQueryResults: activityStreamRun.dateQueryResults,
     maxResultsDiagnostics: activityStreamRun.maxResultsDiagnostics,
+    dateRangeChunking: activityStreamRun.dateRangeChunking,
+    activityStreamChunkResults: activityStreamRun.activityStreamChunkResults,
+    chunkMergeStats: activityStreamRun.chunkMergeStats,
     clientDateFilteredEntriesSanitized: activityStreamRun.clientDateFilteredEntriesSanitized,
     issueKeySets,
     uniquePreciseIssueKeys,
@@ -2241,6 +2391,8 @@ function autoSaveRun(payload: { resultType: AutoSaveResultType; runId: string; s
   const data = asRecord(payload.data);
   const document = sanitizeExportData({
     ...data,
+    runId: payload.runId,
+    resultStatus: payload.status,
     autoSave: { enabled: true, savedAt, path: filePath, resultType: payload.resultType },
     debugBundleHints: { includeInDebugBundle: true, resultType: payload.resultType, latestResult: true },
     debugBundle: { lastBundlePath: lastDebugBundle.path, lastBundleCreatedAt: lastDebugBundle.createdAt },
@@ -2250,7 +2402,17 @@ function autoSaveRun(payload: { resultType: AutoSaveResultType; runId: string; s
   const saved = { runId: payload.runId, resultType: payload.resultType, status: payload.status, savedAt, filePath, folderPath, data: document };
   latestAutoSavedRuns.delete(payload.resultType);
   latestAutoSavedRuns.set(payload.resultType, saved);
-  return { canceled: false, ...saved, data: undefined };
+  autoSavedRunHistory.unshift(saved);
+  if (autoSavedRunHistory.length > 50) autoSavedRunHistory.length = 50;
+  const stream = asRecord(document.activityStream);
+  const diagnosis = String(stream.diagnosis ?? document.diagnosis ?? "unknown");
+  const parsedActivityCount = Number(stream.parsedActivityCount ?? document.parsedActivityCount ?? 0);
+  latestRunResult = saved;
+  if (["parsed", "parsed_confluence_only", "parsed_no_issue_keys"].includes(diagnosis)) lastSuccessfulResult = saved;
+  if (parsedActivityCount > 0) lastParsedResult = saved;
+  if (diagnosis === "no_entries") latestNoEntriesResult = saved;
+  const summarize = (run: AutoSavedRun | null) => run ? { runId: run.runId, resultType: run.resultType, status: run.status, diagnosis: String(asRecord(run.data.activityStream).diagnosis ?? run.data.diagnosis ?? "unknown"), parsedActivityCount: Number(asRecord(run.data.activityStream).parsedActivityCount ?? run.data.parsedActivityCount ?? 0), savedAt: run.savedAt, path: run.filePath, folderPath: run.folderPath } : null;
+  return { canceled: false, ...saved, data: undefined, resultTracking: { latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult) } };
 }
 
 ipcMain.handle("user-analysis:auto-save-run", async (_event, payload: { resultType: AutoSaveResultType; runId: string; status: string; data: unknown }) => autoSaveRun(payload));
@@ -2263,7 +2425,12 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const createdAt = new Date().toISOString();
   const folderPath = ensureDir(path.join(getExportsDir(), "debug-bundles", `jira-activity-analyzer-debug-bundle-${fileTimestamp()}`));
   const savedRuns = Array.from(latestAutoSavedRuns.values());
-  const latest = savedRuns.at(-1);
+  const latest = latestRunResult;
+  const unavailable = { status: "not_available", message: "No matching auto-saved result available" };
+  const summarize = (run: AutoSavedRun | null) => run ? { runId: run.runId, resultType: run.resultType, status: run.status, diagnosis: String(asRecord(run.data.activityStream).diagnosis ?? run.data.diagnosis ?? "unknown"), parsedActivityCount: Number(asRecord(run.data.activityStream).parsedActivityCount ?? run.data.parsedActivityCount ?? 0), savedAt: run.savedAt, path: run.filePath } : null;
+  const runHistory = autoSavedRunHistory.map((run) => summarize(run));
+  const activityStreamHistory = autoSavedRunHistory.filter((run) => run.resultType === "activity_stream_run").map((run) => summarize(run));
+  const pathTracking = { latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult) };
   const actionLogPath = getUserActionLogPath();
   const actionLog = fs.existsSync(actionLogPath) ? fs.readFileSync(actionLogPath, "utf8") : "No user action log available.";
   const debugContent = buildDebugLogExportContent(payload.debugLog).mergedContent;
@@ -2271,10 +2438,19 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   fs.writeFileSync(path.join(folderPath, "user-action-log.txt"), buildDebugLogExportContent(actionLog).mergedContent, "utf8");
   writeBundleJson(folderPath, "app-metadata.json", { name: "Jira Activity Analyzer", version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__, generatedAt: createdAt, currentPage: payload.currentPage });
   writeBundleJson(folderPath, "request-context.json", asRecord(latest?.data.requestContext));
-  writeBundleJson(folderPath, "latest-result.json", latest?.data ?? { status: "not_run", message: "No auto-saved result available" });
-  writeBundleJson(folderPath, "run-history.json", latest?.data.activityStreamRunHistory ?? []);
-  writeBundleJson(folderPath, "activity-stream-run-history.json", latest?.data.activityStreamRunHistory ?? []);
-  writeBundleJson(folderPath, "auto-saved-result-paths.json", savedRuns.map((run) => ({ runId: run.runId, resultType: run.resultType, status: run.status, savedAt: run.savedAt, path: run.filePath })));
+  writeBundleJson(folderPath, "latest-result.json", latest?.data ?? unavailable);
+  writeBundleJson(folderPath, "latest-run-result.json", latest?.data ?? unavailable);
+  writeBundleJson(folderPath, "last-successful-result.json", lastSuccessfulResult?.data ?? unavailable);
+  writeBundleJson(folderPath, "last-parsed-result.json", lastParsedResult?.data ?? unavailable);
+  writeBundleJson(folderPath, "latest-no-entries-result.json", latestNoEntriesResult?.data ?? unavailable);
+  writeBundleJson(folderPath, "run-history.json", runHistory);
+  writeBundleJson(folderPath, "activity-stream-run-history.json", activityStreamHistory);
+  writeBundleJson(folderPath, "auto-saved-result-paths.json", pathTracking);
+  const latestChunkedRun = autoSavedRunHistory.find((run) => Array.isArray(run.data.activityStreamChunkResults) && run.data.activityStreamChunkResults.length > 0 && Number(asRecord(run.data.activityStream).parsedActivityCount ?? 0) > 0)
+    ?? autoSavedRunHistory.find((run) => Array.isArray(run.data.activityStreamChunkResults) && run.data.activityStreamChunkResults.length > 0);
+  writeBundleJson(folderPath, "activity-stream-chunk-results.json", latestChunkedRun?.data.activityStreamChunkResults ?? []);
+  writeBundleJson(folderPath, "activity-stream-merged-result.json", latestChunkedRun ? { runId: latestChunkedRun.runId, dateRangeChunking: latestChunkedRun.data.dateRangeChunking, chunkMergeStats: latestChunkedRun.data.chunkMergeStats, activityStream: latestChunkedRun.data.activityStream } : unavailable);
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {} });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -2282,7 +2458,10 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   }
   const included = fs.readdirSync(folderPath);
   const missing = (Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>).filter(([type]) => !latestAutoSavedRuns.has(type)).map(([, fileName]) => `${fileName}: not_run / no result available`);
-  fs.writeFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Jira Activity Analyzer Debug Bundle", `Version: ${__MAIN_APP_VERSION__}`, `Build Time: ${__MAIN_BUILD_TIME__}`, `Git Commit: ${__MAIN_GIT_COMMIT__}`, `Generated At: ${createdAt}`, `Current Page: ${payload.currentPage}`, "Included Files:", ...included.map((file) => `- ${file}`), "How to analyze:", "- Check app-metadata.json", "- Check latest-result.json", "- Check debug-log.txt", "- Check user-action-log.txt", "Security:", "- token / Authorization / cookie are masked or not included", "Known missing files:", ...(missing.length ? missing : ["- none"]), "Cross-page TODO:", ...crossPageDebugBundleTodo.map((item) => `- ${item}`)].join("\n"), "utf8");
+  const trackingLines = (label: string, run: AutoSavedRun | null) => run ? [`${label}:`, `- runId: ${run.runId}`, `- status: ${run.status}`, `- diagnosis: ${String(asRecord(run.data.activityStream).diagnosis ?? "unknown")}`, `- parsedActivityCount: ${Number(asRecord(run.data.activityStream).parsedActivityCount ?? 0)}`, `- path: ${run.filePath}`] : [`${label}:`, "- not_available"];
+  const chunking = asRecord(latestChunkedRun?.data.dateRangeChunking);
+  const mergeStats = asRecord(latestChunkedRun?.data.chunkMergeStats);
+  fs.writeFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Jira Activity Analyzer Debug Bundle", `Version: ${__MAIN_APP_VERSION__}`, `Build Time: ${__MAIN_BUILD_TIME__}`, `Git Commit: ${__MAIN_GIT_COMMIT__}`, `Generated At: ${createdAt}`, `Current Page: ${payload.currentPage}`, ...trackingLines("Latest Run Result", latestRunResult), ...trackingLines("Last Successful Result", lastSuccessfulResult), ...trackingLines("Last Parsed Result", lastParsedResult), ...trackingLines("Latest No Entries Result", latestNoEntriesResult), "Date Range Chunking:", `- enabled: ${Boolean(chunking.enabled)}`, `- mode: ${String(chunking.mode ?? "off")}`, `- chunkCount: ${Number(chunking.chunkCount ?? 0)}`, `- successfulChunks: ${Number(mergeStats.successfulChunks ?? 0)}`, `- failedChunks: ${Number(mergeStats.failedChunks ?? 0)}`, `- mergedActivityEntries: ${Number(mergeStats.mergedActivityEntries ?? 0)}`, "Included Files:", ...included.map((file) => `- ${file}`), "How to analyze:", "- Check debug-bundle-summary.json", "- Check latest-run-result.json", "- Check run-history.json", "- Check debug-log.txt", "- Check user-action-log.txt", "Security:", "- token / Authorization / cookie are masked or not included", "Known missing files:", ...(missing.length ? missing : ["- none"]), "Cross-page TODO:", ...crossPageDebugBundleTodo.map((item) => `- ${item}`)].join("\n"), "utf8");
   lastDebugBundle = { path: folderPath, createdAt };
   return { canceled: false, folderPath, filePath: folderPath, createdAt, includedFiles: fs.readdirSync(folderPath), crossPageDebugBundleTodo };
 });
@@ -2533,6 +2712,18 @@ async function runUiSmoke(window: BrowserWindow) {
   const confluenceOnlyXml = `<feed>${Array.from({ length: 67 }, (_, index) => `<entry><title>attached a file to E33 SSV9Q Sustain page ${index + 1}</title><author><name>Smoke Confluence User</name><email>smoke.confluence@example.com</email></author><updated>2026-01-${String(index % 28 + 1).padStart(2, "0")}T08:00:00+08:00</updated><activity:application>com.atlassian.confluence</activity:application><activity:object-type>page</activity:object-type><summary>Confluence-only activity ${index + 1}</summary></entry>`).join("")}</feed>`;
   const confluenceOnlyResult = activityStreamResult({ ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: confluenceOnlyXml }, "/plugins/servlet/streams?maxResults=67", "smoke_user", "escaped_username", "asrun-confluence-67");
   if (confluenceOnlyResult.diagnosis !== "parsed_confluence_only" || !confluenceOnlyResult.parsed || confluenceOnlyResult.parsedActivityCount !== 67 || confluenceOnlyResult.parsedIssueKeys.length !== 0 || confluenceOnlyResult.parserDiagnostics.parsedEntryCount !== 67 || confluenceOnlyResult.parserDiagnostics.skippedEntryCount !== 0 || confluenceOnlyResult.parserDiagnostics.entriesWithoutIssueKeyCount !== 67 || confluenceOnlyResult.parserDiagnostics.confluenceOnlyEntryCount !== 67 || confluenceOnlyResult.parserDiagnostics.parserAnomaly || confluenceOnlyResult.activityEntryStats.confluenceOnlyEntryCount !== 67) failures.push(`67-entry Confluence-only diagnosis failed: ${JSON.stringify({ diagnosis: confluenceOnlyResult.diagnosis, parserDiagnostics: confluenceOnlyResult.parserDiagnostics, activityEntryStats: confluenceOnlyResult.activityEntryStats })}`);
+  const noEntryVariants = (["username", "escaped_username", "email"] as const).map((variant) => activityStreamResult({ ok: true, status: 200, contentType: "application/atom+xml", json: null, bodyTextSanitized: "<feed></feed>" }, `/plugins/servlet/streams?variant=${variant}`, variant, variant, "asrun-all-empty"));
+  const allNoEntries = aggregateActivityStream(noEntryVariants, "smoke_user");
+  if (allNoEntries.bestVariant !== "" || allNoEntries.bestVariantReason !== "all_variants_no_entries" || allNoEntries.bestActivityStreamUser !== "smoke_user" || allNoEntries.diagnosis !== "no_entries" || allNoEntries.overallStatus !== "no_entries") failures.push(`all-no-entries aggregation failed: ${JSON.stringify(allNoEntries)}`);
+  const longChunkPlan = buildDateRangeChunking(requestedDateRange("2026-01-01", "2026-07-14"), "auto", 14);
+  const shortChunkPlan = buildDateRangeChunking(requestedDateRange("2026-07-01", "2026-07-14"), "auto", 14);
+  const weeklyChunkPlan = buildDateRangeChunking(requestedDateRange("2026-07-01", "2026-07-31"), "weekly", 14);
+  const customChunkPlan = buildDateRangeChunking(requestedDateRange("2026-07-01", "2026-07-31"), "custom_days", 10);
+  if (!longChunkPlan.enabled || longChunkPlan.mode !== "monthly" || longChunkPlan.chunkCount !== 7 || shortChunkPlan.enabled || weeklyChunkPlan.chunkCount !== 5 || customChunkPlan.chunkCount !== 4) failures.push(`date chunk planner failed: ${JSON.stringify({ longChunkPlan, shortChunkPlan, weeklyChunkPlan, customChunkPlan })}`);
+  let invalidCustomDaysRejected = false;
+  try { buildDateRangeChunking(requestedDateRange("2026-07-01", "2026-07-31"), "custom_days", 32); } catch { invalidCustomDaysRejected = true; }
+  if (!invalidCustomDaysRejected) failures.push("custom chunk days validation did not reject values above 31");
+  if (chunkOverallStatus([{ status: "success", diagnosis: "parsed" }, { status: "failed", diagnosis: "http_error" }]) !== "partial" || chunkOverallStatus([{ status: "success", diagnosis: "no_entries" }]) !== "no_entries" || chunkOverallStatus([{ status: "failed", diagnosis: "http_error" }]) !== "failed") failures.push("partial/no_entries/failed chunk status classification failed");
   const typeFixtures: Array<[string, ActivityStreamEntry["activityType"]]> = [["attached one file to COPGEN1-1", "attachment"], ["changed the status", "status"], ["changed the Assignee", "assignee_change"], ["updated the Description", "description_update"], ["updated the Priority", "field_change"], ["commented on COPGEN1-1", "comment"], ["created a link from COPGEN1-1", "link"], ["Confluence page edited", "page"], ["performed an activity", "unknown"]];
   for (const [textValue, expected] of typeFixtures) if (activityType(textValue) !== expected) failures.push(`activity type classification failed: ${textValue} => ${activityType(textValue)} expected ${expected}`);
   window.setSize(1280, 720, false);
@@ -2738,7 +2929,19 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(150);
   const resetFilterAudit = await window.webContents.executeJavaScript(`(() => ({ issue: document.querySelector("[data-testid='filter-issue-key']")?.value, author: document.querySelector("[data-testid='filter-author']")?.value, onlyKey: document.querySelector("[data-testid='filter-only-key']")?.checked, activityTypes: document.querySelector("[data-testid='filter-activity-types']")?.selectedOptions.length, variants: document.querySelector("[data-testid='filter-variants']")?.selectedOptions.length, sources: document.querySelector("[data-testid='filter-sources']")?.selectedOptions.length, rows: document.querySelectorAll("[data-testid='activity-stream-results'] tbody tr").length }))()`);
   if (resetFilterAudit.issue !== "" || resetFilterAudit.author !== "" || resetFilterAudit.onlyKey || resetFilterAudit.activityTypes !== 0 || resetFilterAudit.variants !== 0 || resetFilterAudit.sources !== 0 || resetFilterAudit.rows < 1) failures.push(`parsed entries filter reset audit failed ${JSON.stringify(resetFilterAudit)}`);
-  const autoSaveUiAudit = await window.webContents.executeJavaScript(`(() => { const text = document.querySelector("[data-testid='last-auto-saved-result']")?.textContent || ""; return { visible: Boolean(text), precision: text.includes("precision_probe_run"), path: text.includes("precision-probe-runs"), open: Boolean(document.querySelector("[data-testid='open-auto-save-folder']")), copy: Boolean(document.querySelector("[data-testid='copy-auto-save-path']")) }; })()`);
+  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) { const prototype = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); } }; set("[data-testid='activity-stream-start-date']", "2026-01-01"); set("[data-testid='activity-stream-end-date']", "2026-07-14"); set("[data-testid='activity-stream-date-query-mode']", "update_date_after_before"); set("[data-testid='activity-stream-chunking-mode']", "auto"); set("[data-testid='activity-stream-query-mode']", "auto"); })()`);
+  await wait(100);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
+  await wait(1200);
+  const chunkingUiAudit = await window.webContents.executeJavaScript(`(() => { const summary = document.querySelector("[data-testid='chunking-summary']")?.textContent || ""; const requests = Array.from(document.querySelectorAll("[data-testid='activity-stream-chunk-results'] tbody tr")).map((row) => row.textContent || ""); return { rows: requests.length, monthly: summary.includes("monthly"), seven: summary.includes("7"), merged: summary.includes("8"), duplicates: summary.includes("6"), urls: requests.every((text) => text.includes("update-date+AFTER") && text.includes("update-date+BEFORE")) }; })()`);
+  if (chunkingUiAudit.rows !== 7 || !chunkingUiAudit.monthly || !chunkingUiAudit.seven || !chunkingUiAudit.merged || !chunkingUiAudit.duplicates || !chunkingUiAudit.urls) failures.push(`date range chunking UI/merge audit failed ${JSON.stringify(chunkingUiAudit)}`);
+  await window.webContents.executeJavaScript(`(() => { const select = document.querySelector("[data-testid='activity-stream-query-mode']"); if (select instanceof HTMLSelectElement) { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, "custom"); select.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
+  await wait(100);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
+  await wait(900);
+  const noEntriesTrackingAudit = await window.webContents.executeJavaScript(`(() => ({ banner: Boolean(document.querySelector("[data-testid='all-variants-no-entries']")), latest: document.querySelector("[data-testid='latest-run-auto-save']")?.textContent || "", successful: document.querySelector("[data-testid='last-successful-auto-save']")?.textContent || "", parsed: document.querySelector("[data-testid='last-parsed-auto-save']")?.textContent || "", noEntries: document.querySelector("[data-testid='latest-no-entries-auto-save']")?.textContent || "" }))()`);
+  if (!noEntriesTrackingAudit.banner || !noEntriesTrackingAudit.latest.includes("no_entries") || !noEntriesTrackingAudit.successful.includes("parsed_confluence_only") || !noEntriesTrackingAudit.parsed.includes("parsed_confluence_only") || !noEntriesTrackingAudit.noEntries.includes("no_entries")) failures.push(`no_entries/result tracking UI audit failed ${JSON.stringify(noEntriesTrackingAudit)}`);
+  const autoSaveUiAudit = await window.webContents.executeJavaScript(`(() => { const text = document.querySelector("[data-testid='last-auto-saved-result']")?.textContent || ""; return { visible: Boolean(text), activity: text.includes("activity_stream_run"), path: text.includes("activity-stream-runs"), open: Boolean(document.querySelector("[data-testid='open-auto-save-folder']")), copy: Boolean(document.querySelector("[data-testid='copy-auto-save-path']")) }; })()`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-debug-panel-state='collapsed']")?.querySelector("button")?.click();`);
   await wait(100);
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll("button")).find((button) => button.title?.includes("Save Debug Log"))?.click();`);
@@ -2750,13 +2953,26 @@ async function runUiSmoke(window: BrowserWindow) {
   if (autoSavedDocuments.some((document) => !asRecord(document.autoSave).path || asRecord(document.autoSave).enabled !== true || asRecord(document.debugBundleHints).includeInDebugBundle !== true || !Array.isArray(document.crossPageDebugBundleTodo))) failures.push("auto-save metadata/debug bundle hints audit failed");
   const newDebugBundles = fs.readdirSync(debugBundlesDir).filter((name) => !debugBundlesBefore.has(name));
   const debugBundlePath = newDebugBundles.length > 0 ? path.join(debugBundlesDir, newDebugBundles.at(-1)!) : "";
-  const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "README_for_GPT.txt"];
+  const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-run-result.json", "last-successful-result.json", "last-parsed-result.json", "latest-no-entries-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "activity-stream-chunk-results.json", "activity-stream-merged-result.json", "debug-bundle-summary.json", "README_for_GPT.txt"];
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
   const bundleText = debugBundlePath ? actualBundleFiles.map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
-  if (!autoSaveUiAudit.visible || !autoSaveUiAudit.precision || !autoSaveUiAudit.path || !autoSaveUiAudit.open || !autoSaveUiAudit.copy) failures.push(`last auto-save UI audit failed ${JSON.stringify(autoSaveUiAudit)}`);
+  if (!autoSaveUiAudit.visible || !autoSaveUiAudit.activity || !autoSaveUiAudit.path || !autoSaveUiAudit.open || !autoSaveUiAudit.copy) failures.push(`last auto-save UI audit failed ${JSON.stringify(autoSaveUiAudit)}`);
   if (!debugBundleUiAudit.path || !debugBundleUiAudit.open || !debugBundleUiAudit.copy || missingBundleFiles.length > 0) failures.push(`debug bundle UI/files audit failed ${JSON.stringify({ debugBundleUiAudit, missingBundleFiles })}`);
   if (!bundleText.includes("Jira Activity Analyzer Debug Bundle") || !bundleText.includes("Cross-page TODO") || /secret-value|JSESSIONID|Authorization:\s*(?!\[masked\])/i.test(bundleText)) failures.push("debug bundle README or sensitive-data audit failed");
+  if (debugBundlePath) {
+    const latestBundleResult = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "latest-run-result.json"), "utf8")));
+    const bundleHistory = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "run-history.json"), "utf8")) as Array<Record<string, unknown>>;
+    const bundlePaths = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "auto-saved-result-paths.json"), "utf8")));
+    const bundleSummary = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "debug-bundle-summary.json"), "utf8")));
+    const bundleChunks = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-chunk-results.json"), "utf8")) as Array<Record<string, unknown>>;
+    const bundleMerged = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-merged-result.json"), "utf8")));
+    const latestBundleRunId = String(latestBundleResult.runId || "");
+    if (!latestBundleRunId || !bundleHistory.some((run) => String(run?.runId || "") === latestBundleRunId) || String(asRecord(bundlePaths.latestRunResult).runId || "") !== latestBundleRunId || bundleSummary.snapshotConsistent !== true) failures.push(`debug bundle snapshot consistency failed: latest=${latestBundleRunId}`);
+    const lastSuccessfulBundle = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "last-successful-result.json"), "utf8")));
+    if (String(asRecord(latestBundleResult.activityStream).diagnosis) !== "no_entries" || !["parsed", "parsed_confluence_only", "parsed_no_issue_keys"].includes(String(asRecord(lastSuccessfulBundle.activityStream).diagnosis))) failures.push("latest no_entries overwrote or invalidated last successful result");
+    if (bundleChunks.length !== 7 || Number(asRecord(bundleMerged.chunkMergeStats).duplicateEntriesRemoved) !== 6 || Number(asRecord(bundleMerged.chunkMergeStats).mergedActivityEntries) !== 8) failures.push(`debug bundle chunk result audit failed: chunks=${bundleChunks.length} merge=${JSON.stringify(bundleMerged.chunkMergeStats)}`);
+  }
 
   const fullFetchFilesBeforeConfirmationTest = fs.existsSync(getFullFetchLogsDir())
     ? new Set(fs.readdirSync(getFullFetchLogsDir()))

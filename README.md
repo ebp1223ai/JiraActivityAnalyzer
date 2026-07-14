@@ -246,6 +246,17 @@ The standalone User Activity Precision Probe is a read-only compatibility and di
 - Debug bundles exclude `.env`, tokens, Authorization headers, cookies, session identifiers, raw login HTML, and database data. The bundle metadata lists unavailable result files and the remaining cross-page auto-save/debug-bundle integration checklist.
 - Cross-page integration remains a documented follow-up for Jira Probe, Jira Analysis, Candidate Discovery, Full Fetch, and Connections/Data Source tests; v0.2.12 does not silently claim those flows are auto-saved.
 
+### Date Range Chunking And Result Consistency
+
+- Activity Stream update-date queries support Off, Auto, Monthly, Weekly, and Custom Days chunking. Custom Days accepts 1 through 31 days. Auto uses one request for ranges up to 31 days and monthly chunks for longer ranges; ranges over 180 days display a warning.
+- Chunking applies only to `update-date AFTER/BEFORE` requests. `startDate/endDate` remains an independent compatibility test because it is unreliable in some Jira Server/Data Center environments.
+- Every chunk records its sanitized request URL, date bounds, status, diagnosis, Atom and parsed counts, Jira-key count, Confluence-only count, and error. Partial chunk failures preserve successful data and produce an overall partial result.
+- Merged entries are deduplicated by activity time, author email, normalized title, and first link. Exports include `dateRangeChunking`, `activityStreamChunkResults`, and `chunkMergeStats`.
+- Auto-save tracks Latest Run Result, Last Successful Result, Last Parsed Result, and Latest No Entries Result independently. A newer `no_entries` run never overwrites the last meaningful parsed result.
+- When every query variant returns no entries, `bestVariant` is empty and `bestVariantReason` is `all_variants_no_entries`; no username or email variant is presented as the winner.
+- Debug Bundle creation takes one consistent in-memory snapshot. `latest-run-result.json`, `run-history.json`, and `auto-saved-result-paths.json` therefore refer to the same latest run ID.
+- Debug Bundles also include `last-successful-result.json`, `last-parsed-result.json`, `latest-no-entries-result.json`, `debug-bundle-summary.json`, `activity-stream-chunk-results.json`, and `activity-stream-merged-result.json`.
+
 ### Date Semantics And MaxResults Diagnostics
 
 - Probe Max Results accepts a custom integer from 1 through 65535, defaults to 50, and provides quick values for 10, 20, 50, 100, 200, 500, and 1000.

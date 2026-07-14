@@ -208,12 +208,13 @@ export type UserActivityStreamEntryStats = {
 export type UserActivityStreamResult = {
   runId: string;
   status: "not_run" | "running" | "success" | "failed" | "unsupported";
-  overallStatus: "not_run" | "running" | "success" | "partial" | "failed";
+  overallStatus: "not_run" | "running" | "success" | "partial" | "no_entries" | "failed";
   reachable: boolean;
   supported: "yes" | "no" | "unknown";
   parsed: boolean;
   diagnosis: UserActivityStreamDiagnosis;
   bestVariant: string;
+  bestVariantReason: "all_variants_no_entries" | "ranked_by_parse_quality" | "no_variant_available" | string;
   bestActivityStreamUser: string;
   bestParsedIssueKeys: string[];
   httpStatus: string;
@@ -261,7 +262,21 @@ export type UserActivityStreamFilter = {
   applyClientDateFilter: boolean;
 };
 
-export type UserActivityStreamAutoSave = { path: string; savedAt: string; runId: string; resultType: string; status: string; folderPath: string };
+export type UserActivityStreamAutoSave = { path: string; savedAt: string; runId: string; resultType: string; status: string; diagnosis: string; parsedActivityCount: number; folderPath: string };
+
+export type UserActivityStreamDateRangeChunking = {
+  enabled: boolean;
+  requestedMode: "off" | "auto" | "monthly" | "weekly" | "custom_days";
+  mode: "off" | "monthly" | "weekly" | "custom_days";
+  chunkCount: number;
+  chunkSizeDays: number | null;
+  requestedDateRange: { start: string; end: string; endExclusive: string; timezone: "Asia/Taipei" };
+  largeRangeWarning: boolean;
+  chunks: Array<{ chunkIndex: number; chunkStart: string; chunkEndExclusive: string; startEpochMs: number; endEpochMs: number }>;
+};
+
+export type UserActivityStreamChunkResult = { chunkIndex: number; chunkStart: string; chunkEndExclusive: string; startEpochMs: number; endEpochMs: number; requestUrlSanitized: string; httpStatus: string; diagnosis: UserActivityStreamDiagnosis; status: string; atomEntryCount: number; parsedActivityCount: number; entriesWithIssueKeyCount: number; confluenceOnlyEntryCount: number; uniqueIssueKeyCount: number; error: string };
+export type UserActivityStreamChunkMergeStats = { totalChunkAtomEntries: number; mergedActivityEntries: number; duplicateEntriesRemoved: number; mergedEntriesWithIssueKeyCount: number; mergedConfluenceOnlyEntryCount: number; uniqueIssueKeyCount: number; successfulChunks: number; noEntryChunks: number; failedChunks: number };
 
 export type UserActivityStreamManualDiagnostics = {
   manualUrlProvided: boolean;
@@ -271,7 +286,7 @@ export type UserActivityStreamManualDiagnostics = {
 };
 
 export type UserAnalysisPrecisionProbeSummary = {
-  overallStatus: "not_run" | "running" | "success" | "partial" | "failed";
+  overallStatus: "not_run" | "running" | "success" | "partial" | "no_entries" | "failed";
   updatedBySupported: "yes" | "no" | "unknown";
   activityStreamSupported: "yes" | "no" | "unknown";
   changedBySupported: "yes" | "no" | "partial" | "unknown";
@@ -379,6 +394,11 @@ export type UserAnalysisSessionState = {
   precisionProbeMaxResults: number;
   precisionProbeMaxResultsSource: "custom" | "quick";
   activityStreamDateQueryMode: UserActivityStreamDateQueryMode;
+  activityStreamChunkingMode: UserActivityStreamDateRangeChunking["requestedMode"];
+  activityStreamCustomChunkDays: number;
+  activityStreamDateRangeChunking: UserActivityStreamDateRangeChunking;
+  activityStreamChunkResults: UserActivityStreamChunkResult[];
+  activityStreamChunkMergeStats: UserActivityStreamChunkMergeStats;
   activityStreamDateSemantics: UserActivityStreamDateSemantics;
   activityStreamDateQueryResults: UserActivityStreamDateQueryResult[];
   activityStreamMaxResultsDiagnostics: UserActivityStreamMaxResultsDiagnostics;
@@ -399,6 +419,9 @@ export type UserAnalysisSessionState = {
   parsedEntriesPageSize: 10 | 20 | 40 | 80 | 160;
   expandedActivityEntries: string[];
   lastAutoSavedResult: UserActivityStreamAutoSave | null;
+  lastSuccessfulAutoSavedResult: UserActivityStreamAutoSave | null;
+  lastParsedAutoSavedResult: UserActivityStreamAutoSave | null;
+  latestNoEntriesAutoSavedResult: UserActivityStreamAutoSave | null;
   autoSavedResultPaths: UserActivityStreamAutoSave[];
   activityStream: UserActivityStreamResult;
   precisionIssueKeySets: UserAnalysisPrecisionIssueKeySets;
@@ -516,6 +539,11 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   precisionProbeMaxResults: 50,
   precisionProbeMaxResultsSource: "quick",
   activityStreamDateQueryMode: "both",
+  activityStreamChunkingMode: "auto",
+  activityStreamCustomChunkDays: 14,
+  activityStreamDateRangeChunking: { enabled: false, requestedMode: "auto", mode: "off", chunkCount: 1, chunkSizeDays: null, requestedDateRange: { start: "2026-07-01", end: "2026-07-07", endExclusive: "2026-07-08", timezone: "Asia/Taipei" }, largeRangeWarning: false, chunks: [] },
+  activityStreamChunkResults: [],
+  activityStreamChunkMergeStats: { totalChunkAtomEntries: 0, mergedActivityEntries: 0, duplicateEntriesRemoved: 0, mergedEntriesWithIssueKeyCount: 0, mergedConfluenceOnlyEntryCount: 0, uniqueIssueKeyCount: 0, successfulChunks: 0, noEntryChunks: 0, failedChunks: 0 },
   activityStreamDateSemantics: { requestedDateRange: { start: "2026-07-01", end: "2026-07-07", endInclusive: true, timezone: "Asia/Taipei", startEpochMs: 0, endExclusiveEpochMs: 0 }, dateQueryModesTested: [], bestDateQueryMode: "client_side_only", serverDateFilterEffective: "unknown", clientDateFilterApplied: true, rawReturnedEntries: 0, clientDateFilteredEntries: 0, warnings: [] },
   activityStreamDateQueryResults: [],
   activityStreamMaxResultsDiagnostics: { requestedMaxResults: 50, maxResultsSource: "quick", actualAtomEntryCount: 0, parsedActivityCount: 0, serverCapDetected: "unknown", serverCapValueEstimated: null, responseTimeMs: 0, responseSizeKB: 0, largeMaxResultsWarningShown: false, largeMaxResultsConfirmed: false, warnings: [] },
@@ -536,6 +564,9 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   parsedEntriesPageSize: 40,
   expandedActivityEntries: [],
   lastAutoSavedResult: null,
+  lastSuccessfulAutoSavedResult: null,
+  lastParsedAutoSavedResult: null,
+  latestNoEntriesAutoSavedResult: null,
   autoSavedResultPaths: [],
   activityStream: {
     runId: "",
@@ -546,6 +577,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     parsed: false,
     diagnosis: "unknown",
     bestVariant: "",
+    bestVariantReason: "no_variant_available",
     bestActivityStreamUser: "",
     bestParsedIssueKeys: [],
     httpStatus: "-",

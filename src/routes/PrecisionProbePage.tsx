@@ -125,8 +125,9 @@ export function PrecisionProbePage() {
   async function autoSaveRun(resultType: "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test", runId: string, status: string, data: unknown) {
     if (!window.desktopApp?.userAnalysis?.autoSaveRun || !["success", "partial", "completed"].includes(status)) return;
     const saved = await window.desktopApp.userAnalysis.autoSaveRun({ resultType, runId, status, data });
-    const metadata = { path: saved.filePath, folderPath: saved.folderPath, savedAt: saved.savedAt, runId: saved.runId, resultType: saved.resultType, status: saved.status };
-    setUserAnalysis((current) => ({ ...current, lastAutoSavedResult: metadata, autoSavedResultPaths: [metadata, ...current.autoSavedResultPaths].slice(0, 20) }));
+    const toMetadata = (value: typeof saved.resultTracking.latestRunResult) => value ? { path: value.path, folderPath: value.folderPath, savedAt: value.savedAt, runId: value.runId, resultType: value.resultType, status: value.status, diagnosis: value.diagnosis, parsedActivityCount: value.parsedActivityCount } : null;
+    const metadata = toMetadata(saved.resultTracking.latestRunResult)!;
+    setUserAnalysis((current) => ({ ...current, lastAutoSavedResult: metadata, lastSuccessfulAutoSavedResult: toMetadata(saved.resultTracking.lastSuccessfulResult), lastParsedAutoSavedResult: toMetadata(saved.resultTracking.lastParsedResult), latestNoEntriesAutoSavedResult: toMetadata(saved.resultTracking.latestNoEntriesResult), autoSavedResultPaths: [metadata, ...current.autoSavedResultPaths].slice(0, 20) }));
     appendDebugLog("precision", [`[INFO] Auto-saved ${resultType}: ${saved.filePath}`]);
   }
 
@@ -157,6 +158,8 @@ export function PrecisionProbePage() {
       precisionIssueKeySets: { ...current.precisionIssueKeySets, activityStreamIssueKeys: [], manualActivityStreamIssueKeys: [], recommendedIssueKeys: [] },
       uniquePreciseIssueKeys: [],
       activityStreamDateQueryResults: [],
+      activityStreamChunkResults: [],
+      activityStreamChunkMergeStats: { totalChunkAtomEntries: 0, mergedActivityEntries: 0, duplicateEntriesRemoved: 0, mergedEntriesWithIssueKeyCount: 0, mergedConfluenceOnlyEntryCount: 0, uniqueIssueKeyCount: 0, successfulChunks: 0, noEntryChunks: 0, failedChunks: 0 },
       activityStreamDateSemantics: { ...current.activityStreamDateSemantics, dateQueryModesTested: [], bestDateQueryMode: "client_side_only", serverDateFilterEffective: "unknown", rawReturnedEntries: 0, clientDateFilteredEntries: 0, warnings: [] },
       activityStream: {
         ...current.activityStream,
@@ -168,6 +171,7 @@ export function PrecisionProbePage() {
         parsed: false,
         diagnosis: "unknown",
         bestVariant: "",
+        bestVariantReason: "no_variant_available",
         bestActivityStreamUser: "",
         bestParsedIssueKeys: [],
         httpStatus: "-",
@@ -234,6 +238,7 @@ export function PrecisionProbePage() {
   }
 
   function validate() {
+    if (!Number.isInteger(userAnalysis.activityStreamCustomChunkDays) || userAnalysis.activityStreamCustomChunkDays < 1 || userAnalysis.activityStreamCustomChunkDays > 31) return "Custom chunk days must be between 1 and 31.";
     if (selectedUsers.length === 0) return "Please enter at least one selected user. / 請輸入至少一位使用者。";
     if (!userAnalysis.activityStreamUser.trim()) return "Please enter Activity Stream User. / 請輸入 Activity Stream 使用者。";
     if (!userAnalysis.startDate || !userAnalysis.endDate || userAnalysis.startDate > userAnalysis.endDate) return "Please enter a valid date range. / 請輸入有效日期範圍。";
@@ -252,7 +257,7 @@ export function PrecisionProbePage() {
       const response = await window.desktopApp?.userAnalysis?.activityStreamProbe?.({
         connection: smokeConnection()!, selectedUsers, activityStreamUser: userAnalysis.activityStreamUser.trim(), queryMode: userAnalysis.activityStreamQueryMode, startDate: userAnalysis.startDate,
         endDate: userAnalysis.endDate, maxResults: userAnalysis.precisionProbeMaxResults, maxResultsSource: userAnalysis.precisionProbeMaxResultsSource, largeMaxResultsConfirmed,
-        dateQueryMode: capTest ? "none" : userAnalysis.activityStreamDateQueryMode, relativeLinks: userAnalysis.activityStreamRelativeLinks, runId
+        dateQueryMode: capTest ? "none" : userAnalysis.activityStreamDateQueryMode, chunkingMode: capTest ? "off" : userAnalysis.activityStreamChunkingMode, customChunkDays: userAnalysis.activityStreamCustomChunkDays, relativeLinks: userAnalysis.activityStreamRelativeLinks, runId
       });
       if (!response) throw new Error("Electron Activity Stream API is not available.");
       appendDebugLog("precision", Array.isArray(response.logs) ? response.logs as string[] : []);
@@ -260,6 +265,9 @@ export function PrecisionProbePage() {
       const dateSemantics = response.dateSemantics as unknown as UserActivityStreamDateSemantics;
       const dateQueryResults = (Array.isArray(response.dateQueryResults) ? response.dateQueryResults : []) as UserActivityStreamDateQueryResult[];
       const maxResultsDiagnostics = response.maxResultsDiagnostics as unknown as UserActivityStreamMaxResultsDiagnostics;
+      const dateRangeChunking = response.dateRangeChunking as typeof userAnalysis.activityStreamDateRangeChunking;
+      const activityStreamChunkResults = (Array.isArray(response.activityStreamChunkResults) ? response.activityStreamChunkResults : []) as typeof userAnalysis.activityStreamChunkResults;
+      const chunkMergeStats = response.chunkMergeStats as typeof userAnalysis.activityStreamChunkMergeStats;
       if (staleResult(String(response.runId || activityStream.runId || ""))) return;
       setUserAnalysis((current) => {
         const manualKeys = current.precisionIssueKeySets.manualActivityStreamIssueKeys;
@@ -269,8 +277,9 @@ export function PrecisionProbePage() {
         if (capTest && previous && diagnostics.requestedMaxResults > previous.requestedMaxResults && diagnostics.actualAtomEntryCount > 0 && diagnostics.actualAtomEntryCount === previous.actualAtomEntryCount) diagnostics = { ...diagnostics, serverCapDetected: "likely", serverCapValueEstimated: diagnostics.actualAtomEntryCount, warnings: [...diagnostics.warnings, `Likely server cap detected near ${diagnostics.actualAtomEntryCount} entries.`] };
         return { ...current, activityStream, activityStreamDateSemantics: { ...dateSemantics, clientDateFilterApplied: current.parsedEntriesFilter.applyClientDateFilter }, activityStreamDateQueryResults: dateQueryResults, activityStreamMaxResultsDiagnostics: diagnostics, activityStreamCapTestResults: capTest ? [diagnostics, ...current.activityStreamCapTestResults].slice(0, 9) : current.activityStreamCapTestResults, precisionIssueKeySets: { ...current.precisionIssueKeySets, activityStreamIssueKeys: activityStream.activityStreamIssueKeys, recommendedIssueKeys }, uniquePreciseIssueKeys: recommendedIssueKeys, precisionProbeStatus: activityStream.overallStatus === "failed" ? "failed" : "completed", precisionProbeErrors: activityStream.error ? [activityStream.error] : [], notice: `${capTest ? "MaxResults Cap Test" : "Activity Stream Probe"} completed: ${activityStream.parsedActivityCount} activities, ${activityStream.activityStreamIssueKeys.length} issue key(s). / Activity Stream 測試完成。` };
       });
+      patchState({ activityStreamDateRangeChunking: dateRangeChunking, activityStreamChunkResults, activityStreamChunkMergeStats: chunkMergeStats });
       finishRun(runId, activityStream, { startedAt: String(response.startedAt || ""), completedAt: String(response.completedAt || ""), mode: userAnalysis.activityStreamQueryMode, user: userAnalysis.activityStreamUser.trim(), maxResults: userAnalysis.precisionProbeMaxResults, start: userAnalysis.startDate, end: endExclusive });
-      if (activityStream.overallStatus !== "failed") await autoSaveRun(capTest ? "maxresults_cap_test" : "activity_stream_run", runId, activityStream.overallStatus === "success" ? "success" : "partial", { app: { name: "Jira Activity Analyzer", version: buildInfo.version.replace(/^v/, ""), buildTime: buildInfo.buildTime, gitCommit: buildInfo.gitCommit, gitBranch: buildInfo.gitBranch }, requestContext: { activityStreamUser: userAnalysis.activityStreamUser, dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, dateQueryMode: capTest ? "none" : userAnalysis.activityStreamDateQueryMode, maxResults: userAnalysis.precisionProbeMaxResults }, activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, clientDateFilteredEntriesSanitized: Array.isArray(response.clientDateFilteredEntriesSanitized) ? response.clientDateFilteredEntriesSanitized : [], activityStreamRunHistory: userAnalysis.activityStreamRunHistory });
+      if (activityStream.overallStatus !== "failed") await autoSaveRun(capTest ? "maxresults_cap_test" : "activity_stream_run", runId, activityStream.overallStatus === "success" || activityStream.overallStatus === "no_entries" ? "success" : "partial", { app: { name: "Jira Activity Analyzer", version: buildInfo.version.replace(/^v/, ""), buildTime: buildInfo.buildTime, gitCommit: buildInfo.gitCommit, gitBranch: buildInfo.gitBranch }, requestContext: { activityStreamUser: userAnalysis.activityStreamUser, dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, dateQueryMode: capTest ? "none" : userAnalysis.activityStreamDateQueryMode, chunkingMode: capTest ? "off" : userAnalysis.activityStreamChunkingMode, customChunkDays: userAnalysis.activityStreamCustomChunkDays, maxResults: userAnalysis.precisionProbeMaxResults }, activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, dateRangeChunking, activityStreamChunkResults, chunkMergeStats, clientDateFilteredEntriesSanitized: Array.isArray(response.clientDateFilteredEntriesSanitized) ? response.clientDateFilteredEntriesSanitized : [], activityStreamRunHistory: userAnalysis.activityStreamRunHistory });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Activity Stream Probe failed.";
       failRun(runId, message);
@@ -294,6 +303,8 @@ export function PrecisionProbePage() {
         activityStreamRelativeLinks: userAnalysis.activityStreamRelativeLinks,
         activityStreamRunId: runId,
         activityStreamDateQueryMode: userAnalysis.activityStreamDateQueryMode,
+        activityStreamChunkingMode: userAnalysis.activityStreamChunkingMode,
+        activityStreamCustomChunkDays: userAnalysis.activityStreamCustomChunkDays,
         maxResults: userAnalysis.precisionProbeMaxResults, maxResultsSource: userAnalysis.precisionProbeMaxResultsSource, largeMaxResultsConfirmed, broadJql: buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate)
       });
       if (!response) throw new Error("Electron Precision Probe API is not available.");
@@ -303,6 +314,9 @@ export function PrecisionProbePage() {
       const dateSemantics = response.dateSemantics as unknown as UserActivityStreamDateSemantics;
       const dateQueryResults = (Array.isArray(response.dateQueryResults) ? response.dateQueryResults : []) as UserActivityStreamDateQueryResult[];
       const maxResultsDiagnostics = response.maxResultsDiagnostics as unknown as UserActivityStreamMaxResultsDiagnostics;
+      const dateRangeChunking = response.dateRangeChunking as typeof userAnalysis.activityStreamDateRangeChunking;
+      const activityStreamChunkResults = (Array.isArray(response.activityStreamChunkResults) ? response.activityStreamChunkResults : []) as typeof userAnalysis.activityStreamChunkResults;
+      const chunkMergeStats = response.chunkMergeStats as typeof userAnalysis.activityStreamChunkMergeStats;
       if (staleResult(activityStream.runId)) return;
       const status = String(response.status ?? "failed");
       const responseSets = (response.issueKeySets ?? {
@@ -316,6 +330,9 @@ export function PrecisionProbePage() {
         activityStream,
         activityStreamDateSemantics: { ...dateSemantics, clientDateFilterApplied: userAnalysis.parsedEntriesFilter.applyClientDateFilter },
         activityStreamDateQueryResults: dateQueryResults,
+        activityStreamDateRangeChunking: dateRangeChunking,
+        activityStreamChunkResults,
+        activityStreamChunkMergeStats: chunkMergeStats,
         activityStreamMaxResultsDiagnostics: maxResultsDiagnostics,
         precisionIssueKeySets: mergedSets,
         uniquePreciseIssueKeys: mergedSets.recommendedIssueKeys,
@@ -326,7 +343,7 @@ export function PrecisionProbePage() {
         notice: `Precision Probe completed: ${summary.uniquePreciseIssueCount} unique candidate(s). / 精準查詢測試完成。`
       });
       finishRun(runId, activityStream, { mode: `precision:${userAnalysis.activityStreamQueryMode}`, user: userAnalysis.activityStreamUser.trim(), maxResults: userAnalysis.precisionProbeMaxResults, start: userAnalysis.startDate, end: endExclusive });
-      if (status === "success" || status === "partial") await autoSaveRun("precision_probe_run", runId, status, { app: { name: "Jira Activity Analyzer", version: buildInfo.version.replace(/^v/, ""), buildTime: buildInfo.buildTime, gitCommit: buildInfo.gitCommit, gitBranch: buildInfo.gitBranch }, requestContext: { selectedUsers, activityStreamUser: userAnalysis.activityStreamUser, dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, dateQueryMode: userAnalysis.activityStreamDateQueryMode, maxResults: userAnalysis.precisionProbeMaxResults }, summary, probeResults: response.results, activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, issueKeySets: mergedSets, activityStreamRunHistory: userAnalysis.activityStreamRunHistory });
+      if (status === "success" || status === "partial") await autoSaveRun("precision_probe_run", runId, status, { app: { name: "Jira Activity Analyzer", version: buildInfo.version.replace(/^v/, ""), buildTime: buildInfo.buildTime, gitCommit: buildInfo.gitCommit, gitBranch: buildInfo.gitBranch }, requestContext: { selectedUsers, activityStreamUser: userAnalysis.activityStreamUser, dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, dateQueryMode: userAnalysis.activityStreamDateQueryMode, chunkingMode: userAnalysis.activityStreamChunkingMode, customChunkDays: userAnalysis.activityStreamCustomChunkDays, maxResults: userAnalysis.precisionProbeMaxResults }, summary, probeResults: response.results, activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, dateRangeChunking, activityStreamChunkResults, chunkMergeStats, issueKeySets: mergedSets, activityStreamRunHistory: userAnalysis.activityStreamRunHistory });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Precision Probe failed.";
       failRun(runId, message);
@@ -443,6 +460,9 @@ export function PrecisionProbePage() {
       activityStream,
       dateSemantics: { ...userAnalysis.activityStreamDateSemantics, clientDateFilterApplied: userAnalysis.parsedEntriesFilter.applyClientDateFilter },
       dateQueryResults: userAnalysis.activityStreamDateQueryResults,
+      dateRangeChunking: userAnalysis.activityStreamDateRangeChunking,
+      activityStreamChunkResults: userAnalysis.activityStreamChunkResults,
+      chunkMergeStats: userAnalysis.activityStreamChunkMergeStats,
       maxResultsDiagnostics: userAnalysis.activityStreamMaxResultsDiagnostics,
       maxResultsCapTestResults: userAnalysis.activityStreamCapTestResults,
       clientDateFilteredEntriesSanitized: clientDateFilteredEntries.slice(0, 200),
@@ -491,10 +511,11 @@ export function PrecisionProbePage() {
         <div><FieldLabel label="Selected Users" sub="選擇使用者" /><textarea className="field min-h-24" value={userAnalysis.selectedUsersText} onChange={(event) => patchState({ selectedUsersText: event.target.value })} /></div>
         <div><FieldLabel label="Activity Stream User" sub="Activity Stream 使用者" /><input data-testid="activity-stream-user" className="field" value={userAnalysis.activityStreamUser} placeholder="roger_hsieh or roger_hsieh@phison.com" onChange={(event) => { logAction("USER_ACTION", `Activity Stream User changed: value=${event.target.value}`); patchState({ activityStreamUser: event.target.value }); }} /><div className="mt-2 text-xs font-semibold text-muted">Username and email are supported. / 支援 username 與 email。</div></div>
         <div><FieldLabel label="Activity Stream User Query Mode" sub="Activity Stream 使用者查詢模式" /><select data-testid="activity-stream-query-mode" className="field" value={userAnalysis.activityStreamQueryMode} onChange={(event) => { const value = event.target.value as typeof userAnalysis.activityStreamQueryMode; logAction("USER_ACTION", `Activity Stream Query Mode changed: value=${value}`); patchState({ activityStreamQueryMode: value }); }}><option value="auto">Auto / 自動（建議）</option><option value="username">Username only / 只用帳號</option><option value="email">Email only / 只用 Email</option><option value="custom">Custom only / 只用自訂輸入</option></select><div className="mt-2 text-xs font-semibold leading-relaxed text-muted">Auto tries username, escaped username, and email variants without duplicates. / 自動模式會依序測試帳號、跳脫帳號與 Email。</div></div>
-        <div className="grid grid-cols-2 gap-2"><div><FieldLabel label="Start Date" sub="開始日期" /><input className="field" type="date" value={userAnalysis.startDate} onChange={(event) => patchState({ startDate: event.target.value })} /></div><div><FieldLabel label="End Date" sub="結束日期" /><input className="field" type="date" value={userAnalysis.endDate} onChange={(event) => patchState({ endDate: event.target.value })} /></div></div>
+        <div className="grid grid-cols-2 gap-2"><div><FieldLabel label="Start Date" sub="開始日期" /><input data-testid="activity-stream-start-date" className="field" type="date" value={userAnalysis.startDate} onChange={(event) => patchState({ startDate: event.target.value })} /></div><div><FieldLabel label="End Date" sub="結束日期" /><input data-testid="activity-stream-end-date" className="field" type="date" value={userAnalysis.endDate} onChange={(event) => patchState({ endDate: event.target.value })} /></div></div>
         <div><FieldLabel label="Project Scope" sub="專案範圍（選填）" /><input className="field" value={userAnalysis.precisionProjectScope} placeholder="COPGEN1, FW" onChange={(event) => patchState({ precisionProjectScope: event.target.value })} /></div>
         <div><FieldLabel label="Probe Max Results" sub="最大回傳筆數（1–65535）" /><input data-testid="probe-max-results" className="field" type="number" min={1} max={65535} value={userAnalysis.precisionProbeMaxResults} onChange={(event) => { const value = Number(event.target.value); logAction("USER_ACTION", `Probe Max Results changed: value=${value}`); patchState({ precisionProbeMaxResults: value, precisionProbeMaxResultsSource: "custom" }); }} /><div className="mt-2 flex flex-wrap gap-1">{maxResultsQuickValues.map((value) => <button data-testid={`max-quick-${value}`} key={value} className="btn px-2 py-1 text-xs" type="button" onClick={() => patchState({ precisionProbeMaxResults: value, precisionProbeMaxResultsSource: "quick" })}>{value}</button>)}</div></div>
         <div><FieldLabel label="Activity Stream Date Query Mode" sub="Activity Stream 日期查詢模式" /><select data-testid="activity-stream-date-query-mode" className="field" value={userAnalysis.activityStreamDateQueryMode} onChange={(event) => patchState({ activityStreamDateQueryMode: event.target.value as typeof userAnalysis.activityStreamDateQueryMode })}><option value="none">None / 不使用 server 日期條件</option><option value="startDate_endDate">startDate/endDate query</option><option value="update_date_after_before">update-date AFTER/BEFORE query</option><option value="both">Both / 同時測試（建議）</option></select></div>
+        <div><FieldLabel label="Date Range Chunking" sub="Long-range update-date requests" /><select data-testid="activity-stream-chunking-mode" className="field" value={userAnalysis.activityStreamChunkingMode} onChange={(event) => patchState({ activityStreamChunkingMode: event.target.value as typeof userAnalysis.activityStreamChunkingMode })}><option value="off">Off</option><option value="auto">Auto</option><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="custom_days">Custom Days</option></select>{userAnalysis.activityStreamChunkingMode === "custom_days" ? <div className="mt-2"><FieldLabel label="Custom Days" sub="1-31 days per chunk" /><input data-testid="activity-stream-custom-chunk-days" className="field" type="number" min={1} max={31} value={userAnalysis.activityStreamCustomChunkDays} onChange={(event) => patchState({ activityStreamCustomChunkDays: Number(event.target.value) })} /></div> : null}<div className="mt-2 text-xs font-semibold leading-relaxed text-muted">Auto: up to 31 days uses one request; longer ranges use monthly update-date chunks.</div></div>
         <label className="flex min-w-0 items-center gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-bold text-ink"><input type="checkbox" checked={userAnalysis.activityStreamRelativeLinks} onChange={(event) => patchState({ activityStreamRelativeLinks: event.target.checked })} />Use relativeLinks=true / 使用 relativeLinks=true</label>
         <div className="rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">Requested range: {userAnalysis.startDate || "-"} .. {userAnalysis.endDate || "-"} inclusive<br />Server endExclusive: {endExclusive || "-"}<br />Timezone: Asia/Taipei / UTC+8</div>
       </div>
@@ -506,6 +527,15 @@ export function PrecisionProbePage() {
 
     <SectionCard title="Last Auto-Saved Result" subtitle="最後自動儲存結果" className="mb-4">
       {userAnalysis.lastAutoSavedResult ? <div data-testid="last-auto-saved-result" className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]"><div className="min-w-0 text-sm font-semibold leading-relaxed"><div className="break-all"><b>Path:</b> {userAnalysis.lastAutoSavedResult.path}</div><div><b>Saved At:</b> {userAnalysis.lastAutoSavedResult.savedAt}</div><div><b>Run ID:</b> {userAnalysis.lastAutoSavedResult.runId}</div><div><b>Result Type:</b> {userAnalysis.lastAutoSavedResult.resultType}</div><div><b>Status:</b> {userAnalysis.lastAutoSavedResult.status}</div></div><div className="flex flex-wrap items-start gap-2"><button data-testid="open-auto-save-folder" className="btn" type="button" onClick={() => void window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath: userAnalysis.lastAutoSavedResult?.folderPath })}><FolderOpen size={16} />Open Folder / 開啟資料夾</button><button data-testid="copy-auto-save-path" className="btn" type="button" onClick={() => void navigator.clipboard?.writeText(userAnalysis.lastAutoSavedResult?.path ?? "")}><Copy size={16} />Copy Path / 複製路徑</button></div></div> : <div className="text-sm font-semibold text-muted">No auto-saved run yet. / 尚無自動儲存結果。</div>}
+    </SectionCard>
+
+    <SectionCard title="Auto-Saved Result Tracking" subtitle="Latest, successful, parsed, and no-entry snapshots" className="mb-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2" data-testid="auto-save-result-tracking">{[
+        ["Latest Run Result", "latest-run-auto-save", userAnalysis.lastAutoSavedResult],
+        ["Last Successful Auto-Saved Result", "last-successful-auto-save", userAnalysis.lastSuccessfulAutoSavedResult],
+        ["Last Parsed Auto-Saved Result", "last-parsed-auto-save", userAnalysis.lastParsedAutoSavedResult],
+        ["Latest No Entries Result", "latest-no-entries-auto-save", userAnalysis.latestNoEntriesAutoSavedResult]
+      ].map(([label, testId, value]) => { const result = value as typeof userAnalysis.lastAutoSavedResult; return <div key={String(testId)} data-testid={String(testId)} className="min-w-0 rounded-lg border border-line bg-slate-50 p-3"><div className="text-sm font-black text-ink">{String(label)}</div>{result ? <><div className="mt-2 text-xs font-semibold leading-relaxed text-muted"><div><b>Run ID:</b> {result.runId}</div><div><b>Status:</b> {result.status}</div><div><b>Diagnosis:</b> {result.diagnosis}</div><div><b>Parsed:</b> {result.parsedActivityCount}</div><div className="break-all"><b>Path:</b> {result.path}</div></div><div className="mt-3 flex flex-wrap gap-2"><button className="btn px-2 py-1 text-xs" type="button" onClick={() => void window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath: result.folderPath })}><FolderOpen size={14} />Open Folder</button><button className="btn px-2 py-1 text-xs" type="button" onClick={() => void navigator.clipboard?.writeText(result.path)}><Copy size={14} />Copy Path</button></div></> : <div className="mt-2 text-sm font-semibold text-muted">not_available</div>}</div>; })}</div>
     </SectionCard>
 
     <SectionCard title="Manual Activity Stream URL Replay" subtitle="手動 Activity Stream URL 重放" className="mb-4">
@@ -522,6 +552,12 @@ export function PrecisionProbePage() {
       {userAnalysis.activityStreamDateSemantics.warnings.map((warning) => <div key={warning} className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">{warning}</div>)}
     </SectionCard>
 
+    <SectionCard title="Date Range Chunking Result" subtitle="分段查詢與合併診斷" className="mb-4">
+      <div data-testid="chunking-summary" className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3"><MiniStat label="Chunking Enabled" value={String(userAnalysis.activityStreamDateRangeChunking.enabled)} /><MiniStat label="Mode" value={userAnalysis.activityStreamDateRangeChunking.mode} /><MiniStat label="Chunk Count" value={userAnalysis.activityStreamDateRangeChunking.chunkCount} /><MiniStat label="Successful Chunks" value={userAnalysis.activityStreamChunkMergeStats.successfulChunks} /><MiniStat label="No Entry Chunks" value={userAnalysis.activityStreamChunkMergeStats.noEntryChunks} /><MiniStat label="Failed Chunks" value={userAnalysis.activityStreamChunkMergeStats.failedChunks} /><MiniStat label="Total Atom Entries" value={userAnalysis.activityStreamChunkMergeStats.totalChunkAtomEntries} /><MiniStat label="Merged Activities" value={userAnalysis.activityStreamChunkMergeStats.mergedActivityEntries} /><MiniStat label="Duplicates Removed" value={userAnalysis.activityStreamChunkMergeStats.duplicateEntriesRemoved} /></div>
+      {userAnalysis.activityStreamDateRangeChunking.largeRangeWarning ? <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">Large date range: monthly chunking is recommended and enabled in Auto mode.</div> : null}
+      <ResponsiveTableContainer className="mt-4"><table data-testid="activity-stream-chunk-results" className="table min-w-[1250px]"><thead><tr>{["Chunk", "Start", "End Exclusive", "HTTP", "Diagnosis", "Atom", "Parsed", "Jira", "Confluence", "Request"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{userAnalysis.activityStreamChunkResults.map((chunk) => <tr key={chunk.chunkIndex}><td>{chunk.chunkIndex}</td><td>{chunk.chunkStart}</td><td>{chunk.chunkEndExclusive}</td><td>{chunk.httpStatus}</td><td><StatusBadge>{chunk.diagnosis}</StatusBadge></td><td>{chunk.atomEntryCount}</td><td>{chunk.parsedActivityCount}</td><td>{chunk.entriesWithIssueKeyCount}</td><td>{chunk.confluenceOnlyEntryCount}</td><td><span className="block max-w-[420px] truncate" title={chunk.requestUrlSanitized} data-allow-truncate="true">{chunk.requestUrlSanitized}</span></td></tr>)}{userAnalysis.activityStreamChunkResults.length === 0 ? <tr><td colSpan={10} className="text-center text-muted">No chunked run yet.</td></tr> : null}</tbody></table></ResponsiveTableContainer>
+    </SectionCard>
+
     <SectionCard title="MaxResults Cap Test" subtitle="最大回傳上限測試" className="mb-4">
       <div className="flex flex-wrap items-end gap-3"><div className="min-w-[220px]"><FieldLabel label="Test Value" sub="測試筆數" /><select data-testid="cap-test-value" className="field" value={capTestValues.includes(userAnalysis.precisionProbeMaxResults as typeof capTestValues[number]) ? userAnalysis.precisionProbeMaxResults : 50} onChange={(event) => patchState({ precisionProbeMaxResults: Number(event.target.value), precisionProbeMaxResultsSource: "quick" })}>{capTestValues.map((value) => <option key={value} value={value}>{value}</option>)}</select></div><button data-testid="run-cap-test" className="btn btn-primary" type="button" disabled={!connectionReady || userAnalysis.isActivityStreamRunning} onClick={() => requestLargeQuery("cap")}><Radio size={16} />Run MaxResults Cap Test / 執行上限測試</button></div>
       <div data-testid="max-results-diagnostics" className="mt-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3"><MiniStat label="Requested MaxResults" value={userAnalysis.activityStreamMaxResultsDiagnostics.requestedMaxResults} /><MiniStat label="Actual Atom Entries" value={userAnalysis.activityStreamMaxResultsDiagnostics.actualAtomEntryCount} /><MiniStat label="Parsed Activities" value={userAnalysis.activityStreamMaxResultsDiagnostics.parsedActivityCount} /><MiniStat label="Response Time" value={`${userAnalysis.activityStreamMaxResultsDiagnostics.responseTimeMs} ms`} /><MiniStat label="Response Size" value={`${userAnalysis.activityStreamMaxResultsDiagnostics.responseSizeKB} KB`} /><MiniStat label="Server Cap Detected" value={String(userAnalysis.activityStreamMaxResultsDiagnostics.serverCapDetected)} /><MiniStat label="Estimated Cap" value={userAnalysis.activityStreamMaxResultsDiagnostics.serverCapValueEstimated ?? "-"} /></div>
@@ -531,6 +567,7 @@ export function PrecisionProbePage() {
     <SectionCard title="Activity Stream Result" subtitle="Activity Stream 結果" className="mb-4">
       <div className="mb-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3" data-testid="activity-entry-summary"><MiniStat label="Overall Status / 整體狀態" value={stream.overallStatus} /><MiniStat label="Diagnosis / 診斷" value={stream.diagnosis} /><MiniStat label="Total Activity Entries / 全部活動筆數" value={stream.activityEntryStats.totalAtomEntries} /><MiniStat label="Parsed Activity Entries / 已解析活動筆數" value={stream.activityEntryStats.parsedActivityEntryCount} /><MiniStat label="Entries with Jira Key / 含 Jira Key 活動" value={stream.activityEntryStats.entriesWithIssueKeyCount} /><MiniStat label="Confluence-only Entries / Confluence-only 活動" value={stream.activityEntryStats.confluenceOnlyEntryCount} /><MiniStat label="Non-Jira Entries / 非 Jira 活動" value={stream.activityEntryStats.nonJiraEntryCount} /><MiniStat label="Unique Jira Issue Keys / 去重 Jira 數" value={stream.activityEntryStats.uniqueIssueKeyCount} /><MiniStat label="Best Variant / 最佳變體" value={userAnalysis.manualActivityStreamResult?.parsed ? "manual_url" : stream.bestVariant || "-"} /></div>
       <div className="mb-3 break-all rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold text-muted">GET {stream.requestUrlSanitized || "/plugins/servlet/streams?..."}<br />Best date query mode / 最佳日期查詢模式：{userAnalysis.activityStreamDateSemantics.bestDateQueryMode}</div>
+      {stream.bestVariantReason === "all_variants_no_entries" ? <div data-testid="all-variants-no-entries" className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-900">No Activity Stream entries found for all user variants. / 所有使用者查詢變體均未找到 Activity Stream entries。</div> : null}
       <h3 className="mb-2 text-sm font-black text-ink">Query Variants / 查詢變體</h3>
       <ResponsiveTableContainer className="mb-4"><table className="table min-w-[1200px]" data-testid="activity-stream-variants"><thead><tr>{["Variant", "User", "HTTP", "Content Type", "Reachable", "Supported", "Atom Entries", "Parsed", "Jira Keys", "Diagnosis"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{[...stream.variantResults.filter((item) => item.variant !== "manual_url"), ...(userAnalysis.manualActivityStreamResult ? [userAnalysis.manualActivityStreamResult] : [])].map((result) => <tr key={`${result.variant}-${result.activityStreamUser}`}><td className="font-bold">{result.variant}</td><td>{result.activityStreamUser}</td><td>{result.httpStatus}</td><td>{result.contentType || "-"}</td><td>{result.reachable ? "yes" : "no"}</td><td>{result.supported}</td><td>{result.atomEntryCount}</td><td>{result.parsedActivityCount}</td><td>{result.parsedIssueKeys.join(", ") || "-"}</td><td><StatusBadge>{result.diagnosis}</StatusBadge></td></tr>)}{stream.variantResults.length === 0 && !userAnalysis.manualActivityStreamResult ? <tr><td colSpan={10} className="text-center text-muted">No query variants yet / 尚無查詢變體</td></tr> : null}</tbody></table></ResponsiveTableContainer>
       <h3 className="mb-2 text-sm font-black text-ink">Parser Diagnostics / 解析診斷</h3>
