@@ -92,7 +92,7 @@ export type UserActivityTypeClassifierResult = {
   matchedRule: string;
   matchedText: string;
   priority: number;
-  sourceField: "title" | "rawTitle" | "";
+  sourceField: "title" | "rawTitle" | "application" | "objectType" | "rawContent" | "previousType" | "";
   previousType: string;
   finalType: UserActivityStreamEntry["activityType"];
 };
@@ -103,6 +103,9 @@ export type UserActivityTypeClassifierDiagnostics = {
   commentPriorityHigherThanAttachment: boolean;
   totalEntries: number;
   correctedEntryCount: number;
+  preservedEntryCount: number;
+  inferredEntryCount: number;
+  fallbackUnknownCount: number;
   matchedRuleCounts: Record<string, number>;
   finalTypeCounts: Record<string, number>;
 };
@@ -635,7 +638,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     error: "",
     rawSummary: "",
     parserDiagnostics: { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithIssueKeyCount: 0, confluenceOnlyEntryCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" },
-    activityTypeClassifierDiagnostics: { enabled: true, rulesVersion: "1.0", commentPriorityHigherThanAttachment: true, totalEntries: 0, correctedEntryCount: 0, matchedRuleCounts: {}, finalTypeCounts: {} },
+    activityTypeClassifierDiagnostics: { enabled: true, rulesVersion: "1.1", commentPriorityHigherThanAttachment: true, totalEntries: 0, correctedEntryCount: 0, preservedEntryCount: 0, inferredEntryCount: 0, fallbackUnknownCount: 0, matchedRuleCounts: {}, finalTypeCounts: {} },
     activityEntryStats: { totalAtomEntries: 0, parsedActivityEntryCount: 0, parsedIssueActivityCount: 0, entriesWithIssueKeyCount: 0, entriesWithoutIssueKeyCount: 0, confluenceOnlyEntryCount: 0, nonJiraEntryCount: 0, jiraIssueEntryCount: 0, uniqueIssueKeyCount: 0 }
   },
   precisionIssueKeySets: {

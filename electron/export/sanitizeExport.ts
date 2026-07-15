@@ -1,4 +1,5 @@
 const sensitiveKeyPattern = /authorization|token|apiToken|password|masterKey|cookie|set-cookie|session|sessionId|JSESSIONID|atl\.xsrf\.token|csrf|secret/i;
+const safeSessionMetadataKeys = new Set(["fullSessionBundle", "sessionStartTime"]);
 
 export function sanitizeExportData(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -8,7 +9,7 @@ export function sanitizeExportData(value: unknown): unknown {
   if (value && typeof value === "object") {
     const output: Record<string, unknown> = {};
     for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      output[key] = sensitiveKeyPattern.test(key) ? "[masked]" : sanitizeExportData(child);
+      output[key] = sensitiveKeyPattern.test(key) && !safeSessionMetadataKeys.has(key) ? "[masked]" : sanitizeExportData(child);
     }
     return output;
   }

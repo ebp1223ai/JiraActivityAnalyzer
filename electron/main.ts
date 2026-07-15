@@ -29,6 +29,8 @@ type AutoSaveResultType = "activity_stream_run" | "precision_probe_run" | "manua
 type AutoSavedRun = { runId: string; resultType: AutoSaveResultType; status: string; savedAt: string; filePath: string; folderPath: string; data: Record<string, unknown> };
 const latestAutoSavedRuns = new Map<AutoSaveResultType, AutoSavedRun>();
 const autoSavedRunHistory: AutoSavedRun[] = [];
+const sessionStartTime = new Date().toISOString();
+const sessionUserActions: Array<{ time: string; level: string; message: string; raw: string }> = [];
 let latestRunResult: AutoSavedRun | null = null;
 let lastSuccessfulResult: AutoSavedRun | null = null;
 let lastParsedResult: AutoSavedRun | null = null;
@@ -193,7 +195,9 @@ function getActionLogDiagnostics() {
 }
 
 function appendUserActionLog(level: string, message: string) {
-  return appendRuntimeLog(getUserActionLogPath(), level, message);
+  const raw = appendRuntimeLog(getUserActionLogPath(), level, message);
+  sessionUserActions.push({ time: new Date().toISOString(), level, message: maskDiagnosticText(message), raw });
+  return raw;
 }
 
 function buildDebugLogExportContent(content: string) {
@@ -834,7 +838,7 @@ type ActivityTypeClassifierResult = {
   matchedRule: string;
   matchedText: string;
   priority: number;
-  sourceField: "title" | "rawTitle" | "";
+  sourceField: "title" | "rawTitle" | "application" | "objectType" | "rawContent" | "previousType" | "";
   previousType: string;
   finalType: ActivityStreamEntry["activityType"];
 };
@@ -879,14 +883,23 @@ function legacyActivityType(value: string) {
   return "unknown";
 }
 
-function classifyActivityType(values: { title?: string; rawTitle?: string; application?: string; objectType?: string; combined?: string }): ActivityTypeClassifierResult {
+function normalizedPreviousActivityType(value: string): ActivityStreamEntry["activityType"] | "" {
+  const normalized = value === "status" ? "status_change" : value;
+  const validTypes: ActivityStreamEntry["activityType"][] = ["link", "comment", "attachment", "status_change", "resolution_change", "assignee_change", "field_change", "description_update", "page"];
+  return validTypes.includes(normalized as ActivityStreamEntry["activityType"])
+    ? normalized as ActivityStreamEntry["activityType"]
+    : "";
+}
+
+function classifyActivityType(values: { title?: string; rawTitle?: string; application?: string; objectType?: string; combined?: string; previousType?: string }): ActivityTypeClassifierResult {
   const title = sanitizeResponseText(values.title || "");
   const rawTitle = sanitizeResponseText(values.rawTitle || "");
   const sourceField: ActivityTypeClassifierResult["sourceField"] = title ? "title" : rawTitle ? "rawTitle" : "";
   const source = (title || rawTitle).toLowerCase().replace(/\s+/g, " ").trim();
   const application = String(values.application || "").toLowerCase();
   const objectType = String(values.objectType || "").toLowerCase();
-  const previousType = legacyActivityType(values.combined || source);
+  const combined = String(values.combined || source);
+  const previousType = normalizedPreviousActivityType(values.previousType ?? legacyActivityType(combined));
   const match = (matchedRule: string, pattern: RegExp, finalType: ActivityStreamEntry["activityType"], priority: number, condition = true): ActivityTypeClassifierResult | null => {
     if (!condition) return null;
     const found = source.match(pattern);
@@ -897,11 +910,25 @@ function classifyActivityType(values: { title?: string; rawTitle?: string; appli
     || match("attachment_action", /attached(?: file| files)?|uploaded|added attachment/, "attachment", 90)
     || match("link_action", /linked|created (?:a )?link|added (?:a )?link|related to/, "link", 80)
     || match("confluence_page_action", /created page|added page|edited page|updated page|page edited/, "page", 70, /confluence/.test(application))
+    || (/confluence/.test(application) && (
+      /\bpage\b/.test(objectType)
+      || previousType === "page"
+      || /category[^>]*(?:term|title)=["']?page\b/i.test(combined)
+      || /<title>\s*page\s*<\/title>/i.test(combined)
+    ) ? {
+      matchedRule: "confluence_page_object",
+      matchedText: /\bpage\b/.test(objectType) ? objectType : previousType === "page" ? "page" : "Confluence page metadata",
+      priority: 70,
+      sourceField: /\bpage\b/.test(objectType) ? "objectType" : previousType === "page" ? "previousType" : "rawContent",
+      previousType,
+      finalType: "page"
+    } : null)
     || match("assignee_change", /changed the assignee|updated the assignee/, "assignee_change", 60)
     || match("status_change", /changed the status|updated the status|transitioned/, "status_change", 55)
     || match("resolution_change", /changed the resolution|updated the resolution/, "resolution_change", 50)
     || match("field_change", /changed the|updated the|updated \d+ fields?|set the|cleared the/, "field_change", 40, /jira/.test(application) || /issue/.test(objectType))
-    || { matchedRule: "fallback_unknown", matchedText: "", priority: 0, sourceField: "", previousType: previousType === "unknown" ? "" : previousType, finalType: "unknown" };
+    || (previousType ? { matchedRule: "preserve_previous_type", matchedText: previousType, priority: 10, sourceField: "previousType", previousType, finalType: previousType } : null)
+    || { matchedRule: "fallback_unknown", matchedText: "", priority: 0, sourceField: "", previousType: "", finalType: "unknown" };
 }
 
 function activityType(value: string, application = "Jira", objectType = "issue"): ActivityStreamEntry["activityType"] {
@@ -912,13 +939,19 @@ function activityTypeClassifierDiagnostics(entries: ActivityStreamEntry[]) {
   const matchedRuleCounts: Record<string, number> = {};
   const finalTypeCounts: Record<string, number> = {};
   let correctedEntryCount = 0;
+  let preservedEntryCount = 0;
+  let inferredEntryCount = 0;
+  let fallbackUnknownCount = 0;
   for (const entry of entries) {
     const diagnostic = entry.activityTypeClassifier;
     matchedRuleCounts[diagnostic.matchedRule] = (matchedRuleCounts[diagnostic.matchedRule] || 0) + 1;
     finalTypeCounts[diagnostic.finalType] = (finalTypeCounts[diagnostic.finalType] || 0) + 1;
-    if (diagnostic.previousType && diagnostic.previousType !== diagnostic.finalType) correctedEntryCount += 1;
+    if (diagnostic.previousType && diagnostic.previousType !== diagnostic.finalType && diagnostic.priority >= 40) correctedEntryCount += 1;
+    if (diagnostic.previousType && diagnostic.previousType === diagnostic.finalType) preservedEntryCount += 1;
+    if (!diagnostic.previousType && diagnostic.finalType !== "unknown") inferredEntryCount += 1;
+    if (diagnostic.matchedRule === "fallback_unknown") fallbackUnknownCount += 1;
   }
-  return { enabled: true, rulesVersion: "1.0", commentPriorityHigherThanAttachment: true, totalEntries: entries.length, correctedEntryCount, matchedRuleCounts, finalTypeCounts };
+  return { enabled: true, rulesVersion: "1.1", commentPriorityHigherThanAttachment: true, totalEntries: entries.length, correctedEntryCount, preservedEntryCount, inferredEntryCount, fallbackUnknownCount, matchedRuleCounts, finalTypeCounts };
 }
 
 function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown; application?: unknown; objectType?: unknown; target?: unknown }, variant: string, runId: string, entryIndex: number): ActivityStreamEntry {
@@ -2515,22 +2548,68 @@ function writeBundleJson(folderPath: string, fileName: string, data: unknown) {
   fs.writeFileSync(path.join(folderPath, fileName), `${JSON.stringify(sanitizeExportData(data), null, 2)}\n`, "utf8");
 }
 
+function summarizeAutoSavedRun(run: AutoSavedRun | null) {
+  return run ? {
+    runId: run.runId,
+    resultType: run.resultType,
+    status: run.status,
+    diagnosis: String(asRecord(run.data.activityStream).diagnosis ?? run.data.diagnosis ?? "unknown"),
+    parsedActivityCount: Number(asRecord(run.data.activityStream).parsedActivityCount ?? run.data.parsedActivityCount ?? 0),
+    savedAt: run.savedAt,
+    path: run.filePath,
+    folderPath: run.folderPath
+  } : null;
+}
+
+function collectSessionAutoSavedRuns() {
+  const candidates = [
+    ...autoSavedRunHistory,
+    ...Array.from(latestAutoSavedRuns.values()),
+    latestRunResult,
+    lastSuccessfulResult,
+    lastParsedResult,
+    latestNoEntriesResult
+  ].filter((run): run is AutoSavedRun => Boolean(run));
+  const paths = new Set<string>();
+  const runIds = new Set<string>();
+  const basenames = new Set<string>();
+  return candidates.filter((run) => {
+    const resolvedPath = path.resolve(run.filePath).toLowerCase();
+    const basename = path.basename(run.filePath).toLowerCase();
+    if (paths.has(resolvedPath) || runIds.has(run.runId) || basenames.has(basename)) return false;
+    paths.add(resolvedPath);
+    runIds.add(run.runId);
+    basenames.add(basename);
+    return true;
+  });
+}
+
+function debugLogTimeline(debugLog: string) {
+  return maskDiagnosticText(debugLog).split(/\r?\n/).filter(Boolean).map((line, index) => {
+    const matched = /^(\d{4})[/-](\d{2})[/-](\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?/.exec(line);
+    const time = matched
+      ? new Date(Number(matched[1]), Number(matched[2]) - 1, Number(matched[3]), Number(matched[4]), Number(matched[5]), Number(matched[6]), Number(matched[7] || 0)).toISOString()
+      : sessionStartTime;
+    return { time, source: "debug_log", type: "debug", sequence: index, message: line };
+  });
+}
+
 ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: string; currentPage: string }) => {
   const createdAt = new Date().toISOString();
   const folderPath = ensureDir(path.join(getExportsDir(), "debug-bundles", `jira-activity-analyzer-debug-bundle-${fileTimestamp()}`));
   const savedRuns = Array.from(latestAutoSavedRuns.values());
   const latest = latestRunResult;
   const unavailable = { status: "not_available", message: "No matching auto-saved result available" };
-  const summarize = (run: AutoSavedRun | null) => run ? { runId: run.runId, resultType: run.resultType, status: run.status, diagnosis: String(asRecord(run.data.activityStream).diagnosis ?? run.data.diagnosis ?? "unknown"), parsedActivityCount: Number(asRecord(run.data.activityStream).parsedActivityCount ?? run.data.parsedActivityCount ?? 0), savedAt: run.savedAt, path: run.filePath } : null;
+  const summarize = summarizeAutoSavedRun;
   const runHistory = autoSavedRunHistory.map((run) => summarize(run));
   const activityStreamHistory = autoSavedRunHistory.filter((run) => run.resultType === "activity_stream_run").map((run) => summarize(run));
-  const pathTracking = { latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult) };
-  const actionLogPath = getUserActionLogPath();
-  const actionLog = fs.existsSync(actionLogPath) ? fs.readFileSync(actionLogPath, "utf8") : "No user action log available.";
-  const debugContent = buildDebugLogExportContent(payload.debugLog).mergedContent;
+  const autoSavedCandidates = collectSessionAutoSavedRuns();
+  const pathTracking = { latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult), autoSavedResultPaths: autoSavedCandidates.map((run) => summarize(run)) };
+  const actionLog = sessionUserActions.length > 0 ? sessionUserActions.map((action) => action.raw).join("\n") : "No user action log entries are available for this session.";
+  const debugContent = `${maskDiagnosticText(payload.debugLog).trimEnd()}\n`;
   fs.writeFileSync(path.join(folderPath, "debug-log.txt"), debugContent, "utf8");
-  fs.writeFileSync(path.join(folderPath, "user-action-log.txt"), buildDebugLogExportContent(actionLog).mergedContent, "utf8");
-  writeBundleJson(folderPath, "app-metadata.json", { name: "Jira Activity Analyzer", version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__, generatedAt: createdAt, currentPage: payload.currentPage });
+  fs.writeFileSync(path.join(folderPath, "user-action-log.txt"), `${maskDiagnosticText(actionLog).trimEnd()}\n`, "utf8");
+  writeBundleJson(folderPath, "app-metadata.json", { name: "Jira Activity Analyzer", version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__, sessionStartTime, generatedAt: createdAt, currentPage: payload.currentPage });
   writeBundleJson(folderPath, "request-context.json", asRecord(latest?.data.requestContext));
   writeBundleJson(folderPath, "latest-result.json", latest?.data ?? unavailable);
   writeBundleJson(folderPath, "latest-run-result.json", latest?.data ?? unavailable);
@@ -2540,6 +2619,37 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   writeBundleJson(folderPath, "run-history.json", runHistory);
   writeBundleJson(folderPath, "activity-stream-run-history.json", activityStreamHistory);
   writeBundleJson(folderPath, "auto-saved-result-paths.json", pathTracking);
+  const autoSavedResultsFolder = ensureDir(path.join(folderPath, "auto-saved-results"));
+  const autoSavedResultsIncluded: Array<Record<string, unknown>> = [];
+  const autoSavedResultsMissing: Array<Record<string, unknown>> = [];
+  const exportsRoot = path.resolve(getExportsDir());
+  for (const run of autoSavedCandidates) {
+    const sourcePath = path.resolve(run.filePath);
+    if (sourcePath !== exportsRoot && !sourcePath.startsWith(`${exportsRoot}${path.sep}`)) {
+      autoSavedResultsMissing.push({ runId: run.runId, path: sourcePath, sourcePath, reason: "outside_exports_directory" });
+      continue;
+    }
+    if (!fs.existsSync(sourcePath) || !fs.statSync(sourcePath).isFile()) {
+      autoSavedResultsMissing.push({ runId: run.runId, path: sourcePath, sourcePath, reason: "file_not_found" });
+      continue;
+    }
+    try {
+      const body = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+      const bundleFileName = path.basename(sourcePath);
+      writeBundleJson(autoSavedResultsFolder, bundleFileName, body);
+      autoSavedResultsIncluded.push({ ...summarize(run), sourcePath, bundlePath: `auto-saved-results/${bundleFileName}` });
+    } catch (error) {
+      autoSavedResultsMissing.push({ runId: run.runId, path: sourcePath, sourcePath, reason: `read_or_parse_failed: ${error instanceof Error ? error.message : String(error)}` });
+    }
+  }
+  writeBundleJson(folderPath, "auto-saved-results-index.json", { included: autoSavedResultsIncluded, missing: autoSavedResultsMissing });
+  const sessionTimeline = [
+    ...sessionUserActions.map((action, index) => ({ time: action.time, source: "user_action", type: "user_action", sequence: index, action: action.message, page: payload.currentPage })),
+    ...debugLogTimeline(payload.debugLog),
+    ...autoSavedRunHistory.map((run, index) => ({ time: run.savedAt, source: "activity_run_history", type: "activity_stream_result", sequence: index, runId: run.runId, status: run.status, diagnosis: String(asRecord(run.data.activityStream).diagnosis ?? run.data.diagnosis ?? "unknown"), parsedActivityCount: Number(asRecord(run.data.activityStream).parsedActivityCount ?? run.data.parsedActivityCount ?? 0), autoSavedPath: run.filePath })),
+    ...autoSavedCandidates.map((run, index) => ({ time: run.savedAt, source: "auto_save_path", type: "auto_save_path", sequence: index, runId: run.runId, path: run.filePath }))
+  ].sort((left, right) => left.time.localeCompare(right.time));
+  writeBundleJson(folderPath, "session-timeline.json", sessionTimeline);
   const latestChunkedRun = autoSavedRunHistory.find((run) => Array.isArray(run.data.activityStreamChunkResults) && run.data.activityStreamChunkResults.length > 0 && Number(asRecord(run.data.activityStream).parsedActivityCount ?? 0) > 0)
     ?? autoSavedRunHistory.find((run) => Array.isArray(run.data.activityStreamChunkResults) && run.data.activityStreamChunkResults.length > 0);
   writeBundleJson(folderPath, "activity-stream-chunk-results.json", latestChunkedRun?.data.activityStreamChunkResults ?? []);
@@ -2550,7 +2660,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const advancedDiagnosticsUsed = diagnosticsRun?.data.advancedDiagnosticsUsed === true;
   writeBundleJson(folderPath, "standard-activity-stream-flow.json", Object.keys(standardActivityStreamFlow).length > 0 ? standardActivityStreamFlow : unavailable);
   writeBundleJson(folderPath, "activity-type-classifier-diagnostics.json", Object.keys(classifierDiagnostics).length > 0 ? classifierDiagnostics : unavailable);
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {}, standardActivityStreamFlow, activityTypeClassifierDiagnostics: classifierDiagnostics, advancedDiagnosticsUsed });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {}, standardActivityStreamFlow, activityTypeClassifierDiagnostics: classifierDiagnostics, advancedDiagnosticsUsed, includedAutoSavedResults: autoSavedResultsIncluded, missingAutoSavedResults: autoSavedResultsMissing, fullSessionBundle: { enabled: true, sessionStartTime, bundleGeneratedAt: createdAt, totalUserActions: sessionUserActions.length, totalRuns: runHistory.length, totalAutoSavedResults: autoSavedCandidates.length, includedAutoSavedResultCount: autoSavedResultsIncluded.length, missingAutoSavedResultCount: autoSavedResultsMissing.length } });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -2561,7 +2671,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const trackingLines = (label: string, run: AutoSavedRun | null) => run ? [`${label}:`, `- runId: ${run.runId}`, `- status: ${run.status}`, `- diagnosis: ${String(asRecord(run.data.activityStream).diagnosis ?? "unknown")}`, `- parsedActivityCount: ${Number(asRecord(run.data.activityStream).parsedActivityCount ?? 0)}`, `- path: ${run.filePath}`] : [`${label}:`, "- not_available"];
   const chunking = asRecord(latestChunkedRun?.data.dateRangeChunking);
   const mergeStats = asRecord(latestChunkedRun?.data.chunkMergeStats);
-  fs.writeFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Jira Activity Analyzer Debug Bundle", `Version: ${__MAIN_APP_VERSION__}`, `Build Time: ${__MAIN_BUILD_TIME__}`, `Git Commit: ${__MAIN_GIT_COMMIT__}`, `Generated At: ${createdAt}`, `Current Page: ${payload.currentPage}`, ...trackingLines("Latest Run Result", latestRunResult), ...trackingLines("Last Successful Result", lastSuccessfulResult), ...trackingLines("Last Parsed Result", lastParsedResult), ...trackingLines("Latest No Entries Result", latestNoEntriesResult), "Standard Activity Stream Flow:", `- selectedUser: ${String(standardActivityStreamFlow.selectedUser ?? "not_available")}`, `- queryUser: ${String(standardActivityStreamFlow.activityStreamQueryUser ?? "not_available")}`, `- variant: ${String(standardActivityStreamFlow.variant ?? "not_available")}`, `- dateQueryMode: ${String(standardActivityStreamFlow.dateQueryMode ?? "not_available")}`, `- chunkingMode: ${String(standardActivityStreamFlow.chunkingMode ?? "not_available")}`, `- perChunkMaxResults: ${Number(standardActivityStreamFlow.perChunkMaxResults ?? 0)}`, `- advancedOverrideUsed: ${Boolean(standardActivityStreamFlow.advancedOverrideUsed)}`, `- advancedDiagnosticsUsed: ${advancedDiagnosticsUsed}`, "Activity Type Classifier:", `- enabled: ${classifierDiagnostics.enabled !== false}`, `- rulesVersion: ${String(classifierDiagnostics.rulesVersion ?? "1.0")}`, `- commentPriorityHigherThanAttachment: ${classifierDiagnostics.commentPriorityHigherThanAttachment !== false}`, "Date Range Chunking:", `- enabled: ${Boolean(chunking.enabled)}`, `- mode: ${String(chunking.mode ?? "off")}`, `- chunkCount: ${Number(chunking.chunkCount ?? 0)}`, `- successfulChunks: ${Number(mergeStats.successfulChunks ?? 0)}`, `- failedChunks: ${Number(mergeStats.failedChunks ?? 0)}`, `- mergedActivityEntries: ${Number(mergeStats.mergedActivityEntries ?? 0)}`, "Included Files:", ...included.map((file) => `- ${file}`), "How to analyze:", "- Check debug-bundle-summary.json", "- Check latest-run-result.json", "- Check run-history.json", "- Check debug-log.txt", "- Check user-action-log.txt", "Security:", "- token / Authorization / cookie are masked or not included", "Known missing files:", ...(missing.length ? missing : ["- none"]), "Cross-page TODO:", ...crossPageDebugBundleTodo.map((item) => `- ${item}`)].join("\n"), "utf8");
+  fs.writeFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Jira Activity Analyzer Debug Bundle", `Version: ${__MAIN_APP_VERSION__}`, `Build Time: ${__MAIN_BUILD_TIME__}`, `Git Commit: ${__MAIN_GIT_COMMIT__}`, `Session Start: ${sessionStartTime}`, `Generated At: ${createdAt}`, `Current Page: ${payload.currentPage}`, ...trackingLines("Latest Run Result", latestRunResult), ...trackingLines("Last Successful Result", lastSuccessfulResult), ...trackingLines("Last Parsed Result", lastParsedResult), ...trackingLines("Latest No Entries Result", latestNoEntriesResult), "Full Session Debug Bundle:", `- sessionStartTime: ${sessionStartTime}`, `- bundleGeneratedAt: ${createdAt}`, `- totalUserActions: ${sessionUserActions.length}`, `- totalRuns: ${runHistory.length}`, `- totalAutoSavedResults: ${autoSavedCandidates.length}`, `- includedAutoSavedResults: ${autoSavedResultsIncluded.length}`, `- missingAutoSavedResults: ${autoSavedResultsMissing.length}`, "Session Timeline:", "- file: session-timeline.json", "- combines user actions, renderer debug log, Activity Stream run history, and auto-save paths in chronological order.", "Auto-Saved Result Bodies:", "- Full sanitized JSON bodies are under auto-saved-results/.", ...autoSavedResultsIncluded.map((entry) => `- included: ${String(entry.runId)} -> ${String(entry.bundlePath)}`), ...autoSavedResultsMissing.map((entry) => `- missing: ${String(entry.runId)} -> ${String(entry.sourcePath)} (${String(entry.reason)})`), "Standard Activity Stream Flow:", `- selectedUser: ${String(standardActivityStreamFlow.selectedUser ?? "not_available")}`, `- queryUser: ${String(standardActivityStreamFlow.activityStreamQueryUser ?? "not_available")}`, `- variant: ${String(standardActivityStreamFlow.variant ?? "not_available")}`, `- dateQueryMode: ${String(standardActivityStreamFlow.dateQueryMode ?? "not_available")}`, `- chunkingMode: ${String(standardActivityStreamFlow.chunkingMode ?? "not_available")}`, `- perChunkMaxResults: ${Number(standardActivityStreamFlow.perChunkMaxResults ?? 0)}`, `- advancedOverrideUsed: ${Boolean(standardActivityStreamFlow.advancedOverrideUsed)}`, `- advancedDiagnosticsUsed: ${advancedDiagnosticsUsed}`, "Activity Type Classifier:", `- enabled: ${classifierDiagnostics.enabled !== false}`, `- rulesVersion: ${String(classifierDiagnostics.rulesVersion ?? "1.1")}`, `- correctedEntryCount: ${Number(classifierDiagnostics.correctedEntryCount ?? 0)}`, `- preservedEntryCount: ${Number(classifierDiagnostics.preservedEntryCount ?? 0)}`, `- inferredEntryCount: ${Number(classifierDiagnostics.inferredEntryCount ?? 0)}`, `- fallbackUnknownCount: ${Number(classifierDiagnostics.fallbackUnknownCount ?? 0)}`, `- commentPriorityHigherThanAttachment: ${classifierDiagnostics.commentPriorityHigherThanAttachment !== false}`, "Date Range Chunking:", `- enabled: ${Boolean(chunking.enabled)}`, `- mode: ${String(chunking.mode ?? "off")}`, `- chunkCount: ${Number(chunking.chunkCount ?? 0)}`, `- successfulChunks: ${Number(mergeStats.successfulChunks ?? 0)}`, `- failedChunks: ${Number(mergeStats.failedChunks ?? 0)}`, `- mergedActivityEntries: ${Number(mergeStats.mergedActivityEntries ?? 0)}`, "Included Files:", ...included.map((file) => `- ${file}`), "How to analyze:", "- Check debug-bundle-summary.json", "- Check session-timeline.json", "- Check auto-saved-results-index.json", "- Check auto-saved-results/", "- Check run-history.json", "- Check debug-log.txt", "- Check user-action-log.txt", "Security:", "- token / Authorization / cookie are masked or not included", "Known missing files:", ...(missing.length ? missing : ["- none"]), "Cross-page TODO:", ...crossPageDebugBundleTodo.map((item) => `- ${item}`)].join("\n"), "utf8");
   lastDebugBundle = { path: folderPath, createdAt };
   return { canceled: false, folderPath, filePath: folderPath, createdAt, includedFiles: fs.readdirSync(folderPath), crossPageDebugBundleTodo };
 });
@@ -2605,6 +2715,22 @@ async function runUiSmoke(window: BrowserWindow) {
   }
 
   const failures: string[] = [];
+  const classifierFixtures = [
+    classifyActivityType({ title: "roger edited Person - date range", application: "Confluence", objectType: "", combined: '<category term="page" />', previousType: "page" }),
+    classifyActivityType({ title: "roger added Person - date range", application: "Confluence", objectType: "page", combined: "Confluence activity", previousType: "page" }),
+    classifyActivityType({ title: "changed an unrecognized object", application: "Other", previousType: "attachment" }),
+    classifyActivityType({ title: "unrecognized activity", application: "Other", previousType: "unknown" }),
+    classifyActivityType({ title: "commented on COPGEN1-138930 and attached a file", application: "Jira", objectType: "issue", previousType: "attachment" }),
+    classifyActivityType({ title: "roger edited Person - date range", application: "Confluence", objectType: "page", previousType: "unknown" }),
+    classifyActivityType({ title: "uploaded a file", application: "Jira", objectType: "issue" }),
+    classifyActivityType({ title: "linked COPGEN1-1 to COPGEN1-2", application: "Jira", objectType: "issue" }),
+    classifyActivityType({ title: "updated the priority", application: "Jira", objectType: "issue" }),
+    classifyActivityType({ title: "changed the assignee", application: "Jira", objectType: "issue" }),
+    classifyActivityType({ title: "changed the status", application: "Jira", objectType: "issue" }),
+    classifyActivityType({ title: "changed the resolution", application: "Jira", objectType: "issue" })
+  ];
+  const classifierFixtureDiagnostics = activityTypeClassifierDiagnostics(classifierFixtures.map((activityTypeClassifier, entryIndex) => ({ activityTypeClassifier, activityType: activityTypeClassifier.finalType, entryIndex } as ActivityStreamEntry)));
+  if (classifierFixtures[0].finalType !== "page" || classifierFixtures[0].matchedRule !== "confluence_page_object" || classifierFixtures[1].finalType !== "page" || classifierFixtures[2].matchedRule !== "preserve_previous_type" || classifierFixtures[2].finalType !== "attachment" || classifierFixtures[3].matchedRule !== "fallback_unknown" || classifierFixtures[4].finalType !== "comment" || classifierFixtures[4].matchedRule !== "commented_on" || classifierFixtures[5].finalType !== "page" || classifierFixtures[6].finalType !== "attachment" || classifierFixtures[7].finalType !== "link" || classifierFixtures[8].finalType !== "field_change" || classifierFixtures[9].finalType !== "assignee_change" || classifierFixtures[10].finalType !== "status_change" || classifierFixtures[11].finalType !== "resolution_change" || classifierFixtureDiagnostics.correctedEntryCount !== 2 || classifierFixtureDiagnostics.preservedEntryCount !== 6 || classifierFixtureDiagnostics.inferredEntryCount !== 3 || classifierFixtureDiagnostics.fallbackUnknownCount !== 1) failures.push(`classifier fallback fixtures failed ${JSON.stringify({ classifierFixtures, classifierFixtureDiagnostics })}`);
 
   for (const viewport of uiViewports) {
     window.setSize(viewport.width, viewport.height, false);
@@ -3084,13 +3210,20 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(100);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-advanced-activity-stream']")?.click();`);
   await wait(900);
-  const noEntriesTrackingAudit = await window.webContents.executeJavaScript(`(() => ({ banner: Boolean(document.querySelector("[data-testid='all-variants-no-entries']")), latest: document.querySelector("[data-testid='latest-run-auto-save']")?.textContent || "", successful: document.querySelector("[data-testid='last-successful-auto-save']")?.textContent || "", parsed: document.querySelector("[data-testid='last-parsed-auto-save']")?.textContent || "", noEntries: document.querySelector("[data-testid='latest-no-entries-auto-save']")?.textContent || "" }))()`);
-  if (!noEntriesTrackingAudit.banner || !noEntriesTrackingAudit.latest.includes("no_entries") || !noEntriesTrackingAudit.successful.includes("parsed_confluence_only") || !noEntriesTrackingAudit.parsed.includes("parsed_confluence_only") || !noEntriesTrackingAudit.noEntries.includes("no_entries")) failures.push(`no_entries/result tracking UI audit failed ${JSON.stringify(noEntriesTrackingAudit)}`);
+  const trackingDefaultCollapsed = await window.webContents.executeJavaScript(`(() => ({ expanded: document.querySelector("[data-testid='toggle-result-tracking-details']")?.getAttribute("aria-expanded"), panel: Boolean(document.querySelector("[data-testid='auto-save-result-tracking']")) }))()`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='toggle-result-tracking-details']")?.click();`);
+  await wait(100);
+  const noEntriesTrackingAudit = await window.webContents.executeJavaScript(`(() => { const panel = document.querySelector("[data-testid='auto-save-result-tracking']"); const cards = Array.from(panel?.children || []); const runIds = cards.map((card) => card.getAttribute("data-testid")?.replace("result-tracking-run-", "") || ""); return { banner: Boolean(document.querySelector("[data-testid='all-variants-no-entries']")), detailsOpen: Boolean(panel), text: panel?.textContent || "", cardCount: cards.length, uniqueRunIds: new Set(runIds).size }; })()`);
+  if (trackingDefaultCollapsed.expanded !== "false" || trackingDefaultCollapsed.panel || !noEntriesTrackingAudit.banner || !noEntriesTrackingAudit.detailsOpen || !noEntriesTrackingAudit.text.includes("Latest No Entries Result") || !noEntriesTrackingAudit.text.includes("no_entries") || !noEntriesTrackingAudit.text.includes("parsed_confluence_only") || noEntriesTrackingAudit.cardCount !== noEntriesTrackingAudit.uniqueRunIds) failures.push(`no_entries/result tracking UI audit failed ${JSON.stringify({ trackingDefaultCollapsed, noEntriesTrackingAudit })}`);
   const autoSaveUiAudit = await window.webContents.executeJavaScript(`(() => { const text = document.querySelector("[data-testid='last-auto-saved-result']")?.textContent || ""; return { visible: Boolean(text), activity: text.includes("activity_stream_run"), path: text.includes("activity-stream-runs"), open: Boolean(document.querySelector("[data-testid='open-auto-save-folder']")), copy: Boolean(document.querySelector("[data-testid='copy-auto-save-path']")) }; })()`);
+  const missingSmokeRun: AutoSavedRun = { runId: "smoke-missing-auto-save", resultType: "activity_stream_run", status: "completed", savedAt: new Date().toISOString(), filePath: path.join(getExportsDir(), "user-analysis", "activity-stream-runs", "smoke-missing-auto-save.json"), folderPath: path.join(getExportsDir(), "user-analysis", "activity-stream-runs"), data: { runId: "smoke-missing-auto-save", diagnosis: "no_entries" } };
+  autoSavedRunHistory.unshift(missingSmokeRun);
   await window.webContents.executeJavaScript(`document.querySelector("[data-debug-panel-state='collapsed']")?.querySelector("button")?.click();`);
   await wait(100);
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll("button")).find((button) => button.title?.includes("Save Debug Log"))?.click();`);
   await wait(500);
+  const missingSmokeIndex = autoSavedRunHistory.indexOf(missingSmokeRun);
+  if (missingSmokeIndex >= 0) autoSavedRunHistory.splice(missingSmokeIndex, 1);
   const debugBundleUiAudit = await window.webContents.executeJavaScript(`(() => ({ path: document.querySelector("[data-testid='last-debug-bundle-path']")?.textContent || "", open: Boolean(document.querySelector("[data-testid='open-debug-bundle']")), copy: Boolean(document.querySelector("[data-testid='copy-debug-bundle-path']")) }))()`);
   const autoSavedFiles = Object.fromEntries(Object.entries(autoSaveDirs).map(([type, dir]) => [type, fs.readdirSync(dir).filter((name) => !autoSaveFilesBefore[type as AutoSaveResultType].has(name))])) as Record<AutoSaveResultType, string[]>;
   for (const [type, files] of Object.entries(autoSavedFiles)) if (files.length < 1) failures.push(`auto-save missing for ${type}: ${JSON.stringify(files)}`);
@@ -3098,10 +3231,10 @@ async function runUiSmoke(window: BrowserWindow) {
   if (autoSavedDocuments.some((document) => !asRecord(document.autoSave).path || asRecord(document.autoSave).enabled !== true || asRecord(document.debugBundleHints).includeInDebugBundle !== true || !Array.isArray(document.crossPageDebugBundleTodo))) failures.push("auto-save metadata/debug bundle hints audit failed");
   const newDebugBundles = fs.readdirSync(debugBundlesDir).filter((name) => !debugBundlesBefore.has(name));
   const debugBundlePath = newDebugBundles.length > 0 ? path.join(debugBundlesDir, newDebugBundles.at(-1)!) : "";
-  const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-run-result.json", "last-successful-result.json", "last-parsed-result.json", "latest-no-entries-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "activity-stream-chunk-results.json", "activity-stream-merged-result.json", "standard-activity-stream-flow.json", "activity-type-classifier-diagnostics.json", "debug-bundle-summary.json", "README_for_GPT.txt"];
+  const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-run-result.json", "last-successful-result.json", "last-parsed-result.json", "latest-no-entries-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "auto-saved-results", "auto-saved-results-index.json", "session-timeline.json", "activity-stream-chunk-results.json", "activity-stream-merged-result.json", "standard-activity-stream-flow.json", "activity-type-classifier-diagnostics.json", "debug-bundle-summary.json", "README_for_GPT.txt"];
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
-  const bundleText = debugBundlePath ? actualBundleFiles.map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
+  const bundleText = debugBundlePath ? actualBundleFiles.filter((name) => fs.statSync(path.join(debugBundlePath, name)).isFile()).map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
   if (!autoSaveUiAudit.visible || !autoSaveUiAudit.activity || !autoSaveUiAudit.path || !autoSaveUiAudit.open || !autoSaveUiAudit.copy) failures.push(`last auto-save UI audit failed ${JSON.stringify(autoSaveUiAudit)}`);
   if (!debugBundleUiAudit.path || !debugBundleUiAudit.open || !debugBundleUiAudit.copy || missingBundleFiles.length > 0) failures.push(`debug bundle UI/files audit failed ${JSON.stringify({ debugBundleUiAudit, missingBundleFiles })}`);
   if (!bundleText.includes("Jira Activity Analyzer Debug Bundle") || !bundleText.includes("Standard Activity Stream Flow:") || !bundleText.includes("Activity Type Classifier:") || !bundleText.includes("commentPriorityHigherThanAttachment: true") || !bundleText.includes("Cross-page TODO") || /secret-value|JSESSIONID|Authorization:\s*(?!\[masked\])/i.test(bundleText)) failures.push("debug bundle README/classifier/sensitive-data audit failed");
@@ -3114,9 +3247,16 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleClassifier = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-type-classifier-diagnostics.json"), "utf8")));
     const bundleChunks = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-chunk-results.json"), "utf8")) as Array<Record<string, unknown>>;
     const bundleMerged = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-merged-result.json"), "utf8")));
+    const bundleAutoSavedIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "auto-saved-results-index.json"), "utf8")));
+    const bundleTimeline = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "session-timeline.json"), "utf8") as string) as Array<Record<string, unknown>>;
+    const fullSessionBundle = asRecord(bundleSummary.fullSessionBundle);
     const latestBundleRunId = String(latestBundleResult.runId || "");
     if (!latestBundleRunId || !bundleHistory.some((run) => String(run?.runId || "") === latestBundleRunId) || String(asRecord(bundlePaths.latestRunResult).runId || "") !== latestBundleRunId || bundleSummary.snapshotConsistent !== true) failures.push(`debug bundle snapshot consistency failed: latest=${latestBundleRunId}`);
-    if (bundleStandardFlow.enabled !== true || bundleStandardFlow.variant !== "escaped_username" || bundleStandardFlow.activityStreamQueryUser !== "roger\\_hsieh" || Number(bundleStandardFlow.perChunkMaxResults) !== 500 || bundleClassifier.enabled !== true || bundleClassifier.commentPriorityHigherThanAttachment !== true || bundleClassifier.rulesVersion !== "1.0" || !asRecord(bundleSummary.standardActivityStreamFlow).selectedUser || !bundleSummary.activityTypeClassifierDiagnostics) failures.push(`debug bundle standard flow/classifier diagnostics failed: ${JSON.stringify({ bundleStandardFlow, bundleClassifier })}`);
+    if (bundleStandardFlow.enabled !== true || bundleStandardFlow.variant !== "escaped_username" || bundleStandardFlow.activityStreamQueryUser !== "roger\\_hsieh" || Number(bundleStandardFlow.perChunkMaxResults) !== 500 || bundleClassifier.enabled !== true || bundleClassifier.commentPriorityHigherThanAttachment !== true || bundleClassifier.rulesVersion !== "1.1" || !asRecord(bundleSummary.standardActivityStreamFlow).selectedUser || !bundleSummary.activityTypeClassifierDiagnostics) failures.push(`debug bundle standard flow/classifier diagnostics failed: ${JSON.stringify({ bundleStandardFlow, bundleClassifier })}`);
+    const includedAutoSavedResults = Array.isArray(bundleAutoSavedIndex.included) ? bundleAutoSavedIndex.included.map(asRecord) : [];
+    const missingAutoSavedResults = Array.isArray(bundleAutoSavedIndex.missing) ? bundleAutoSavedIndex.missing.map(asRecord) : [];
+    const copiedAutoSavedFiles = fs.readdirSync(path.join(debugBundlePath, "auto-saved-results"));
+    if (fullSessionBundle.enabled !== true || !fullSessionBundle.sessionStartTime || !fullSessionBundle.bundleGeneratedAt || Number(fullSessionBundle.totalUserActions) < 1 || Number(fullSessionBundle.totalRuns) < 1 || Number(fullSessionBundle.totalAutoSavedResults) !== includedAutoSavedResults.length + missingAutoSavedResults.length || Number(fullSessionBundle.includedAutoSavedResultCount) !== includedAutoSavedResults.length || Number(fullSessionBundle.missingAutoSavedResultCount) !== missingAutoSavedResults.length || !Array.isArray(bundleSummary.includedAutoSavedResults) || !Array.isArray(bundleSummary.missingAutoSavedResults) || includedAutoSavedResults.length < 4 || copiedAutoSavedFiles.length !== includedAutoSavedResults.length || !missingAutoSavedResults.some((entry) => entry.runId === "smoke-missing-auto-save" && entry.reason === "file_not_found") || !bundleTimeline.some((entry) => entry.source === "user_action" && entry.type === "user_action" && entry.action) || !bundleTimeline.some((entry) => entry.source === "debug_log") || !bundleTimeline.some((entry) => entry.source === "activity_run_history" && entry.type === "activity_stream_result") || !bundleTimeline.some((entry) => entry.source === "auto_save_path")) failures.push(`full session bundle audit failed: ${JSON.stringify({ fullSessionBundle, included: includedAutoSavedResults.length, missing: missingAutoSavedResults, copied: copiedAutoSavedFiles.length, timeline: bundleTimeline.length })}`);
     const lastSuccessfulBundle = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "last-successful-result.json"), "utf8")));
     if (String(asRecord(latestBundleResult.activityStream).diagnosis) !== "no_entries" || !["parsed", "parsed_confluence_only", "parsed_no_issue_keys"].includes(String(asRecord(lastSuccessfulBundle.activityStream).diagnosis))) failures.push("latest no_entries overwrote or invalidated last successful result");
     if (bundleChunks.length !== 7 || Number(asRecord(bundleMerged.chunkMergeStats).duplicateEntriesRemoved) !== 6 || Number(asRecord(bundleMerged.chunkMergeStats).mergedActivityEntries) !== 8) failures.push(`debug bundle chunk result audit failed: chunks=${bundleChunks.length} merge=${JSON.stringify(bundleMerged.chunkMergeStats)}`);

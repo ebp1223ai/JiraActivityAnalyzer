@@ -68,6 +68,24 @@ function MiniStat({ label, value }: { label: string; value: string | number }) {
   return <div className="min-w-0 rounded-lg border border-line bg-white p-3"><div className="text-xs font-black uppercase leading-snug text-muted">{label}</div><div className="mt-1 break-words text-2xl font-black text-ink" data-no-clip="true">{value}</div></div>;
 }
 
+type AutoSavedResultMetadata = {
+  path: string; folderPath: string; savedAt: string; runId: string; resultType: string;
+  status: string; diagnosis: string; parsedActivityCount: number;
+};
+
+type ResultTrackingRole = { label: string; testId: string; value: AutoSavedResultMetadata | null };
+
+function groupResultTrackingByRunId(roles: ResultTrackingRole[]) {
+  const groups = new Map<string, { result: AutoSavedResultMetadata; roles: ResultTrackingRole[] }>();
+  for (const role of roles) {
+    if (!role.value) continue;
+    const current = groups.get(role.value.runId);
+    if (current) current.roles.push(role);
+    else groups.set(role.value.runId, { result: role.value, roles: [role] });
+  }
+  return Array.from(groups.values());
+}
+
 export function PrecisionProbePage() {
   const { activeConnection } = useConnectionContext();
   const { userAnalysis, setUserAnalysis } = useSessionState();
@@ -78,6 +96,7 @@ export function PrecisionProbePage() {
   const latestRunIdRef = useRef(userAnalysis.currentActivityStreamRunId);
   const runningRef = useRef(userAnalysis.isActivityStreamRunning);
   const [largeQueryConfirmation, setLargeQueryConfirmation] = useState<{ open: boolean; input: string; error: string; action: "activity" | "precision" | "cap" | ""; advanced: boolean }>({ open: false, input: "", error: "", action: "", advanced: false });
+  const [resultTrackingDetailsOpen, setResultTrackingDetailsOpen] = useState(false);
   const standardSelectedUser = selectedUsers.length === 1 ? selectedUsers[0] : "";
   const standardQueryUser = standardSelectedUser.replace(/(^|[^\\])_/g, "$1\\_");
   const allEntries = useMemo(() => [
@@ -115,6 +134,14 @@ export function PrecisionProbePage() {
     const date = entry.activityTime.slice(0, 10);
     return Boolean(date && (!userAnalysis.startDate || date >= userAnalysis.startDate) && (!userAnalysis.endDate || date <= userAnalysis.endDate));
   }), [allEntries, userAnalysis.startDate, userAnalysis.endDate]);
+  const resultTrackingRoles = useMemo<ResultTrackingRole[]>(() => [
+    { label: "Latest Run Result", testId: "latest-run-auto-save", value: userAnalysis.lastAutoSavedResult },
+    { label: "Last Successful Result", testId: "last-successful-auto-save", value: userAnalysis.lastSuccessfulAutoSavedResult },
+    { label: "Last Parsed Result", testId: "last-parsed-auto-save", value: userAnalysis.lastParsedAutoSavedResult },
+    { label: "Latest No Entries Result", testId: "latest-no-entries-auto-save", value: userAnalysis.latestNoEntriesAutoSavedResult }
+  ], [userAnalysis.lastAutoSavedResult, userAnalysis.lastSuccessfulAutoSavedResult, userAnalysis.lastParsedAutoSavedResult, userAnalysis.latestNoEntriesAutoSavedResult]);
+  const resultTrackingGroups = useMemo(() => groupResultTrackingByRunId(resultTrackingRoles), [resultTrackingRoles]);
+  const latestTrackingRoles = resultTrackingGroups.find((group) => group.result.runId === userAnalysis.lastAutoSavedResult?.runId)?.roles ?? [];
 
   function patchState(patch: Partial<typeof userAnalysis>) {
     setUserAnalysis((current) => ({ ...current, ...patch }));
@@ -189,7 +216,7 @@ export function PrecisionProbePage() {
         error: "",
         rawSummary: "",
         parserDiagnostics: emptyParserDiagnostics,
-        activityTypeClassifierDiagnostics: { enabled: true, rulesVersion: "1.0", commentPriorityHigherThanAttachment: true, totalEntries: 0, correctedEntryCount: 0, matchedRuleCounts: {}, finalTypeCounts: {} },
+        activityTypeClassifierDiagnostics: { enabled: true, rulesVersion: "1.1", commentPriorityHigherThanAttachment: true, totalEntries: 0, correctedEntryCount: 0, preservedEntryCount: 0, inferredEntryCount: 0, fallbackUnknownCount: 0, matchedRuleCounts: {}, finalTypeCounts: {} },
         activityEntryStats: emptyActivityEntryStats
       }
     }));
@@ -554,16 +581,10 @@ export function PrecisionProbePage() {
     </SectionCard>
 
     <SectionCard title="Last Auto-Saved Result" subtitle="最後自動儲存結果" className="mb-4">
-      {userAnalysis.lastAutoSavedResult ? <div data-testid="last-auto-saved-result" className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]"><div className="min-w-0 text-sm font-semibold leading-relaxed"><div className="break-all"><b>Path:</b> {userAnalysis.lastAutoSavedResult.path}</div><div><b>Saved At:</b> {userAnalysis.lastAutoSavedResult.savedAt}</div><div><b>Run ID:</b> {userAnalysis.lastAutoSavedResult.runId}</div><div><b>Result Type:</b> {userAnalysis.lastAutoSavedResult.resultType}</div><div><b>Status:</b> {userAnalysis.lastAutoSavedResult.status}</div></div><div className="flex flex-wrap items-start gap-2"><button data-testid="open-auto-save-folder" className="btn" type="button" onClick={() => void window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath: userAnalysis.lastAutoSavedResult?.folderPath })}><FolderOpen size={16} />Open Folder / 開啟資料夾</button><button data-testid="copy-auto-save-path" className="btn" type="button" onClick={() => void navigator.clipboard?.writeText(userAnalysis.lastAutoSavedResult?.path ?? "")}><Copy size={16} />Copy Path / 複製路徑</button></div></div> : <div className="text-sm font-semibold text-muted">No auto-saved run yet. / 尚無自動儲存結果。</div>}
-    </SectionCard>
-
-    <SectionCard title="Auto-Saved Result Tracking" subtitle="Latest, successful, parsed, and no-entry snapshots" className="mb-4">
-      <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2" data-testid="auto-save-result-tracking">{[
-        ["Latest Run Result", "latest-run-auto-save", userAnalysis.lastAutoSavedResult],
-        ["Last Successful Auto-Saved Result", "last-successful-auto-save", userAnalysis.lastSuccessfulAutoSavedResult],
-        ["Last Parsed Auto-Saved Result", "last-parsed-auto-save", userAnalysis.lastParsedAutoSavedResult],
-        ["Latest No Entries Result", "latest-no-entries-auto-save", userAnalysis.latestNoEntriesAutoSavedResult]
-      ].map(([label, testId, value]) => { const result = value as typeof userAnalysis.lastAutoSavedResult; return <div key={String(testId)} data-testid={String(testId)} className="min-w-0 rounded-lg border border-line bg-slate-50 p-3"><div className="text-sm font-black text-ink">{String(label)}</div>{result ? <><div className="mt-2 text-xs font-semibold leading-relaxed text-muted"><div><b>Run ID:</b> {result.runId}</div><div><b>Status:</b> {result.status}</div><div><b>Diagnosis:</b> {result.diagnosis}</div><div><b>Parsed:</b> {result.parsedActivityCount}</div><div className="break-all"><b>Path:</b> {result.path}</div></div><div className="mt-3 flex flex-wrap gap-2"><button className="btn px-2 py-1 text-xs" type="button" onClick={() => void window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath: result.folderPath })}><FolderOpen size={14} />Open Folder</button><button className="btn px-2 py-1 text-xs" type="button" onClick={() => void navigator.clipboard?.writeText(result.path)}><Copy size={14} />Copy Path</button></div></> : <div className="mt-2 text-sm font-semibold text-muted">not_available</div>}</div>; })}</div>
+      {userAnalysis.lastAutoSavedResult ? <div data-testid="last-auto-saved-result" className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]"><div className="min-w-0 text-sm font-semibold leading-relaxed"><div className="break-all"><b>Path:</b> {userAnalysis.lastAutoSavedResult.path}</div><div><b>Saved At:</b> {userAnalysis.lastAutoSavedResult.savedAt}</div><div><b>Run ID:</b> {userAnalysis.lastAutoSavedResult.runId}</div><div><b>Result Type:</b> {userAnalysis.lastAutoSavedResult.resultType}</div><div><b>Status:</b> {userAnalysis.lastAutoSavedResult.status}</div>{latestTrackingRoles.length > 1 ? <div data-testid="latest-result-also-used-as"><b>Also used as:</b> {latestTrackingRoles.slice(1).map((role) => role.label).join(", ")}</div> : null}</div><div className="flex flex-wrap items-start gap-2"><button data-testid="open-auto-save-folder" className="btn" type="button" onClick={() => void window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath: userAnalysis.lastAutoSavedResult?.folderPath })}><FolderOpen size={16} />Open Folder / 開啟資料夾</button><button data-testid="copy-auto-save-path" className="btn" type="button" onClick={() => void navigator.clipboard?.writeText(userAnalysis.lastAutoSavedResult?.path ?? "")}><Copy size={16} />Copy Path / 複製路徑</button></div></div> : <div className="text-sm font-semibold text-muted">No auto-saved run yet. / 尚無自動儲存結果。</div>}
+      {userAnalysis.latestNoEntriesAutoSavedResult && userAnalysis.latestNoEntriesAutoSavedResult.runId !== userAnalysis.lastAutoSavedResult?.runId ? <div data-testid="latest-no-entries-summary" className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-950"><b>Latest No Entries Result:</b> {userAnalysis.latestNoEntriesAutoSavedResult.runId} · {userAnalysis.latestNoEntriesAutoSavedResult.savedAt}</div> : null}
+      <button data-testid="toggle-result-tracking-details" className="btn mt-4" type="button" aria-expanded={resultTrackingDetailsOpen} onClick={() => setResultTrackingDetailsOpen((open) => !open)}>Result Tracking Details {resultTrackingDetailsOpen ? "▲" : "▼"}</button>
+      {resultTrackingDetailsOpen ? <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2" data-testid="auto-save-result-tracking">{resultTrackingGroups.map(({ result, roles }) => <div key={result.runId} data-testid={`result-tracking-run-${result.runId}`} className="min-w-0 rounded-lg border border-line bg-slate-50 p-3"><div className="text-sm font-black text-ink">{roles.map((role) => role.label).join(" · ")}</div><div className="mt-2 text-xs font-semibold leading-relaxed text-muted"><div><b>Run ID:</b> {result.runId}</div><div><b>Status:</b> {result.status}</div><div><b>Diagnosis:</b> {result.diagnosis}</div><div><b>Parsed:</b> {result.parsedActivityCount}</div><div className="break-all"><b>Path:</b> {result.path}</div></div><div className="mt-3 flex flex-wrap gap-2"><button className="btn px-2 py-1 text-xs" type="button" onClick={() => void window.desktopApp?.userAnalysis?.openExportFolder?.({ folderPath: result.folderPath })}><FolderOpen size={14} />Open Folder</button><button className="btn px-2 py-1 text-xs" type="button" onClick={() => void navigator.clipboard?.writeText(result.path)}><Copy size={14} />Copy Path</button></div></div>)}</div> : null}
     </SectionCard>
 
     {userAnalysis.advancedDiagnosticsOpen ? <SectionCard title="Manual Activity Stream URL Replay" subtitle="Advanced Diagnostics / 進階診斷" className="mb-4">
@@ -601,7 +622,7 @@ export function PrecisionProbePage() {
       <h3 className="mb-2 text-sm font-black text-ink">Parser Diagnostics / 解析診斷</h3>
       <div className="mb-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3" data-testid="parser-diagnostics"><MiniStat label="Atom Entries" value={stream.parserDiagnostics.atomEntryCount} /><MiniStat label="Parsed Entries" value={stream.parserDiagnostics.parsedEntryCount} /><MiniStat label="Skipped Entries" value={stream.parserDiagnostics.skippedEntryCount} /><MiniStat label="With Issue Key" value={stream.parserDiagnostics.entriesWithIssueKeyCount} /><MiniStat label="Without Issue Key" value={stream.parserDiagnostics.entriesWithoutIssueKeyCount} /><MiniStat label="Confluence-only" value={stream.parserDiagnostics.confluenceOnlyEntryCount} /><MiniStat label="Without Author" value={stream.parserDiagnostics.entriesWithoutAuthorCount} /><MiniStat label="Without Time" value={stream.parserDiagnostics.entriesWithoutTimeCount} /></div>
       <h3 className="mb-2 text-sm font-black text-ink">Activity Type Classifier / 活動類型分類器</h3>
-      <div className="mb-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3" data-testid="activity-type-classifier-diagnostics"><MiniStat label="Rules Version" value={stream.activityTypeClassifierDiagnostics.rulesVersion} /><MiniStat label="Classified Entries" value={stream.activityTypeClassifierDiagnostics.totalEntries} /><MiniStat label="Corrected Types" value={stream.activityTypeClassifierDiagnostics.correctedEntryCount} /><MiniStat label="Comment Priority" value={stream.activityTypeClassifierDiagnostics.commentPriorityHigherThanAttachment ? "Higher than attachment" : "Invalid"} /></div>
+      <div className="mb-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3" data-testid="activity-type-classifier-diagnostics"><MiniStat label="Rules Version" value={stream.activityTypeClassifierDiagnostics.rulesVersion} /><MiniStat label="Classified Entries" value={stream.activityTypeClassifierDiagnostics.totalEntries} /><MiniStat label="Corrected Types" value={stream.activityTypeClassifierDiagnostics.correctedEntryCount} /><MiniStat label="Preserved Types" value={stream.activityTypeClassifierDiagnostics.preservedEntryCount} /><MiniStat label="Inferred Types" value={stream.activityTypeClassifierDiagnostics.inferredEntryCount} /><MiniStat label="Fallback Unknown" value={stream.activityTypeClassifierDiagnostics.fallbackUnknownCount} /><MiniStat label="Comment Priority" value={stream.activityTypeClassifierDiagnostics.commentPriorityHigherThanAttachment ? "Higher than attachment" : "Invalid"} /></div>
       {stream.parserDiagnostics.parserAnomaly ? <div data-testid="parser-anomaly" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">Parser anomaly detected: Atom entries were returned, but few entries were parsed.<br />解析異常：Activity Stream 回傳了 Atom entries，但只有少數 entries 被解析。<br />{stream.parserDiagnostics.parserAnomalyReason}</div> : null}
       {stream.parserDiagnostics.skippedEntriesSanitized.length > 0 ? <ResponsiveTableContainer className="mb-4"><table className="table min-w-[800px]"><thead><tr><th>Entry</th><th>Reason</th><th>Title</th><th>Time</th><th>Author</th></tr></thead><tbody>{stream.parserDiagnostics.skippedEntriesSanitized.map((entry) => <tr key={entry.entryIndex}><td>{entry.entryIndex}</td><td>{entry.reason}</td><td>{entry.rawTitleText || "-"}</td><td>{entry.rawUpdatedText || "-"}</td><td>{entry.rawAuthorText || "-"}</td></tr>)}</tbody></table></ResponsiveTableContainer> : null}
       <h3 className="mb-2 text-sm font-black text-ink">Parsed Entries / 解析項目</h3>

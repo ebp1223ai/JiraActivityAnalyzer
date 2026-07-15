@@ -269,6 +269,17 @@ The standalone User Activity Precision Probe is a read-only compatibility and di
 - Debug Bundle creation takes one consistent in-memory snapshot. `latest-run-result.json`, `run-history.json`, and `auto-saved-result-paths.json` therefore refer to the same latest run ID.
 - Debug Bundles also include `last-successful-result.json`, `last-parsed-result.json`, `latest-no-entries-result.json`, `debug-bundle-summary.json`, `activity-stream-chunk-results.json`, and `activity-stream-merged-result.json`.
 
+### Classifier Fallback And Full Session Bundles
+
+- Activity classification applies high-precision rules first, then preserves a valid previous type. It uses `fallback_unknown` only when neither a rule nor a valid previous type exists.
+- Confluence page metadata, object type, and preserved page classifications keep edited or added page activity as `page`, even when a human-readable title does not contain the word `page`.
+- Classifier diagnostics separate higher-precision corrections, preserved types, inferred types, and true unknown fallbacks.
+- Result Tracking groups roles by run ID. The latest card lists additional roles without rendering duplicate cards, while a different latest no-entries run remains visible.
+- Save Debug Log creates a full-session support bundle from process launch to bundle generation. It includes session-only user actions, all in-memory run summaries, all known auto-save paths, and sanitized copies of every available auto-saved JSON body under `auto-saved-results/`.
+- `auto-saved-results-index.json` lists included and missing auto-saves with run ID, source path, bundle path, status, diagnosis, parsed count, or a concrete missing reason.
+- `session-timeline.json` combines user actions, renderer Debug Log entries, Activity Stream run history, and auto-save path events in chronological order.
+- Missing auto-save files are reported without aborting bundle creation. Auto-save bodies are deduplicated by resolved path, run ID, or basename.
+
 ### Date Semantics And MaxResults Diagnostics
 
 - Probe Max Results accepts a custom integer from 1 through 65535, defaults to 50, and provides quick values for 10, 20, 50, 100, 200, 500, and 1000.
