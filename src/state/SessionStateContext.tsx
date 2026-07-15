@@ -86,6 +86,7 @@ export type UserActivityStreamEntry = {
   target: string;
   links: string[];
   entryIndex: number;
+  entryFingerprint: string;
 };
 
 export type UserActivityTypeClassifierResult = {
@@ -241,6 +242,35 @@ export type UserActivityStreamEntryStats = {
   uniqueIssueKeyCount: number;
 };
 
+export type UserActivityStreamBaselineComparison = {
+  enabled: boolean;
+  baselineFound: boolean;
+  snapshotKey: string;
+  classification: string;
+  confidence: "normal" | "high";
+  shouldRetry: boolean;
+  retryReason: string;
+  baselineCounts: { bestAtomEntryCount: number; bestParsedActivityCount: number; bestIssueKeyCount: number; bestEntryFingerprintCount: number };
+  currentCounts: { atomEntryCount: number; parsedActivityCount: number; issueKeyCount: number; entryFingerprintCount: number };
+  missingIssueKeys: string[];
+  missingEntryFingerprints: string[];
+  newIssueKeys: string[];
+  newEntryFingerprints: string[];
+  baselineUpdated: boolean;
+  baselineUpdateReason: string;
+  baselinePath: string;
+};
+
+export type UserActivityStreamBaselineGuardRetry = {
+  triggered: boolean;
+  maxRetries: number;
+  attempts: Array<{ attempt: number; runId: string; classification: string; parsedActivityCount: number; issueKeyCount: number; missingIssueKeyCount: number; missingEntryFingerprintCount: number }>;
+  finalAcceptedRunId: string;
+  finalClassification: string;
+  baselineUpdated: boolean;
+  retryRecovered: boolean;
+};
+
 export type UserActivityStreamResult = {
   runId: string;
   status: "not_run" | "running" | "success" | "failed" | "unsupported";
@@ -270,6 +300,10 @@ export type UserActivityStreamResult = {
   parserDiagnostics: UserActivityStreamParserDiagnostics;
   activityTypeClassifierDiagnostics: UserActivityTypeClassifierDiagnostics;
   activityEntryStats: UserActivityStreamEntryStats;
+  baselineComparison: UserActivityStreamBaselineComparison;
+  baselineGuardRetry: UserActivityStreamBaselineGuardRetry;
+  baselineGuardAttemptResults: Array<{ runId: string; startedAt: string; completedAt: string; classification: string; atomEntryCount: number; parsedActivityCount: number; issueKeys: string[]; entryFingerprintCount: number; missingIssueKeys: string[]; missingEntryFingerprintCount: number }>;
+  lowConfidenceObservation: { runId: string; reason: string; missingIssueKeys: string[]; missingEntryCount: number } | null;
 };
 
 export type UserActivityStreamRunHistory = {
@@ -639,7 +673,11 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     rawSummary: "",
     parserDiagnostics: { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithIssueKeyCount: 0, confluenceOnlyEntryCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" },
     activityTypeClassifierDiagnostics: { enabled: true, rulesVersion: "1.1", commentPriorityHigherThanAttachment: true, totalEntries: 0, correctedEntryCount: 0, preservedEntryCount: 0, inferredEntryCount: 0, fallbackUnknownCount: 0, matchedRuleCounts: {}, finalTypeCounts: {} },
-    activityEntryStats: { totalAtomEntries: 0, parsedActivityEntryCount: 0, parsedIssueActivityCount: 0, entriesWithIssueKeyCount: 0, entriesWithoutIssueKeyCount: 0, confluenceOnlyEntryCount: 0, nonJiraEntryCount: 0, jiraIssueEntryCount: 0, uniqueIssueKeyCount: 0 }
+    activityEntryStats: { totalAtomEntries: 0, parsedActivityEntryCount: 0, parsedIssueActivityCount: 0, entriesWithIssueKeyCount: 0, entriesWithoutIssueKeyCount: 0, confluenceOnlyEntryCount: 0, nonJiraEntryCount: 0, jiraIssueEntryCount: 0, uniqueIssueKeyCount: 0 },
+    baselineComparison: { enabled: false, baselineFound: false, snapshotKey: "", classification: "not_run", confidence: "normal", shouldRetry: false, retryReason: "", baselineCounts: { bestAtomEntryCount: 0, bestParsedActivityCount: 0, bestIssueKeyCount: 0, bestEntryFingerprintCount: 0 }, currentCounts: { atomEntryCount: 0, parsedActivityCount: 0, issueKeyCount: 0, entryFingerprintCount: 0 }, missingIssueKeys: [], missingEntryFingerprints: [], newIssueKeys: [], newEntryFingerprints: [], baselineUpdated: false, baselineUpdateReason: "", baselinePath: "" },
+    baselineGuardRetry: { triggered: false, maxRetries: 2, attempts: [], finalAcceptedRunId: "", finalClassification: "not_run", baselineUpdated: false, retryRecovered: false },
+    baselineGuardAttemptResults: [],
+    lowConfidenceObservation: null
   },
   precisionIssueKeySets: {
     activityStreamIssueKeys: [],

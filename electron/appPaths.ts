@@ -21,6 +21,10 @@ export function getDataDir() {
   return getAppDataDir();
 }
 
+export function getActivityStreamBaselinesDir() {
+  return path.join(getDataDir(), "activity-stream-baselines");
+}
+
 export function getDefaultEnvPath() {
   return path.join(getAppRuntimeDir(), ".env");
 }

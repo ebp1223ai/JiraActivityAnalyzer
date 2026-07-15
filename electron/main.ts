@@ -2,7 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ensureDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
+import { ensureDir, getActivityStreamBaselinesDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
+import { baselineFileName, compareBaselineObservation, entryFingerprint as createEntryFingerprint, loadBaselineSnapshot, saveBaselineSnapshot, selectBaselineGuardOutcome, sha256, type ActivityStreamBaselineComparison, type ActivityStreamBaselineSnapshot, type BaselineObservation } from "./activityStreamBaseline.js";
 import { createJiraClient } from "./jira/jiraClient.js";
 import { assertReadOnlyRequest, ReadOnlyViolationError } from "./jira/jiraReadOnlyGuard.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
@@ -31,6 +32,10 @@ const latestAutoSavedRuns = new Map<AutoSaveResultType, AutoSavedRun>();
 const autoSavedRunHistory: AutoSavedRun[] = [];
 const sessionStartTime = new Date().toISOString();
 const sessionUserActions: Array<{ time: string; level: string; message: string; raw: string }> = [];
+type BaselineGuardRetrySummary = { triggered: boolean; maxRetries: number; attempts: Array<{ attempt: number; runId: string; classification: string; parsedActivityCount: number; issueKeyCount: number; missingIssueKeyCount: number; missingEntryFingerprintCount: number }>; finalAcceptedRunId: string; finalClassification: string; baselineUpdated: boolean; retryRecovered: boolean };
+type BaselineGuardSessionRecord = { time: string; runId: string; comparison: ActivityStreamBaselineComparison; retry: BaselineGuardRetrySummary; snapshot: ActivityStreamBaselineSnapshot };
+const activityStreamBaselineGuardHistory: BaselineGuardSessionRecord[] = [];
+let latestActivityStreamBaselineGuardRecord: BaselineGuardSessionRecord | null = null;
 let latestRunResult: AutoSavedRun | null = null;
 let lastSuccessfulResult: AutoSavedRun | null = null;
 let lastParsedResult: AutoSavedRun | null = null;
@@ -832,6 +837,7 @@ type ActivityStreamEntry = {
   target: string;
   links: string[];
   entryIndex: number;
+  entryFingerprint: string;
 };
 
 type ActivityTypeClassifierResult = {
@@ -954,7 +960,7 @@ function activityTypeClassifierDiagnostics(entries: ActivityStreamEntry[]) {
   return { enabled: true, rulesVersion: "1.1", commentPriorityHigherThanAttachment: true, totalEntries: entries.length, correctedEntryCount, preservedEntryCount, inferredEntryCount, fallbackUnknownCount, matchedRuleCounts, finalTypeCounts };
 }
 
-function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown; application?: unknown; objectType?: unknown; target?: unknown }, variant: string, runId: string, entryIndex: number): ActivityStreamEntry {
+function activityEntry(values: { entryId?: unknown; title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown; application?: unknown; objectType?: unknown; target?: unknown }, variant: string, runId: string, entryIndex: number): ActivityStreamEntry {
   const title = sanitizeResponseText(typeof values.title === "string" ? values.title : text(asRecord(values.title).value ?? asRecord(values.title).text ?? values.title));
   const authorRecord = asRecord(values.author);
   const author = sanitizeResponseText(typeof values.author === "string" ? values.author : text(authorRecord.name ?? authorRecord.displayName ?? authorRecord.email ?? authorRecord.username));
@@ -969,6 +975,7 @@ function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?
   const activityApplication = /confluence/i.test(`${applicationText} ${raw}`) ? "Confluence" : extractedIssueKeysPerEntry.length > 0 || /jira/i.test(applicationText) ? "Jira" : "Other";
   const objectType = sanitizeResponseText(text(values.objectType)).slice(0, 300);
   const activityTypeClassifier = classifyActivityType({ title, rawTitle: title, application: activityApplication, objectType, combined });
+  const entryFingerprint = createEntryFingerprint({ entryId: sanitizeResponseText(text(values.entryId)) === "-" ? "" : sanitizeResponseText(text(values.entryId)), source: "activity_stream", activityTime: time === "-" ? "" : time, activityAuthorEmail: authorEmail === "-" ? "" : authorEmail, activityTitle: title === "-" ? "" : title, issueKey: extractedIssueKeysPerEntry[0] ?? "", firstLinkHref: sanitizeResponseText(link) === "-" ? "" : sanitizeResponseText(link) });
   return {
     runId,
     issueKey: extractedIssueKeysPerEntry[0] ?? "",
@@ -988,7 +995,8 @@ function activityEntry(values: { title?: unknown; author?: unknown; authorEmail?
     objectType,
     target: sanitizeResponseText(text(values.target)).slice(0, 500),
     links: [sanitizeResponseText(link)].filter((item) => item && item !== "-").slice(0, 10),
-    entryIndex
+    entryIndex,
+    entryFingerprint
   };
 }
 
@@ -1016,6 +1024,7 @@ function parseActivityJson(value: unknown, variant: string, runId: string) {
     atomEntryCount: 0,
     firstEntriesSanitized: records.slice(0, 3).map(sanitizedFirstEntry),
     entries: records.map((entry, entryIndex) => activityEntry({
+    entryId: entry.id,
     title: entry.title,
     author: entry.author,
     authorEmail: asRecord(entry.author).email,
@@ -1049,7 +1058,7 @@ function parseActivityAtom(xml: string, variant: string, runId: string) {
     const application = /(?:activity:)?application(?:\s[^>]*)?>([\s\S]*?)<\/(?:activity:)?application>/i.exec(block)?.[1] ?? "";
     const objectType = /<(?:activity:)?object-type(?:\s[^>]*)?>([\s\S]*?)<\/(?:activity:)?object-type>/i.exec(block)?.[1] ?? "";
     const target = /<(?:activity:)?target(?:\s[^>]*)?>([\s\S]*?)<\/(?:activity:)?target>/i.exec(block)?.[1] ?? "";
-    return activityEntry({ title, author: xmlTag(authorBlock, "name") || xmlTag(authorBlock, "email") || decodeXmlText(authorBlock), authorEmail: xmlTag(authorBlock, "email"), time: xmlTag(block, "updated") || xmlTag(block, "published") || xmlTag(block, "date"), content, link, raw: block, application, objectType: decodeXmlText(objectType), target: decodeXmlText(target) }, variant, runId, entryIndex);
+    return activityEntry({ entryId: xmlTag(block, "id"), title, author: xmlTag(authorBlock, "name") || xmlTag(authorBlock, "email") || decodeXmlText(authorBlock), authorEmail: xmlTag(authorBlock, "email"), time: xmlTag(block, "updated") || xmlTag(block, "published") || xmlTag(block, "date"), content, link, raw: block, application, objectType: decodeXmlText(objectType), target: decodeXmlText(target) }, variant, runId, entryIndex);
   }) };
 }
 
@@ -1364,7 +1373,7 @@ function dateQueryDiagnostics(mode: ActivityStreamDateTestMode, runId: string, s
   };
 }
 
-async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true, requestedRunId?: string, dateQueryMode: ActivityStreamDateQueryMode = "both", maxResultsSource: "custom" | "quick" = "custom", largeMaxResultsConfirmed = false, chunkingMode: ActivityStreamChunkingMode = "auto", customChunkDays = 14, standardFlow = false, advancedOverrideUsed = false) {
+async function runActivityStreamProbeAttempt(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true, requestedRunId?: string, dateQueryMode: ActivityStreamDateQueryMode = "both", maxResultsSource: "custom" | "quick" = "custom", largeMaxResultsConfirmed = false, chunkingMode: ActivityStreamChunkingMode = "auto", customChunkDays = 14, standardFlow = false, advancedOverrideUsed = false) {
   const normalizedSelectedUsers = Array.from(new Set(selectedUsers.map((item) => item.trim()).filter(Boolean)));
   if (standardFlow) {
     if (normalizedSelectedUsers.length !== 1) throw new Error("Activity Stream standard flow requires exactly one selected user.");
@@ -1476,6 +1485,86 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   const chunkMergeStats = { totalChunkAtomEntries, mergedActivityEntries: activityStream.parsedActivityCount, duplicateEntriesRemoved: Math.max(0, totalChunkParsedEntries - activityStream.parsedActivityCount), mergedEntriesWithIssueKeyCount: activityStream.activityEntryStats.entriesWithIssueKeyCount, mergedConfluenceOnlyEntryCount: activityStream.activityEntryStats.confluenceOnlyEntryCount, uniqueIssueKeyCount: activityStream.activityEntryStats.uniqueIssueKeyCount, successfulChunks: activityStreamChunkResults.filter((item) => String(item.status) === "success").length, noEntryChunks: activityStreamChunkResults.filter((item) => String(item.diagnosis) === "no_entries").length, failedChunks: activityStreamChunkResults.filter((item) => !["success", "no_entries"].includes(String(item.status))).length };
   logs.push(`[INFO] Activity Stream best variant: ${activityStream.bestVariant || "none"}`, `[INFO] Activity Stream probe completed: overallStatus=${activityStream.overallStatus} bestVariant=${activityStream.bestVariant || "none"} diagnosis=${activityStream.diagnosis} parsedIssueKeys=${activityStream.activityStreamIssueKeys.length}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
   return { runId, startedAt, completedAt: new Date().toISOString(), activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, dateRangeChunking, activityStreamChunkResults, chunkMergeStats, clientDateFilteredEntriesSanitized, standardActivityStreamFlow, advancedDiagnosticsUsed: !standardFlow, activityTypeClassifierDiagnostics: activityStream.activityTypeClassifierDiagnostics, logs };
+}
+
+function baselineObservationFromRun(run: Awaited<ReturnType<typeof runActivityStreamProbeAttempt>>, selectedUsers: string[], startDate: string, endDate: string, maxResults: number, relativeLinks: boolean): BaselineObservation {
+  const flow = run.standardActivityStreamFlow;
+  const stream = run.activityStream;
+  const range = requestedDateRange(startDate, endDate);
+  const entries = stream.entriesSanitized.filter((entry) => !stream.bestVariant || entry.variant === stream.bestVariant);
+  const uniqueEntries = Array.from(new Map(entries.map((entry) => [entry.entryFingerprint, entry])).values());
+  const requestSignatureHash = sha256(JSON.stringify({ source: "activity_stream", selectedUser: flow.selectedUser, queryUser: flow.activityStreamQueryUser, variant: flow.variant, dateQueryMode: flow.dateQueryMode, periodStart: range.start, periodEndExclusive: range.endExclusive, maxResults, relativeLinks }));
+  return {
+    runId: run.runId,
+    observedAt: run.completedAt,
+    source: "activity_stream",
+    selectedUser: flow.selectedUser || selectedUsers[0] || "",
+    queryUser: flow.activityStreamQueryUser,
+    queryUserEncoded: flow.activityStreamQueryUserEncoded,
+    variant: flow.variant,
+    dateQueryMode: flow.dateQueryMode,
+    periodStart: range.start,
+    periodEndExclusive: range.endExclusive,
+    granularity: "exact_range",
+    requestSignatureHash,
+    atomEntryCount: stream.atomEntryCount,
+    parsedActivityCount: stream.parsedActivityCount,
+    issueKeys: stream.activityStreamIssueKeys,
+    entries: uniqueEntries.map((entry) => ({ entryFingerprint: entry.entryFingerprint, activityTime: entry.activityTime, activityAuthorEmail: entry.activityAuthorEmail, activityType: entry.activityType, issueKey: entry.issueKey, activityTitle: entry.activityTitle }))
+  };
+}
+
+async function runActivityStreamProbe(connection: AppConnection, selectedUsers: string[], user: string, queryMode: ActivityStreamQueryMode, startDate: string, endDate: string, maxResults: number, relativeLinks = true, requestedRunId?: string, dateQueryMode: ActivityStreamDateQueryMode = "both", maxResultsSource: "custom" | "quick" = "custom", largeMaxResultsConfirmed = false, chunkingMode: ActivityStreamChunkingMode = "auto", customChunkDays = 14, standardFlow = false, advancedOverrideUsed = false) {
+  if (!standardFlow) return runActivityStreamProbeAttempt(connection, selectedUsers, user, queryMode, startDate, endDate, maxResults, relativeLinks, requestedRunId, dateQueryMode, maxResultsSource, largeMaxResultsConfirmed, chunkingMode, customChunkDays, standardFlow, advancedOverrideUsed);
+  const originalRunId = requestedRunId || createActivityStreamRunId();
+  const maxBaselineGuardRetries = 2;
+  const evaluated: Array<{ run: Awaited<ReturnType<typeof runActivityStreamProbeAttempt>>; comparison: ActivityStreamBaselineComparison; snapshot: ActivityStreamBaselineSnapshot; baselinePath: string }> = [];
+  for (let attempt = 0; attempt <= maxBaselineGuardRetries; attempt += 1) {
+    const attemptRunId = attempt === 0 ? originalRunId : `${originalRunId}-retry${attempt}`;
+    const run = await runActivityStreamProbeAttempt(connection, selectedUsers, user, queryMode, startDate, endDate, maxResults, relativeLinks, attemptRunId, dateQueryMode, maxResultsSource, largeMaxResultsConfirmed, chunkingMode, customChunkDays, standardFlow, advancedOverrideUsed);
+    const observation = baselineObservationFromRun(run, selectedUsers, startDate, endDate, 500, relativeLinks);
+    const baselinePath = path.join(ensureDir(getActivityStreamBaselinesDir()), baselineFileName(observation));
+    const existing = loadBaselineSnapshot(baselinePath);
+    const { comparison, snapshot } = compareBaselineObservation(existing, observation, baselinePath);
+    saveBaselineSnapshot(baselinePath, snapshot);
+    evaluated.push({ run, comparison, snapshot, baselinePath });
+    run.logs.push(`[INFO] Activity Stream Baseline Guard: classification=${comparison.classification} shouldRetry=${comparison.shouldRetry} baselineFound=${comparison.baselineFound}`, `[INFO] Baseline counts: parsed=${comparison.baselineCounts.bestParsedActivityCount} issueKeys=${comparison.baselineCounts.bestIssueKeyCount} entries=${comparison.baselineCounts.bestEntryFingerprintCount}`, `[INFO] Current counts: parsed=${comparison.currentCounts.parsedActivityCount} issueKeys=${comparison.currentCounts.issueKeyCount} entries=${comparison.currentCounts.entryFingerprintCount}`);
+    if (!comparison.shouldRetry || attempt === maxBaselineGuardRetries) break;
+    run.logs.push(`[WARN] Current result is below local baseline. Retry ${attempt + 1}/${maxBaselineGuardRetries} triggered.`, `[WARN] Missing issue keys: ${comparison.missingIssueKeys.join(", ") || "none"}; missing entries=${comparison.missingEntryFingerprints.length}`);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  const outcome = selectBaselineGuardOutcome(evaluated.map((item) => ({ shouldRetry: item.comparison.shouldRetry, parsedActivityCount: item.run.activityStream.parsedActivityCount, issueKeyCount: item.run.activityStream.activityStreamIssueKeys.length })));
+  const firstWasRegression = evaluated[0]?.comparison.shouldRetry === true;
+  const recovered = outcome.retryRecovered ? evaluated[outcome.selectedIndex] : undefined;
+  const selected = evaluated[outcome.selectedIndex];
+  const finalComparison = selected.comparison;
+  const stillIncomplete = outcome.resultIncompleteCandidate;
+  const retry: BaselineGuardRetrySummary = {
+    triggered: firstWasRegression,
+    maxRetries: maxBaselineGuardRetries,
+    attempts: evaluated.map((item, attempt) => ({ attempt, runId: item.run.runId, classification: item.comparison.classification, parsedActivityCount: item.run.activityStream.parsedActivityCount, issueKeyCount: item.run.activityStream.activityStreamIssueKeys.length, missingIssueKeyCount: item.comparison.missingIssueKeys.length, missingEntryFingerprintCount: item.comparison.missingEntryFingerprints.length })),
+    finalAcceptedRunId: stillIncomplete ? "" : selected.run.runId,
+    finalClassification: stillIncomplete ? "result_incomplete_candidate" : finalComparison.classification,
+    baselineUpdated: finalComparison.baselineUpdated,
+    retryRecovered: Boolean(recovered)
+  };
+  for (const item of evaluated) activityStreamBaselineGuardHistory.push({ time: item.run.completedAt, runId: item.run.runId, comparison: item.comparison, retry, snapshot: item.snapshot });
+  latestActivityStreamBaselineGuardRecord = { time: selected.run.completedAt, runId: selected.run.runId, comparison: selected.comparison, retry, snapshot: selected.snapshot };
+  if (activityStreamBaselineGuardHistory.length > 100) activityStreamBaselineGuardHistory.splice(0, activityStreamBaselineGuardHistory.length - 100);
+  selected.run.logs.push(recovered ? "[INFO] Retry recovered a better result. / 重試後取得較完整結果。" : stillIncomplete ? "[WARN] Result is still below baseline after retries. Baseline was not overwritten. / 重試後仍低於基準，本次結果未覆蓋 baseline。" : `[INFO] Baseline Guard accepted: ${finalComparison.classification}`);
+  const normalizeRunId = <T extends { runId: string }>(value: T) => ({ ...value, runId: originalRunId });
+  const baselineGuardAttemptResults = evaluated.map((item) => ({ runId: item.run.runId, startedAt: item.run.startedAt, completedAt: item.run.completedAt, classification: item.comparison.classification, atomEntryCount: item.run.activityStream.atomEntryCount, parsedActivityCount: item.run.activityStream.parsedActivityCount, issueKeys: item.run.activityStream.activityStreamIssueKeys, entryFingerprintCount: item.comparison.currentCounts.entryFingerprintCount, missingIssueKeys: item.comparison.missingIssueKeys, missingEntryFingerprintCount: item.comparison.missingEntryFingerprints.length }));
+  const activityStream = {
+    ...selected.run.activityStream,
+    runId: originalRunId,
+    entriesSanitized: selected.run.activityStream.entriesSanitized.map(normalizeRunId),
+    variantResults: selected.run.activityStream.variantResults.map((variant) => ({ ...variant, runId: originalRunId, entriesSanitized: variant.entriesSanitized.map(normalizeRunId) })),
+    baselineComparison: finalComparison,
+    baselineGuardRetry: retry,
+    baselineGuardAttemptResults,
+    lowConfidenceObservation: stillIncomplete ? { runId: selected.run.runId, reason: "below_baseline", missingIssueKeys: finalComparison.missingIssueKeys, missingEntryCount: finalComparison.missingEntryFingerprints.length } : null
+  };
+  return { ...selected.run, runId: originalRunId, activityStream, baselineComparison: finalComparison, baselineGuardRetry: retry, baselineSnapshot: selected.snapshot, baselinePath: selected.baselinePath, baselineGuardAttemptResults };
 }
 
 ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: number; maxResultsSource?: "custom" | "quick"; largeMaxResultsConfirmed?: boolean; dateQueryMode?: ActivityStreamDateQueryMode; relativeLinks?: boolean; runId?: string; chunkingMode?: ActivityStreamChunkingMode; customChunkDays?: number; standardFlow?: boolean; advancedOverrideUsed?: boolean }) => {
@@ -2643,11 +2732,13 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     }
   }
   writeBundleJson(folderPath, "auto-saved-results-index.json", { included: autoSavedResultsIncluded, missing: autoSavedResultsMissing });
+  const latestBaselineRecord = latestActivityStreamBaselineGuardRecord;
   const sessionTimeline = [
     ...sessionUserActions.map((action, index) => ({ time: action.time, source: "user_action", type: "user_action", sequence: index, action: action.message, page: payload.currentPage })),
     ...debugLogTimeline(payload.debugLog),
     ...autoSavedRunHistory.map((run, index) => ({ time: run.savedAt, source: "activity_run_history", type: "activity_stream_result", sequence: index, runId: run.runId, status: run.status, diagnosis: String(asRecord(run.data.activityStream).diagnosis ?? run.data.diagnosis ?? "unknown"), parsedActivityCount: Number(asRecord(run.data.activityStream).parsedActivityCount ?? run.data.parsedActivityCount ?? 0), autoSavedPath: run.filePath })),
-    ...autoSavedCandidates.map((run, index) => ({ time: run.savedAt, source: "auto_save_path", type: "auto_save_path", sequence: index, runId: run.runId, path: run.filePath }))
+    ...autoSavedCandidates.map((run, index) => ({ time: run.savedAt, source: "auto_save_path", type: "auto_save_path", sequence: index, runId: run.runId, path: run.filePath })),
+    ...activityStreamBaselineGuardHistory.map((record, index) => ({ time: record.time, source: "activity_stream_baseline_guard", type: "activity_stream_baseline_guard", sequence: index, runId: record.runId, classification: record.comparison.classification, shouldRetry: record.comparison.shouldRetry, retryTriggered: record.retry.triggered }))
   ].sort((left, right) => left.time.localeCompare(right.time));
   writeBundleJson(folderPath, "session-timeline.json", sessionTimeline);
   const latestChunkedRun = autoSavedRunHistory.find((run) => Array.isArray(run.data.activityStreamChunkResults) && run.data.activityStreamChunkResults.length > 0 && Number(asRecord(run.data.activityStream).parsedActivityCount ?? 0) > 0)
@@ -2660,7 +2751,12 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const advancedDiagnosticsUsed = diagnosticsRun?.data.advancedDiagnosticsUsed === true;
   writeBundleJson(folderPath, "standard-activity-stream-flow.json", Object.keys(standardActivityStreamFlow).length > 0 ? standardActivityStreamFlow : unavailable);
   writeBundleJson(folderPath, "activity-type-classifier-diagnostics.json", Object.keys(classifierDiagnostics).length > 0 ? classifierDiagnostics : unavailable);
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {}, standardActivityStreamFlow, activityTypeClassifierDiagnostics: classifierDiagnostics, advancedDiagnosticsUsed, includedAutoSavedResults: autoSavedResultsIncluded, missingAutoSavedResults: autoSavedResultsMissing, fullSessionBundle: { enabled: true, sessionStartTime, bundleGeneratedAt: createdAt, totalUserActions: sessionUserActions.length, totalRuns: runHistory.length, totalAutoSavedResults: autoSavedCandidates.length, includedAutoSavedResultCount: autoSavedResultsIncluded.length, missingAutoSavedResultCount: autoSavedResultsMissing.length } });
+  writeBundleJson(folderPath, "activity-stream-baseline-comparison.json", latestBaselineRecord?.comparison ?? unavailable);
+  writeBundleJson(folderPath, "activity-stream-baseline-snapshot.json", latestBaselineRecord?.snapshot ?? unavailable);
+  writeBundleJson(folderPath, "activity-stream-baseline-history.json", latestBaselineRecord?.snapshot.baselineHistory ?? []);
+  writeBundleJson(folderPath, "activity-stream-baseline-comparisons.json", activityStreamBaselineGuardHistory.map((record) => ({ time: record.time, runId: record.runId, comparison: record.comparison, retry: record.retry })));
+  const activityStreamBaselineGuard = latestBaselineRecord ? { enabled: true, latestClassification: latestBaselineRecord.retry.finalClassification, shouldRetry: latestBaselineRecord.comparison.shouldRetry, retryTriggered: latestBaselineRecord.retry.triggered, retryRecovered: latestBaselineRecord.retry.retryRecovered, baselinePath: latestBaselineRecord.comparison.baselinePath, baselineBestParsedActivityCount: latestBaselineRecord.comparison.baselineCounts.bestParsedActivityCount, currentParsedActivityCount: latestBaselineRecord.comparison.currentCounts.parsedActivityCount, missingIssueKeyCount: latestBaselineRecord.comparison.missingIssueKeys.length, missingEntryFingerprintCount: latestBaselineRecord.comparison.missingEntryFingerprints.length } : { enabled: true, latestClassification: "not_run", shouldRetry: false, retryTriggered: false, retryRecovered: false, baselinePath: "", baselineBestParsedActivityCount: 0, currentParsedActivityCount: 0, missingIssueKeyCount: 0, missingEntryFingerprintCount: 0 };
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {}, standardActivityStreamFlow, activityTypeClassifierDiagnostics: classifierDiagnostics, activityStreamBaselineGuard, advancedDiagnosticsUsed, includedAutoSavedResults: autoSavedResultsIncluded, missingAutoSavedResults: autoSavedResultsMissing, fullSessionBundle: { enabled: true, sessionStartTime, bundleGeneratedAt: createdAt, totalUserActions: sessionUserActions.length, totalRuns: runHistory.length, totalAutoSavedResults: autoSavedCandidates.length, includedAutoSavedResultCount: autoSavedResultsIncluded.length, missingAutoSavedResultCount: autoSavedResultsMissing.length } });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -2672,6 +2768,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const chunking = asRecord(latestChunkedRun?.data.dateRangeChunking);
   const mergeStats = asRecord(latestChunkedRun?.data.chunkMergeStats);
   fs.writeFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Jira Activity Analyzer Debug Bundle", `Version: ${__MAIN_APP_VERSION__}`, `Build Time: ${__MAIN_BUILD_TIME__}`, `Git Commit: ${__MAIN_GIT_COMMIT__}`, `Session Start: ${sessionStartTime}`, `Generated At: ${createdAt}`, `Current Page: ${payload.currentPage}`, ...trackingLines("Latest Run Result", latestRunResult), ...trackingLines("Last Successful Result", lastSuccessfulResult), ...trackingLines("Last Parsed Result", lastParsedResult), ...trackingLines("Latest No Entries Result", latestNoEntriesResult), "Full Session Debug Bundle:", `- sessionStartTime: ${sessionStartTime}`, `- bundleGeneratedAt: ${createdAt}`, `- totalUserActions: ${sessionUserActions.length}`, `- totalRuns: ${runHistory.length}`, `- totalAutoSavedResults: ${autoSavedCandidates.length}`, `- includedAutoSavedResults: ${autoSavedResultsIncluded.length}`, `- missingAutoSavedResults: ${autoSavedResultsMissing.length}`, "Session Timeline:", "- file: session-timeline.json", "- combines user actions, renderer debug log, Activity Stream run history, and auto-save paths in chronological order.", "Auto-Saved Result Bodies:", "- Full sanitized JSON bodies are under auto-saved-results/.", ...autoSavedResultsIncluded.map((entry) => `- included: ${String(entry.runId)} -> ${String(entry.bundlePath)}`), ...autoSavedResultsMissing.map((entry) => `- missing: ${String(entry.runId)} -> ${String(entry.sourcePath)} (${String(entry.reason)})`), "Standard Activity Stream Flow:", `- selectedUser: ${String(standardActivityStreamFlow.selectedUser ?? "not_available")}`, `- queryUser: ${String(standardActivityStreamFlow.activityStreamQueryUser ?? "not_available")}`, `- variant: ${String(standardActivityStreamFlow.variant ?? "not_available")}`, `- dateQueryMode: ${String(standardActivityStreamFlow.dateQueryMode ?? "not_available")}`, `- chunkingMode: ${String(standardActivityStreamFlow.chunkingMode ?? "not_available")}`, `- perChunkMaxResults: ${Number(standardActivityStreamFlow.perChunkMaxResults ?? 0)}`, `- advancedOverrideUsed: ${Boolean(standardActivityStreamFlow.advancedOverrideUsed)}`, `- advancedDiagnosticsUsed: ${advancedDiagnosticsUsed}`, "Activity Type Classifier:", `- enabled: ${classifierDiagnostics.enabled !== false}`, `- rulesVersion: ${String(classifierDiagnostics.rulesVersion ?? "1.1")}`, `- correctedEntryCount: ${Number(classifierDiagnostics.correctedEntryCount ?? 0)}`, `- preservedEntryCount: ${Number(classifierDiagnostics.preservedEntryCount ?? 0)}`, `- inferredEntryCount: ${Number(classifierDiagnostics.inferredEntryCount ?? 0)}`, `- fallbackUnknownCount: ${Number(classifierDiagnostics.fallbackUnknownCount ?? 0)}`, `- commentPriorityHigherThanAttachment: ${classifierDiagnostics.commentPriorityHigherThanAttachment !== false}`, "Date Range Chunking:", `- enabled: ${Boolean(chunking.enabled)}`, `- mode: ${String(chunking.mode ?? "off")}`, `- chunkCount: ${Number(chunking.chunkCount ?? 0)}`, `- successfulChunks: ${Number(mergeStats.successfulChunks ?? 0)}`, `- failedChunks: ${Number(mergeStats.failedChunks ?? 0)}`, `- mergedActivityEntries: ${Number(mergeStats.mergedActivityEntries ?? 0)}`, "Included Files:", ...included.map((file) => `- ${file}`), "How to analyze:", "- Check debug-bundle-summary.json", "- Check session-timeline.json", "- Check auto-saved-results-index.json", "- Check auto-saved-results/", "- Check run-history.json", "- Check debug-log.txt", "- Check user-action-log.txt", "Security:", "- token / Authorization / cookie are masked or not included", "Known missing files:", ...(missing.length ? missing : ["- none"]), "Cross-page TODO:", ...crossPageDebugBundleTodo.map((item) => `- ${item}`)].join("\n"), "utf8");
+  fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "Activity Stream Baseline Guard:", `- enabled: ${activityStreamBaselineGuard.enabled}`, `- latestClassification: ${activityStreamBaselineGuard.latestClassification}`, `- shouldRetry: ${activityStreamBaselineGuard.shouldRetry}`, `- retryTriggered: ${activityStreamBaselineGuard.retryTriggered}`, `- retryRecovered: ${activityStreamBaselineGuard.retryRecovered}`, `- baselinePath: ${activityStreamBaselineGuard.baselinePath || "not_available"}`, `- baselineBestParsedActivityCount: ${activityStreamBaselineGuard.baselineBestParsedActivityCount}`, `- currentParsedActivityCount: ${activityStreamBaselineGuard.currentParsedActivityCount}`, `- missingIssueKeys: ${latestBaselineRecord?.comparison.missingIssueKeys.join(", ") || "none"}`, `- missingEntryCount: ${activityStreamBaselineGuard.missingEntryFingerprintCount}`, "- files:", "  - activity-stream-baseline-comparison.json", "  - activity-stream-baseline-snapshot.json", "  - activity-stream-baseline-history.json", ""].join("\n"), "utf8");
   lastDebugBundle = { path: folderPath, createdAt };
   return { canceled: false, folderPath, filePath: folderPath, createdAt, includedFiles: fs.readdirSync(folderPath), crossPageDebugBundleTodo };
 });
@@ -2731,6 +2828,23 @@ async function runUiSmoke(window: BrowserWindow) {
   ];
   const classifierFixtureDiagnostics = activityTypeClassifierDiagnostics(classifierFixtures.map((activityTypeClassifier, entryIndex) => ({ activityTypeClassifier, activityType: activityTypeClassifier.finalType, entryIndex } as ActivityStreamEntry)));
   if (classifierFixtures[0].finalType !== "page" || classifierFixtures[0].matchedRule !== "confluence_page_object" || classifierFixtures[1].finalType !== "page" || classifierFixtures[2].matchedRule !== "preserve_previous_type" || classifierFixtures[2].finalType !== "attachment" || classifierFixtures[3].matchedRule !== "fallback_unknown" || classifierFixtures[4].finalType !== "comment" || classifierFixtures[4].matchedRule !== "commented_on" || classifierFixtures[5].finalType !== "page" || classifierFixtures[6].finalType !== "attachment" || classifierFixtures[7].finalType !== "link" || classifierFixtures[8].finalType !== "field_change" || classifierFixtures[9].finalType !== "assignee_change" || classifierFixtures[10].finalType !== "status_change" || classifierFixtures[11].finalType !== "resolution_change" || classifierFixtureDiagnostics.correctedEntryCount !== 2 || classifierFixtureDiagnostics.preservedEntryCount !== 6 || classifierFixtureDiagnostics.inferredEntryCount !== 3 || classifierFixtureDiagnostics.fallbackUnknownCount !== 1) failures.push(`classifier fallback fixtures failed ${JSON.stringify({ classifierFixtures, classifierFixtureDiagnostics })}`);
+  const baselineFixtureEntries = Array.from({ length: 10 }, (_, index) => ({ entryFingerprint: sha256(`baseline-entry-${index}`), activityTime: `2026-07-02T${String(index).padStart(2, "0")}:00:00.000Z`, activityAuthorEmail: "smoke@example.com", activityType: index === 0 ? "comment" : "page", issueKey: index < 2 ? `SMOKE-${index + 1}` : "", activityTitle: `Baseline activity ${index}` }));
+  const baselineFixtureObservation = (runId: string, overrides: Partial<BaselineObservation> = {}): BaselineObservation => ({ runId, observedAt: new Date().toISOString(), source: "activity_stream", selectedUser: "baseline_smoke", queryUser: "baseline\\_smoke", queryUserEncoded: "baseline%5C_smoke", variant: "escaped_username", dateQueryMode: "update_date_after_before", periodStart: "2026-07-02", periodEndExclusive: "2026-07-03", granularity: "exact_range", requestSignatureHash: sha256("baseline-fixture-request"), atomEntryCount: 10, parsedActivityCount: 10, issueKeys: ["SMOKE-1", "SMOKE-2"], entries: baselineFixtureEntries, ...overrides });
+  const fixtureBaselinePath = path.join(process.cwd(), "test-artifacts", "baseline-guard-fixtures", baselineFileName(baselineFixtureObservation("fixture-first")));
+  const firstBaselineFixture = compareBaselineObservation(null, baselineFixtureObservation("fixture-first"), fixtureBaselinePath);
+  saveBaselineSnapshot(fixtureBaselinePath, firstBaselineFixture.snapshot);
+  const loadedBaselineFixture = loadBaselineSnapshot(fixtureBaselinePath);
+  const equalBaselineFixture = compareBaselineObservation(firstBaselineFixture.snapshot, baselineFixtureObservation("fixture-equal"), fixtureBaselinePath);
+  const improvedEntry = { entryFingerprint: sha256("baseline-entry-new"), activityTime: "2026-07-02T12:00:00.000Z", activityAuthorEmail: "smoke@example.com", activityType: "comment", issueKey: "SMOKE-3", activityTitle: "New baseline activity" };
+  const improvedBaselineFixture = compareBaselineObservation(firstBaselineFixture.snapshot, baselineFixtureObservation("fixture-improved", { atomEntryCount: 11, parsedActivityCount: 11, issueKeys: ["SMOKE-1", "SMOKE-2", "SMOKE-3"], entries: [...baselineFixtureEntries, improvedEntry] }), fixtureBaselinePath);
+  const countRegressionFixture = compareBaselineObservation(firstBaselineFixture.snapshot, baselineFixtureObservation("fixture-count", { atomEntryCount: 3, parsedActivityCount: 3 }), fixtureBaselinePath);
+  const keyRegressionFixture = compareBaselineObservation(firstBaselineFixture.snapshot, baselineFixtureObservation("fixture-keys", { issueKeys: ["SMOKE-1"] }), fixtureBaselinePath);
+  const entryRegressionFixture = compareBaselineObservation(firstBaselineFixture.snapshot, baselineFixtureObservation("fixture-entries", { entries: baselineFixtureEntries.slice(0, 9) }), fixtureBaselinePath);
+  const mixedRegressionFixture = compareBaselineObservation(firstBaselineFixture.snapshot, baselineFixtureObservation("fixture-mixed", { atomEntryCount: 3, parsedActivityCount: 3, issueKeys: [], entries: baselineFixtureEntries.slice(0, 3) }), fixtureBaselinePath);
+  const recoveredRetryFixture = selectBaselineGuardOutcome([{ shouldRetry: true, parsedActivityCount: 3, issueKeyCount: 0 }, { shouldRetry: false, parsedActivityCount: 10, issueKeyCount: 2 }]);
+  const incompleteRetryFixture = selectBaselineGuardOutcome([{ shouldRetry: true, parsedActivityCount: 3, issueKeyCount: 0 }, { shouldRetry: true, parsedActivityCount: 4, issueKeyCount: 0 }, { shouldRetry: true, parsedActivityCount: 3, issueKeyCount: 0 }]);
+  const baselineFixtureText = fs.readFileSync(fixtureBaselinePath, "utf8");
+  if (!loadedBaselineFixture || firstBaselineFixture.comparison.classification !== "first_observation" || !firstBaselineFixture.comparison.baselineUpdated || equalBaselineFixture.comparison.classification !== "accepted_equal" || equalBaselineFixture.comparison.baselineUpdated || improvedBaselineFixture.comparison.classification !== "accepted_improved" || !improvedBaselineFixture.comparison.baselineUpdated || !improvedBaselineFixture.snapshot.knownIssueKeys.includes("SMOKE-3") || countRegressionFixture.comparison.classification !== "suspicious_count_regression" || !countRegressionFixture.comparison.shouldRetry || keyRegressionFixture.comparison.classification !== "suspicious_known_issue_keys_missing" || !keyRegressionFixture.comparison.shouldRetry || entryRegressionFixture.comparison.classification !== "suspicious_known_entries_missing" || !entryRegressionFixture.comparison.shouldRetry || mixedRegressionFixture.comparison.classification !== "suspicious_mixed_regression" || mixedRegressionFixture.comparison.confidence !== "high" || !mixedRegressionFixture.comparison.shouldRetry || mixedRegressionFixture.snapshot.knownIssueKeys.length !== firstBaselineFixture.snapshot.knownIssueKeys.length || mixedRegressionFixture.snapshot.knownEntryFingerprints.length !== firstBaselineFixture.snapshot.knownEntryFingerprints.length || mixedRegressionFixture.snapshot.lowConfidenceObservations.length !== 1 || recoveredRetryFixture.selectedIndex !== 1 || !recoveredRetryFixture.retryRecovered || recoveredRetryFixture.resultIncompleteCandidate || incompleteRetryFixture.selectedIndex !== 1 || incompleteRetryFixture.retryRecovered || !incompleteRetryFixture.resultIncompleteCandidate || /Authorization\s*:\s*(?!\[masked\])|Bearer\s+(?!\[masked\])|Basic\s+(?!\[masked\])|JSESSIONID|apiToken|password/i.test(baselineFixtureText)) failures.push(`baseline guard fixtures failed ${JSON.stringify({ first: firstBaselineFixture.comparison, equal: equalBaselineFixture.comparison, improved: improvedBaselineFixture.comparison, count: countRegressionFixture.comparison, keys: keyRegressionFixture.comparison, entries: entryRegressionFixture.comparison, mixed: mixedRegressionFixture.comparison, recoveredRetryFixture, incompleteRetryFixture })}`);
 
   for (const viewport of uiViewports) {
     window.setSize(viewport.width, viewport.height, false);
@@ -2979,7 +3093,7 @@ async function runUiSmoke(window: BrowserWindow) {
   const standardFlowUiAudit = await window.webContents.executeJavaScript(`(() => ({ panel: Boolean(document.querySelector("[data-testid='standard-activity-stream-flow']")), selected: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("roger_hsieh"), escaped: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("roger\\_hsieh"), date: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("update-date AFTER/BEFORE"), chunking: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("Auto"), limit: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("500"), advancedClosed: !document.querySelector("[data-testid='advanced-diagnostics']"), noMainUserInput: !document.querySelector("[data-testid='activity-stream-user']"), noMainQueryMode: !document.querySelector("[data-testid='activity-stream-query-mode']"), noMainDateMode: !document.querySelector("[data-testid='activity-stream-date-query-mode']"), noMainMax: !document.querySelector("[data-testid='probe-max-results']") }))()`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
   await wait(700);
-  const standardFlowRunAudit = await window.webContents.executeJavaScript(`(() => ({ variants: document.querySelectorAll("[data-testid='activity-stream-variants'] tbody tr").length, escaped: document.body.innerText.includes("escaped_username"), encoded: (document.body.innerText || "").includes("roger%5C_hsieh"), classifier: Boolean(document.querySelector("[data-testid='activity-type-classifier-diagnostics']")) }))()`);
+  const standardFlowRunAudit = await window.webContents.executeJavaScript(`(() => { const baseline = document.querySelector("[data-testid='activity-stream-baseline-guard']"); return { variants: document.querySelectorAll("[data-testid='activity-stream-variants'] tbody tr").length, escaped: document.body.innerText.includes("escaped_username"), encoded: (document.body.innerText || "").includes("roger%5C_hsieh"), classifier: Boolean(document.querySelector("[data-testid='activity-type-classifier-diagnostics']")), baseline: Boolean(baseline), baselineCounts: baseline?.textContent?.includes("Baseline Entries") && baseline?.textContent?.includes("Current Entries"), retryLimit: baseline?.textContent?.includes("Retry Attempts") }; })()`);
   const standardSelectionGuardAudit = await window.webContents.executeJavaScript(`(async () => {
     const input = document.querySelector("[data-testid='selected-users']");
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
@@ -3173,7 +3287,7 @@ async function runUiSmoke(window: BrowserWindow) {
   const precisionActionTimeline = precisionActionLogBuffer.subarray(precisionActionLogStartSize).toString("utf8");
   const precisionUnexpectedFullFetchFiles = precisionFullFetchFilesAfter.filter((name) => !precisionFullFetchFilesBefore.has(name));
   if (!standardFlowUiAudit.panel || !standardFlowUiAudit.selected || !standardFlowUiAudit.escaped || !standardFlowUiAudit.date || !standardFlowUiAudit.chunking || !standardFlowUiAudit.limit || !standardFlowUiAudit.advancedClosed || !standardFlowUiAudit.noMainUserInput || !standardFlowUiAudit.noMainQueryMode || !standardFlowUiAudit.noMainDateMode || !standardFlowUiAudit.noMainMax) failures.push(`standard flow UI audit failed ${JSON.stringify(standardFlowUiAudit)}`);
-  if (standardFlowRunAudit.variants !== 1 || !standardFlowRunAudit.escaped || !standardFlowRunAudit.encoded || !standardFlowRunAudit.classifier) failures.push(`standard flow run audit failed ${JSON.stringify(standardFlowRunAudit)}`);
+  if (standardFlowRunAudit.variants !== 1 || !standardFlowRunAudit.escaped || !standardFlowRunAudit.encoded || !standardFlowRunAudit.classifier || !standardFlowRunAudit.baseline || !standardFlowRunAudit.baselineCounts || !standardFlowRunAudit.retryLimit) failures.push(`standard flow run audit failed ${JSON.stringify(standardFlowRunAudit)}`);
   if (!standardSelectionGuardAudit.noUser || !standardSelectionGuardAudit.multiUser) failures.push(`standard flow selected-user guard audit failed ${JSON.stringify(standardSelectionGuardAudit)}`);
   if (!advancedFlowUiAudit.open || !advancedFlowUiAudit.user || !advancedFlowUiAudit.query || !advancedFlowUiAudit.date || !advancedFlowUiAudit.max || !advancedFlowUiAudit.manual || !advancedFlowUiAudit.cap) failures.push(`advanced diagnostics UI audit failed ${JSON.stringify(advancedFlowUiAudit)}`);
   if (!maxValidationAudit.rejectsLow || !maxValidationAudit.rejectsHigh || maxValidationAudit.quickValue !== "10" || maxValidationAudit.quickCount !== 7 || maxValidationAudit.dateMode !== "both") failures.push(`maxResults validation/quick values audit failed ${JSON.stringify(maxValidationAudit)}`);
@@ -3192,6 +3306,8 @@ async function runUiSmoke(window: BrowserWindow) {
   const precisionActivityStats = asRecord(precisionExport?.activityEntryStats);
   const precisionTableState = asRecord(precisionExport?.parsedEntriesTableState);
   if (!precisionExport || precisionExport.exportType !== "user-activity-precision-probe" || !Array.isArray(precisionExport.probeResults) || !precisionExport.summary || !precisionExport.requestContext || !precisionExport.debugLogNote || !precisionActionDiagnostics.actionLogPath || !String(precisionActivityStream.runId).startsWith("asrun-") || Number(precisionActivityStream.parsedActivityCount) !== 50 || !Array.isArray(precisionActivityStream.entriesSanitized) || exportedVariants.length !== 3 || exportedVariants.some((variant) => variant.runId !== precisionActivityStream.runId) || Number(precisionParserDiagnostics.parsedEntryCount) !== 50 || Number(precisionParserDiagnostics.skippedEntryCount) !== 0 || Number(precisionActivityStats.parsedActivityEntryCount) !== 50 || Number(precisionActivityStats.entriesWithIssueKeyCount) !== 1 || Number(precisionActivityStats.confluenceOnlyEntryCount) !== 49 || Number(precisionTableState.pageSize) !== 10 || Number(precisionTableState.currentPage) !== 1 || !Array.isArray(precisionIssueKeySets.recommendedIssueKeys) || !precisionIssueKeySets.recommendedIssueKeys.includes("SMOKE-101") || !Array.isArray(precisionExport.activityStreamRunHistory) || precisionExport.activityStreamRunHistory.length !== 5 || !Array.isArray(precisionExport.filteredEntriesSanitized) || precisionExport.filteredEntriesSanitized.length !== 1 || !Array.isArray(precisionExport.clientDateFilteredEntriesSanitized) || precisionExport.clientDateFilteredEntriesSanitized.length !== 50 || !Array.isArray(precisionExport.dateQueryResults) || precisionExport.dateQueryResults.length !== 2 || !Array.isArray(precisionExport.maxResultsCapTestResults) || precisionExport.maxResultsCapTestResults.length !== 2 || !Array.isArray(precisionExport.crossPageDebugBundleTodo) || precisionDateSemantics.bestDateQueryMode !== "update_date_after_before" || Number(precisionRequestedDateRange.startEpochMs) !== 1782835200000 || Number(precisionRequestedDateRange.endExclusiveEpochMs) !== 1783440000000 || Number(precisionMaxDiagnostics.requestedMaxResults) !== 50 || precisionFilter.issueKeyQuery !== "SMOKE-101" || Number(precisionFilterStats.filteredEntries) !== 1 || !precisionStandardFlow.variant || precisionExport.advancedDiagnosticsUsed !== true || precisionClassifierDiagnostics.enabled !== true || precisionClassifierDiagnostics.commentPriorityHigherThanAttachment !== true) failures.push(`precision probe export structure failed files=${JSON.stringify(precisionExportFiles)}`);
+  const precisionEntries = Array.isArray(precisionActivityStream.entriesSanitized) ? precisionActivityStream.entriesSanitized.map(asRecord) : [];
+  if (precisionEntries.some((entry) => !String(entry.entryFingerprint || "").startsWith("sha256:"))) failures.push("activity stream entry fingerprint export audit failed");
   if (precisionSource.token !== "[masked]" || precisionSource.authorization !== "[masked]" || precisionSource.readOnly !== true || precisionSource.databaseWrite !== false || precisionSource.attachmentDownload !== false) failures.push(`precision probe export safety flags/masking failed ${JSON.stringify(precisionSource)}`);
   const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User Override changed: value=smoke_user@example.com", "Button clicked: Run Activity Stream Probe", "Manual Activity Stream URL changed", "Button clicked: Run Manual URL Replay", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
   const missingPrecisionActions = requiredPrecisionActions.filter((entry) => !precisionActionTimeline.includes(entry));
@@ -3229,9 +3345,14 @@ async function runUiSmoke(window: BrowserWindow) {
   for (const [type, files] of Object.entries(autoSavedFiles)) if (files.length < 1) failures.push(`auto-save missing for ${type}: ${JSON.stringify(files)}`);
   const autoSavedDocuments = Object.entries(autoSavedFiles).flatMap(([type, files]) => files.map((name) => JSON.parse(fs.readFileSync(path.join(autoSaveDirs[type as AutoSaveResultType], name), "utf8")) as Record<string, unknown>));
   if (autoSavedDocuments.some((document) => !asRecord(document.autoSave).path || asRecord(document.autoSave).enabled !== true || asRecord(document.debugBundleHints).includeInDebugBundle !== true || !Array.isArray(document.crossPageDebugBundleTodo))) failures.push("auto-save metadata/debug bundle hints audit failed");
+  const standardBaselineAutoSave = autoSavedDocuments.find((document) => asRecord(document.standardActivityStreamFlow).enabled === true && asRecord(asRecord(document.activityStream).baselineComparison).enabled === true);
+  const standardBaselineRetry = asRecord(asRecord(standardBaselineAutoSave?.activityStream).baselineGuardRetry);
+  const standardBaselineComparison = asRecord(asRecord(standardBaselineAutoSave?.activityStream).baselineComparison);
+  const standardBaselineAttempts = asRecord(standardBaselineAutoSave?.activityStream).baselineGuardAttemptResults;
+  if (!standardBaselineAutoSave || !standardBaselineComparison.snapshotKey || !standardBaselineComparison.baselineCounts || !standardBaselineComparison.currentCounts || Number(standardBaselineRetry.maxRetries) !== 2 || !Array.isArray(standardBaselineRetry.attempts) || standardBaselineRetry.attempts.length > 3 || !Array.isArray(standardBaselineAttempts) || standardBaselineAttempts.length !== standardBaselineRetry.attempts.length) failures.push(`standard baseline auto-save audit failed ${JSON.stringify({ standardBaselineComparison, standardBaselineRetry, standardBaselineAttempts })}`);
   const newDebugBundles = fs.readdirSync(debugBundlesDir).filter((name) => !debugBundlesBefore.has(name));
   const debugBundlePath = newDebugBundles.length > 0 ? path.join(debugBundlesDir, newDebugBundles.at(-1)!) : "";
-  const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-run-result.json", "last-successful-result.json", "last-parsed-result.json", "latest-no-entries-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "auto-saved-results", "auto-saved-results-index.json", "session-timeline.json", "activity-stream-chunk-results.json", "activity-stream-merged-result.json", "standard-activity-stream-flow.json", "activity-type-classifier-diagnostics.json", "debug-bundle-summary.json", "README_for_GPT.txt"];
+  const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-run-result.json", "last-successful-result.json", "last-parsed-result.json", "latest-no-entries-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "auto-saved-results", "auto-saved-results-index.json", "session-timeline.json", "activity-stream-chunk-results.json", "activity-stream-merged-result.json", "standard-activity-stream-flow.json", "activity-type-classifier-diagnostics.json", "activity-stream-baseline-comparison.json", "activity-stream-baseline-snapshot.json", "activity-stream-baseline-history.json", "activity-stream-baseline-comparisons.json", "debug-bundle-summary.json", "README_for_GPT.txt"];
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
   const bundleText = debugBundlePath ? actualBundleFiles.filter((name) => fs.statSync(path.join(debugBundlePath, name)).isFile()).map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
@@ -3247,12 +3368,17 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleClassifier = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-type-classifier-diagnostics.json"), "utf8")));
     const bundleChunks = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-chunk-results.json"), "utf8")) as Array<Record<string, unknown>>;
     const bundleMerged = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-merged-result.json"), "utf8")));
+    const bundleBaselineComparison = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-baseline-comparison.json"), "utf8")));
+    const bundleBaselineSnapshot = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-baseline-snapshot.json"), "utf8")));
+    const bundleBaselineHistory = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-baseline-history.json"), "utf8")) as Array<Record<string, unknown>>;
     const bundleAutoSavedIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "auto-saved-results-index.json"), "utf8")));
     const bundleTimeline = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "session-timeline.json"), "utf8") as string) as Array<Record<string, unknown>>;
     const fullSessionBundle = asRecord(bundleSummary.fullSessionBundle);
+    const bundleBaselineGuard = asRecord(bundleSummary.activityStreamBaselineGuard);
     const latestBundleRunId = String(latestBundleResult.runId || "");
     if (!latestBundleRunId || !bundleHistory.some((run) => String(run?.runId || "") === latestBundleRunId) || String(asRecord(bundlePaths.latestRunResult).runId || "") !== latestBundleRunId || bundleSummary.snapshotConsistent !== true) failures.push(`debug bundle snapshot consistency failed: latest=${latestBundleRunId}`);
     if (bundleStandardFlow.enabled !== true || bundleStandardFlow.variant !== "escaped_username" || bundleStandardFlow.activityStreamQueryUser !== "roger\\_hsieh" || Number(bundleStandardFlow.perChunkMaxResults) !== 500 || bundleClassifier.enabled !== true || bundleClassifier.commentPriorityHigherThanAttachment !== true || bundleClassifier.rulesVersion !== "1.1" || !asRecord(bundleSummary.standardActivityStreamFlow).selectedUser || !bundleSummary.activityTypeClassifierDiagnostics) failures.push(`debug bundle standard flow/classifier diagnostics failed: ${JSON.stringify({ bundleStandardFlow, bundleClassifier })}`);
+    if (bundleBaselineGuard.enabled !== true || bundleBaselineComparison.enabled !== true || bundleBaselineSnapshot.schemaVersion !== 1 || !String(bundleBaselineSnapshot.snapshotKey || "").includes("activity_stream|") || bundleBaselineHistory.length < 1 || !bundleTimeline.some((entry) => entry.type === "activity_stream_baseline_guard") || !bundleText.includes("Activity Stream Baseline Guard:") || !bundleText.includes("activity-stream-baseline-comparison.json")) failures.push(`debug bundle baseline guard audit failed: ${JSON.stringify({ bundleBaselineGuard, bundleBaselineComparison, snapshotKey: bundleBaselineSnapshot.snapshotKey, history: bundleBaselineHistory.length })}`);
     const includedAutoSavedResults = Array.isArray(bundleAutoSavedIndex.included) ? bundleAutoSavedIndex.included.map(asRecord) : [];
     const missingAutoSavedResults = Array.isArray(bundleAutoSavedIndex.missing) ? bundleAutoSavedIndex.missing.map(asRecord) : [];
     const copiedAutoSavedFiles = fs.readdirSync(path.join(debugBundlePath, "auto-saved-results"));

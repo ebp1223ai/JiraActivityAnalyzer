@@ -280,6 +280,18 @@ The standalone User Activity Precision Probe is a read-only compatibility and di
 - `session-timeline.json` combines user actions, renderer Debug Log entries, Activity Stream run history, and auto-save path events in chronological order.
 - Missing auto-save files are reported without aborting bundle creation. Auto-save bodies are deduplicated by resolved path, run ID, or basename.
 
+### Activity Stream Baseline Guard
+
+- Standard single-user Activity Stream runs maintain an exact-range best-known JSON baseline under `<runtime>/data/activity-stream-baselines/`. Baselines are runtime diagnostics and are not committed.
+- Every sanitized Activity Stream entry has a SHA-256 fingerprint. Atom entry IDs are preferred; otherwise the fingerprint uses source, activity time, author email, normalized title, first issue key, and first link.
+- Baseline keys include source, selected user, escaped query user, variant, date mode, exact period, granularity, and a request signature hash. Credentials and sensitive headers are never part of the signature.
+- Comparisons distinguish first observation, equal, improved, count regression, missing known issue keys, missing known entries, and mixed regression.
+- Improved observations merge new issue keys and entry fingerprints into the best-known baseline. Suspicious observations retain low-confidence diagnostics but cannot remove or replace known baseline data.
+- A suspicious standard result can trigger at most two retries. A recovered retry becomes the accepted result; an unresolved regression is labeled `result_incomplete_candidate` and does not overwrite the baseline.
+- Manual URL Replay and Advanced Diagnostics remain outside automatic Baseline Guard retry behavior.
+- Debug Bundles include the latest baseline comparison, snapshot, history, all session comparisons, summary metadata, and `activity_stream_baseline_guard` timeline events.
+- The baseline is a local data-quality guard, not a claim that Activity Stream is a complete Jira audit log. Monthly rollup baselines remain a follow-up; v0.2.16 implements exact-range baselines only.
+
 ### Date Semantics And MaxResults Diagnostics
 
 - Probe Max Results accepts a custom integer from 1 through 65535, defaults to 50, and provides quick values for 10, 20, 50, 100, 200, 500, and 1000.
