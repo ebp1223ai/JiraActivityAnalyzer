@@ -306,6 +306,41 @@ export type UserActivityStreamResult = {
   lowConfidenceObservation: { runId: string; reason: string; missingIssueKeys: string[]; missingEntryCount: number } | null;
 };
 
+export type UserActivityTimelineEvent = {
+  eventId: string;
+  userKey: string;
+  displayName: string;
+  issueKey: string;
+  allIssueKeys: string[];
+  eventTime: string;
+  eventType: "comment" | "attachment" | "link" | "page" | "field_change" | "status_change" | "assignee_change" | "resolution_change" | "unknown";
+  eventTitle: string;
+  source: "activity_stream";
+  sourceRunId: string;
+  sourceConfidence: "high" | "medium" | "low";
+  projectKey: string;
+  evidence: { activityTypeClassifier: { matchedRule: string; finalType: string }; baselineGuard: { classification: string; retryTriggered: boolean; retryRecovered: boolean; baselineBestParsedActivityCount: number; currentParsedActivityCount: number } };
+  rawRef: { entryFingerprint: string; variant: string; activityStreamQueryUser: string };
+  rawTitle: string;
+  sanitizedSummary: string;
+};
+
+export type UserActivityTimelineSummary = {
+  timelineRunId: string;
+  builtAt: string;
+  selectedUser: string;
+  dateRange: { start: string; end: string };
+  projectScope: string;
+  source: "activity_stream";
+  sourceRunId: string;
+  totalEvents: number;
+  issueKeyCount: number;
+  eventTypeCounts: Record<string, number>;
+  sourceCounts: Record<string, number>;
+  confidenceCounts: Record<string, number>;
+  baselineGuard: { classification: string; retryTriggered: boolean; retryRecovered: boolean };
+};
+
 export type UserActivityStreamRunHistory = {
   runId: string;
   startedAt: string;
@@ -461,7 +496,13 @@ export type UserAnalysisSessionState = {
   candidateIssues: UserAnalysisCandidateIssue[];
   selectedForFetch: string[];
   excludedIssues: string[];
-  activeTab: "candidates" | "queue" | "fetchReport" | "exports";
+  activeTab: "candidates" | "queue" | "fetchReport" | "timeline" | "exports";
+  timelineStatus: "idle" | "running" | "completed" | "failed";
+  timelineEvents: UserActivityTimelineEvent[];
+  timelineSummary: UserActivityTimelineSummary | null;
+  timelineFilters: { project: string; issueKey: string; activityType: string; confidence: string; source: string; onlyWithJiraKey: boolean; onlyLowConfidence: boolean };
+  expandedTimelineEvents: string[];
+  timelineExportPaths: { jsonPath: string; csvPath: string; summaryPath: string };
   precisionProbeMaxResults: number;
   precisionProbeMaxResultsSource: "custom" | "quick";
   activityStreamDateQueryMode: UserActivityStreamDateQueryMode;
@@ -610,6 +651,12 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   selectedForFetch: [],
   excludedIssues: [],
   activeTab: "candidates",
+  timelineStatus: "idle",
+  timelineEvents: [],
+  timelineSummary: null,
+  timelineFilters: { project: "", issueKey: "", activityType: "all", confidence: "all", source: "all", onlyWithJiraKey: false, onlyLowConfidence: false },
+  expandedTimelineEvents: [],
+  timelineExportPaths: { jsonPath: "", csvPath: "", summaryPath: "" },
   precisionProbeMaxResults: 50,
   precisionProbeMaxResultsSource: "quick",
   activityStreamDateQueryMode: "both",

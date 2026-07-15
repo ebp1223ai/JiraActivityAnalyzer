@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
   userAnalysis: {
     discoverCandidates: (payload: unknown) => ipcRenderer.invoke("user-analysis:discover-candidates", payload),
     activityStreamProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-probe", payload),
+    buildActivityTimeline: (payload: unknown) => ipcRenderer.invoke("user-analysis:build-activity-timeline", payload),
     activityStreamManualReplay: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-manual-replay", payload),
     precisionProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:precision-probe", payload),
     fullFetch: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch", payload),

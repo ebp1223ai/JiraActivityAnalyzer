@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, ChevronDown, ChevronUp, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Clock3, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel, MockModal } from "../components/FormControls";
@@ -9,7 +9,7 @@ import { ResponsiveTableContainer } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useConnectionContext } from "../state/ConnectionContext";
-import { useSessionState, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type UserAnalysisFullFetchReportRow, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
+import { useSessionState, type UserActivityTimelineEvent, type UserActivityTimelineSummary, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type UserAnalysisFullFetchReportRow, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
 
 const fetchLimitOptions = [10, 20, 40, 80, 160];
 const pageSizeOptions = [10, 20, 40, 80, 160];
@@ -172,6 +172,16 @@ export function AnalysisPage() {
   const fetchQueue = userAnalysis.candidateIssues.filter((issue) => userAnalysis.selectedForFetch.includes(issue.key));
   const fetchLimitExceeded = fetchQueue.length > userAnalysis.fetchLimit;
   const filteredFetchReport = userAnalysis.fullFetchReport.filter((row) => userAnalysis.fetchReportFilter === "all" || row.fetchStatus === userAnalysis.fetchReportFilter);
+  const filteredTimelineEvents = userAnalysis.timelineEvents.filter((event) => {
+    const filter = userAnalysis.timelineFilters;
+    return (!filter.project.trim() || event.projectKey.toLowerCase().includes(filter.project.trim().toLowerCase()))
+      && (!filter.issueKey.trim() || event.allIssueKeys.some((key) => key.toLowerCase().includes(filter.issueKey.trim().toLowerCase())))
+      && (filter.activityType === "all" || event.eventType === filter.activityType)
+      && (filter.confidence === "all" || event.sourceConfidence === filter.confidence)
+      && (filter.source === "all" || event.source === filter.source)
+      && (!filter.onlyWithJiraKey || Boolean(event.issueKey))
+      && (!filter.onlyLowConfidence || event.sourceConfidence === "low");
+  });
   const fetchReportPageCount = Math.max(1, Math.ceil(filteredFetchReport.length / userAnalysis.fetchReportPageSize));
   const fetchReportPage = Math.min(userAnalysis.fetchReportPage, fetchReportPageCount);
   const pagedFetchReport = filteredFetchReport.slice((fetchReportPage - 1) * userAnalysis.fetchReportPageSize, fetchReportPage * userAnalysis.fetchReportPageSize);
@@ -300,15 +310,50 @@ export function AnalysisPage() {
     return () => { active = false; };
   }, [setUserAnalysis]);
 
-  function showStep(step: "candidate" | "queue" | "fetchReport" | "exports") {
+  function showStep(step: "candidate" | "queue" | "fetchReport" | "timeline" | "exports") {
     const labels = {
       candidate: "Candidate Search / 候選搜尋",
       queue: "Fetch Queue / 抓取佇列",
       fetchReport: "Full Fetch Report / 完整抓取報告",
+      timeline: "Activity Timeline / 活動時間線",
       exports: "Exports / 匯出"
     };
     logAnalysisAction("USER_ACTION", `Workflow tab changed: ${labels[step]}`);
     patchState({ activeTab: step === "candidate" ? "candidates" : step });
+  }
+
+  async function handleBuildTimeline() {
+    logAnalysisAction("USER_ACTION", "Button clicked: Build Activity Timeline / 建立活動時間線");
+    if (selectedUsers.length !== 1 || !userAnalysis.startDate || !userAnalysis.endDate) {
+      const message = "Please select a user and date range first. / 請先選擇使用者與日期範圍。";
+      patchState({ errors: [message], notice: "" });
+      appendDebugLog("analysis", [`[WARN] ${message}`]);
+      return;
+    }
+    if (!activeConnection) {
+      patchState({ errors: ["No active Jira connection. Reload .env in Connections first."], notice: "" });
+      return;
+    }
+    patchState({ timelineStatus: "running", errors: [], notice: "Building Activity Timeline... / 正在建立活動時間線..." });
+    try {
+      const response = await window.desktopApp?.userAnalysis?.buildActivityTimeline({ connection: activeConnection, selectedUser: selectedUsers[0], startDate: userAnalysis.startDate, endDate: userAnalysis.endDate, projectScope: userAnalysis.precisionProjectScope });
+      if (!response) throw new Error("Timeline builder is unavailable.");
+      const events = Array.isArray(response.events) ? response.events as UserActivityTimelineEvent[] : [];
+      const summary = response.summary as UserActivityTimelineSummary;
+      const exportedFiles = response.exportedFiles as { jsonPath: string; csvPath: string; summaryPath: string };
+      patchState({ timelineStatus: "completed", timelineEvents: events, timelineSummary: summary, timelineExportPaths: exportedFiles, expandedTimelineEvents: [], notice: `Activity Timeline built: ${events.length} events / 活動時間線已建立：${events.length} 筆`, errors: [] });
+      appendDebugLog("analysis", Array.isArray(response.logs) ? response.logs.map(String) : [`[INFO] Activity Timeline built: ${events.length} events`]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Activity Timeline build failed.";
+      patchState({ timelineStatus: "failed", errors: [message], notice: "" });
+      appendDebugLog("analysis", [`[ERROR] Activity Timeline build failed: ${message}`, "[INFO] No database write performed", "[INFO] No Jira write performed"]);
+    }
+  }
+
+  function toggleTimelineDetail(eventId: string) {
+    const expanded = new Set(userAnalysis.expandedTimelineEvents);
+    if (expanded.has(eventId)) expanded.delete(eventId); else expanded.add(eventId);
+    patchState({ expandedTimelineEvents: Array.from(expanded) });
   }
 
   function toggleReportDetail(issueKey: string) {
@@ -1344,16 +1389,17 @@ export function AnalysisPage() {
       ) : null}
 
       <SectionCard className="mb-4">
-        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {[
             ["candidate", "1", "Candidate Search", "候選搜尋"],
             ["queue", "2", "Fetch Queue", "抓取佇列"],
             ["fetchReport", "3", "Full Fetch Report", "完整抓取報告"],
-            ["exports", "4", "Exports", "匯出"]
+            ["timeline", "4", "Activity Timeline", "活動時間線"],
+            ["exports", "5", "Exports", "匯出"]
           ].map(([step, number, title, subtitle]) => {
             const tab = step === "candidate" ? "candidates" : step;
             const active = userAnalysis.activeTab === tab;
-            return <button key={step} data-testid={`workflow-${step}`} className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition ${active ? "border-blue-600 bg-blue-50 shadow-sm" : "border-line bg-slate-50 hover:border-blue-300 hover:bg-blue-50"}`} type="button" aria-current={active ? "step" : undefined} onClick={() => showStep(step as "candidate" | "queue" | "fetchReport" | "exports")}>
+            return <button key={step} data-testid={`workflow-${step}`} className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition ${active ? "border-blue-600 bg-blue-50 shadow-sm" : "border-line bg-slate-50 hover:border-blue-300 hover:bg-blue-50"}`} type="button" aria-current={active ? "step" : undefined} onClick={() => showStep(step as "candidate" | "queue" | "fetchReport" | "timeline" | "exports")}>
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${active ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{number}</span>
               <span className="min-w-0 text-sm font-black leading-snug text-ink">{title}<br /><span className="text-xs font-semibold text-muted">{subtitle}</span></span>
             </button>;
@@ -1415,7 +1461,8 @@ export function AnalysisPage() {
             <div className="rounded-lg bg-blue-50 p-3 text-sm leading-relaxed"><b>1. Candidate Search / 候選搜尋</b><br />Search Jira issues by users and date range.<br />依使用者與日期範圍搜尋候選 Jira。</div>
             <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>2. Fetch Queue / 抓取佇列</b><br />Select issues that should be fully fetched.<br />選擇要完整抓取的 Jira。</div>
             <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>3. Full Fetch Report / 完整抓取報告</b><br />Review fetch status, counts, warnings, and errors.<br />檢查抓取狀態、數量統計、警告與錯誤。</div>
-            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>4. Exports / 匯出</b><br />Save Stage 1 candidate data or Stage 2 full fetch data.<br />儲存第一階段候選資料或第二階段完整抓取資料。</div>
+            <div className="rounded-lg bg-cyan-50 p-3 text-sm leading-relaxed"><b>4. Activity Timeline / 活動時間線</b><br />Build a guarded Activity Stream timeline for one user.<br />以 Baseline Guard 建立單一使用者活動時間線。</div>
+            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>5. Exports / 匯出</b><br />Save Stage 1 candidate data or Stage 2 full fetch data.<br />儲存第一階段候選資料或第二階段完整抓取資料。</div>
           </div>
           <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">
             Stage 1 Candidate Result / 第一階段候選結果:<br />exports/user-analysis/user-analysis-candidates-YYYYMMDD_HHmmss.json<br /><br />
@@ -1456,6 +1503,7 @@ export function AnalysisPage() {
           <div className="min-w-0">
             <FieldLabel label="Selected Users" sub="選擇使用者" />
             <textarea
+              data-testid="analysis-selected-users"
               className="field min-h-28 resize-y leading-relaxed"
               value={userAnalysis.selectedUsersText}
               placeholder={"roger_hsieh\nch_kao\nsomeone@phison.com"}
@@ -1470,11 +1518,11 @@ export function AnalysisPage() {
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
             <div>
               <FieldLabel label="Start Date" sub="開始日期" />
-              <input className="field" type="date" value={userAnalysis.startDate} onChange={(event) => { logAnalysisAction("USER_ACTION", `Date Range changed / 日期範圍變更: startDate=${event.target.value}`); patchState({ startDate: event.target.value }); }} />
+              <input data-testid="analysis-start-date" className="field" type="date" value={userAnalysis.startDate} onChange={(event) => { logAnalysisAction("USER_ACTION", `Date Range changed / 日期範圍變更: startDate=${event.target.value}`); patchState({ startDate: event.target.value }); }} />
             </div>
             <div>
               <FieldLabel label="End Date" sub="結束日期" />
-              <input className="field" type="date" value={userAnalysis.endDate} onChange={(event) => { logAnalysisAction("USER_ACTION", `Date Range changed / 日期範圍變更: endDate=${event.target.value}`); patchState({ endDate: event.target.value }); }} />
+              <input data-testid="analysis-end-date" className="field" type="date" value={userAnalysis.endDate} onChange={(event) => { logAnalysisAction("USER_ACTION", `Date Range changed / 日期範圍變更: endDate=${event.target.value}`); patchState({ endDate: event.target.value }); }} />
             </div>
             <div>
               <FieldLabel label="Search Mode" sub="搜尋模式" />
@@ -1830,6 +1878,62 @@ export function AnalysisPage() {
           </>
         )}
       </SectionCard> : null}
+
+      {userAnalysis.activeTab === "timeline" ? <div className="space-y-4" data-testid="activity-timeline-panel">
+        {userAnalysis.errors.length > 0 ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold leading-relaxed text-red-800" role="alert">{userAnalysis.errors.map((error) => <div key={error}>{error}</div>)}</div> : null}
+        <SectionCard title="Activity Timeline" subtitle="活動時間線">
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 text-sm font-semibold leading-relaxed text-muted">
+              Uses the selected user, date range, standard Activity Stream flow, classifier, and Baseline Guard.<br />
+              使用目前選定使用者、日期範圍、標準 Activity Stream 流程、分類器與 Baseline Guard。
+            </div>
+            <button data-testid="build-activity-timeline" className="btn btn-primary" type="button" disabled={userAnalysis.timelineStatus === "running"} onClick={() => void handleBuildTimeline()}>
+              <Clock3 size={16} />{userAnalysis.timelineStatus === "running" ? "Building... / 建立中..." : "Build Activity Timeline / 建立活動時間線"}
+            </button>
+          </div>
+          <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MiniStat label="Events / 事件" value={userAnalysis.timelineSummary?.totalEvents ?? 0} />
+            <MiniStat label="Issue Keys" value={userAnalysis.timelineSummary?.issueKeyCount ?? 0} />
+            <MiniStat label="Baseline" value={userAnalysis.timelineSummary?.baselineGuard.classification ?? "Not built"} />
+            <MiniStat label="Source" value="Activity Stream" />
+          </div>
+          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold leading-relaxed text-emerald-950">
+            Read-only: no Jira write, no database write, and no attachment body download.<br />唯讀：不寫入 Jira、不寫入資料庫、不下載附件本體。
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Timeline Filters" subtitle="時間線篩選">
+          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div><FieldLabel label="Project" sub="專案" /><input data-testid="timeline-filter-project" className="field" value={userAnalysis.timelineFilters.project} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, project: event.target.value } })} placeholder="COPGEN1" /></div>
+            <div><FieldLabel label="Issue Key" sub="Jira 編號" /><input data-testid="timeline-filter-issue" className="field" value={userAnalysis.timelineFilters.issueKey} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, issueKey: event.target.value } })} placeholder="COPGEN1-138930" /></div>
+            <div><FieldLabel label="Activity Type" sub="活動類型" /><select data-testid="timeline-filter-type" className="field" value={userAnalysis.timelineFilters.activityType} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, activityType: event.target.value } })}><option value="all">All / 全部</option>{["comment", "attachment", "link", "page", "field_change", "status_change", "assignee_change", "resolution_change", "unknown"].map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+            <div><FieldLabel label="Confidence" sub="可信度" /><select data-testid="timeline-filter-confidence" className="field" value={userAnalysis.timelineFilters.confidence} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, confidence: event.target.value } })}><option value="all">All / 全部</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+            <div><FieldLabel label="Source" sub="來源" /><select className="field" value={userAnalysis.timelineFilters.source} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, source: event.target.value } })}><option value="all">All / 全部</option><option value="activity_stream">Activity Stream</option></select></div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-4 text-sm font-bold">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={userAnalysis.timelineFilters.onlyWithJiraKey} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, onlyWithJiraKey: event.target.checked } })} />Only with Jira Key / 僅含 Jira 編號</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={userAnalysis.timelineFilters.onlyLowConfidence} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, onlyLowConfidence: event.target.checked } })} />Only low confidence / 僅低可信度</label>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Timeline Events" subtitle={`活動事件 · ${filteredTimelineEvents.length}`}>
+          {userAnalysis.timelineEvents.length === 0 ? <div className="rounded-lg border border-dashed border-line p-8 text-center text-sm font-semibold text-muted">Build an Activity Timeline to view events. / 建立活動時間線後即可檢視事件。</div> : (
+            <ResponsiveTableContainer data-testid="timeline-events-table">
+              <table className="data-table min-w-[1120px]"><thead><tr><th>Time</th><th>User</th><th>Issue Key</th><th>Activity Type</th><th>Title</th><th>Source</th><th>Confidence</th><th>Evidence</th></tr></thead><tbody>
+                {filteredTimelineEvents.map((event) => <Fragment key={event.eventId}>
+                  <tr><td className="whitespace-nowrap">{event.eventTime || "-"}</td><td title={`${event.displayName} (${event.userKey})`}>{event.displayName}</td><td>{event.issueKey || "-"}</td><td><StatusBadge tone={event.eventType === "unknown" ? "amber" : "blue"}>{event.eventType}</StatusBadge></td><td className="max-w-[360px]"><div className="truncate" data-allow-truncate="true" title={event.eventTitle}>{event.eventTitle}</div></td><td>{event.source}</td><td><StatusBadge tone={event.sourceConfidence === "high" ? "green" : event.sourceConfidence === "low" ? "red" : "amber"}>{event.sourceConfidence}</StatusBadge></td><td><button className="btn px-3 py-2" type="button" onClick={() => toggleTimelineDetail(event.eventId)}>{userAnalysis.expandedTimelineEvents.includes(event.eventId) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}Detail</button></td></tr>
+                  {userAnalysis.expandedTimelineEvents.includes(event.eventId) ? <tr><td colSpan={8}><div className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed md:grid-cols-2"><div><b>eventId:</b> <span className="break-all">{event.eventId}</span></div><div><b>allIssueKeys:</b> {event.allIssueKeys.join(", ") || "-"}</div><div><b>sourceRunId:</b> {event.sourceRunId}</div><div><b>entryFingerprint:</b> <span className="break-all">{event.rawRef.entryFingerprint}</span></div><div><b>matchedRule:</b> {event.evidence.activityTypeClassifier.matchedRule}</div><div><b>baseline:</b> {event.evidence.baselineGuard.classification}</div><div><b>retry:</b> triggered={String(event.evidence.baselineGuard.retryTriggered)}, recovered={String(event.evidence.baselineGuard.retryRecovered)}</div><div className="md:col-span-2"><b>raw title:</b> <span className="break-words">{event.rawTitle}</span></div><div className="md:col-span-2"><b>sanitized summary:</b> <span className="break-words">{event.sanitizedSummary}</span></div></div></td></tr> : null}
+                </Fragment>)}
+              </tbody></table>
+            </ResponsiveTableContainer>
+          )}
+        </SectionCard>
+
+        {userAnalysis.timelineSummary ? <SectionCard title="Auto-saved Timeline Exports" subtitle="自動儲存時間線匯出">
+          <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-3">{Object.entries(userAnalysis.timelineExportPaths).map(([key, value]) => <div key={key} className="min-w-0 rounded-lg border border-line bg-slate-50 p-3"><div className="text-xs font-black uppercase text-muted">{key}</div><div className="mt-1 break-all text-xs font-bold" title={value}>{value || "-"}</div></div>)}</div>
+          <button className="btn mt-3" type="button" disabled={!userAnalysis.timelineExportPaths.jsonPath} onClick={() => void window.desktopApp?.userAnalysis?.openExportFolder({ folderPath: parentFolder(userAnalysis.timelineExportPaths.jsonPath) })}><FolderOpen size={15} />Open Timeline Export Folder / 開啟時間線匯出資料夾</button>
+        </SectionCard> : null}
+      </div> : null}
 
       {userAnalysis.activeTab === "exports" ? <div id="analysis-exports" className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
         <div className="min-w-0 xl:col-span-2">
