@@ -318,6 +318,9 @@ export type UserActivityTimelineEvent = {
   eventType: "comment" | "attachment" | "link" | "page" | "field_change" | "status_change" | "assignee_change" | "resolution_change" | "unknown";
   eventTitle: string;
   source: "activity_stream";
+  sourceSystem: "jira" | "confluence" | "other" | "unknown";
+  sourceDetail: "jira_activity_stream" | "confluence_activity_stream" | "jira_full_fetch" | "jira_changelog" | "related_issue_expansion" | "other_activity_stream" | "unknown";
+  activityApplication: string;
   sourceRunId: string;
   sourceConfidence: "high" | "medium" | "low";
   projectKey: string;
@@ -341,6 +344,9 @@ export type UserActivityTimelineSummary = {
   allIssueKeyCount: number;
   eventTypeCounts: Record<string, number>;
   sourceCounts: Record<string, number>;
+  sourceSystemCounts: Record<"jira" | "confluence" | "other" | "unknown", number>;
+  sourceDetailCounts: Record<string, number>;
+  sourceSystemDiagnostics: { classificationRulesVersion: "v0.2.21"; unknownSamples: Array<{ eventId: string; title: string; activityApplication: string | null; issueKey: string | null; eventType: UserActivityTimelineEvent["eventType"]; reason: string }> };
   confidenceCounts: Record<string, number>;
   baselineGuard: { classification: string; retryTriggered: boolean; retryRecovered: boolean };
   integrity: {
@@ -517,7 +523,7 @@ export type UserAnalysisSessionState = {
   timelineSummary: UserActivityTimelineSummary | null;
   timelineIssueGroups: TimelineIssueGroup[];
   selectedTimelineIssueKeys: string[];
-  timelineIssueFilters: { activityType: string; confidence: string; issueKeyRole: string; query: string };
+  timelineIssueFilters: { activityTypes: string[]; confidences: string[]; issueKeyRoles: string[]; sourceSystems: Array<"jira" | "confluence" | "other" | "unknown">; projectKeys: string[]; query: string };
   relatedCandidateIssues: RelatedCandidateIssue[];
   selectedRelatedIssueKeys: string[];
   relatedIssueFilters: { relationType: string; confidence: string };
@@ -685,7 +691,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   timelineSummary: null,
   timelineIssueGroups: [],
   selectedTimelineIssueKeys: [],
-  timelineIssueFilters: { activityType: "all", confidence: "all", issueKeyRole: "all", query: "" },
+  timelineIssueFilters: { activityTypes: [], confidences: [], issueKeyRoles: [], sourceSystems: ["jira"], projectKeys: [], query: "" },
   relatedCandidateIssues: [],
   selectedRelatedIssueKeys: [],
   relatedIssueFilters: { relationType: "all", confidence: "all" },

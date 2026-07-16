@@ -2,6 +2,8 @@ import { sha256 } from "./activityStreamBaseline.js";
 
 export type TimelineEventType = "comment" | "attachment" | "link" | "page" | "field_change" | "status_change" | "assignee_change" | "resolution_change" | "unknown";
 export type TimelineConfidence = "high" | "medium" | "low";
+export type TimelineSourceSystem = "jira" | "confluence" | "other" | "unknown";
+export type TimelineSourceDetail = "jira_activity_stream" | "confluence_activity_stream" | "jira_full_fetch" | "jira_changelog" | "related_issue_expansion" | "other_activity_stream" | "unknown";
 
 export type TimelineSourceEntry = {
   issueKey?: string;
@@ -11,6 +13,8 @@ export type TimelineSourceEntry = {
   activityTitle?: string;
   activityAuthor?: string;
   activityAuthorEmail?: string;
+  activityApplication?: string;
+  source?: string;
   activityTypeClassifier?: { matchedRule?: string; finalType?: string };
   rawTitle?: string;
   rawSummary?: string;
@@ -72,6 +76,9 @@ export type UserActivityTimelineEvent = {
   eventType: TimelineEventType;
   eventTitle: string;
   source: "activity_stream";
+  sourceSystem: TimelineSourceSystem;
+  sourceDetail: TimelineSourceDetail;
+  activityApplication: string;
   sourceRunId: string;
   sourceConfidence: TimelineConfidence;
   projectKey: string;
@@ -105,6 +112,12 @@ export type UserActivityTimelineSummary = {
   allIssueKeyCount: number;
   eventTypeCounts: Record<string, number>;
   sourceCounts: Record<string, number>;
+  sourceSystemCounts: Record<TimelineSourceSystem, number>;
+  sourceDetailCounts: Record<string, number>;
+  sourceSystemDiagnostics: {
+    classificationRulesVersion: "v0.2.21";
+    unknownSamples: Array<{ eventId: string; title: string; activityApplication: string | null; issueKey: string | null; eventType: TimelineEventType; reason: string }>;
+  };
   confidenceCounts: Record<string, number>;
   baselineGuard: { classification: string; retryTriggered: boolean; retryRecovered: boolean };
   integrity: TimelineIntegrityDiagnostics;
@@ -116,6 +129,7 @@ export type UserActivityTimelineSummary = {
 export type UserActivityTimelineBuild = { timelineRunId: string; summary: UserActivityTimelineSummary; events: UserActivityTimelineEvent[] };
 
 const eventTypes = new Set<TimelineEventType>(["comment", "attachment", "link", "page", "field_change", "status_change", "assignee_change", "resolution_change", "unknown"]);
+const jiraIssueKeyPattern = /^[A-Z][A-Z0-9]+-\d+$/;
 
 function mappedType(value: string): TimelineEventType {
   return eventTypes.has(value as TimelineEventType) ? value as TimelineEventType : "unknown";
@@ -163,6 +177,20 @@ function reasonCounts(values: string[]) {
   return Object.entries(countBy(values)).map(([reason, count]) => ({ reason, count }));
 }
 
+export function classifyTimelineSource(input: { activityApplication?: string; source?: string; eventType?: string; issueKey?: string; allIssueKeys?: string[] }): { sourceSystem: TimelineSourceSystem; sourceDetail: TimelineSourceDetail; reason: string } {
+  const application = String(input.activityApplication ?? "").trim().toLowerCase();
+  const source = String(input.source ?? "activity_stream").trim().toLowerCase();
+  const issueKeys = [String(input.issueKey ?? ""), ...(input.allIssueKeys ?? [])].map((key) => key.trim().toUpperCase()).filter(Boolean);
+  if (application === "jira") return { sourceSystem: "jira", sourceDetail: "jira_activity_stream", reason: "activityApplication=Jira" };
+  if (application === "confluence") return { sourceSystem: "confluence", sourceDetail: "confluence_activity_stream", reason: "activityApplication=Confluence" };
+  if (source === "related_issue_expansion") return { sourceSystem: "jira", sourceDetail: "related_issue_expansion", reason: "source=related_issue_expansion" };
+  if (source === "changelog" || source === "jira_changelog") return { sourceSystem: "jira", sourceDetail: "jira_changelog", reason: "source=changelog" };
+  if (source === "full_fetch" || source === "jira_full_fetch") return { sourceSystem: "jira", sourceDetail: "jira_full_fetch", reason: "source=full_fetch" };
+  if (issueKeys.some((key) => jiraIssueKeyPattern.test(key))) return { sourceSystem: "jira", sourceDetail: "jira_activity_stream", reason: "Jira issue key detected" };
+  if (source === "activity_stream" && application) return { sourceSystem: "other", sourceDetail: "other_activity_stream", reason: "non-Jira/Confluence activityApplication" };
+  return { sourceSystem: "unknown", sourceDetail: "unknown", reason: "no activityApplication and no issueKey" };
+}
+
 export function buildUserActivityTimeline(input: {
   timelineRunId: string;
   builtAt: string;
@@ -204,6 +232,8 @@ export function buildUserActivityTimeline(input: {
       const fingerprint = normalizeSha256Id(String(entry.entryFingerprint || sha256(JSON.stringify(entry))));
       const fingerprintMatched = baselineFingerprints.has(fingerprint);
       const eventTime = String(entry.activityTime);
+      const activityApplication = String(entry.activityApplication ?? "").trim();
+      const sourceClassification = classifyTimelineSource({ activityApplication, source: entry.source ?? "activity_stream", eventType, issueKey, allIssueKeys });
       const eventId = normalizeSha256Id(sha256(["activity_stream", input.selectedUser, issueKey || "-", eventTime, eventType, fingerprint.replace(/^sha256:/, "")].join("|")));
       const event: UserActivityTimelineEvent = {
         eventId,
@@ -215,6 +245,9 @@ export function buildUserActivityTimeline(input: {
         eventType,
         eventTitle: String(entry.activityTitle || entry.rawTitle || "Untitled activity"),
         source: "activity_stream",
+        sourceSystem: sourceClassification.sourceSystem,
+        sourceDetail: sourceClassification.sourceDetail,
+        activityApplication,
         sourceRunId: input.sourceRunId,
         sourceConfidence: eventConfidence(eventType, issueKey, input.baseline.classification, fingerprintMatched),
         projectKey: issueKey.includes("-") ? issueKey.split("-")[0] : "",
@@ -258,8 +291,12 @@ export function buildUserActivityTimeline(input: {
   const baselineMatchedCount = events.filter((event) => event.evidence.baselineGuard.entryFingerprintMatched).length;
   const confidenceDiagnostics: TimelineConfidenceDiagnostics = { runLevelClassification: input.baseline.classification, eventLevelBaselineMatchedCount: baselineMatchedCount, eventLevelBaselineMissingCount: events.length - baselineMatchedCount, forcedLowDueToRunIncompleteCount: events.filter((event) => input.baseline.classification === "result_incomplete_candidate" && !event.evidence.baselineGuard.entryFingerprintMatched && event.sourceConfidence === "low").length };
   const dedupDiagnostics: TimelineDedupDiagnostics = { enabled: true, deduplicatedEntryCount, dedupGroups: Array.from(dedupGroups.values()).slice(0, 20) };
+  const sourceSystemCounts = { jira: 0, confluence: 0, other: 0, unknown: 0 } satisfies Record<TimelineSourceSystem, number>;
+  for (const event of events) sourceSystemCounts[event.sourceSystem] += 1;
+  const sourceDetailCounts = countBy(events.map((event) => event.sourceDetail));
+  const unknownSamples = events.filter((event) => event.sourceSystem === "unknown").slice(0, 20).map((event) => ({ eventId: event.eventId, title: event.eventTitle.slice(0, 300), activityApplication: event.activityApplication || null, issueKey: event.issueKey || null, eventType: event.eventType, reason: "no activityApplication and no issueKey" }));
 
-  return { timelineRunId: input.timelineRunId, summary: { timelineRunId: input.timelineRunId, builtAt: input.builtAt, selectedUser: input.selectedUser, dateRange: input.dateRange, projectScope: input.projectScope, source: "activity_stream", sourceRunId: input.sourceRunId, totalEvents: events.length, issueKeyCount: allIssueKeys.length, primaryIssueKeyCount: primaryIssueKeys.length, allIssueKeyCount: allIssueKeys.length, eventTypeCounts: countBy(events.map((event) => event.eventType)), sourceCounts: countBy(events.map((event) => event.source)), confidenceCounts: countBy(events.map((event) => event.sourceConfidence)), baselineGuard: { classification: input.baseline.classification, retryTriggered: input.baseline.retryTriggered, retryRecovered: input.baseline.retryRecovered }, integrity, eventCountReconciliation, dedupDiagnostics, confidenceDiagnostics }, events };
+  return { timelineRunId: input.timelineRunId, summary: { timelineRunId: input.timelineRunId, builtAt: input.builtAt, selectedUser: input.selectedUser, dateRange: input.dateRange, projectScope: input.projectScope, source: "activity_stream", sourceRunId: input.sourceRunId, totalEvents: events.length, issueKeyCount: allIssueKeys.length, primaryIssueKeyCount: primaryIssueKeys.length, allIssueKeyCount: allIssueKeys.length, eventTypeCounts: countBy(events.map((event) => event.eventType)), sourceCounts: countBy(events.map((event) => event.source)), sourceSystemCounts, sourceDetailCounts, sourceSystemDiagnostics: { classificationRulesVersion: "v0.2.21", unknownSamples }, confidenceCounts: countBy(events.map((event) => event.sourceConfidence)), baselineGuard: { classification: input.baseline.classification, retryTriggered: input.baseline.retryTriggered, retryRecovered: input.baseline.retryRecovered }, integrity, eventCountReconciliation, dedupDiagnostics, confidenceDiagnostics }, events };
 }
 
 function csvCell(value: unknown) {
@@ -267,9 +304,9 @@ function csvCell(value: unknown) {
 }
 
 export function timelineCsv(events: UserActivityTimelineEvent[]) {
-  const columns = ["eventTime", "userKey", "displayName", "issueKey", "allIssueKeys", "eventType", "eventTitle", "source", "sourceRunId", "sourceConfidence", "matchedRule", "entryFingerprint", "baselineClassification", "retryTriggered", "retryRecovered"];
-  const rows = events.map((event) => [event.eventTime, event.userKey, event.displayName, event.issueKey, event.allIssueKeys.join(";"), event.eventType, event.eventTitle, event.source, event.sourceRunId, event.sourceConfidence, event.evidence.activityTypeClassifier.matchedRule, event.rawRef.entryFingerprint, event.evidence.baselineGuard.classification, event.evidence.baselineGuard.retryTriggered, event.evidence.baselineGuard.retryRecovered].map(csvCell).join(","));
+  const columns = ["eventTime", "userKey", "displayName", "issueKey", "allIssueKeys", "eventType", "eventTitle", "source", "sourceSystem", "sourceDetail", "sourceRunId", "sourceConfidence", "matchedRule", "entryFingerprint", "baselineClassification", "retryTriggered", "retryRecovered"];
+  const rows = events.map((event) => [event.eventTime, event.userKey, event.displayName, event.issueKey, event.allIssueKeys.join(";"), event.eventType, event.eventTitle, event.source, event.sourceSystem, event.sourceDetail, event.sourceRunId, event.sourceConfidence, event.evidence.activityTypeClassifier.matchedRule, event.rawRef.entryFingerprint, event.evidence.baselineGuard.classification, event.evidence.baselineGuard.retryTriggered, event.evidence.baselineGuard.retryRecovered].map(csvCell).join(","));
   return `\uFEFF${columns.join(",")}\r\n${rows.join("\r\n")}\r\n`;
 }
 
-export const timelineEventSchema = { schemaVersion: 2, required: ["eventId", "userKey", "displayName", "eventTime", "eventType", "source", "sourceRunId", "sourceConfidence", "evidence", "rawRef"], eventTypes: Array.from(eventTypes), confidenceValues: ["high", "medium", "low"] };
+export const timelineEventSchema = { schemaVersion: 3, required: ["eventId", "userKey", "displayName", "eventTime", "eventType", "source", "sourceSystem", "sourceDetail", "sourceRunId", "sourceConfidence", "evidence", "rawRef"], eventTypes: Array.from(eventTypes), sourceSystemValues: ["jira", "confluence", "other", "unknown"], sourceDetailValues: ["jira_activity_stream", "confluence_activity_stream", "jira_full_fetch", "jira_changelog", "related_issue_expansion", "other_activity_stream", "unknown"], confidenceValues: ["high", "medium", "low"] };

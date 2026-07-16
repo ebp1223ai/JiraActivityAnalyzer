@@ -20,6 +20,8 @@ export type TimelineIssueGroup = {
   timelineEventIds: string[];
   selected: boolean;
   issueKeyRole: "primary" | "secondary" | "primary_and_secondary";
+  sourceSystemSummary: Record<TimelineSourceSystem, number>;
+  sourceDetails: Record<string, number>;
 };
 
 export type FetchQueueSource = "activity_timeline" | "advanced_candidate_search" | "recommended_related_issue" | "optional_related_issue" | "manual";
@@ -69,6 +71,8 @@ type TimelineEventLike = {
   eventTime: string;
   eventType: string;
   sourceConfidence: "high" | "medium" | "low";
+  sourceSystem?: TimelineSourceSystem;
+  sourceDetail?: TimelineSourceDetail;
 };
 
 const issueKeyPattern = /\b[A-Z][A-Z0-9_]*-\d+\b/g;
@@ -124,6 +128,8 @@ export function buildTimelineIssueGroups(events: TimelineEventLike[]): TimelineI
         timelineEventIds: [],
         selected: false,
         issueKeyRole: "secondary" as const,
+        sourceSystemSummary: { jira: 0, confluence: 0, other: 0, unknown: 0 },
+        sourceDetails: {},
         primary: false,
         secondary: false
       };
@@ -133,6 +139,10 @@ export function buildTimelineIssueGroups(events: TimelineEventLike[]): TimelineI
       current.firstSeen = !current.firstSeen || event.eventTime < current.firstSeen ? event.eventTime : current.firstSeen;
       current.lastSeen = !current.lastSeen || event.eventTime > current.lastSeen ? event.eventTime : current.lastSeen;
       current.confidenceSummary[event.sourceConfidence] += 1;
+      const sourceSystem = event.sourceSystem ?? "unknown";
+      const sourceDetail = event.sourceDetail ?? "unknown";
+      current.sourceSystemSummary[sourceSystem] += 1;
+      current.sourceDetails[sourceDetail] = (current.sourceDetails[sourceDetail] ?? 0) + 1;
       current.primary ||= issueKey === primary;
       current.secondary ||= issueKey !== primary;
       groups.set(issueKey, current);
@@ -242,3 +252,4 @@ export function relatedIssueScopeSummary(items: RelatedCandidateIssue[], addedRe
     addedOptionalRelatedIssuesToFetchQueueCount: addedOptionalToFetchQueueCount
   };
 }
+import type { TimelineSourceDetail, TimelineSourceSystem } from "./userActivityTimeline.js";

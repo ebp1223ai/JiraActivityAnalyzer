@@ -4,7 +4,7 @@ Electron desktop application for read-only Jira activity inspection and analysis
 
 ## User Analysis Workflow
 
-Version 0.2.20 presents User Analysis as a guarded six-step workflow:
+Version 0.2.21 presents User Analysis as a guarded six-step workflow:
 
 1. Setup Analysis
 2. Build Timeline
@@ -17,11 +17,16 @@ Setup Analysis fixes the selected user, inclusive date range, optional project s
 
 Timeline Issue Groups are built from both `issueKey` and `allIssueKeys`. Primary and secondary issue keys remain distinguishable, so a key mentioned only as the secondary side of a link can still be selected. Selected groups enter the queue with `activity_timeline` source metadata, event IDs, activity types, confidence counts, selected user, date range, and issue-key role. Existing queue entries are deduplicated by issue key and merge their source and evidence metadata.
 
+Timeline events now classify `sourceSystem` as `jira`, `confluence`, `other`, or `unknown`, with a corresponding `sourceDetail`. Issue groups aggregate those values in `sourceSystemSummary` and `sourceDetails`. The Timeline JSON, UTF-8 BOM CSV, build summary, and Debug Bundle retain the classification and diagnostics, including samples that could not be classified.
+
+Step 3 filters Activity Type, Confidence, Issue Key Role, Source System, and Project Key with checkbox multi-select controls. Values within one category use OR semantics; categories are combined with AND. Source System defaults to Jira only, while Confluence, Other, and Unknown remain available. Each filter can be cleared independently, all filters can be cleared together, and all visible issue groups can be selected. Workflow navigation names its target step, and step cards distinguish current, completed, ready, blocked, warning, failed, and advanced states with a status badge and visible reason.
+
 After Full Fetch, Related Issues are derived from sanitized read-only metadata. Parent and epic hierarchy relationships are grouped as Recommended Scope and can be added together. Links, mentions, remote links, and other weaker evidence are Optional Scope and require explicit per-issue selection; there is no add-all optional action. Queue metadata distinguishes `recommended_related_issue` from `optional_related_issue`.
 
 Workflow exports are auto-saved under `<runtime>/exports/user-analysis/workflow/`:
 
 - `timeline-issue-groups.json`
+- `timeline-source-system-diagnostics.json` (Debug Bundle)
 - `timeline-selected-issues.json`
 - `fetch-queue.json`
 - `related-candidate-issues.json`
