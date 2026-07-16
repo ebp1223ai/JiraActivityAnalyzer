@@ -1477,6 +1477,10 @@ export function AnalysisPage() {
       ) : null}
 
       {userAnalysis.activeTab === "candidates" ? <>
+      <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-950">
+        <span>Candidate Discovery does not build Activity Timeline.<br />候選搜尋不會建立活動時間線。</span>
+        <button className="btn bg-white" type="button" onClick={() => showStep("timeline")}><Clock3 size={15} />Next: Build Activity Timeline / 下一步：建立活動時間線</button>
+      </div>
       <SectionCard title="Data Source Mode" subtitle="資料來源模式" className="mb-4">
         <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-5">
           {[
@@ -1897,6 +1901,19 @@ export function AnalysisPage() {
             <MiniStat label="Baseline" value={userAnalysis.timelineSummary?.baselineGuard.classification ?? "Not built"} />
             <MiniStat label="Source" value="Activity Stream" />
           </div>
+          {userAnalysis.timelineSummary && userAnalysis.timelineSummary.integrity.sourceParsedActivityCount !== userAnalysis.timelineSummary.integrity.timelineEventCount ? <div data-testid="timeline-integrity-count-warning" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold leading-relaxed text-amber-950">Timeline count differs from source parsed activities. See integrity diagnostics.<br />時間線筆數與來源 parsed activities 不一致，請查看完整性診斷。</div> : null}
+          {userAnalysis.timelineSummary && userAnalysis.timelineSummary.integrity.missingIssueKeysFromTimeline.length > 0 ? <div data-testid="timeline-integrity-missing-warning" className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-bold leading-relaxed text-red-900">Some source issue keys are missing from timeline.<br />部分來源 issue keys 未進入 timeline。<div className="mt-1 break-words text-xs">{userAnalysis.timelineSummary.integrity.missingIssueKeysFromTimeline.join(", ")}</div></div> : null}
+          {userAnalysis.timelineSummary && userAnalysis.timelineSummary.integrity.missingIssueKeysFromTimeline.length === 0 && userAnalysis.timelineSummary.integrity.missingIssueKeysFromPrimaryTimeline.length > 0 ? <div data-testid="timeline-integrity-secondary-info" className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-950">Some issue keys are secondary issue keys and appear only in allIssueKeys.<br />部分 issue keys 是次要 issue key，僅出現在 allIssueKeys。<div className="mt-1 break-words text-xs">{userAnalysis.timelineSummary.integrity.missingIssueKeysFromPrimaryTimeline.join(", ")}</div></div> : null}
+          {userAnalysis.timelineSummary ? <div data-testid="timeline-integrity-diagnostics" className="mt-4 grid min-w-0 grid-cols-2 gap-3 rounded-lg border border-line bg-slate-50 p-3 md:grid-cols-4">
+            <MiniStat label="Source Parsed" value={userAnalysis.timelineSummary.integrity.sourceParsedActivityCount} />
+            <MiniStat label="Timeline Events" value={userAnalysis.timelineSummary.integrity.timelineEventCount} />
+            <MiniStat label="Deduplicated" value={userAnalysis.timelineSummary.integrity.deduplicatedEntryCount} />
+            <MiniStat label="Skipped" value={userAnalysis.timelineSummary.integrity.skippedEntryCount} />
+            <MiniStat label="Source Keys" value={userAnalysis.timelineSummary.integrity.sourceParsedIssueKeyCount} />
+            <MiniStat label="Primary Keys" value={userAnalysis.timelineSummary.integrity.timelinePrimaryIssueKeyCount} />
+            <MiniStat label="All Keys" value={userAnalysis.timelineSummary.integrity.timelineAllIssueKeyCount} />
+            <MiniStat label="Unexplained" value={userAnalysis.timelineSummary.eventCountReconciliation.unexplainedDifferenceCount} />
+          </div> : null}
           <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold leading-relaxed text-emerald-950">
             Read-only: no Jira write, no database write, and no attachment body download.<br />唯讀：不寫入 Jira、不寫入資料庫、不下載附件本體。
           </div>

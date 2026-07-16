@@ -319,7 +319,7 @@ export type UserActivityTimelineEvent = {
   sourceRunId: string;
   sourceConfidence: "high" | "medium" | "low";
   projectKey: string;
-  evidence: { activityTypeClassifier: { matchedRule: string; finalType: string }; baselineGuard: { classification: string; retryTriggered: boolean; retryRecovered: boolean; baselineBestParsedActivityCount: number; currentParsedActivityCount: number } };
+  evidence: { activityTypeClassifier: { matchedRule: string; finalType: string }; baselineGuard: { classification: string; retryTriggered: boolean; retryRecovered: boolean; baselineBestParsedActivityCount: number; currentParsedActivityCount: number; entryFingerprintMatched: boolean } };
   rawRef: { entryFingerprint: string; variant: string; activityStreamQueryUser: string };
   rawTitle: string;
   sanitizedSummary: string;
@@ -335,10 +335,22 @@ export type UserActivityTimelineSummary = {
   sourceRunId: string;
   totalEvents: number;
   issueKeyCount: number;
+  primaryIssueKeyCount: number;
+  allIssueKeyCount: number;
   eventTypeCounts: Record<string, number>;
   sourceCounts: Record<string, number>;
   confidenceCounts: Record<string, number>;
   baselineGuard: { classification: string; retryTriggered: boolean; retryRecovered: boolean };
+  integrity: {
+    sourceParsedActivityCount: number; timelineEventCount: number; convertedEventCount: number; skippedEntryCount: number; deduplicatedEntryCount: number;
+    sourceParsedIssueKeyCount: number; timelinePrimaryIssueKeyCount: number; timelineAllIssueKeyCount: number;
+    sourceIssueKeys: string[]; timelinePrimaryIssueKeys: string[]; timelineAllIssueKeys: string[];
+    missingIssueKeysFromTimeline: string[]; missingIssueKeysFromPrimaryTimeline: string[]; eventIdCollisionCount: number;
+    skipReasons: Array<{ reason: string; count: number }>; dedupReasons: Array<{ reason: string; count: number }>; warnings: string[];
+  };
+  eventCountReconciliation: { sourceParsedActivityCount: number; timelineEventCount: number; difference: number; deduplicatedEntryCount: number; skippedEntryCount: number; unexplainedDifferenceCount: number; status: "reconciled" | "unreconciled" };
+  dedupDiagnostics: { enabled: boolean; deduplicatedEntryCount: number; dedupGroups: Array<{ eventId: string; keptEntryIndex: number; deduplicatedEntryIndexes: number[]; reason: string; issueKeys: string[]; eventTime: string }> };
+  confidenceDiagnostics: { runLevelClassification: string; eventLevelBaselineMatchedCount: number; eventLevelBaselineMissingCount: number; forcedLowDueToRunIncompleteCount: number };
 };
 
 export type UserActivityStreamRunHistory = {
