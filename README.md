@@ -2,6 +2,32 @@
 
 Electron desktop application for read-only Jira activity inspection and analysis.
 
+## User Analysis Workflow
+
+Version 0.2.19 connects the verified Activity Timeline to the Full Fetch queue. The primary workflow is now:
+
+1. Build Timeline
+2. Select Issues
+3. Fetch Queue
+4. Full Fetch Report
+5. Related Issues
+6. Exports
+7. Advanced Candidate Search
+
+Timeline Issue Groups are built from both `issueKey` and `allIssueKeys`. Primary and secondary issue keys remain distinguishable, so a key mentioned only as the secondary side of a link can still be selected. Selected groups enter the queue with `activity_timeline` source metadata, event IDs, activity types, confidence counts, selected user, date range, and issue-key role. Existing queue entries are deduplicated by issue key and merge their source and evidence metadata.
+
+After Full Fetch, Related Issues are derived from sanitized read-only metadata including parent/epic fields, issue links, remote links, and relevant changelog items. Selected related issues can be added back to the same queue with `related_issue_expansion` metadata. Advanced Candidate Search remains available as supplementary assignee/reporter/creator/JQL evidence; it is not direct user-activity evidence.
+
+Workflow exports are auto-saved under `<runtime>/exports/user-analysis/workflow/`:
+
+- `timeline-issue-groups.json`
+- `timeline-selected-issues.json`
+- `fetch-queue.json`
+- `related-candidate-issues.json`
+- `related-issue-expansion-summary.json`
+
+Debug Bundles include the same files plus `user-analysis-steps.json`, workflow details in `debug-bundle-summary.json`, and workflow event entries in `session-timeline.json`. This workflow remains read-only: it does not write Jira or a database and does not download attachment bodies.
+
 This is an Electron desktop app shell with a React renderer. The first version is a static UI prototype with one read-only Jira Probe diagnostics page. Import, database writes, token storage, and backup restore behavior are not implemented.
 
 ## Scripts

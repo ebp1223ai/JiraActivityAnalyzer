@@ -71,6 +71,7 @@ declare global {
         fullFetch: (payload: { connection: JiraConnection; fetchQueue: unknown[]; fetchLimit: number; batchSize: number | "all"; rawDataMode: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory" }) => Promise<Record<string, unknown>>;
         pauseFullFetch: () => Promise<{ ok: boolean; runId?: string; message?: string }>;
         logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO"; message: string }) => Promise<{ ok: boolean; appLogPath?: string; actionLogPath?: string; actionLogAvailable?: boolean; fullFetchLogPath?: string; error?: string }>;
+        updateWorkflowSnapshot: (payload: Record<string, unknown>) => Promise<{ ok: boolean; outputDir: string; files: Record<string, string> }>;
         actionLogDiagnostics: () => Promise<{ actionLogPath: string; actionLogAvailable: boolean; actionLogNote: string }>;
         latestFullFetchCheckpoint: () => Promise<{ found: boolean; unfinished?: boolean; checkpointPath?: string; checkpoint?: Record<string, unknown>; error?: string }>;
         openDiagnosticsFolder: (payload?: { filePath?: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;

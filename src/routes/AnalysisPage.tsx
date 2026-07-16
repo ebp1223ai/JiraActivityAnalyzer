@@ -10,6 +10,7 @@ import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useConnectionContext } from "../state/ConnectionContext";
 import { useSessionState, type UserActivityTimelineEvent, type UserActivityTimelineSummary, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type UserAnalysisFullFetchReportRow, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
+import { buildTimelineIssueGroups, mergeQueueMetadata, type FetchQueueMetadata, type FetchQueueSource } from "../../electron/userAnalysisWorkflow";
 
 const fetchLimitOptions = [10, 20, 40, 80, 160];
 const pageSizeOptions = [10, 20, 40, 80, 160];
@@ -182,6 +183,17 @@ export function AnalysisPage() {
       && (!filter.onlyWithJiraKey || Boolean(event.issueKey))
       && (!filter.onlyLowConfidence || event.sourceConfidence === "low");
   });
+  const filteredTimelineIssueGroups = userAnalysis.timelineIssueGroups.filter((group) => {
+    const filter = userAnalysis.timelineIssueFilters;
+    return (filter.activityType === "all" || group.activityTypes.includes(filter.activityType))
+      && (filter.confidence === "all" || group.confidenceSummary[filter.confidence as "high" | "medium" | "low"] > 0)
+      && (filter.issueKeyRole === "all" || group.issueKeyRole === filter.issueKeyRole)
+      && (!filter.query.trim() || group.issueKey.toLowerCase().includes(filter.query.trim().toLowerCase()));
+  });
+  const filteredRelatedIssues = userAnalysis.relatedCandidateIssues.filter((item) =>
+    (userAnalysis.relatedIssueFilters.relationType === "all" || item.relationType === userAnalysis.relatedIssueFilters.relationType)
+    && (userAnalysis.relatedIssueFilters.confidence === "all" || item.confidence === userAnalysis.relatedIssueFilters.confidence)
+  );
   const fetchReportPageCount = Math.max(1, Math.ceil(filteredFetchReport.length / userAnalysis.fetchReportPageSize));
   const fetchReportPage = Math.min(userAnalysis.fetchReportPage, fetchReportPageCount);
   const pagedFetchReport = filteredFetchReport.slice((fetchReportPage - 1) * userAnalysis.fetchReportPageSize, fetchReportPage * userAnalysis.fetchReportPageSize);
@@ -189,7 +201,7 @@ export function AnalysisPage() {
   const dateRangeDays = userAnalysis.startDate && userAnalysis.endDate
     ? Math.round((Date.parse(userAnalysis.endDate) - Date.parse(userAnalysis.startDate)) / 86400000) + 1
     : 0;
-  const dateRangeWarning = dateRangeDays > 90 ? "Date range is over 90 days. Candidate Discovery may be slow; narrow the range if possible." : "";
+  const dateRangeWarning = dateRangeDays > 90 ? "Date range is over 90 days. Advanced Candidate Search may be slow; narrow the range if possible." : "";
   const fullFetchCompletedCount = userAnalysis.fullFetchProgress.success + userAnalysis.fullFetchProgress.failed + userAnalysis.fullFetchProgress.skipped;
   const fullFetchProgressPercent = userAnalysis.fullFetchProgress.total > 0
     ? Math.min(100, Math.round((fullFetchCompletedCount / userAnalysis.fullFetchProgress.total) * 100))
@@ -310,8 +322,10 @@ export function AnalysisPage() {
     return () => { active = false; };
   }, [setUserAnalysis]);
 
-  function showStep(step: "candidate" | "queue" | "fetchReport" | "timeline" | "exports") {
+  function showStep(step: "timeline" | "selectIssues" | "queue" | "fetchReport" | "relatedIssues" | "exports" | "candidate") {
     const labels = {
+      selectIssues: "Select Issues / 選取議題",
+      relatedIssues: "Related Issues / 關聯議題",
       candidate: "Candidate Search / 候選搜尋",
       queue: "Fetch Queue / 抓取佇列",
       fetchReport: "Full Fetch Report / 完整抓取報告",
@@ -341,11 +355,14 @@ export function AnalysisPage() {
       const events = Array.isArray(response.events) ? response.events as UserActivityTimelineEvent[] : [];
       const summary = response.summary as UserActivityTimelineSummary;
       const exportedFiles = response.exportedFiles as { jsonPath: string; csvPath: string; summaryPath: string };
-      patchState({ timelineStatus: "completed", timelineEvents: events, timelineSummary: summary, timelineExportPaths: exportedFiles, expandedTimelineEvents: [], notice: `Activity Timeline built: ${events.length} events / 活動時間線已建立：${events.length} 筆`, errors: [] });
+      const groups = buildTimelineIssueGroups(events);
+      const steps = { ...userAnalysis.workflowSteps, activityTimeline: "completed" as const, timelineIssueSelection: "not_run" as const };
+      patchState({ timelineStatus: "completed", timelineEvents: events, timelineSummary: summary, timelineIssueGroups: groups, selectedTimelineIssueKeys: [], workflowSteps: steps, timelineExportPaths: exportedFiles, expandedTimelineEvents: [], notice: `Activity Timeline built: ${events.length} events; ${groups.length} issue groups.`, errors: [] });
+      void persistWorkflowSnapshot({ steps, timelineIssueGroups: groups });
       appendDebugLog("analysis", Array.isArray(response.logs) ? response.logs.map(String) : [`[INFO] Activity Timeline built: ${events.length} events`]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Activity Timeline build failed.";
-      patchState({ timelineStatus: "failed", errors: [message], notice: "" });
+      patchState({ timelineStatus: "failed", workflowSteps: { ...userAnalysis.workflowSteps, activityTimeline: "failed" }, errors: [message], notice: "" });
       appendDebugLog("analysis", [`[ERROR] Activity Timeline build failed: ${message}`, "[INFO] No database write performed", "[INFO] No Jira write performed"]);
     }
   }
@@ -354,6 +371,66 @@ export function AnalysisPage() {
     const expanded = new Set(userAnalysis.expandedTimelineEvents);
     if (expanded.has(eventId)) expanded.delete(eventId); else expanded.add(eventId);
     patchState({ expandedTimelineEvents: Array.from(expanded) });
+  }
+
+  function persistWorkflowSnapshot(overrides: Record<string, unknown> = {}) {
+    return window.desktopApp?.userAnalysis?.updateWorkflowSnapshot?.({
+      steps: userAnalysis.workflowSteps,
+      timelineIssueGroups: userAnalysis.timelineIssueGroups,
+      timelineSelectedIssues: userAnalysis.selectedTimelineIssueKeys,
+      fetchQueue,
+      relatedCandidateIssues: userAnalysis.relatedCandidateIssues,
+      addedTimelineIssuesToFetchQueueCount: userAnalysis.addedTimelineIssuesToFetchQueueCount,
+      addedRelatedIssuesToFetchQueueCount: userAnalysis.addedRelatedIssuesToFetchQueueCount,
+      ...overrides
+    });
+  }
+
+  function queueCandidate(issueKey: string, matchedReason: string, source: FetchQueueSource, metadata: Partial<FetchQueueMetadata>): UserAnalysisCandidateIssue {
+    return { id: issueKey, key: issueKey, summary: "Queued from User Analysis workflow", status: "Pending", assignee: "-", reporter: "-", creator: "-", updated: "", created: "", issueType: "Unknown", priority: "-", project: issueKey.split("-")[0] ?? "", matchedReason, queueMetadata: mergeQueueMetadata(undefined, { ...metadata, source, matchedReason }) };
+  }
+
+  function toggleTimelineIssue(issueKey: string, checked: boolean) {
+    const selected = new Set(userAnalysis.selectedTimelineIssueKeys);
+    if (checked) selected.add(issueKey); else selected.delete(issueKey);
+    patchState({ selectedTimelineIssueKeys: Array.from(selected), workflowSteps: { ...userAnalysis.workflowSteps, timelineIssueSelection: "completed" } });
+  }
+
+  function selectTimelineIssues(mode: "filtered" | "high" | "clear") {
+    const keys = mode === "clear" ? [] : filteredTimelineIssueGroups.filter((group) => mode !== "high" || group.confidenceSummary.high > 0).map((group) => group.issueKey);
+    patchState({ selectedTimelineIssueKeys: keys, workflowSteps: { ...userAnalysis.workflowSteps, timelineIssueSelection: "completed" } });
+  }
+
+  function addTimelineIssuesToQueue() {
+    const groups = userAnalysis.timelineIssueGroups.filter((group) => userAnalysis.selectedTimelineIssueKeys.includes(group.issueKey));
+    const existing = new Map(userAnalysis.candidateIssues.map((issue) => [issue.key, issue]));
+    for (const group of groups) {
+      const current = existing.get(group.issueKey);
+      const metadata = mergeQueueMetadata(current?.queueMetadata, { source: "activity_timeline", matchedReason: "selected_from_activity_timeline", selectedUser: selectedUsers[0] ?? "", dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, timelineEventIds: group.timelineEventIds, activityTypes: group.activityTypes, confidenceSummary: group.confidenceSummary, issueKeyRole: group.issueKeyRole, addedAt: new Date().toISOString() });
+      existing.set(group.issueKey, current ? { ...current, matchedReason: metadata.matchedReasons.join(", "), queueMetadata: metadata } : queueCandidate(group.issueKey, "selected_from_activity_timeline", "activity_timeline", metadata));
+    }
+    const candidateIssues = Array.from(existing.values());
+    const selectedForFetch = Array.from(new Set([...userAnalysis.selectedForFetch, ...groups.map((group) => group.issueKey)]));
+    const count = userAnalysis.addedTimelineIssuesToFetchQueueCount + groups.length;
+    const steps = { ...userAnalysis.workflowSteps, timelineIssueSelection: "completed" as const, fetchQueue: selectedForFetch.length ? "ready" as const : "empty" as const };
+    patchState({ candidateIssues, selectedForFetch, addedTimelineIssuesToFetchQueueCount: count, workflowSteps: steps, activeTab: "queue", notice: `${groups.length} timeline issue(s) added to Fetch Queue.` });
+    void persistWorkflowSnapshot({ steps, timelineIssueGroups: userAnalysis.timelineIssueGroups, timelineSelectedIssues: userAnalysis.selectedTimelineIssueKeys, fetchQueue: candidateIssues.filter((issue) => selectedForFetch.includes(issue.key)), addedTimelineIssuesToFetchQueueCount: count, sessionEvent: "timeline_issues_added_to_fetch_queue" });
+  }
+
+  function addRelatedIssuesToQueue() {
+    const related = userAnalysis.relatedCandidateIssues.filter((item) => userAnalysis.selectedRelatedIssueKeys.includes(item.issueKey));
+    const existing = new Map(userAnalysis.candidateIssues.map((issue) => [issue.key, issue]));
+    for (const item of related) {
+      const current = existing.get(item.issueKey);
+      const metadata = mergeQueueMetadata(current?.queueMetadata, { source: "related_issue_expansion", matchedReason: item.relationType, selectedUser: selectedUsers[0] ?? "", dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, addedAt: new Date().toISOString() });
+      existing.set(item.issueKey, current ? { ...current, matchedReason: metadata.matchedReasons.join(", "), queueMetadata: metadata } : queueCandidate(item.issueKey, item.relationType, "related_issue_expansion", metadata));
+    }
+    const candidateIssues = Array.from(existing.values());
+    const selectedForFetch = Array.from(new Set([...userAnalysis.selectedForFetch, ...related.map((item) => item.issueKey)]));
+    const count = userAnalysis.addedRelatedIssuesToFetchQueueCount + related.length;
+    const steps = { ...userAnalysis.workflowSteps, fetchQueue: "ready" as const };
+    patchState({ candidateIssues, selectedForFetch, addedRelatedIssuesToFetchQueueCount: count, workflowSteps: steps, activeTab: "queue", notice: `${related.length} related issue(s) added to Fetch Queue.` });
+    void persistWorkflowSnapshot({ steps, fetchQueue: candidateIssues.filter((issue) => selectedForFetch.includes(issue.key)), addedRelatedIssuesToFetchQueueCount: count });
   }
 
   function toggleReportDetail(issueKey: string) {
@@ -414,7 +491,7 @@ export function AnalysisPage() {
   }
 
   async function handleRunDiscovery() {
-    logAnalysisAction("USER_ACTION", "Button clicked: Run Candidate Discovery / 執行候選搜尋");
+    logAnalysisAction("USER_ACTION", "Button clicked: Run Advanced Candidate Search / 執行進階候選搜尋");
     const error = validate();
     if (error) {
       patchState({ errors: [error], notice: "" });
@@ -469,7 +546,7 @@ export function AnalysisPage() {
       if (!response) throw new Error("Electron User Analysis API is not available.");
       appendDebugLog("analysis", Array.isArray(response.logs) ? response.logs as string[] : []);
       if (!response.ok) {
-        const message = String(response.message ?? "Candidate Discovery failed.");
+        const message = String(response.message ?? "Advanced Candidate Search failed.");
         patchState({
           loading: false,
           errors: [message],
@@ -481,12 +558,26 @@ export function AnalysisPage() {
         });
         return;
       }
-      const candidates = (Array.isArray(response.candidates) ? response.candidates : []) as UserAnalysisCandidateIssue[];
+      const discovered = (Array.isArray(response.candidates) ? response.candidates : []) as UserAnalysisCandidateIssue[];
+      const existingCandidates = new Map(userAnalysis.candidateIssues.map((issue) => [issue.key, issue]));
+      const candidates: UserAnalysisCandidateIssue[] = discovered.map((issue) => ({
+        ...issue,
+        queueMetadata: mergeQueueMetadata(existingCandidates.get(issue.key)?.queueMetadata, {
+          source: "advanced_candidate_search",
+          matchedReason: issue.matchedReason || "assignee_reporter_creator_jql_match",
+          selectedUser: selectedUsers.join(", "),
+          dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate },
+          addedAt: new Date().toISOString()
+        })
+      }));
+      for (const issue of userAnalysis.candidateIssues) if (!candidates.some((candidate) => candidate.key === issue.key)) candidates.push(issue);
       const warnings = [...(dateRangeWarning ? [dateRangeWarning] : []), updatedByWarning, ...(Array.isArray(response.warnings) ? response.warnings as string[] : [])];
+      const selectedForFetch = Array.from(new Set([...userAnalysis.selectedForFetch, ...discovered.slice(0, userAnalysis.fetchLimit).map((issue) => issue.key)]));
       patchState({
         loading: false,
         candidateIssues: candidates,
-        selectedForFetch: candidates.slice(0, userAnalysis.fetchLimit).map((issue) => issue.key),
+        selectedForFetch,
+        workflowSteps: { ...userAnalysis.workflowSteps, advancedCandidateSearch: "completed", fetchQueue: selectedForFetch.length ? "ready" : userAnalysis.workflowSteps.fetchQueue },
         excludedIssues: [],
         activeTab: "candidates",
         page: 1,
@@ -496,11 +587,11 @@ export function AnalysisPage() {
         updatedByStatus: String(response.updatedByStatus ?? "disabled") as typeof userAnalysis.updatedByStatus,
         lastDiscoveryAt: new Date().toISOString(),
         rawSearchMetadata: response.metadata ?? null,
-        notice: `Candidate Discovery completed: ${candidates.length} issues.`
+        notice: `Advanced Candidate Search completed: ${candidates.length} issues.`
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Candidate Discovery failed.";
-      patchState({ loading: false, errors: [message], warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning], notice: "" });
+      const message = error instanceof Error ? error.message : "Advanced Candidate Search failed.";
+      patchState({ loading: false, workflowSteps: { ...userAnalysis.workflowSteps, advancedCandidateSearch: "failed" }, errors: [message], warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning], notice: "" });
       appendDebugLog("analysis", [`[ERROR] ${message}`, "[INFO] No database write performed"]);
     }
   }
@@ -734,6 +825,13 @@ export function AnalysisPage() {
       selectedForFetch: [],
       excludedIssues: [],
       activeTab: "candidates",
+      workflowSteps: { activityTimeline: "not_run", timelineIssueSelection: "not_run", fetchQueue: "empty", fullFetch: "not_run", relatedIssues: "not_run", exports: "not_run", advancedCandidateSearch: "not_run" },
+      timelineIssueGroups: [],
+      selectedTimelineIssueKeys: [],
+      relatedCandidateIssues: [],
+      selectedRelatedIssueKeys: [],
+      addedTimelineIssuesToFetchQueueCount: 0,
+      addedRelatedIssuesToFetchQueueCount: 0,
       page: 1,
       search: "",
       warnings: [],
@@ -994,6 +1092,13 @@ export function AnalysisPage() {
       const diagnostics = (response.diagnostics ?? run.diagnostics ?? {}) as Record<string, unknown>;
       const finalMemory = (diagnostics.finalMemory ?? {}) as UserAnalysisFullFetchMemory;
       const status = String(run.status ?? (response.ok ? "completed" : "failed")) as typeof userAnalysis.fullFetchStatus;
+      const relatedCandidateIssues = (Array.isArray(response.relatedCandidateIssues) ? response.relatedCandidateIssues : []) as typeof userAnalysis.relatedCandidateIssues;
+      const workflowSteps = {
+        ...userAnalysis.workflowSteps,
+        fetchQueue: "completed" as const,
+        fullFetch: status === "failed" ? "failed" as const : "completed" as const,
+        relatedIssues: relatedCandidateIssues.length > 0 ? "completed" as const : "empty" as const
+      };
       patchState({
         fullFetchRunId: String(run.runId ?? ""),
         fullFetchStartedAt: String(run.startedAt ?? ""),
@@ -1002,6 +1107,9 @@ export function AnalysisPage() {
         fullFetchSummary: response.summary as typeof userAnalysis.fullFetchSummary,
         fullFetchReport: (Array.isArray(response.fetchReport) ? response.fetchReport : []) as UserAnalysisFullFetchReportRow[],
         fullFetchResultsByIssue: Array.isArray(response.issueResults) ? response.issueResults : [],
+        relatedCandidateIssues,
+        selectedRelatedIssueKeys: [],
+        workflowSteps,
         fullFetchRawDataByIssueSanitized: response.rawData ?? null,
         fullFetchMemory: finalMemory.rssMB === undefined ? userAnalysis.fullFetchMemory : finalMemory,
         autoLogPath: String(diagnostics.autoLogPath ?? ""),
@@ -1013,10 +1121,12 @@ export function AnalysisPage() {
         warnings: [...userAnalysis.warnings, ...(Array.isArray(response.warnings) ? response.warnings as string[] : [])],
         notice: `Full Fetch ${status}: ${(response.summary as Record<string, unknown> | undefined)?.success ?? 0} success, ${(response.summary as Record<string, unknown> | undefined)?.failed ?? 0} failed.`
       });
+      void persistWorkflowSnapshot({ steps: workflowSteps, relatedCandidateIssues, sessionEvent: "related_issues_expanded" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Full Fetch failed.";
       patchState({
         fullFetchStatus: "failed",
+        workflowSteps: { ...userAnalysis.workflowSteps, fullFetch: "failed" },
         fullFetchFinishedAt: new Date().toISOString(),
         fullFetchErrors: [message],
         errors: [message],
@@ -1389,17 +1499,19 @@ export function AnalysisPage() {
       ) : null}
 
       <SectionCard className="mb-4">
-        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
           {[
-            ["candidate", "1", "Candidate Search", "候選搜尋"],
-            ["queue", "2", "Fetch Queue", "抓取佇列"],
-            ["fetchReport", "3", "Full Fetch Report", "完整抓取報告"],
-            ["timeline", "4", "Activity Timeline", "活動時間線"],
-            ["exports", "5", "Exports", "匯出"]
+            ["timeline", "1", "Build Timeline", "建立時間線"],
+            ["selectIssues", "2", "Select Issues", "選取議題"],
+            ["queue", "3", "Fetch Queue", "抓取佇列"],
+            ["fetchReport", "4", "Full Fetch Report", "完整抓取報告"],
+            ["relatedIssues", "5", "Related Issues", "關聯議題"],
+            ["exports", "6", "Exports", "匯出"],
+            ["candidate", "7", "Advanced Candidate Search", "進階候選搜尋"]
           ].map(([step, number, title, subtitle]) => {
             const tab = step === "candidate" ? "candidates" : step;
             const active = userAnalysis.activeTab === tab;
-            return <button key={step} data-testid={`workflow-${step}`} className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition ${active ? "border-blue-600 bg-blue-50 shadow-sm" : "border-line bg-slate-50 hover:border-blue-300 hover:bg-blue-50"}`} type="button" aria-current={active ? "step" : undefined} onClick={() => showStep(step as "candidate" | "queue" | "fetchReport" | "timeline" | "exports")}>
+            return <button key={step} data-testid={`workflow-${step}`} className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition ${active ? "border-blue-600 bg-blue-50 shadow-sm" : "border-line bg-slate-50 hover:border-blue-300 hover:bg-blue-50"}`} type="button" aria-current={active ? "step" : undefined} onClick={() => showStep(step as "timeline" | "selectIssues" | "queue" | "fetchReport" | "relatedIssues" | "exports" | "candidate")}>
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${active ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{number}</span>
               <span className="min-w-0 text-sm font-black leading-snug text-ink">{title}<br /><span className="text-xs font-semibold text-muted">{subtitle}</span></span>
             </button>;
@@ -1478,7 +1590,7 @@ export function AnalysisPage() {
 
       {userAnalysis.activeTab === "candidates" ? <>
       <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-950">
-        <span>Candidate Discovery does not build Activity Timeline.<br />候選搜尋不會建立活動時間線。</span>
+        <span>Advanced Candidate Search uses assignee, reporter, creator, and JQL matches as supplementary evidence. It is not direct activity evidence and does not build the Activity Timeline.<br />進階候選搜尋是補充證據，不代表使用者直接活動，也不會建立活動時間線。</span>
         <button className="btn bg-white" type="button" onClick={() => showStep("timeline")}><Clock3 size={15} />Next: Build Activity Timeline / 下一步：建立活動時間線</button>
       </div>
       <SectionCard title="Data Source Mode" subtitle="資料來源模式" className="mb-4">
@@ -1497,11 +1609,11 @@ export function AnalysisPage() {
           ))}
         </div>
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-semibold leading-relaxed text-slate-700">
-          Candidate Discovery will use read-only Jira JQL search. Local Database mode is disabled for User Analysis.
+          Advanced Candidate Search uses read-only Jira JQL search. These matches are supplementary evidence, not direct activity evidence. Local Database mode is disabled for User Analysis.
         </div>
       </SectionCard>
 
-      <SectionCard id="candidate-search" title="Candidate Search" subtitle="候選搜尋" className="mb-4">
+      <SectionCard id="candidate-search" title="Advanced Candidate Search" subtitle="進階候選搜尋" className="mb-4">
         {userAnalysis.showHelpTips ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Use this step to search for Jira issues related to selected users and date range.<br />本步驟用來依使用者與日期範圍搜尋可能相關的 Jira。<br /><br /><b>Result / 結果：</b><br />This only creates a candidate issue list. Full comments, attachments, and changelog are not fully fetched yet.<br />這裡只會產生候選 Jira 清單，尚不會完整抓取 comments、attachments、changelog。</div> : null}
         <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <div className="min-w-0">
@@ -1552,7 +1664,7 @@ export function AnalysisPage() {
         <div className="mt-4 flex flex-wrap gap-3">
           <button className="btn" type="button" onClick={handlePreviewJql}><Eye size={16} />Preview JQL / 預覽 JQL</button>
           <button className="btn btn-primary" type="button" onClick={handleRunDiscovery} disabled={userAnalysis.loading}>
-            <Play size={16} />{userAnalysis.loading ? "Running / 執行中..." : "Run Candidate Discovery / 執行候選搜尋"}
+            <Play size={16} />{userAnalysis.loading ? "Running / 執行中..." : "Run Advanced Candidate Search / 執行進階候選搜尋"}
           </button>
           <button className="btn" type="button" onClick={clearSession}><RotateCcw size={16} />Clear Candidate Session / 清除候選工作階段</button>
         </div>
@@ -1775,22 +1887,23 @@ export function AnalysisPage() {
               <button className="btn" type="button" disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"} onClick={clearFetchQueue}><Trash2 size={15} />Clear Fetch Queue / 清除抓取佇列</button>
             </div>
             <ResponsiveTableContainer>
-              <table className="table min-w-[1120px]">
+              <table className="table min-w-[1540px]">
                 <thead>
                   <tr>
-                    {["Issue Key / Jira 編號", "Summary / 摘要", "Jira Status / Jira 狀態", "Fetch Status / 抓取狀態", "Assignee / 負責人", "Updated / 更新時間", "Matched Reason / 符合原因", "Remove / 移除"].map((header) => <th key={header}>{header}</th>)}
+                    {["Issue Key / Jira 編號", "Source / 來源", "Matched Reason / 符合原因", "Timeline Events", "Activity Types", "Confidence", "Added At", "Fetch Status / 抓取狀態", "Remove / 移除"].map((header) => <th key={header}>{header}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {fetchQueue.map((issue) => (
                     <tr key={issue.key}>
                       <td className="font-black text-blue-700">{issue.key}</td>
-                      <td><span className="block max-w-[360px] truncate" title={issue.summary} data-allow-truncate="true">{issue.summary}</span></td>
-                      <td><StatusBadge>{issue.status}</StatusBadge></td>
-                      <td><StatusBadge>{fetchQueueRuntimeStatus(issue.key)}</StatusBadge></td>
-                      <td><span className="block max-w-[180px] truncate" title={issue.assignee} data-allow-truncate="true">{issue.assignee}</span></td>
-                      <td>{issue.updated}</td>
+                      <td>{issue.queueMetadata?.sources.join(", ") || "manual"}</td>
                       <td><span className="block max-w-[300px] truncate" title={issue.matchedReason} data-allow-truncate="true">{issue.matchedReason}</span></td>
+                      <td>{issue.queueMetadata?.timelineEventIds.length ?? 0}</td>
+                      <td>{issue.queueMetadata?.activityTypes.join(", ") || "-"}</td>
+                      <td>{issue.queueMetadata ? `H ${issue.queueMetadata.confidenceSummary.high} / M ${issue.queueMetadata.confidenceSummary.medium} / L ${issue.queueMetadata.confidenceSummary.low}` : "-"}</td>
+                      <td className="whitespace-nowrap">{issue.queueMetadata?.addedAt || "-"}</td>
+                      <td><StatusBadge>{fetchQueueRuntimeStatus(issue.key)}</StatusBadge></td>
                       <td><button className="btn px-3 py-2" type="button" onClick={() => removeFromQueue(issue.key)}><Trash2 size={14} />Remove / 移除</button></td>
                     </tr>
                   ))}
@@ -1881,6 +1994,28 @@ export function AnalysisPage() {
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold text-muted"><span>This will replace the current Full Fetch session result.<br />這會取代目前的完整抓取工作階段結果。</span><button className="btn" type="button" onClick={() => void handleRunFullFetchClick()} disabled={Boolean(fullFetchDisabledReason)} title={fullFetchDisabledReason}><Play size={15} />Re-run Full Fetch from Queue / 依佇列重新完整抓取</button></div>
           </>
         )}
+      </SectionCard> : null}
+
+      {userAnalysis.activeTab === "selectIssues" ? <SectionCard title="Timeline Issue Groups" subtitle="時間線議題群組">
+        <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div><FieldLabel label="Issue Key" sub="議題搜尋" /><input className="field" value={userAnalysis.timelineIssueFilters.query} onChange={(event) => patchState({ timelineIssueFilters: { ...userAnalysis.timelineIssueFilters, query: event.target.value } })} placeholder="COPGEN1-125806" /></div>
+          <div><FieldLabel label="Activity Type" sub="活動類型" /><select className="field" value={userAnalysis.timelineIssueFilters.activityType} onChange={(event) => patchState({ timelineIssueFilters: { ...userAnalysis.timelineIssueFilters, activityType: event.target.value } })}><option value="all">All</option>{Array.from(new Set(userAnalysis.timelineIssueGroups.flatMap((group) => group.activityTypes))).map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+          <div><FieldLabel label="Confidence" sub="信心等級" /><select className="field" value={userAnalysis.timelineIssueFilters.confidence} onChange={(event) => patchState({ timelineIssueFilters: { ...userAnalysis.timelineIssueFilters, confidence: event.target.value } })}><option value="all">All</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+          <div><FieldLabel label="Issue Key Role" sub="議題角色" /><select className="field" value={userAnalysis.timelineIssueFilters.issueKeyRole} onChange={(event) => patchState({ timelineIssueFilters: { ...userAnalysis.timelineIssueFilters, issueKeyRole: event.target.value } })}><option value="all">All</option><option value="primary">Primary</option><option value="secondary">Secondary</option><option value="primary_and_secondary">Primary and Secondary</option></select></div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2"><button className="btn" type="button" onClick={() => selectTimelineIssues("filtered")}>Select Filtered</button><button className="btn" type="button" onClick={() => selectTimelineIssues("high")}>Select All High Confidence</button><button className="btn" type="button" onClick={() => selectTimelineIssues("clear")}>Clear Selection</button></div>
+        <ResponsiveTableContainer className="mt-4"><table className="data-table min-w-[1080px]"><thead><tr><th>Selected</th><th>Issue Key</th><th>Role</th><th>Events</th><th>Activity Types</th><th>First Seen</th><th>Last Seen</th><th>Confidence</th><th>Source</th></tr></thead><tbody>{filteredTimelineIssueGroups.map((group) => <tr key={group.issueKey}><td><input type="checkbox" checked={userAnalysis.selectedTimelineIssueKeys.includes(group.issueKey)} onChange={(event) => toggleTimelineIssue(group.issueKey, event.target.checked)} /></td><td className="font-black text-blue-700">{group.issueKey}</td><td>{group.issueKeyRole}</td><td>{group.eventCount}</td><td>{group.activityTypes.join(", ")}</td><td className="whitespace-nowrap">{group.firstSeen || "-"}</td><td className="whitespace-nowrap">{group.lastSeen || "-"}</td><td>H {group.confidenceSummary.high} / M {group.confidenceSummary.medium} / L {group.confidenceSummary.low}</td><td>{group.source}</td></tr>)}</tbody></table></ResponsiveTableContainer>
+        {userAnalysis.timelineIssueGroups.length === 0 ? <div className="mt-4 rounded-lg border border-dashed border-line p-6 text-center text-sm font-semibold text-muted">Build Timeline first to create issue groups.</div> : null}
+        <button className="btn btn-primary mt-4" type="button" disabled={userAnalysis.selectedTimelineIssueKeys.length === 0} onClick={addTimelineIssuesToQueue}>Add Selected Issues to Fetch Queue / 加入抓取佇列</button>
+      </SectionCard> : null}
+
+      {userAnalysis.activeTab === "relatedIssues" ? <SectionCard title="Related Issues" subtitle="Full Fetch 後的關聯議題擴展">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-950">Related candidates are derived from read-only Full Fetch metadata. No Jira write, database write, or attachment download is performed.</div>
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2"><div><FieldLabel label="Relation Type" sub="關聯類型" /><select className="field" value={userAnalysis.relatedIssueFilters.relationType} onChange={(event) => patchState({ relatedIssueFilters: { ...userAnalysis.relatedIssueFilters, relationType: event.target.value } })}><option value="all">All</option>{Array.from(new Set(userAnalysis.relatedCandidateIssues.map((item) => item.relationType))).map((value) => <option key={value} value={value}>{value}</option>)}</select></div><div><FieldLabel label="Confidence" sub="信心等級" /><select className="field" value={userAnalysis.relatedIssueFilters.confidence} onChange={(event) => patchState({ relatedIssueFilters: { ...userAnalysis.relatedIssueFilters, confidence: event.target.value } })}><option value="all">All</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div></div>
+        <div className="mt-3 flex flex-wrap gap-2"><button className="btn" type="button" onClick={() => patchState({ selectedRelatedIssueKeys: Array.from(new Set(filteredRelatedIssues.map((item) => item.issueKey))) })}>Select Filtered</button><button className="btn" type="button" onClick={() => patchState({ selectedRelatedIssueKeys: Array.from(new Set(filteredRelatedIssues.filter((item) => item.relationType.includes("parent") || item.relationType.includes("epic")).map((item) => item.issueKey))) })}>Select Parent / Epic</button><button className="btn" type="button" onClick={() => patchState({ selectedRelatedIssueKeys: [] })}>Clear</button></div>
+        <ResponsiveTableContainer className="mt-4"><table className="data-table min-w-[980px]"><thead><tr><th>Selected</th><th>Issue Key</th><th>Relation</th><th>From Issue</th><th>Field</th><th>Confidence</th><th>Evidence</th><th>Reason</th></tr></thead><tbody>{filteredRelatedIssues.map((item) => <tr key={`${item.issueKey}-${item.relationType}-${item.discoveredFromIssueKey}`}><td><input type="checkbox" checked={userAnalysis.selectedRelatedIssueKeys.includes(item.issueKey)} onChange={(event) => { const selected = new Set(userAnalysis.selectedRelatedIssueKeys); if (event.target.checked) selected.add(item.issueKey); else selected.delete(item.issueKey); patchState({ selectedRelatedIssueKeys: Array.from(selected) }); }} /></td><td className="font-black text-blue-700">{item.issueKey}</td><td>{item.relationType}</td><td>{item.discoveredFromIssueKey}</td><td>{item.field}</td><td>{item.confidence}</td><td>{item.evidenceCount}</td><td>{item.reason}</td></tr>)}</tbody></table></ResponsiveTableContainer>
+        {userAnalysis.relatedCandidateIssues.length === 0 ? <div className="mt-4 rounded-lg border border-dashed border-line p-6 text-center text-sm font-semibold text-muted">No related issues yet. Complete Full Fetch first.</div> : null}
+        <button className="btn btn-primary mt-4" type="button" disabled={userAnalysis.selectedRelatedIssueKeys.length === 0} onClick={addRelatedIssuesToQueue}>Add Selected Related Issues to Fetch Queue</button>
       </SectionCard> : null}
 
       {userAnalysis.activeTab === "timeline" ? <div className="space-y-4" data-testid="activity-timeline-panel">

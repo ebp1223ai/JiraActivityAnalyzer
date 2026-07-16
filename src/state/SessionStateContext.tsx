@@ -1,5 +1,6 @@
 import { createContext, useContext, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
+import { defaultWorkflowSteps, type FetchQueueMetadata, type RelatedCandidateIssue, type TimelineIssueGroup, type WorkflowStepStatus } from "../../electron/userAnalysisWorkflow";
 
 export type SessionTableState = {
   page: number;
@@ -49,6 +50,7 @@ export type UserAnalysisCandidateIssue = {
   priority: string;
   project: string;
   matchedReason: string;
+  queueMetadata?: FetchQueueMetadata;
 };
 
 export type UserAnalysisPrecisionProbeResult = {
@@ -508,10 +510,19 @@ export type UserAnalysisSessionState = {
   candidateIssues: UserAnalysisCandidateIssue[];
   selectedForFetch: string[];
   excludedIssues: string[];
-  activeTab: "candidates" | "queue" | "fetchReport" | "timeline" | "exports";
+  activeTab: "timeline" | "selectIssues" | "queue" | "fetchReport" | "relatedIssues" | "exports" | "candidates";
+  workflowSteps: WorkflowStepStatus;
   timelineStatus: "idle" | "running" | "completed" | "failed";
   timelineEvents: UserActivityTimelineEvent[];
   timelineSummary: UserActivityTimelineSummary | null;
+  timelineIssueGroups: TimelineIssueGroup[];
+  selectedTimelineIssueKeys: string[];
+  timelineIssueFilters: { activityType: string; confidence: string; issueKeyRole: string; query: string };
+  relatedCandidateIssues: RelatedCandidateIssue[];
+  selectedRelatedIssueKeys: string[];
+  relatedIssueFilters: { relationType: string; confidence: string };
+  addedTimelineIssuesToFetchQueueCount: number;
+  addedRelatedIssuesToFetchQueueCount: number;
   timelineFilters: { project: string; issueKey: string; activityType: string; confidence: string; source: string; onlyWithJiraKey: boolean; onlyLowConfidence: boolean };
   expandedTimelineEvents: string[];
   timelineExportPaths: { jsonPath: string; csvPath: string; summaryPath: string };
@@ -662,10 +673,19 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   candidateIssues: [],
   selectedForFetch: [],
   excludedIssues: [],
-  activeTab: "candidates",
+  activeTab: "timeline",
+  workflowSteps: defaultWorkflowSteps(),
   timelineStatus: "idle",
   timelineEvents: [],
   timelineSummary: null,
+  timelineIssueGroups: [],
+  selectedTimelineIssueKeys: [],
+  timelineIssueFilters: { activityType: "all", confidence: "all", issueKeyRole: "all", query: "" },
+  relatedCandidateIssues: [],
+  selectedRelatedIssueKeys: [],
+  relatedIssueFilters: { relationType: "all", confidence: "all" },
+  addedTimelineIssuesToFetchQueueCount: 0,
+  addedRelatedIssuesToFetchQueueCount: 0,
   timelineFilters: { project: "", issueKey: "", activityType: "all", confidence: "all", source: "all", onlyWithJiraKey: false, onlyLowConfidence: false },
   expandedTimelineEvents: [],
   timelineExportPaths: { jsonPath: "", csvPath: "", summaryPath: "" },

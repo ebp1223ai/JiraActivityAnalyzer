@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
     fullFetch: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch", payload),
     pauseFullFetch: () => ipcRenderer.invoke("user-analysis:pause-full-fetch"),
     logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO"; message: string }) => ipcRenderer.invoke("user-analysis:log-action", payload),
+    updateWorkflowSnapshot: (payload: unknown) => ipcRenderer.invoke("user-analysis:update-workflow-snapshot", payload),
     actionLogDiagnostics: () => ipcRenderer.invoke("user-analysis:action-log-diagnostics"),
     latestFullFetchCheckpoint: () => ipcRenderer.invoke("user-analysis:latest-full-fetch-checkpoint"),
     openDiagnosticsFolder: (payload?: { filePath?: string }) => ipcRenderer.invoke("user-analysis:open-diagnostics-folder", payload),
