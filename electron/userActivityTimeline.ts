@@ -4,6 +4,7 @@ export type TimelineEventType = "comment" | "attachment" | "link" | "page" | "fi
 export type TimelineConfidence = "high" | "medium" | "low";
 export type TimelineSourceSystem = "jira" | "confluence" | "other" | "unknown";
 export type TimelineSourceDetail = "jira_activity_stream" | "confluence_activity_stream" | "jira_full_fetch" | "jira_changelog" | "related_issue_expansion" | "other_activity_stream" | "unknown";
+export type JiraRelationReason = "source_application_jira" | "has_jira_issue_key" | "all_issue_keys_contains_jira_key" | "related_issue_expansion" | "jira_full_fetch" | "jira_changelog" | "confluence_link_to_jira_issue" | "not_jira_related" | "unknown";
 
 export type TimelineSourceEntry = {
   issueKey?: string;
@@ -77,8 +78,13 @@ export type UserActivityTimelineEvent = {
   eventTitle: string;
   source: "activity_stream";
   sourceSystem: TimelineSourceSystem;
+  sourceApplication: TimelineSourceSystem;
   sourceDetail: TimelineSourceDetail;
   activityApplication: string;
+  hasJiraIssueKey: boolean;
+  isJiraRelated: boolean;
+  relatedSystems: TimelineSourceSystem[];
+  jiraRelationReason: JiraRelationReason;
   sourceRunId: string;
   sourceConfidence: TimelineConfidence;
   projectKey: string;
@@ -118,6 +124,10 @@ export type UserActivityTimelineSummary = {
     classificationRulesVersion: "v0.2.21";
     unknownSamples: Array<{ eventId: string; title: string; activityApplication: string | null; issueKey: string | null; eventType: TimelineEventType; reason: string }>;
   };
+  jiraRelationCounts: { jiraRelated: number; nonJiraRelated: number; hasJiraIssueKey: number; unknownRelation: number };
+  sourceApplicationCounts: Record<TimelineSourceSystem, number>;
+  confluenceLinkedToJiraCount: number;
+  jiraRelationDiagnostics: { classificationRulesVersion: "v0.2.22"; confluenceLinkedToJiraIssueGroups: string[] };
   confidenceCounts: Record<string, number>;
   baselineGuard: { classification: string; retryTriggered: boolean; retryRecovered: boolean };
   integrity: TimelineIntegrityDiagnostics;
@@ -191,6 +201,22 @@ export function classifyTimelineSource(input: { activityApplication?: string; so
   return { sourceSystem: "unknown", sourceDetail: "unknown", reason: "no activityApplication and no issueKey" };
 }
 
+export function classifyJiraRelation(input: { sourceApplication: TimelineSourceSystem; sourceDetail: TimelineSourceDetail; issueKey?: string; allIssueKeys?: string[] }) {
+  const primaryHasKey = jiraIssueKeyPattern.test(String(input.issueKey ?? "").trim().toUpperCase());
+  const allHasKey = (input.allIssueKeys ?? []).some((key) => jiraIssueKeyPattern.test(String(key).trim().toUpperCase()));
+  const hasJiraIssueKey = primaryHasKey || allHasKey;
+  if (input.sourceDetail === "related_issue_expansion") return { hasJiraIssueKey, isJiraRelated: true, relatedSystems: ["jira"] as TimelineSourceSystem[], jiraRelationReason: "related_issue_expansion" as JiraRelationReason };
+  if (input.sourceDetail === "jira_full_fetch") return { hasJiraIssueKey, isJiraRelated: true, relatedSystems: ["jira"] as TimelineSourceSystem[], jiraRelationReason: "jira_full_fetch" as JiraRelationReason };
+  if (input.sourceDetail === "jira_changelog") return { hasJiraIssueKey, isJiraRelated: true, relatedSystems: ["jira"] as TimelineSourceSystem[], jiraRelationReason: "jira_changelog" as JiraRelationReason };
+  if (input.sourceApplication === "confluence" && hasJiraIssueKey) return { hasJiraIssueKey: true, isJiraRelated: true, relatedSystems: ["jira", "confluence"] as TimelineSourceSystem[], jiraRelationReason: "confluence_link_to_jira_issue" as JiraRelationReason };
+  if (primaryHasKey) return { hasJiraIssueKey: true, isJiraRelated: true, relatedSystems: ["jira"] as TimelineSourceSystem[], jiraRelationReason: "has_jira_issue_key" as JiraRelationReason };
+  if (allHasKey) return { hasJiraIssueKey: true, isJiraRelated: true, relatedSystems: ["jira"] as TimelineSourceSystem[], jiraRelationReason: "all_issue_keys_contains_jira_key" as JiraRelationReason };
+  if (input.sourceApplication === "jira") return { hasJiraIssueKey: false, isJiraRelated: true, relatedSystems: ["jira"] as TimelineSourceSystem[], jiraRelationReason: "source_application_jira" as JiraRelationReason };
+  if (input.sourceApplication === "confluence") return { hasJiraIssueKey: false, isJiraRelated: false, relatedSystems: ["confluence"] as TimelineSourceSystem[], jiraRelationReason: "not_jira_related" as JiraRelationReason };
+  if (input.sourceApplication === "other") return { hasJiraIssueKey: false, isJiraRelated: false, relatedSystems: ["other"] as TimelineSourceSystem[], jiraRelationReason: "not_jira_related" as JiraRelationReason };
+  return { hasJiraIssueKey: false, isJiraRelated: false, relatedSystems: ["unknown"] as TimelineSourceSystem[], jiraRelationReason: "unknown" as JiraRelationReason };
+}
+
 export function buildUserActivityTimeline(input: {
   timelineRunId: string;
   builtAt: string;
@@ -234,6 +260,7 @@ export function buildUserActivityTimeline(input: {
       const eventTime = String(entry.activityTime);
       const activityApplication = String(entry.activityApplication ?? "").trim();
       const sourceClassification = classifyTimelineSource({ activityApplication, source: entry.source ?? "activity_stream", eventType, issueKey, allIssueKeys });
+      const jiraRelation = classifyJiraRelation({ sourceApplication: sourceClassification.sourceSystem, sourceDetail: sourceClassification.sourceDetail, issueKey, allIssueKeys });
       const eventId = normalizeSha256Id(sha256(["activity_stream", input.selectedUser, issueKey || "-", eventTime, eventType, fingerprint.replace(/^sha256:/, "")].join("|")));
       const event: UserActivityTimelineEvent = {
         eventId,
@@ -246,8 +273,10 @@ export function buildUserActivityTimeline(input: {
         eventTitle: String(entry.activityTitle || entry.rawTitle || "Untitled activity"),
         source: "activity_stream",
         sourceSystem: sourceClassification.sourceSystem,
+        sourceApplication: sourceClassification.sourceSystem,
         sourceDetail: sourceClassification.sourceDetail,
         activityApplication,
+        ...jiraRelation,
         sourceRunId: input.sourceRunId,
         sourceConfidence: eventConfidence(eventType, issueKey, input.baseline.classification, fingerprintMatched),
         projectKey: issueKey.includes("-") ? issueKey.split("-")[0] : "",
@@ -294,9 +323,14 @@ export function buildUserActivityTimeline(input: {
   const sourceSystemCounts = { jira: 0, confluence: 0, other: 0, unknown: 0 } satisfies Record<TimelineSourceSystem, number>;
   for (const event of events) sourceSystemCounts[event.sourceSystem] += 1;
   const sourceDetailCounts = countBy(events.map((event) => event.sourceDetail));
+  const sourceApplicationCounts = { jira: 0, confluence: 0, other: 0, unknown: 0 } satisfies Record<TimelineSourceSystem, number>;
+  for (const event of events) sourceApplicationCounts[event.sourceApplication] += 1;
+  const jiraRelationCounts = { jiraRelated: events.filter((event) => event.isJiraRelated).length, nonJiraRelated: events.filter((event) => !event.isJiraRelated).length, hasJiraIssueKey: events.filter((event) => event.hasJiraIssueKey).length, unknownRelation: events.filter((event) => event.jiraRelationReason === "unknown").length };
+  const confluenceLinkedToJiraEvents = events.filter((event) => event.jiraRelationReason === "confluence_link_to_jira_issue");
+  const confluenceLinkedToJiraIssueGroups = uniqueInOrder(confluenceLinkedToJiraEvents.flatMap((event) => event.allIssueKeys));
   const unknownSamples = events.filter((event) => event.sourceSystem === "unknown").slice(0, 20).map((event) => ({ eventId: event.eventId, title: event.eventTitle.slice(0, 300), activityApplication: event.activityApplication || null, issueKey: event.issueKey || null, eventType: event.eventType, reason: "no activityApplication and no issueKey" }));
 
-  return { timelineRunId: input.timelineRunId, summary: { timelineRunId: input.timelineRunId, builtAt: input.builtAt, selectedUser: input.selectedUser, dateRange: input.dateRange, projectScope: input.projectScope, source: "activity_stream", sourceRunId: input.sourceRunId, totalEvents: events.length, issueKeyCount: allIssueKeys.length, primaryIssueKeyCount: primaryIssueKeys.length, allIssueKeyCount: allIssueKeys.length, eventTypeCounts: countBy(events.map((event) => event.eventType)), sourceCounts: countBy(events.map((event) => event.source)), sourceSystemCounts, sourceDetailCounts, sourceSystemDiagnostics: { classificationRulesVersion: "v0.2.21", unknownSamples }, confidenceCounts: countBy(events.map((event) => event.sourceConfidence)), baselineGuard: { classification: input.baseline.classification, retryTriggered: input.baseline.retryTriggered, retryRecovered: input.baseline.retryRecovered }, integrity, eventCountReconciliation, dedupDiagnostics, confidenceDiagnostics }, events };
+  return { timelineRunId: input.timelineRunId, summary: { timelineRunId: input.timelineRunId, builtAt: input.builtAt, selectedUser: input.selectedUser, dateRange: input.dateRange, projectScope: input.projectScope, source: "activity_stream", sourceRunId: input.sourceRunId, totalEvents: events.length, issueKeyCount: allIssueKeys.length, primaryIssueKeyCount: primaryIssueKeys.length, allIssueKeyCount: allIssueKeys.length, eventTypeCounts: countBy(events.map((event) => event.eventType)), sourceCounts: countBy(events.map((event) => event.source)), sourceSystemCounts, sourceDetailCounts, sourceSystemDiagnostics: { classificationRulesVersion: "v0.2.21", unknownSamples }, jiraRelationCounts, sourceApplicationCounts, confluenceLinkedToJiraCount: confluenceLinkedToJiraEvents.length, jiraRelationDiagnostics: { classificationRulesVersion: "v0.2.22", confluenceLinkedToJiraIssueGroups }, confidenceCounts: countBy(events.map((event) => event.sourceConfidence)), baselineGuard: { classification: input.baseline.classification, retryTriggered: input.baseline.retryTriggered, retryRecovered: input.baseline.retryRecovered }, integrity, eventCountReconciliation, dedupDiagnostics, confidenceDiagnostics }, events };
 }
 
 function csvCell(value: unknown) {
@@ -304,9 +338,9 @@ function csvCell(value: unknown) {
 }
 
 export function timelineCsv(events: UserActivityTimelineEvent[]) {
-  const columns = ["eventTime", "userKey", "displayName", "issueKey", "allIssueKeys", "eventType", "eventTitle", "source", "sourceSystem", "sourceDetail", "sourceRunId", "sourceConfidence", "matchedRule", "entryFingerprint", "baselineClassification", "retryTriggered", "retryRecovered"];
-  const rows = events.map((event) => [event.eventTime, event.userKey, event.displayName, event.issueKey, event.allIssueKeys.join(";"), event.eventType, event.eventTitle, event.source, event.sourceSystem, event.sourceDetail, event.sourceRunId, event.sourceConfidence, event.evidence.activityTypeClassifier.matchedRule, event.rawRef.entryFingerprint, event.evidence.baselineGuard.classification, event.evidence.baselineGuard.retryTriggered, event.evidence.baselineGuard.retryRecovered].map(csvCell).join(","));
+  const columns = ["eventTime", "userKey", "displayName", "issueKey", "allIssueKeys", "eventType", "eventTitle", "source", "sourceApplication", "sourceSystem", "sourceDetail", "hasJiraIssueKey", "isJiraRelated", "relatedSystems", "jiraRelationReason", "sourceRunId", "sourceConfidence", "matchedRule", "entryFingerprint", "baselineClassification", "retryTriggered", "retryRecovered"];
+  const rows = events.map((event) => [event.eventTime, event.userKey, event.displayName, event.issueKey, event.allIssueKeys.join(";"), event.eventType, event.eventTitle, event.source, event.sourceApplication, event.sourceSystem, event.sourceDetail, event.hasJiraIssueKey, event.isJiraRelated, event.relatedSystems.join(";"), event.jiraRelationReason, event.sourceRunId, event.sourceConfidence, event.evidence.activityTypeClassifier.matchedRule, event.rawRef.entryFingerprint, event.evidence.baselineGuard.classification, event.evidence.baselineGuard.retryTriggered, event.evidence.baselineGuard.retryRecovered].map(csvCell).join(","));
   return `\uFEFF${columns.join(",")}\r\n${rows.join("\r\n")}\r\n`;
 }
 
-export const timelineEventSchema = { schemaVersion: 3, required: ["eventId", "userKey", "displayName", "eventTime", "eventType", "source", "sourceSystem", "sourceDetail", "sourceRunId", "sourceConfidence", "evidence", "rawRef"], eventTypes: Array.from(eventTypes), sourceSystemValues: ["jira", "confluence", "other", "unknown"], sourceDetailValues: ["jira_activity_stream", "confluence_activity_stream", "jira_full_fetch", "jira_changelog", "related_issue_expansion", "other_activity_stream", "unknown"], confidenceValues: ["high", "medium", "low"] };
+export const timelineEventSchema = { schemaVersion: 4, required: ["eventId", "userKey", "displayName", "eventTime", "eventType", "source", "sourceApplication", "sourceSystem", "sourceDetail", "hasJiraIssueKey", "isJiraRelated", "relatedSystems", "jiraRelationReason", "sourceRunId", "sourceConfidence", "evidence", "rawRef"], eventTypes: Array.from(eventTypes), sourceSystemValues: ["jira", "confluence", "other", "unknown"], sourceDetailValues: ["jira_activity_stream", "confluence_activity_stream", "jira_full_fetch", "jira_changelog", "related_issue_expansion", "other_activity_stream", "unknown"], jiraRelationReasonValues: ["source_application_jira", "has_jira_issue_key", "all_issue_keys_contains_jira_key", "related_issue_expansion", "jira_full_fetch", "jira_changelog", "confluence_link_to_jira_issue", "not_jira_related", "unknown"], confidenceValues: ["high", "medium", "low"] };

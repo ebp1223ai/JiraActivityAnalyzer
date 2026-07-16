@@ -4,7 +4,7 @@ Electron desktop application for read-only Jira activity inspection and analysis
 
 ## User Analysis Workflow
 
-Version 0.2.21 presents User Analysis as a guarded six-step workflow:
+Version 0.2.22 presents User Analysis as a guarded six-step workflow:
 
 1. Setup Analysis
 2. Build Timeline
@@ -17,9 +17,9 @@ Setup Analysis fixes the selected user, inclusive date range, optional project s
 
 Timeline Issue Groups are built from both `issueKey` and `allIssueKeys`. Primary and secondary issue keys remain distinguishable, so a key mentioned only as the secondary side of a link can still be selected. Selected groups enter the queue with `activity_timeline` source metadata, event IDs, activity types, confidence counts, selected user, date range, and issue-key role. Existing queue entries are deduplicated by issue key and merge their source and evidence metadata.
 
-Timeline events now classify `sourceSystem` as `jira`, `confluence`, `other`, or `unknown`, with a corresponding `sourceDetail`. Issue groups aggregate those values in `sourceSystemSummary` and `sourceDetails`. The Timeline JSON, UTF-8 BOM CSV, build summary, and Debug Bundle retain the classification and diagnostics, including samples that could not be classified.
+Timeline events classify their source application separately from their Jira relationship. `sourceSystem` and `sourceDetail` remain backward compatible, while `sourceApplication`, `hasJiraIssueKey`, `isJiraRelated`, `relatedSystems`, and `jiraRelationReason` identify Jira-related evidence. A Confluence event that references a Jira issue is Jira-related; a Confluence-only page edit is not. Issue groups aggregate both source and Jira-relation diagnostics.
 
-Step 3 filters Activity Type, Confidence, Issue Key Role, Source System, and Project Key with checkbox multi-select controls. Values within one category use OR semantics; categories are combined with AND. Source System defaults to Jira only, while Confluence, Other, and Unknown remain available. Each filter can be cleared independently, all filters can be cleared together, and all visible issue groups can be selected. Workflow navigation names its target step, and step cards distinguish current, completed, ready, blocked, warning, failed, and advanced states with a status badge and visible reason.
+Step 3 filters Jira Relation, Source Application, Activity Type, Confidence, Issue Key Role, and Project Key with checkbox multi-select controls. Values within one category use OR semantics; categories are combined with AND. The default is Jira-related plus Jira and Confluence source applications, so Confluence references to Jira issues remain visible while pure Confluence page edits, Other, and Unknown remain excluded. An explicit Project Scope becomes the default Project Key filter. Each filter can be cleared independently, all filters can be cleared together, and all visible issue groups can be selected.
 
 After Full Fetch, Related Issues are derived from sanitized read-only metadata. Parent and epic hierarchy relationships are grouped as Recommended Scope and can be added together. Links, mentions, remote links, and other weaker evidence are Optional Scope and require explicit per-issue selection; there is no add-all optional action. Queue metadata distinguishes `recommended_related_issue` from `optional_related_issue`.
 
@@ -27,13 +27,16 @@ Workflow exports are auto-saved under `<runtime>/exports/user-analysis/workflow/
 
 - `timeline-issue-groups.json`
 - `timeline-source-system-diagnostics.json` (Debug Bundle)
+- `timeline-jira-relation-diagnostics.json` (Debug Bundle)
 - `timeline-selected-issues.json`
 - `fetch-queue.json`
 - `related-candidate-issues.json`
 - `related-issue-expansion-summary.json`
 - `checkpoint-write-diagnostics.json` (Debug Bundle)
+- `full-fetch-failed-issues.json` (Debug Bundle)
+- `full-fetch-failure-summary.json` (Debug Bundle)
 
-Checkpoint writes use an atomic temporary-file rename with retries at 100, 250, 500, 1000, and 2000 ms for `EPERM`, `EBUSY`, and `EACCES`. If rename remains unavailable, the app falls back to a direct checkpoint write and records structured recovery diagnostics instead of aborting a successful Full Fetch. Debug Bundles include those diagnostics, `user-analysis-steps.json`, workflow details in `debug-bundle-summary.json`, and workflow events in `session-timeline.json`. This workflow remains read-only: it does not write Jira or a database and does not download attachment bodies.
+Checkpoint writes use an atomic temporary-file rename with retries at 100, 250, 500, 1000, and 2000 ms for `EPERM`, `EBUSY`, and `EACCES`. If rename remains unavailable, the app falls back to a direct checkpoint write and records structured recovery diagnostics instead of aborting a successful Full Fetch. Full Fetch reports list failed issues and aggregate them by HTTP status, error code, stage, and queue source. Debug Bundles include those reports, Jira-relation diagnostics, workflow details, and session events. This workflow remains read-only: it does not write Jira or a database and does not download attachment bodies.
 
 This is an Electron desktop app shell with a React renderer. The first version is a static UI prototype with one read-only Jira Probe diagnostics page. Import, database writes, token storage, and backup restore behavior are not implemented.
 

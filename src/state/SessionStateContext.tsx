@@ -319,8 +319,13 @@ export type UserActivityTimelineEvent = {
   eventTitle: string;
   source: "activity_stream";
   sourceSystem: "jira" | "confluence" | "other" | "unknown";
+  sourceApplication: "jira" | "confluence" | "other" | "unknown";
   sourceDetail: "jira_activity_stream" | "confluence_activity_stream" | "jira_full_fetch" | "jira_changelog" | "related_issue_expansion" | "other_activity_stream" | "unknown";
   activityApplication: string;
+  hasJiraIssueKey: boolean;
+  isJiraRelated: boolean;
+  relatedSystems: Array<"jira" | "confluence" | "other" | "unknown">;
+  jiraRelationReason: "source_application_jira" | "has_jira_issue_key" | "all_issue_keys_contains_jira_key" | "related_issue_expansion" | "jira_full_fetch" | "jira_changelog" | "confluence_link_to_jira_issue" | "not_jira_related" | "unknown";
   sourceRunId: string;
   sourceConfidence: "high" | "medium" | "low";
   projectKey: string;
@@ -347,6 +352,10 @@ export type UserActivityTimelineSummary = {
   sourceSystemCounts: Record<"jira" | "confluence" | "other" | "unknown", number>;
   sourceDetailCounts: Record<string, number>;
   sourceSystemDiagnostics: { classificationRulesVersion: "v0.2.21"; unknownSamples: Array<{ eventId: string; title: string; activityApplication: string | null; issueKey: string | null; eventType: UserActivityTimelineEvent["eventType"]; reason: string }> };
+  jiraRelationCounts: { jiraRelated: number; nonJiraRelated: number; hasJiraIssueKey: number; unknownRelation: number };
+  sourceApplicationCounts: Record<"jira" | "confluence" | "other" | "unknown", number>;
+  confluenceLinkedToJiraCount: number;
+  jiraRelationDiagnostics: { classificationRulesVersion: "v0.2.22"; confluenceLinkedToJiraIssueGroups: string[] };
   confidenceCounts: Record<string, number>;
   baselineGuard: { classification: string; retryTriggered: boolean; retryRecovered: boolean };
   integrity: {
@@ -437,6 +446,12 @@ export type UserAnalysisFullFetchReportRow = {
   status: string;
   fetchStatus: "pending" | "running" | "success" | "failed" | "skipped";
   httpStatus: string;
+  errorCode: string;
+  stage: string;
+  source: string;
+  matchedReason: string;
+  retryCount: number;
+  occurredAt: string;
   changelogHistories: number;
   changelogItems: number;
   comments: number;
@@ -523,7 +538,7 @@ export type UserAnalysisSessionState = {
   timelineSummary: UserActivityTimelineSummary | null;
   timelineIssueGroups: TimelineIssueGroup[];
   selectedTimelineIssueKeys: string[];
-  timelineIssueFilters: { activityTypes: string[]; confidences: string[]; issueKeyRoles: string[]; sourceSystems: Array<"jira" | "confluence" | "other" | "unknown">; projectKeys: string[]; query: string };
+  timelineIssueFilters: { jiraRelations: string[]; activityTypes: string[]; confidences: string[]; issueKeyRoles: string[]; sourceApplications: Array<"jira" | "confluence" | "other" | "unknown">; projectKeys: string[]; query: string };
   relatedCandidateIssues: RelatedCandidateIssue[];
   selectedRelatedIssueKeys: string[];
   relatedIssueFilters: { relationType: string; confidence: string };
@@ -691,7 +706,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   timelineSummary: null,
   timelineIssueGroups: [],
   selectedTimelineIssueKeys: [],
-  timelineIssueFilters: { activityTypes: [], confidences: [], issueKeyRoles: [], sourceSystems: ["jira"], projectKeys: [], query: "" },
+  timelineIssueFilters: { jiraRelations: ["jira_related"], activityTypes: [], confidences: [], issueKeyRoles: [], sourceApplications: ["jira", "confluence"], projectKeys: [], query: "" },
   relatedCandidateIssues: [],
   selectedRelatedIssueKeys: [],
   relatedIssueFilters: { relationType: "all", confidence: "all" },

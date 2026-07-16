@@ -1,3 +1,5 @@
+import type { JiraRelationReason, TimelineSourceDetail, TimelineSourceSystem } from "./userActivityTimeline.js";
+
 export type WorkflowStepStatus = {
   activityTimeline: "not_run" | "completed" | "failed";
   timelineIssueSelection: "not_run" | "completed";
@@ -22,6 +24,9 @@ export type TimelineIssueGroup = {
   issueKeyRole: "primary" | "secondary" | "primary_and_secondary";
   sourceSystemSummary: Record<TimelineSourceSystem, number>;
   sourceDetails: Record<string, number>;
+  isJiraRelated: boolean;
+  hasJiraIssueKey: boolean;
+  jiraRelationSummary: { jiraRelatedEventCount: number; nonJiraRelatedEventCount: number; hasJiraIssueKeyCount: number; sourceApplicationCounts: Record<TimelineSourceSystem, number>; relatedSystemsCounts: Record<string, number>; jiraRelationReasons: Record<string, number> };
 };
 
 export type FetchQueueSource = "activity_timeline" | "advanced_candidate_search" | "recommended_related_issue" | "optional_related_issue" | "manual";
@@ -72,7 +77,12 @@ type TimelineEventLike = {
   eventType: string;
   sourceConfidence: "high" | "medium" | "low";
   sourceSystem?: TimelineSourceSystem;
+  sourceApplication?: TimelineSourceSystem;
   sourceDetail?: TimelineSourceDetail;
+  hasJiraIssueKey?: boolean;
+  isJiraRelated?: boolean;
+  relatedSystems?: TimelineSourceSystem[];
+  jiraRelationReason?: JiraRelationReason;
 };
 
 const issueKeyPattern = /\b[A-Z][A-Z0-9_]*-\d+\b/g;
@@ -130,6 +140,9 @@ export function buildTimelineIssueGroups(events: TimelineEventLike[]): TimelineI
         issueKeyRole: "secondary" as const,
         sourceSystemSummary: { jira: 0, confluence: 0, other: 0, unknown: 0 },
         sourceDetails: {},
+        isJiraRelated: false,
+        hasJiraIssueKey: false,
+        jiraRelationSummary: { jiraRelatedEventCount: 0, nonJiraRelatedEventCount: 0, hasJiraIssueKeyCount: 0, sourceApplicationCounts: { jira: 0, confluence: 0, other: 0, unknown: 0 }, relatedSystemsCounts: {}, jiraRelationReasons: {} },
         primary: false,
         secondary: false
       };
@@ -143,6 +156,16 @@ export function buildTimelineIssueGroups(events: TimelineEventLike[]): TimelineI
       const sourceDetail = event.sourceDetail ?? "unknown";
       current.sourceSystemSummary[sourceSystem] += 1;
       current.sourceDetails[sourceDetail] = (current.sourceDetails[sourceDetail] ?? 0) + 1;
+      const sourceApplication = event.sourceApplication ?? sourceSystem;
+      current.isJiraRelated ||= event.isJiraRelated === true;
+      current.hasJiraIssueKey ||= event.hasJiraIssueKey === true;
+      if (event.isJiraRelated) current.jiraRelationSummary.jiraRelatedEventCount += 1;
+      else current.jiraRelationSummary.nonJiraRelatedEventCount += 1;
+      if (event.hasJiraIssueKey) current.jiraRelationSummary.hasJiraIssueKeyCount += 1;
+      current.jiraRelationSummary.sourceApplicationCounts[sourceApplication] += 1;
+      for (const system of event.relatedSystems ?? []) current.jiraRelationSummary.relatedSystemsCounts[system] = (current.jiraRelationSummary.relatedSystemsCounts[system] ?? 0) + 1;
+      const relationReason = event.jiraRelationReason ?? "unknown";
+      current.jiraRelationSummary.jiraRelationReasons[relationReason] = (current.jiraRelationSummary.jiraRelationReasons[relationReason] ?? 0) + 1;
       current.primary ||= issueKey === primary;
       current.secondary ||= issueKey !== primary;
       groups.set(issueKey, current);
@@ -252,4 +275,3 @@ export function relatedIssueScopeSummary(items: RelatedCandidateIssue[], addedRe
     addedOptionalRelatedIssuesToFetchQueueCount: addedOptionalToFetchQueueCount
   };
 }
-import type { TimelineSourceDetail, TimelineSourceSystem } from "./userActivityTimeline.js";
