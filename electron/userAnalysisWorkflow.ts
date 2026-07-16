@@ -7,7 +7,6 @@ export type WorkflowStepStatus = {
   fullFetch: "not_run" | "completed" | "failed";
   relatedIssues: "not_run" | "completed" | "empty";
   exports: "not_run" | "completed";
-  advancedCandidateSearch: "not_run" | "completed" | "failed";
 };
 
 export type TimelineIssueGroup = {
@@ -115,8 +114,7 @@ export function defaultWorkflowSteps(): WorkflowStepStatus {
     fetchQueue: "empty",
     fullFetch: "not_run",
     relatedIssues: "not_run",
-    exports: "not_run",
-    advancedCandidateSearch: "not_run"
+    exports: "not_run"
   };
 }
 

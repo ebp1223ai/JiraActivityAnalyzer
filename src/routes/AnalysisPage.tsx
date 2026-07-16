@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, ChevronDown, ChevronUp, Clock3, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Clock3, Columns3, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel, MockModal } from "../components/FormControls";
@@ -14,6 +14,10 @@ import { buildTimelineIssueGroups, isRecommendedRelationType, mergeQueueMetadata
 
 const fetchLimitOptions = [10, 20, 40, 80, 160];
 const pageSizeOptions = [10, 20, 40, 80, 160];
+const timelineRequiredColumns = [{ value: "time", label: "Time" }, { value: "user", label: "User" }, { value: "issueKey", label: "Issue Key" }, { value: "activityType", label: "Activity Type" }, { value: "sourceApplication", label: "Source Application" }];
+const timelineOptionalColumns = [{ value: "title", label: "Title / Summary" }, { value: "allIssueKeys", label: "All Issue Keys" }, { value: "sourceDetail", label: "Source Detail" }, { value: "jiraRelation", label: "Jira Relation" }, { value: "confidence", label: "Confidence" }, { value: "eventId", label: "Event ID" }, { value: "entryFingerprint", label: "Entry Fingerprint" }, { value: "relatedSystems", label: "Related Systems" }, { value: "jiraRelationReason", label: "Jira Relation Reason" }, { value: "rawTitle", label: "Raw Title" }, { value: "sourceVariant", label: "Chunk / Source Variant" }, { value: "baselineStatus", label: "Baseline Status" }];
+const issueGroupRequiredColumns = [{ value: "selected", label: "Selected" }, { value: "issueKey", label: "Issue Key" }, { value: "sourceApplications", label: "Source Applications" }, { value: "eventCount", label: "Event Count" }, { value: "firstSeen", label: "First Seen" }, { value: "lastSeen", label: "Last Seen" }];
+const issueGroupOptionalColumns = [{ value: "activityTypes", label: "Activity Types" }, { value: "confidence", label: "Confidence Summary" }, { value: "issueKeyRole", label: "Issue Key Role" }, { value: "projectKey", label: "Project Key" }, { value: "jiraRelation", label: "Jira Relation" }, { value: "relatedSystems", label: "Related Systems" }, { value: "sourceDetails", label: "Source Details" }, { value: "timelineEventIds", label: "Timeline Event IDs" }, { value: "allIssueKeys", label: "All Issue Keys" }, { value: "matchedReasons", label: "Matched Reasons" }];
 type WorkflowVisualState = "current" | "completed" | "ready" | "blocked" | "warning" | "failed" | "advanced";
 const workflowStateStyles: Record<WorkflowVisualState, string> = {
   current: "border-blue-300 border-l-blue-600 bg-blue-50",
@@ -173,6 +177,14 @@ function MultiSelectFilter({ testId, label, options, selected, onToggle, onClear
   </fieldset>;
 }
 
+function ColumnSettings({ testId, required, optional, visible, onToggle }: { testId: string; required: Array<{ value: string; label: string }>; optional: Array<{ value: string; label: string }>; visible: string[]; onToggle: (value: string) => void }) {
+  return <div data-testid={testId} className="mt-3 grid min-w-0 grid-cols-1 gap-4 rounded-lg border border-line bg-slate-50 p-4 lg:grid-cols-3">
+    <fieldset><legend className="text-xs font-black uppercase text-muted">Required columns / 必要欄位</legend><div className="mt-2 space-y-2">{required.map((column) => <label key={column.value} className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked disabled />{column.label}</label>)}</div></fieldset>
+    <fieldset><legend className="text-xs font-black uppercase text-muted">Optional columns / 可選欄位</legend><div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">{optional.map((column) => <label key={column.value} className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={visible.includes(column.value)} onChange={() => onToggle(column.value)} />{column.label}</label>)}</div></fieldset>
+    <div><div className="text-xs font-black uppercase text-muted">Hidden in details / 收合欄位</div><p className="mt-2 text-sm font-semibold leading-relaxed text-muted">Long identifiers, raw titles, diagnostics, and evidence remain available from each row's Details button.</p></div>
+  </div>;
+}
+
 function sourceSystemLabel(summary: Record<"jira" | "confluence" | "other" | "unknown", number>) {
   return Object.entries(summary).filter(([, count]) => count > 0).map(([system, count]) => `${system.charAt(0).toUpperCase()}${system.slice(1)} ${count}`).join(" / ") || "Unknown 0";
 }
@@ -203,13 +215,14 @@ export function AnalysisPage() {
   const failedFullFetchIssues = userAnalysis.fullFetchReport.filter((row) => row.fetchStatus === "failed");
   const filteredTimelineEvents = userAnalysis.timelineEvents.filter((event) => {
     const filter = userAnalysis.timelineFilters;
-    return (!filter.project.trim() || event.projectKey.toLowerCase().includes(filter.project.trim().toLowerCase()))
-      && (!filter.issueKey.trim() || event.allIssueKeys.some((key) => key.toLowerCase().includes(filter.issueKey.trim().toLowerCase())))
-      && (filter.activityType === "all" || event.eventType === filter.activityType)
-      && (filter.confidence === "all" || event.sourceConfidence === filter.confidence)
-      && (filter.source === "all" || event.source === filter.source)
-      && (!filter.onlyWithJiraKey || Boolean(event.issueKey))
-      && (!filter.onlyLowConfidence || event.sourceConfidence === "low");
+    const relation = event.isJiraRelated ? "jira_related" : event.jiraRelationReason === "unknown" ? "unknown_relation" : "non_jira";
+    return (filter.activityTypes.length === 0 || filter.activityTypes.includes(event.eventType))
+      && (filter.sourceApplications.length === 0 || filter.sourceApplications.includes(event.sourceApplication))
+      && (filter.jiraRelations.length === 0 || filter.jiraRelations.includes(relation) || (filter.jiraRelations.includes("has_jira_issue_key") && event.hasJiraIssueKey))
+      && (filter.confidences.length === 0 || filter.confidences.includes(event.sourceConfidence))
+      && (filter.issueKeys.length === 0 || filter.issueKeys.some((value) => event.allIssueKeys.includes(value)))
+      && (filter.projectKeys.length === 0 || filter.projectKeys.includes(event.projectKey))
+      && (filter.users.length === 0 || filter.users.includes(event.userKey));
   });
   const filteredTimelineIssueGroups = userAnalysis.timelineIssueGroups.filter((group) => {
     const filter = userAnalysis.timelineIssueFilters;
@@ -220,8 +233,15 @@ export function AnalysisPage() {
       && (filter.issueKeyRoles.length === 0 || filter.issueKeyRoles.includes(group.issueKeyRole))
       && (filter.sourceApplications.length === 0 || filter.sourceApplications.some((value) => group.jiraRelationSummary.sourceApplicationCounts[value] > 0))
       && (filter.projectKeys.length === 0 || filter.projectKeys.includes(group.projectKey))
+      && (filter.selectedStates.length === 0 || filter.selectedStates.includes(userAnalysis.selectedTimelineIssueKeys.includes(group.issueKey) ? "selected" : "unselected"))
       && (!filter.query.trim() || group.issueKey.toLowerCase().includes(filter.query.trim().toLowerCase()));
   });
+  const timelineFilterOptions = {
+    activityTypes: Array.from(new Set(userAnalysis.timelineEvents.map((event) => event.eventType))).sort(),
+    issueKeys: Array.from(new Set(userAnalysis.timelineEvents.flatMap((event) => event.allIssueKeys))).sort(),
+    projectKeys: Array.from(new Set(userAnalysis.timelineEvents.map((event) => event.projectKey).filter(Boolean))).sort(),
+    users: Array.from(new Set(userAnalysis.timelineEvents.map((event) => event.userKey).filter(Boolean))).sort()
+  };
   const timelineIssueFilterOptions = {
     activityTypes: Array.from(new Set(userAnalysis.timelineIssueGroups.flatMap((group) => group.activityTypes))).sort(),
     projectKeys: Array.from(new Set(userAnalysis.timelineIssueGroups.map((group) => group.projectKey).filter(Boolean))).sort()
@@ -232,7 +252,8 @@ export function AnalysisPage() {
     userAnalysis.timelineIssueFilters.confidences.length ? `Confidence = ${userAnalysis.timelineIssueFilters.confidences.join(" OR ")}` : "",
     userAnalysis.timelineIssueFilters.issueKeyRoles.length ? `Role = ${userAnalysis.timelineIssueFilters.issueKeyRoles.join(" OR ")}` : "",
     userAnalysis.timelineIssueFilters.sourceApplications.length ? `Source Application = ${userAnalysis.timelineIssueFilters.sourceApplications.join(" OR ")}` : "",
-    userAnalysis.timelineIssueFilters.projectKeys.length ? `Project Key = ${userAnalysis.timelineIssueFilters.projectKeys.join(" OR ")}` : ""
+    userAnalysis.timelineIssueFilters.projectKeys.length ? `Project Key = ${userAnalysis.timelineIssueFilters.projectKeys.join(" OR ")}` : "",
+    userAnalysis.timelineIssueFilters.selectedStates.length ? `Selected State = ${userAnalysis.timelineIssueFilters.selectedStates.join(" OR ")}` : ""
   ].filter(Boolean);
   const filteredRelatedIssues = userAnalysis.relatedCandidateIssues.filter((item) =>
     (userAnalysis.relatedIssueFilters.relationType === "all" || item.relationType === userAnalysis.relatedIssueFilters.relationType)
@@ -254,7 +275,7 @@ export function AnalysisPage() {
   const dateRangeDays = userAnalysis.startDate && userAnalysis.endDate
     ? Math.round((Date.parse(userAnalysis.endDate) - Date.parse(userAnalysis.startDate)) / 86400000) + 1
     : 0;
-  const dateRangeWarning = dateRangeDays > 90 ? "Date range is over 90 days. Advanced Candidate Search may be slow; narrow the range if possible." : "";
+  const dateRangeWarning = dateRangeDays > 90 ? "Date range is over 90 days. User Analysis may take longer; narrow the range if possible." : "";
   const fullFetchCompletedCount = userAnalysis.fullFetchProgress.success + userAnalysis.fullFetchProgress.failed + userAnalysis.fullFetchProgress.skipped;
   const fullFetchProgressPercent = userAnalysis.fullFetchProgress.total > 0
     ? Math.min(100, Math.round((fullFetchCompletedCount / userAnalysis.fullFetchProgress.total) * 100))
@@ -276,12 +297,11 @@ export function AnalysisPage() {
 
   function workflowStepState(step: string): { state: WorkflowVisualState; reason: string } {
     const active = (step === "timeline" && userAnalysis.activeTab === "timeline") || (step === "selectIssues" && userAnalysis.activeTab === "selectIssues") || (step === "queue" && ["queue", "fetchReport"].includes(userAnalysis.activeTab)) || (step === "relatedIssues" && userAnalysis.activeTab === "relatedIssues") || (step === "exports" && userAnalysis.activeTab === "exports");
-    if (step === "setup") return setupReady ? { state: "completed", reason: "Analysis inputs are ready. / 分析條件已就緒。" } : { state: "warning", reason: "Set one user and a valid date range. / 請設定一位使用者與有效日期範圍。" };
     if (step === "timeline") {
       if (userAnalysis.timelineStatus === "failed") return { state: "failed", reason: userAnalysis.errors[0] || "Timeline build failed. / 時間線建立失敗。" };
       if (active) return { state: "current", reason: "Build direct activity evidence. / 建立直接操作證據。" };
       if (userAnalysis.timelineStatus === "completed") return { state: "completed", reason: "Timeline is available. / 時間線已建立。" };
-      return setupReady ? { state: "ready", reason: "Ready to build Timeline. / 可建立時間線。" } : { state: "blocked", reason: "Complete Step 1: Setup Analysis first. / 請先完成 Step 1。" };
+      return setupReady ? { state: "ready", reason: "Ready to build Timeline. / 可建立時間線。" } : { state: "blocked", reason: "Set one user and a valid date range in Step 1. / 請在 Step 1 設定一位使用者與有效日期範圍。" };
     }
     if (step === "selectIssues") {
       if (active) return { state: "current", reason: "Filter and select Timeline issue groups. / 篩選並選擇 Jira 群組。" };
@@ -309,14 +329,36 @@ export function AnalysisPage() {
     setUserAnalysis((current) => ({ ...current, ...patch }));
   }
 
-  function toggleTimelineIssueFilter(key: "jiraRelations" | "activityTypes" | "confidences" | "issueKeyRoles" | "sourceApplications" | "projectKeys", value: string) {
+  function toggleTimelineIssueFilter(key: "jiraRelations" | "activityTypes" | "confidences" | "issueKeyRoles" | "sourceApplications" | "projectKeys" | "selectedStates", value: string) {
     const current = userAnalysis.timelineIssueFilters[key] as string[];
     const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
     patchState({ timelineIssueFilters: { ...userAnalysis.timelineIssueFilters, [key]: next } as typeof userAnalysis.timelineIssueFilters });
   }
 
-  function clearTimelineIssueFilter(key: "jiraRelations" | "activityTypes" | "confidences" | "issueKeyRoles" | "sourceApplications" | "projectKeys") {
+  function clearTimelineIssueFilter(key: "jiraRelations" | "activityTypes" | "confidences" | "issueKeyRoles" | "sourceApplications" | "projectKeys" | "selectedStates") {
     patchState({ timelineIssueFilters: { ...userAnalysis.timelineIssueFilters, [key]: [] } as typeof userAnalysis.timelineIssueFilters });
+  }
+
+  function toggleTimelineFilter(key: keyof typeof userAnalysis.timelineFilters, value: string) {
+    const current = userAnalysis.timelineFilters[key];
+    const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+    patchState({ timelineFilters: { ...userAnalysis.timelineFilters, [key]: next } });
+  }
+
+  function toggleVisibleColumn(table: "timeline" | "issueGroup", value: string) {
+    if (table === "timeline") {
+      const current = userAnalysis.timelineVisibleColumns;
+      patchState({ timelineVisibleColumns: current.includes(value) ? current.filter((item) => item !== value) : [...current, value] });
+    } else {
+      const current = userAnalysis.issueGroupVisibleColumns;
+      patchState({ issueGroupVisibleColumns: current.includes(value) ? current.filter((item) => item !== value) : [...current, value] });
+    }
+  }
+
+  function toggleIssueGroupDetail(issueKey: string) {
+    const expanded = new Set(userAnalysis.expandedTimelineIssueGroups);
+    if (expanded.has(issueKey)) expanded.delete(issueKey); else expanded.add(issueKey);
+    patchState({ expandedTimelineIssueGroups: Array.from(expanded) });
   }
 
   function SetupSummary() {
@@ -407,12 +449,12 @@ export function AnalysisPage() {
     const seedWorkflowVisualState = (event: Event) => {
       const state = (event as CustomEvent<{ state?: "warning" | "failed" | "reset" }>).detail?.state;
       if (state === "reset") {
-        setUserAnalysis((current) => ({ ...current, activeTab: "timeline", timelineStatus: "idle", fullFetchStatus: "idle", selectedForFetch: [], errors: [] }));
+        setUserAnalysis((current) => ({ ...current, activeTab: "timeline", timelineStatus: "idle", fullFetchStatus: "idle", selectedForFetch: [], autoLogPath: "", errors: [] }));
         return;
       }
       setUserAnalysis((current) => state === "failed"
         ? { ...current, activeTab: "timeline", timelineStatus: "failed", errors: ["UI smoke timeline failure reason"] }
-        : { ...current, activeTab: "queue", fullFetchStatus: "completed_with_errors", errors: [], selectedForFetch: current.selectedForFetch.length ? current.selectedForFetch : ["SMOKE-101"] });
+        : { ...current, activeTab: "queue", fullFetchStatus: "completed_with_errors", autoLogPath: "smoke-full-fetch.log", errors: [], selectedForFetch: current.selectedForFetch.length ? current.selectedForFetch : ["SMOKE-101"] });
     };
     const seedFullFetchFailure = () => setUserAnalysis((current) => ({
       ...current,
@@ -421,17 +463,20 @@ export function AnalysisPage() {
       fullFetchSummary: { ...current.fullFetchSummary, totalIssues: 1, failed: 1 },
       fullFetchReport: [{ issueKey: "SMOKE-404", summary: "Missing issue", status: "-", fetchStatus: "failed", httpStatus: "404", errorCode: "HTTP_404", stage: "issue_full_fetch", source: "recommended_related_issue", matchedReason: "epic_link_parent", retryCount: 0, occurredAt: "2026-07-16T08:00:00.000Z", changelogHistories: 0, changelogItems: 0, comments: 0, attachmentsMetadata: 0, issueLinks: 0, parsedUsers: 0, estimatedEvents: 0, duration: "12ms", error: "HTTP 404 Not Found", lastFetchedAt: "2026-07-16 16:00:00" }]
     }));
+    const seedMissingAnalysisInput = () => setUserAnalysis((current) => ({ ...current, activeTab: "timeline", selectedUsersText: "" }));
     window.addEventListener("jaa:seed-large-queue", seedLargeQueue);
     window.addEventListener("jaa:churn-debug-log", churnDebugLog);
     window.addEventListener("jaa:seed-related-scope", seedRelatedScope);
     window.addEventListener("jaa:seed-workflow-visual-state", seedWorkflowVisualState);
     window.addEventListener("jaa:seed-full-fetch-failure", seedFullFetchFailure);
+    window.addEventListener("jaa:seed-missing-analysis-input", seedMissingAnalysisInput);
     return () => {
       window.removeEventListener("jaa:seed-large-queue", seedLargeQueue);
       window.removeEventListener("jaa:churn-debug-log", churnDebugLog);
       window.removeEventListener("jaa:seed-related-scope", seedRelatedScope);
       window.removeEventListener("jaa:seed-workflow-visual-state", seedWorkflowVisualState);
       window.removeEventListener("jaa:seed-full-fetch-failure", seedFullFetchFailure);
+      window.removeEventListener("jaa:seed-missing-analysis-input", seedMissingAnalysisInput);
     };
   }, [appendDebugLog, setUserAnalysis]);
 
@@ -516,9 +561,35 @@ export function AnalysisPage() {
       addedRelatedIssuesToFetchQueueCount: userAnalysis.addedRelatedIssuesToFetchQueueCount,
       addedRecommendedRelatedIssuesToFetchQueueCount: userAnalysis.addedRecommendedRelatedIssuesToFetchQueueCount,
       addedOptionalRelatedIssuesToFetchQueueCount: userAnalysis.addedOptionalRelatedIssuesToFetchQueueCount,
+      uiState: {
+        workflowStepCount: 5,
+        advancedToolsVisible: false,
+        fullFetchProgressLocation: "step3_full_fetch",
+        timeline: {
+          visibleColumns: userAnalysis.timelineVisibleColumns,
+          requiredColumns: timelineRequiredColumns.map((column) => column.value),
+          optionalColumns: timelineOptionalColumns.map((column) => column.value),
+          filters: userAnalysis.timelineFilters,
+          filteredCount: filteredTimelineEvents.length,
+          totalCount: userAnalysis.timelineEvents.length
+        },
+        selectIssues: {
+          visibleColumns: userAnalysis.issueGroupVisibleColumns,
+          requiredColumns: issueGroupRequiredColumns.map((column) => column.value),
+          optionalColumns: issueGroupOptionalColumns.map((column) => column.value),
+          filters: userAnalysis.timelineIssueFilters,
+          filteredCount: filteredTimelineIssueGroups.length,
+          totalCount: userAnalysis.timelineIssueGroups.length
+        }
+      },
       ...overrides
     });
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void persistWorkflowSnapshot(); }, 120);
+    return () => window.clearTimeout(timer);
+  }, [userAnalysis.timelineFilters, userAnalysis.timelineVisibleColumns, userAnalysis.timelineIssueFilters, userAnalysis.issueGroupVisibleColumns, userAnalysis.selectedTimelineIssueKeys]);
 
   function queueCandidate(issueKey: string, matchedReason: string, source: FetchQueueSource, metadata: Partial<FetchQueueMetadata>): UserAnalysisCandidateIssue {
     return { id: issueKey, key: issueKey, summary: "Queued from User Analysis workflow", status: "Pending", assignee: "-", reporter: "-", creator: "-", updated: "", created: "", issueType: "Unknown", priority: "-", project: issueKey.split("-")[0] ?? "", matchedReason, queueMetadata: mergeQueueMetadata(undefined, { ...metadata, source, matchedReason }) };
@@ -721,7 +792,7 @@ export function AnalysisPage() {
         loading: false,
         candidateIssues: candidates,
         selectedForFetch,
-        workflowSteps: { ...userAnalysis.workflowSteps, advancedCandidateSearch: "completed", fetchQueue: selectedForFetch.length ? "ready" : userAnalysis.workflowSteps.fetchQueue },
+        workflowSteps: { ...userAnalysis.workflowSteps, fetchQueue: selectedForFetch.length ? "ready" : userAnalysis.workflowSteps.fetchQueue },
         excludedIssues: [],
         activeTab: "candidates",
         page: 1,
@@ -735,7 +806,7 @@ export function AnalysisPage() {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Advanced Candidate Search failed.";
-      patchState({ loading: false, workflowSteps: { ...userAnalysis.workflowSteps, advancedCandidateSearch: "failed" }, errors: [message], warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning], notice: "" });
+      patchState({ loading: false, errors: [message], warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning], notice: "" });
       appendDebugLog("analysis", [`[ERROR] ${message}`, "[INFO] No database write performed"]);
     }
   }
@@ -969,10 +1040,10 @@ export function AnalysisPage() {
       selectedForFetch: [],
       excludedIssues: [],
       activeTab: "timeline",
-      workflowSteps: { activityTimeline: "not_run", timelineIssueSelection: "not_run", fetchQueue: "empty", fullFetch: "not_run", relatedIssues: "not_run", exports: "not_run", advancedCandidateSearch: "not_run" },
+      workflowSteps: { activityTimeline: "not_run", timelineIssueSelection: "not_run", fetchQueue: "empty", fullFetch: "not_run", relatedIssues: "not_run", exports: "not_run" },
       timelineIssueGroups: [],
       selectedTimelineIssueKeys: [],
-      timelineIssueFilters: { jiraRelations: ["jira_related"], activityTypes: [], confidences: [], issueKeyRoles: [], sourceApplications: ["jira", "confluence"], projectKeys: [], query: "" },
+      timelineIssueFilters: { jiraRelations: ["jira_related"], activityTypes: [], confidences: [], issueKeyRoles: [], sourceApplications: ["jira", "confluence"], projectKeys: [], selectedStates: [], query: "" },
       relatedCandidateIssues: [],
       selectedRelatedIssueKeys: [],
       addedTimelineIssuesToFetchQueueCount: 0,
@@ -982,6 +1053,11 @@ export function AnalysisPage() {
       lastQueueAddSummary: { kind: "", added: 0, merged: 0, total: 0 },
       advancedToolsOpen: false,
       previousFullFetchOpen: false,
+      timelineFilters: { activityTypes: [], sourceApplications: ["jira", "confluence"], jiraRelations: ["jira_related"], confidences: [], issueKeys: [], projectKeys: [], users: [] },
+      timelineVisibleColumns: timelineRequiredColumns.map((column) => column.value),
+      issueGroupVisibleColumns: issueGroupRequiredColumns.map((column) => column.value),
+      expandedTimelineEvents: [],
+      expandedTimelineIssueGroups: [],
       page: 1,
       search: "",
       warnings: [],
@@ -1627,7 +1703,7 @@ export function AnalysisPage() {
         依引導式流程，從活動時間線證據逐步完成 Jira 完整抓取與關聯範圍檢視。
       </p>
 
-      <SectionCard id="analysis-setup" title="Step 1. Setup Analysis" subtitle="設定分析條件" className="mb-4">
+      {userAnalysis.activeTab === "timeline" ? <SectionCard id="analysis-setup" title="Step 1. Setup & Build Timeline" subtitle="設定並建立活動時間線" className="mb-4">
         <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           <div><FieldLabel label="Selected User" sub="選擇使用者" /><input data-testid="analysis-setup-user" className="field" value={userAnalysis.selectedUsersText} onChange={(event) => patchState({ selectedUsersText: event.target.value.replace(/[\n,;].*$/, "") })} placeholder="roger_hsieh" /></div>
           <div><FieldLabel label="Date Range Start" sub="開始日期" /><input data-testid="analysis-setup-start" className="field" type="date" value={userAnalysis.startDate} onChange={(event) => patchState({ startDate: event.target.value })} /></div>
@@ -1635,8 +1711,9 @@ export function AnalysisPage() {
           <div><FieldLabel label="Project Scope" sub="專案範圍（選填）" /><input data-testid="analysis-setup-project" className="field" value={userAnalysis.precisionProjectScope} onChange={(event) => patchState({ precisionProjectScope: event.target.value })} placeholder="COPGEN1" /></div>
           <div><FieldLabel label="Data Source Mode" sub="資料來源模式" /><div className="field bg-slate-50 font-bold">Live Jira API</div><div className="mt-1 text-xs font-semibold text-muted">Local Database: coming later</div></div>
         </div>
-        {!setupReady ? <div data-testid="analysis-setup-blocked" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">Please set Selected User and Date Range before building timeline.<br />請先設定使用者與日期範圍，再建立活動時間線。</div> : <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-900">Setup is ready for Step 2: Build Timeline. / 分析條件已就緒，可前往 Step 2：建立活動時間線。</div>}
-      </SectionCard>
+        {!setupReady ? <div data-testid="analysis-setup-blocked" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">Please set Selected User and Date Range before building timeline.<br />請先設定使用者與日期範圍，再建立活動時間線。</div> : <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-900">Setup is ready. Build Timeline to continue to Step 2: Select Issues.<br />設定完成，可建立時間線並前往 Step 2。</div>}
+        <button data-testid="setup-build-activity-timeline" className="btn btn-primary mt-4" type="button" disabled={!setupReady || userAnalysis.timelineStatus === "running"} onClick={() => void handleBuildTimeline()}><Clock3 size={16} />{userAnalysis.timelineStatus === "running" ? "Building Timeline..." : "Build Timeline, then go to Step 2: Select Issues / 建立活動時間線，然後前往 Step 2：選擇 Jira"}</button>
+      </SectionCard> : null}
 
       {userAnalysis.previousUnfinishedRun && !userAnalysis.previousUnfinishedDismissed && (userAnalysis.activeTab === "queue" || userAnalysis.activeTab === "fetchReport") ? (
         <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
@@ -1665,16 +1742,15 @@ export function AnalysisPage() {
       <SectionCard className="mb-4">
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {[
-            ["setup", "1", "Setup Analysis", "設定分析條件"],
-            ["timeline", "2", "Build Timeline", "建立活動時間線"],
-            ["selectIssues", "3", "Select Issues", "選擇 Jira"],
-            ["queue", "4", "Full Fetch", "完整抓取"],
-            ["relatedIssues", "5", "Review Related Issues", "檢視關聯 Jira"],
-            ["exports", "6", "Export", "匯出"]
+            ["timeline", "1", "Setup & Build Timeline", "設定並建立活動時間線"],
+            ["selectIssues", "2", "Select Issues", "選擇 Jira"],
+            ["queue", "3", "Full Fetch", "完整抓取"],
+            ["relatedIssues", "4", "Related Issues", "關聯 Jira"],
+            ["exports", "5", "Export", "匯出"]
           ].map(([step, number, title, subtitle]) => {
             const visual = workflowStepState(step);
             const blocked = visual.state === "blocked";
-            return <button key={step} data-testid={`workflow-${step}`} data-step-state={visual.state} className={`grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-lg border border-l-4 p-3 text-left transition ${workflowStateStyles[visual.state]} ${blocked ? "cursor-not-allowed" : "hover:shadow-sm"}`} type="button" disabled={blocked} title={visual.reason} aria-current={visual.state === "current" ? "step" : undefined} onClick={() => step === "setup" ? document.querySelector("#analysis-setup")?.scrollIntoView({ behavior: "smooth" }) : showStep(step as "timeline" | "selectIssues" | "queue" | "relatedIssues" | "exports")}>
+            return <button key={step} data-testid={`workflow-${step}`} data-step-state={visual.state} className={`grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-lg border border-l-4 p-3 text-left transition ${workflowStateStyles[visual.state]} ${blocked ? "cursor-not-allowed" : "hover:shadow-sm"}`} type="button" disabled={blocked} title={visual.reason} aria-current={visual.state === "current" ? "step" : undefined} onClick={() => showStep(step as "timeline" | "selectIssues" | "queue" | "relatedIssues" | "exports")}>
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black ${visual.state === "current" ? "bg-blue-600 text-white" : visual.state === "completed" ? "bg-emerald-600 text-white" : "bg-white text-slate-600"}`}>{number}</span>
               <span className="min-w-0 flex-1 text-sm font-black leading-snug text-ink"><span>Step {number}: {title}</span><br /><span className="text-xs font-semibold text-muted">{subtitle}</span><span data-step-reason className="mt-2 block text-xs font-semibold leading-snug text-muted">{visual.reason}</span></span>
               <span className="col-start-2 min-w-0"><StatusBadge tone={workflowStateTones[visual.state]}>Status: {visual.state}</StatusBadge></span>
@@ -1683,8 +1759,8 @@ export function AnalysisPage() {
         </div>
       </SectionCard>
 
-      {(userAnalysis.fullFetchStatus === "running" || userAnalysis.fullFetchStatus === "paused" || userAnalysis.autoLogPath) ? (
-        <SectionCard title="Full Fetch Progress" subtitle="完整抓取進度" className="mb-4">
+      {(userAnalysis.activeTab === "queue" || userAnalysis.activeTab === "fetchReport") && (userAnalysis.fullFetchStatus === "running" || userAnalysis.fullFetchStatus === "paused" || userAnalysis.autoLogPath) ? (
+        <SectionCard id="full-fetch-progress" title="Full Fetch Progress" subtitle="完整抓取進度" className="mb-4">
           <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
             <MiniStat label="Total Issues / 總數" value={userAnalysis.fullFetchProgress.total} />
             <MiniStat label="Current / 目前" value={`${userAnalysis.fullFetchProgress.currentIndex} / ${userAnalysis.fullFetchProgress.total}`} />
@@ -1734,12 +1810,11 @@ export function AnalysisPage() {
       {userAnalysis.helpOpen ? (
         <SectionCard title="User Analysis workflow" subtitle="使用者分析流程" className="mb-4">
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-lg bg-blue-50 p-3 text-sm leading-relaxed"><b>1. Setup Analysis / 設定分析</b><br />Choose one user, date range, project scope, and Live Jira API.</div>
-            <div className="rounded-lg bg-cyan-50 p-3 text-sm leading-relaxed"><b>2. Build Timeline / 建立時間線</b><br />Build guarded, direct Activity Stream evidence for the selected user.</div>
-            <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>3. Select Issues / 選擇 Jira</b><br />Review issue groups derived from timeline evidence and select the analysis scope.</div>
-            <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>4. Full Fetch / 完整抓取</b><br />Fetch selected issues sequentially with checkpoints and read-only Jira GET requests.</div>
-            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>5. Review Related Issues / 檢視關聯 Jira</b><br />Add recommended hierarchy relations or explicitly selected optional relations.</div>
-            <div className="rounded-lg bg-slate-100 p-3 text-sm leading-relaxed"><b>6. Export / 匯出</b><br />Save the completed analysis evidence and diagnostics.</div>
+            <div className="rounded-lg bg-blue-50 p-3 text-sm leading-relaxed"><b>1. Setup & Build Timeline</b><br />Set one user and date range, then build and inspect Timeline events.</div>
+            <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>2. Select Issues</b><br />Filter and select issue groups derived from Timeline evidence.</div>
+            <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>3. Full Fetch</b><br />Fetch selected issues sequentially with read-only Jira GET requests.</div>
+            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>4. Related Issues</b><br />Review recommended and explicitly selected optional relations.</div>
+            <div className="rounded-lg bg-slate-100 p-3 text-sm leading-relaxed"><b>5. Export</b><br />Save completed analysis evidence and diagnostics.</div>
           </div>
           <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">
             Stage 1 Candidate Result / 第一階段候選結果:<br />exports/user-analysis/user-analysis-candidates-YYYYMMDD_HHmmss.json<br /><br />
@@ -1753,7 +1828,7 @@ export function AnalysisPage() {
         </SectionCard>
       ) : null}
 
-      <SectionCard title="Advanced Tools" subtitle="進階工具" className="mb-4">
+      {false ? <SectionCard title="Advanced Tools" subtitle="進階工具" className="mb-4">
         <div data-step-state="advanced" className={`flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-l-4 p-3 ${workflowStateStyles.advanced}`}>
           <div className="min-w-0 text-sm font-semibold leading-relaxed text-muted">
             <StatusBadge tone={workflowStateTones.advanced}>advanced</StatusBadge><div className="mt-2">Advanced Candidate Search is supplementary evidence and is not part of the guided workflow.<br />
@@ -1765,9 +1840,9 @@ export function AnalysisPage() {
             {userAnalysis.advancedToolsOpen ? "Hide Advanced Tools / 收合進階工具" : "Show Advanced Tools / 展開進階工具"}
           </button>
         </div>
-      </SectionCard>
+      </SectionCard> : null}
 
-      {userAnalysis.advancedToolsOpen ? <>
+      {false ? <>
       <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-950">
         <span>Advanced Candidate Search uses assignee, reporter, creator, and JQL matches as supplementary evidence. It is not direct activity evidence and does not build the Activity Timeline.<br />進階候選搜尋是補充證據，不代表使用者直接活動，也不會建立活動時間線。</span>
         <button className="btn bg-white" type="button" onClick={() => showStep("timeline")}><Clock3 size={15} />Go to Step 2: Build Timeline / 前往 Step 2：建立活動時間線</button>
@@ -2042,7 +2117,7 @@ export function AnalysisPage() {
               <MiniStat label="Advanced / 進階搜尋" value={queueSourceCounts.advanced_candidate_search ?? 0} />
               <MiniStat label="Manual / 手動" value={queueSourceCounts.manual ?? 0} />
             </div>
-            {userAnalysis.lastQueueAddSummary.kind ? <div data-testid="queue-add-summary" className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold leading-relaxed text-emerald-950"><div className="min-w-0"><b>{userAnalysis.lastQueueAddSummary.kind === "timeline" ? "Selected issues added to Fetch Queue." : userAnalysis.lastQueueAddSummary.kind === "recommended" ? "Recommended related issues added to Fetch Queue." : "Selected optional related issues added to Fetch Queue."}</b><br />Added: {userAnalysis.lastQueueAddSummary.added} · Merged: {userAnalysis.lastQueueAddSummary.merged} · Total Queue: {userAnalysis.lastQueueAddSummary.total}</div><button className="btn btn-primary" type="button" onClick={() => document.querySelector("[data-testid='run-full-fetch']")?.scrollIntoView({ behavior: "smooth", block: "center" })}>{userAnalysis.lastQueueAddSummary.kind === "timeline" ? "Go to Step 4: Full Fetch / 前往 Step 4：完整抓取" : "Run Related Issues in Step 4: Full Fetch / 在 Step 4 抓取關聯 Jira"}</button></div> : null}
+            {userAnalysis.lastQueueAddSummary.kind ? <div data-testid="queue-add-summary" className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold leading-relaxed text-emerald-950"><div className="min-w-0"><b>{userAnalysis.lastQueueAddSummary.kind === "timeline" ? "Selected issues added to Fetch Queue." : userAnalysis.lastQueueAddSummary.kind === "recommended" ? "Recommended related issues added to Fetch Queue." : "Selected optional related issues added to Fetch Queue."}</b><br />Added: {userAnalysis.lastQueueAddSummary.added} · Merged: {userAnalysis.lastQueueAddSummary.merged} · Total Queue: {userAnalysis.lastQueueAddSummary.total}</div><button className="btn btn-primary" type="button" onClick={() => document.querySelector("[data-testid='run-full-fetch']")?.scrollIntoView({ behavior: "smooth", block: "center" })}>{userAnalysis.lastQueueAddSummary.kind === "timeline" ? "Go to Step 3: Full Fetch / 前往 Step 3：完整抓取" : "Run Related Issues in Step 3: Full Fetch / 在 Step 3 抓取關聯 Jira"}</button></div> : null}
             <div className="mb-3 grid min-w-0 grid-cols-1 gap-4 rounded-lg border border-line bg-slate-50 p-4 lg:grid-cols-2">
               <div className="min-w-0">
                 <FieldLabel label="Raw Data Mode" sub="原始資料模式" />
@@ -2110,7 +2185,7 @@ export function AnalysisPage() {
               <Play size={16} />{userAnalysis.fullFetchStatus === "running" ? "Running Full Fetch / 完整抓取中..." : hasFullFetchResult ? "Re-run Full Fetch from Queue / 依佇列重新完整抓取" : "Run Full Fetch from Queue / 依佇列執行完整抓取"}
             </button>
             {fullFetchDisabledReason ? <div className="mt-2 text-sm font-bold text-amber-800">Disabled reason / 無法執行原因：{fullFetchDisabledReason}</div> : null}
-            {hasFullFetchResult ? <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800"><span>Full Fetch completed. Review the Step 4 report.<br />完整抓取已完成，請檢視 Step 4 報告。</span><button className="btn" type="button" onClick={() => showStep("fetchReport")}>Go to Step 4: Full Fetch Report / 前往 Step 4：完整抓取報告</button></div> : null}
+            {hasFullFetchResult ? <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800"><span>Full Fetch completed. Review the Step 3 report.<br />完整抓取已完成，請檢視 Step 3 報告。</span><button className="btn" type="button" onClick={() => showStep("fetchReport")}>Go to Step 3: Full Fetch Report / 前往 Step 3：完整抓取報告</button></div> : null}
           </>
         ) : (
           <>
@@ -2186,7 +2261,7 @@ export function AnalysisPage() {
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold text-muted"><span>This will replace the current Full Fetch session result.<br />這會取代目前的完整抓取工作階段結果。</span><button className="btn" type="button" onClick={() => void handleRunFullFetchClick()} disabled={Boolean(fullFetchDisabledReason)} title={fullFetchDisabledReason}><Play size={15} />Re-run Full Fetch from Queue / 依佇列重新完整抓取</button></div>
-            {hasFullFetchResult ? <div data-testid="full-fetch-next-action" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-950"><div className="min-w-0"><b>Full Fetch completed. / 完整抓取已完成。</b><br />Success: {userAnalysis.fullFetchSummary.success} · Failed: {userAnalysis.fullFetchSummary.failed} · Related Issues Discovered: {userAnalysis.relatedCandidateIssues.length} · Recommended: {recommendedRelatedIssues.length} · Optional: {userAnalysis.relatedCandidateIssues.length - recommendedRelatedIssues.length}</div><button className="btn btn-primary" type="button" onClick={() => showStep("relatedIssues")}>Next → Step 5: Review Related Issues / 下一步 → Step 5：檢視關聯 Jira</button></div> : null}
+            {hasFullFetchResult ? <div data-testid="full-fetch-next-action" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-950"><div className="min-w-0"><b>Full Fetch completed. Go to Step 4: Related Issues. / 完整抓取完成，前往 Step 4：關聯 Jira。</b><br />Success: {userAnalysis.fullFetchSummary.success} · Failed: {userAnalysis.fullFetchSummary.failed} · Related Issues Discovered: {userAnalysis.relatedCandidateIssues.length} · Recommended: {recommendedRelatedIssues.length} · Optional: {userAnalysis.relatedCandidateIssues.length - recommendedRelatedIssues.length}</div><button className="btn btn-primary" type="button" onClick={() => showStep("relatedIssues")}>Next → Step 4: Related Issues / 下一步 → Step 4：關聯 Jira</button></div> : null}
           </>
         )}
       </SectionCard> : null}
@@ -2203,12 +2278,26 @@ export function AnalysisPage() {
           <MultiSelectFilter testId="filter-role" label="Issue Key Role / 議題角色" options={["primary", "secondary", "primary_and_secondary"].map((value) => ({ value, label: value }))} selected={userAnalysis.timelineIssueFilters.issueKeyRoles} onToggle={(value) => toggleTimelineIssueFilter("issueKeyRoles", value)} onClear={() => clearTimelineIssueFilter("issueKeyRoles")} />
           <MultiSelectFilter testId="filter-source-application" label="Source Application / 來源應用" options={["jira", "confluence", "other", "unknown"].map((value) => ({ value, label: value }))} selected={userAnalysis.timelineIssueFilters.sourceApplications} onToggle={(value) => toggleTimelineIssueFilter("sourceApplications", value)} onClear={() => clearTimelineIssueFilter("sourceApplications")} />
           <MultiSelectFilter testId="filter-project-key" label="Project Key / 專案" options={timelineIssueFilterOptions.projectKeys.map((value) => ({ value, label: value }))} selected={userAnalysis.timelineIssueFilters.projectKeys} onToggle={(value) => toggleTimelineIssueFilter("projectKeys", value)} onClear={() => clearTimelineIssueFilter("projectKeys")} />
+          <MultiSelectFilter testId="filter-selected-state" label="Selected State / 選取狀態" options={[{ value: "selected", label: "Selected" }, { value: "unselected", label: "Unselected" }]} selected={userAnalysis.timelineIssueFilters.selectedStates} onToggle={(value) => toggleTimelineIssueFilter("selectedStates", value)} onClear={() => clearTimelineIssueFilter("selectedStates")} />
         </div>
         <div data-testid="timeline-issue-filter-summary" className="mt-3 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-muted">Showing {filteredTimelineIssueGroups.length} of {userAnalysis.timelineIssueGroups.length} issue groups<br />Filtered by: {activeTimelineIssueFilters.join(" AND ") || "None"}</div>
-        <div className="mt-3 flex flex-wrap gap-2"><button data-testid="select-all-visible" className="btn" type="button" onClick={() => selectTimelineIssues("filtered")}>Select all visible / 全選目前結果</button><button className="btn" type="button" onClick={() => selectTimelineIssues("high")}>Select visible High Confidence / 選取高信心</button><button className="btn" type="button" onClick={() => selectTimelineIssues("clear")}>Clear issue selection / 清除 Jira 選取</button><button data-testid="clear-all-issue-filters" className="btn" type="button" onClick={() => patchState({ timelineIssueFilters: { jiraRelations: [], activityTypes: [], confidences: [], issueKeyRoles: [], sourceApplications: [], projectKeys: [], query: "" } })}>Clear all filters / 清除全部篩選</button><button className="btn" type="button" onClick={() => patchState({ timelineIssueFilters: { ...userAnalysis.timelineIssueFilters, jiraRelations: ["jira_related"], sourceApplications: ["jira", "confluence"] } })}>Reset Jira-related View / 重設 Jira 關聯檢視</button></div>
-        <ResponsiveTableContainer className="mt-4"><table className="data-table min-w-[1360px]" data-testid="timeline-issue-groups-table"><thead><tr><th>Selected</th><th>Issue Key</th><th>Jira Relation</th><th>Role</th><th>Events</th><th>Activity Types</th><th>Source Applications</th><th>First Seen</th><th>Last Seen</th><th>Confidence</th><th>Source</th></tr></thead><tbody>{filteredTimelineIssueGroups.map((group) => <tr key={group.issueKey}><td><input type="checkbox" checked={userAnalysis.selectedTimelineIssueKeys.includes(group.issueKey)} onChange={(event) => toggleTimelineIssue(group.issueKey, event.target.checked)} /></td><td className="font-black text-blue-700">{group.issueKey}</td><td><StatusBadge tone={group.isJiraRelated ? "green" : "amber"}>{group.isJiraRelated ? "Jira-related" : "Non-Jira"}</StatusBadge></td><td>{group.issueKeyRole}</td><td>{group.eventCount}</td><td>{group.activityTypes.join(", ")}</td><td>{sourceSystemLabel(group.jiraRelationSummary.sourceApplicationCounts)}</td><td className="whitespace-nowrap">{group.firstSeen || "-"}</td><td className="whitespace-nowrap">{group.lastSeen || "-"}</td><td>H {group.confidenceSummary.high} / M {group.confidenceSummary.medium} / L {group.confidenceSummary.low}</td><td>{group.source}</td></tr>)}</tbody></table></ResponsiveTableContainer>
+        <div className="mt-3 flex flex-wrap gap-2"><button data-testid="select-all-visible" className="btn" type="button" onClick={() => selectTimelineIssues("filtered")}>Select all visible / 全選目前結果</button><button className="btn" type="button" onClick={() => selectTimelineIssues("high")}>Select visible High Confidence / 選取高信心</button><button className="btn" type="button" onClick={() => selectTimelineIssues("clear")}>Clear issue selection / 清除 Jira 選取</button><button data-testid="clear-all-issue-filters" className="btn" type="button" onClick={() => patchState({ timelineIssueFilters: { jiraRelations: [], activityTypes: [], confidences: [], issueKeyRoles: [], sourceApplications: [], projectKeys: [], selectedStates: [], query: "" } })}>Clear all filters / 清除全部篩選</button><button data-testid="reset-issue-filters" className="btn" type="button" onClick={() => patchState({ timelineIssueFilters: { jiraRelations: ["jira_related"], activityTypes: [], confidences: [], issueKeyRoles: [], sourceApplications: ["jira", "confluence"], projectKeys: userAnalysis.precisionProjectScope ? [userAnalysis.precisionProjectScope.toUpperCase()] : [], selectedStates: [], query: "" } })}>Reset Jira-related View / 重設 Jira 關聯檢視</button><button data-testid="issue-group-column-settings-toggle" className="btn" type="button" onClick={() => patchState({ issueGroupColumnSettingsOpen: !userAnalysis.issueGroupColumnSettingsOpen })}><Columns3 size={16} />Column Settings / 欄位設定</button></div>
+        {userAnalysis.issueGroupColumnSettingsOpen ? <ColumnSettings testId="issue-group-column-settings" required={issueGroupRequiredColumns} optional={issueGroupOptionalColumns} visible={userAnalysis.issueGroupVisibleColumns} onToggle={(value) => toggleVisibleColumn("issueGroup", value)} /> : null}
+        <ResponsiveTableContainer className="mt-4"><table className="data-table min-w-[1050px]" data-testid="timeline-issue-groups-table"><thead><tr>{issueGroupRequiredColumns.map((column) => <th key={column.value}>{column.label}</th>)}{issueGroupOptionalColumns.filter((column) => userAnalysis.issueGroupVisibleColumns.includes(column.value)).map((column) => <th key={column.value}>{column.label}</th>)}<th>Details</th></tr></thead><tbody>{filteredTimelineIssueGroups.map((group) => <Fragment key={group.issueKey}><tr><td><input type="checkbox" checked={userAnalysis.selectedTimelineIssueKeys.includes(group.issueKey)} onChange={(event) => toggleTimelineIssue(group.issueKey, event.target.checked)} /></td><td className="font-black text-blue-700">{group.issueKey}</td><td>{sourceSystemLabel(group.jiraRelationSummary.sourceApplicationCounts)}</td><td>{group.eventCount}</td><td className="whitespace-nowrap">{group.firstSeen || "-"}</td><td className="whitespace-nowrap">{group.lastSeen || "-"}</td>
+          {userAnalysis.issueGroupVisibleColumns.includes("activityTypes") ? <td>{group.activityTypes.join(", ")}</td> : null}
+          {userAnalysis.issueGroupVisibleColumns.includes("confidence") ? <td>H {group.confidenceSummary.high} / M {group.confidenceSummary.medium} / L {group.confidenceSummary.low}</td> : null}
+          {userAnalysis.issueGroupVisibleColumns.includes("issueKeyRole") ? <td>{group.issueKeyRole}</td> : null}
+          {userAnalysis.issueGroupVisibleColumns.includes("projectKey") ? <td>{group.projectKey}</td> : null}
+          {userAnalysis.issueGroupVisibleColumns.includes("jiraRelation") ? <td><StatusBadge tone={group.isJiraRelated ? "green" : "amber"}>{group.isJiraRelated ? "Jira-related" : "Non-Jira"}</StatusBadge></td> : null}
+          {userAnalysis.issueGroupVisibleColumns.includes("relatedSystems") ? <td>{Object.keys(group.jiraRelationSummary.relatedSystemsCounts).join(", ") || "-"}</td> : null}
+          {userAnalysis.issueGroupVisibleColumns.includes("sourceDetails") ? <td>{Object.entries(group.sourceDetails).map(([key, count]) => `${key} ${count}`).join(", ")}</td> : null}
+          {userAnalysis.issueGroupVisibleColumns.includes("timelineEventIds") ? <td className="max-w-[200px] truncate" title={group.timelineEventIds.join(", ")}>{group.timelineEventIds.join(", ")}</td> : null}
+          {userAnalysis.issueGroupVisibleColumns.includes("allIssueKeys") ? <td>{group.issueKey}</td> : null}
+          {userAnalysis.issueGroupVisibleColumns.includes("matchedReasons") ? <td>{Object.keys(group.jiraRelationSummary.jiraRelationReasons).join(", ")}</td> : null}
+          <td><button className="btn px-3 py-2" type="button" onClick={() => toggleIssueGroupDetail(group.issueKey)}>{userAnalysis.expandedTimelineIssueGroups.includes(group.issueKey) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}Details</button></td></tr>
+          {userAnalysis.expandedTimelineIssueGroups.includes(group.issueKey) ? <tr><td colSpan={userAnalysis.issueGroupVisibleColumns.length + 1}><div className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed md:grid-cols-2"><div><b>Activity Types count:</b> {group.activityTypes.join(", ")}</div><div><b>Source Applications count:</b> {sourceSystemLabel(group.jiraRelationSummary.sourceApplicationCounts)}</div><div><b>Source Details count:</b> {JSON.stringify(group.sourceDetails)}</div><div><b>Confidence Summary:</b> H {group.confidenceSummary.high} / M {group.confidenceSummary.medium} / L {group.confidenceSummary.low}</div><div><b>Issue Key Role:</b> {group.issueKeyRole}</div><div><b>Project Key:</b> {group.projectKey}</div><div><b>Related Systems:</b> {JSON.stringify(group.jiraRelationSummary.relatedSystemsCounts)}</div><div><b>All Issue Keys:</b> {group.issueKey}</div><div className="md:col-span-2"><b>Timeline Event IDs:</b> <span className="break-all">{group.timelineEventIds.join(", ")}</span></div><div className="md:col-span-2"><b>Matched Reasons:</b> {JSON.stringify(group.jiraRelationSummary.jiraRelationReasons)}</div></div></td></tr> : null}</Fragment>)}</tbody></table></ResponsiveTableContainer>
         {userAnalysis.timelineIssueGroups.length === 0 ? <div className="mt-4 rounded-lg border border-dashed border-line p-6 text-center text-sm font-semibold text-muted">Build Timeline first to create issue groups.</div> : null}
-        <button className="btn btn-primary mt-4" type="button" disabled={userAnalysis.selectedTimelineIssueKeys.length === 0} onClick={addTimelineIssuesToQueue}>Add Selected Issues, then go to Step 4: Full Fetch / 加入選取 Jira，然後前往 Step 4：完整抓取</button>
+        <button className="btn btn-primary mt-4" type="button" disabled={userAnalysis.selectedTimelineIssueKeys.length === 0} onClick={addTimelineIssuesToQueue}>Add Selected Issues, then go to Step 3: Full Fetch / 加入選取 Jira，然後前往 Step 3：完整抓取</button>
       </SectionCard> : null}
 
       {userAnalysis.activeTab === "relatedIssues" ? <SectionCard title="Review Related Issues" subtitle="檢視關聯 Jira 範圍">
@@ -2217,7 +2306,7 @@ export function AnalysisPage() {
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-950">Related candidates are derived from read-only Full Fetch metadata. Recommended hierarchy relations are separated from optional links and mentions. No Jira write, database write, or attachment download is performed.</div>
 
         <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4" data-testid="recommended-related-issues">
-          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-black text-emerald-950">Recommended Related Issues / 建議加入</h3><p className="mt-1 text-sm font-semibold leading-relaxed text-emerald-900">These are parent / epic / hierarchy related issues and are recommended for follow-up Full Fetch.<br />這些是 parent / epic / hierarchy 關聯 Jira，建議後續完整抓取。</p></div><button data-testid="add-recommended-related" className="btn btn-primary" type="button" disabled={recommendedRelatedIssues.length === 0} onClick={() => addRelatedIssuesToQueue("recommended")}>Add Recommended Related Issues, then go to Step 4: Full Fetch / 加入建議關聯 Jira，然後前往 Step 4：完整抓取</button></div>
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-black text-emerald-950">Recommended Related Issues / 建議加入</h3><p className="mt-1 text-sm font-semibold leading-relaxed text-emerald-900">These are parent / epic / hierarchy related issues and are recommended for follow-up Full Fetch.<br />這些是 parent / epic / hierarchy 關聯 Jira，建議後續完整抓取。</p></div><button data-testid="add-recommended-related" className="btn btn-primary" type="button" disabled={recommendedRelatedIssues.length === 0} onClick={() => addRelatedIssuesToQueue("recommended")}>Add Recommended Related Issues, then go to Step 3: Full Fetch / 加入建議關聯 Jira，然後前往 Step 3：完整抓取</button></div>
           <ResponsiveTableContainer className="mt-3"><table className="data-table min-w-[860px]"><thead><tr><th>Issue Key</th><th>Relation</th><th>From Issue</th><th>Field</th><th>Confidence</th><th>Evidence</th><th>Reason</th></tr></thead><tbody>{recommendedRelatedIssues.map((item) => <tr key={`${item.issueKey}-${item.relationType}-${item.discoveredFromIssueKey}`}><td className="font-black text-blue-700">{item.issueKey}</td><td>{item.relationType}</td><td>{item.discoveredFromIssueKey}</td><td>{item.field}</td><td>{item.confidence}</td><td>{item.evidenceCount}</td><td>{item.reason}</td></tr>)}{recommendedRelatedIssues.length === 0 ? <tr><td colSpan={7} className="text-center text-muted">No recommended hierarchy issues found.</td></tr> : null}</tbody></table></ResponsiveTableContainer>
         </div>
 
@@ -2225,9 +2314,10 @@ export function AnalysisPage() {
           <div className="flex min-w-0 flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-black text-amber-950">Optional Related Issues / 選填參考</h3><p className="mt-1 text-sm font-semibold leading-relaxed text-amber-900">These are linked, mentioned, or remote issues. Review before adding to Fetch Queue.<br />這些是連結、提及或遠端關聯 Jira，請檢查後再加入抓取佇列。</p></div><button className="btn" type="button" disabled={userAnalysis.selectedRelatedIssueKeys.length === 0} onClick={() => patchState({ selectedRelatedIssueKeys: [] })}>Clear Selection / 清除選取</button></div>
           <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2"><div><FieldLabel label="Relation Type" sub="關聯類型" /><select className="field" value={userAnalysis.relatedIssueFilters.relationType} onChange={(event) => patchState({ relatedIssueFilters: { ...userAnalysis.relatedIssueFilters, relationType: event.target.value } })}><option value="all">All</option>{Array.from(new Set(userAnalysis.relatedCandidateIssues.filter((item) => item.scope === "optional").map((item) => item.relationType))).map((value) => <option key={value} value={value}>{value}</option>)}</select></div><div><FieldLabel label="Confidence" sub="信心等級" /><select className="field" value={userAnalysis.relatedIssueFilters.confidence} onChange={(event) => patchState({ relatedIssueFilters: { ...userAnalysis.relatedIssueFilters, confidence: event.target.value } })}><option value="all">All</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div></div>
           <ResponsiveTableContainer className="mt-3"><table className="data-table min-w-[980px]"><thead><tr><th>Selected</th><th>Issue Key</th><th>Relation</th><th>From Issue</th><th>Field</th><th>Confidence</th><th>Evidence</th><th>Reason</th></tr></thead><tbody>{optionalRelatedIssues.map((item) => <tr key={`${item.issueKey}-${item.relationType}-${item.discoveredFromIssueKey}`}><td><input type="checkbox" checked={userAnalysis.selectedRelatedIssueKeys.includes(item.issueKey)} onChange={(event) => { const selected = new Set(userAnalysis.selectedRelatedIssueKeys); if (event.target.checked) selected.add(item.issueKey); else selected.delete(item.issueKey); patchState({ selectedRelatedIssueKeys: Array.from(selected) }); }} /></td><td className="font-black text-blue-700">{item.issueKey}</td><td>{item.relationType}</td><td>{item.discoveredFromIssueKey}</td><td>{item.field}</td><td>{item.confidence}</td><td>{item.evidenceCount}</td><td>{item.reason}</td></tr>)}{optionalRelatedIssues.length === 0 ? <tr><td colSpan={8} className="text-center text-muted">No optional related issues match the current filters.</td></tr> : null}</tbody></table></ResponsiveTableContainer>
-          <button data-testid="add-optional-related" className="btn btn-primary mt-4" type="button" disabled={userAnalysis.selectedRelatedIssueKeys.length === 0} onClick={() => addRelatedIssuesToQueue("optional")}>Add Selected Optional Issues, then go to Step 4: Full Fetch / 加入選填 Jira，然後前往 Step 4：完整抓取</button>
+          <button data-testid="add-optional-related" className="btn btn-primary mt-4" type="button" disabled={userAnalysis.selectedRelatedIssueKeys.length === 0} onClick={() => addRelatedIssuesToQueue("optional")}>Add Selected Optional Issues, then go to Step 3: Full Fetch / 加入選填 Jira，然後前往 Step 3：完整抓取</button>
         </div>
         {hasFullFetchResult && userAnalysis.relatedCandidateIssues.length === 0 ? <div className="mt-4 rounded-lg border border-dashed border-line p-6 text-center text-sm font-semibold text-muted">No related issues were found in the Full Fetch result.</div> : null}
+        <div className="mt-4 flex justify-end"><button data-testid="related-to-export" className="btn btn-primary" type="button" disabled={!exportReady} onClick={() => showStep("exports")}>Go to Step 5: Export / 前往 Step 5：匯出</button></div>
       </SectionCard> : null}
 
       {userAnalysis.activeTab === "timeline" ? <div className="space-y-4" data-testid="activity-timeline-panel">
@@ -2249,7 +2339,7 @@ export function AnalysisPage() {
             <MiniStat label="Baseline" value={userAnalysis.timelineSummary?.baselineGuard.classification ?? "Not built"} />
             <MiniStat label="Source" value="Activity Stream" />
           </div>
-          {userAnalysis.timelineStatus === "completed" ? <div data-testid="timeline-next-action" className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-950"><div className="font-black">Timeline built successfully. / 活動時間線已成功建立。</div><div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-5"><span>Events: {userAnalysis.timelineSummary?.totalEvents ?? 0}</span><span>Issue Groups: {userAnalysis.timelineIssueGroups.length}</span><span>High: {userAnalysis.timelineSummary?.confidenceCounts.high ?? 0}</span><span>Medium: {userAnalysis.timelineSummary?.confidenceCounts.medium ?? 0}</span><span>Low: {userAnalysis.timelineSummary?.confidenceCounts.low ?? 0}</span></div><button className="btn btn-primary mt-3" type="button" onClick={() => showStep("selectIssues")}>Next → Step 3: Select Issues / 下一步 → Step 3：選擇 Jira</button></div> : null}
+          {userAnalysis.timelineStatus === "completed" ? <div data-testid="timeline-next-action" className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-950"><div className="font-black">Timeline built successfully. / 活動時間線已成功建立。</div><div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-5"><span>Events: {userAnalysis.timelineSummary?.totalEvents ?? 0}</span><span>Issue Groups: {userAnalysis.timelineIssueGroups.length}</span><span>High: {userAnalysis.timelineSummary?.confidenceCounts.high ?? 0}</span><span>Medium: {userAnalysis.timelineSummary?.confidenceCounts.medium ?? 0}</span><span>Low: {userAnalysis.timelineSummary?.confidenceCounts.low ?? 0}</span></div><button className="btn btn-primary mt-3" type="button" onClick={() => showStep("selectIssues")}>Next → Step 2: Select Issues / 下一步 → Step 2：選擇 Jira</button></div> : null}
           {userAnalysis.timelineSummary && userAnalysis.timelineSummary.integrity.sourceParsedActivityCount !== userAnalysis.timelineSummary.integrity.timelineEventCount ? <div data-testid="timeline-integrity-count-warning" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold leading-relaxed text-amber-950">Timeline count differs from source parsed activities. See integrity diagnostics.<br />時間線筆數與來源 parsed activities 不一致，請查看完整性診斷。</div> : null}
           {userAnalysis.timelineSummary && userAnalysis.timelineSummary.integrity.missingIssueKeysFromTimeline.length > 0 ? <div data-testid="timeline-integrity-missing-warning" className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-bold leading-relaxed text-red-900">Some source issue keys are missing from timeline.<br />部分來源 issue keys 未進入 timeline。<div className="mt-1 break-words text-xs">{userAnalysis.timelineSummary.integrity.missingIssueKeysFromTimeline.join(", ")}</div></div> : null}
           {userAnalysis.timelineSummary && userAnalysis.timelineSummary.integrity.missingIssueKeysFromTimeline.length === 0 && userAnalysis.timelineSummary.integrity.missingIssueKeysFromPrimaryTimeline.length > 0 ? <div data-testid="timeline-integrity-secondary-info" className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-950">Some issue keys are secondary issue keys and appear only in allIssueKeys.<br />部分 issue keys 是次要 issue key，僅出現在 allIssueKeys。<div className="mt-1 break-words text-xs">{userAnalysis.timelineSummary.integrity.missingIssueKeysFromPrimaryTimeline.join(", ")}</div></div> : null}
@@ -2268,27 +2358,42 @@ export function AnalysisPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Timeline Filters" subtitle="時間線篩選">
-          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <div><FieldLabel label="Project" sub="專案" /><input data-testid="timeline-filter-project" className="field" value={userAnalysis.timelineFilters.project} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, project: event.target.value } })} placeholder="COPGEN1" /></div>
-            <div><FieldLabel label="Issue Key" sub="Jira 編號" /><input data-testid="timeline-filter-issue" className="field" value={userAnalysis.timelineFilters.issueKey} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, issueKey: event.target.value } })} placeholder="COPGEN1-138930" /></div>
-            <div><FieldLabel label="Activity Type" sub="活動類型" /><select data-testid="timeline-filter-type" className="field" value={userAnalysis.timelineFilters.activityType} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, activityType: event.target.value } })}><option value="all">All / 全部</option>{["comment", "attachment", "link", "page", "field_change", "status_change", "assignee_change", "resolution_change", "unknown"].map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
-            <div><FieldLabel label="Confidence" sub="可信度" /><select data-testid="timeline-filter-confidence" className="field" value={userAnalysis.timelineFilters.confidence} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, confidence: event.target.value } })}><option value="all">All / 全部</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
-            <div><FieldLabel label="Source" sub="來源" /><select className="field" value={userAnalysis.timelineFilters.source} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, source: event.target.value } })}><option value="all">All / 全部</option><option value="activity_stream">Activity Stream</option></select></div>
+        <SectionCard title="Timeline Event Filters" subtitle="活動事件複選篩選">
+          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <MultiSelectFilter testId="timeline-filter-activity-types" label="Activity Type" options={timelineFilterOptions.activityTypes.map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.activityTypes} onToggle={(value) => toggleTimelineFilter("activityTypes", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, activityTypes: [] } })} />
+            <MultiSelectFilter testId="timeline-filter-source-applications" label="Source Application" options={["jira", "confluence", "other", "unknown"].map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.sourceApplications} onToggle={(value) => toggleTimelineFilter("sourceApplications", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, sourceApplications: [] } })} />
+            <MultiSelectFilter testId="timeline-filter-jira-relations" label="Jira Relation" options={["jira_related", "has_jira_issue_key", "non_jira", "unknown_relation"].map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.jiraRelations} onToggle={(value) => toggleTimelineFilter("jiraRelations", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, jiraRelations: [] } })} />
+            <MultiSelectFilter testId="timeline-filter-confidences" label="Confidence" options={["high", "medium", "low"].map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.confidences} onToggle={(value) => toggleTimelineFilter("confidences", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, confidences: [] } })} />
+            <MultiSelectFilter testId="timeline-filter-issue-keys" label="Issue Key" options={timelineFilterOptions.issueKeys.map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.issueKeys} onToggle={(value) => toggleTimelineFilter("issueKeys", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, issueKeys: [] } })} />
+            <MultiSelectFilter testId="timeline-filter-project-keys" label="Project Key" options={timelineFilterOptions.projectKeys.map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.projectKeys} onToggle={(value) => toggleTimelineFilter("projectKeys", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, projectKeys: [] } })} />
+            <MultiSelectFilter testId="timeline-filter-users" label="User" options={timelineFilterOptions.users.map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.users} onToggle={(value) => toggleTimelineFilter("users", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, users: [] } })} />
           </div>
-          <div className="mt-3 flex flex-wrap gap-4 text-sm font-bold">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={userAnalysis.timelineFilters.onlyWithJiraKey} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, onlyWithJiraKey: event.target.checked } })} />Only with Jira Key / 僅含 Jira 編號</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={userAnalysis.timelineFilters.onlyLowConfidence} onChange={(event) => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, onlyLowConfidence: event.target.checked } })} />Only low confidence / 僅低可信度</label>
-          </div>
+          <div data-testid="timeline-event-filter-summary" className="mt-3 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-muted">Showing {filteredTimelineEvents.length} of {userAnalysis.timelineEvents.length} timeline events. Empty filters mean All; values within a filter use OR and filter groups use AND.</div>
+          <div className="mt-3 flex flex-wrap gap-2"><button data-testid="clear-all-timeline-filters" className="btn" type="button" onClick={() => patchState({ timelineFilters: { activityTypes: [], sourceApplications: [], jiraRelations: [], confidences: [], issueKeys: [], projectKeys: [], users: [] } })}>Clear all filters / 清除全部篩選</button><button data-testid="reset-timeline-filters" className="btn" type="button" onClick={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, sourceApplications: ["jira", "confluence"], jiraRelations: ["jira_related"] } })}>Reset Jira-related default / 重設 Jira 關聯預設</button></div>
         </SectionCard>
 
-        <SectionCard title="Timeline Events" subtitle={`活動事件 · ${filteredTimelineEvents.length}`}>
+        <SectionCard title="Timeline Event List" subtitle={`Showing ${filteredTimelineEvents.length} of ${userAnalysis.timelineEvents.length} events`}>
+          <div className="flex flex-wrap items-center justify-between gap-3"><div className="text-sm font-semibold text-muted">Required columns stay visible; long evidence is available in Details.</div><button data-testid="timeline-column-settings-toggle" className="btn" type="button" onClick={() => patchState({ timelineColumnSettingsOpen: !userAnalysis.timelineColumnSettingsOpen })}><Columns3 size={16} />Column Settings / 欄位設定</button></div>
+          {userAnalysis.timelineColumnSettingsOpen ? <ColumnSettings testId="timeline-column-settings" required={timelineRequiredColumns} optional={timelineOptionalColumns} visible={userAnalysis.timelineVisibleColumns} onToggle={(value) => toggleVisibleColumn("timeline", value)} /> : null}
           {userAnalysis.timelineEvents.length === 0 ? <div className="rounded-lg border border-dashed border-line p-8 text-center text-sm font-semibold text-muted">Build an Activity Timeline to view events. / 建立活動時間線後即可檢視事件。</div> : (
             <ResponsiveTableContainer data-testid="timeline-events-table">
-              <table className="data-table min-w-[1520px]"><thead><tr><th>Time</th><th>User</th><th>Issue Key</th><th>Activity Type</th><th>Title</th><th>Source Application</th><th>Source Detail</th><th>Jira Relation</th><th>Confidence</th><th>Evidence</th></tr></thead><tbody>
+              <table className="data-table min-w-[980px]"><thead><tr>{timelineRequiredColumns.map((column) => <th key={column.value}>{column.label}</th>)}{timelineOptionalColumns.filter((column) => userAnalysis.timelineVisibleColumns.includes(column.value)).map((column) => <th key={column.value}>{column.label}</th>)}<th>Details</th></tr></thead><tbody>
                 {filteredTimelineEvents.map((event) => <Fragment key={event.eventId}>
-                  <tr><td className="whitespace-nowrap">{event.eventTime || "-"}</td><td title={`${event.displayName} (${event.userKey})`}>{event.displayName}</td><td>{event.issueKey || "-"}</td><td><StatusBadge tone={event.eventType === "unknown" ? "amber" : "blue"}>{event.eventType}</StatusBadge></td><td className="max-w-[360px]"><div className="truncate" data-allow-truncate="true" title={event.eventTitle}>{event.eventTitle}</div></td><td><StatusBadge tone={event.sourceApplication === "jira" ? "blue" : event.sourceApplication === "confluence" ? "green" : "amber"}>{event.sourceApplication}</StatusBadge></td><td>{event.sourceDetail}</td><td><StatusBadge tone={event.isJiraRelated ? "green" : "amber"}>{event.isJiraRelated ? "Jira-related" : "Non-Jira"}</StatusBadge></td><td><StatusBadge tone={event.sourceConfidence === "high" ? "green" : event.sourceConfidence === "low" ? "red" : "amber"}>{event.sourceConfidence}</StatusBadge></td><td><button className="btn px-3 py-2" type="button" onClick={() => toggleTimelineDetail(event.eventId)}>{userAnalysis.expandedTimelineEvents.includes(event.eventId) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}Detail</button></td></tr>
-                  {userAnalysis.expandedTimelineEvents.includes(event.eventId) ? <tr><td colSpan={10}><div className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed md:grid-cols-2"><div><b>eventId:</b> <span className="break-all">{event.eventId}</span></div><div><b>allIssueKeys:</b> {event.allIssueKeys.join(", ") || "-"}</div><div><b>sourceRunId:</b> {event.sourceRunId}</div><div><b>activityApplication:</b> {event.activityApplication || "-"}</div><div><b>jiraRelationReason:</b> {event.jiraRelationReason}</div><div><b>relatedSystems:</b> {event.relatedSystems.join(", ")}</div><div><b>entryFingerprint:</b> <span className="break-all">{event.rawRef.entryFingerprint}</span></div><div><b>matchedRule:</b> {event.evidence.activityTypeClassifier.matchedRule}</div><div><b>baseline:</b> {event.evidence.baselineGuard.classification}</div><div><b>retry:</b> triggered={String(event.evidence.baselineGuard.retryTriggered)}, recovered={String(event.evidence.baselineGuard.retryRecovered)}</div><div className="md:col-span-2"><b>raw title:</b> <span className="break-words">{event.rawTitle}</span></div><div className="md:col-span-2"><b>sanitized summary:</b> <span className="break-words">{event.sanitizedSummary}</span></div></div></td></tr> : null}
+                  <tr><td className="whitespace-nowrap">{event.eventTime || "-"}</td><td title={`${event.displayName} (${event.userKey})`}>{event.displayName}</td><td>{event.issueKey || "-"}</td><td><StatusBadge tone={event.eventType === "unknown" ? "amber" : "blue"}>{event.eventType}</StatusBadge></td><td><StatusBadge tone={event.sourceApplication === "jira" ? "blue" : event.sourceApplication === "confluence" ? "green" : "amber"}>{event.sourceApplication}</StatusBadge></td>
+                    {userAnalysis.timelineVisibleColumns.includes("title") ? <td className="max-w-[320px]"><div className="truncate" data-allow-truncate="true" title={event.eventTitle}>{event.eventTitle}</div></td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("allIssueKeys") ? <td>{event.allIssueKeys.join(", ") || "-"}</td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("sourceDetail") ? <td>{event.sourceDetail}</td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("jiraRelation") ? <td><StatusBadge tone={event.isJiraRelated ? "green" : "amber"}>{event.isJiraRelated ? "Jira-related" : "Non-Jira"}</StatusBadge></td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("confidence") ? <td><StatusBadge tone={event.sourceConfidence === "high" ? "green" : event.sourceConfidence === "low" ? "red" : "amber"}>{event.sourceConfidence}</StatusBadge></td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("eventId") ? <td className="max-w-[180px] truncate" title={event.eventId}>{event.eventId}</td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("entryFingerprint") ? <td className="max-w-[180px] truncate" title={event.rawRef.entryFingerprint}>{event.rawRef.entryFingerprint}</td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("relatedSystems") ? <td>{event.relatedSystems.join(", ")}</td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("jiraRelationReason") ? <td>{event.jiraRelationReason}</td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("rawTitle") ? <td className="max-w-[320px] truncate" title={event.rawTitle}>{event.rawTitle}</td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("sourceVariant") ? <td>{event.rawRef.variant}</td> : null}
+                    {userAnalysis.timelineVisibleColumns.includes("baselineStatus") ? <td>{event.evidence.baselineGuard.classification}</td> : null}
+                    <td><button className="btn px-3 py-2" type="button" onClick={() => toggleTimelineDetail(event.eventId)}>{userAnalysis.expandedTimelineEvents.includes(event.eventId) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}Details</button></td></tr>
+                  {userAnalysis.expandedTimelineEvents.includes(event.eventId) ? <tr><td colSpan={userAnalysis.timelineVisibleColumns.length + 1}><div className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed md:grid-cols-2"><div className="md:col-span-2"><b>Full Title:</b> <span className="break-words">{event.eventTitle}</span></div><div><b>eventId:</b> <span className="break-all">{event.eventId}</span></div><div><b>allIssueKeys:</b> {event.allIssueKeys.join(", ") || "-"}</div><div><b>sourceDetail:</b> {event.sourceDetail}</div><div><b>sourceRunId / chunk:</b> {event.sourceRunId} / {event.rawRef.variant}</div><div><b>jiraRelationReason:</b> {event.jiraRelationReason}</div><div><b>relatedSystems:</b> {event.relatedSystems.join(", ")}</div><div><b>confidence:</b> {event.sourceConfidence}</div><div><b>entryFingerprint:</b> <span className="break-all">{event.rawRef.entryFingerprint}</span></div><div><b>matchedRule:</b> {event.evidence.activityTypeClassifier.matchedRule}</div><div><b>baseline:</b> {event.evidence.baselineGuard.classification}</div><div><b>retry:</b> triggered={String(event.evidence.baselineGuard.retryTriggered)}, recovered={String(event.evidence.baselineGuard.retryRecovered)}</div><div className="md:col-span-2"><b>raw title:</b> <span className="break-words">{event.rawTitle}</span></div><div className="md:col-span-2"><b>diagnostics:</b> <span className="break-words">{event.sanitizedSummary}</span></div></div></td></tr> : null}
                 </Fragment>)}
               </tbody></table>
             </ResponsiveTableContainer>

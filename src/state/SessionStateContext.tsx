@@ -538,7 +538,7 @@ export type UserAnalysisSessionState = {
   timelineSummary: UserActivityTimelineSummary | null;
   timelineIssueGroups: TimelineIssueGroup[];
   selectedTimelineIssueKeys: string[];
-  timelineIssueFilters: { jiraRelations: string[]; activityTypes: string[]; confidences: string[]; issueKeyRoles: string[]; sourceApplications: Array<"jira" | "confluence" | "other" | "unknown">; projectKeys: string[]; query: string };
+  timelineIssueFilters: { jiraRelations: string[]; activityTypes: string[]; confidences: string[]; issueKeyRoles: string[]; sourceApplications: Array<"jira" | "confluence" | "other" | "unknown">; projectKeys: string[]; selectedStates: string[]; query: string };
   relatedCandidateIssues: RelatedCandidateIssue[];
   selectedRelatedIssueKeys: string[];
   relatedIssueFilters: { relationType: string; confidence: string };
@@ -549,8 +549,13 @@ export type UserAnalysisSessionState = {
   lastQueueAddSummary: { kind: "timeline" | "recommended" | "optional" | ""; added: number; merged: number; total: number };
   advancedToolsOpen: boolean;
   previousFullFetchOpen: boolean;
-  timelineFilters: { project: string; issueKey: string; activityType: string; confidence: string; source: string; onlyWithJiraKey: boolean; onlyLowConfidence: boolean };
+  timelineFilters: { activityTypes: string[]; sourceApplications: string[]; jiraRelations: string[]; confidences: string[]; issueKeys: string[]; projectKeys: string[]; users: string[] };
+  timelineVisibleColumns: string[];
+  timelineColumnSettingsOpen: boolean;
+  issueGroupVisibleColumns: string[];
+  issueGroupColumnSettingsOpen: boolean;
   expandedTimelineEvents: string[];
+  expandedTimelineIssueGroups: string[];
   timelineExportPaths: { jsonPath: string; csvPath: string; summaryPath: string };
   precisionProbeMaxResults: number;
   precisionProbeMaxResultsSource: "custom" | "quick";
@@ -706,7 +711,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   timelineSummary: null,
   timelineIssueGroups: [],
   selectedTimelineIssueKeys: [],
-  timelineIssueFilters: { jiraRelations: ["jira_related"], activityTypes: [], confidences: [], issueKeyRoles: [], sourceApplications: ["jira", "confluence"], projectKeys: [], query: "" },
+  timelineIssueFilters: { jiraRelations: ["jira_related"], activityTypes: [], confidences: [], issueKeyRoles: [], sourceApplications: ["jira", "confluence"], projectKeys: [], selectedStates: [], query: "" },
   relatedCandidateIssues: [],
   selectedRelatedIssueKeys: [],
   relatedIssueFilters: { relationType: "all", confidence: "all" },
@@ -717,8 +722,13 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   lastQueueAddSummary: { kind: "", added: 0, merged: 0, total: 0 },
   advancedToolsOpen: false,
   previousFullFetchOpen: false,
-  timelineFilters: { project: "", issueKey: "", activityType: "all", confidence: "all", source: "all", onlyWithJiraKey: false, onlyLowConfidence: false },
+  timelineFilters: { activityTypes: [], sourceApplications: ["jira", "confluence"], jiraRelations: ["jira_related"], confidences: [], issueKeys: [], projectKeys: [], users: [] },
+  timelineVisibleColumns: ["time", "user", "issueKey", "activityType", "sourceApplication"],
+  timelineColumnSettingsOpen: false,
+  issueGroupVisibleColumns: ["selected", "issueKey", "sourceApplications", "eventCount", "firstSeen", "lastSeen"],
+  issueGroupColumnSettingsOpen: false,
   expandedTimelineEvents: [],
+  expandedTimelineIssueGroups: [],
   timelineExportPaths: { jsonPath: "", csvPath: "", summaryPath: "" },
   precisionProbeMaxResults: 50,
   precisionProbeMaxResultsSource: "quick",
