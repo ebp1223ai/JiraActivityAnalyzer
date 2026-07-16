@@ -523,6 +523,11 @@ export type UserAnalysisSessionState = {
   relatedIssueFilters: { relationType: string; confidence: string };
   addedTimelineIssuesToFetchQueueCount: number;
   addedRelatedIssuesToFetchQueueCount: number;
+  addedRecommendedRelatedIssuesToFetchQueueCount: number;
+  addedOptionalRelatedIssuesToFetchQueueCount: number;
+  lastQueueAddSummary: { kind: "timeline" | "recommended" | "optional" | ""; added: number; merged: number; total: number };
+  advancedToolsOpen: boolean;
+  previousFullFetchOpen: boolean;
   timelineFilters: { project: string; issueKey: string; activityType: string; confidence: string; source: string; onlyWithJiraKey: boolean; onlyLowConfidence: boolean };
   expandedTimelineEvents: string[];
   timelineExportPaths: { jsonPath: string; csvPath: string; summaryPath: string };
@@ -686,6 +691,11 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   relatedIssueFilters: { relationType: "all", confidence: "all" },
   addedTimelineIssuesToFetchQueueCount: 0,
   addedRelatedIssuesToFetchQueueCount: 0,
+  addedRecommendedRelatedIssuesToFetchQueueCount: 0,
+  addedOptionalRelatedIssuesToFetchQueueCount: 0,
+  lastQueueAddSummary: { kind: "", added: 0, merged: 0, total: 0 },
+  advancedToolsOpen: false,
+  previousFullFetchOpen: false,
   timelineFilters: { project: "", issueKey: "", activityType: "all", confidence: "all", source: "all", onlyWithJiraKey: false, onlyLowConfidence: false },
   expandedTimelineEvents: [],
   timelineExportPaths: { jsonPath: "", csvPath: "", summaryPath: "" },

@@ -5,7 +5,7 @@ import path from "node:path";
 import { ensureDir, getActivityStreamBaselinesDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
 import { baselineFileName, compareBaselineObservation, entryFingerprint as createEntryFingerprint, loadBaselineSnapshot, saveBaselineSnapshot, selectBaselineGuardOutcome, sha256, type ActivityStreamBaselineComparison, type ActivityStreamBaselineSnapshot, type BaselineObservation } from "./activityStreamBaseline.js";
 import { buildUserActivityTimeline, timelineCsv, timelineEventSchema, type UserActivityTimelineBuild } from "./userActivityTimeline.js";
-import { buildTimelineIssueGroups, extractRelatedIssues, mergeQueueMetadata, relatedIssueSummary, type RelatedCandidateIssue, type WorkflowStepStatus } from "./userAnalysisWorkflow.js";
+import { buildTimelineIssueGroups, extractRelatedIssues, mergeQueueMetadata, relatedIssueScopeSummary, relatedIssueSummary, type RelatedCandidateIssue, type WorkflowStepStatus } from "./userAnalysisWorkflow.js";
 import { createJiraClient } from "./jira/jiraClient.js";
 import { assertReadOnlyRequest, ReadOnlyViolationError } from "./jira/jiraReadOnlyGuard.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
@@ -39,7 +39,9 @@ type BaselineGuardSessionRecord = { time: string; runId: string; comparison: Act
 const activityStreamBaselineGuardHistory: BaselineGuardSessionRecord[] = [];
 let latestActivityStreamBaselineGuardRecord: BaselineGuardSessionRecord | null = null;
 let latestUserActivityTimeline: (UserActivityTimelineBuild & { exportedFiles: { jsonPath: string; csvPath: string; summaryPath: string } }) | null = null;
-let latestUserAnalysisWorkflow: { steps: WorkflowStepStatus; timelineIssueGroups: unknown[]; timelineSelectedIssues: string[]; fetchQueue: unknown[]; relatedCandidateIssues: RelatedCandidateIssue[]; addedTimelineIssuesToFetchQueueCount: number; addedRelatedIssuesToFetchQueueCount: number; updatedAt: string } | null = null;
+let latestUserAnalysisWorkflow: { steps: WorkflowStepStatus; timelineIssueGroups: unknown[]; timelineSelectedIssues: string[]; fetchQueue: unknown[]; relatedCandidateIssues: RelatedCandidateIssue[]; addedTimelineIssuesToFetchQueueCount: number; addedRelatedIssuesToFetchQueueCount: number; addedRecommendedRelatedIssuesToFetchQueueCount: number; addedOptionalRelatedIssuesToFetchQueueCount: number; updatedAt: string } | null = null;
+type CheckpointWriteDiagnostics = { checkpointWriteAttempts: number; retryCount: number; fallbackDirectWriteCount: number; lastErrorCode: string; lastRecovered: boolean; events: Array<{ type: string; attempt?: number; errorCode?: string; reason?: string; time: string }> };
+let latestCheckpointWriteDiagnostics: CheckpointWriteDiagnostics = { checkpointWriteAttempts: 0, retryCount: 0, fallbackDirectWriteCount: 0, lastErrorCode: "", lastRecovered: false, events: [] };
 let latestRunResult: AutoSavedRun | null = null;
 let lastSuccessfulResult: AutoSavedRun | null = null;
 let lastParsedResult: AutoSavedRun | null = null;
@@ -233,6 +235,44 @@ function writeJsonAtomic(filePath: string, data: unknown) {
   const temporaryPath = `${filePath}.tmp`;
   fs.writeFileSync(temporaryPath, JSON.stringify(sanitizeRawJson(data), null, 2), "utf8");
   fs.renameSync(temporaryPath, filePath);
+}
+
+function sleepSync(milliseconds: number) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function writeCheckpointReliable(filePath: string, data: unknown, diagnostics: CheckpointWriteDiagnostics, options: { rename?: typeof fs.renameSync; delays?: number[]; onEvent?: (event: CheckpointWriteDiagnostics["events"][number]) => void } = {}) {
+  ensureDir(path.dirname(filePath));
+  const temporaryPath = `${filePath}.tmp`;
+  const body = JSON.stringify(sanitizeRawJson(data), null, 2);
+  const rename = options.rename ?? fs.renameSync;
+  const delays = options.delays ?? [100, 250, 500, 1000, 2000];
+  fs.writeFileSync(temporaryPath, body, "utf8");
+  for (let attempt = 1; attempt <= delays.length + 1; attempt += 1) {
+    diagnostics.checkpointWriteAttempts += 1;
+    try {
+      rename(temporaryPath, filePath);
+      diagnostics.lastRecovered = attempt > 1;
+      return;
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "UNKNOWN";
+      diagnostics.lastErrorCode = code;
+      const retryable = code === "EPERM" || code === "EBUSY" || code === "EACCES";
+      if (!retryable || attempt > delays.length) break;
+      diagnostics.retryCount += 1;
+      const event = { type: "checkpoint_write_retry", attempt: attempt + 1, errorCode: code, time: new Date().toISOString() };
+      diagnostics.events.push(event);
+      options.onEvent?.(event);
+      if (delays[attempt - 1] > 0) sleepSync(delays[attempt - 1]);
+    }
+  }
+  const fallbackEvent = { type: "checkpoint_write_fallback_direct_write", reason: "atomic_rename_failed", time: new Date().toISOString() };
+  diagnostics.fallbackDirectWriteCount += 1;
+  diagnostics.events.push(fallbackEvent);
+  options.onEvent?.(fallbackEvent);
+  fs.writeFileSync(filePath, body, "utf8");
+  diagnostics.lastRecovered = true;
+  try { fs.unlinkSync(temporaryPath); } catch { /* Temporary file cleanup is best effort. */ }
 }
 
 function crashDiagnostic(reason: string, details: Record<string, unknown> = {}) {
@@ -1922,6 +1962,8 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
   let peakRawDataEstimateMB = 0;
   const issueStatus: Record<string, unknown>[] = [];
   const rawManifest: Record<string, unknown>[] = [];
+  const checkpointWriteDiagnostics: CheckpointWriteDiagnostics = { checkpointWriteAttempts: 0, retryCount: 0, fallbackDirectWriteCount: 0, lastErrorCode: "", lastRecovered: false, events: [] };
+  latestCheckpointWriteDiagnostics = checkpointWriteDiagnostics;
   activeFullFetch = {
     runId,
     status: "running",
@@ -1988,7 +2030,7 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
     if (!activeFullFetch) return;
     activeFullFetch.status = status;
     const progress = progressPayload();
-    writeJsonAtomic(checkpointPath, {
+    writeCheckpointReliable(checkpointPath, {
       version: app.getVersion(),
       startedAt,
       lastUpdatedAt: new Date().toISOString(),
@@ -1998,7 +2040,7 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
       checkpointPath,
       memory: activeFullFetch.memory,
       issueStatus
-    });
+    }, checkpointWriteDiagnostics, { onEvent: (entry) => log(entry.type === "checkpoint_write_retry" ? "WARN" : "ERROR", JSON.stringify(entry)) });
     event.sender.send("user-analysis:full-fetch-progress", progress);
     log("INFO", `Checkpoint updated: status=${status} current=${progress.currentIndex}/${progress.total} lastCompleted=${progress.lastCompletedIndex}`);
   };
@@ -2251,6 +2293,7 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
     rawIssuesDir,
     memorySummary: { peakRssMB, peakHeapUsedMB, peakRawDataEstimateMB },
     finalMemory: activeFullFetch?.memory ?? memorySnapshot(rawDataEstimateBytes),
+    checkpointWriteDiagnostics,
     ...getActionLogDiagnostics()
   };
   const response = {
@@ -2268,7 +2311,7 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
     fetchReport: report,
     issueResults,
     relatedCandidateIssues,
-    relatedIssueExpansionSummary: relatedIssueSummary(relatedCandidateIssues),
+    relatedIssueExpansionSummary: { ...relatedIssueSummary(relatedCandidateIssues), ...relatedIssueScopeSummary(relatedCandidateIssues) },
     rawData: rawDataMode === "full_raw_in_memory" ? {
       exportType: "user-analysis-full-fetch-raw-data",
       rawDataMode,
@@ -2327,6 +2370,8 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
     relatedCandidateIssues,
     addedTimelineIssuesToFetchQueueCount: Number(payload.addedTimelineIssuesToFetchQueueCount ?? 0),
     addedRelatedIssuesToFetchQueueCount: Number(payload.addedRelatedIssuesToFetchQueueCount ?? 0),
+    addedRecommendedRelatedIssuesToFetchQueueCount: Number(payload.addedRecommendedRelatedIssuesToFetchQueueCount ?? 0),
+    addedOptionalRelatedIssuesToFetchQueueCount: Number(payload.addedOptionalRelatedIssuesToFetchQueueCount ?? 0),
     updatedAt: now
   };
   const outputDir = ensureDir(path.join(getExportsDir(), "user-analysis", "workflow"));
@@ -2342,7 +2387,7 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
   writeJsonAtomic(files.timelineSelectedIssues, { selectedIssueKeys: timelineSelectedIssues, count: timelineSelectedIssues.length });
   writeJsonAtomic(files.fetchQueue, fetchQueue);
   writeJsonAtomic(files.relatedCandidateIssues, relatedCandidateIssues);
-  writeJsonAtomic(files.relatedIssueExpansionSummary, { ...summary, addedRelatedIssuesToFetchQueueCount: latestUserAnalysisWorkflow.addedRelatedIssuesToFetchQueueCount });
+  writeJsonAtomic(files.relatedIssueExpansionSummary, { ...summary, ...relatedIssueScopeSummary(relatedCandidateIssues, latestUserAnalysisWorkflow.addedRecommendedRelatedIssuesToFetchQueueCount, latestUserAnalysisWorkflow.addedOptionalRelatedIssuesToFetchQueueCount), addedRelatedIssuesToFetchQueueCount: latestUserAnalysisWorkflow.addedRelatedIssuesToFetchQueueCount });
   const action = text(payload.sessionEvent);
   if (action === "timeline_issues_added_to_fetch_queue" || action === "related_issues_expanded") {
     sessionUserActions.push({ time: now, level: "INFO", message: action, raw: `${now} [INFO] ${action}` });
@@ -2847,7 +2892,9 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   writeBundleJson(folderPath, "timeline-selected-issues.json", latestUserAnalysisWorkflow ? { selectedIssueKeys: latestUserAnalysisWorkflow.timelineSelectedIssues, count: latestUserAnalysisWorkflow.timelineSelectedIssues.length } : unavailableWorkflow);
   writeBundleJson(folderPath, "fetch-queue.json", latestUserAnalysisWorkflow?.fetchQueue ?? unavailableWorkflow);
   writeBundleJson(folderPath, "related-candidate-issues.json", latestUserAnalysisWorkflow?.relatedCandidateIssues ?? unavailableWorkflow);
-  writeBundleJson(folderPath, "related-issue-expansion-summary.json", latestUserAnalysisWorkflow ? { ...relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues), addedRelatedIssuesToFetchQueueCount: latestUserAnalysisWorkflow.addedRelatedIssuesToFetchQueueCount } : unavailableWorkflow);
+  const workflowRelatedScope = latestUserAnalysisWorkflow ? relatedIssueScopeSummary(latestUserAnalysisWorkflow.relatedCandidateIssues, latestUserAnalysisWorkflow.addedRecommendedRelatedIssuesToFetchQueueCount, latestUserAnalysisWorkflow.addedOptionalRelatedIssuesToFetchQueueCount) : unavailableWorkflow;
+  writeBundleJson(folderPath, "related-issue-expansion-summary.json", latestUserAnalysisWorkflow ? { ...relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues), ...workflowRelatedScope, addedRelatedIssuesToFetchQueueCount: latestUserAnalysisWorkflow.addedRelatedIssuesToFetchQueueCount } : unavailableWorkflow);
+  writeBundleJson(folderPath, "checkpoint-write-diagnostics.json", latestCheckpointWriteDiagnostics);
   const sessionTimeline = [
     ...sessionUserActions.map((action, index) => ({ time: action.time, source: "user_action", type: "user_action", sequence: index, action: action.message, page: payload.currentPage })),
     ...debugLogTimeline(payload.debugLog),
@@ -2875,10 +2922,10 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const activityStreamBaselineGuard = latestBaselineRecord ? { enabled: true, latestClassification: latestBaselineRecord.retry.finalClassification, shouldRetry: latestBaselineRecord.comparison.shouldRetry, retryTriggered: latestBaselineRecord.retry.triggered, retryRecovered: latestBaselineRecord.retry.retryRecovered, baselinePath: latestBaselineRecord.comparison.baselinePath, baselineBestParsedActivityCount: latestBaselineRecord.comparison.baselineCounts.bestParsedActivityCount, currentParsedActivityCount: latestBaselineRecord.comparison.currentCounts.parsedActivityCount, missingIssueKeyCount: latestBaselineRecord.comparison.missingIssueKeys.length, missingEntryFingerprintCount: latestBaselineRecord.comparison.missingEntryFingerprints.length } : { enabled: true, latestClassification: "not_run", shouldRetry: false, retryTriggered: false, retryRecovered: false, baselinePath: "", baselineBestParsedActivityCount: 0, currentParsedActivityCount: 0, missingIssueKeyCount: 0, missingEntryFingerprintCount: 0 };
   const userActivityTimeline = latestUserActivityTimeline ? { available: true, timelineRunId: latestUserActivityTimeline.timelineRunId, totalEvents: latestUserActivityTimeline.summary.totalEvents, issueKeyCount: latestUserActivityTimeline.summary.issueKeyCount, eventTypeCounts: latestUserActivityTimeline.summary.eventTypeCounts, confidenceCounts: latestUserActivityTimeline.summary.confidenceCounts, jsonPath: "user-activity-timeline.json", csvPath: "user-activity-timeline.csv" } : { available: false };
   const timelineIntegrity = latestUserActivityTimeline ? { available: true, sourceParsedActivityCount: latestUserActivityTimeline.summary.integrity.sourceParsedActivityCount, timelineEventCount: latestUserActivityTimeline.summary.integrity.timelineEventCount, difference: latestUserActivityTimeline.summary.eventCountReconciliation.difference, deduplicatedEntryCount: latestUserActivityTimeline.summary.integrity.deduplicatedEntryCount, skippedEntryCount: latestUserActivityTimeline.summary.integrity.skippedEntryCount, unexplainedDifferenceCount: latestUserActivityTimeline.summary.eventCountReconciliation.unexplainedDifferenceCount, sourceParsedIssueKeyCount: latestUserActivityTimeline.summary.integrity.sourceParsedIssueKeyCount, timelinePrimaryIssueKeyCount: latestUserActivityTimeline.summary.integrity.timelinePrimaryIssueKeyCount, timelineAllIssueKeyCount: latestUserActivityTimeline.summary.integrity.timelineAllIssueKeyCount, missingIssueKeysFromTimeline: latestUserActivityTimeline.summary.integrity.missingIssueKeysFromTimeline, missingIssueKeysFromPrimaryTimeline: latestUserActivityTimeline.summary.integrity.missingIssueKeysFromPrimaryTimeline } : { available: false };
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {}, standardActivityStreamFlow, activityTypeClassifierDiagnostics: classifierDiagnostics, activityStreamBaselineGuard, userActivityTimeline, timelineIntegrity, userAnalysisWorkflow: latestUserAnalysisWorkflow ?? unavailableWorkflow, advancedDiagnosticsUsed, includedAutoSavedResults: autoSavedResultsIncluded, missingAutoSavedResults: autoSavedResultsMissing, fullSessionBundle: { enabled: true, sessionStartTime, bundleGeneratedAt: createdAt, totalUserActions: sessionUserActions.length, totalRuns: runHistory.length, totalAutoSavedResults: autoSavedCandidates.length, includedAutoSavedResultCount: autoSavedResultsIncluded.length, missingAutoSavedResultCount: autoSavedResultsMissing.length } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {}, standardActivityStreamFlow, activityTypeClassifierDiagnostics: classifierDiagnostics, activityStreamBaselineGuard, userActivityTimeline, timelineIntegrity, userAnalysisWorkflow: latestUserAnalysisWorkflow ?? unavailableWorkflow, relatedIssueScopeSummary: workflowRelatedScope, advancedDiagnosticsUsed, includedAutoSavedResults: autoSavedResultsIncluded, missingAutoSavedResults: autoSavedResultsMissing, fullSessionBundle: { enabled: true, sessionStartTime, bundleGeneratedAt: createdAt, totalUserActions: sessionUserActions.length, totalRuns: runHistory.length, totalAutoSavedResults: autoSavedCandidates.length, includedAutoSavedResultCount: autoSavedResultsIncluded.length, missingAutoSavedResultCount: autoSavedResultsMissing.length } });
   const debugBundleSummaryPath = path.join(folderPath, "debug-bundle-summary.json");
   const debugBundleSummaryBody = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeJsonAtomic(debugBundleSummaryPath, { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult) });
+  writeJsonAtomic(debugBundleSummaryPath, { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), checkpointWriteDiagnostics: latestCheckpointWriteDiagnostics });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -2893,7 +2940,8 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "Activity Stream Baseline Guard:", `- enabled: ${activityStreamBaselineGuard.enabled}`, `- latestClassification: ${activityStreamBaselineGuard.latestClassification}`, `- shouldRetry: ${activityStreamBaselineGuard.shouldRetry}`, `- retryTriggered: ${activityStreamBaselineGuard.retryTriggered}`, `- retryRecovered: ${activityStreamBaselineGuard.retryRecovered}`, `- baselinePath: ${activityStreamBaselineGuard.baselinePath || "not_available"}`, `- baselineBestParsedActivityCount: ${activityStreamBaselineGuard.baselineBestParsedActivityCount}`, `- currentParsedActivityCount: ${activityStreamBaselineGuard.currentParsedActivityCount}`, `- missingIssueKeys: ${latestBaselineRecord?.comparison.missingIssueKeys.join(", ") || "none"}`, `- missingEntryCount: ${activityStreamBaselineGuard.missingEntryFingerprintCount}`, "- files:", "  - activity-stream-baseline-comparison.json", "  - activity-stream-baseline-snapshot.json", "  - activity-stream-baseline-history.json", ""].join("\n"), "utf8");
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["User Activity Timeline:", `- timelineRunId: ${latestUserActivityTimeline?.timelineRunId ?? "not_available"}`, `- selectedUser: ${latestUserActivityTimeline?.summary.selectedUser ?? "not_available"}`, `- dateRange: ${latestUserActivityTimeline ? `${latestUserActivityTimeline.summary.dateRange.start}..${latestUserActivityTimeline.summary.dateRange.end}` : "not_available"}`, `- totalEvents: ${latestUserActivityTimeline?.summary.totalEvents ?? 0}`, `- issueKeyCount: ${latestUserActivityTimeline?.summary.issueKeyCount ?? 0}`, `- eventTypeCounts: ${JSON.stringify(latestUserActivityTimeline?.summary.eventTypeCounts ?? {})}`, `- confidenceCounts: ${JSON.stringify(latestUserActivityTimeline?.summary.confidenceCounts ?? {})}`, `- exportedFiles: ${JSON.stringify(latestUserActivityTimeline?.exportedFiles ?? {})}`, ""].join("\n"), "utf8");
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Timeline Integrity:", `- sourceParsedActivityCount: ${latestUserActivityTimeline?.summary.integrity.sourceParsedActivityCount ?? 0}`, `- timelineEventCount: ${latestUserActivityTimeline?.summary.integrity.timelineEventCount ?? 0}`, `- difference: ${latestUserActivityTimeline?.summary.eventCountReconciliation.difference ?? 0}`, `- deduplicatedEntryCount: ${latestUserActivityTimeline?.summary.integrity.deduplicatedEntryCount ?? 0}`, `- skippedEntryCount: ${latestUserActivityTimeline?.summary.integrity.skippedEntryCount ?? 0}`, `- unexplainedDifferenceCount: ${latestUserActivityTimeline?.summary.eventCountReconciliation.unexplainedDifferenceCount ?? 0}`, `- sourceParsedIssueKeyCount: ${latestUserActivityTimeline?.summary.integrity.sourceParsedIssueKeyCount ?? 0}`, `- timelinePrimaryIssueKeyCount: ${latestUserActivityTimeline?.summary.integrity.timelinePrimaryIssueKeyCount ?? 0}`, `- timelineAllIssueKeyCount: ${latestUserActivityTimeline?.summary.integrity.timelineAllIssueKeyCount ?? 0}`, `- missingIssueKeysFromTimeline: ${latestUserActivityTimeline?.summary.integrity.missingIssueKeysFromTimeline.join(", ") || "none"}`, `- missingIssueKeysFromPrimaryTimeline: ${latestUserActivityTimeline?.summary.integrity.missingIssueKeysFromPrimaryTimeline.join(", ") || "none"}`, `- eventIdCollisionCount: ${latestUserActivityTimeline?.summary.integrity.eventIdCollisionCount ?? 0}`, ""].join("\n"), "utf8");
-  fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "User Analysis Workflow:", ...Object.entries(latestUserAnalysisWorkflow?.steps ?? {}).map(([step, status]) => `- ${step}: ${status}`), "Timeline Issue Selection:", `- totalIssueGroups: ${latestUserAnalysisWorkflow?.timelineIssueGroups.length ?? 0}`, `- selectedIssueCount: ${latestUserAnalysisWorkflow?.timelineSelectedIssues.length ?? 0}`, `- addedToFetchQueueCount: ${latestUserAnalysisWorkflow?.addedTimelineIssuesToFetchQueueCount ?? 0}`, "Related Issue Expansion:", `- relatedIssueCount: ${latestUserAnalysisWorkflow ? relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues).relatedIssueCount : 0}`, `- relationTypeCounts: ${JSON.stringify(latestUserAnalysisWorkflow ? relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues).relationTypeCounts : {})}`, `- addedRelatedIssuesToFetchQueueCount: ${latestUserAnalysisWorkflow?.addedRelatedIssuesToFetchQueueCount ?? 0}`, ""].join("\n"), "utf8");
+  fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "User Analysis Workflow:", ...Object.entries(latestUserAnalysisWorkflow?.steps ?? {}).map(([step, status]) => `- ${step}: ${status}`), "Timeline Issue Selection:", `- totalIssueGroups: ${latestUserAnalysisWorkflow?.timelineIssueGroups.length ?? 0}`, `- selectedIssueCount: ${latestUserAnalysisWorkflow?.timelineSelectedIssues.length ?? 0}`, `- addedToFetchQueueCount: ${latestUserAnalysisWorkflow?.addedTimelineIssuesToFetchQueueCount ?? 0}`, "Related Issue Expansion:", `- relatedIssueCount: ${latestUserAnalysisWorkflow ? relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues).relatedIssueCount : 0}`, `- relationTypeCounts: ${JSON.stringify(latestUserAnalysisWorkflow ? relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues).relationTypeCounts : {})}`, `- Recommended: ${JSON.stringify(asRecord(workflowRelatedScope).recommended ?? {})}`, `- Optional: ${JSON.stringify(asRecord(workflowRelatedScope).optional ?? {})}`, `- addedRecommendedToFetchQueueCount: ${Number(asRecord(workflowRelatedScope).addedRecommendedToFetchQueueCount ?? 0)}`, `- addedOptionalToFetchQueueCount: ${Number(asRecord(workflowRelatedScope).addedOptionalToFetchQueueCount ?? 0)}`, `- addedRelatedIssuesToFetchQueueCount: ${latestUserAnalysisWorkflow?.addedRelatedIssuesToFetchQueueCount ?? 0}`, ""].join("\n"), "utf8");
+  fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "Checkpoint Write Diagnostics:", `- checkpointWriteAttempts: ${latestCheckpointWriteDiagnostics.checkpointWriteAttempts}`, `- retryCount: ${latestCheckpointWriteDiagnostics.retryCount}`, `- fallbackDirectWriteCount: ${latestCheckpointWriteDiagnostics.fallbackDirectWriteCount}`, `- lastErrorCode: ${latestCheckpointWriteDiagnostics.lastErrorCode || "none"}`, `- lastRecovered: ${latestCheckpointWriteDiagnostics.lastRecovered}`, ""].join("\n"), "utf8");
   lastDebugBundle = { path: folderPath, createdAt };
   return { canceled: false, folderPath, filePath: folderPath, createdAt, includedFiles: fs.readdirSync(folderPath), crossPageDebugBundleTodo };
 });
@@ -2979,7 +3027,8 @@ async function runUiSmoke(window: BrowserWindow) {
   const secondaryIssueGroupFixture = timelineIssueGroupFixture.find((group) => group.issueKey === "COPGEN1-125806");
   const queueMergeFixture = mergeQueueMetadata(mergeQueueMetadata(undefined, { source: "activity_timeline", matchedReason: "selected_from_activity_timeline", timelineEventIds: ["event-1"], activityTypes: ["link"], confidenceSummary: { high: 1, medium: 0, low: 0 }, issueKeyRole: "secondary", selectedUser: "roger_hsieh", dateRange: { start: "2026-07-02", end: "2026-07-02" }, addedAt: "2026-07-02T06:00:00.000Z" }), { source: "advanced_candidate_search", matchedReason: "assignee_match", timelineEventIds: ["event-2"], activityTypes: ["comment"], confidenceSummary: { high: 0, medium: 1, low: 0 } });
   const relatedFixture = extractRelatedIssues({ issueKey: "COPGEN1-126606", observedAt: "2026-07-02T06:00:00.000Z", issue: { fields: { parent: { key: "COPGEN1-69506" }, issuelinks: [{ outwardIssue: { key: "COPGEN1-125806" } }] } }, changelogHistories: [{ items: [{ field: "Epic Link", toString: "COPGEN1-69506" }] }] });
-  if (!secondaryIssueGroupFixture || secondaryIssueGroupFixture.issueKeyRole !== "secondary" || secondaryIssueGroupFixture.eventCount !== 1 || queueMergeFixture.sources.length !== 2 || queueMergeFixture.timelineEventIds.length !== 2 || !relatedFixture.some((item) => item.issueKey === "COPGEN1-69506" && (item.relationType === "parent_link" || item.relationType === "epic_link_parent"))) failures.push(`user analysis workflow fixtures failed ${JSON.stringify({ timelineIssueGroupFixture, queueMergeFixture, relatedFixture })}`);
+  const relatedScopeFixture = relatedIssueScopeSummary(relatedFixture, 1, 0);
+  if (!secondaryIssueGroupFixture || secondaryIssueGroupFixture.issueKeyRole !== "secondary" || secondaryIssueGroupFixture.eventCount !== 1 || queueMergeFixture.sources.length !== 2 || queueMergeFixture.timelineEventIds.length !== 2 || !relatedFixture.some((item) => item.issueKey === "COPGEN1-69506" && item.scope === "recommended" && (item.relationType === "parent_link" || item.relationType === "epic_link_parent")) || !relatedFixture.some((item) => item.issueKey === "COPGEN1-125806" && item.scope === "optional") || relatedScopeFixture.recommended.uniqueIssueCount < 1 || relatedScopeFixture.optional.uniqueIssueCount < 1 || relatedScopeFixture.addedRecommendedRelatedIssuesToFetchQueueCount !== 1) failures.push(`user analysis workflow fixtures failed ${JSON.stringify({ timelineIssueGroupFixture, queueMergeFixture, relatedFixture, relatedScopeFixture })}`);
   const secondaryFixtureEvent = timelineFixture.events.find((event) => event.issueKey === "COPGEN1-125695");
   const knownIncompleteEvent = incompleteConfidenceFixture.events.find((event) => event.rawRef.entryFingerprint === "sha256:known");
   const newIncompleteEvent = incompleteConfidenceFixture.events.find((event) => event.rawRef.entryFingerprint === "sha256:new");
@@ -3237,23 +3286,34 @@ async function runUiSmoke(window: BrowserWindow) {
     const actual = activityType(fixture.title, fixture.application ?? "Jira", fixture.objectType ?? "issue");
     if (actual !== fixture.expected) failures.push(`activity type classification failed: ${fixture.title} => ${actual} expected ${fixture.expected}`);
   }
+  const checkpointFixtureDir = ensureDir(path.join(getAppLogsDir(), "ui-smoke-checkpoints"));
+  const retryCheckpointPath = path.join(checkpointFixtureDir, "retry-recovered.json");
+  const retryDiagnostics: CheckpointWriteDiagnostics = { checkpointWriteAttempts: 0, retryCount: 0, fallbackDirectWriteCount: 0, lastErrorCode: "", lastRecovered: false, events: [] };
+  let retryRenameAttempts = 0;
+  writeCheckpointReliable(retryCheckpointPath, { fixture: "retry-recovered" }, retryDiagnostics, { delays: [0], rename: (from, to) => {
+    retryRenameAttempts += 1;
+    if (retryRenameAttempts === 1) throw Object.assign(new Error("smoke transient rename failure"), { code: "EBUSY" });
+    fs.renameSync(from, to);
+  } });
+  if (!fs.existsSync(retryCheckpointPath) || retryDiagnostics.retryCount !== 1 || retryDiagnostics.fallbackDirectWriteCount !== 0 || retryDiagnostics.lastRecovered !== true) failures.push(`checkpoint retry recovery failed: ${JSON.stringify(retryDiagnostics)}`);
+  const fallbackCheckpointPath = path.join(checkpointFixtureDir, "fallback-recovered.json");
+  const fallbackDiagnostics: CheckpointWriteDiagnostics = { checkpointWriteAttempts: 0, retryCount: 0, fallbackDirectWriteCount: 0, lastErrorCode: "", lastRecovered: false, events: [] };
+  writeCheckpointReliable(fallbackCheckpointPath, { fixture: "fallback-recovered" }, fallbackDiagnostics, { delays: [0, 0, 0, 0, 0], rename: () => { throw Object.assign(new Error("smoke persistent rename failure"), { code: "EPERM" }); } });
+  latestCheckpointWriteDiagnostics = fallbackDiagnostics;
+  if (!fs.existsSync(fallbackCheckpointPath) || fallbackDiagnostics.retryCount !== 5 || fallbackDiagnostics.fallbackDirectWriteCount !== 1 || fallbackDiagnostics.lastRecovered !== true || fallbackDiagnostics.events.at(-1)?.type !== "checkpoint_write_fallback_direct_write") failures.push(`checkpoint direct-write fallback failed: ${JSON.stringify(fallbackDiagnostics)}`);
   const commentRegressionEntry = activityEntry({ title: "謝正洪(roger_hsieh) commented on COPGEN1-138930 - [JACKSONQLC-3024] IOFULLSEQWRT Failure", content: "attachment metadata exists elsewhere", raw: "<activity:object-type>attachment</activity:object-type>", application: "Jira", objectType: "issue" }, "escaped_username", "asrun-classifier", 0);
   if (commentRegressionEntry.activityType !== "comment" || commentRegressionEntry.issueKey !== "COPGEN1-138930" || commentRegressionEntry.activityApplication !== "Jira" || commentRegressionEntry.activityTypeClassifier.matchedRule !== "commented_on" || commentRegressionEntry.activityTypeClassifier.finalType !== "comment" || commentRegressionEntry.activityTypeClassifier.priority !== 100) failures.push(`commented-on classifier regression failed: ${JSON.stringify(commentRegressionEntry)}`);
   window.setSize(1280, 720, false);
   await window.webContents.executeJavaScript(`window.location.hash = "#/analysis";`);
   await wait(350);
-  const analysisWorkflowAudit = await window.webContents.executeJavaScript(`(async () => {
+  const analysisWorkflowAudit = await window.webContents.executeJavaScript(`(() => {
     const count = document.querySelectorAll("[data-testid^='workflow-']").length;
     const labels = Array.from(document.querySelectorAll("[data-testid^='workflow-']")).map((el) => el.textContent || "");
-    document.querySelector("[data-testid='workflow-selectIssues']")?.click();
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    const selection = Boolean(document.querySelector("[data-testid='timeline-issue-selection-view']")) || document.body.innerText.includes("Timeline Issue Groups");
-    document.querySelector("[data-testid='workflow-relatedIssues']")?.click();
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    const related = Boolean(document.querySelector("[data-testid='related-issues-view']")) || document.body.innerText.includes("Related Issues");
-    return { count, labels, selection, related, hasPrecisionTab: Boolean(document.querySelector("[data-testid='workflow-precision']")) };
+    const selectIssues = document.querySelector("[data-testid='workflow-selectIssues']");
+    const related = document.querySelector("[data-testid='workflow-relatedIssues']");
+    return { count, labels, setup: Boolean(document.querySelector("[data-testid='analysis-setup-user']")), selectBlocked: selectIssues instanceof HTMLButtonElement && selectIssues.disabled, relatedBlocked: related instanceof HTMLButtonElement && related.disabled, advancedToggle: Boolean(document.querySelector("[data-testid='advanced-tools-toggle']")), advancedClosed: !document.querySelector("#candidate-search"), hasPrecisionTab: Boolean(document.querySelector("[data-testid='workflow-precision']")) };
   })()`);
-  if (analysisWorkflowAudit.count !== 7 || !analysisWorkflowAudit.selection || !analysisWorkflowAudit.related || analysisWorkflowAudit.hasPrecisionTab || !analysisWorkflowAudit.labels.some((label: string) => label.includes("Advanced Candidate Search"))) failures.push(`User Analysis workflow does not contain the expected seven steps: ${JSON.stringify(analysisWorkflowAudit)}`);
+  if (analysisWorkflowAudit.count !== 6 || !analysisWorkflowAudit.setup || !analysisWorkflowAudit.selectBlocked || !analysisWorkflowAudit.relatedBlocked || !analysisWorkflowAudit.advancedToggle || !analysisWorkflowAudit.advancedClosed || analysisWorkflowAudit.hasPrecisionTab || analysisWorkflowAudit.labels.some((label: string) => label.includes("Advanced Candidate Search"))) failures.push(`User Analysis workflow does not contain the expected six guided steps: ${JSON.stringify(analysisWorkflowAudit)}`);
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll("a")).find((link) => link.getAttribute("href") === "#/precision-probe")?.click();`);
   await wait(350);
   const standardFlowUiAudit = await window.webContents.executeJavaScript(`(() => ({ panel: Boolean(document.querySelector("[data-testid='standard-activity-stream-flow']")), selected: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("roger_hsieh"), escaped: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("roger\\_hsieh"), date: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("update-date AFTER/BEFORE"), chunking: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("Auto"), limit: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("500"), advancedClosed: !document.querySelector("[data-testid='advanced-diagnostics']"), noMainUserInput: !document.querySelector("[data-testid='activity-stream-user']"), noMainQueryMode: !document.querySelector("[data-testid='activity-stream-query-mode']"), noMainDateMode: !document.querySelector("[data-testid='activity-stream-date-query-mode']"), noMainMax: !document.querySelector("[data-testid='probe-max-results']") }))()`);
@@ -3500,9 +3560,7 @@ async function runUiSmoke(window: BrowserWindow) {
   const autoSaveUiAudit = await window.webContents.executeJavaScript(`(() => { const text = document.querySelector("[data-testid='last-auto-saved-result']")?.textContent || ""; return { visible: Boolean(text), activity: text.includes("activity_stream_run"), path: text.includes("activity-stream-runs"), open: Boolean(document.querySelector("[data-testid='open-auto-save-folder']")), copy: Boolean(document.querySelector("[data-testid='copy-auto-save-path']")) }; })()`);
   await window.webContents.executeJavaScript(`window.location.hash = "#/analysis";`);
   await wait(350);
-  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='workflow-candidate']")?.click();`);
-  await wait(100);
-  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement)) return; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='analysis-start-date']", "2026-07-01"); set("[data-testid='analysis-end-date']", "2026-07-07"); })()`);
+  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement)) return; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='analysis-setup-user']", "roger_hsieh"); set("[data-testid='analysis-setup-start']", "2026-07-01"); set("[data-testid='analysis-setup-end']", "2026-07-07"); set("[data-testid='analysis-setup-project']", "COPGEN1"); })()`);
   await wait(150);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='workflow-timeline']")?.click();`);
   await wait(150);
@@ -3539,20 +3597,26 @@ async function runUiSmoke(window: BrowserWindow) {
     return { checkbox: Boolean(checkbox), add: Boolean(add), queue: body.includes("activity_timeline") && body.includes("selected_from_activity_timeline") };
   })()`);
   if (!timelineQueueUiAudit.checkbox || !timelineQueueUiAudit.add || !timelineQueueUiAudit.queue) failures.push(`timeline issue selection/queue UI audit failed ${JSON.stringify(timelineQueueUiAudit)}`);
-  await window.webContents.executeJavaScript(`window.desktopApp?.userAnalysis?.updateWorkflowSnapshot?.({ steps: { activityTimeline: "completed", timelineIssueSelection: "completed", fetchQueue: "ready", fullFetch: "completed", relatedIssues: "completed", exports: "not_run", advancedCandidateSearch: "not_run" }, timelineIssueGroups: [{ issueKey: "COPGEN1-125806", source: "activity_timeline", issueKeyRole: "secondary" }], timelineSelectedIssues: ["COPGEN1-125806"], fetchQueue: [{ key: "COPGEN1-125806", queueMetadata: { sources: ["activity_timeline"] } }], relatedCandidateIssues: [{ issueKey: "COPGEN1-69506", relationType: "parent_link", discoveredFromIssueKey: "COPGEN1-126606", source: "related_issue_expansion", field: "parent", reason: "parent_link discovered from COPGEN1-126606", confidence: "high", firstSeen: "2026-07-02T06:00:00.000Z", lastSeen: "2026-07-02T06:00:00.000Z", evidenceCount: 1, selected: false }], addedTimelineIssuesToFetchQueueCount: 1, addedRelatedIssuesToFetchQueueCount: 1, sessionEvent: "related_issues_expanded" });`);
+  await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:seed-related-scope"));`);
   await wait(120);
-  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='workflow-candidate']")?.click();`);
-  await wait(100);
-  await window.webContents.executeJavaScript(`(() => { const input = document.querySelector("[data-testid='analysis-selected-users']"); if (input instanceof HTMLTextAreaElement) { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(input, ""); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
+  const relatedScopeUiAudit = await window.webContents.executeJavaScript(`(() => { const body = document.body.innerText || ""; return { recommended: Boolean(document.querySelector("[data-testid='recommended-related-issues']")), optional: Boolean(document.querySelector("[data-testid='optional-related-issues']")), addRecommended: Boolean(document.querySelector("[data-testid='add-recommended-related']")), addOptional: Boolean(document.querySelector("[data-testid='add-optional-related']")), noOptionalAddAll: !body.includes("Add All Optional") }; })()`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='add-recommended-related']")?.click();`);
+  await wait(120);
+  const recommendedQueueAudit = await window.webContents.executeJavaScript(`(() => { const text = document.body.innerText || ""; return { source: text.includes("recommended_related_issue"), summary: Boolean(document.querySelector("[data-testid='queue-add-summary']")) && text.includes("Run Full Fetch for Related Issues") }; })()`);
+  await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:seed-related-scope"));`);
+  await wait(120);
+  await window.webContents.executeJavaScript(`(async () => { document.querySelector("[data-testid='optional-related-issues'] input[type='checkbox']")?.click(); await new Promise((resolve) => setTimeout(resolve, 80)); document.querySelector("[data-testid='add-optional-related']")?.click(); })()`);
+  await wait(120);
+  const optionalQueueAudit = await window.webContents.executeJavaScript(`(document.body.innerText || "").includes("optional_related_issue")`);
+  if (!relatedScopeUiAudit.recommended || !relatedScopeUiAudit.optional || !relatedScopeUiAudit.addRecommended || !relatedScopeUiAudit.addOptional || !relatedScopeUiAudit.noOptionalAddAll || !recommendedQueueAudit.source || !recommendedQueueAudit.summary || !optionalQueueAudit) failures.push(`related scope guided UI audit failed ${JSON.stringify({ relatedScopeUiAudit, recommendedQueueAudit, optionalQueueAudit })}`);
+  await window.webContents.executeJavaScript(`window.desktopApp?.userAnalysis?.updateWorkflowSnapshot?.({ steps: { activityTimeline: "completed", timelineIssueSelection: "completed", fetchQueue: "ready", fullFetch: "completed", relatedIssues: "completed", exports: "not_run", advancedCandidateSearch: "not_run" }, timelineIssueGroups: [{ issueKey: "COPGEN1-125806", source: "activity_timeline", issueKeyRole: "secondary" }], timelineSelectedIssues: ["COPGEN1-125806"], fetchQueue: [{ key: "COPGEN1-125806", queueMetadata: { sources: ["activity_timeline"] } }], relatedCandidateIssues: [{ issueKey: "COPGEN1-69506", relationType: "parent_link", scope: "recommended", discoveredFromIssueKey: "COPGEN1-126606", source: "related_issue_expansion", field: "parent", reason: "parent_link discovered from COPGEN1-126606", confidence: "high", firstSeen: "2026-07-02T06:00:00.000Z", lastSeen: "2026-07-02T06:00:00.000Z", evidenceCount: 1, selected: false }], addedTimelineIssuesToFetchQueueCount: 1, addedRelatedIssuesToFetchQueueCount: 1, addedRecommendedRelatedIssuesToFetchQueueCount: 1, addedOptionalRelatedIssuesToFetchQueueCount: 0, sessionEvent: "related_issues_expanded" });`);
+  await wait(120);
+  await window.webContents.executeJavaScript(`(() => { const input = document.querySelector("[data-testid='analysis-setup-user']"); if (input instanceof HTMLInputElement) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, ""); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
   await wait(100);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='workflow-timeline']")?.click();`);
   await wait(100);
-  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='build-activity-timeline']")?.click();`);
-  await wait(100);
-  const timelineInputGuardAudit = await window.webContents.executeJavaScript(`document.body.innerText.includes("Please select a user and date range first") && document.body.innerText.includes("請先選擇使用者與日期範圍")`);
-  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='workflow-candidate']")?.click();`);
-  await wait(100);
-  await window.webContents.executeJavaScript(`(() => { const input = document.querySelector("[data-testid='analysis-selected-users']"); if (input instanceof HTMLTextAreaElement) { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(input, "roger_hsieh"); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
+  const timelineInputGuardAudit = await window.webContents.executeJavaScript(`(() => { const button = document.querySelector("[data-testid='build-activity-timeline']"); return Boolean(document.querySelector("[data-testid='analysis-setup-blocked']")) && button instanceof HTMLButtonElement && button.disabled; })()`);
+  await window.webContents.executeJavaScript(`(() => { const input = document.querySelector("[data-testid='analysis-setup-user']"); if (input instanceof HTMLInputElement) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "roger_hsieh"); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
   if (!timelineInputGuardAudit) failures.push("activity timeline missing selected user/date guard audit failed");
   const missingSmokeRun: AutoSavedRun = { runId: "smoke-missing-auto-save", resultType: "activity_stream_run", status: "completed", savedAt: new Date().toISOString(), filePath: path.join(getExportsDir(), "user-analysis", "activity-stream-runs", "smoke-missing-auto-save.json"), folderPath: path.join(getExportsDir(), "user-analysis", "activity-stream-runs"), data: { runId: "smoke-missing-auto-save", diagnosis: "no_entries" } };
   autoSavedRunHistory.unshift(missingSmokeRun);
@@ -3575,7 +3639,7 @@ async function runUiSmoke(window: BrowserWindow) {
   const newDebugBundles = fs.readdirSync(debugBundlesDir).filter((name) => !debugBundlesBefore.has(name));
   const debugBundlePath = newDebugBundles.length > 0 ? path.join(debugBundlesDir, newDebugBundles.at(-1)!) : "";
   const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-run-result.json", "last-successful-result.json", "last-parsed-result.json", "latest-no-entries-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "auto-saved-results", "auto-saved-results-index.json", "session-timeline.json", "activity-stream-chunk-results.json", "activity-stream-merged-result.json", "standard-activity-stream-flow.json", "activity-type-classifier-diagnostics.json", "activity-stream-baseline-comparison.json", "activity-stream-baseline-snapshot.json", "activity-stream-baseline-history.json", "activity-stream-baseline-comparisons.json", "user-activity-timeline.json", "user-activity-timeline.csv", "timeline-build-summary.json", "timeline-event-schema.json", "timeline-integrity-diagnostics.json", "timeline-dedup-diagnostics.json", "timeline-issue-key-diagnostics.json", "debug-bundle-summary.json", "README_for_GPT.txt"];
-  requiredBundleFiles.push("user-analysis-steps.json", "timeline-issue-groups.json", "timeline-selected-issues.json", "fetch-queue.json", "related-candidate-issues.json", "related-issue-expansion-summary.json");
+  requiredBundleFiles.push("user-analysis-steps.json", "timeline-issue-groups.json", "timeline-selected-issues.json", "fetch-queue.json", "related-candidate-issues.json", "related-issue-expansion-summary.json", "checkpoint-write-diagnostics.json");
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
   const bundleText = debugBundlePath ? actualBundleFiles.filter((name) => fs.statSync(path.join(debugBundlePath, name)).isFile()).map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
@@ -3606,6 +3670,8 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleWorkflowSteps = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "user-analysis-steps.json"), "utf8")));
     const bundleTimelineGroups = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "timeline-issue-groups.json"), "utf8")) as Array<Record<string, unknown>>;
     const bundleRelatedIssues = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "related-candidate-issues.json"), "utf8")) as Array<Record<string, unknown>>;
+    const bundleRelatedScope = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "related-issue-expansion-summary.json"), "utf8")));
+    const bundleCheckpointDiagnostics = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "checkpoint-write-diagnostics.json"), "utf8")));
     const fullSessionBundle = asRecord(bundleSummary.fullSessionBundle);
     const bundleBaselineGuard = asRecord(bundleSummary.activityStreamBaselineGuard);
     const latestBundleRunId = String(latestBundleResult.runId || "");
@@ -3615,7 +3681,8 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleUserTimelineSummary = asRecord(bundleSummary.userActivityTimeline);
     const bundleUserTimelineEvents = Array.isArray(bundleUserTimeline.events) ? bundleUserTimeline.events.map(asRecord) : [];
     const bundleTimelineIntegritySummary = asRecord(bundleSummary.timelineIntegrity);
-    if (bundleWorkflowSteps.activityTimeline !== "completed" || !bundleTimelineGroups.some((group) => group.issueKey === "COPGEN1-125806" && group.issueKeyRole === "secondary") || !bundleRelatedIssues.some((item) => item.issueKey === "COPGEN1-69506" && item.relationType === "parent_link") || !bundleSummary.userAnalysisWorkflow || !bundleTimeline.some((entry) => entry.type === "timeline_issues_added_to_fetch_queue") || !bundleTimeline.some((entry) => entry.type === "related_issues_expanded") || !bundleText.includes("User Analysis Workflow:")) failures.push(`debug bundle User Analysis workflow audit failed: ${JSON.stringify({ bundleWorkflowSteps, bundleTimelineGroups, bundleRelatedIssues })}`);
+    if (bundleWorkflowSteps.activityTimeline !== "completed" || !bundleTimelineGroups.some((group) => group.issueKey === "COPGEN1-125806" && group.issueKeyRole === "secondary") || !bundleRelatedIssues.some((item) => item.issueKey === "COPGEN1-69506" && item.relationType === "parent_link" && item.scope === "recommended") || Number(asRecord(bundleRelatedScope.recommended).uniqueIssueCount) < 1 || Number(asRecord(asRecord(bundleSummary.relatedIssueScopeSummary).recommended).uniqueIssueCount) < 1 || !bundleSummary.userAnalysisWorkflow || !bundleTimeline.some((entry) => entry.type === "timeline_issues_added_to_fetch_queue") || !bundleTimeline.some((entry) => entry.type === "related_issues_expanded") || !bundleText.includes("User Analysis Workflow:") || !bundleText.includes("Recommended:") || !bundleText.includes("Optional:")) failures.push(`debug bundle User Analysis workflow audit failed: ${JSON.stringify({ bundleWorkflowSteps, bundleTimelineGroups, bundleRelatedIssues, bundleRelatedScope, summaryScope: bundleSummary.relatedIssueScopeSummary })}`);
+    if (Number(bundleCheckpointDiagnostics.retryCount) < 1 || Number(bundleCheckpointDiagnostics.fallbackDirectWriteCount) < 1 || bundleCheckpointDiagnostics.lastRecovered !== true || !Array.isArray(bundleCheckpointDiagnostics.events)) failures.push(`debug bundle checkpoint diagnostics audit failed: ${JSON.stringify(bundleCheckpointDiagnostics)}`);
     if (bundleUserTimelineSummary.available !== true || !String(bundleUserTimeline.timelineRunId).startsWith("tlrun-") || Number(bundleTimelineSummary.totalEvents) < 1 || Number(bundleTimelineSchema.schemaVersion) !== 2 || bundleUserTimelineEvents.some((event) => !/^sha256:[0-9a-f]{64}$/.test(String(event.eventId)) || String(event.eventId).startsWith("sha256:sha256:")) || !bundleTimelineCsv.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf])) || !bundleTimeline.some((entry) => entry.type === "user_activity_timeline_built") || !bundleText.includes("User Activity Timeline:") || !bundleText.includes("Timeline Integrity:") || bundleTimelineIntegritySummary.available !== true || Number(bundleTimelineIntegrity.unexplainedDifferenceCount ?? asRecord(bundleTimelineSummary.eventCountReconciliation).unexplainedDifferenceCount) !== 0 || Number(bundleTimelineIssueKeys.timelineAllIssueKeyCount) < Number(bundleTimelineIssueKeys.timelinePrimaryIssueKeyCount) || !Array.isArray(bundleTimelineDedup.dedupGroups)) failures.push(`debug bundle timeline audit failed: ${JSON.stringify({ bundleUserTimelineSummary, bundleTimelineIntegritySummary, timelineRunId: bundleUserTimeline.timelineRunId, totalEvents: bundleTimelineSummary.totalEvents, schemaVersion: bundleTimelineSchema.schemaVersion })}`);
     const includedAutoSavedResults = Array.isArray(bundleAutoSavedIndex.included) ? bundleAutoSavedIndex.included.map(asRecord) : [];
     const missingAutoSavedResults = Array.isArray(bundleAutoSavedIndex.missing) ? bundleAutoSavedIndex.missing.map(asRecord) : [];
@@ -3640,7 +3707,7 @@ async function runUiSmoke(window: BrowserWindow) {
     (() => {
       const panel = document.querySelector("[data-debug-panel-state='collapsed']");
       panel?.querySelector("button")?.click();
-      const runButton = Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Run Full Fetch from Queue"));
+      const runButton = document.querySelector("[data-testid='run-full-fetch']");
       const disabled = runButton instanceof HTMLButtonElement ? runButton.disabled : true;
       runButton?.click();
       return { found: Boolean(runButton), disabled };
@@ -3683,7 +3750,7 @@ async function runUiSmoke(window: BrowserWindow) {
     })()
   `);
   await window.webContents.executeJavaScript(`
-    Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Run Full Fetch from Queue"))?.click();
+    document.querySelector("[data-testid='run-full-fetch']")?.click();
   `);
   await wait(150);
   await window.webContents.executeJavaScript(`
@@ -3726,7 +3793,7 @@ async function runUiSmoke(window: BrowserWindow) {
     })()
   `);
   await window.webContents.executeJavaScript(`
-    Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Exports") && button.textContent?.includes("匯出"))?.click();
+    document.querySelector("[data-testid='workflow-exports']")?.click();
   `);
   await wait(200);
   const actionLogUiAudit = await window.webContents.executeJavaScript(`

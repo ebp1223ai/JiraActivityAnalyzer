@@ -4,19 +4,20 @@ Electron desktop application for read-only Jira activity inspection and analysis
 
 ## User Analysis Workflow
 
-Version 0.2.19 connects the verified Activity Timeline to the Full Fetch queue. The primary workflow is now:
+Version 0.2.20 presents User Analysis as a guarded six-step workflow:
 
-1. Build Timeline
-2. Select Issues
-3. Fetch Queue
-4. Full Fetch Report
-5. Related Issues
-6. Exports
-7. Advanced Candidate Search
+1. Setup Analysis
+2. Build Timeline
+3. Select Issues
+4. Full Fetch
+5. Review Related Issues
+6. Export
+
+Setup Analysis fixes the selected user, inclusive date range, optional project scope, and Live Jira API source in one visible section. Later steps repeat a compact setup summary and remain blocked until their required evidence exists. Advanced Candidate Search is collapsed under Advanced Tools because it is supplementary evidence rather than a main workflow step.
 
 Timeline Issue Groups are built from both `issueKey` and `allIssueKeys`. Primary and secondary issue keys remain distinguishable, so a key mentioned only as the secondary side of a link can still be selected. Selected groups enter the queue with `activity_timeline` source metadata, event IDs, activity types, confidence counts, selected user, date range, and issue-key role. Existing queue entries are deduplicated by issue key and merge their source and evidence metadata.
 
-After Full Fetch, Related Issues are derived from sanitized read-only metadata including parent/epic fields, issue links, remote links, and relevant changelog items. Selected related issues can be added back to the same queue with `related_issue_expansion` metadata. Advanced Candidate Search remains available as supplementary assignee/reporter/creator/JQL evidence; it is not direct user-activity evidence.
+After Full Fetch, Related Issues are derived from sanitized read-only metadata. Parent and epic hierarchy relationships are grouped as Recommended Scope and can be added together. Links, mentions, remote links, and other weaker evidence are Optional Scope and require explicit per-issue selection; there is no add-all optional action. Queue metadata distinguishes `recommended_related_issue` from `optional_related_issue`.
 
 Workflow exports are auto-saved under `<runtime>/exports/user-analysis/workflow/`:
 
@@ -25,8 +26,9 @@ Workflow exports are auto-saved under `<runtime>/exports/user-analysis/workflow/
 - `fetch-queue.json`
 - `related-candidate-issues.json`
 - `related-issue-expansion-summary.json`
+- `checkpoint-write-diagnostics.json` (Debug Bundle)
 
-Debug Bundles include the same files plus `user-analysis-steps.json`, workflow details in `debug-bundle-summary.json`, and workflow event entries in `session-timeline.json`. This workflow remains read-only: it does not write Jira or a database and does not download attachment bodies.
+Checkpoint writes use an atomic temporary-file rename with retries at 100, 250, 500, 1000, and 2000 ms for `EPERM`, `EBUSY`, and `EACCES`. If rename remains unavailable, the app falls back to a direct checkpoint write and records structured recovery diagnostics instead of aborting a successful Full Fetch. Debug Bundles include those diagnostics, `user-analysis-steps.json`, workflow details in `debug-bundle-summary.json`, and workflow events in `session-timeline.json`. This workflow remains read-only: it does not write Jira or a database and does not download attachment bodies.
 
 This is an Electron desktop app shell with a React renderer. The first version is a static UI prototype with one read-only Jira Probe diagnostics page. Import, database writes, token storage, and backup restore behavior are not implemented.
 

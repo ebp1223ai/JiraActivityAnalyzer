@@ -22,7 +22,7 @@ export type TimelineIssueGroup = {
   issueKeyRole: "primary" | "secondary" | "primary_and_secondary";
 };
 
-export type FetchQueueSource = "activity_timeline" | "advanced_candidate_search" | "related_issue_expansion" | "manual";
+export type FetchQueueSource = "activity_timeline" | "advanced_candidate_search" | "recommended_related_issue" | "optional_related_issue" | "manual";
 
 export type FetchQueueMetadata = {
   sources: FetchQueueSource[];
@@ -59,6 +59,7 @@ export type RelatedCandidateIssue = {
   lastSeen: string;
   evidenceCount: number;
   selected: boolean;
+  scope: "recommended" | "optional";
 };
 
 type TimelineEventLike = {
@@ -87,6 +88,10 @@ function text(value: unknown) {
 function extractIssueKey(value: unknown) {
   const source = typeof value === "string" ? value : JSON.stringify(value ?? "");
   return unique((source.match(issueKeyPattern) ?? []).map((key) => key.toUpperCase()));
+}
+
+export function isRecommendedRelationType(relationType: string) {
+  return ["epic_link_parent", "epic_child_parent", "parent_link", "parent_issue", "child_issue", "hierarchy_parent"].includes(relationType);
 }
 
 export function defaultWorkflowSteps(): WorkflowStepStatus {
@@ -179,7 +184,7 @@ export function extractRelatedIssues(input: { issueKey: string; issue: unknown; 
     const relation = relationFor(field, direction, value);
     for (const issueKey of extractIssueKey(value)) {
       if (issueKey === sourceKey) continue;
-      candidates.push({ issueKey, relationType: relation.type, discoveredFromIssueKey: sourceKey, source: "related_issue_expansion", field, reason: `${relation.type} discovered from ${sourceKey}`, confidence: relation.confidence, firstSeen: observedAt, lastSeen: observedAt, evidenceCount: 1, selected: false });
+      candidates.push({ issueKey, relationType: relation.type, discoveredFromIssueKey: sourceKey, source: "related_issue_expansion", field, reason: `${relation.type} discovered from ${sourceKey}`, confidence: relation.confidence, firstSeen: observedAt, lastSeen: observedAt, evidenceCount: 1, selected: false, scope: isRecommendedRelationType(relation.type) ? "recommended" : "optional" });
     }
   };
 
@@ -217,4 +222,23 @@ export function relatedIssueSummary(items: RelatedCandidateIssue[]) {
   const relationTypeCounts: Record<string, number> = {};
   for (const item of items) relationTypeCounts[item.relationType] = (relationTypeCounts[item.relationType] ?? 0) + 1;
   return { relatedIssueCount: unique(items.map((item) => item.issueKey)).length, relationTypeCounts };
+}
+
+export function relatedIssueScopeSummary(items: RelatedCandidateIssue[], addedRecommendedToFetchQueueCount = 0, addedOptionalToFetchQueueCount = 0) {
+  const summarize = (scope: RelatedCandidateIssue["scope"]) => {
+    const scoped = items.filter((item) => (item.scope ?? (isRecommendedRelationType(item.relationType) ? "recommended" : "optional")) === scope);
+    const relationTypeCounts: Record<string, number> = {};
+    for (const item of scoped) relationTypeCounts[item.relationType] = (relationTypeCounts[item.relationType] ?? 0) + 1;
+    return { entryCount: scoped.length, uniqueIssueCount: unique(scoped.map((item) => item.issueKey)).length, relationTypeCounts };
+  };
+  return {
+    totalRelatedEntries: items.length,
+    uniqueRelatedIssueCount: unique(items.map((item) => item.issueKey)).length,
+    recommended: summarize("recommended"),
+    optional: summarize("optional"),
+    addedRecommendedToFetchQueueCount,
+    addedOptionalToFetchQueueCount,
+    addedRecommendedRelatedIssuesToFetchQueueCount: addedRecommendedToFetchQueueCount,
+    addedOptionalRelatedIssuesToFetchQueueCount: addedOptionalToFetchQueueCount
+  };
 }
