@@ -480,6 +480,52 @@ export type UserAnalysisFullFetchSummary = {
   totalEstimatedEvents: number;
 };
 
+export type JiraEvidenceEvent = {
+  evidenceId: string;
+  schemaVersion: "jira_evidence_event_v1";
+  system: "jira";
+  evidenceScope: "direct" | "context" | "related_context" | "excluded";
+  evidenceType: "jira_comment" | "jira_changelog" | "jira_attachment_metadata" | "jira_issue_link" | "jira_issue_link_context" | "jira_remote_link" | "jira_remote_link_context" | "jira_issue_snapshot_context";
+  activityType: string;
+  issueKey: string;
+  projectKey: string;
+  selectedUser: string;
+  actor: string;
+  eventTime: string;
+  withinSelectedDateRange: boolean;
+  source: "jira_full_fetch";
+  sourceIssueKey: string;
+  sourceLayer: "direct_activity_issue" | "evidence_related_issue";
+  relatedToTimelineEventIds: string[];
+  field: string;
+  fromValue: string;
+  toValue: string;
+  title: string;
+  contentSummary: string;
+  rawTextPreview: string;
+  confidence: "high" | "medium" | "low";
+  extractionReason: string;
+  rawRef: Record<string, unknown>;
+};
+
+export type JiraEvidenceSummary = {
+  schemaVersion: "jira_evidence_summary_v1";
+  selectedUser: string;
+  dateRange: { start: string; end: string };
+  directIssueCount: number;
+  fullFetchedIssueCount: number;
+  failedIssueCount: number;
+  directEvidenceCount: number;
+  contextEvidenceCount: number;
+  relatedContextEvidenceCount: number;
+  excludedEvidenceCount: number;
+  byEvidenceType: Record<string, number>;
+  byActivityType: Record<string, number>;
+  byIssueKey: Record<string, { directEvidenceCount: number; contextEvidenceCount: number; activityTypes: string[] }>;
+  coverage: { issuesWithEvidence: number; issuesWithoutDirectEvidence: number; failedIssues: string[] };
+  relatedIssueExpansionPolicy: { recursive: false; maxDepth: 1; relatedIssuesAsPrimaryEvidence: false };
+};
+
 export type UserAnalysisFullFetchMemory = {
   rssMB: number;
   heapUsedMB: number;
@@ -623,6 +669,12 @@ export type UserAnalysisSessionState = {
   fullFetchReport: UserAnalysisFullFetchReportRow[];
   fullFetchResultsByIssue: unknown[];
   fullFetchRawDataByIssueSanitized: unknown | null;
+  jiraEvidenceEvents: JiraEvidenceEvent[];
+  jiraEvidenceSummary: JiraEvidenceSummary | null;
+  jiraEvidenceExcludedSummary: { schemaVersion: string; excludedCount: number; byReason: Record<string, number> } | null;
+  jiraEvidenceFiles: { events: string; summary: string; excludedSummary: string; schema: string; roadmap: string } | null;
+  jiraEvidenceFilters: { evidenceTypes: string[]; activityTypes: string[]; issueKeys: string[]; scopes: string[]; confidences: string[]; actors: string[] };
+  expandedJiraEvidence: string[];
   fullFetchWarnings: string[];
   fullFetchErrors: string[];
   fullFetchProgress: UserAnalysisFullFetchProgress;
@@ -859,6 +911,12 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   fullFetchReport: [],
   fullFetchResultsByIssue: [],
   fullFetchRawDataByIssueSanitized: null,
+  jiraEvidenceEvents: [],
+  jiraEvidenceSummary: null,
+  jiraEvidenceExcludedSummary: null,
+  jiraEvidenceFiles: null,
+  jiraEvidenceFilters: { evidenceTypes: [], activityTypes: [], issueKeys: [], scopes: ["direct"], confidences: [], actors: ["roger_hsieh"] },
+  expandedJiraEvidence: [],
   fullFetchWarnings: [],
   fullFetchErrors: [],
   fullFetchProgress: {

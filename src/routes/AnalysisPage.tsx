@@ -9,7 +9,7 @@ import { ResponsiveTableContainer } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useConnectionContext } from "../state/ConnectionContext";
-import { useSessionState, type UserActivityTimelineEvent, type UserActivityTimelineSummary, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type UserAnalysisFullFetchReportRow, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
+import { useSessionState, type JiraEvidenceEvent, type JiraEvidenceSummary, type UserActivityTimelineEvent, type UserActivityTimelineSummary, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type UserAnalysisFullFetchReportRow, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
 import { buildTimelineIssueGroups, isRecommendedRelationType, mergeQueueMetadata, type FetchQueueMetadata, type FetchQueueSource } from "../../electron/userAnalysisWorkflow";
 
 const fetchLimitOptions = [10, 20, 40, 80, 160];
@@ -213,6 +213,23 @@ export function AnalysisPage() {
   const fetchLimitExceeded = fetchQueue.length > userAnalysis.fetchLimit;
   const filteredFetchReport = userAnalysis.fullFetchReport.filter((row) => userAnalysis.fetchReportFilter === "all" || row.fetchStatus === userAnalysis.fetchReportFilter);
   const failedFullFetchIssues = userAnalysis.fullFetchReport.filter((row) => row.fetchStatus === "failed");
+  const filteredJiraEvidence = userAnalysis.jiraEvidenceEvents.filter((item) => {
+    const filters = userAnalysis.jiraEvidenceFilters;
+    return (filters.evidenceTypes.length === 0 || filters.evidenceTypes.includes(item.evidenceType))
+      && (filters.activityTypes.length === 0 || filters.activityTypes.includes(item.activityType))
+      && (filters.issueKeys.length === 0 || filters.issueKeys.includes(item.issueKey))
+      && (filters.scopes.length === 0 || filters.scopes.includes(item.evidenceScope))
+      && (filters.confidences.length === 0 || filters.confidences.includes(item.confidence))
+      && (filters.actors.length === 0 || filters.actors.includes(item.actor));
+  });
+  const jiraEvidenceFilterOptions = {
+    evidenceTypes: Array.from(new Set(userAnalysis.jiraEvidenceEvents.map((item) => item.evidenceType))).sort(),
+    activityTypes: Array.from(new Set(userAnalysis.jiraEvidenceEvents.map((item) => item.activityType))).sort(),
+    issueKeys: Array.from(new Set(userAnalysis.jiraEvidenceEvents.map((item) => item.issueKey))).sort(),
+    scopes: Array.from(new Set(userAnalysis.jiraEvidenceEvents.map((item) => item.evidenceScope))).sort(),
+    confidences: Array.from(new Set(userAnalysis.jiraEvidenceEvents.map((item) => item.confidence))).sort(),
+    actors: Array.from(new Set(userAnalysis.jiraEvidenceEvents.map((item) => item.actor).filter(Boolean))).sort()
+  };
   const filteredTimelineEvents = userAnalysis.timelineEvents.filter((event) => {
     const filter = userAnalysis.timelineFilters;
     const relation = event.isJiraRelated ? "jira_related" : event.jiraRelationReason === "unknown" ? "unknown_relation" : "non_jira";
@@ -361,6 +378,17 @@ export function AnalysisPage() {
     patchState({ expandedTimelineIssueGroups: Array.from(expanded) });
   }
 
+  function toggleJiraEvidenceFilter(key: keyof typeof userAnalysis.jiraEvidenceFilters, value: string) {
+    const current = userAnalysis.jiraEvidenceFilters[key];
+    patchState({ jiraEvidenceFilters: { ...userAnalysis.jiraEvidenceFilters, [key]: current.includes(value) ? current.filter((item) => item !== value) : [...current, value] } });
+  }
+
+  function toggleJiraEvidenceDetail(evidenceId: string) {
+    const expanded = new Set(userAnalysis.expandedJiraEvidence);
+    if (expanded.has(evidenceId)) expanded.delete(evidenceId); else expanded.add(evidenceId);
+    patchState({ expandedJiraEvidence: Array.from(expanded) });
+  }
+
   function SetupSummary() {
     return <div data-testid="analysis-setup-summary" className="mb-4 grid min-w-0 grid-cols-1 gap-2 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold text-muted sm:grid-cols-2 xl:grid-cols-4"><span><b>User:</b> {selectedUsers[0] || "Not set"}</span><span><b>Date Range:</b> {userAnalysis.startDate || "-"} ~ {userAnalysis.endDate || "-"}</span><span><b>Project Scope:</b> {userAnalysis.precisionProjectScope || "All projects"}</span><span><b>Source:</b> Live Jira API</span></div>;
   }
@@ -463,12 +491,25 @@ export function AnalysisPage() {
       fullFetchSummary: { ...current.fullFetchSummary, totalIssues: 1, failed: 1 },
       fullFetchReport: [{ issueKey: "SMOKE-404", summary: "Missing issue", status: "-", fetchStatus: "failed", httpStatus: "404", errorCode: "HTTP_404", stage: "issue_full_fetch", source: "recommended_related_issue", matchedReason: "epic_link_parent", retryCount: 0, occurredAt: "2026-07-16T08:00:00.000Z", changelogHistories: 0, changelogItems: 0, comments: 0, attachmentsMetadata: 0, issueLinks: 0, parsedUsers: 0, estimatedEvents: 0, duration: "12ms", error: "HTTP 404 Not Found", lastFetchedAt: "2026-07-16 16:00:00" }]
     }));
+    const seedJiraEvidence = () => {
+      const base = { schemaVersion: "jira_evidence_event_v1" as const, system: "jira" as const, selectedUser: "roger_hsieh", source: "jira_full_fetch" as const, sourceIssueKey: "COPGEN1-126606", relatedToTimelineEventIds: ["sha256:timeline-smoke"], withinSelectedDateRange: true, confidence: "high" as const };
+      const evidence: JiraEvidenceEvent[] = [
+        { ...base, evidenceId: "sha256:evidence-comment", evidenceScope: "direct", evidenceType: "jira_comment", activityType: "comment", issueKey: "COPGEN1-126606", projectKey: "COPGEN1", actor: "roger_hsieh", eventTime: "2026-07-02T03:00:00.000Z", sourceLayer: "direct_activity_issue", field: "comment", fromValue: "", toValue: "", title: "Added Jira comment", contentSummary: "Direct comment evidence", rawTextPreview: "Direct comment evidence", extractionReason: "actor and date matched", rawRef: { type: "comment", commentId: "1001" } },
+        { ...base, evidenceId: "sha256:evidence-status", evidenceScope: "direct", evidenceType: "jira_changelog", activityType: "status_change", issueKey: "COPGEN1-126606", projectKey: "COPGEN1", actor: "roger_hsieh", eventTime: "2026-07-03T04:00:00.000Z", sourceLayer: "direct_activity_issue", field: "status", fromValue: "To Do", toValue: "In Progress", title: "Changed status", contentSummary: "status: To Do -> In Progress", rawTextPreview: "status change", extractionReason: "actor and date matched", rawRef: { type: "changelog", historyId: "2001" } },
+        { ...base, evidenceId: "sha256:evidence-attachment", evidenceScope: "direct", evidenceType: "jira_attachment_metadata", activityType: "attachment", issueKey: "COPGEN1-126606", projectKey: "COPGEN1", actor: "roger_hsieh", eventTime: "2026-07-04T05:00:00.000Z", sourceLayer: "direct_activity_issue", field: "attachment", fromValue: "", toValue: "evidence.txt", title: "Added attachment metadata", contentSummary: "filename=evidence.txt", rawTextPreview: "evidence.txt", extractionReason: "actor and date matched; metadata only", rawRef: { type: "attachment_metadata", attachmentId: "3001" } },
+        { ...base, evidenceId: "sha256:evidence-link", evidenceScope: "context", evidenceType: "jira_issue_link_context", activityType: "issue_link", issueKey: "COPGEN1-126606", projectKey: "COPGEN1", actor: "", eventTime: "", sourceLayer: "direct_activity_issue", withinSelectedDateRange: false, confidence: "medium", field: "issue_link", fromValue: "", toValue: "COPGEN1-100", title: "Issue link context", contentSummary: "blocks COPGEN1-100", rawTextPreview: "blocks COPGEN1-100", extractionReason: "no attributable actor/time; context only", rawRef: { type: "issue_link", linkId: "4001" } },
+        { ...base, evidenceId: "sha256:evidence-related", evidenceScope: "related_context", evidenceType: "jira_issue_snapshot_context", activityType: "issue_snapshot", issueKey: "COPGEN1-69506", projectKey: "COPGEN1", actor: "", eventTime: "2026-07-04T06:00:00.000Z", sourceIssueKey: "COPGEN1-69506", sourceLayer: "evidence_related_issue", confidence: "medium", field: "issue_fields_snapshot", fromValue: "", toValue: "", title: "Related issue snapshot", contentSummary: "Context only", rawTextPreview: "Context only", extractionReason: "related issue is not primary evidence", rawRef: { type: "issue_snapshot", issueId: "5001" } }
+      ];
+      const summary: JiraEvidenceSummary = { schemaVersion: "jira_evidence_summary_v1", selectedUser: "roger_hsieh", dateRange: { start: "2026-07-01", end: "2026-07-07" }, directIssueCount: 1, fullFetchedIssueCount: 2, failedIssueCount: 1, directEvidenceCount: 3, contextEvidenceCount: 1, relatedContextEvidenceCount: 1, excludedEvidenceCount: 2, byEvidenceType: { jira_comment: 1, jira_changelog: 1, jira_attachment_metadata: 1, jira_issue_link_context: 1, jira_issue_snapshot_context: 1 }, byActivityType: { comment: 1, status_change: 1, attachment: 1, issue_link: 1, issue_snapshot: 1 }, byIssueKey: { "COPGEN1-126606": { directEvidenceCount: 3, contextEvidenceCount: 1, activityTypes: ["attachment", "comment", "issue_link", "status_change"] }, "COPGEN1-69506": { directEvidenceCount: 0, contextEvidenceCount: 1, activityTypes: ["issue_snapshot"] } }, coverage: { issuesWithEvidence: 1, issuesWithoutDirectEvidence: 0, failedIssues: ["SMOKE-404"] }, relatedIssueExpansionPolicy: { recursive: false, maxDepth: 1, relatedIssuesAsPrimaryEvidence: false } };
+      setUserAnalysis((current) => ({ ...current, activeTab: "fetchReport", jiraEvidenceEvents: evidence, jiraEvidenceSummary: summary, jiraEvidenceExcludedSummary: { schemaVersion: "jira_evidence_excluded_summary_v1", excludedCount: 2, byReason: { actor_not_selected_user: 1, outside_date_range: 1 } }, jiraEvidenceFiles: { events: "smoke/jira-evidence-events.json", summary: "smoke/jira-evidence-summary.json", excludedSummary: "smoke/jira-evidence-excluded-summary.json", schema: "smoke/jira-evidence-schema.json", roadmap: "smoke/analysis-roadmap.json" }, jiraEvidenceFilters: { evidenceTypes: [], activityTypes: [], issueKeys: [], scopes: ["direct"], confidences: [], actors: ["roger_hsieh"] }, expandedJiraEvidence: [] }));
+    };
     const seedMissingAnalysisInput = () => setUserAnalysis((current) => ({ ...current, activeTab: "timeline", selectedUsersText: "" }));
     window.addEventListener("jaa:seed-large-queue", seedLargeQueue);
     window.addEventListener("jaa:churn-debug-log", churnDebugLog);
     window.addEventListener("jaa:seed-related-scope", seedRelatedScope);
     window.addEventListener("jaa:seed-workflow-visual-state", seedWorkflowVisualState);
     window.addEventListener("jaa:seed-full-fetch-failure", seedFullFetchFailure);
+    window.addEventListener("jaa:seed-jira-evidence", seedJiraEvidence);
     window.addEventListener("jaa:seed-missing-analysis-input", seedMissingAnalysisInput);
     return () => {
       window.removeEventListener("jaa:seed-large-queue", seedLargeQueue);
@@ -476,6 +517,7 @@ export function AnalysisPage() {
       window.removeEventListener("jaa:seed-related-scope", seedRelatedScope);
       window.removeEventListener("jaa:seed-workflow-visual-state", seedWorkflowVisualState);
       window.removeEventListener("jaa:seed-full-fetch-failure", seedFullFetchFailure);
+      window.removeEventListener("jaa:seed-jira-evidence", seedJiraEvidence);
       window.removeEventListener("jaa:seed-missing-analysis-input", seedMissingAnalysisInput);
     };
   }, [appendDebugLog, setUserAnalysis]);
@@ -1088,6 +1130,12 @@ export function AnalysisPage() {
       fullFetchReport: [],
       fullFetchResultsByIssue: [],
       fullFetchRawDataByIssueSanitized: null,
+      jiraEvidenceEvents: [],
+      jiraEvidenceSummary: null,
+      jiraEvidenceExcludedSummary: null,
+      jiraEvidenceFiles: null,
+      jiraEvidenceFilters: { evidenceTypes: [], activityTypes: [], issueKeys: [], scopes: ["direct"], confidences: [], actors: selectedUsers.length === 1 ? [selectedUsers[0]] : [] },
+      expandedJiraEvidence: [],
       fullFetchWarnings: [],
       fullFetchErrors: [],
       fullFetchProgress: {
@@ -1273,6 +1321,12 @@ export function AnalysisPage() {
       fullFetchReport: [],
       fullFetchResultsByIssue: [],
       fullFetchRawDataByIssueSanitized: null,
+      jiraEvidenceEvents: [],
+      jiraEvidenceSummary: null,
+      jiraEvidenceExcludedSummary: null,
+      jiraEvidenceFiles: null,
+      jiraEvidenceFilters: { evidenceTypes: [], activityTypes: [], issueKeys: [], scopes: ["direct"], confidences: [], actors: selectedUsers.length === 1 ? [selectedUsers[0]] : [] },
+      expandedJiraEvidence: [],
       fullFetchWarnings: [],
       fullFetchErrors: [],
       fullFetchProgress: {
@@ -1311,7 +1365,11 @@ export function AnalysisPage() {
         fetchQueue,
         fetchLimit: userAnalysis.fetchLimit,
         batchSize: userAnalysis.batchSize,
-        rawDataMode: userAnalysis.rawDataMode
+        rawDataMode: userAnalysis.rawDataMode,
+        selectedUser: selectedUsers[0] ?? "",
+        startDate: userAnalysis.startDate,
+        endDate: userAnalysis.endDate,
+        directIssueKeys: userAnalysis.selectedTimelineIssueKeys
       });
       if (!response) throw new Error("Electron User Analysis Full Fetch API is not available.");
       const run = (response.run ?? {}) as Record<string, unknown>;
@@ -1319,6 +1377,7 @@ export function AnalysisPage() {
       const finalMemory = (diagnostics.finalMemory ?? {}) as UserAnalysisFullFetchMemory;
       const status = String(run.status ?? (response.ok ? "completed" : "failed")) as typeof userAnalysis.fullFetchStatus;
       const relatedCandidateIssues = (Array.isArray(response.relatedCandidateIssues) ? response.relatedCandidateIssues : []) as typeof userAnalysis.relatedCandidateIssues;
+      const jiraEvidenceSummary = response.jiraEvidenceSummary as JiraEvidenceSummary | undefined;
       const workflowSteps = {
         ...userAnalysis.workflowSteps,
         fetchQueue: "completed" as const,
@@ -1333,6 +1392,12 @@ export function AnalysisPage() {
         fullFetchSummary: response.summary as typeof userAnalysis.fullFetchSummary,
         fullFetchReport: (Array.isArray(response.fetchReport) ? response.fetchReport : []) as UserAnalysisFullFetchReportRow[],
         fullFetchResultsByIssue: Array.isArray(response.issueResults) ? response.issueResults : [],
+        jiraEvidenceEvents: (Array.isArray(response.jiraEvidenceEvents) ? response.jiraEvidenceEvents : []) as JiraEvidenceEvent[],
+        jiraEvidenceSummary: jiraEvidenceSummary ?? null,
+        jiraEvidenceExcludedSummary: response.jiraEvidenceExcludedSummary as typeof userAnalysis.jiraEvidenceExcludedSummary,
+        jiraEvidenceFiles: response.jiraEvidenceFiles as typeof userAnalysis.jiraEvidenceFiles,
+        jiraEvidenceFilters: { evidenceTypes: [], activityTypes: [], issueKeys: [], scopes: ["direct"], confidences: [], actors: jiraEvidenceSummary?.selectedUser ? [jiraEvidenceSummary.selectedUser] : [] },
+        expandedJiraEvidence: [],
         relatedCandidateIssues,
         selectedRelatedIssueKeys: [],
         workflowSteps,
@@ -1458,6 +1523,12 @@ export function AnalysisPage() {
         batchSize: userAnalysis.batchSize,
         rawDataMode: userAnalysis.rawDataMode,
         memory: userAnalysis.fullFetchMemory
+      },
+      directJiraEvidence: {
+        events: userAnalysis.jiraEvidenceEvents,
+        summary: userAnalysis.jiraEvidenceSummary,
+        excludedSummary: userAnalysis.jiraEvidenceExcludedSummary,
+        files: userAnalysis.jiraEvidenceFiles
       },
       actionLogDiagnostics: {
         actionLogPath: userAnalysis.actionLogPath,
@@ -2252,6 +2323,30 @@ export function AnalysisPage() {
             <div data-testid="full-fetch-failed-issues" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-black text-red-950">Failed Issues / 失敗 Jira</h3><StatusBadge tone={failedFullFetchIssues.length ? "red" : "green"}>{failedFullFetchIssues.length}</StatusBadge></div>
               {failedFullFetchIssues.length ? <ResponsiveTableContainer className="mt-3"><table className="data-table min-w-[1120px]"><thead><tr><th>Issue Key</th><th>HTTP Status / Error Code</th><th>Stage</th><th>Source</th><th>Matched Reason</th><th>Message</th><th>Retry Count</th></tr></thead><tbody>{failedFullFetchIssues.map((row) => <tr key={`failed-${row.issueKey}`}><td className="font-black text-red-700">{row.issueKey}</td><td>{row.httpStatus || "-"} / {row.errorCode || "UNKNOWN_ERROR"}</td><td>{row.stage || "issue_full_fetch"}</td><td>{row.source || "manual"}</td><td>{row.matchedReason || "-"}</td><td className="max-w-[360px] break-words">{row.error || "-"}</td><td>{row.retryCount ?? 0}</td></tr>)}</tbody></table></ResponsiveTableContainer> : <div className="mt-2 text-sm font-semibold text-emerald-800">No failed issues in the current Full Fetch report. / 本次完整抓取沒有失敗 Jira。</div>}
+            </div>
+            <div data-testid="jira-evidence-review" className="mt-4 rounded-lg border border-blue-200 bg-blue-50/40 p-4">
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0"><h3 className="font-black text-blue-950">Direct Jira Evidence / 直接 Jira 證據</h3><p className="mt-1 text-sm font-semibold leading-relaxed text-blue-900">Evidence is extracted from direct Activity Timeline issues and filtered by selected user and date range. Related issues remain context only.<br />證據僅從直接活動 Jira 抽取並依使用者與日期範圍篩選；關聯 Jira 只保留為 context。</p></div>
+                <StatusBadge tone={userAnalysis.jiraEvidenceSummary ? "green" : "gray"}>{userAnalysis.jiraEvidenceSummary ? "Extracted" : "Not available"}</StatusBadge>
+              </div>
+              <div data-testid="jira-evidence-summary" className="mt-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
+                <MiniStat label="Direct Evidence / 直接證據" value={userAnalysis.jiraEvidenceSummary?.directEvidenceCount ?? 0} />
+                <MiniStat label="Context Evidence / 情境證據" value={userAnalysis.jiraEvidenceSummary?.contextEvidenceCount ?? 0} />
+                <MiniStat label="Issues with Evidence / 有證據 Jira" value={userAnalysis.jiraEvidenceSummary?.coverage.issuesWithEvidence ?? 0} />
+                <MiniStat label="Without Direct Evidence / 無直接證據" value={userAnalysis.jiraEvidenceSummary?.coverage.issuesWithoutDirectEvidence ?? 0} />
+                <MiniStat label="Failed Issues / 失敗 Jira" value={userAnalysis.jiraEvidenceSummary?.failedIssueCount ?? failedFullFetchIssues.length} />
+              </div>
+              <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <MultiSelectFilter testId="evidence-filter-types" label="Evidence Type / 證據類型" options={jiraEvidenceFilterOptions.evidenceTypes.map((value) => ({ value, label: value }))} selected={userAnalysis.jiraEvidenceFilters.evidenceTypes} onToggle={(value) => toggleJiraEvidenceFilter("evidenceTypes", value)} onClear={() => patchState({ jiraEvidenceFilters: { ...userAnalysis.jiraEvidenceFilters, evidenceTypes: [] } })} />
+                <MultiSelectFilter testId="evidence-filter-activity-types" label="Activity Type / 活動類型" options={jiraEvidenceFilterOptions.activityTypes.map((value) => ({ value, label: value }))} selected={userAnalysis.jiraEvidenceFilters.activityTypes} onToggle={(value) => toggleJiraEvidenceFilter("activityTypes", value)} onClear={() => patchState({ jiraEvidenceFilters: { ...userAnalysis.jiraEvidenceFilters, activityTypes: [] } })} />
+                <MultiSelectFilter testId="evidence-filter-issue-keys" label="Issue Key / Jira 編號" options={jiraEvidenceFilterOptions.issueKeys.map((value) => ({ value, label: value }))} selected={userAnalysis.jiraEvidenceFilters.issueKeys} onToggle={(value) => toggleJiraEvidenceFilter("issueKeys", value)} onClear={() => patchState({ jiraEvidenceFilters: { ...userAnalysis.jiraEvidenceFilters, issueKeys: [] } })} />
+                <MultiSelectFilter testId="evidence-filter-scopes" label="Scope / 證據範圍" options={jiraEvidenceFilterOptions.scopes.map((value) => ({ value, label: value }))} selected={userAnalysis.jiraEvidenceFilters.scopes} onToggle={(value) => toggleJiraEvidenceFilter("scopes", value)} onClear={() => patchState({ jiraEvidenceFilters: { ...userAnalysis.jiraEvidenceFilters, scopes: [] } })} />
+                <MultiSelectFilter testId="evidence-filter-confidences" label="Confidence / 信心" options={jiraEvidenceFilterOptions.confidences.map((value) => ({ value, label: value }))} selected={userAnalysis.jiraEvidenceFilters.confidences} onToggle={(value) => toggleJiraEvidenceFilter("confidences", value)} onClear={() => patchState({ jiraEvidenceFilters: { ...userAnalysis.jiraEvidenceFilters, confidences: [] } })} />
+                <MultiSelectFilter testId="evidence-filter-actors" label="Actor / 操作者" options={jiraEvidenceFilterOptions.actors.map((value) => ({ value, label: value }))} selected={userAnalysis.jiraEvidenceFilters.actors} onToggle={(value) => toggleJiraEvidenceFilter("actors", value)} onClear={() => patchState({ jiraEvidenceFilters: { ...userAnalysis.jiraEvidenceFilters, actors: [] } })} />
+              </div>
+              <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-white p-3 text-sm font-semibold text-muted"><span data-testid="jira-evidence-filter-summary">Showing {filteredJiraEvidence.length} of {userAnalysis.jiraEvidenceEvents.length} evidence events. Values within a filter use OR; filter groups use AND.</span><div className="flex flex-wrap gap-2"><button data-testid="clear-all-evidence-filters" className="btn" type="button" onClick={() => patchState({ jiraEvidenceFilters: { evidenceTypes: [], activityTypes: [], issueKeys: [], scopes: [], confidences: [], actors: [] } })}>Clear all / 清除全部</button><button data-testid="reset-evidence-filters" className="btn" type="button" onClick={() => patchState({ jiraEvidenceFilters: { evidenceTypes: [], activityTypes: [], issueKeys: [], scopes: ["direct"], confidences: [], actors: userAnalysis.jiraEvidenceSummary?.selectedUser ? [userAnalysis.jiraEvidenceSummary.selectedUser] : [] } })}>Reset direct evidence / 重設直接證據</button></div></div>
+              <ResponsiveTableContainer className="mt-4" data-testid="jira-evidence-table"><table className="data-table min-w-[1320px]"><thead><tr><th>Time</th><th>Issue Key</th><th>Evidence Type</th><th>Activity Type</th><th>Actor</th><th>Summary</th><th>Confidence</th><th>Scope</th><th>Details</th></tr></thead><tbody>{filteredJiraEvidence.map((item) => <Fragment key={item.evidenceId}><tr><td className="whitespace-nowrap">{item.eventTime || "-"}</td><td className="font-black text-blue-700">{item.issueKey}</td><td>{item.evidenceType}</td><td>{item.activityType}</td><td>{item.actor || "-"}</td><td className="max-w-[300px]"><span className="block truncate" title={item.title} data-allow-truncate="true">{item.title}</span></td><td><StatusBadge tone={item.confidence === "high" ? "green" : item.confidence === "low" ? "red" : "amber"}>{item.confidence}</StatusBadge></td><td><StatusBadge tone={item.evidenceScope === "direct" ? "blue" : "gray"}>{item.evidenceScope}</StatusBadge></td><td><button className="btn px-3 py-2" type="button" onClick={() => toggleJiraEvidenceDetail(item.evidenceId)}>{userAnalysis.expandedJiraEvidence.includes(item.evidenceId) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}Details</button></td></tr>{userAnalysis.expandedJiraEvidence.includes(item.evidenceId) ? <tr><td colSpan={9} className="whitespace-normal bg-slate-50"><div className="grid min-w-0 grid-cols-1 gap-2 p-3 text-xs leading-relaxed md:grid-cols-2"><div><b>Field:</b> {item.field || "-"}</div><div><b>From / To:</b> {item.fromValue || "-"} → {item.toValue || "-"}</div><div><b>Source:</b> {item.source} / {item.sourceLayer}</div><div><b>Related Timeline Events:</b> {item.relatedToTimelineEventIds.length}</div><div className="md:col-span-2"><b>Content Summary:</b> <span className="break-words">{item.contentSummary || "-"}</span></div><div className="md:col-span-2"><b>Extraction Reason:</b> {item.extractionReason}</div><div className="md:col-span-2"><b>Evidence ID:</b> <span className="break-all">{item.evidenceId}</span></div><div className="md:col-span-2"><b>Raw Ref:</b> <span className="break-all">{JSON.stringify(item.rawRef)}</span></div></div></td></tr> : null}</Fragment>)}{filteredJiraEvidence.length === 0 ? <tr><td colSpan={9} className="text-center text-muted">No evidence matches the current filters. Run Full Fetch for selected direct issues first. / 目前沒有符合篩選的證據，請先完整抓取直接活動 Jira。</td></tr> : null}</tbody></table></ResponsiveTableContainer>
+              {userAnalysis.jiraEvidenceFiles ? <div data-testid="jira-evidence-files" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold leading-relaxed text-emerald-900"><b>Evidence files / 證據檔案</b><br />{Object.values(userAnalysis.jiraEvidenceFiles).map((filePath) => <div key={filePath} className="break-all">{filePath}</div>)}</div> : null}
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm font-semibold text-muted">Showing / 顯示 {pagedFetchReport.length} of / 共 {filteredFetchReport.length} fetch report rows / 筆抓取報告。</div>

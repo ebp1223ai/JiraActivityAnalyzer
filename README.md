@@ -4,7 +4,7 @@ Electron desktop application for read-only Jira activity inspection and analysis
 
 ## User Analysis Workflow
 
-Version 0.2.23 presents User Analysis as a guarded five-step workflow:
+Version 0.2.24 presents User Analysis as a guarded five-step workflow and extracts auditable Jira evidence from successful Full Fetch responses:
 
 1. Setup & Build Timeline
 2. Select Issues
@@ -22,6 +22,10 @@ Timeline Event List and Select Issues both provide Column Settings with fixed re
 
 After Full Fetch, Related Issues are derived from sanitized read-only metadata. Parent and epic hierarchy relationships are grouped as Recommended Scope and can be added together. Links, mentions, remote links, and other weaker evidence are Optional Scope and require explicit per-issue selection; there is no add-all optional action. Queue metadata distinguishes `recommended_related_issue` from `optional_related_issue`.
 
+Step 3 includes Direct Jira Evidence Review. Comments, changelog items, and attachment metadata become `direct` evidence only when both actor and inclusive date range match the selected analysis setup. Issue links, remote links, and issue snapshots without reliable actor/time attribution remain `context`. Evidence extracted from a fetched related issue remains `related_context`; it is never promoted to primary evidence. Related expansion is non-recursive, has a maximum depth of one, and never downloads attachment bodies.
+
+Evidence IDs use a stable SHA-256 fingerprint. The review table supports multi-select Evidence Type, Activity Type, Issue Key, Scope, Confidence, and Actor filters, with OR semantics inside one filter and AND semantics across filters. Row details retain the extraction reason and raw reference without exposing credentials.
+
 Workflow exports are auto-saved under `<runtime>/exports/user-analysis/workflow/`:
 
 - `timeline-issue-groups.json`
@@ -36,8 +40,15 @@ Workflow exports are auto-saved under `<runtime>/exports/user-analysis/workflow/
 - `full-fetch-failure-summary.json` (Debug Bundle)
 - `timeline-event-list-ui-state.json` (Debug Bundle)
 - `select-issues-ui-state.json` (Debug Bundle)
+- `jira-evidence-events.json`
+- `jira-evidence-summary.json`
+- `jira-evidence-excluded-summary.json`
+- `jira-evidence-schema.json`
+- `analysis-roadmap.json`
 
 Checkpoint writes use an atomic temporary-file rename with retries at 100, 250, 500, 1000, and 2000 ms for `EPERM`, `EBUSY`, and `EACCES`. If rename remains unavailable, the app falls back to a direct checkpoint write and records structured recovery diagnostics instead of aborting a successful Full Fetch. Full Fetch reports list failed issues and aggregate them by HTTP status, error code, stage, and queue source. Debug Bundles include those reports, Jira-relation diagnostics, workflow details, and session events. This workflow remains read-only: it does not write Jira or a database and does not download attachment bodies.
+
+The analyzer roadmap reserves Cloud AI Analyzer, Local AI Analyzer, and Offline Rule Analyzer as planned consumers of the normalized evidence schema. Live API is the current data source; Local Database and Hybrid sources are planned. Product goals cover Jira activity analysis, Confluence activity analysis, and combined Jira + Confluence analysis.
 
 This is an Electron desktop app shell with a React renderer. The first version is a static UI prototype with one read-only Jira Probe diagnostics page. Import, database writes, token storage, and backup restore behavior are not implemented.
 
