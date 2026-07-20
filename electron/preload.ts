@@ -34,9 +34,17 @@ contextBridge.exposeInMainWorld("desktopApp", {
       return () => ipcRenderer.removeListener("user-analysis:stability-probe-progress", listener);
     },
     buildActivityTimeline: (payload: unknown) => ipcRenderer.invoke("user-analysis:build-activity-timeline", payload),
+    cancelActivityTimeline: () => ipcRenderer.invoke("user-analysis:cancel-activity-timeline"),
+    onActivityTimelineProgress: (callback: (progress: unknown) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => callback(progress);
+      ipcRenderer.on("user-analysis:activity-timeline-progress", listener);
+      return () => ipcRenderer.removeListener("user-analysis:activity-timeline-progress", listener);
+    },
     activityStreamManualReplay: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-manual-replay", payload),
     precisionProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:precision-probe", payload),
     fullFetch: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch", payload),
+    previewSourceArchive: (payload: unknown) => ipcRenderer.invoke("user-analysis:preview-source-archive", payload),
+    exportSourceArchive: (payload: unknown) => ipcRenderer.invoke("user-analysis:export-source-archive", payload),
     pauseFullFetch: () => ipcRenderer.invoke("user-analysis:pause-full-fetch"),
     logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO"; message: string }) => ipcRenderer.invoke("user-analysis:log-action", payload),
     updateWorkflowSnapshot: (payload: unknown) => ipcRenderer.invoke("user-analysis:update-workflow-snapshot", payload),

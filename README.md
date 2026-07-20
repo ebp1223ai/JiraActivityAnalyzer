@@ -4,13 +4,19 @@ Electron desktop application for read-only Jira activity inspection and analysis
 
 ## User Analysis Workflow
 
-Version 0.2.25 adds an Activity Stream Stability Probe to the existing User Activity Precision Probe while preserving the guarded five-step User Analysis workflow and v0.2.24 direct Jira evidence extraction:
+Version 0.2.26 changes Activity Stream stability execution to round-first and adds a Full Fetch-only Source Archive Import Package exporter while preserving the guarded five-step User Analysis workflow and direct Jira evidence extraction:
 
 1. Setup & Build Timeline
 2. Select Issues
 3. Full Fetch
 4. Related Issues
 5. Export
+
+The Stability Probe defaults to **Force All Rounds / 強制執行全部輪次**. Formal Timeline building defaults to **Stop When Stable / 穩定後提前停止**. Both use the same sequential round-first executor: every date window in a round completes before round stability is evaluated, and the configured delay is applied only between complete rounds.
+
+Round diagnostics separate primary Jira targets from Jira-like keys referenced in titles or summaries. V2 exports include round fingerprints, union, intersection, variable events, consistency rate, per-window diagnostics, API/processing duration, progress, and ETA. Legacy v1 files remain identifiable as `window_first`; they are not converted into synthetic rounds.
+
+The Source Archive Import Package contains only sanitized Jira and Confluence Full Fetch raw JSON envelopes. It excludes Activity Stream data, probe results, timeline, evidence, coverage diagnostics, UI state, debug logs, credentials, and attachment files. Export performs a sensitive-data scan and creates a ZIP preview before writing the package. Version 0.2.26 does not create or write a Source Archive SQLite database.
 
 Step 1 combines the selected user, inclusive date range, optional project scope, Live Jira API source, timeline build action, timeline summary, and event inspection. Later steps repeat a compact setup summary and remain blocked until their required evidence exists. Advanced Tools and Candidate Search are no longer exposed in User Analysis.
 

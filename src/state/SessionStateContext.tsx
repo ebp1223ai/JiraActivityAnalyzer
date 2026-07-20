@@ -606,6 +606,9 @@ export type UserAnalysisSessionState = {
   activityStreamRequestWindow: "1_day" | "7_days" | "14_days" | "calendar_month" | "custom_days";
   activityStreamCustomWindowDays: number;
   activityStreamForcedRetryCount: number;
+  activityStreamFullScanRoundCount: number;
+  activityStreamDelayBetweenRoundsMs: number;
+  activityStreamRoundExecutionMode: "stop_when_stable" | "force_all_rounds";
   activityStreamMergeStrategy: "union" | "last_stable";
   precisionProbeMaxResults: number;
   precisionProbeMaxResultsSource: "custom" | "quick";
@@ -789,6 +792,9 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   activityStreamRequestWindow: "7_days",
   activityStreamCustomWindowDays: 7,
   activityStreamForcedRetryCount: 5,
+  activityStreamFullScanRoundCount: 3,
+  activityStreamDelayBetweenRoundsMs: 1000,
+  activityStreamRoundExecutionMode: "stop_when_stable",
   activityStreamMergeStrategy: "union",
   precisionProbeMaxResults: 50,
   precisionProbeMaxResultsSource: "quick",

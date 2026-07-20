@@ -8,6 +8,8 @@ import { buildUserActivityTimeline, classifyJiraRelation, classifyTimelineSource
 import { buildTimelineIssueGroups, extractRelatedIssues, mergeQueueMetadata, relatedIssueScopeSummary, relatedIssueSummary, type RelatedCandidateIssue, type WorkflowStepStatus } from "./userAnalysisWorkflow.js";
 import { analysisRoadmap, extractJiraEvidenceFromIssue, jiraEvidenceSchema, summarizeJiraEvidence, type JiraEvidenceEvent, type JiraEvidenceExcludedSummary, type JiraEvidenceSummary } from "./jiraEvidence.js";
 import { classifyWindowStability, csvCell, finalizeAttemptDiffs, fingerprintSet, mergeProbeAttempts, normalizeStabilityEvent, recommendStabilitySettings, splitActivityStreamWindows, type ActivityStreamProbeAttempt, type ActivityStreamProbeRun, type ActivityStreamProbeWindow, type ActivityStreamStabilityProbeConfig } from "./activityStreamStability.js";
+import { executeRoundFirstStability, type ActivityStreamProbeRunV2, type ActivityStreamRound, type ActivityStreamRoundWindowResult, type ActivityStreamStabilityConfigV2 } from "./activityStreamRoundStability.js";
+import { buildSourceArchivePackage } from "./sourceArchiveExporter.js";
 import { createJiraClient } from "./jira/jiraClient.js";
 import { assertReadOnlyRequest, ReadOnlyViolationError } from "./jira/jiraReadOnlyGuard.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
@@ -44,9 +46,12 @@ let latestUserActivityTimeline: (UserActivityTimelineBuild & { exportedFiles: { 
 let latestUserAnalysisWorkflow: { steps: WorkflowStepStatus; timelineIssueGroups: unknown[]; timelineSelectedIssues: string[]; fetchQueue: unknown[]; relatedCandidateIssues: RelatedCandidateIssue[]; addedTimelineIssuesToFetchQueueCount: number; addedRelatedIssuesToFetchQueueCount: number; addedRecommendedRelatedIssuesToFetchQueueCount: number; addedOptionalRelatedIssuesToFetchQueueCount: number; uiState: Record<string, unknown>; updatedAt: string } | null = null;
 type FullFetchFailedIssue = { issueKey: string; errorCode: string; httpStatus: number | null; message: string; stage: "issue_full_fetch"; retryCount: number; source: string; matchedReason: string; occurredAt: string };
 let latestFullFetchFailedIssues: FullFetchFailedIssue[] = [];
+let latestFullFetchCoverageDiagnostics: Record<string, unknown> | null = null;
 let latestJiraEvidence: { eventsDocument: Record<string, unknown>; events: JiraEvidenceEvent[]; summary: JiraEvidenceSummary; excluded: JiraEvidenceExcludedSummary; files: Record<string, string> } | null = null;
 let latestActivityStreamStabilityProbe: (ActivityStreamProbeRun & { files: Record<string, string> }) | null = null;
+let latestActivityStreamStabilityProbeV2: (ActivityStreamProbeRunV2 & { files: Record<string, string> }) | null = null;
 let activeStabilityProbe: { runId: string; cancelled: boolean } | null = null;
+let activeTimelineBuild: { runId: string; cancelled: boolean } | null = null;
 let lastActivityStreamQueryAt = "";
 const appSessionId = `app-session-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 type CheckpointWriteDiagnostics = { checkpointWriteAttempts: number; retryCount: number; fallbackDirectWriteCount: number; lastErrorCode: string; lastRecovered: boolean; events: Array<{ type: string; attempt?: number; errorCode?: string; reason?: string; time: string }> };
@@ -1659,7 +1664,7 @@ ipcMain.handle("user-analysis:cancel-stability-probe", async () => {
   return { ok: true, runId: activeStabilityProbe.runId };
 });
 
-ipcMain.handle("user-analysis:activity-stream-stability-probe", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamStabilityProbeConfig; confirmedLargeRun?: boolean }) => {
+ipcMain.handle("user-analysis:activity-stream-stability-probe-v1-legacy", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamStabilityProbeConfig; confirmedLargeRun?: boolean }) => {
   if (activeStabilityProbe) throw new Error("Another Activity Stream Stability Probe is already running.");
   const config = payload.config;
   const forcedRetryCount = Math.max(1, Math.min(32, Math.trunc(Number(config.forcedRetryCount))));
@@ -1742,44 +1747,139 @@ ipcMain.handle("user-analysis:activity-stream-stability-probe", async (ipcEvent,
   }
 });
 
-ipcMain.handle("user-analysis:build-activity-timeline", async (_event, payload: { connection: AppConnection; selectedUser: string; startDate: string; endDate: string; projectScope?: string; requestWindow?: ActivityStreamStabilityProbeConfig["requestWindow"]; forcedRetryCount?: number; mergeStrategy?: ActivityStreamStabilityProbeConfig["mergeStrategy"] }) => {
+function roundComparisonCsv(rounds: ActivityStreamRound[]) {
+  const headers = ["Round", "Status", "DurationMs", "RawEvents", "UniqueEvents", "PrimaryJiraKeys", "ReferencedJiraKeys", "AllJiraLikeKeys", "NewEventsVsPrevious", "MissingEventsVsPrevious", "EventFingerprint", "PrimaryJiraFingerprint", "ColdStart"];
+  const rows = rounds.map((round) => [round.roundNumber, round.status, round.durationMs, round.rawEventCount, round.uniqueEventCount, round.primaryJiraKeyCount, round.referencedJiraKeyCount, round.allJiraLikeKeyCount, round.newEventsComparedWithPreviousRound, round.missingEventsComparedWithPreviousRound, round.roundEventSetFingerprint, round.roundPrimaryJiraKeySetFingerprint, round.coldStartSuspected]);
+  return `\uFEFF${headers.join(",")}\r\n${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
+}
+
+function windowDiagnosticsCsv(windows: ActivityStreamRoundWindowResult[]) {
+  const headers = ["Round", "Window", "DateStart", "DateEnd", "Status", "HttpStatus", "ApiDurationMs", "ProcessingDurationMs", "TotalRequestDurationMs", "RawEvents", "UniqueEvents", "PrimaryJiraKeys", "ReferencedJiraKeys", "NewEvents", "MissingEvents", "EventFingerprint"];
+  const rows = windows.map((window) => [window.roundNumber, window.windowNumber, window.requestWindowStart, window.requestWindowEnd, window.status, window.httpStatus, window.apiDurationMs, window.processingDurationMs, window.totalRequestDurationMs, window.rawEventCount, window.uniqueEventCount, window.primaryJiraKeyCount, window.referencedJiraKeyCount, window.newEventsComparedWithPreviousRound, window.missingEventsComparedWithPreviousRound, window.eventSetFingerprint]);
+  return `\uFEFF${headers.join(",")}\r\n${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
+}
+
+function writeRoundStabilityFiles(run: ActivityStreamProbeRunV2) {
+  const folder = ensureDir(path.join(getExportsDir(), "user-analysis", "stability-probe-v2", run.probeRunId));
+  const files = {
+    probe: path.join(folder, "activity-stream-stability-probe-v2.json"),
+    rounds: path.join(folder, "activity-stream-rounds.json"),
+    roundComparison: path.join(folder, "activity-stream-round-comparison.csv"),
+    windowDiagnostics: path.join(folder, "activity-stream-window-diagnostics.csv"),
+    recommendation: path.join(folder, "activity-stream-stability-recommendation-v2.json")
+  };
+  writeJsonAtomic(files.probe, sanitizeExportData({ app: { version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__ }, ...run }));
+  writeJsonAtomic(files.rounds, { schemaVersion: "activity_stream_rounds_v2", probeRunId: run.probeRunId, executionOrder: run.executionOrder, rounds: run.rounds });
+  fs.writeFileSync(files.roundComparison, roundComparisonCsv(run.rounds), "utf8");
+  fs.writeFileSync(files.windowDiagnostics, windowDiagnosticsCsv(run.windowDiagnostics), "utf8");
+  writeJsonAtomic(files.recommendation, { schemaVersion: "activity_stream_stability_recommendation_v2", probeRunId: run.probeRunId, recommendation: run.recommendation });
+  return files;
+}
+
+ipcMain.handle("user-analysis:activity-stream-stability-probe", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamStabilityConfigV2 & Record<string, unknown>; confirmedLargeRun?: boolean }) => {
+  if (activeStabilityProbe) throw new Error("Another Activity Stream Stability Probe is already running. / 另一個穩定性測試正在執行。");
+  const source = payload.config;
+  const roundExecutionMode = source.roundExecutionMode === "stop_when_stable" || source.roundExecutionMode === "force_all_rounds"
+    ? source.roundExecutionMode
+    : source.forceRunAllAttempts === true ? "force_all_rounds" : source.stopEarlyWhenStable === true ? "stop_when_stable" : "force_all_rounds";
+  const config: ActivityStreamStabilityConfigV2 = {
+    selectedUser: String(source.selectedUser || "").trim(),
+    dateRange: source.dateRange,
+    projectScope: String(source.projectScope || ""),
+    requestWindow: source.requestWindow,
+    fullScanRoundCount: Number(source.fullScanRoundCount ?? source.forcedRetryCount ?? 3),
+    delayBetweenRoundsMs: Number(source.delayBetweenRoundsMs ?? source.retryDelayMs ?? 1000),
+    mergeStrategy: source.mergeStrategy,
+    roundExecutionMode
+  };
+  const windows = splitActivityStreamWindows(config.dateRange.start, config.dateRange.end, config.requestWindow.type, config.requestWindow.customDays ?? 7);
+  const totalRequests = windows.length * config.fullScanRoundCount;
+  if (totalRequests > 500 && payload.confirmedLargeRun !== true) throw new Error("CONFIRM_REQUIRED: More than 500 sequential requests require confirmation.");
+  const probeRunId = `ASR-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  const startedAt = new Date().toISOString();
+  const idleGapSeconds = lastActivityStreamQueryAt ? Math.max(0, Math.round((Date.parse(startedAt) - Date.parse(lastActivityStreamQueryAt)) / 1000)) : 0;
+  const coldStartSuspected = !lastActivityStreamQueryAt || idleGapSeconds > 1800;
+  const jiraConnectionSessionId = `jira-session:${sha256(String(payload.connection.baseUrl || "")).slice(0, 16)}`;
+  activeStabilityProbe = { runId: probeRunId, cancelled: false };
+  try {
+    const run = await executeRoundFirstStability(config, {
+      probeRunId,
+      appSessionId,
+      jiraConnectionSessionId,
+      coldStartSuspected,
+      shouldCancel: () => activeStabilityProbe?.cancelled === true,
+      onProgress: (progress) => ipcEvent.sender.send("user-analysis:stability-probe-progress", progress),
+      fetchWindow: async ({ roundNumber, roundId, windowNumber, windowId, start, end }) => {
+        const apiStarted = Date.now();
+        const runId = `${probeRunId}-${roundId}-${windowId}`;
+        try {
+          const result = await runActivityStreamProbe(payload.connection, [config.selectedUser], config.selectedUser, "auto", start, end, 500, true, runId, "update_date_after_before", "quick", false, "off", 7, false, true);
+          lastActivityStreamQueryAt = new Date().toISOString();
+          const stream = result.activityStream;
+          return { httpStatus: String(stream.httpStatus ?? "-"), requestSucceeded: stream.status !== "failed", rawEventCount: Number(stream.atomEntryCount ?? 0), entries: stream.entriesSanitized as unknown as Record<string, unknown>[], apiDurationMs: Date.now() - apiStarted, errorType: stream.status === "failed" ? stream.diagnosis : "", errorMessage: stream.error, rawResultSanitized: sanitizeExportData({ runId: result.runId, roundNumber, windowNumber, status: stream.status, diagnosis: stream.diagnosis, requestUrlSanitized: stream.requestUrlSanitized, atomEntryCount: stream.atomEntryCount, parsedActivityCount: stream.parsedActivityCount }) as Record<string, unknown> };
+        } catch (error) {
+          lastActivityStreamQueryAt = new Date().toISOString();
+          return { httpStatus: "-", requestSucceeded: false, rawEventCount: 0, entries: [], apiDurationMs: Date.now() - apiStarted, errorType: "request_error", errorMessage: error instanceof Error ? error.message : String(error), rawResultSanitized: {} };
+        }
+      }
+    });
+    const files = writeRoundStabilityFiles(run);
+    latestActivityStreamStabilityProbeV2 = { ...run, files };
+    return { ...run, files, migrationWarning: source.forceRunAllAttempts === true && source.stopEarlyWhenStable === true ? "Legacy settings conflict; Force All Rounds was selected. / 舊設定衝突，已採用強制執行全部輪次。" : "" };
+  } finally {
+    activeStabilityProbe = null;
+  }
+});
+
+ipcMain.handle("user-analysis:cancel-activity-timeline", async () => {
+  if (!activeTimelineBuild) return { ok: false, message: "No timeline build is running." };
+  activeTimelineBuild.cancelled = true;
+  return { ok: true, runId: activeTimelineBuild.runId };
+});
+
+ipcMain.handle("user-analysis:build-activity-timeline", async (ipcEvent, payload: { connection: AppConnection; selectedUser: string; startDate: string; endDate: string; projectScope?: string; requestWindow?: ActivityStreamStabilityConfigV2["requestWindow"]; fullScanRoundCount?: number; forcedRetryCount?: number; delayBetweenRoundsMs?: number; roundExecutionMode?: ActivityStreamStabilityConfigV2["roundExecutionMode"]; mergeStrategy?: ActivityStreamStabilityConfigV2["mergeStrategy"] }) => {
   const selectedUser = String(payload.selectedUser || "").trim();
   if (!selectedUser || !payload.startDate || !payload.endDate) throw new Error("Please select a user and date range first. / 請先選擇使用者與日期範圍。");
   const timelineRunId = `tlrun-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const sourceRunId = `asrun-${Date.now()}-timeline`;
   const requestWindow = payload.requestWindow ?? { type: "7_days", customDays: null };
-  const forcedRetryCount = Math.max(1, Math.min(32, Math.trunc(Number(payload.forcedRetryCount ?? 5))));
+  const fullScanRoundCount = Math.max(1, Math.min(32, Math.trunc(Number(payload.fullScanRoundCount ?? payload.forcedRetryCount ?? 3))));
+  const delayBetweenRoundsMs = isUiSmoke ? 0 : Number(payload.delayBetweenRoundsMs ?? 1000);
+  const roundExecutionMode = payload.roundExecutionMode ?? "stop_when_stable";
   const mergeStrategy = payload.mergeStrategy ?? "union";
-  const requestWindows = splitActivityStreamWindows(payload.startDate, payload.endDate, requestWindow.type, requestWindow.customDays ?? 7);
-  const selectedEntries = new Map<string, ActivityStreamEntry>();
-  const runLogs: string[] = [`[INFO] Timeline stability settings: requestWindow=${requestWindow.type} forcedRetryCount=${forcedRetryCount} mergeStrategy=${mergeStrategy}`, `[INFO] Sequential requests only: windows=${requestWindows.length} concurrency=1`];
+  const config: ActivityStreamStabilityConfigV2 = { selectedUser, dateRange: { start: payload.startDate, end: payload.endDate }, projectScope: String(payload.projectScope || ""), requestWindow, fullScanRoundCount, delayBetweenRoundsMs, mergeStrategy, roundExecutionMode };
+  const runLogs: string[] = [`[INFO] Timeline round settings: requestWindow=${requestWindow.type} fullScanRoundCount=${fullScanRoundCount} roundExecutionMode=${roundExecutionMode} mergeStrategy=${mergeStrategy}`, "[INFO] Round-first execution; concurrency=1"];
   let lastRun: Awaited<ReturnType<typeof runActivityStreamProbe>> | null = null;
-  for (const window of requestWindows) {
-    const attempts: ActivityStreamProbeAttempt[] = [];
-    const sourceEntries = new Map<string, ActivityStreamEntry>();
-    for (let attemptNumber = 1; attemptNumber <= forcedRetryCount; attemptNumber += 1) {
-      const one = await runActivityStreamProbe(payload.connection, [selectedUser], "", "auto", window.start, window.end, 500, true, `${sourceRunId}-${window.windowId}-attempt-${attemptNumber}`, "update_date_after_before", "quick", false, "off", 7, false, false);
-      lastRun = one;
-      const normalized = Array.from(new Map(one.activityStream.entriesSanitized.map((entry) => { const item = normalizeStabilityEvent(entry as unknown as Record<string, unknown>); sourceEntries.set(item.stableEventId, entry); return [item.stableEventId, item] as const; })).values());
-      const keys = Array.from(new Set(normalized.flatMap((entry) => entry.issueKeys))).sort();
-      attempts.push({ probeRunId: sourceRunId, windowId: window.windowId, attemptId: `${window.windowId}-attempt-${attemptNumber}`, requestWindowStart: window.start, requestWindowEnd: window.end, attemptNumber, totalAttempts: forcedRetryCount, startedAt: one.startedAt, completedAt: one.completedAt, durationMs: Math.max(0, Date.parse(one.completedAt) - Date.parse(one.startedAt)), httpStatus: one.activityStream.httpStatus, requestSucceeded: one.activityStream.status !== "failed", rawEventCount: one.activityStream.atomEntryCount, normalizedEventCount: one.activityStream.entriesSanitized.length, uniqueEventCount: normalized.length, jiraIssueKeyCount: keys.length, confluenceEventCount: normalized.filter((entry) => entry.system === "confluence").length, duplicateCount: Math.max(0, one.activityStream.entriesSanitized.length - normalized.length), newEventsComparedWithPreviousAttempt: 0, missingEventsComparedWithPreviousAttempt: 0, newEventsComparedWithCurrentUnion: 0, missingEventsComparedWithFinalUnion: 0, eventSetFingerprint: fingerprintSet(normalized.map((entry) => entry.stableEventId)), issueKeySetFingerprint: fingerprintSet(keys), errorType: one.activityStream.status === "failed" ? one.activityStream.diagnosis : "", errorMessage: one.activityStream.error, idleGapSeconds: 0, coldStartSuspected: false, normalizedEvents: normalized, rawResultSanitized: {} });
-      const stability = classifyWindowStability(attempts);
-      runLogs.push(`[INFO] Timeline window=${window.start}~${window.end} attempt=${attemptNumber}/${forcedRetryCount} events=${normalized.length} jiraKeys=${keys.length} stability=${stability.classification}`);
-      if (stability.classification === "stable") break;
+  activeTimelineBuild = { runId: timelineRunId, cancelled: false };
+  const jiraConnectionSessionId = `jira-session:${sha256(String(payload.connection.baseUrl || "")).slice(0, 16)}`;
+  const roundRun = await executeRoundFirstStability(config, {
+    probeRunId: sourceRunId,
+    appSessionId,
+    jiraConnectionSessionId,
+    coldStartSuspected: !lastActivityStreamQueryAt || Date.now() - Date.parse(lastActivityStreamQueryAt) > 1_800_000,
+    shouldCancel: () => activeTimelineBuild?.cancelled === true,
+    onProgress: (progress) => ipcEvent.sender.send("user-analysis:activity-timeline-progress", progress),
+    fetchWindow: async ({ roundId, windowId, start, end }) => {
+      const apiStarted = Date.now();
+      try {
+        const one = await runActivityStreamProbe(payload.connection, [selectedUser], selectedUser, "auto", start, end, 500, true, `${sourceRunId}-${roundId}-${windowId}`, "update_date_after_before", "quick", false, "off", 7, false, false);
+        lastRun = one;
+        lastActivityStreamQueryAt = new Date().toISOString();
+        const stream = one.activityStream;
+        runLogs.push(`[INFO] Timeline ${roundId} ${windowId}: events=${stream.entriesSanitized.length} jiraKeys=${stream.activityStreamIssueKeys.length} status=${stream.status}`);
+        return { httpStatus: String(stream.httpStatus ?? "-"), requestSucceeded: stream.status !== "failed", rawEventCount: Number(stream.atomEntryCount ?? 0), entries: stream.entriesSanitized as unknown as Record<string, unknown>[], apiDurationMs: Date.now() - apiStarted, errorType: stream.status === "failed" ? stream.diagnosis : "", errorMessage: stream.error, rawResultSanitized: sanitizeExportData({ runId: one.runId, status: stream.status, diagnosis: stream.diagnosis, requestUrlSanitized: stream.requestUrlSanitized, atomEntryCount: stream.atomEntryCount, parsedActivityCount: stream.parsedActivityCount }) as Record<string, unknown> };
+      } catch (error) {
+        return { httpStatus: "-", requestSucceeded: false, rawEventCount: 0, entries: [], apiDurationMs: Date.now() - apiStarted, errorType: "request_error", errorMessage: error instanceof Error ? error.message : String(error), rawResultSanitized: {} };
+      }
     }
-    const merged = mergeProbeAttempts(finalizeAttemptDiffs(attempts), mergeStrategy, "union");
-    if (merged.fallbackReason) runLogs.push(`[WARN] ${window.windowId}: ${merged.fallbackReason}`);
-    for (const normalized of merged.events) {
-      const original = sourceEntries.get(normalized.stableEventId);
-      if (original) selectedEntries.set(normalized.stableEventId, original);
-    }
-  }
-  if (!lastRun) throw new Error("Activity Stream returned no completed request.");
-  const entries = Array.from(selectedEntries.values());
+  }).finally(() => { activeTimelineBuild = null; });
+  const completedRun = lastRun as Awaited<ReturnType<typeof runActivityStreamProbe>> | null;
+  if (!completedRun) throw new Error("Activity Stream returned no completed request.");
+  const entries = roundRun.mergedEvents.map((entry) => entry.raw as unknown as ActivityStreamEntry);
   const sourceIssueKeys = Array.from(new Set(entries.flatMap((entry) => entry.extractedIssueKeysPerEntry))).sort();
-  const run = { ...lastRun, runId: sourceRunId, logs: [...lastRun.logs, ...runLogs], activityStream: { ...lastRun.activityStream, runId: sourceRunId, entriesSanitized: entries, parsedActivityCount: entries.length, parsedIssueKeys: sourceIssueKeys, activityStreamIssueKeys: sourceIssueKeys } };
+  const run = { ...completedRun, runId: sourceRunId, logs: [...completedRun.logs, ...runLogs], activityStream: { ...completedRun.activityStream, runId: sourceRunId, entriesSanitized: entries, parsedActivityCount: entries.length, parsedIssueKeys: sourceIssueKeys, activityStreamIssueKeys: sourceIssueKeys } };
   const comparison: ActivityStreamBaselineComparison = { enabled: true, baselineFound: false, snapshotKey: `stability:${sourceRunId}`, classification: "stability_probe_merged", confidence: "high", shouldRetry: false, retryReason: "", baselineCounts: { bestAtomEntryCount: entries.length, bestParsedActivityCount: entries.length, bestIssueKeyCount: sourceIssueKeys.length, bestEntryFingerprintCount: entries.length }, currentCounts: { atomEntryCount: entries.length, parsedActivityCount: entries.length, issueKeyCount: sourceIssueKeys.length, entryFingerprintCount: entries.length }, missingIssueKeys: [], missingEntryFingerprints: [], newIssueKeys: [], newEntryFingerprints: [], baselineUpdated: false, baselineUpdateReason: "formal_timeline_stability_merge", baselinePath: "" };
-  const retry: BaselineGuardRetrySummary = { triggered: forcedRetryCount > 1, maxRetries: forcedRetryCount - 1, attempts: [], finalAcceptedRunId: sourceRunId, finalClassification: "stability_probe_merged", baselineUpdated: false, retryRecovered: false };
+  const retry: BaselineGuardRetrySummary = { triggered: fullScanRoundCount > 1, maxRetries: fullScanRoundCount - 1, attempts: [], finalAcceptedRunId: sourceRunId, finalClassification: "stability_probe_merged", baselineUpdated: false, retryRecovered: false };
   const guardedRun = { baselineSnapshot: { knownEntryFingerprints: entries.map((entry) => entry.entryFingerprint) } } as { baselineSnapshot: ActivityStreamBaselineSnapshot };
   const builtAt = new Date().toISOString();
   const timeline = buildUserActivityTimeline({
@@ -1812,7 +1912,7 @@ ipcMain.handle("user-analysis:build-activity-timeline", async (_event, payload: 
   fs.writeFileSync(summaryPath, `${JSON.stringify(sanitizeExportData(timeline.summary), null, 2)}\n`, "utf8");
   latestUserActivityTimeline = { ...timeline, exportedFiles: { jsonPath, csvPath, summaryPath } };
   const integrityLogs = timeline.summary.integrity.warnings.map((warning) => `[WARN] ${warning}`);
-  return { ...timeline, exportedFiles: { jsonPath, csvPath, summaryPath }, activityStream: run.activityStream, standardActivityStreamFlow: run.standardActivityStreamFlow, logs: [...run.logs, `[INFO] User Activity Timeline built: timelineRunId=${timelineRunId} totalEvents=${timeline.summary.totalEvents}`, `[INFO] Timeline integrity: source=${timeline.summary.integrity.sourceParsedActivityCount} events=${timeline.summary.integrity.timelineEventCount} dedup=${timeline.summary.integrity.deduplicatedEntryCount} skipped=${timeline.summary.integrity.skippedEntryCount} unexplained=${timeline.summary.eventCountReconciliation.unexplainedDifferenceCount}`, ...integrityLogs, `[INFO] Timeline JSON auto-saved: ${jsonPath}`, `[INFO] Timeline CSV auto-saved: ${csvPath}`, "[INFO] No database write performed", "[INFO] No Jira write performed"] };
+  return { ...timeline, exportedFiles: { jsonPath, csvPath, summaryPath }, roundStability: roundRun, activityStream: run.activityStream, standardActivityStreamFlow: run.standardActivityStreamFlow, logs: [...run.logs, ...runLogs, `[INFO] User Activity Timeline built: timelineRunId=${timelineRunId} totalEvents=${timeline.summary.totalEvents}`, `[INFO] Timeline integrity: source=${timeline.summary.integrity.sourceParsedActivityCount} events=${timeline.summary.integrity.timelineEventCount} dedup=${timeline.summary.integrity.deduplicatedEntryCount} skipped=${timeline.summary.integrity.skippedEntryCount} unexplained=${timeline.summary.eventCountReconciliation.unexplainedDifferenceCount}`, ...integrityLogs, `[INFO] Timeline JSON auto-saved: ${jsonPath}`, `[INFO] Timeline CSV auto-saved: ${csvPath}`, "[INFO] No database write performed", "[INFO] No Jira write performed"] };
 });
 
 const sensitiveReplayQueryKey = /token|password|passwd|secret|session|cookie|authorization|auth_token/i;
@@ -2476,6 +2576,22 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
   };
   const status = paused ? "paused" : failed > 0 ? "completed_with_errors" : "completed";
   latestFullFetchFailedIssues = report.filter((item) => item.fetchStatus === "failed").map((item) => ({ issueKey: text(item.issueKey), errorCode: text(item.errorCode) || "UNKNOWN_ERROR", httpStatus: Number.isFinite(Number(item.httpStatus)) ? Number(item.httpStatus) : null, message: text(item.error), stage: "issue_full_fetch", retryCount: Number(item.retryCount ?? 0), source: text(item.source) || "manual", matchedReason: text(item.matchedReason), occurredAt: text(item.occurredAt) || new Date().toISOString() }));
+  const selectedTargetKeys = fetchQueue.map((item) => text(item.key).toUpperCase()).filter(Boolean);
+  const succeededTargetKeys = report.filter((item) => item.fetchStatus === "success").map((item) => text(item.issueKey).toUpperCase());
+  const failedTargetKeys = latestFullFetchFailedIssues.map((item) => item.issueKey);
+  latestFullFetchCoverageDiagnostics = {
+    schemaVersion: "full_fetch_coverage_diagnostics_v1",
+    generatedAt: new Date().toISOString(),
+    jira: {
+      primaryActivityStreamTargets: Array.from(directIssueKeys).sort(),
+      selectedTargets: selectedTargetKeys,
+      fullFetchSucceeded: succeededTargetKeys,
+      fullFetchFailed: failedTargetKeys,
+      notSelected: Array.from(directIssueKeys).filter((key) => !selectedTargetKeys.includes(key)).sort(),
+      missingFullFetch: selectedTargetKeys.filter((key) => !succeededTargetKeys.includes(key) && !failedTargetKeys.includes(key)).sort()
+    },
+    confluence: { primaryActivityStreamTargets: [], selectedTargets: [], fullFetchSucceeded: [], fullFetchFailed: [], notSelected: [], missingFullFetch: [] }
+  };
   const evidenceExcluded: JiraEvidenceExcludedSummary = { schemaVersion: "jira_evidence_excluded_summary_v1", excludedCount: Object.values(evidenceExcludedByReason).reduce((sum, count) => sum + count, 0), byReason: evidenceExcludedByReason };
   const evidenceSummary = summarizeJiraEvidence({ selectedUser, startDate, endDate, directIssueKeys: Array.from(directIssueKeys), fullFetchedIssueKeys, failedIssueKeys: latestFullFetchFailedIssues.map((item) => item.issueKey), events: evidenceEvents, excluded: evidenceExcluded });
   const evidenceOutputDir = ensureDir(path.join(getExportsDir(), "user-analysis", "evidence"));
@@ -2566,6 +2682,50 @@ ipcMain.handle("user-analysis:pause-full-fetch", async () => {
   activeFullFetch.pauseRequested = true;
   appendRuntimeLog(activeFullFetch.autoLogPath, "INFO", "Pause requested. Full Fetch will pause after the current issue.");
   return { ok: true, runId: activeFullFetch.runId };
+});
+
+function sourceArchivePayloads(rawData: unknown): unknown[] {
+  const source = asRecord(rawData);
+  if (Array.isArray(source.rawIssueResponsesSanitized)) {
+    const issueResponses = source.rawIssueResponsesSanitized.map(asRecord);
+    const commentResponses = Array.isArray(source.rawCommentResponsesSanitized) ? source.rawCommentResponsesSanitized.map(asRecord) : [];
+    const issueKeys = Array.from(new Set(issueResponses.map((item) => text(item.issueKey)).filter(Boolean)));
+    return issueKeys.map((issueKey) => {
+      const primary = issueResponses.find((item) => text(item.issueKey) === issueKey && text(item.endpoint) === "issue");
+      const supplemental = issueResponses.filter((item) => text(item.issueKey) === issueKey && text(item.endpoint) !== "issue").map((item) => ({ endpoint: text(item.endpoint), status: item.status, json: item.json }));
+      const commentPages = commentResponses.filter((item) => text(item.issueKey) === issueKey).map((item) => ({ startAt: item.startAt, status: item.status, json: item.json }));
+      return { issueKey, rawPayload: { issue: primary?.json ?? {}, supplementalIssueResponses: supplemental, commentPages }, sourceFileName: `${issueKey}.raw.json`, sourceJsonPath: `$.issues[${JSON.stringify(issueKey)}]` };
+    });
+  }
+  if (!Array.isArray(source.issues)) return [];
+  const root = path.resolve(getFullFetchRawRunsDir());
+  return source.issues.flatMap((item) => {
+    const filePath = path.resolve(text(asRecord(item).rawFilePath));
+    if (!filePath.startsWith(`${root}${path.sep}`) || !fs.existsSync(filePath)) return [];
+    try {
+      const saved = asRecord(JSON.parse(fs.readFileSync(filePath, "utf8")));
+      const issue = asRecord(saved.issue);
+      return [{ issueKey: text(asRecord(item).issueKey) || text(issue.issueKey), rawPayload: { issue: issue.json ?? {}, fullFetchResult: saved.result ?? {} }, sourceFileName: path.basename(filePath), sourceJsonPath: "$" }];
+    } catch { return []; }
+  });
+}
+
+function prepareSourceArchive(payload: { rawData: unknown; confluenceRawData?: unknown[]; selectedUser?: string }) {
+  return buildSourceArchivePackage({ jiraPayloads: sourceArchivePayloads(payload.rawData), confluencePayloads: Array.isArray(payload.confluenceRawData) ? payload.confluenceRawData : [], selectedUser: payload.selectedUser });
+}
+
+ipcMain.handle("user-analysis:preview-source-archive", async (_event, payload: { rawData: unknown; confluenceRawData?: unknown[]; selectedUser?: string }) => {
+  const prepared = prepareSourceArchive(payload);
+  return { fileName: prepared.fileName, manifest: prepared.manifest, summary: prepared.summary, errors: prepared.errors, logs: ["[INFO] Source Archive package preview completed", ...prepared.logs, "[INFO] No Source Archive database write performed"] };
+});
+
+ipcMain.handle("user-analysis:export-source-archive", async (_event, payload: { rawData: unknown; confluenceRawData?: unknown[]; selectedUser?: string }) => {
+  const exportRunId = `source-archive-${Date.now()}`;
+  const prepared = prepareSourceArchive(payload);
+  const folderPath = ensureDir(path.join(getExportsDir(), "source-archive-import-packages"));
+  const filePath = path.join(folderPath, prepared.fileName);
+  fs.writeFileSync(filePath, prepared.zip);
+  return { ok: true, exportRunId, fileName: prepared.fileName, filePath, folderPath, manifest: prepared.manifest, summary: prepared.summary, errors: prepared.errors, logs: [`[INFO] Source Archive export started: exportRunId=${exportRunId}`, ...prepared.logs.map((line) => line.replace("[INFO] ", `[INFO] exportRunId=${exportRunId} `)), `[INFO] Source Archive import package saved: ${filePath}`, "[INFO] Sensitive data scan completed", "[INFO] No Source Archive database write performed", "[INFO] No Jira write performed", "[INFO] No Confluence write performed", "[INFO] No attachment file download performed"] };
 });
 
 ipcMain.handle("user-analysis:log-action", async (_event, payload: { category?: string; message?: string }) => {
@@ -3136,6 +3296,23 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   fs.writeFileSync(path.join(folderPath, "activity-stream-attempt-comparison.csv"), latestActivityStreamStabilityProbe ? stabilityAttemptCsv(latestActivityStreamStabilityProbe.attempts) : "\uFEFFstatus,message\r\nnot_available,No Stability Probe result\r\n", "utf8");
   fs.writeFileSync(path.join(folderPath, "activity-stream-window-summary.csv"), latestActivityStreamStabilityProbe ? stabilityWindowCsv(latestActivityStreamStabilityProbe.windows) : "\uFEFFstatus,message\r\nnot_available,No Stability Probe result\r\n", "utf8");
   writeBundleJson(folderPath, "activity-stream-stability-recommendation.json", latestActivityStreamStabilityProbe ? { schemaVersion: "activity_stream_stability_recommendation_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId, recommendation: latestActivityStreamStabilityProbe.recommendation } : unavailableStabilityProbe);
+  writeBundleJson(folderPath, "activity-stream-stability-probe-v2.json", latestActivityStreamStabilityProbeV2 ?? unavailableStabilityProbe);
+  writeBundleJson(folderPath, "activity-stream-rounds.json", latestActivityStreamStabilityProbeV2 ? { schemaVersion: "activity_stream_rounds_v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, rounds: latestActivityStreamStabilityProbeV2.rounds } : unavailableStabilityProbe);
+  fs.writeFileSync(path.join(folderPath, "activity-stream-round-comparison.csv"), latestActivityStreamStabilityProbeV2 ? roundComparisonCsv(latestActivityStreamStabilityProbeV2.rounds) : "\uFEFFstatus,message\r\nnot_available,No V2 Stability Probe result\r\n", "utf8");
+  fs.writeFileSync(path.join(folderPath, "activity-stream-window-diagnostics.csv"), latestActivityStreamStabilityProbeV2 ? windowDiagnosticsCsv(latestActivityStreamStabilityProbeV2.windowDiagnostics) : "\uFEFFstatus,message\r\nnot_available,No V2 Stability Probe result\r\n", "utf8");
+  writeBundleJson(folderPath, "activity-stream-stability-recommendation-v2.json", latestActivityStreamStabilityProbeV2 ? { schemaVersion: "activity_stream_stability_recommendation_v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, recommendation: latestActivityStreamStabilityProbeV2.recommendation } : unavailableStabilityProbe);
+  writeBundleJson(folderPath, "full-fetch-coverage-diagnostics.json", latestFullFetchCoverageDiagnostics ?? { status: "not_available", jira: {}, confluence: {} });
+  writeBundleJson(folderPath, "source-archive-file-assessment.json", {
+    schemaVersion: "source_archive_file_assessment_v1",
+    generatedAt: createdAt,
+    files: [
+      { file: "full-fetch raw issue payloads", eligibility: "full", includePaths: ["$.issue.json", "$.rawIssueResponsesSanitized[*].json"], excludePaths: ["$.endpointMetadata", "$.bodyPreview"], reason: "Jira Full Fetch raw JSON is eligible. / Jira 完整抓取原始 JSON 可納入。" },
+      { file: "confluence full-fetch raw page payloads", eligibility: "full", includePaths: ["$.rawPayload"], excludePaths: [], reason: "Confluence Full Fetch raw JSON is eligible when available. / Confluence 完整抓取原始 JSON 可於存在時納入。" },
+      { file: "full-fetch result", eligibility: "partial", includePaths: ["raw Full Fetch payload only"], excludePaths: ["report", "evidence", "coverageDiagnostics", "endpointMetadata"], reason: "Only source raw payloads are eligible. / 僅來源原始 payload 可納入。" },
+      { file: "activity-stream-stability-probe-v2.json", eligibility: "not_applicable", includePaths: [], excludePaths: ["$"], reason: "Probe data is excluded from Source Archive packages. / Probe 資料不得納入來源封存套件。" },
+      { file: "user-activity-timeline.json", eligibility: "reference_only", includePaths: [], excludePaths: ["$"], reason: "Timeline may guide selection but is never archived as source raw data. / Timeline 僅供選取參考，不作為來源原始資料封存。" }
+    ]
+  });
   const unavailableWorkflow = { status: "not_available", message: "No User Analysis workflow snapshot is available." };
   const defaultUserAnalysisUiState = {
     workflowStepCount: 5,
@@ -3187,6 +3364,8 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const debugBundleSummaryPath = path.join(folderPath, "debug-bundle-summary.json");
   const debugBundleSummaryBody = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
   writeJsonAtomic(debugBundleSummaryPath, { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), checkpointWriteDiagnostics: checkpointDiagnostics, activityStreamStabilityProbe: latestActivityStreamStabilityProbe ? { available: true, probeRunId: latestActivityStreamStabilityProbe.probeRunId, windowCount: latestActivityStreamStabilityProbe.windows.length, attemptCount: latestActivityStreamStabilityProbe.attempts.length, stableWindowCount: latestActivityStreamStabilityProbe.windows.filter((window) => window.stability.classification === "stable").length, unstableWindowCount: latestActivityStreamStabilityProbe.recommendation.unstableWindowCount, recommendedRetryCount: latestActivityStreamStabilityProbe.recommendation.recommendedRetryCount } : { available: false, probeRunId: "", windowCount: 0, attemptCount: 0, stableWindowCount: 0, unstableWindowCount: 0, recommendedRetryCount: 0 } });
+  const summaryWithV1 = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
+  writeJsonAtomic(debugBundleSummaryPath, { ...summaryWithV1, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.26", packageIncludedInDebugBundle: false, assessmentFile: "source-archive-file-assessment.json" } });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -3621,45 +3800,45 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(350);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-stability']")?.click();`);
   await wait(120);
-  const stabilitySetupAudit = await window.webContents.executeJavaScript(`(() => ({ modes: document.querySelectorAll("[data-testid^='probe-mode-']").length, setup: Boolean(document.querySelector("[data-testid='run-stability-probe']")), requestWindow: Boolean(document.querySelector("[data-testid='stability-request-window']")), retries: Boolean(document.querySelector("[data-testid='stability-retry-count']")), delay: Boolean(document.querySelector("[data-testid='stability-retry-delay']")), stopEarly: Boolean(document.querySelector("[data-testid='stability-stop-early']")), forceAll: Boolean(document.querySelector("[data-testid='stability-force-all']")), merge: Boolean(document.querySelector("[data-testid='stability-merge-strategy']")), noLocalLogLevel: !(document.body.innerText || "").includes("Stability Probe Log Level") }))()`);
-  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return; const proto = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='stability-start-date']", "2026-07-07"); set("[data-testid='stability-end-date']", "2026-07-07"); set("[data-testid='stability-request-window']", "1_day"); set("[data-testid='stability-retry-count']", "3"); set("[data-testid='stability-retry-delay']", "0"); set("[data-testid='stability-merge-strategy']", "union"); document.querySelector("[data-testid='stability-force-all']")?.click(); })()`);
+  const stabilitySetupAudit = await window.webContents.executeJavaScript(`(() => ({ modes: document.querySelectorAll("[data-testid^='probe-mode-']").length, setup: Boolean(document.querySelector("[data-testid='run-stability-probe']")), requestWindow: Boolean(document.querySelector("[data-testid='stability-request-window']")), rounds: Boolean(document.querySelector("[data-testid='stability-round-count']")), delay: Boolean(document.querySelector("[data-testid='stability-round-delay']")), stopMode: Boolean(document.querySelector("[data-testid='round-mode-stop_when_stable']")), forceMode: Boolean(document.querySelector("[data-testid='round-mode-force_all_rounds']")), currentMode: Boolean(document.querySelector("[data-testid='current-round-mode']")), merge: Boolean(document.querySelector("[data-testid='stability-merge-strategy']")), noLocalLogLevel: !(document.body.innerText || "").includes("Stability Probe Log Level") }))()`);
+  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return; const proto = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='stability-start-date']", "2026-07-07"); set("[data-testid='stability-end-date']", "2026-07-07"); set("[data-testid='stability-request-window']", "1_day"); set("[data-testid='stability-round-count']", "3"); set("[data-testid='stability-round-delay']", "0"); set("[data-testid='stability-merge-strategy']", "union"); document.querySelector("[data-testid='round-mode-force_all_rounds']")?.click(); })()`);
   await wait(80);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-stability-probe']")?.click();`);
   await wait(1800);
   await window.webContents.executeJavaScript(`document.querySelector("[data-debug-panel-state='collapsed'] button")?.click();`);
   await wait(80);
-  const stabilityResultAudit = await window.webContents.executeJavaScript(`(() => { const text = document.body.textContent || ""; const progressText = document.querySelector("[data-testid='stability-progress']")?.textContent || ""; const debugText = document.querySelector("[data-debug-panel-state='expanded']")?.textContent || ""; return { progress: Boolean(document.querySelector("[data-testid='stability-progress']")), windows: Boolean(document.querySelector("[data-testid='stability-window-summary']")), recommendation: Boolean(document.querySelector("[data-testid='stability-recommendation']")), apply: Boolean(document.querySelector("[data-testid='apply-stability-recommendation']")), completed: text.includes("Overall Recommendation"), elapsed: progressText.includes("Elapsed Time"), globalLog: debugText.includes("[stability-probe]") }; })()`);
+  const stabilityResultAudit = await window.webContents.executeJavaScript(`(() => { const text = document.body.textContent || ""; const progressText = document.querySelector("[data-testid='stability-progress-v2']")?.textContent || ""; const debugText = document.querySelector("[data-debug-panel-state='expanded']")?.textContent || ""; return { progress: Boolean(document.querySelector("[data-testid='stability-progress-v2']")), recommendation: text.includes("Round Stability Recommendation") && text.includes("輪次穩定性建議"), completed: text.includes("Round Union Events") && text.includes("Consistency Rate"), elapsed: progressText.includes("Elapsed Time") && progressText.includes("Estimated Completion Time"), globalLog: debugText.includes("[stability-probe]") }; })()`);
   if (shouldCaptureUi) {
     const stabilityImage = await window.capturePage();
     fs.writeFileSync(path.join(captureDir, "1280x720-expanded-stability-probe-result.png"), stabilityImage.toPNG());
   }
-  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-comparison']")?.click();`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-roundComparison']")?.click();`);
   await wait(120);
-  const stabilityComparisonAudit = await window.webContents.executeJavaScript(`(() => { const table = document.querySelector("[data-testid='stability-attempt-comparison']"); const text = table?.textContent || ""; return { table: Boolean(table), rows: table?.querySelectorAll("tbody tr").length || 0, headers: ["Window", "Attempt", "Status", "Duration", "Raw Events", "Normalized", "Unique Events", "Jira Keys", "New vs Previous", "Missing vs Previous", "New vs Union", "Missing vs Union", "Event Fingerprint", "Issue Key Fingerprint", "Cold Start"].every((label) => text.includes(label)), filter: Boolean(document.querySelector("[data-testid='stability-status-filter']")), sort: Boolean(document.querySelector("[data-testid='stability-sort']")), columns: Boolean(document.querySelector("[data-testid='stability-column-settings-toggle']")), copy: Boolean(document.querySelector("[data-testid='copy-stability-comparison']")) }; })()`);
+  const stabilityComparisonAudit = await window.webContents.executeJavaScript(`(() => { const table = document.querySelector("[data-testid='stability-round-comparison']"); const text = table?.textContent || ""; return { table: Boolean(table), rows: table?.querySelectorAll("tbody tr").length || 0, headers: ["Round", "Status", "Duration", "Raw Events", "Unique Events", "Primary Jira Keys", "Referenced Jira Keys", "New Events vs Previous", "Missing Events vs Previous", "Event Fingerprint", "Primary Jira Fingerprint", "Consistency", "Cold Start"].every((label) => text.includes(label)), filter: Boolean(document.querySelector("[data-testid='round-status-filter']")), sort: Boolean(document.querySelector("[data-testid='round-sort']")), columns: Boolean(document.querySelector("[data-testid='round-columns']")), copy: Boolean(document.querySelector("[data-testid='copy-round-comparison']")) }; })()`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-raw']")?.click();`);
   await wait(100);
   const stabilityRawAudit = await window.webContents.executeJavaScript(`document.querySelectorAll("[data-testid='stability-raw-results'] details").length`);
-  if (Object.values(stabilitySetupAudit).some((value) => value === false) || stabilitySetupAudit.modes !== 4 || !stabilityResultAudit.progress || !stabilityResultAudit.windows || !stabilityResultAudit.recommendation || !stabilityResultAudit.apply || !stabilityResultAudit.completed || !stabilityResultAudit.elapsed || !stabilityResultAudit.globalLog || !stabilityComparisonAudit.table || stabilityComparisonAudit.rows < 2 || !stabilityComparisonAudit.headers || !stabilityComparisonAudit.filter || !stabilityComparisonAudit.sort || !stabilityComparisonAudit.columns || !stabilityComparisonAudit.copy || stabilityRawAudit < 2) failures.push(`Activity Stream Stability Probe UI/run audit failed ${JSON.stringify({ stabilitySetupAudit, stabilityResultAudit, stabilityComparisonAudit, stabilityRawAudit })}`);
+  if (Object.values(stabilitySetupAudit).some((value) => value === false) || stabilitySetupAudit.modes !== 5 || !stabilityResultAudit.progress || !stabilityResultAudit.recommendation || !stabilityResultAudit.completed || !stabilityResultAudit.elapsed || !stabilityResultAudit.globalLog || !stabilityComparisonAudit.table || stabilityComparisonAudit.rows < 2 || !stabilityComparisonAudit.headers || !stabilityComparisonAudit.filter || !stabilityComparisonAudit.sort || !stabilityComparisonAudit.columns || !stabilityComparisonAudit.copy || stabilityRawAudit < 2) failures.push(`Activity Stream Stability Probe UI/run audit failed ${JSON.stringify({ stabilitySetupAudit, stabilityResultAudit, stabilityComparisonAudit, stabilityRawAudit })}`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-stability']")?.click();`);
   await wait(100);
-  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return; const proto = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='stability-retry-count']", "32"); set("[data-testid='stability-retry-delay']", "1000"); })()`);
+  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return; const proto = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='stability-round-count']", "32"); set("[data-testid='stability-round-delay']", "1000"); document.querySelector("[data-testid='round-mode-force_all_rounds']")?.click(); })()`);
   await wait(80);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-stability-probe']")?.click();`);
   await wait(150);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='cancel-stability-probe']")?.click();`);
   await wait(1300);
-  const stabilityCancellationAudit = await window.webContents.executeJavaScript(`(() => { const text = document.querySelector("[data-testid='stability-progress']")?.textContent || ""; return { cancelled: text.includes("cancelled"), runEnabled: !(document.querySelector("[data-testid='run-stability-probe']") instanceof HTMLButtonElement) || !document.querySelector("[data-testid='run-stability-probe']").disabled, cancelDisabled: document.querySelector("[data-testid='cancel-stability-probe']") instanceof HTMLButtonElement && document.querySelector("[data-testid='cancel-stability-probe']").disabled }; })()`);
+  const stabilityCancellationAudit = await window.webContents.executeJavaScript(`(() => { const text = document.body.textContent || ""; return { cancelled: text.includes("cancelled"), runEnabled: !(document.querySelector("[data-testid='run-stability-probe']") instanceof HTMLButtonElement) || !document.querySelector("[data-testid='run-stability-probe']").disabled, cancelDisabled: document.querySelector("[data-testid='cancel-stability-probe']") instanceof HTMLButtonElement && document.querySelector("[data-testid='cancel-stability-probe']").disabled }; })()`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-raw']")?.click();`);
   await wait(80);
-  const cancelledPartialAttemptCount = await window.webContents.executeJavaScript(`document.querySelectorAll("[data-testid='stability-raw-results'] details").length`);
-  if (!stabilityCancellationAudit.cancelled || !stabilityCancellationAudit.runEnabled || !stabilityCancellationAudit.cancelDisabled || cancelledPartialAttemptCount < 1 || cancelledPartialAttemptCount >= 32) failures.push(`Activity Stream Stability Probe cancellation audit failed ${JSON.stringify({ stabilityCancellationAudit, cancelledPartialAttemptCount })}`);
+  const cancelledRoundAudit = await window.webContents.executeJavaScript(`(() => ({ count: document.querySelectorAll("[data-testid='stability-raw-results'] details").length, cancelled: (document.querySelector("[data-testid='stability-raw-results']")?.textContent || "").includes("cancelled") }))()`);
+  if (!(stabilityCancellationAudit.cancelled || cancelledRoundAudit.cancelled) || !stabilityCancellationAudit.runEnabled || !stabilityCancellationAudit.cancelDisabled || cancelledRoundAudit.count < 1 || cancelledRoundAudit.count >= 32) failures.push(`Activity Stream Stability Probe cancellation audit failed ${JSON.stringify({ stabilityCancellationAudit, cancelledRoundAudit })}`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-stability']")?.click();`);
   await wait(80);
-  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return; const proto = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='stability-retry-count']", "3"); set("[data-testid='stability-retry-delay']", "0"); })()`);
+  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return; const proto = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='stability-round-count']", "3"); set("[data-testid='stability-round-delay']", "0"); })()`);
   await wait(80);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-stability-probe']")?.click();`);
   await wait(1800);
-  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return; const proto = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='stability-start-date']", "2026-07-01"); set("[data-testid='stability-end-date']", "2026-07-07"); set("[data-testid='stability-request-window']", "7_days"); set("[data-testid='stability-retry-count']", "5"); set("[data-testid='stability-merge-strategy']", "union"); })()`);
+  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return; const proto = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='stability-start-date']", "2026-07-01"); set("[data-testid='stability-end-date']", "2026-07-07"); set("[data-testid='stability-request-window']", "7_days"); set("[data-testid='stability-round-count']", "3"); set("[data-testid='stability-merge-strategy']", "union"); })()`);
   await wait(100);
   await window.webContents.executeJavaScript(`window.location.hash = "#/analysis";`);
   await wait(350);
@@ -3673,8 +3852,8 @@ async function runUiSmoke(window: BrowserWindow) {
     return { count, labels, states: cards.map((el) => el.getAttribute("data-step-state")), colorBars: cards.every((el) => el.className.includes("border-l-4")), badges: cards.every((el) => (el.textContent || "").includes("Status:")), reasons: cards.every((el) => Boolean(el.querySelector("[data-step-reason]")?.textContent?.trim())), setup: Boolean(document.querySelector("[data-testid='analysis-setup-user']")), selectBlocked: selectIssues instanceof HTMLButtonElement && selectIssues.disabled, relatedBlocked: related instanceof HTMLButtonElement && related.disabled, advancedHidden: !document.querySelector("[data-testid='advanced-tools-toggle']") && !document.querySelector("#candidate-search") && !body.includes("Advanced Candidate Search") && !body.includes("Preview JQL"), hasPrecisionTab: Boolean(document.querySelector("[data-testid='workflow-precision']")), stepLabels: ["Setup & Build Timeline", "Select Issues", "Full Fetch", "Related Issues", "Export"].every((label) => labels.some((text) => text.includes(label))) };
   })()`);
   if (analysisWorkflowAudit.count !== 5 || !analysisWorkflowAudit.setup || !analysisWorkflowAudit.selectBlocked || !analysisWorkflowAudit.relatedBlocked || !analysisWorkflowAudit.advancedHidden || analysisWorkflowAudit.hasPrecisionTab || !analysisWorkflowAudit.stepLabels || !analysisWorkflowAudit.states.includes("current") || !analysisWorkflowAudit.states.includes("blocked") || !analysisWorkflowAudit.colorBars || !analysisWorkflowAudit.badges || !analysisWorkflowAudit.reasons) failures.push(`User Analysis workflow visual state audit failed: ${JSON.stringify(analysisWorkflowAudit)}`);
-  const simplifiedTimelineSetupAudit = await window.webContents.executeJavaScript(`(() => { const status = document.querySelector("[data-testid='analysis-setup-status']")?.textContent || ""; return { requestWindow: document.querySelector("[data-testid='analysis-request-window']")?.value === "7_days", retry: document.querySelector("[data-testid='analysis-forced-retry-count']")?.value === "5", merge: document.querySelector("[data-testid='analysis-merge-strategy']")?.value === "union", openProbe: Boolean(document.querySelector("[data-testid='open-stability-probe']")), duplicateRemoved: !document.querySelector("[data-testid='setup-build-activity-timeline']"), statusOnly: status.includes("Setup is ready. Build Activity Timeline"), lowerBuild: Boolean(document.querySelector("[data-testid='build-activity-timeline']")) }; })()`);
-  if (!simplifiedTimelineSetupAudit.requestWindow || !simplifiedTimelineSetupAudit.retry || !simplifiedTimelineSetupAudit.merge || !simplifiedTimelineSetupAudit.openProbe || !simplifiedTimelineSetupAudit.duplicateRemoved || !simplifiedTimelineSetupAudit.statusOnly || !simplifiedTimelineSetupAudit.lowerBuild) failures.push(`User Analysis Stability settings/duplicate build audit failed ${JSON.stringify(simplifiedTimelineSetupAudit)}`);
+  const simplifiedTimelineSetupAudit = await window.webContents.executeJavaScript(`(() => { const status = document.querySelector("[data-testid='analysis-setup-status']")?.textContent || ""; return { requestWindow: document.querySelector("[data-testid='analysis-request-window']")?.value === "7_days", rounds: document.querySelector("[data-testid='analysis-full-scan-round-count']")?.value === "3", delay: Boolean(document.querySelector("[data-testid='analysis-round-delay']")), mode: document.querySelector("[data-testid='analysis-round-mode']")?.value === "stop_when_stable", merge: document.querySelector("[data-testid='analysis-merge-strategy']")?.value === "union", openProbe: Boolean(document.querySelector("[data-testid='open-stability-probe']")), duplicateRemoved: !document.querySelector("[data-testid='setup-build-activity-timeline']"), statusOnly: status.includes("Setup is ready. Build Activity Timeline"), lowerBuild: Boolean(document.querySelector("[data-testid='build-activity-timeline']")) }; })()`);
+  if (!simplifiedTimelineSetupAudit.requestWindow || !simplifiedTimelineSetupAudit.rounds || !simplifiedTimelineSetupAudit.delay || !simplifiedTimelineSetupAudit.mode || !simplifiedTimelineSetupAudit.merge || !simplifiedTimelineSetupAudit.openProbe || !simplifiedTimelineSetupAudit.duplicateRemoved || !simplifiedTimelineSetupAudit.statusOnly || !simplifiedTimelineSetupAudit.lowerBuild) failures.push(`User Analysis Stability settings/duplicate build audit failed ${JSON.stringify(simplifiedTimelineSetupAudit)}`);
   await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:seed-workflow-visual-state", { detail: { state: "failed" } }));`);
   await wait(100);
   const failedStepAudit = await window.webContents.executeJavaScript(`(() => { const card = document.querySelector("[data-testid='workflow-timeline']"); return { state: card?.getAttribute("data-step-state"), reason: card?.querySelector("[data-step-reason]")?.textContent || "", style: card?.className || "" }; })()`);
@@ -4085,6 +4264,7 @@ async function runUiSmoke(window: BrowserWindow) {
   requiredBundleFiles.push("user-analysis-steps.json", "timeline-issue-groups.json", "timeline-selected-issues.json", "fetch-queue.json", "related-candidate-issues.json", "related-issue-expansion-summary.json", "checkpoint-write-diagnostics.json", "timeline-jira-relation-diagnostics.json", "full-fetch-failed-issues.json", "full-fetch-failure-summary.json", "timeline-event-list-ui-state.json", "select-issues-ui-state.json");
   requiredBundleFiles.push("jira-evidence-events.json", "jira-evidence-summary.json", "jira-evidence-excluded-summary.json", "jira-evidence-schema.json", "analysis-roadmap.json");
   requiredBundleFiles.push("activity-stream-stability-probe.json", "activity-stream-attempts.json", "activity-stream-attempt-comparison.csv", "activity-stream-window-summary.csv", "activity-stream-stability-recommendation.json");
+  requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-rounds.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.csv", "activity-stream-stability-recommendation-v2.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json");
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
   const bundleText = debugBundlePath ? actualBundleFiles.filter((name) => fs.statSync(path.join(debugBundlePath, name)).isFile()).map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
@@ -4121,6 +4301,10 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleStabilityProbe = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-stability-probe.json"), "utf8")));
     const bundleStabilityAttempts = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-attempts.json"), "utf8")));
     const bundleStabilityRecommendation = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-stability-recommendation.json"), "utf8")));
+    const bundleStabilityProbeV2 = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-stability-probe-v2.json"), "utf8")));
+    const bundleStabilityRoundsV2 = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-rounds.json"), "utf8")));
+    const bundleStabilityRecommendationV2 = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-stability-recommendation-v2.json"), "utf8")));
+    const bundleSourceArchiveAssessment = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "source-archive-file-assessment.json"), "utf8")));
     const bundleTimelineCsv = fs.readFileSync(path.join(debugBundlePath, "user-activity-timeline.csv"));
     const bundleAutoSavedIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "auto-saved-results-index.json"), "utf8")));
     const bundleTimeline = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "session-timeline.json"), "utf8") as string) as Array<Record<string, unknown>>;
@@ -4137,9 +4321,9 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleEvidenceEvents = Array.isArray(bundleJiraEvidenceEvents.events) ? bundleJiraEvidenceEvents.events.map(asRecord) : [];
     const bundleEvidencePolicy = asRecord(bundleJiraEvidenceSummary.relatedIssueExpansionPolicy);
     const bundleRoadmapAnalyzers = asRecord(bundleAnalysisRoadmap.analyzers);
-    const bundleStabilitySummary = asRecord(bundleSummary.activityStreamStabilityProbe);
-    const stabilityAttemptRows = Array.isArray(bundleStabilityAttempts.attempts) ? bundleStabilityAttempts.attempts.map(asRecord) : [];
-    if (bundleStabilityProbe.schemaVersion !== "activity_stream_stability_probe_v1" || !String(bundleStabilityProbe.probeRunId).startsWith("ASP-") || stabilityAttemptRows.length < 2 || stabilityAttemptRows.some((attempt) => !attempt.eventSetFingerprint || !attempt.issueKeySetFingerprint || Number(attempt.totalAttempts) < 1) || !asRecord(bundleStabilityRecommendation.recommendation).recommendedRetryCount || bundleStabilitySummary.available !== true || Number(bundleStabilitySummary.attemptCount) < 2 || !bundleText.includes("Activity Stream Stability Probe:") || !bundleText.includes("concurrency: 1")) failures.push(`debug bundle Stability Probe audit failed ${JSON.stringify({ probe: bundleStabilityProbe.probeRunId, attempts: stabilityAttemptRows.length, recommendation: bundleStabilityRecommendation, summary: bundleStabilitySummary })}`);
+    const bundleStabilitySummaryV2 = asRecord(bundleSummary.activityStreamRoundStabilityV2);
+    const stabilityRoundRows = Array.isArray(bundleStabilityRoundsV2.rounds) ? bundleStabilityRoundsV2.rounds.map(asRecord) : [];
+    if (bundleStabilityProbeV2.schemaVersion !== "activity_stream_stability_probe_v2" || bundleStabilityProbeV2.executionOrder !== "round_first" || !String(bundleStabilityProbeV2.probeRunId).startsWith("ASR-") || stabilityRoundRows.length < 2 || stabilityRoundRows.some((round) => !round.roundEventSetFingerprint || !round.roundPrimaryJiraKeySetFingerprint || Number(round.totalRounds) < 1) || !asRecord(bundleStabilityRecommendationV2.recommendation).recommendedRoundCount || bundleStabilitySummaryV2.available !== true || Number(bundleStabilitySummaryV2.roundCount) < 2 || bundleSourceArchiveAssessment.schemaVersion !== "source_archive_file_assessment_v1") failures.push(`debug bundle Round Stability V2 audit failed ${JSON.stringify({ probe: bundleStabilityProbeV2.probeRunId, rounds: stabilityRoundRows.length, recommendation: bundleStabilityRecommendationV2, summary: bundleStabilitySummaryV2 })}`);
     if (bundleEvidenceEvents.length < 1 || bundleEvidenceEvents.some((item) => !/^sha256:[0-9a-f]{64}$/.test(String(item.evidenceId)) || !item.evidenceScope || !item.evidenceType || !item.activityType) || Number(bundleJiraEvidenceSummary.directEvidenceCount) < 1 || Number(bundleJiraEvidenceExcluded.excludedCount) < 1 || bundleEvidencePolicy.recursive !== false || Number(bundleEvidencePolicy.maxDepth) !== 1 || bundleEvidencePolicy.relatedIssuesAsPrimaryEvidence !== false || bundleJiraEvidenceSchema.schemaVersion !== "jira_evidence_event_v1" || bundleRoadmapAnalyzers.cloudAiAnalyzer !== "planned" || !bundleText.includes("Direct Jira Evidence:") || !bundleText.includes("Related Issue Expansion Policy:") || !bundleText.includes("Analyzer Roadmap:") || !bundleText.includes("Data Source Roadmap:") || !bundleText.includes("Product Goals:")) failures.push(`debug bundle direct Jira evidence audit failed ${JSON.stringify({ events: bundleEvidenceEvents.length, summary: bundleJiraEvidenceSummary, excluded: bundleJiraEvidenceExcluded, policy: bundleEvidencePolicy, schema: bundleJiraEvidenceSchema.schemaVersion, roadmap: bundleRoadmapAnalyzers })}`);
     if (!latestBundleRunId || !bundleHistory.some((run) => String(run?.runId || "") === latestBundleRunId) || String(asRecord(bundlePaths.latestRunResult).runId || "") !== latestBundleRunId || bundleSummary.snapshotConsistent !== true) failures.push(`debug bundle snapshot consistency failed: latest=${latestBundleRunId}`);
     if (bundleStandardFlow.enabled !== true || bundleStandardFlow.variant !== "escaped_username" || bundleStandardFlow.activityStreamQueryUser !== "roger\\_hsieh" || Number(bundleStandardFlow.perChunkMaxResults) !== 500 || bundleClassifier.enabled !== true || bundleClassifier.commentPriorityHigherThanAttachment !== true || bundleClassifier.rulesVersion !== "1.1" || !asRecord(bundleSummary.standardActivityStreamFlow).selectedUser || !bundleSummary.activityTypeClassifierDiagnostics) failures.push(`debug bundle standard flow/classifier diagnostics failed: ${JSON.stringify({ bundleStandardFlow, bundleClassifier })}`);

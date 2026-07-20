@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { AlertTriangle, ChevronDown, ChevronUp, Clock3, Columns3, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
@@ -193,6 +193,9 @@ export function AnalysisPage() {
   const { activeConnection } = useConnectionContext();
   const { appendDebugLog, getDebugLogs } = useOutletContext<AppOutletContext>();
   const { userAnalysis, setUserAnalysis } = useSessionState();
+  const [sourceArchivePreview, setSourceArchivePreview] = useState<Record<string, unknown> | null>(null);
+  const [sourceArchiveBusy, setSourceArchiveBusy] = useState(false);
+  const [timelineRoundProgress, setTimelineRoundProgress] = useState<Record<string, unknown>>({});
 
   const selectedUsers = useMemo(() => parseUsers(userAnalysis.selectedUsersText), [userAnalysis.selectedUsersText]);
   const currentJqlDateRange = useMemo(
@@ -344,6 +347,35 @@ export function AnalysisPage() {
 
   function patchState(patch: Partial<typeof userAnalysis>) {
     setUserAnalysis((current) => ({ ...current, ...patch }));
+  }
+
+  async function previewSourceArchive() {
+    setSourceArchiveBusy(true);
+    try {
+      const result = await window.desktopApp?.userAnalysis?.previewSourceArchive?.({ rawData: userAnalysis.fullFetchRawDataByIssueSanitized, selectedUser: selectedUsers[0] });
+      if (!result) throw new Error("Source Archive preview is unavailable.");
+      setSourceArchivePreview(result);
+      appendDebugLog("analysis", Array.isArray(result.logs) ? result.logs.map(String) : ["[INFO] Source Archive package preview completed"]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Source Archive preview failed.";
+      patchState({ errors: [message] });
+      appendDebugLog("analysis", [`[ERROR] ${message}`]);
+    } finally { setSourceArchiveBusy(false); }
+  }
+
+  async function exportSourceArchive() {
+    setSourceArchiveBusy(true);
+    try {
+      const result = await window.desktopApp?.userAnalysis?.exportSourceArchive?.({ rawData: userAnalysis.fullFetchRawDataByIssueSanitized, selectedUser: selectedUsers[0] });
+      if (!result?.ok) throw new Error("Source Archive export failed.");
+      patchState({ notice: `Source Archive package exported / 來源封存套件已匯出：${String(result.filePath ?? "")}`, errors: [] });
+      appendDebugLog("analysis", Array.isArray(result.logs) ? result.logs.map(String) : [`[INFO] Source Archive import package saved: ${String(result.filePath ?? "")}`]);
+      setSourceArchivePreview(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Source Archive export failed.";
+      patchState({ errors: [message] });
+      appendDebugLog("analysis", [`[ERROR] ${message}`]);
+    } finally { setSourceArchiveBusy(false); }
   }
 
   function toggleTimelineIssueFilter(key: "jiraRelations" | "activityTypes" | "confidences" | "issueKeyRoles" | "sourceApplications" | "projectKeys" | "selectedStates", value: string) {
@@ -528,6 +560,11 @@ export function AnalysisPage() {
     return subscribe((line) => appendDebugLog("analysis", [line]));
   }, [appendDebugLog]);
 
+  useEffect(() => window.desktopApp?.userAnalysis?.onActivityTimelineProgress?.((progress) => {
+    setTimelineRoundProgress(progress);
+    appendDebugLog("analysis", [`[INFO][timeline-round] runId=${String(progress.probeRunId ?? "-")} round=${String(progress.currentRound ?? 0)}/${String(progress.totalRounds ?? 0)} window=${String(progress.currentWindow ?? 0)}/${String(progress.totalWindows ?? 0)} stage=${String(progress.stage ?? "-")} duration=${String(progress.currentApiDurationMs ?? 0)}ms`]);
+  }), [appendDebugLog]);
+
   useEffect(() => {
     let active = true;
     void window.desktopApp?.userAnalysis?.latestFullFetchCheckpoint?.().then((result) => {
@@ -567,9 +604,10 @@ export function AnalysisPage() {
       patchState({ errors: ["No active Jira connection. Reload .env in Connections first."], notice: "" });
       return;
     }
+    setTimelineRoundProgress({ stage: "starting" });
     patchState({ timelineStatus: "running", errors: [], notice: "Building Activity Timeline... / 正在建立活動時間線..." });
     try {
-      const response = await window.desktopApp?.userAnalysis?.buildActivityTimeline({ connection: activeConnection, selectedUser: selectedUsers[0], startDate: userAnalysis.startDate, endDate: userAnalysis.endDate, projectScope: userAnalysis.precisionProjectScope, requestWindow: { type: userAnalysis.activityStreamRequestWindow, customDays: userAnalysis.activityStreamRequestWindow === "custom_days" ? userAnalysis.activityStreamCustomWindowDays : null }, forcedRetryCount: userAnalysis.activityStreamForcedRetryCount, mergeStrategy: userAnalysis.activityStreamMergeStrategy });
+      const response = await window.desktopApp?.userAnalysis?.buildActivityTimeline({ connection: activeConnection, selectedUser: selectedUsers[0], startDate: userAnalysis.startDate, endDate: userAnalysis.endDate, projectScope: userAnalysis.precisionProjectScope, requestWindow: { type: userAnalysis.activityStreamRequestWindow, customDays: userAnalysis.activityStreamRequestWindow === "custom_days" ? userAnalysis.activityStreamCustomWindowDays : null }, fullScanRoundCount: userAnalysis.activityStreamFullScanRoundCount, delayBetweenRoundsMs: userAnalysis.activityStreamDelayBetweenRoundsMs, roundExecutionMode: userAnalysis.activityStreamRoundExecutionMode, mergeStrategy: userAnalysis.activityStreamMergeStrategy });
       if (!response) throw new Error("Timeline builder is unavailable.");
       const events = Array.isArray(response.events) ? response.events as UserActivityTimelineEvent[] : [];
       const summary = response.summary as UserActivityTimelineSummary;
@@ -1777,7 +1815,9 @@ export function AnalysisPage() {
       {userAnalysis.activeTab === "timeline" ? <SectionCard id="analysis-setup" title="Step 1. Setup & Build Timeline" subtitle="設定並建立活動時間線" className="mb-4">
         <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div><FieldLabel label="Activity Stream Request Window" sub="Activity Stream 請求視窗" /><select data-testid="analysis-request-window" className="field" value={userAnalysis.activityStreamRequestWindow} onChange={(event) => patchState({ activityStreamRequestWindow: event.target.value as typeof userAnalysis.activityStreamRequestWindow })}><option value="1_day">1 Day</option><option value="7_days">7 Days</option><option value="14_days">14 Days</option><option value="calendar_month">1 Calendar Month</option><option value="custom_days">Custom</option></select>{userAnalysis.activityStreamRequestWindow === "custom_days" ? <input data-testid="analysis-custom-window-days" className="field mt-2" type="number" min={1} max={31} value={userAnalysis.activityStreamCustomWindowDays} onChange={(event) => patchState({ activityStreamCustomWindowDays: Math.max(1, Math.min(31, Math.trunc(Number(event.target.value)))) })} /> : null}</div>
-          <div><FieldLabel label="Forced Retry Count" sub="強制重試次數（1-32）" /><input data-testid="analysis-forced-retry-count" className="field" type="number" min={1} max={32} value={userAnalysis.activityStreamForcedRetryCount} onChange={(event) => patchState({ activityStreamForcedRetryCount: Math.max(1, Math.min(32, Math.trunc(Number(event.target.value)))) })} /></div>
+          <div><FieldLabel label="Full Scan Round Count" sub="完整掃描輪數（1-32）" /><input data-testid="analysis-full-scan-round-count" className="field" type="number" min={1} max={32} value={userAnalysis.activityStreamFullScanRoundCount} onChange={(event) => patchState({ activityStreamFullScanRoundCount: Math.max(1, Math.min(32, Math.trunc(Number(event.target.value)))) })} /></div>
+          <div><FieldLabel label="Delay Between Rounds" sub="輪次間隔" /><select data-testid="analysis-round-delay" className="field" value={userAnalysis.activityStreamDelayBetweenRoundsMs} onChange={(event) => patchState({ activityStreamDelayBetweenRoundsMs: Number(event.target.value) })}>{[0,1000,2000,3000,5000].map((value) => <option key={value} value={value}>{value} ms</option>)}</select></div>
+          <div><FieldLabel label="Round Execution Mode" sub="輪次執行模式" /><select data-testid="analysis-round-mode" className="field" value={userAnalysis.activityStreamRoundExecutionMode} onChange={(event) => patchState({ activityStreamRoundExecutionMode: event.target.value as typeof userAnalysis.activityStreamRoundExecutionMode })}><option value="stop_when_stable">Stop When Stable / 穩定後停止</option><option value="force_all_rounds">Force All Rounds / 執行全部輪次</option></select></div>
           <div><FieldLabel label="Merge Strategy" sub="合併策略" /><select data-testid="analysis-merge-strategy" className="field" value={userAnalysis.activityStreamMergeStrategy} onChange={(event) => patchState({ activityStreamMergeStrategy: event.target.value as typeof userAnalysis.activityStreamMergeStrategy })}><option value="union">Union</option><option value="last_stable">Last Stable</option></select></div>
           <div className="flex items-end"><a data-testid="open-stability-probe" className="btn w-full justify-center" href="#/precision-probe?mode=stability">Open Stability Probe / 開啟穩定性測試</a></div>
           <div><FieldLabel label="Selected User" sub="選擇使用者" /><input data-testid="analysis-setup-user" className="field" value={userAnalysis.selectedUsersText} onChange={(event) => patchState({ selectedUsersText: event.target.value.replace(/[\n,;].*$/, "") })} placeholder="roger_hsieh" /></div>
@@ -2427,10 +2467,11 @@ export function AnalysisPage() {
               Uses the selected user, date range, standard Activity Stream flow, classifier, and Baseline Guard.<br />
               使用目前選定使用者、日期範圍、標準 Activity Stream 流程、分類器與 Baseline Guard。
             </div>
-            <button data-testid="build-activity-timeline" className="btn btn-primary" type="button" disabled={!setupReady || userAnalysis.timelineStatus === "running"} title={!setupReady ? "Please set Selected User and Date Range before building timeline." : undefined} onClick={() => void handleBuildTimeline()}>
+            <div className="flex flex-wrap gap-2"><button data-testid="build-activity-timeline" className="btn btn-primary" type="button" disabled={!setupReady || userAnalysis.timelineStatus === "running"} title={!setupReady ? "Please set Selected User and Date Range before building timeline." : undefined} onClick={() => void handleBuildTimeline()}>
               <Clock3 size={16} />{userAnalysis.timelineStatus === "running" ? "Building... / 建立中..." : "Build Activity Timeline / 建立活動時間線"}
-            </button>
+            </button>{userAnalysis.timelineStatus === "running" ? <button data-testid="cancel-activity-timeline" className="btn" type="button" onClick={() => void window.desktopApp?.userAnalysis?.cancelActivityTimeline?.()}><PauseCircle size={16} />Cancel / 取消</button> : null}</div>
           </div>
+          {userAnalysis.timelineStatus === "running" || Object.keys(timelineRoundProgress).length > 1 ? <div data-testid="timeline-round-progress" className="mt-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3"><MiniStat label="Current Round / Total Rounds / 目前輪次" value={`${String(timelineRoundProgress.currentRound ?? 0)} / ${String(timelineRoundProgress.totalRounds ?? userAnalysis.activityStreamFullScanRoundCount)}`} /><MiniStat label="Current Window / Total Windows / 目前視窗" value={`${String(timelineRoundProgress.currentWindow ?? 0)} / ${String(timelineRoundProgress.totalWindows ?? 0)}`} /><MiniStat label="Completed Requests / Total Requests / 已完成請求" value={`${String(timelineRoundProgress.completedRequests ?? 0)} / ${String(timelineRoundProgress.totalRequests ?? 0)}`} /><MiniStat label="Current Date Window / 目前日期視窗" value={`${String(timelineRoundProgress.requestWindowStart ?? "-")} ~ ${String(timelineRoundProgress.requestWindowEnd ?? "-")}`} /><MiniStat label="Current API Duration / 目前 API 耗時" value={`${String(timelineRoundProgress.currentApiDurationMs ?? 0)} ms`} /><MiniStat label="Average API Duration / 平均 API 耗時" value={`${String(timelineRoundProgress.averageApiDurationMs ?? 0)} ms`} /><MiniStat label="Average Processing Duration / 平均處理耗時" value={`${String(timelineRoundProgress.averageProcessingDurationMs ?? 0)} ms`} /><MiniStat label="Elapsed Time / 已用時間" value={`${String(timelineRoundProgress.elapsedMs ?? 0)} ms`} /><MiniStat label="Estimated Remaining Time / 預估剩餘時間" value={`${String(timelineRoundProgress.estimatedRemainingMs ?? 0)} ms`} /><MiniStat label="Estimated Completion Time / 預估完成時間" value={String(timelineRoundProgress.estimatedCompletionTime ?? "-")} /><MiniStat label="Current Stability / 目前穩定度" value={String(timelineRoundProgress.currentStability ?? timelineRoundProgress.stage ?? "-")} /></div> : null}
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MiniStat label="Events / 事件" value={userAnalysis.timelineSummary?.totalEvents ?? 0} />
             <MiniStat label="Issue Keys" value={userAnalysis.timelineSummary?.issueKeyCount ?? 0} />
@@ -2612,6 +2653,15 @@ export function AnalysisPage() {
               <button className="btn" type="button" onClick={() => void saveFullFetchResult(true)} disabled={userAnalysis.saving || Boolean(fullFetchSaveDisabledReason)} title={fullFetchSaveDisabledReason}>
                 <Download size={16} />Save Full Fetch Raw Data / 儲存完整抓取 Raw Data
               </button>
+            </div>
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4" data-testid="source-archive-exporter">
+              <div className="font-black text-emerald-950">Source Archive Import Package / 來源封存匯入套件</div>
+              <p className="mt-1 text-sm font-semibold leading-relaxed text-emerald-900">Exports Jira and Confluence Full Fetch raw JSON only. It does not create or write a Source Archive database.<br />僅匯出 Jira 與 Confluence Full Fetch 原始 JSON；不會建立或寫入來源封存資料庫。</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button data-testid="preview-source-archive" className="btn" type="button" disabled={sourceArchiveBusy || !userAnalysis.fullFetchRawDataByIssueSanitized} onClick={() => void previewSourceArchive()}><Eye size={16} />Preview Package / 預覽套件</button>
+                <button data-testid="export-source-archive" className="btn btn-primary" type="button" disabled={sourceArchiveBusy || !sourceArchivePreview} onClick={() => void exportSourceArchive()}><Download size={16} />Export Source Archive Import Package / 匯出來源封存匯入套件</button>
+              </div>
+              {sourceArchivePreview ? (() => { const summary = sourceArchivePreview.summary as Record<string, unknown> | undefined; const errors = Array.isArray(sourceArchivePreview.errors) ? sourceArchivePreview.errors : []; return <div data-testid="source-archive-preview" className="mt-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2"><MiniStat label="Jira Full Fetch / Jira 完整抓取" value={String(summary?.jiraFullFetchObjectCount ?? 0)} /><MiniStat label="Confluence Full Fetch / Confluence 完整抓取" value={String(summary?.confluenceFullFetchObjectCount ?? 0)} /><MiniStat label="Missing Keys / 缺少編號" value={String(summary?.missingObjectKeyCount ?? 0)} /><MiniStat label="Errors / 錯誤" value={String(errors.length)} /><div className="min-w-0 rounded-lg border border-emerald-200 bg-white p-3"><div className="text-xs font-black text-muted">Package File / 套件檔名</div><div className="mt-1 break-all text-sm font-bold" title={String(sourceArchivePreview.fileName ?? "")}>{String(sourceArchivePreview.fileName ?? "-")}</div></div></div>; })() : <div className="mt-3 text-sm font-semibold text-emerald-800">Preview the package before export. / 匯出前請先預覽套件內容。</div>}
             </div>
             {fullFetchSaveDisabledReason ? <div className="text-sm font-bold text-amber-800">Disabled reason / 無法執行原因：{fullFetchSaveDisabledReason}</div> : null}
             <div className="grid min-w-0 grid-cols-1 gap-3">
