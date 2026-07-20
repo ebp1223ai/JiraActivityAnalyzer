@@ -4,7 +4,7 @@ Electron desktop application for read-only Jira activity inspection and analysis
 
 ## User Analysis Workflow
 
-Version 0.2.24 presents User Analysis as a guarded five-step workflow and extracts auditable Jira evidence from successful Full Fetch responses:
+Version 0.2.25 adds an Activity Stream Stability Probe to the existing User Activity Precision Probe while preserving the guarded five-step User Analysis workflow and v0.2.24 direct Jira evidence extraction:
 
 1. Setup & Build Timeline
 2. Select Issues
@@ -288,6 +288,19 @@ The standalone User Activity Precision Probe is a read-only compatibility and di
 - Manual Activity Stream URL Replay accepts only the configured Jira origin and `/plugins/servlet/streams` path. External origins, other paths, unsupported query keys, and sensitive query keys such as token, password, session, cookie, or authorization are rejected before any request is sent.
 - Manual replay uses the existing authenticated read-only GET client. Exports retain only sanitized path and query diagnostics; origins, cookies, session values, tokens, and Authorization values are not stored.
 - Successfully parsed manual replay keys take recommendation priority over automatic Activity Stream keys. `updatedBy` remains only a candidate set and is never used as a fallback recommended set when Activity Stream has no entries.
+
+### Activity Stream Stability Probe
+
+Version 0.2.25 adds Stability, Attempt Comparison, and Raw Results modes inside User Activity Precision Probe; it does not add another sidebar route or another Debug Log. The Stability Probe uses the existing read-only Activity Stream client and the global Debug Log.
+
+- Request Window splits the selected total date range into sequential 1-day, 7-day, 14-day, calendar-month, or custom 1-31 day requests. Calendar months use their actual boundaries, including leap-year February and a final partial window.
+- Forced Retry accepts 1-32 attempts per window and repeats successful HTTP 200 requests as configured. Probe-only delay options are 0, 1, 2, 3, and 5 seconds. Stop Early may stop after a stable pair unless Force Run All Attempts is enabled.
+- Every attempt records sanitized counts, timing, HTTP outcome, previous/union differences, idle-gap diagnostics, and SHA-256 event-set and Jira-key-set fingerprints. Results classify each window as `insufficient_attempts`, `unstable`, `probably_stable`, or `stable` based on content rather than counts alone.
+- Union merge deduplicates normalized stable event IDs across attempts. Last Stable uses a confirmed stable attempt; when none exists, the selected Union or Last Attempt fallback is explicit and exported with a warning.
+- Runs are sequential (`concurrency=1`). The UI warns above 100 estimated requests and requires typed confirmation above 500. Cancel stops future attempts and windows while preserving completed partial results for export.
+- The probe writes five sanitized diagnostic files: `activity-stream-stability-probe.json`, `activity-stream-attempts.json`, `activity-stream-attempt-comparison.csv`, `activity-stream-window-summary.csv`, and `activity-stream-stability-recommendation.json`. Save Debug Log includes the latest versions in the Debug Bundle and summarizes them in `README_for_GPT.txt` and `debug-bundle-summary.json`.
+- User Analysis Step 1 exposes only Request Window, Forced Retry Count, Merge Strategy, and an Open Stability Probe shortcut. Defaults are 7 Days, 5 attempts, and Union. Recommendations change these settings only after the user selects Apply Recommendation.
+- Stability Probe does not write Jira or a database, store credentials, replay external URLs, or download attachment bodies.
 
 ### Run Stability And Parsed Entry Diagnostics
 

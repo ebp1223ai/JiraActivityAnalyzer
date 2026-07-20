@@ -1,5 +1,5 @@
 const sensitiveKeyPattern = /authorization|token|apiToken|password|masterKey|cookie|set-cookie|session|sessionId|JSESSIONID|atl\.xsrf\.token|csrf|secret/i;
-const safeSessionMetadataKeys = new Set(["fullSessionBundle", "sessionStartTime"]);
+const safeSessionMetadataKeys = new Set(["fullSessionBundle", "sessionStartTime", "appSessionId", "jiraConnectionSessionId"]);
 
 export function sanitizeExportData(value: unknown): unknown {
   if (Array.isArray(value)) {

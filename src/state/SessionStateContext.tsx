@@ -603,6 +603,10 @@ export type UserAnalysisSessionState = {
   expandedTimelineEvents: string[];
   expandedTimelineIssueGroups: string[];
   timelineExportPaths: { jsonPath: string; csvPath: string; summaryPath: string };
+  activityStreamRequestWindow: "1_day" | "7_days" | "14_days" | "calendar_month" | "custom_days";
+  activityStreamCustomWindowDays: number;
+  activityStreamForcedRetryCount: number;
+  activityStreamMergeStrategy: "union" | "last_stable";
   precisionProbeMaxResults: number;
   precisionProbeMaxResultsSource: "custom" | "quick";
   activityStreamDateQueryMode: UserActivityStreamDateQueryMode;
@@ -782,6 +786,10 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   expandedTimelineEvents: [],
   expandedTimelineIssueGroups: [],
   timelineExportPaths: { jsonPath: "", csvPath: "", summaryPath: "" },
+  activityStreamRequestWindow: "7_days",
+  activityStreamCustomWindowDays: 7,
+  activityStreamForcedRetryCount: 5,
+  activityStreamMergeStrategy: "union",
   precisionProbeMaxResults: 50,
   precisionProbeMaxResultsSource: "quick",
   activityStreamDateQueryMode: "both",

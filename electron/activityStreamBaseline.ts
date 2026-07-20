@@ -7,6 +7,7 @@ export type BaselineClassification =
   | "first_observation"
   | "accepted_equal"
   | "accepted_improved"
+  | "stability_probe_merged"
   | "suspicious_count_regression"
   | "suspicious_known_issue_keys_missing"
   | "suspicious_known_entries_missing"

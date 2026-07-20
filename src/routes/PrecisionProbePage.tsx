@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-import { Copy, DatabaseZap, Download, FolderOpen, Play, Radio } from "lucide-react";
+import { useLocation, useOutletContext } from "react-router-dom";
+import { Copy, DatabaseZap, Download, FolderOpen, Play, Radio, RotateCcw, Square } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel, MockModal } from "../components/FormControls";
@@ -10,6 +10,7 @@ import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useConnectionContext } from "../state/ConnectionContext";
 import { useSessionState, type UserActivityStreamDateQueryResult, type UserActivityStreamDateSemantics, type UserActivityStreamMaxResultsDiagnostics, type UserActivityStreamResult, type UserActivityStreamVariantResult, type UserAnalysisCandidateIssue, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
+import type { ActivityStreamProbeRun, ActivityStreamRequestWindowType, ActivityStreamMergeStrategy } from "../../electron/activityStreamStability";
 
 function parseUsers(input: string) {
   return Array.from(new Set(input.split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean)));
@@ -87,6 +88,7 @@ function groupResultTrackingByRunId(roles: ResultTrackingRole[]) {
 }
 
 export function PrecisionProbePage() {
+  const location = useLocation();
   const { activeConnection } = useConnectionContext();
   const { userAnalysis, setUserAnalysis } = useSessionState();
   const { appendDebugLog, getDebugLogs } = useOutletContext<AppOutletContext>();
@@ -97,6 +99,20 @@ export function PrecisionProbePage() {
   const runningRef = useRef(userAnalysis.isActivityStreamRunning);
   const [largeQueryConfirmation, setLargeQueryConfirmation] = useState<{ open: boolean; input: string; error: string; action: "activity" | "precision" | "cap" | ""; advanced: boolean }>({ open: false, input: "", error: "", action: "", advanced: false });
   const [resultTrackingDetailsOpen, setResultTrackingDetailsOpen] = useState(false);
+  const [probeMode, setProbeMode] = useState<"precision" | "stability" | "comparison" | "raw">(new URLSearchParams(location.search).get("mode") === "stability" ? "stability" : "precision");
+  const [stabilityRetryDelayMs, setStabilityRetryDelayMs] = useState(window.desktopApp?.uiSmoke ? 0 : 1000);
+  const [stabilityStopEarly, setStabilityStopEarly] = useState(false);
+  const [stabilityForceAll, setStabilityForceAll] = useState(true);
+  const [stabilityFallback, setStabilityFallback] = useState<"union" | "last_attempt">("union");
+  const [stabilityRun, setStabilityRun] = useState<ActivityStreamProbeRun & { files?: Record<string, string> } | null>(null);
+  const [stabilityProgress, setStabilityProgress] = useState<Record<string, unknown>>({});
+  const [stabilityRunning, setStabilityRunning] = useState(false);
+  const [stabilityStatusFilter, setStabilityStatusFilter] = useState("all");
+  const [stabilitySort, setStabilitySort] = useState<"window" | "attempt" | "duration">("window");
+  const [stabilityColumnsOpen, setStabilityColumnsOpen] = useState(false);
+  const [stabilityVisibleColumns, setStabilityVisibleColumns] = useState(["window", "attempt", "status", "duration", "raw", "normalized", "unique", "jira", "newPrevious", "missingPrevious", "newUnion", "missingUnion", "eventFingerprint", "issueFingerprint", "coldStart"]);
+  const [stabilityConfirmOpen, setStabilityConfirmOpen] = useState(false);
+  const [stabilityConfirmText, setStabilityConfirmText] = useState("");
   const standardSelectedUser = selectedUsers.length === 1 ? selectedUsers[0] : "";
   const standardQueryUser = standardSelectedUser.replace(/(^|[^\\])_/g, "$1\\_");
   const allEntries = useMemo(() => [
@@ -145,6 +161,66 @@ export function PrecisionProbePage() {
 
   function patchState(patch: Partial<typeof userAnalysis>) {
     setUserAnalysis((current) => ({ ...current, ...patch }));
+  }
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("mode") === "stability") setProbeMode("stability");
+  }, [location.search]);
+
+  useEffect(() => window.desktopApp?.userAnalysis?.onStabilityProbeProgress?.((progress) => {
+    setStabilityProgress(progress);
+    const level = progress.stage === "failed" ? "ERROR" : progress.stage === "cancelled" ? "WARN" : "INFO";
+    appendDebugLog("precision", [`[${level}][stability-probe] runId=${String(progress.probeRunId || "-")} window=${String(progress.windowIndex || 0)}/${String(progress.windowCount || 0)} attempt=${String(progress.attemptNumber || 0)}/${String(progress.totalAttempts || 0)} stage=${String(progress.stage || "-")} message=${String(progress.message || "-")}`]);
+  }), [appendDebugLog]);
+
+  function estimatedStabilityWindows() {
+    const start = Date.parse(`${userAnalysis.startDate}T00:00:00Z`);
+    const end = Date.parse(`${userAnalysis.endDate}T00:00:00Z`);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) return 0;
+    const totalDays = Math.floor((end - start) / 86400000) + 1;
+    if (userAnalysis.activityStreamRequestWindow === "calendar_month") {
+      const first = new Date(start); const last = new Date(end);
+      return (last.getUTCFullYear() - first.getUTCFullYear()) * 12 + last.getUTCMonth() - first.getUTCMonth() + 1;
+    }
+    const days = userAnalysis.activityStreamRequestWindow === "1_day" ? 1 : userAnalysis.activityStreamRequestWindow === "7_days" ? 7 : userAnalysis.activityStreamRequestWindow === "14_days" ? 14 : userAnalysis.activityStreamCustomWindowDays;
+    return Math.ceil(totalDays / days);
+  }
+
+  async function executeStabilityProbe(confirmedLargeRun = false) {
+    if (stabilityRunning || !activeConnection || selectedUsers.length !== 1) return;
+    setStabilityRunning(true);
+    setStabilityRun(null);
+    setStabilityProgress({ stage: "starting", windowIndex: 0, windowCount: estimatedStabilityWindows(), attemptNumber: 0, totalAttempts: userAnalysis.activityStreamForcedRetryCount });
+    logAction("USER_ACTION", `Button clicked: Run Stability Probe window=${userAnalysis.activityStreamRequestWindow} retries=${userAnalysis.activityStreamForcedRetryCount} merge=${userAnalysis.activityStreamMergeStrategy}`);
+    try {
+      const result = await window.desktopApp?.userAnalysis?.activityStreamStabilityProbe?.({ connection: activeConnection, confirmedLargeRun, config: { selectedUser: selectedUsers[0], dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, projectScope: userAnalysis.precisionProjectScope, requestWindow: { type: userAnalysis.activityStreamRequestWindow, customDays: userAnalysis.activityStreamRequestWindow === "custom_days" ? userAnalysis.activityStreamCustomWindowDays : null }, forcedRetryCount: userAnalysis.activityStreamForcedRetryCount, retryDelayMs: stabilityRetryDelayMs, stopEarlyWhenStable: stabilityStopEarly, forceRunAllAttempts: stabilityForceAll, mergeStrategy: userAnalysis.activityStreamMergeStrategy, noStableFallback: stabilityFallback } });
+      if (!result) throw new Error("Stability Probe IPC is unavailable.");
+      setStabilityRun(result as unknown as ActivityStreamProbeRun & { files?: Record<string, string> });
+      setStabilityRunning(false);
+      appendDebugLog("precision", [`[INFO][stability-probe] runId=${String(result.probeRunId)} stage=complete message=Probe result and diagnostics exported`, "[INFO] No database write performed", "[INFO] No Jira write performed", "[INFO] Token: [masked]", "[INFO] Authorization: [masked]"]);
+    } catch (error) {
+      setStabilityRunning(false);
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("CONFIRM_REQUIRED")) setStabilityConfirmOpen(true);
+      else appendDebugLog("precision", [`[ERROR][stability-probe] stage=failed message=${message}`]);
+    }
+  }
+
+  async function cancelStabilityProbe() {
+    logAction("USER_ACTION", "Button clicked: Cancel Stability Probe");
+    await window.desktopApp?.userAnalysis?.cancelStabilityProbe?.();
+  }
+
+  async function exportStabilityResult() {
+    if (!stabilityRun) return;
+    const result = await window.desktopApp?.userAnalysis?.saveExport?.({ category: "user-analysis", defaultFileName: `activity-stream-stability-probe-${stabilityRun.probeRunId}.json`, data: stabilityRun });
+    appendDebugLog("precision", [`[INFO][stability-probe] runId=${stabilityRun.probeRunId} stage=export message=Exported ${result?.filePath || "cancelled"}`]);
+  }
+
+  function applyStabilityRecommendation() {
+    if (!stabilityRun) return;
+    patchState({ activityStreamRequestWindow: stabilityRun.recommendation.recommendedRequestWindow, activityStreamForcedRetryCount: stabilityRun.recommendation.recommendedRetryCount, activityStreamMergeStrategy: "union" });
+    logAction("USER_ACTION", `Applied Stability Probe recommendation: window=${stabilityRun.recommendation.recommendedRequestWindow} retries=${stabilityRun.recommendation.recommendedRetryCount} merge=union`);
   }
 
   useEffect(() => {
@@ -543,10 +619,47 @@ export function PrecisionProbePage() {
     }
   }
 
+  const stabilityTabs = <div data-testid="precision-probe-modes" className="mb-4 flex min-w-0 flex-wrap gap-2 border-b border-line pb-3">{([ ["precision", "Precision Discovery"], ["stability", "Activity Stream Stability"], ["comparison", "Attempt Comparison"], ["raw", "Raw Results / Diagnostics"] ] as const).map(([value, label]) => <button key={value} data-testid={`probe-mode-${value}`} className={`btn ${probeMode === value ? "btn-primary" : ""}`} type="button" onClick={() => setProbeMode(value)}>{label}</button>)}</div>;
+  const stabilityWindowCount = estimatedStabilityWindows();
+  const stabilityTotalRequests = stabilityWindowCount * userAnalysis.activityStreamForcedRetryCount;
+  const sortedStabilityAttempts = [...(stabilityRun?.attempts ?? [])].filter((attempt) => stabilityStatusFilter === "all" || (stabilityStatusFilter === "success" ? attempt.requestSucceeded : !attempt.requestSucceeded)).sort((left, right) => stabilitySort === "attempt" ? left.attemptNumber - right.attemptNumber : stabilitySort === "duration" ? right.durationMs - left.durationMs : left.windowId.localeCompare(right.windowId) || left.attemptNumber - right.attemptNumber);
+  const attemptColumnLabels: Record<string, string> = { window: "Window", attempt: "Attempt", status: "Status", duration: "Duration", raw: "Raw Events", normalized: "Normalized", unique: "Unique Events", jira: "Jira Keys", newPrevious: "New vs Previous", missingPrevious: "Missing vs Previous", newUnion: "New vs Union", missingUnion: "Missing vs Union", eventFingerprint: "Event Fingerprint", issueFingerprint: "Issue Key Fingerprint", coldStart: "Cold Start" };
+
+  function StabilitySetup() {
+    return <SectionCard title="Activity Stream Stability Setup" subtitle="Activity Stream 穩定性測試設定" className="mb-4"><div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div><FieldLabel label="Selected User" sub="選定使用者" /><input className="field" value={userAnalysis.selectedUsersText} onChange={(event) => patchState({ selectedUsersText: event.target.value.replace(/[\n,;].*$/, "") })} /></div>
+      <div className="grid grid-cols-2 gap-2"><div><FieldLabel label="Start Date" sub="開始日期" /><input data-testid="stability-start-date" className="field" type="date" value={userAnalysis.startDate} onChange={(event) => patchState({ startDate: event.target.value })} /></div><div><FieldLabel label="End Date" sub="結束日期" /><input data-testid="stability-end-date" className="field" type="date" value={userAnalysis.endDate} onChange={(event) => patchState({ endDate: event.target.value })} /></div></div>
+      <div><FieldLabel label="Project Scope" sub="專案範圍（選填）" /><input className="field" value={userAnalysis.precisionProjectScope} onChange={(event) => patchState({ precisionProjectScope: event.target.value })} /></div>
+      <div><FieldLabel label="Request Window" sub="請求視窗" /><select data-testid="stability-request-window" className="field" value={userAnalysis.activityStreamRequestWindow} onChange={(event) => patchState({ activityStreamRequestWindow: event.target.value as ActivityStreamRequestWindowType })}><option value="1_day">1 Day</option><option value="7_days">7 Days</option><option value="14_days">14 Days</option><option value="calendar_month">1 Calendar Month</option><option value="custom_days">Custom</option></select>{userAnalysis.activityStreamRequestWindow === "custom_days" ? <input data-testid="stability-custom-window-days" className="field mt-2" type="number" min={1} max={31} value={userAnalysis.activityStreamCustomWindowDays} onChange={(event) => patchState({ activityStreamCustomWindowDays: Math.max(1, Math.min(31, Math.trunc(Number(event.target.value)))) })} /> : null}</div>
+      <div><FieldLabel label="Forced Retry Count" sub="每個 Window 強制執行 1-32 次" /><input data-testid="stability-retry-count" className="field" type="number" min={1} max={32} value={userAnalysis.activityStreamForcedRetryCount} onChange={(event) => patchState({ activityStreamForcedRetryCount: Math.max(1, Math.min(32, Math.trunc(Number(event.target.value)))) })} /><div className="mt-2 flex flex-wrap gap-1">{[1,2,3,4,5,6,7,8,9,10,16,24,32].map((value) => <button key={value} className="btn px-2 py-1 text-xs" type="button" onClick={() => patchState({ activityStreamForcedRetryCount: value })}>{value}</button>)}</div></div>
+      <div><FieldLabel label="Retry Delay" sub="重試間隔" /><select data-testid="stability-retry-delay" className="field" value={stabilityRetryDelayMs} onChange={(event) => setStabilityRetryDelayMs(Number(event.target.value))}>{[0,1,2,3,5].map((seconds) => <option key={seconds} value={seconds * 1000}>{seconds} second{seconds === 1 ? "" : "s"}</option>)}</select></div>
+      <label className="flex items-center gap-3 rounded-lg border border-line p-3 text-sm font-bold"><input data-testid="stability-stop-early" type="checkbox" checked={stabilityStopEarly} onChange={(event) => setStabilityStopEarly(event.target.checked)} />Stop Early When Stable</label>
+      <label className="flex items-center gap-3 rounded-lg border border-line p-3 text-sm font-bold"><input data-testid="stability-force-all" type="checkbox" checked={stabilityForceAll} onChange={(event) => setStabilityForceAll(event.target.checked)} />Force Run All Attempts</label>
+      <div><FieldLabel label="Merge Strategy" sub="合併策略" /><select data-testid="stability-merge-strategy" className="field" value={userAnalysis.activityStreamMergeStrategy} onChange={(event) => patchState({ activityStreamMergeStrategy: event.target.value as ActivityStreamMergeStrategy })}><option value="union">Union</option><option value="last_stable">Last Stable</option></select>{userAnalysis.activityStreamMergeStrategy === "last_stable" ? <select data-testid="stability-fallback" className="field mt-2" value={stabilityFallback} onChange={(event) => setStabilityFallback(event.target.value as typeof stabilityFallback)}><option value="union">Fallback: Union</option><option value="last_attempt">Fallback: Last Attempt</option></select> : null}</div>
+    </div><div data-testid="stability-request-estimate" className={`mt-4 rounded-lg border p-3 text-sm font-bold ${stabilityTotalRequests > 500 ? "border-red-300 bg-red-50 text-red-900" : stabilityTotalRequests > 100 ? "border-amber-300 bg-amber-50 text-amber-900" : "border-blue-200 bg-blue-50 text-blue-900"}`}>Sequential requests only, concurrency = 1. Estimated total: {stabilityWindowCount} windows × {userAnalysis.activityStreamForcedRetryCount} attempts = {stabilityTotalRequests} requests.{stabilityTotalRequests > 500 ? " Type CONFIRM before running." : stabilityTotalRequests > 100 ? " Large sequential run warning." : ""}</div><div className="mt-4 flex flex-wrap gap-2"><button data-testid="run-stability-probe" className="btn btn-primary" type="button" disabled={!connectionReady || selectedUsers.length !== 1 || stabilityRunning} onClick={() => stabilityTotalRequests > 500 ? setStabilityConfirmOpen(true) : void executeStabilityProbe()}><Play size={16} />Run Stability Probe</button><button data-testid="cancel-stability-probe" className="btn" type="button" disabled={!stabilityRunning} onClick={() => void cancelStabilityProbe()}><Square size={16} />Cancel</button><button data-testid="reset-stability-results" className="btn" type="button" disabled={stabilityRunning} onClick={() => { setStabilityRun(null); setStabilityProgress({}); }}><RotateCcw size={16} />Reset Results</button><button data-testid="export-stability-result" className="btn" type="button" disabled={!stabilityRun} onClick={() => void exportStabilityResult()}><Download size={16} />Export Probe Result</button></div></SectionCard>;
+  }
+
+  function StabilityProgress() {
+    if (!stabilityRunning && !stabilityRun) return null;
+    const latest = stabilityRun?.attempts[stabilityRun.attempts.length - 1];
+    return <SectionCard title="Probe Progress" subtitle="執行進度" className="mb-4"><div data-testid="stability-progress" className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3"><MiniStat label="Current Window" value={`${String(stabilityProgress.windowIndex ?? stabilityRun?.windows.length ?? 0)} / ${String(stabilityProgress.windowCount ?? stabilityWindowCount)}`} /><MiniStat label="Current Attempt" value={`${String(stabilityProgress.attemptNumber ?? latest?.attemptNumber ?? 0)} / ${String(stabilityProgress.totalAttempts ?? userAnalysis.activityStreamForcedRetryCount)}`} /><MiniStat label="Date Window" value={`${String(stabilityProgress.requestWindowStart ?? latest?.requestWindowStart ?? "-")} ~ ${String(stabilityProgress.requestWindowEnd ?? latest?.requestWindowEnd ?? "-")}`} /><MiniStat label="Raw Events" value={String(stabilityProgress.rawEventCount ?? latest?.rawEventCount ?? 0)} /><MiniStat label="Unique Events" value={String(stabilityProgress.uniqueEventCount ?? latest?.uniqueEventCount ?? 0)} /><MiniStat label="Jira Issue Keys" value={String(stabilityProgress.jiraIssueKeyCount ?? latest?.jiraIssueKeyCount ?? 0)} /><MiniStat label="Elapsed Time" value={stabilityRun ? `${Math.max(0, Date.parse(stabilityRun.completedAt) - Date.parse(stabilityRun.startedAt))} ms` : "Running"} /><MiniStat label="Current Stability" value={String(stabilityProgress.stability ?? stabilityRun?.status ?? stabilityProgress.stage ?? "running")} /></div></SectionCard>;
+  }
+
+  function AttemptComparison() {
+    return <SectionCard title="Attempt Comparison" subtitle="每次查詢結果比較" className="mb-4"><div className="mb-3 flex flex-wrap items-end gap-2"><select data-testid="stability-status-filter" className="field max-w-40" value={stabilityStatusFilter} onChange={(event) => setStabilityStatusFilter(event.target.value)}><option value="all">All Status</option><option value="success">Success</option><option value="failed">Failed</option></select><select data-testid="stability-sort" className="field max-w-40" value={stabilitySort} onChange={(event) => setStabilitySort(event.target.value as typeof stabilitySort)}><option value="window">Sort: Window</option><option value="attempt">Sort: Attempt</option><option value="duration">Sort: Duration</option></select><button data-testid="stability-column-settings-toggle" className="btn" type="button" onClick={() => setStabilityColumnsOpen((open) => !open)}>Column Settings</button><button data-testid="copy-stability-comparison" className="btn" type="button" onClick={() => void navigator.clipboard?.writeText(JSON.stringify(sortedStabilityAttempts, null, 2))}><Copy size={16} />Copy</button></div>{stabilityColumnsOpen ? <div data-testid="stability-column-settings" className="mb-3 flex flex-wrap gap-3 rounded-lg border border-line bg-slate-50 p-3">{Object.entries(attemptColumnLabels).map(([key, label]) => <label key={key} className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={stabilityVisibleColumns.includes(key)} onChange={() => setStabilityVisibleColumns((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key])} />{label}</label>)}</div> : null}<ResponsiveTableContainer><table data-testid="stability-attempt-comparison" className="table min-w-[1900px]"><thead><tr>{Object.entries(attemptColumnLabels).filter(([key]) => stabilityVisibleColumns.includes(key)).map(([key, label]) => <th key={key}>{label}</th>)}</tr></thead><tbody>{sortedStabilityAttempts.map((attempt) => { const values: Record<string, unknown> = { window: `${attempt.requestWindowStart} ~ ${attempt.requestWindowEnd}`, attempt: `${attempt.attemptNumber}/${attempt.totalAttempts}`, status: attempt.requestSucceeded ? "success" : "failed", duration: `${attempt.durationMs}ms`, raw: attempt.rawEventCount, normalized: attempt.normalizedEventCount, unique: attempt.uniqueEventCount, jira: attempt.jiraIssueKeyCount, newPrevious: attempt.newEventsComparedWithPreviousAttempt, missingPrevious: attempt.missingEventsComparedWithPreviousAttempt, newUnion: attempt.newEventsComparedWithCurrentUnion, missingUnion: attempt.missingEventsComparedWithFinalUnion, eventFingerprint: attempt.eventSetFingerprint, issueFingerprint: attempt.issueKeySetFingerprint, coldStart: attempt.coldStartSuspected ? "Yes" : "No" }; return <tr key={attempt.attemptId}>{Object.keys(attemptColumnLabels).filter((key) => stabilityVisibleColumns.includes(key)).map((key) => <td key={key} className={key.includes("Fingerprint") ? "max-w-64 truncate" : ""} title={String(values[key] ?? "")}>{String(values[key] ?? "-")}</td>)}</tr>; })}{sortedStabilityAttempts.length === 0 ? <tr><td colSpan={stabilityVisibleColumns.length} className="text-center text-muted">No Stability Probe attempts yet.</td></tr> : null}</tbody></table></ResponsiveTableContainer><div className="mt-3 text-xs font-semibold text-muted">CSV is automatically exported as activity-stream-attempt-comparison.csv.</div></SectionCard>;
+  }
+
+  function StabilitySummary() {
+    if (!stabilityRun) return null;
+    return <><SectionCard title="Window Summary" subtitle="視窗穩定度摘要" className="mb-4"><ResponsiveTableContainer><table data-testid="stability-window-summary" className="table min-w-[1100px]"><thead><tr>{["Window", "Attempts", "First Stable", "Union Events", "Union Jira Keys", "Intersection", "Stability", "Recommended Retry"].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{stabilityRun.windows.map((window) => <tr key={window.windowId}><td>{window.start} ~ {window.end}</td><td>{window.attempts.length}</td><td>{window.stability.firstStableAttempt ?? "-"}</td><td>{window.finalUnionEventCount}</td><td>{window.finalUnionJiraKeyCount}</td><td>{window.finalIntersectionEventCount}</td><td><StatusBadge>{window.stability.classification}</StatusBadge></td><td>{window.recommendedRetryCount}</td></tr>)}</tbody></table></ResponsiveTableContainer></SectionCard><SectionCard title="Overall Recommendation" subtitle="整體建議" className="mb-4"><div data-testid="stability-recommendation" className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3"><MiniStat label="Request Window" value={stabilityRun.recommendation.recommendedRequestWindow} /><MiniStat label="Retry Count" value={stabilityRun.recommendation.recommendedRetryCount} /><MiniStat label="Stable Attempt P50" value={stabilityRun.recommendation.observedStableAttemptP50 ?? "N/A"} /><MiniStat label="Stable Attempt Max" value={stabilityRun.recommendation.observedStableAttemptMax ?? "N/A"} /><MiniStat label="Unstable Windows" value={stabilityRun.recommendation.unstableWindowCount} /><MiniStat label="Cold Start Windows" value={stabilityRun.recommendation.coldStartAffectedWindowCount} /></div><div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-950">{stabilityRun.recommendation.recommendationReason}</div>{stabilityRun.mergeFallbackReason ? <div data-testid="stability-fallback-warning" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">{stabilityRun.mergeFallbackReason}</div> : null}<button data-testid="apply-stability-recommendation" className="btn btn-primary mt-4" type="button" onClick={applyStabilityRecommendation}>Apply Recommendation to User Analysis</button></SectionCard></>;
+  }
+
+  if (probeMode !== "precision") return <><PageHeader title="User Activity Precision Probe" subtitle="使用者活動精準查詢測試" />{stabilityTabs}{stabilityConfirmOpen ? <MockModal title="Confirm Large Sequential Probe" onClose={() => setStabilityConfirmOpen(false)} footer={<><button className="btn" type="button" onClick={() => setStabilityConfirmOpen(false)}>Cancel</button><button data-testid="confirm-stability-run" className="btn btn-primary" type="button" onClick={() => { if (stabilityConfirmText === "CONFIRM") { setStabilityConfirmOpen(false); void executeStabilityProbe(true); } }}>Confirm and Run</button></>}><p className="mb-3 text-sm font-semibold">This probe will execute {stabilityTotalRequests} sequential requests. Type CONFIRM to continue.</p><input data-testid="stability-confirm-input" className="field" value={stabilityConfirmText} onChange={(event) => setStabilityConfirmText(event.target.value)} /></MockModal> : null}{probeMode === "stability" ? <><StabilitySetup /><StabilityProgress /><StabilitySummary /></> : probeMode === "comparison" ? <><AttemptComparison /><StabilitySummary /></> : <SectionCard title="Raw Results / Diagnostics" subtitle="已遮罩的單次 Attempt 結果" className="mb-4"><div data-testid="stability-raw-results" className="space-y-3">{stabilityRun?.attempts.map((attempt) => <details key={attempt.attemptId} className="rounded-lg border border-line p-3"><summary className="cursor-pointer font-bold">{attempt.windowId} / Attempt {attempt.attemptNumber}</summary><pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded bg-slate-950 p-3 text-xs text-slate-100">{JSON.stringify(attempt.rawResultSanitized, null, 2)}</pre></details>)}{!stabilityRun ? <div className="text-sm font-semibold text-muted">No Stability Probe result yet.</div> : null}</div></SectionCard>}</>;
+
   const stream = userAnalysis.activityStream;
   const baseline = stream.baselineComparison;
   const baselineLabel = stream.baselineGuardRetry?.retryRecovered ? "Retried / 已重試" : stream.baselineGuardRetry?.finalClassification === "result_incomplete_candidate" ? "Incomplete Candidate / 可能不完整" : baseline?.classification === "accepted_improved" ? "Improved / 有新增" : baseline?.classification === "accepted_equal" || baseline?.classification === "first_observation" ? "Accepted / 已接受" : baseline?.classification?.startsWith("suspicious_") ? "Regression Detected / 偵測到倒退" : "Not Run / 尚未執行";
-  return <>
+  return <>{stabilityTabs}
     <PageHeader title="User Activity Precision Probe" subtitle="使用者活動精準查詢測試" />
     {largeQueryConfirmation.open ? <MockModal title="Large Activity Stream Query Confirmation / 大型查詢確認" onClose={cancelLargeQuery} footer={<><button className="btn" type="button" onClick={cancelLargeQuery}>Cancel / 取消</button><button data-testid="confirm-large-max" className="btn btn-primary" type="button" onClick={confirmLargeQuery}><Play size={16} />Confirm and Run / 確認並執行</button></>}><div className="space-y-3 leading-relaxed"><p>You are about to request up to <b>{userAnalysis.precisionProbeMaxResults}</b> Activity Stream entries.<br />你即將要求最多 <b>{userAnalysis.precisionProbeMaxResults}</b> 筆 Activity Stream entries。</p><p>This can increase response time and Jira server load. No Jira or database write will occur.<br />這可能增加回應時間與 Jira server 負載，但不會寫入 Jira 或資料庫。</p><div><FieldLabel label="Type CONFIRM to continue" sub="請輸入 CONFIRM 才能繼續" /><input data-testid="large-max-confirm-input" className="field" autoFocus value={largeQueryConfirmation.input} onChange={(event) => setLargeQueryConfirmation((current) => ({ ...current, input: event.target.value, error: "" }))} placeholder="CONFIRM" />{largeQueryConfirmation.error ? <div className="mt-2 text-sm font-bold text-red-700">{largeQueryConfirmation.error}</div> : null}</div></div></MockModal> : null}
     <SectionCard title="Activity Stream Standard Flow" subtitle="Activity Stream 標準流程" className="mb-4">

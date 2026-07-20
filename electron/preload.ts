@@ -26,6 +26,13 @@ contextBridge.exposeInMainWorld("desktopApp", {
   userAnalysis: {
     discoverCandidates: (payload: unknown) => ipcRenderer.invoke("user-analysis:discover-candidates", payload),
     activityStreamProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-probe", payload),
+    activityStreamStabilityProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-stability-probe", payload),
+    cancelStabilityProbe: () => ipcRenderer.invoke("user-analysis:cancel-stability-probe"),
+    onStabilityProbeProgress: (callback: (progress: unknown) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => callback(progress);
+      ipcRenderer.on("user-analysis:stability-probe-progress", listener);
+      return () => ipcRenderer.removeListener("user-analysis:stability-probe-progress", listener);
+    },
     buildActivityTimeline: (payload: unknown) => ipcRenderer.invoke("user-analysis:build-activity-timeline", payload),
     activityStreamManualReplay: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-manual-replay", payload),
     precisionProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:precision-probe", payload),
