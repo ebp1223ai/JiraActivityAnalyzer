@@ -1,0 +1,57 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { atomicWriteJson, cancelAndExportPartial, cleanupExpiredStaging, completeTarget, createStagingRun, discardStaging, exportStaging, loadStagingRun, previewStaging, retainUntil, scanRecoverableStaging, selectResumeTargets, setStagingStatus, stagingDebugIndex, stagingPaths, startTarget } from "./fullFetchStaging.js";
+import { listZipEntries } from "./sourceArchiveExporter.js";
+
+const root = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-full-fetch-staging-"));
+const stagingRoot = path.join(root, "full-fetch-staging");
+const exportsDir = path.join(root, "exports");
+const issue = (key: string) => ({ key, fields: { updated: "2026-07-21T01:00:00.000Z", summary: key } });
+const envelope = (key: string) => ({ issue: issue(key), sections: { issue: "complete", changelog: "complete", comments: "complete", attachments: "not_applicable", links: "complete" } });
+
+try {
+  const run = createStagingRun(stagingRoot, { runId: "run-1", selectedUser: "roger_hsieh", queue: [{ key: "ABC-1" }, { key: "ABC-2" }, { key: "ABC-3" }, { key: "ABC-4" }] });
+  assert.equal(run.state.total, 4); assert.equal(run.state.status, "created"); assert.ok(fs.existsSync(stagingPaths(run).state)); assert.doesNotThrow(() => loadStagingRun(run.dir));
+  startTarget(run, "ABC-1");
+  const first = completeTarget(run, "ABC-1", { status: "eligible", rawEnvelope: envelope("ABC-1"), classification: "complete" });
+  assert.equal(first.status, "eligible"); assert.ok(first.rawFilePath.includes("completed/")); assert.match(first.contentHash, /^sha256:[a-f0-9]{64}$/); const originalHash = first.contentHash;
+  startTarget(run, "ABC-1"); const duplicate = completeTarget(run, "ABC-1", { status: "eligible", rawEnvelope: envelope("ABC-1"), classification: "complete" }); assert.equal(duplicate.contentHash, originalHash); assert.equal(fs.readFileSync(stagingPaths(run).eligible, "utf8").trim().split(/\r?\n/).length, 1);
+  startTarget(run, "ABC-2");
+  const partial = completeTarget(run, "ABC-2", { status: "partial", rawEnvelope: envelope("ABC-2"), missingSections: ["comments"], failedEndpoints: ["/comment"], classification: "partial_response", retryable: true, errorType: "timeout", errorMessage: "Token: secret-value timed out" });
+  assert.equal(partial.status, "partial"); assert.ok(partial.rawFilePath.includes("partial/"));
+  const eligibleJsonl = fs.readFileSync(stagingPaths(run).eligible, "utf8"); assert.match(eligibleJsonl, /ABC-1/); assert.doesNotMatch(eligibleJsonl, /ABC-2/); assert.doesNotMatch(fs.readFileSync(path.join(run.dir, partial.rawFilePath), "utf8"), /secret-value/);
+  startTarget(run, "ABC-3"); const failed = completeTarget(run, "ABC-3", { status: "failed", classification: "http_503", errorType: "http_503", errorMessage: "temporary" }); assert.equal(failed.status, "failed_retryable");
+  startTarget(run, "ABC-4"); completeTarget(run, "ABC-4", { status: "failed", classification: "http_401", errorType: "http_401", errorMessage: "Authorization: Bearer real-secret", retryable: false }); assert.doesNotMatch(fs.readFileSync(stagingPaths(run).errors, "utf8"), /real-secret/);
+  assert.equal(run.state.remaining, 2);
+  assert.deepEqual(selectResumeTargets(run).map((target) => target.objectKey), ["ABC-2", "ABC-3"]);
+  startTarget(run, "ABC-3", true); const failedAgain = completeTarget(run, "ABC-3", { status: "failed", classification: "timeout", errorType: "timeout", errorMessage: "again", retryable: true }); assert.equal(failedAgain.status, "failed_after_resume_retry"); assert.equal(failedAgain.resumeRetryCount, 1);
+  assert.deepEqual(selectResumeTargets(run).map((target) => target.objectKey), ["ABC-2"]);
+  startTarget(run, "ABC-2", true); const recovered = completeTarget(run, "ABC-2", { status: "eligible", rawEnvelope: envelope("ABC-2"), classification: "complete" }); assert.equal(recovered.status, "eligible"); assert.equal(run.checkpoint.targets[0].contentHash, originalHash);
+  const preview = previewStaging(run); assert.equal(preview.eligible, 2); assert.equal(preview.failed, 2); assert.ok(preview.stagingSizeBytes > 0);
+  assert.equal(preview.remaining, 0);
+  setStagingStatus(run, "running"); const interrupted = scanRecoverableStaging(stagingRoot); assert.equal(interrupted?.state.status, "interrupted"); assert.deepEqual(selectResumeTargets(interrupted!).map((target) => target.objectKey), []);
+  const partialExport = cancelAndExportPartial(interrupted!, exportsDir); assert.equal(partialExport.packageStatus, "partial"); assert.equal(partialExport.safeForAutomaticImport, false); assert.ok(fs.existsSync(partialExport.packagePath)); assert.ok(listZipEntries(fs.readFileSync(partialExport.packagePath)).includes("source-archive-import-package/jira-full-fetch-payloads.jsonl")); assert.equal(interrupted!.state.status, "partial_exported");
+  const cancelResumeRun = createStagingRun(stagingRoot, { runId: "cancel-resume", selectedUser: "u", queue: [{ key: "CANCEL-1" }, { key: "CANCEL-2" }] }); startTarget(cancelResumeRun, "CANCEL-1"); completeTarget(cancelResumeRun, "CANCEL-1", { status: "eligible", rawEnvelope: envelope("CANCEL-1") }); cancelAndExportPartial(cancelResumeRun, exportsDir); assert.equal(cancelResumeRun.state.remaining, 1); const afterCancelRecovery = scanRecoverableStaging(stagingRoot); assert.equal(afterCancelRecovery?.state.stagingId, cancelResumeRun.state.stagingId); assert.deepEqual(selectResumeTargets(afterCancelRecovery!).map((target) => target.objectKey), ["CANCEL-2"]);
+  assert.equal(new Date(retainUntil("2026-07-01T00:00:00.000Z")).getTime(), new Date("2026-07-08T00:00:00.000Z").getTime());
+  const debug = stagingDebugIndex(interrupted); assert.equal(debug.stagingAvailable, true); assert.ok(debug.omittedCount >= 2); assert.equal(debug.finalPackageHash?.length, 64);
+  const staleRun = createStagingRun(stagingRoot, { runId: "stale", selectedUser: "u", queue: [{ key: "STALE-1" }, { key: "STALE-2" }] });
+  setStagingStatus(staleRun, "running"); startTarget(staleRun, "STALE-1"); startTarget(staleRun, "STALE-2", true);
+  const staleRecovered = scanRecoverableStaging(stagingRoot)!;
+  const staleReloaded = loadStagingRun(staleRun.dir);
+  assert.equal(staleReloaded.checkpoint.targets[0].status, "in_progress");
+  assert.equal(staleReloaded.checkpoint.targets[1].status, "failed_after_resume_retry");
+  assert.deepEqual(selectResumeTargets(staleReloaded).map((target) => target.objectKey), ["STALE-1"]);
+  assert.ok(staleRecovered);
+  const completeRun = createStagingRun(stagingRoot, { runId: "run-complete", selectedUser: "u", queue: [{ key: "DONE-1" }] }); startTarget(completeRun, "DONE-1"); completeTarget(completeRun, "DONE-1", { status: "eligible", rawEnvelope: envelope("DONE-1") }); setStagingStatus(completeRun, "ready_to_export");
+  const finalExport = exportStaging(completeRun, exportsDir); assert.equal(finalExport.packageStatus, "complete"); assert.equal(finalExport.safeForAutomaticImport, true); assert.equal(completeRun.state.status, "exported");
+  const failedExportRun = createStagingRun(stagingRoot, { runId: "export-retry", selectedUser: "u", queue: [{ key: "RETRY-1" }] }); startTarget(failedExportRun, "RETRY-1"); completeTarget(failedExportRun, "RETRY-1", { status: "eligible", rawEnvelope: envelope("RETRY-1") });
+  const blockedOutput = path.join(root, "blocked-output"); fs.writeFileSync(blockedOutput, "file", "utf8"); assert.throws(() => exportStaging(failedExportRun, blockedOutput)); assert.equal(failedExportRun.state.status, "export_failed"); fs.rmSync(blockedOutput); const retryExport = exportStaging(failedExportRun, exportsDir); assert.equal(retryExport.packageStatus, "complete");
+  const sensitiveRun = createStagingRun(stagingRoot, { runId: "sensitive", selectedUser: "u", queue: [{ key: "SECRET-1" }] }); startTarget(sensitiveRun, "SECRET-1"); const sensitive = completeTarget(sensitiveRun, "SECRET-1", { status: "eligible", rawEnvelope: { ...envelope("SECRET-1"), apiToken: "must-not-leak" } }); assert.equal(sensitive.status, "failed_non_retryable"); assert.equal(fs.existsSync(stagingPaths(sensitiveRun).eligible), false);
+  const early = cleanupExpiredStaging(stagingRoot, new Date(completeRun.state.exportedAt!)); assert.ok(early.some((item) => item.stagingId === completeRun.state.stagingId && !item.removed));
+  const late = cleanupExpiredStaging(stagingRoot, new Date(new Date(completeRun.state.retainUntil!).getTime() + 1)); assert.ok(late.some((item) => item.stagingId === completeRun.state.stagingId && item.removed)); assert.ok(fs.existsSync(finalExport.packagePath));
+  const discarded = createStagingRun(stagingRoot, { runId: "discard", selectedUser: "u", queue: [] }); discardStaging(discarded); assert.equal(discarded.state.status, "discarded");
+  const atomicPath = path.join(root, "atomic.json"); atomicWriteJson(atomicPath, { ok: true }); assert.deepEqual(JSON.parse(fs.readFileSync(atomicPath, "utf8")), { ok: true }); assert.equal(fs.readdirSync(root).some((name) => name.endsWith(".tmp")), false);
+  console.log("Full Fetch staging unit/integration tests passed.");
+} finally { fs.rmSync(root, { recursive: true, force: true }); }

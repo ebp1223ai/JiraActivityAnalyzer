@@ -4,7 +4,17 @@ Electron desktop application for read-only Jira activity inspection and analysis
 
 ## User Analysis Workflow
 
-Version 0.2.27 strengthens Activity Stream reliability diagnostics while preserving the guarded five-step User Analysis workflow and direct Jira evidence extraction:
+Version 0.2.28 adds crash-safe **Full Fetch Staging / Full Fetch 增量暫存** while preserving the guarded five-step User Analysis workflow, Activity Stream reliability diagnostics, and direct Jira evidence extraction:
+
+- Every selected Full Fetch target is persisted by the Electron main process before UI completion is reported.
+- `staging-state.json` and `queue-checkpoint.json` are updated atomically after each target state change.
+- Startup detects interrupted staging and offers Resume Remaining Queue, Export Completed Records, Discard Staging, or Decide Later without making an automatic Jira request.
+- Resume keeps the original queue order, skips eligible/excluded targets, retries partial targets, and automatically retries an eligible retryable failure exactly once. Non-retryable 400/401/403/404 failures are skipped.
+- Cancel stops scheduling new targets, flushes staging, and automatically creates a Partial Source Archive Import Package with `safeForAutomaticImport = false`.
+- Partial records remain individual `partial/<issue-key>.raw.json` files and never enter the eligible JSONL payload stream.
+- Preview reads lightweight staging summaries only; final export is built from staging files rather than renderer memory.
+- Successfully exported staging is retained for seven days. The final ZIP is not deleted with expired staging.
+- Debug Bundles include staging state, checkpoint, object index, export result, sanitized error summary, and a staging index while omitting large raw target files by default.
 
 - Stability setup, results, active tab, filters, sort, and visible columns persist for the current app session.
 - Formal Stability and Timeline queries use only `escaped_username`; new executions do not perform username/email variant discovery.
@@ -23,7 +33,7 @@ The Stability Probe defaults to **Force All Rounds / 強制執行全部輪次**.
 
 Round diagnostics separate primary Jira targets from Jira-like keys referenced in titles or summaries. V2 exports include round fingerprints, union, intersection, variable events, consistency rate, per-window diagnostics, API/processing duration, progress, and ETA. Legacy v1 files remain identifiable as `window_first`; they are not converted into synthetic rounds.
 
-The Source Archive Import Package contains only sanitized Jira and Confluence Full Fetch raw JSON envelopes. It excludes Activity Stream data, probe results, timeline, evidence, coverage diagnostics, UI state, debug logs, credentials, and attachment files. Export performs a sensitive-data scan and creates a ZIP preview before writing the package. Version 0.2.27 does not create or write a Source Archive SQLite database.
+The Source Archive Import Package contains only eligible sanitized Jira and Confluence Full Fetch raw JSON envelopes. It excludes Activity Stream data, probe results, timeline, evidence, coverage diagnostics, UI state, debug logs, credentials, attachment files, and partial Full Fetch records. Export performs a sensitive-data scan before writing the package. Version 0.2.28 does not create or write a Source Archive SQLite database.
 
 Step 1 combines the selected user, inclusive date range, optional project scope, Live Jira API source, timeline build action, timeline summary, and event inspection. Later steps repeat a compact setup summary and remain blocked until their required evidence exists. Advanced Tools and Candidate Search are no longer exposed in User Analysis.
 

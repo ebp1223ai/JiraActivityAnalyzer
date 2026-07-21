@@ -65,6 +65,10 @@ export function getFullFetchRawRunsDir() {
   return getRawDataDir();
 }
 
+export function getFullFetchStagingDir() {
+  return path.join(getAppRuntimeDir(), "full-fetch-staging");
+}
+
 export function getBackupsDir() {
   return path.join(getAppRuntimeDir(), "backups");
 }

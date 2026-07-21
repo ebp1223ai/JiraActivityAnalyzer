@@ -687,7 +687,7 @@ export type UserAnalysisSessionState = {
   fullFetchRunId: string;
   fullFetchStartedAt: string;
   fullFetchFinishedAt: string;
-  fullFetchStatus: "idle" | "running" | "paused" | "completed" | "completed_with_errors" | "failed";
+  fullFetchStatus: "idle" | "running" | "paused" | "cancelled" | "completed" | "completed_with_errors" | "failed";
   fullFetchSummary: UserAnalysisFullFetchSummary;
   fullFetchReport: UserAnalysisFullFetchReportRow[];
   fullFetchResultsByIssue: unknown[];
@@ -704,6 +704,8 @@ export type UserAnalysisSessionState = {
   fullFetchMemory: UserAnalysisFullFetchMemory;
   autoLogPath: string;
   checkpointPath: string;
+  fullFetchStaging: Record<string, unknown> | null;
+  stagingWarningDismissed: boolean;
   actionLogPath: string;
   actionLogAvailable: boolean;
   rawDataMode: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory";
@@ -989,6 +991,8 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   fullFetchMemory: { rssMB: 0, heapUsedMB: 0, heapTotalMB: 0, externalMB: 0, systemFreeMB: 0, rawDataEstimateMB: 0 },
   autoLogPath: "",
   checkpointPath: "",
+  fullFetchStaging: null,
+  stagingWarningDismissed: false,
   actionLogPath: "",
   actionLogAvailable: false,
   rawDataMode: "auto_save_raw_per_issue",

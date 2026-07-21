@@ -6,6 +6,7 @@ release
 /data/
 /logs/
 /exports/
+/full-fetch-staging/
 /probe-results/
 /config/
 test-artifacts/

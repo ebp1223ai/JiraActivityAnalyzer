@@ -352,7 +352,8 @@ export function AnalysisPage() {
   async function previewSourceArchive() {
     setSourceArchiveBusy(true);
     try {
-      const result = await window.desktopApp?.userAnalysis?.previewSourceArchive?.({ rawData: userAnalysis.fullFetchRawDataByIssueSanitized, selectedUser: selectedUsers[0] });
+      const stagingId = String(userAnalysis.fullFetchStaging?.stagingId ?? "");
+      const result = await window.desktopApp?.userAnalysis?.previewSourceArchive?.(stagingId ? { stagingId, selectedUser: selectedUsers[0] } : { rawData: userAnalysis.fullFetchRawDataByIssueSanitized, selectedUser: selectedUsers[0] });
       if (!result) throw new Error("Source Archive preview is unavailable.");
       setSourceArchivePreview(result);
       appendDebugLog("analysis", Array.isArray(result.logs) ? result.logs.map(String) : ["[INFO] Source Archive package preview completed"]);
@@ -366,7 +367,8 @@ export function AnalysisPage() {
   async function exportSourceArchive() {
     setSourceArchiveBusy(true);
     try {
-      const result = await window.desktopApp?.userAnalysis?.exportSourceArchive?.({ rawData: userAnalysis.fullFetchRawDataByIssueSanitized, selectedUser: selectedUsers[0] });
+      const stagingId = String(userAnalysis.fullFetchStaging?.stagingId ?? "");
+      const result = await window.desktopApp?.userAnalysis?.exportSourceArchive?.(stagingId ? { stagingId, selectedUser: selectedUsers[0] } : { rawData: userAnalysis.fullFetchRawDataByIssueSanitized, selectedUser: selectedUsers[0] });
       if (!result?.ok) throw new Error("Source Archive export failed.");
       patchState({ notice: `Source Archive package exported / 來源封存套件已匯出：${String(result.filePath ?? "")}`, errors: [] });
       appendDebugLog("analysis", Array.isArray(result.logs) ? result.logs.map(String) : [`[INFO] Source Archive import package saved: ${String(result.filePath ?? "")}`]);
@@ -454,7 +456,9 @@ export function AnalysisPage() {
       const progress = payload as unknown as UserAnalysisFullFetchProgress;
       setUserAnalysis((current) => ({
         ...current,
-        fullFetchStatus: progress.status === "paused"
+        fullFetchStatus: progress.status === "cancelled"
+          ? "cancelled"
+          : progress.status === "paused"
           ? "paused"
           : progress.status === "completed"
             ? "completed"
@@ -466,6 +470,7 @@ export function AnalysisPage() {
         fullFetchMemory: progress.memory ?? current.fullFetchMemory,
         autoLogPath: progress.autoLogPath || current.autoLogPath,
         checkpointPath: progress.checkpointPath || current.checkpointPath,
+        fullFetchStaging: ((payload as Record<string, unknown>).staging as Record<string, unknown> | undefined) ?? current.fullFetchStaging,
         pauseAfterCurrentIssue: current.pauseAfterCurrentIssue && progress.status !== "paused"
       }));
     });
@@ -567,16 +572,24 @@ export function AnalysisPage() {
 
   useEffect(() => {
     let active = true;
-    void window.desktopApp?.userAnalysis?.latestFullFetchCheckpoint?.().then((result) => {
-      if (!active || !result?.unfinished) return;
+    void window.desktopApp?.userAnalysis?.scanFullFetchStaging?.().then((result) => {
+      if (!active || !result?.found || !result.state) return;
       setUserAnalysis((current) => ({
         ...current,
-        previousUnfinishedRun: { ...(result.checkpoint ?? {}), checkpointPath: result.checkpointPath ?? "" },
-        previousUnfinishedDismissed: false
+        fullFetchStaging: result.state ?? null,
+        previousUnfinishedRun: { ...(result.state ?? {}), ...(result.checkpoint ?? {}) },
+        previousUnfinishedDismissed: sessionStorage.getItem("jaa.unresolvedFullFetchStagingId") !== String(result.state?.stagingId ?? "")
       }));
     }).catch(() => undefined);
     return () => { active = false; };
   }, [setUserAnalysis]);
+
+  useEffect(() => {
+    const stagingId = sessionStorage.getItem("jaa.resumeFullFetchStagingId");
+    if (!stagingId || !activeConnection) return;
+    sessionStorage.removeItem("jaa.resumeFullFetchStagingId");
+    void runFullFetch(stagingId);
+  }, [activeConnection]);
 
   function showStep(step: "timeline" | "selectIssues" | "queue" | "fetchReport" | "relatedIssues" | "exports" | "candidate") {
     const labels = {
@@ -1337,17 +1350,7 @@ export function AnalysisPage() {
     await runFullFetch();
   }
 
-  async function runFullFetch() {
-    if (userAnalysis.rawDataMode === "full_raw_in_memory" && fetchQueue.length > 20) {
-      const confirmed = window.confirm("Full Raw in Memory with more than 20 issues can use substantial memory and increase crash risk. Continue?");
-      logAnalysisAction("USER_ACTION", `Full Raw in Memory risk confirmation: confirmed=${confirmed}`);
-      if (!confirmed) {
-        logAnalysisAction("GUARD", "Full Fetch cancelled before start: full_raw_in_memory_risk_not_confirmed");
-        return;
-      }
-    } else if (userAnalysis.rawDataMode === "full_raw_in_memory" && fetchQueue.length > 10) {
-      appendDebugLog("analysis", ["[WARN] Full Raw in Memory selected for more than 10 issues"]);
-    }
+  async function runFullFetch(resumeStagingId = "") {
     if (userAnalysis.fullFetchRunId) {
       appendDebugLog("analysis", ["[INFO] Previous full fetch session replaced."]);
     }
@@ -1394,7 +1397,7 @@ export function AnalysisPage() {
       fetchReportPage: 1,
       activeTab: "fetchReport",
       errors: [],
-      notice: "Full Fetch running..."
+      notice: resumeStagingId ? "Resuming remaining Full Fetch queue... / 正在繼續剩餘 Full Fetch 佇列..." : "Full Fetch running..."
     });
     try {
       if (!activeConnection) throw new Error("No active Jira connection. Reload .env in Connections first.");
@@ -1407,7 +1410,8 @@ export function AnalysisPage() {
         selectedUser: selectedUsers[0] ?? "",
         startDate: userAnalysis.startDate,
         endDate: userAnalysis.endDate,
-        directIssueKeys: userAnalysis.selectedTimelineIssueKeys
+        directIssueKeys: userAnalysis.selectedTimelineIssueKeys,
+        resumeStagingId: resumeStagingId || undefined
       });
       if (!response) throw new Error("Electron User Analysis Full Fetch API is not available.");
       const run = (response.run ?? {}) as Record<string, unknown>;
@@ -1443,6 +1447,8 @@ export function AnalysisPage() {
         fullFetchMemory: finalMemory.rssMB === undefined ? userAnalysis.fullFetchMemory : finalMemory,
         autoLogPath: String(diagnostics.autoLogPath ?? ""),
         checkpointPath: String(diagnostics.checkpointPath ?? ""),
+        fullFetchStaging: (diagnostics.staging as Record<string, unknown> | undefined) ?? userAnalysis.fullFetchStaging,
+        stagingWarningDismissed: false,
         pauseAfterCurrentIssue: false,
         fullFetchWarnings: Array.isArray(response.warnings) ? response.warnings as string[] : [],
         fullFetchErrors: Array.isArray(response.errors) ? response.errors as string[] : [],
@@ -1474,6 +1480,30 @@ export function AnalysisPage() {
       return;
     }
     appendDebugLog("analysis", ["[INFO] Pause requested; waiting for current issue to complete"]);
+  }
+
+  async function handleCancelFullFetch() {
+    logAnalysisAction("USER_ACTION", "Button clicked: Cancel Full Fetch / 取消完整抓取");
+    patchState({ notice: "Cancel requested. Active target will finish safely, then a Partial Package will be generated. / 已要求取消；目前目標安全完成後將自動產生部分套件。" });
+    const result = await window.desktopApp?.userAnalysis?.cancelFullFetch?.();
+    if (!result?.ok) {
+      patchState({ errors: [result?.message ?? "Cancel request failed. / 取消要求失敗。"] });
+      return;
+    }
+    appendDebugLog("analysis", ["[INFO] Cancel requested", "[INFO] No new Full Fetch target will be scheduled", "[INFO] Partial Source Archive export will start after staging is flushed"]);
+  }
+
+  async function handleStagingAction(action: "resume" | "export_completed" | "discard" | "decide_later") {
+    const stagingId = String(userAnalysis.fullFetchStaging?.stagingId ?? "");
+    if (!stagingId) return;
+    if (action === "discard" && !window.confirm("Discard this Full Fetch staging? This cannot be undone.\n確定捨棄此 Full Fetch 暫存？此操作無法復原。")) return;
+    const result = await window.desktopApp?.userAnalysis?.fullFetchStagingAction?.({ stagingId, action });
+    if (!result?.ok) { patchState({ errors: [String(result?.error ?? "Staging action failed. / 暫存操作失敗。")] }); return; }
+    if (action === "resume") { await runFullFetch(stagingId); return; }
+    if (action === "decide_later") { patchState({ stagingWarningDismissed: false, notice: "Staging remains unresolved. / 暫存仍待處理。" }); return; }
+    if (action === "discard") { sessionStorage.removeItem("jaa.unresolvedFullFetchStagingId"); patchState({ fullFetchStaging: result.state as Record<string, unknown>, stagingWarningDismissed: true, previousUnfinishedDismissed: true, notice: "Full Fetch staging discarded. / 已捨棄 Full Fetch 暫存。" }); return; }
+    const exportResult = result.result as Record<string, unknown> | undefined;
+    patchState({ fullFetchStaging: result.state as Record<string, unknown>, stagingWarningDismissed: true, notice: `Partial Source Archive package exported: ${String(exportResult?.packagePath ?? "")}` });
   }
 
   async function openDiagnosticsFolder(filePath = userAnalysis.autoLogPath || userAnalysis.checkpointPath) {
@@ -1786,7 +1816,7 @@ export function AnalysisPage() {
               <ul className="mt-2 list-inside list-disc">
                 <li>Use Batch Size 10. / 建議使用每批 10 張。</li>
                 <li>Use Auto-save Raw Per Issue. / 建議使用逐張自動儲存 Raw。</li>
-                <li>Avoid Full Raw In Memory. / 避免使用全部 Raw 存記憶體模式。</li>
+                <li>Raw payloads are persisted through Full Fetch Staging. / Raw payload 會透過 Full Fetch 增量暫存安全落盤。</li>
               </ul>
             </div>
             <div>
@@ -1828,6 +1858,25 @@ export function AnalysisPage() {
         </div>
         {!setupReady ? <div data-testid="analysis-setup-blocked" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">Please set Selected User and Date Range before building timeline.<br />請先設定使用者與日期範圍，再建立活動時間線。</div> : <div data-testid="analysis-setup-status" className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-900">{userAnalysis.timelineStatus === "completed" ? <><span>Timeline is ready. Continue to Step 2: Select Issues.</span><br /><span>活動時間線已完成，可繼續進入 Step 2。</span></> : <><span>Setup is ready. Build Activity Timeline to continue to Step 2.</span><br /><span>設定完成。請建立活動時間線以繼續進入 Step 2。</span></>}</div>}
       </SectionCard> : null}
+
+      {userAnalysis.fullFetchStaging && !userAnalysis.stagingWarningDismissed && !["exported", "partial_exported", "discarded"].includes(String(userAnalysis.fullFetchStaging.status ?? "")) ? (
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950" data-testid="full-fetch-staging-warning">
+          <div className="font-black">Full Fetch Staging Requires Attention / Full Fetch 增量暫存待處理</div>
+          <p className="mt-1 font-semibold">Resolve this staging before starting a conflicting Full Fetch. No Jira request is sent automatically.<br />請先處理此暫存再開始新的 Full Fetch；系統不會自動送出 Jira 請求。</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <MiniStat label="Status / 狀態" value={String(userAnalysis.fullFetchStaging.status ?? "-")} />
+            <MiniStat label="Completed / 已完成" value={`${String(userAnalysis.fullFetchStaging.completed ?? 0)}/${String(userAnalysis.fullFetchStaging.total ?? 0)}`} />
+            <MiniStat label="Eligible / 可匯入" value={String(userAnalysis.fullFetchStaging.eligible ?? 0)} />
+            <MiniStat label="Remaining / 剩餘" value={String(userAnalysis.fullFetchStaging.remaining ?? 0)} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button className="btn btn-primary" type="button" disabled={!activeConnection || Number(userAnalysis.fullFetchStaging.remaining ?? 0) === 0} onClick={() => void handleStagingAction("resume")}>Resume Remaining Queue / 繼續剩餘佇列</button>
+            <button className="btn" type="button" disabled={Number(userAnalysis.fullFetchStaging.eligible ?? 0) === 0} onClick={() => void handleStagingAction("export_completed")}>Export Completed Records / 匯出已完成資料</button>
+            <button className="btn" type="button" onClick={() => void handleStagingAction("discard")}>Discard Staging / 捨棄暫存</button>
+            <button className="btn" type="button" onClick={() => void handleStagingAction("decide_later")}>Decide Later / 稍後決定</button>
+          </div>
+        </div>
+      ) : null}
 
       {userAnalysis.previousUnfinishedRun && !userAnalysis.previousUnfinishedDismissed && (userAnalysis.activeTab === "queue" || userAnalysis.activeTab === "fetchReport") ? (
         <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
@@ -1913,9 +1962,10 @@ export function AnalysisPage() {
             ))}
           </div>
           {userAnalysis.fullFetchStatus === "running" ? (
-            <button className="btn mt-4" type="button" disabled={userAnalysis.pauseAfterCurrentIssue} onClick={() => void handlePauseFullFetch()}>
-              <PauseCircle size={16} />{userAnalysis.pauseAfterCurrentIssue ? "Pause requested / 已要求暫停" : "Pause after current issue / 完成目前 Jira 後暫停"}
-            </button>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button className="btn" type="button" disabled={userAnalysis.pauseAfterCurrentIssue} onClick={() => void handlePauseFullFetch()}><PauseCircle size={16} />{userAnalysis.pauseAfterCurrentIssue ? "Pause requested / 已要求暫停" : "Pause after current issue / 完成目前 Jira 後暫停"}</button>
+              <button className="btn border-red-300 text-red-700" type="button" onClick={() => void handleCancelFullFetch()}><Trash2 size={16} />Cancel and Export Partial / 取消並匯出部分套件</button>
+            </div>
           ) : null}
           {userAnalysis.fullFetchStatus === "paused" ? <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">Full Fetch paused after the last completed issue. / 完整抓取已於上一張 Jira 完成後暫停。</div> : null}
         </SectionCard>
@@ -2238,9 +2288,8 @@ export function AnalysisPage() {
                 <select className="field" value={userAnalysis.rawDataMode} disabled={userAnalysis.fullFetchStatus === "running"} onChange={(event) => { logAnalysisAction("USER_ACTION", `Raw Data Mode changed / Raw Data 模式變更: value=${event.target.value}`); patchState({ rawDataMode: event.target.value as typeof userAnalysis.rawDataMode }); }}>
                   <option value="summary_only">Summary Only / 僅摘要（最低記憶體）</option>
                   <option value="auto_save_raw_per_issue">Auto-save Raw per Issue / 每張 Jira 自動存檔（建議）</option>
-                  <option value="full_raw_in_memory">Full Raw in Memory / 完整 Raw 保留於記憶體（高風險）</option>
                 </select>
-                <span className="mt-1 block text-xs font-semibold leading-snug text-muted">Auto-save writes sanitized per-issue diagnostic JSON outside the database. / 自動存檔只寫入清理後的診斷 JSON，不寫入資料庫。</span>
+                <span className="mt-1 block text-xs font-semibold leading-snug text-muted">Every target is persisted as sanitized staging JSON before UI completion; no database write occurs. / 每個目標都會在 UI 回報完成前寫入清理後的暫存 JSON，不會寫入資料庫。</span>
               </div>
               <div className="min-w-0">
                 <FieldLabel label="Batch Size" sub="批次大小" />
@@ -2258,9 +2307,6 @@ export function AnalysisPage() {
                 <AlertTriangle className="mt-0.5 shrink-0" size={17} />
                 <span>Large queue: {fetchQueue.length} issues. Expect longer runtime and more Jira GET requests. / 大型佇列共 {fetchQueue.length} 張 Jira，執行時間與唯讀 GET 請求數會增加。{fetchQueue.length > 40 ? " Starting requires typing CONFIRM. / 啟動時需輸入 CONFIRM。" : ""}</span>
               </div>
-            ) : null}
-            {userAnalysis.rawDataMode === "full_raw_in_memory" ? (
-              <div className="mb-3 flex gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold leading-relaxed text-red-900"><AlertTriangle className="mt-0.5 shrink-0" size={17} /><span>Full Raw in Memory increases memory and crash risk. Prefer Auto-save Raw per Issue for production-sized queues. / 完整 Raw 保留於記憶體會提高記憶體與當機風險，大型佇列請優先使用每張 Jira 自動存檔。</span></div>
             ) : null}
             <div className="mb-3 flex flex-wrap justify-end gap-2">
               <button className="btn" type="button" disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"} onClick={clearFetchQueue}><Trash2 size={15} />Clear Fetch Queue / 清除抓取佇列</button>
@@ -2656,9 +2702,10 @@ export function AnalysisPage() {
             </div>
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4" data-testid="source-archive-exporter">
               <div className="font-black text-emerald-950">Source Archive Import Package / 來源封存匯入套件</div>
-              <p className="mt-1 text-sm font-semibold leading-relaxed text-emerald-900">Exports Jira and Confluence Full Fetch raw JSON only. It does not create or write a Source Archive database.<br />僅匯出 Jira 與 Confluence Full Fetch 原始 JSON；不會建立或寫入來源封存資料庫。</p>
+              <p className="mt-1 text-sm font-semibold leading-relaxed text-emerald-900">Full Fetch Staging / Full Fetch 增量暫存 builds packages from safely persisted main-process files. It does not create or write a database.<br />套件由 main process 已安全落盤的暫存檔建立，不會建立或寫入資料庫。</p>
+              {userAnalysis.fullFetchStaging ? <div className="mt-2 break-words rounded-md border border-emerald-200 bg-white p-2 text-xs font-bold">Staging ID / 暫存編號：{String(userAnalysis.fullFetchStaging.stagingId ?? "-")} · Status / 狀態：{String(userAnalysis.fullFetchStaging.status ?? "-")} · Eligible / 可匯入：{String(userAnalysis.fullFetchStaging.eligible ?? 0)}</div> : null}
               <div className="mt-3 flex flex-wrap gap-2">
-                <button data-testid="preview-source-archive" className="btn" type="button" disabled={sourceArchiveBusy || !userAnalysis.fullFetchRawDataByIssueSanitized} onClick={() => void previewSourceArchive()}><Eye size={16} />Preview Package / 預覽套件</button>
+                <button data-testid="preview-source-archive" className="btn" type="button" disabled={sourceArchiveBusy || (!userAnalysis.fullFetchStaging && !userAnalysis.fullFetchRawDataByIssueSanitized)} onClick={() => void previewSourceArchive()}><Eye size={16} />Preview Package / 預覽套件</button>
                 <button data-testid="export-source-archive" className="btn btn-primary" type="button" disabled={sourceArchiveBusy || !sourceArchivePreview} onClick={() => void exportSourceArchive()}><Download size={16} />Export Source Archive Import Package / 匯出來源封存匯入套件</button>
               </div>
               {sourceArchivePreview ? (() => { const summary = sourceArchivePreview.summary as Record<string, unknown> | undefined; const errors = Array.isArray(sourceArchivePreview.errors) ? sourceArchivePreview.errors : []; return <div data-testid="source-archive-preview" className="mt-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2"><MiniStat label="Jira Full Fetch / Jira 完整抓取" value={String(summary?.jiraFullFetchObjectCount ?? 0)} /><MiniStat label="Confluence Full Fetch / Confluence 完整抓取" value={String(summary?.confluenceFullFetchObjectCount ?? 0)} /><MiniStat label="Missing Keys / 缺少編號" value={String(summary?.missingObjectKeyCount ?? 0)} /><MiniStat label="Errors / 錯誤" value={String(errors.length)} /><div className="min-w-0 rounded-lg border border-emerald-200 bg-white p-3"><div className="text-xs font-black text-muted">Package File / 套件檔名</div><div className="mt-1 break-all text-sm font-bold" title={String(sourceArchivePreview.fileName ?? "")}>{String(sourceArchivePreview.fileName ?? "-")}</div></div></div>; })() : <div className="mt-3 text-sm font-semibold text-emerald-800">Preview the package before export. / 匯出前請先預覽套件內容。</div>}
