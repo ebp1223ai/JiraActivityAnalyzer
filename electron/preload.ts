@@ -28,10 +28,18 @@ contextBridge.exposeInMainWorld("desktopApp", {
     activityStreamProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-probe", payload),
     activityStreamStabilityProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-stability-probe", payload),
     cancelStabilityProbe: () => ipcRenderer.invoke("user-analysis:cancel-stability-probe"),
+    updateStabilityUiState: (payload: unknown) => ipcRenderer.invoke("user-analysis:update-stability-ui-state", payload),
     onStabilityProbeProgress: (callback: (progress: unknown) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => callback(progress);
       ipcRenderer.on("user-analysis:stability-probe-progress", listener);
       return () => ipcRenderer.removeListener("user-analysis:stability-probe-progress", listener);
+    },
+    activityStreamBenchmark: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-benchmark", payload),
+    cancelActivityStreamBenchmark: () => ipcRenderer.invoke("user-analysis:cancel-activity-stream-benchmark"),
+    onActivityStreamBenchmarkProgress: (callback: (progress: unknown) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => callback(progress);
+      ipcRenderer.on("user-analysis:activity-stream-benchmark-progress", listener);
+      return () => ipcRenderer.removeListener("user-analysis:activity-stream-benchmark-progress", listener);
     },
     buildActivityTimeline: (payload: unknown) => ipcRenderer.invoke("user-analysis:build-activity-timeline", payload),
     cancelActivityTimeline: () => ipcRenderer.invoke("user-analysis:cancel-activity-timeline"),

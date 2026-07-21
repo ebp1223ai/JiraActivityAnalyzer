@@ -26,6 +26,18 @@ export type JiraHttpResult = {
   message?: string;
   bodyPreview?: string;
   bodyTextSanitized?: string;
+  requestStartedAt?: string;
+  requestSentAt?: string;
+  responseHeadersReceivedAt?: string;
+  responseBodyCompletedAt?: string;
+  requestCompletedAt?: string;
+  httpDurationMs?: number;
+  timeToFirstByteMs?: number | null;
+  timeToFirstByteAvailable?: boolean;
+  responseDownloadMs?: number;
+  responseBytes?: number;
+  timeout?: boolean;
+  aborted?: boolean;
 };
 
 export type ProbeEndpointResult = {

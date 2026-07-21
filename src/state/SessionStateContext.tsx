@@ -1,6 +1,8 @@
 import { createContext, useContext, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { defaultWorkflowSteps, type FetchQueueMetadata, type RelatedCandidateIssue, type TimelineIssueGroup, type WorkflowStepStatus } from "../../electron/userAnalysisWorkflow";
+import type { ActivityStreamProbeRunV2 } from "../../electron/activityStreamRoundStability";
+import type { ActivityStreamBenchmarkRun } from "../../electron/activityStreamBenchmark";
 
 export type SessionTableState = {
   page: number;
@@ -610,6 +612,20 @@ export type UserAnalysisSessionState = {
   activityStreamDelayBetweenRoundsMs: number;
   activityStreamRoundExecutionMode: "stop_when_stable" | "force_all_rounds";
   activityStreamMergeStrategy: "union" | "last_stable";
+  stabilityActiveTab: "precision" | "stability" | "roundComparison" | "windowDiagnostics" | "raw" | "benchmark";
+  stabilityRoundExecutionMode: "stop_when_stable" | "force_all_rounds";
+  stabilityProbeRun: ActivityStreamProbeRunV2 | null;
+  stabilityProgress: Record<string, unknown>;
+  stabilityRunning: boolean;
+  stabilityStatusFilter: string;
+  stabilitySort: "round" | "window" | "attempt" | "duration";
+  stabilityVisibleColumns: string[];
+  windowSort: "round_window" | "duration" | "date";
+  windowVisibleColumns: string[];
+  activityStreamBenchmarkConfig: { selectedUser: string; startDate: string; endDate: string; runs: number; variant: "escaped_username"; concurrency: 1 };
+  activityStreamBenchmarkRun: ActivityStreamBenchmarkRun | null;
+  activityStreamBenchmarkProgress: Record<string, unknown>;
+  activityStreamBenchmarkRunning: boolean;
   precisionProbeMaxResults: number;
   precisionProbeMaxResultsSource: "custom" | "quick";
   activityStreamDateQueryMode: UserActivityStreamDateQueryMode;
@@ -796,6 +812,20 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   activityStreamDelayBetweenRoundsMs: 1000,
   activityStreamRoundExecutionMode: "stop_when_stable",
   activityStreamMergeStrategy: "union",
+  stabilityActiveTab: "precision",
+  stabilityRoundExecutionMode: "force_all_rounds",
+  stabilityProbeRun: null,
+  stabilityProgress: {},
+  stabilityRunning: false,
+  stabilityStatusFilter: "all",
+  stabilitySort: "round",
+  stabilityVisibleColumns: ["round", "status", "duration", "raw", "unique", "primary", "referenced", "newPrevious", "missingPrevious", "eventFingerprint", "primaryFingerprint", "consistency", "coldStart"],
+  windowSort: "round_window",
+  windowVisibleColumns: ["round", "window", "date", "classification", "logical", "physical", "http", "processing", "raw", "unique", "primary", "referenced", "status"],
+  activityStreamBenchmarkConfig: { selectedUser: "roger_hsieh", startDate: "2026-07-01", endDate: "2026-07-07", runs: 5, variant: "escaped_username", concurrency: 1 },
+  activityStreamBenchmarkRun: null,
+  activityStreamBenchmarkProgress: {},
+  activityStreamBenchmarkRunning: false,
   precisionProbeMaxResults: 50,
   precisionProbeMaxResultsSource: "quick",
   activityStreamDateQueryMode: "both",

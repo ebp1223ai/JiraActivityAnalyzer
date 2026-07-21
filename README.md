@@ -4,7 +4,14 @@ Electron desktop application for read-only Jira activity inspection and analysis
 
 ## User Analysis Workflow
 
-Version 0.2.26 changes Activity Stream stability execution to round-first and adds a Full Fetch-only Source Archive Import Package exporter while preserving the guarded five-step User Analysis workflow and direct Jira evidence extraction:
+Version 0.2.27 strengthens Activity Stream reliability diagnostics while preserving the guarded five-step User Analysis workflow and direct Jira evidence extraction:
+
+- Stability setup, results, active tab, filters, sort, and visible columns persist for the current app session.
+- Formal Stability and Timeline queries use only `escaped_username`; new executions do not perform username/email variant discovery.
+- Logical window requests and physical HTTP requests have separate counts, timings, pagination/retry flags, and result classifications.
+- Processing timing is separated from HTTP timing, including normalization, Jira-key extraction, deduplication, fingerprint, comparison, and assembly stages.
+- Activity Stream Benchmark runs 1-20 isolated, sequential, read-only samples and exports JSON, CSV, and summary files without changing Timeline, Candidate Set, or Full Fetch state.
+- Debug Bundles include independent Stability setup, round comparison, window diagnostics, raw diagnostics, UI state, Benchmark exports, and the latest successful Source Archive package from the current session.
 
 1. Setup & Build Timeline
 2. Select Issues
@@ -16,7 +23,7 @@ The Stability Probe defaults to **Force All Rounds / 強制執行全部輪次**.
 
 Round diagnostics separate primary Jira targets from Jira-like keys referenced in titles or summaries. V2 exports include round fingerprints, union, intersection, variable events, consistency rate, per-window diagnostics, API/processing duration, progress, and ETA. Legacy v1 files remain identifiable as `window_first`; they are not converted into synthetic rounds.
 
-The Source Archive Import Package contains only sanitized Jira and Confluence Full Fetch raw JSON envelopes. It excludes Activity Stream data, probe results, timeline, evidence, coverage diagnostics, UI state, debug logs, credentials, and attachment files. Export performs a sensitive-data scan and creates a ZIP preview before writing the package. Version 0.2.26 does not create or write a Source Archive SQLite database.
+The Source Archive Import Package contains only sanitized Jira and Confluence Full Fetch raw JSON envelopes. It excludes Activity Stream data, probe results, timeline, evidence, coverage diagnostics, UI state, debug logs, credentials, and attachment files. Export performs a sensitive-data scan and creates a ZIP preview before writing the package. Version 0.2.27 does not create or write a Source Archive SQLite database.
 
 Step 1 combines the selected user, inclusive date range, optional project scope, Live Jira API source, timeline build action, timeline summary, and event inspection. Later steps repeat a compact setup summary and remain blocked until their required evidence exists. Advanced Tools and Candidate Search are no longer exposed in User Analysis.
 

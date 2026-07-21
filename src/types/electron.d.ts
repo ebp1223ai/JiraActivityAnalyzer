@@ -67,7 +67,11 @@ declare global {
         activityStreamProbe: (payload: { connection: JiraConnection; selectedUsers: string[]; activityStreamUser: string; queryMode: "auto" | "username" | "escaped_username" | "email" | "custom"; startDate: string; endDate: string; maxResults: number; maxResultsSource: "custom" | "quick"; largeMaxResultsConfirmed: boolean; dateQueryMode: "none" | "startDate_endDate" | "update_date_after_before" | "both"; chunkingMode: "off" | "auto" | "monthly" | "weekly" | "custom_days"; customChunkDays: number; relativeLinks: boolean; runId: string; standardFlow?: boolean; advancedOverrideUsed?: boolean }) => Promise<Record<string, unknown>>;
         activityStreamStabilityProbe: (payload: { connection: JiraConnection; config: Record<string, unknown>; confirmedLargeRun?: boolean }) => Promise<Record<string, unknown>>;
         cancelStabilityProbe: () => Promise<{ ok: boolean; runId?: string; message?: string }>;
+        updateStabilityUiState: (payload: Record<string, unknown>) => Promise<{ ok: boolean }>;
         onStabilityProbeProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
+        activityStreamBenchmark: (payload: { connection: JiraConnection; config: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+        cancelActivityStreamBenchmark: () => Promise<{ ok: boolean; benchmarkRunId?: string; message?: string }>;
+        onActivityStreamBenchmarkProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
         buildActivityTimeline: (payload: { connection: JiraConnection; selectedUser: string; startDate: string; endDate: string; projectScope: string; requestWindow: { type: "1_day" | "7_days" | "14_days" | "calendar_month" | "custom_days"; customDays: number | null }; fullScanRoundCount: number; delayBetweenRoundsMs: number; roundExecutionMode: "stop_when_stable" | "force_all_rounds"; mergeStrategy: "union" | "last_stable" }) => Promise<Record<string, unknown>>;
         cancelActivityTimeline: () => Promise<{ ok: boolean; runId?: string; message?: string }>;
         onActivityTimelineProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;

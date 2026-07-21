@@ -36,6 +36,9 @@ export function createJiraClient(options: JiraClientOptions) {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 18000);
+    const requestStartedAt = new Date().toISOString();
+    const requestSentMs = Date.now();
+    const requestSentAt = new Date(requestSentMs).toISOString();
     try {
       const response = await fetch(`${baseUrl}${pathName}`, {
         headers: {
@@ -44,17 +47,47 @@ export function createJiraClient(options: JiraClientOptions) {
         },
         signal: controller.signal
       });
+      const headersMs = Date.now();
       const contentType = response.headers.get("content-type") ?? "";
       const text = await response.text();
-      return parseJiraResponse(response.status, contentType, text, response.ok, pathName.startsWith("/plugins/servlet/streams"));
-    } catch {
+      const bodyCompletedMs = Date.now();
+      return {
+        ...parseJiraResponse(response.status, contentType, text, response.ok, pathName.startsWith("/plugins/servlet/streams")),
+        requestStartedAt,
+        requestSentAt,
+        responseHeadersReceivedAt: new Date(headersMs).toISOString(),
+        responseBodyCompletedAt: new Date(bodyCompletedMs).toISOString(),
+        requestCompletedAt: new Date(bodyCompletedMs).toISOString(),
+        httpDurationMs: bodyCompletedMs - requestSentMs,
+        timeToFirstByteMs: headersMs - requestSentMs,
+        timeToFirstByteAvailable: true,
+        responseDownloadMs: bodyCompletedMs - headersMs,
+        responseBytes: Buffer.byteLength(text, "utf8"),
+        timeout: false,
+        aborted: false
+      };
+    } catch (error) {
+      const completedMs = Date.now();
+      const aborted = controller.signal.aborted;
       return {
         ok: false,
         status: "-",
-        contentType: "network-error",
+        contentType: aborted ? "timeout" : "network-error",
         json: null,
         errorType: "NETWORK_ERROR",
-        message: "Network error. Check VPN, proxy, certificate, and base URL."
+        message: aborted ? "Request timed out after 18000 ms." : `Network error. ${error instanceof Error ? error.message : "Check VPN, proxy, certificate, and base URL."}`,
+        requestStartedAt,
+        requestSentAt,
+        responseHeadersReceivedAt: "",
+        responseBodyCompletedAt: "",
+        requestCompletedAt: new Date(completedMs).toISOString(),
+        httpDurationMs: completedMs - requestSentMs,
+        timeToFirstByteMs: null,
+        timeToFirstByteAvailable: false,
+        responseDownloadMs: 0,
+        responseBytes: 0,
+        timeout: aborted,
+        aborted
       };
     } finally {
       clearTimeout(timeout);

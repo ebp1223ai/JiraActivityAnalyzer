@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import fs from "node:fs";
+import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { ensureDir, getActivityStreamBaselinesDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
@@ -8,7 +9,8 @@ import { buildUserActivityTimeline, classifyJiraRelation, classifyTimelineSource
 import { buildTimelineIssueGroups, extractRelatedIssues, mergeQueueMetadata, relatedIssueScopeSummary, relatedIssueSummary, type RelatedCandidateIssue, type WorkflowStepStatus } from "./userAnalysisWorkflow.js";
 import { analysisRoadmap, extractJiraEvidenceFromIssue, jiraEvidenceSchema, summarizeJiraEvidence, type JiraEvidenceEvent, type JiraEvidenceExcludedSummary, type JiraEvidenceSummary } from "./jiraEvidence.js";
 import { classifyWindowStability, csvCell, finalizeAttemptDiffs, fingerprintSet, mergeProbeAttempts, normalizeStabilityEvent, recommendStabilitySettings, splitActivityStreamWindows, type ActivityStreamProbeAttempt, type ActivityStreamProbeRun, type ActivityStreamProbeWindow, type ActivityStreamStabilityProbeConfig } from "./activityStreamStability.js";
-import { executeRoundFirstStability, type ActivityStreamProbeRunV2, type ActivityStreamRound, type ActivityStreamRoundWindowResult, type ActivityStreamStabilityConfigV2 } from "./activityStreamRoundStability.js";
+import { classifyActivityStreamResult, executeRoundFirstStability, type ActivityStreamProbeRunV2, type ActivityStreamRound, type ActivityStreamRoundWindowResult, type ActivityStreamStabilityConfigV2, type PhysicalHttpRequestDiagnostic, type RoundWindowFetchResult } from "./activityStreamRoundStability.js";
+import { benchmarkCsv, executeActivityStreamBenchmark, type ActivityStreamBenchmarkConfig, type ActivityStreamBenchmarkRun } from "./activityStreamBenchmark.js";
 import { buildSourceArchivePackage } from "./sourceArchiveExporter.js";
 import { createJiraClient } from "./jira/jiraClient.js";
 import { assertReadOnlyRequest, ReadOnlyViolationError } from "./jira/jiraReadOnlyGuard.js";
@@ -50,7 +52,11 @@ let latestFullFetchCoverageDiagnostics: Record<string, unknown> | null = null;
 let latestJiraEvidence: { eventsDocument: Record<string, unknown>; events: JiraEvidenceEvent[]; summary: JiraEvidenceSummary; excluded: JiraEvidenceExcludedSummary; files: Record<string, string> } | null = null;
 let latestActivityStreamStabilityProbe: (ActivityStreamProbeRun & { files: Record<string, string> }) | null = null;
 let latestActivityStreamStabilityProbeV2: (ActivityStreamProbeRunV2 & { files: Record<string, string> }) | null = null;
+let latestActivityStreamBenchmark: (ActivityStreamBenchmarkRun & { files: Record<string, string> }) | null = null;
+let latestStabilityUiState: Record<string, unknown> = { activeTab: "stability", filters: {}, sort: {}, visibleColumns: {}, latestProbeRunId: "", statePersistedAt: "" };
+let latestSourceArchiveExport: { fileName: string; filePath: string; exportRunId: string; selectedUser: string; createdAt: string; sizeBytes: number; sha256: string; jiraObjectCount: number; confluenceObjectCount: number } | null = null;
 let activeStabilityProbe: { runId: string; cancelled: boolean } | null = null;
+let activeActivityStreamBenchmark: { runId: string; cancelled: boolean } | null = null;
 let activeTimelineBuild: { runId: string; cancelled: boolean } | null = null;
 let lastActivityStreamQueryAt = "";
 const appSessionId = `app-session-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -1481,6 +1487,7 @@ async function runActivityStreamProbeAttempt(connection: AppConnection, selected
   const modeRuns: Array<{ mode: ActivityStreamDateTestMode; stream: ReturnType<typeof aggregateActivityStream>; variants: ReturnType<typeof activityStreamResult>[]; chunkResults: Array<Record<string, unknown>> }> = [];
   let responseBytes = 0;
   const requestStartedAt = Date.now();
+  const physicalRequests: PhysicalHttpRequestDiagnostic[] = [];
   for (const dateMode of dateModes) {
     const variantResults = [] as ReturnType<typeof activityStreamResult>[];
     const useChunks = dateMode === "update_date_after_before" && dateRangeChunking.enabled;
@@ -1495,6 +1502,7 @@ async function runActivityStreamProbeAttempt(connection: AppConnection, selected
         const requestUrlSanitized = activityStreamRequestPath(requestMaxResults, relativeLinks, variant.user, dateMode, chunkRange);
         logs.push(`[INFO] Activity Stream chunk started: chunk=${chunk.chunkIndex}/${requestRanges.length} variant=${variant.variant} dateMode=${dateMode} range=${chunk.chunkStart}..${chunk.chunkEndExclusive}`, `[DEBUG] GET ${requestUrlSanitized} (credentials masked)`);
         let response: JiraHttpResult;
+        const physicalStartedMs = Date.now();
         if (isUiSmoke) {
           const chunkedEntry = `<entry><title>updated Smoke Confluence chunk ${chunk.chunkIndex}</title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><updated>${chunk.chunkStart}T10:00:00+08:00</updated><activity:application>com.atlassian.confluence</activity:application><activity:object-type>page</activity:object-type><summary>Chunk ${chunk.chunkIndex}</summary></entry>`;
           const duplicateEntry = `<entry><title>shared Smoke Confluence activity</title><author><name>Smoke User</name><email>smoke.user@example.com</email></author><updated>${range.start}T09:00:00+08:00</updated><activity:application>com.atlassian.confluence</activity:application><activity:object-type>page</activity:object-type><summary>Duplicate across chunks</summary></entry>`;
@@ -1510,6 +1518,18 @@ async function runActivityStreamProbeAttempt(connection: AppConnection, selected
         }
         responseBytes += Buffer.byteLength(String(response.bodyTextSanitized ?? response.bodyPreview ?? JSON.stringify(response.json ?? "")), "utf8");
         const result = { ...activityStreamResult(response, requestUrlSanitized, variant.user, variant.variant, runId), dateQueryMode: dateMode };
+        const physicalCompletedMs = Date.now();
+        const physicalRequestId = `${runId}-http-${String(physicalRequests.length + 1).padStart(3, "0")}`;
+        physicalRequests.push({
+          physicalRequestId, probeRunId: runId, roundNumber: 0, windowNumber: chunk.chunkIndex,
+          requestWindowStart: chunk.chunkStart, requestWindowEnd: addIsoDays(chunk.chunkEndExclusive, -1), variant: "escaped_username",
+          requestStartedAt: response.requestStartedAt || new Date(physicalStartedMs).toISOString(), requestSentAt: response.requestSentAt || new Date(physicalStartedMs).toISOString(),
+          responseHeadersReceivedAt: response.responseHeadersReceivedAt || "", responseBodyCompletedAt: response.responseBodyCompletedAt || new Date(physicalCompletedMs).toISOString(), requestCompletedAt: response.requestCompletedAt || new Date(physicalCompletedMs).toISOString(),
+          httpStatus: String(response.status), responseBytes: response.responseBytes ?? Buffer.byteLength(String(response.bodyTextSanitized ?? response.bodyPreview ?? JSON.stringify(response.json ?? "")), "utf8"), atomEntryCount: result.atomEntryCount, parsedEventCount: result.parsedActivityCount,
+          timeout: response.timeout === true, aborted: response.aborted === true, errorType: response.timeout ? "timeout" : result.diagnosis, errorMessageSanitized: maskDiagnosticText(result.error).slice(0, 300),
+          httpDurationMs: response.httpDurationMs ?? Math.max(0, physicalCompletedMs - physicalStartedMs), timeToFirstByteMs: response.timeToFirstByteMs ?? null, timeToFirstByteAvailable: response.timeToFirstByteAvailable === true, responseDownloadMs: response.responseDownloadMs ?? 0,
+          pagination: chunk.chunkIndex > 1, retry: false
+        });
         currentChunkResults.push(result);
         resultsByVariant.set(variant.variant, [...(resultsByVariant.get(variant.variant) ?? []), result]);
         logs.push(`${result.parsed ? "[INFO]" : "[WARN]"} Activity Stream chunk completed: chunk=${chunk.chunkIndex} variant=${variant.variant} diagnosis=${result.diagnosis} atomEntries=${result.atomEntryCount} parsedActivities=${result.parsedActivityCount}`);
@@ -1544,7 +1564,10 @@ async function runActivityStreamProbeAttempt(connection: AppConnection, selected
   const totalChunkParsedEntries = activityStreamChunkResults.reduce((sum, item) => sum + Number(item.parsedActivityCount || 0), 0);
   const chunkMergeStats = { totalChunkAtomEntries, mergedActivityEntries: activityStream.parsedActivityCount, duplicateEntriesRemoved: Math.max(0, totalChunkParsedEntries - activityStream.parsedActivityCount), mergedEntriesWithIssueKeyCount: activityStream.activityEntryStats.entriesWithIssueKeyCount, mergedConfluenceOnlyEntryCount: activityStream.activityEntryStats.confluenceOnlyEntryCount, uniqueIssueKeyCount: activityStream.activityEntryStats.uniqueIssueKeyCount, successfulChunks: activityStreamChunkResults.filter((item) => String(item.status) === "success").length, noEntryChunks: activityStreamChunkResults.filter((item) => String(item.diagnosis) === "no_entries").length, failedChunks: activityStreamChunkResults.filter((item) => !["success", "no_entries"].includes(String(item.status))).length };
   logs.push(`[INFO] Activity Stream best variant: ${activityStream.bestVariant || "none"}`, `[INFO] Activity Stream probe completed: overallStatus=${activityStream.overallStatus} bestVariant=${activityStream.bestVariant || "none"} diagnosis=${activityStream.diagnosis} parsedIssueKeys=${activityStream.activityStreamIssueKeys.length}`, "[INFO] No database write performed", "[INFO] No Jira write performed");
-  return { runId, startedAt, completedAt: new Date().toISOString(), activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, dateRangeChunking, activityStreamChunkResults, chunkMergeStats, clientDateFilteredEntriesSanitized, standardActivityStreamFlow, advancedDiagnosticsUsed: !standardFlow, activityTypeClassifierDiagnostics: activityStream.activityTypeClassifierDiagnostics, logs };
+  const completedAt = new Date().toISOString();
+  const totalElapsedMs = Math.max(0, Date.parse(completedAt) - Date.parse(startedAt));
+  const totalHttpDurationMs = physicalRequests.reduce((sum, request) => sum + request.httpDurationMs, 0);
+  return { runId, startedAt, completedAt, activityStream, dateSemantics, dateQueryResults, maxResultsDiagnostics, dateRangeChunking, activityStreamChunkResults, chunkMergeStats, clientDateFilteredEntriesSanitized, standardActivityStreamFlow, advancedDiagnosticsUsed: !standardFlow, activityTypeClassifierDiagnostics: activityStream.activityTypeClassifierDiagnostics, physicalRequests, totalHttpDurationMs, totalProcessingDurationMs: Math.max(0, totalElapsedMs - totalHttpDurationMs), logs };
 }
 
 function baselineObservationFromRun(run: Awaited<ReturnType<typeof runActivityStreamProbeAttempt>>, selectedUsers: string[], startDate: string, endDate: string, maxResults: number, relativeLinks: boolean): BaselineObservation {
@@ -1754,8 +1777,8 @@ function roundComparisonCsv(rounds: ActivityStreamRound[]) {
 }
 
 function windowDiagnosticsCsv(windows: ActivityStreamRoundWindowResult[]) {
-  const headers = ["Round", "Window", "DateStart", "DateEnd", "Status", "HttpStatus", "ApiDurationMs", "ProcessingDurationMs", "TotalRequestDurationMs", "RawEvents", "UniqueEvents", "PrimaryJiraKeys", "ReferencedJiraKeys", "NewEvents", "MissingEvents", "EventFingerprint"];
-  const rows = windows.map((window) => [window.roundNumber, window.windowNumber, window.requestWindowStart, window.requestWindowEnd, window.status, window.httpStatus, window.apiDurationMs, window.processingDurationMs, window.totalRequestDurationMs, window.rawEventCount, window.uniqueEventCount, window.primaryJiraKeyCount, window.referencedJiraKeyCount, window.newEventsComparedWithPreviousRound, window.missingEventsComparedWithPreviousRound, window.eventSetFingerprint]);
+  const headers = ["Round", "Window", "DateStart", "DateEnd", "Status", "Classification", "HttpStatus", "LogicalFetchDurationMs", "PhysicalHttpRequestCount", "PhysicalHttpDurationMs", "PaginationRequestCount", "RetryRequestCount", "ProcessingDurationMs", "TotalWindowDurationMs", "RawEvents", "UniqueEvents", "PrimaryJiraKeys", "ReferencedJiraKeys", "NewEvents", "MissingEvents", "EventFingerprint"];
+  const rows = windows.map((window) => [window.roundNumber, window.windowNumber, window.requestWindowStart, window.requestWindowEnd, window.status, window.classification, window.httpStatus, window.logicalFetchDurationMs, window.physicalHttpRequestCount, window.physicalRequests.reduce((sum, request) => sum + request.httpDurationMs, 0), window.paginationRequestCount, window.retryRequestCount, window.processingTiming.totalProcessingMs, window.totalRequestDurationMs, window.rawEventCount, window.uniqueEventCount, window.primaryJiraKeyCount, window.referencedJiraKeyCount, window.newEventsComparedWithPreviousRound, window.missingEventsComparedWithPreviousRound, window.eventSetFingerprint]);
   return `\uFEFF${headers.join(",")}\r\n${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
 }
 
@@ -1763,18 +1786,49 @@ function writeRoundStabilityFiles(run: ActivityStreamProbeRunV2) {
   const folder = ensureDir(path.join(getExportsDir(), "user-analysis", "stability-probe-v2", run.probeRunId));
   const files = {
     probe: path.join(folder, "activity-stream-stability-probe-v2.json"),
+    setup: path.join(folder, "activity-stream-stability-setup.json"),
     rounds: path.join(folder, "activity-stream-rounds.json"),
+    roundComparisonJson: path.join(folder, "activity-stream-round-comparison.json"),
     roundComparison: path.join(folder, "activity-stream-round-comparison.csv"),
+    windowDiagnosticsJson: path.join(folder, "activity-stream-window-diagnostics.json"),
     windowDiagnostics: path.join(folder, "activity-stream-window-diagnostics.csv"),
+    rawDiagnostics: path.join(folder, "activity-stream-raw-diagnostics.json"),
+    uiState: path.join(folder, "activity-stream-stability-ui-state.json"),
     recommendation: path.join(folder, "activity-stream-stability-recommendation-v2.json")
   };
   writeJsonAtomic(files.probe, sanitizeExportData({ app: { version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__ }, ...run }));
+  writeJsonAtomic(files.setup, { selectedUser: run.selectedUser, dateRange: run.dateRange, requestWindow: run.config.requestWindow, fullScanRoundCount: run.config.fullScanRoundCount, delayBetweenRounds: run.config.delayBetweenRoundsMs, roundExecutionMode: run.config.roundExecutionMode, mergeStrategy: run.config.mergeStrategy, createdAt: run.startedAt, latestProbeRunId: run.probeRunId });
   writeJsonAtomic(files.rounds, { schemaVersion: "activity_stream_rounds_v2", probeRunId: run.probeRunId, executionOrder: run.executionOrder, rounds: run.rounds });
+  writeJsonAtomic(files.roundComparisonJson, { schemaVersion: "activity_stream_round_comparison_v2", probeRunId: run.probeRunId, comparison: run.comparison, rounds: run.rounds });
   fs.writeFileSync(files.roundComparison, roundComparisonCsv(run.rounds), "utf8");
+  writeJsonAtomic(files.windowDiagnosticsJson, { schemaVersion: "activity_stream_window_diagnostics_v2", probeRunId: run.probeRunId, logicalWindowRequestCount: run.windowDiagnostics.length, physicalHttpRequestCount: run.windowDiagnostics.reduce((sum, item) => sum + item.physicalHttpRequestCount, 0), paginationRequestCount: run.windowDiagnostics.reduce((sum, item) => sum + item.paginationRequestCount, 0), retryRequestCount: run.windowDiagnostics.reduce((sum, item) => sum + item.retryRequestCount, 0), windows: run.windowDiagnostics });
   fs.writeFileSync(files.windowDiagnostics, windowDiagnosticsCsv(run.windowDiagnostics), "utf8");
+  writeJsonAtomic(files.rawDiagnostics, { schemaVersion: "activity_stream_raw_diagnostics_v2", probeRunId: run.probeRunId, diagnostics: run.windowDiagnostics.map((item) => ({ logicalRequestId: item.logicalRequestId, classification: item.classification, physicalRequests: item.physicalRequests, processingTiming: item.processingTiming, rawResultSanitized: item.rawResultSanitized })) });
+  writeJsonAtomic(files.uiState, { ...latestStabilityUiState, latestProbeRunId: run.probeRunId, statePersistedAt: new Date().toISOString() });
   writeJsonAtomic(files.recommendation, { schemaVersion: "activity_stream_stability_recommendation_v2", probeRunId: run.probeRunId, recommendation: run.recommendation });
   return files;
 }
+
+async function fetchReliabilityWindow(connection: AppConnection, selectedUser: string, start: string, end: string, runId: string, roundNumber: number, windowNumber: number): Promise<RoundWindowFetchResult & { sourceRun: Awaited<ReturnType<typeof runActivityStreamProbeAttempt>> }> {
+  const logicalStarted = Date.now();
+  try {
+    const sourceRun = await runActivityStreamProbeAttempt(connection, [selectedUser], selectedUser, "escaped_username", start, end, 500, true, runId, "update_date_after_before", "custom", false, "off", 7, true, false);
+    lastActivityStreamQueryAt = new Date().toISOString();
+    const stream = sourceRun.activityStream;
+    const physicalRequests = sourceRun.physicalRequests.map((request) => ({ ...request, probeRunId: runId, roundNumber, windowNumber, requestWindowStart: start, requestWindowEnd: end, variant: "escaped_username" as const }));
+    const responseBytes = physicalRequests.reduce((sum, request) => sum + request.responseBytes, 0);
+    const classification = classifyActivityStreamResult({ httpStatus: String(stream.httpStatus ?? "-"), atomEntryCount: Number(stream.atomEntryCount ?? 0), parsedEventCount: stream.entriesSanitized.length, responseBytes, timeout: physicalRequests.some((item) => item.timeout), aborted: physicalRequests.some((item) => item.aborted), errorType: stream.status === "failed" ? stream.diagnosis : "" });
+    return { sourceRun, httpStatus: String(stream.httpStatus ?? "-"), requestSucceeded: classification === "http_200_with_entries" || classification === "http_200_no_entries", classification, rawEventCount: Number(stream.atomEntryCount ?? 0), entries: stream.entriesSanitized as unknown as Record<string, unknown>[], apiDurationMs: sourceRun.totalHttpDurationMs, logicalFetchDurationMs: sourceRun.totalHttpDurationMs, physicalRequests, processingDurationMs: sourceRun.totalProcessingDurationMs, errorType: stream.status === "failed" ? stream.diagnosis : "", errorMessage: stream.error, rawResultSanitized: sanitizeExportData({ runId: sourceRun.runId, status: stream.status, diagnosis: stream.diagnosis, variant: "escaped_username", requestUrlSanitized: stream.requestUrlSanitized, atomEntryCount: stream.atomEntryCount, parsedActivityCount: stream.parsedActivityCount, logicalElapsedMs: Date.now() - logicalStarted }) as Record<string, unknown> };
+  } catch (error) {
+    const duration = Date.now() - logicalStarted;
+    return { sourceRun: null as never, httpStatus: "-", requestSucceeded: false, classification: "network_error", rawEventCount: 0, entries: [], apiDurationMs: duration, logicalFetchDurationMs: duration, physicalRequests: [], processingDurationMs: 0, errorType: "network_error", errorMessage: error instanceof Error ? error.message : String(error), rawResultSanitized: {} };
+  }
+}
+
+ipcMain.handle("user-analysis:update-stability-ui-state", async (_event, payload: Record<string, unknown>) => {
+  latestStabilityUiState = sanitizeExportData({ ...payload, statePersistedAt: new Date().toISOString() }) as Record<string, unknown>;
+  return { ok: true };
+});
 
 ipcMain.handle("user-analysis:activity-stream-stability-probe", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamStabilityConfigV2 & Record<string, unknown>; confirmedLargeRun?: boolean }) => {
   if (activeStabilityProbe) throw new Error("Another Activity Stream Stability Probe is already running. / 另一個穩定性測試正在執行。");
@@ -1810,25 +1864,57 @@ ipcMain.handle("user-analysis:activity-stream-stability-probe", async (ipcEvent,
       shouldCancel: () => activeStabilityProbe?.cancelled === true,
       onProgress: (progress) => ipcEvent.sender.send("user-analysis:stability-probe-progress", progress),
       fetchWindow: async ({ roundNumber, roundId, windowNumber, windowId, start, end }) => {
-        const apiStarted = Date.now();
         const runId = `${probeRunId}-${roundId}-${windowId}`;
-        try {
-          const result = await runActivityStreamProbe(payload.connection, [config.selectedUser], config.selectedUser, "auto", start, end, 500, true, runId, "update_date_after_before", "quick", false, "off", 7, false, true);
-          lastActivityStreamQueryAt = new Date().toISOString();
-          const stream = result.activityStream;
-          return { httpStatus: String(stream.httpStatus ?? "-"), requestSucceeded: stream.status !== "failed", rawEventCount: Number(stream.atomEntryCount ?? 0), entries: stream.entriesSanitized as unknown as Record<string, unknown>[], apiDurationMs: Date.now() - apiStarted, errorType: stream.status === "failed" ? stream.diagnosis : "", errorMessage: stream.error, rawResultSanitized: sanitizeExportData({ runId: result.runId, roundNumber, windowNumber, status: stream.status, diagnosis: stream.diagnosis, requestUrlSanitized: stream.requestUrlSanitized, atomEntryCount: stream.atomEntryCount, parsedActivityCount: stream.parsedActivityCount }) as Record<string, unknown> };
-        } catch (error) {
-          lastActivityStreamQueryAt = new Date().toISOString();
-          return { httpStatus: "-", requestSucceeded: false, rawEventCount: 0, entries: [], apiDurationMs: Date.now() - apiStarted, errorType: "request_error", errorMessage: error instanceof Error ? error.message : String(error), rawResultSanitized: {} };
-        }
+        return fetchReliabilityWindow(payload.connection, config.selectedUser, start, end, runId, roundNumber, windowNumber);
       }
     });
+    const requestLogs = run.windowDiagnostics.flatMap((window) => window.physicalRequests.map((request) => `[INFO][activity-stream] probeRunId=${run.probeRunId} roundNumber=${window.roundNumber} windowNumber=${window.windowNumber} logicalRequestId=${window.logicalRequestId} physicalRequestId=${request.physicalRequestId} stage=response_completed durationMs=${request.httpDurationMs} httpStatus=${request.httpStatus} classification=${window.classification}`));
     const files = writeRoundStabilityFiles(run);
     latestActivityStreamStabilityProbeV2 = { ...run, files };
-    return { ...run, files, migrationWarning: source.forceRunAllAttempts === true && source.stopEarlyWhenStable === true ? "Legacy settings conflict; Force All Rounds was selected. / 舊設定衝突，已採用強制執行全部輪次。" : "" };
+    return { ...run, files, logs: [...requestLogs, "[INFO] Authorization: [masked]", "[INFO] Token: [masked]", "[INFO] No database write performed", "[INFO] No Jira write performed"], migrationWarning: source.forceRunAllAttempts === true && source.stopEarlyWhenStable === true ? "Legacy settings conflict; Force All Rounds was selected. / 舊設定衝突，已採用強制執行全部輪次。" : "" };
   } finally {
     activeStabilityProbe = null;
   }
+});
+
+function writeBenchmarkFiles(run: ActivityStreamBenchmarkRun) {
+  const folderPath = ensureDir(path.join(getExportsDir(), "user-analysis", "activity-stream-benchmark", run.benchmarkRunId));
+  const files = {
+    json: path.join(folderPath, "activity-stream-benchmark.json"),
+    csv: path.join(folderPath, "activity-stream-benchmark.csv"),
+    summary: path.join(folderPath, "activity-stream-benchmark-summary.json")
+  };
+  writeJsonAtomic(files.json, { app: { version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__ }, ...run });
+  fs.writeFileSync(files.csv, benchmarkCsv(run), "utf8");
+  writeJsonAtomic(files.summary, { schemaVersion: "activity_stream_benchmark_summary_v1", benchmarkRunId: run.benchmarkRunId, status: run.status, config: run.config, summary: run.summary });
+  return files;
+}
+
+ipcMain.handle("user-analysis:activity-stream-benchmark", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamBenchmarkConfig }) => {
+  if (activeActivityStreamBenchmark) throw new Error("Another benchmark is already running. / 另一個效能基準正在執行。");
+  const config: ActivityStreamBenchmarkConfig = { selectedUser: String(payload.config.selectedUser || "").trim(), startDate: payload.config.startDate, endDate: payload.config.endDate, runs: Math.trunc(Number(payload.config.runs)), variant: "escaped_username", concurrency: 1 };
+  const benchmarkRunId = `ASB-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  activeActivityStreamBenchmark = { runId: benchmarkRunId, cancelled: false };
+  try {
+    const run = await executeActivityStreamBenchmark(config, {
+      benchmarkRunId,
+      shouldCancel: () => activeActivityStreamBenchmark?.cancelled === true,
+      onProgress: (progress) => ipcEvent.sender.send("user-analysis:activity-stream-benchmark-progress", progress),
+      fetchSample: async (runNumber) => fetchReliabilityWindow(payload.connection, config.selectedUser, config.startDate, config.endDate, `${benchmarkRunId}-sample-${String(runNumber).padStart(2, "0")}`, runNumber, 1)
+    });
+    const files = writeBenchmarkFiles(run);
+    latestActivityStreamBenchmark = { ...run, files };
+    const requestLogs = run.samples.flatMap((sample) => sample.physicalRequests.map((request) => `[INFO][benchmark] benchmarkRunId=${benchmarkRunId} roundNumber=${sample.runNumber} windowNumber=1 logicalRequestId=${benchmarkRunId}-sample-${sample.runNumber} physicalRequestId=${request.physicalRequestId} stage=response_completed durationMs=${request.httpDurationMs} httpStatus=${request.httpStatus} classification=${sample.resultClassification}`));
+    return { ...run, files, logs: [...requestLogs, `[INFO] benchmarkRunId=${benchmarkRunId} stage=completed durationMs=${Date.parse(run.completedAt) - Date.parse(run.startedAt)} classification=${run.status}`, `[INFO] Physical HTTP requests=${run.samples.reduce((sum, sample) => sum + sample.physicalHttpRequestCount, 0)}`, "[INFO] Variant: escaped_username", "[INFO] Authorization: [masked]", "[INFO] Token: [masked]", "[INFO] No database write performed", "[INFO] No Jira write performed"] };
+  } finally {
+    activeActivityStreamBenchmark = null;
+  }
+});
+
+ipcMain.handle("user-analysis:cancel-activity-stream-benchmark", async () => {
+  if (!activeActivityStreamBenchmark) return { ok: false, message: "No benchmark is running. / 目前沒有執行中的效能基準。" };
+  activeActivityStreamBenchmark.cancelled = true;
+  return { ok: true, benchmarkRunId: activeActivityStreamBenchmark.runId };
 });
 
 ipcMain.handle("user-analysis:cancel-activity-timeline", async () => {
@@ -1859,18 +1945,11 @@ ipcMain.handle("user-analysis:build-activity-timeline", async (ipcEvent, payload
     coldStartSuspected: !lastActivityStreamQueryAt || Date.now() - Date.parse(lastActivityStreamQueryAt) > 1_800_000,
     shouldCancel: () => activeTimelineBuild?.cancelled === true,
     onProgress: (progress) => ipcEvent.sender.send("user-analysis:activity-timeline-progress", progress),
-    fetchWindow: async ({ roundId, windowId, start, end }) => {
-      const apiStarted = Date.now();
-      try {
-        const one = await runActivityStreamProbe(payload.connection, [selectedUser], selectedUser, "auto", start, end, 500, true, `${sourceRunId}-${roundId}-${windowId}`, "update_date_after_before", "quick", false, "off", 7, false, false);
-        lastRun = one;
-        lastActivityStreamQueryAt = new Date().toISOString();
-        const stream = one.activityStream;
-        runLogs.push(`[INFO] Timeline ${roundId} ${windowId}: events=${stream.entriesSanitized.length} jiraKeys=${stream.activityStreamIssueKeys.length} status=${stream.status}`);
-        return { httpStatus: String(stream.httpStatus ?? "-"), requestSucceeded: stream.status !== "failed", rawEventCount: Number(stream.atomEntryCount ?? 0), entries: stream.entriesSanitized as unknown as Record<string, unknown>[], apiDurationMs: Date.now() - apiStarted, errorType: stream.status === "failed" ? stream.diagnosis : "", errorMessage: stream.error, rawResultSanitized: sanitizeExportData({ runId: one.runId, status: stream.status, diagnosis: stream.diagnosis, requestUrlSanitized: stream.requestUrlSanitized, atomEntryCount: stream.atomEntryCount, parsedActivityCount: stream.parsedActivityCount }) as Record<string, unknown> };
-      } catch (error) {
-        return { httpStatus: "-", requestSucceeded: false, rawEventCount: 0, entries: [], apiDurationMs: Date.now() - apiStarted, errorType: "request_error", errorMessage: error instanceof Error ? error.message : String(error), rawResultSanitized: {} };
-      }
+    fetchWindow: async ({ roundNumber, roundId, windowNumber, windowId, start, end }) => {
+      const fetched = await fetchReliabilityWindow(payload.connection, selectedUser, start, end, `${sourceRunId}-${roundId}-${windowId}`, roundNumber, windowNumber);
+      lastRun = fetched.sourceRun;
+      if (fetched.sourceRun) runLogs.push(...fetched.sourceRun.logs, `[INFO] Timeline ${roundId} ${windowId}: events=${fetched.entries.length} status=${fetched.classification}`);
+      return fetched;
     }
   }).finally(() => { activeTimelineBuild = null; });
   const completedRun = lastRun as Awaited<ReturnType<typeof runActivityStreamProbe>> | null;
@@ -2725,6 +2804,7 @@ ipcMain.handle("user-analysis:export-source-archive", async (_event, payload: { 
   const folderPath = ensureDir(path.join(getExportsDir(), "source-archive-import-packages"));
   const filePath = path.join(folderPath, prepared.fileName);
   fs.writeFileSync(filePath, prepared.zip);
+  latestSourceArchiveExport = { fileName: prepared.fileName, filePath, exportRunId, selectedUser: String(payload.selectedUser || ""), createdAt: new Date().toISOString(), sizeBytes: prepared.zip.length, sha256: crypto.createHash("sha256").update(prepared.zip).digest("hex"), jiraObjectCount: Number(prepared.summary.jiraFullFetchObjectCount ?? 0), confluenceObjectCount: Number(prepared.summary.confluenceFullFetchObjectCount ?? 0) };
   return { ok: true, exportRunId, fileName: prepared.fileName, filePath, folderPath, manifest: prepared.manifest, summary: prepared.summary, errors: prepared.errors, logs: [`[INFO] Source Archive export started: exportRunId=${exportRunId}`, ...prepared.logs.map((line) => line.replace("[INFO] ", `[INFO] exportRunId=${exportRunId} `)), `[INFO] Source Archive import package saved: ${filePath}`, "[INFO] Sensitive data scan completed", "[INFO] No Source Archive database write performed", "[INFO] No Jira write performed", "[INFO] No Confluence write performed", "[INFO] No attachment file download performed"] };
 });
 
@@ -3291,16 +3371,33 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   writeBundleJson(folderPath, "jira-evidence-schema.json", jiraEvidenceSchema);
   writeBundleJson(folderPath, "analysis-roadmap.json", analysisRoadmap);
   const unavailableStabilityProbe = { status: "not_available", message: "No Activity Stream Stability Probe has run in this session." };
-  writeBundleJson(folderPath, "activity-stream-stability-probe.json", latestActivityStreamStabilityProbe ?? unavailableStabilityProbe);
+  writeBundleJson(folderPath, "activity-stream-stability-probe.json", latestActivityStreamStabilityProbeV2 ? { status: "legacy_v1_not_applicable", message: "V2 Round-first Stability data is authoritative. / V2 Round-first Stability 資料為正式依據。", authoritativeFile: "activity-stream-stability-probe-v2.json" } : latestActivityStreamStabilityProbe ?? unavailableStabilityProbe);
   writeBundleJson(folderPath, "activity-stream-attempts.json", latestActivityStreamStabilityProbe ? { schemaVersion: "activity_stream_stability_attempts_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId, attempts: latestActivityStreamStabilityProbe.attempts } : unavailableStabilityProbe);
   fs.writeFileSync(path.join(folderPath, "activity-stream-attempt-comparison.csv"), latestActivityStreamStabilityProbe ? stabilityAttemptCsv(latestActivityStreamStabilityProbe.attempts) : "\uFEFFstatus,message\r\nnot_available,No Stability Probe result\r\n", "utf8");
   fs.writeFileSync(path.join(folderPath, "activity-stream-window-summary.csv"), latestActivityStreamStabilityProbe ? stabilityWindowCsv(latestActivityStreamStabilityProbe.windows) : "\uFEFFstatus,message\r\nnot_available,No Stability Probe result\r\n", "utf8");
   writeBundleJson(folderPath, "activity-stream-stability-recommendation.json", latestActivityStreamStabilityProbe ? { schemaVersion: "activity_stream_stability_recommendation_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId, recommendation: latestActivityStreamStabilityProbe.recommendation } : unavailableStabilityProbe);
   writeBundleJson(folderPath, "activity-stream-stability-probe-v2.json", latestActivityStreamStabilityProbeV2 ?? unavailableStabilityProbe);
+  writeBundleJson(folderPath, "activity-stream-stability-setup.json", latestActivityStreamStabilityProbeV2 ? { selectedUser: latestActivityStreamStabilityProbeV2.selectedUser, dateRange: latestActivityStreamStabilityProbeV2.dateRange, requestWindow: latestActivityStreamStabilityProbeV2.config.requestWindow, fullScanRoundCount: latestActivityStreamStabilityProbeV2.config.fullScanRoundCount, delayBetweenRounds: latestActivityStreamStabilityProbeV2.config.delayBetweenRoundsMs, roundExecutionMode: latestActivityStreamStabilityProbeV2.config.roundExecutionMode, mergeStrategy: latestActivityStreamStabilityProbeV2.config.mergeStrategy, createdAt: latestActivityStreamStabilityProbeV2.startedAt, latestProbeRunId: latestActivityStreamStabilityProbeV2.probeRunId } : unavailableStabilityProbe);
   writeBundleJson(folderPath, "activity-stream-rounds.json", latestActivityStreamStabilityProbeV2 ? { schemaVersion: "activity_stream_rounds_v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, rounds: latestActivityStreamStabilityProbeV2.rounds } : unavailableStabilityProbe);
+  writeBundleJson(folderPath, "activity-stream-round-comparison.json", latestActivityStreamStabilityProbeV2 ? { schemaVersion: "activity_stream_round_comparison_v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, comparison: latestActivityStreamStabilityProbeV2.comparison, rounds: latestActivityStreamStabilityProbeV2.rounds } : unavailableStabilityProbe);
   fs.writeFileSync(path.join(folderPath, "activity-stream-round-comparison.csv"), latestActivityStreamStabilityProbeV2 ? roundComparisonCsv(latestActivityStreamStabilityProbeV2.rounds) : "\uFEFFstatus,message\r\nnot_available,No V2 Stability Probe result\r\n", "utf8");
   fs.writeFileSync(path.join(folderPath, "activity-stream-window-diagnostics.csv"), latestActivityStreamStabilityProbeV2 ? windowDiagnosticsCsv(latestActivityStreamStabilityProbeV2.windowDiagnostics) : "\uFEFFstatus,message\r\nnot_available,No V2 Stability Probe result\r\n", "utf8");
+  writeBundleJson(folderPath, "activity-stream-window-diagnostics.json", latestActivityStreamStabilityProbeV2 ? { schemaVersion: "activity_stream_window_diagnostics_v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, windows: latestActivityStreamStabilityProbeV2.windowDiagnostics } : unavailableStabilityProbe);
+  writeBundleJson(folderPath, "activity-stream-raw-diagnostics.json", latestActivityStreamStabilityProbeV2 ? { schemaVersion: "activity_stream_raw_diagnostics_v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, diagnostics: latestActivityStreamStabilityProbeV2.windowDiagnostics.map((item) => ({ logicalRequestId: item.logicalRequestId, classification: item.classification, physicalRequests: item.physicalRequests, processingTiming: item.processingTiming, rawResultSanitized: item.rawResultSanitized })) } : unavailableStabilityProbe);
+  writeBundleJson(folderPath, "activity-stream-stability-ui-state.json", { ...latestStabilityUiState, latestProbeRunId: latestActivityStreamStabilityProbeV2?.probeRunId ?? "", statePersistedAt: new Date().toISOString() });
   writeBundleJson(folderPath, "activity-stream-stability-recommendation-v2.json", latestActivityStreamStabilityProbeV2 ? { schemaVersion: "activity_stream_stability_recommendation_v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, recommendation: latestActivityStreamStabilityProbeV2.recommendation } : unavailableStabilityProbe);
+  writeBundleJson(folderPath, "activity-stream-benchmark.json", latestActivityStreamBenchmark ?? { status: "not_available", message: "No Activity Stream Benchmark has run in this session. / 本次工作階段尚未執行 Activity Stream 效能基準。" });
+  fs.writeFileSync(path.join(folderPath, "activity-stream-benchmark.csv"), latestActivityStreamBenchmark ? benchmarkCsv(latestActivityStreamBenchmark) : "\uFEFFstatus,message\r\nnot_available,No Activity Stream Benchmark result\r\n", "utf8");
+  writeBundleJson(folderPath, "activity-stream-benchmark-summary.json", latestActivityStreamBenchmark ? { schemaVersion: "activity_stream_benchmark_summary_v1", benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, config: latestActivityStreamBenchmark.config, summary: latestActivityStreamBenchmark.summary } : { status: "not_available" });
+  const sourceArchiveIndex = { ...(latestSourceArchiveExport ?? { fileName: "", exportRunId: "", selectedUser: "", createdAt: "", sizeBytes: 0, sha256: "", jiraObjectCount: 0, confluenceObjectCount: 0 }), includedInDebugBundle: false, excludeReason: latestSourceArchiveExport ? "" : "not_available", sourcePathSanitized: latestSourceArchiveExport ? path.basename(latestSourceArchiveExport.filePath) : "" };
+  if (latestSourceArchiveExport && fs.existsSync(latestSourceArchiveExport.filePath)) {
+    const archiveFolder = ensureDir(path.join(folderPath, "source-archive-import-packages"));
+    fs.copyFileSync(latestSourceArchiveExport.filePath, path.join(archiveFolder, latestSourceArchiveExport.fileName));
+    sourceArchiveIndex.includedInDebugBundle = true;
+  } else if (latestSourceArchiveExport) {
+    sourceArchiveIndex.excludeReason = "file_not_found";
+  }
+  writeBundleJson(folderPath, "source-archive-export-index.json", sourceArchiveIndex);
   writeBundleJson(folderPath, "full-fetch-coverage-diagnostics.json", latestFullFetchCoverageDiagnostics ?? { status: "not_available", jira: {}, confluence: {} });
   writeBundleJson(folderPath, "source-archive-file-assessment.json", {
     schemaVersion: "source_archive_file_assessment_v1",
@@ -3363,9 +3460,9 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {}, standardActivityStreamFlow, activityTypeClassifierDiagnostics: classifierDiagnostics, activityStreamBaselineGuard, userActivityTimeline, timelineIntegrity, timelineSourceSystem: { available: timelineSourceSystemDiagnostics.available, ...timelineSourceSystemDiagnostics.sourceSystemCounts, defaultSelectIssuesFilter: "jira" }, timelineJiraRelation: { available: timelineJiraRelationDiagnostics.available, ...timelineJiraRelationDiagnostics.jiraRelationCounts, confluenceLinkedToJiraCount: timelineJiraRelationDiagnostics.confluenceLinkedToJiraCount, defaultSelectIssuesFilter: "jira_related" }, fullFetchFailures: { available: true, failedCount: failureSummary.failedCount, hasFailedIssuesFile: true }, directJiraEvidence: latestJiraEvidence ? { available: true, directEvidenceCount: latestJiraEvidence.summary.directEvidenceCount, contextEvidenceCount: latestJiraEvidence.summary.contextEvidenceCount, relatedContextEvidenceCount: latestJiraEvidence.summary.relatedContextEvidenceCount, excludedEvidenceCount: latestJiraEvidence.summary.excludedEvidenceCount, issuesWithEvidence: latestJiraEvidence.summary.coverage.issuesWithEvidence, issuesWithoutDirectEvidence: latestJiraEvidence.summary.coverage.issuesWithoutDirectEvidence, failedIssueCount: latestJiraEvidence.summary.failedIssueCount } : { available: false, directEvidenceCount: 0, contextEvidenceCount: 0, relatedContextEvidenceCount: 0, excludedEvidenceCount: 0, issuesWithEvidence: 0, issuesWithoutDirectEvidence: 0, failedIssueCount: failureSummary.failedCount }, userAnalysisWorkflow: latestUserAnalysisWorkflow ?? unavailableWorkflow, userAnalysisUiState: { workflowStepCount: Number(userAnalysisUiState.workflowStepCount ?? 5), advancedToolsVisible: userAnalysisUiState.advancedToolsVisible === true, fullFetchProgressLocation: String(userAnalysisUiState.fullFetchProgressLocation ?? "step3_full_fetch"), timelineVisibleColumnCount: Array.isArray(asRecord(userAnalysisUiState.timeline).visibleColumns) ? (asRecord(userAnalysisUiState.timeline).visibleColumns as unknown[]).length : 0, selectIssuesVisibleColumnCount: Array.isArray(asRecord(userAnalysisUiState.selectIssues).visibleColumns) ? (asRecord(userAnalysisUiState.selectIssues).visibleColumns as unknown[]).length : 0 }, relatedIssueScopeSummary: workflowRelatedScope, advancedDiagnosticsUsed, includedAutoSavedResults: autoSavedResultsIncluded, missingAutoSavedResults: autoSavedResultsMissing, fullSessionBundle: { enabled: true, sessionStartTime, bundleGeneratedAt: createdAt, totalUserActions: sessionUserActions.length, totalRuns: runHistory.length, totalAutoSavedResults: autoSavedCandidates.length, includedAutoSavedResultCount: autoSavedResultsIncluded.length, missingAutoSavedResultCount: autoSavedResultsMissing.length } });
   const debugBundleSummaryPath = path.join(folderPath, "debug-bundle-summary.json");
   const debugBundleSummaryBody = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeJsonAtomic(debugBundleSummaryPath, { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), checkpointWriteDiagnostics: checkpointDiagnostics, activityStreamStabilityProbe: latestActivityStreamStabilityProbe ? { available: true, probeRunId: latestActivityStreamStabilityProbe.probeRunId, windowCount: latestActivityStreamStabilityProbe.windows.length, attemptCount: latestActivityStreamStabilityProbe.attempts.length, stableWindowCount: latestActivityStreamStabilityProbe.windows.filter((window) => window.stability.classification === "stable").length, unstableWindowCount: latestActivityStreamStabilityProbe.recommendation.unstableWindowCount, recommendedRetryCount: latestActivityStreamStabilityProbe.recommendation.recommendedRetryCount } : { available: false, probeRunId: "", windowCount: 0, attemptCount: 0, stableWindowCount: 0, unstableWindowCount: 0, recommendedRetryCount: 0 } });
+  writeJsonAtomic(debugBundleSummaryPath, { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), checkpointWriteDiagnostics: checkpointDiagnostics, activityStreamStabilityProbe: latestActivityStreamStabilityProbeV2 ? { available: true, authoritativeVersion: "v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, windowCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability } : latestActivityStreamStabilityProbe ? { available: true, authoritativeVersion: "legacy_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId } : { available: false, authoritativeVersion: "none", probeRunId: "" } });
   const summaryWithV1 = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeJsonAtomic(debugBundleSummaryPath, { ...summaryWithV1, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.26", packageIncludedInDebugBundle: false, assessmentFile: "source-archive-file-assessment.json" } });
+  writeJsonAtomic(debugBundleSummaryPath, { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.27", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -3818,7 +3915,19 @@ async function runUiSmoke(window: BrowserWindow) {
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-raw']")?.click();`);
   await wait(100);
   const stabilityRawAudit = await window.webContents.executeJavaScript(`document.querySelectorAll("[data-testid='stability-raw-results'] details").length`);
-  if (Object.values(stabilitySetupAudit).some((value) => value === false) || stabilitySetupAudit.modes !== 5 || !stabilityResultAudit.progress || !stabilityResultAudit.recommendation || !stabilityResultAudit.completed || !stabilityResultAudit.elapsed || !stabilityResultAudit.globalLog || !stabilityComparisonAudit.table || stabilityComparisonAudit.rows < 2 || !stabilityComparisonAudit.headers || !stabilityComparisonAudit.filter || !stabilityComparisonAudit.sort || !stabilityComparisonAudit.columns || !stabilityComparisonAudit.copy || stabilityRawAudit < 2) failures.push(`Activity Stream Stability Probe UI/run audit failed ${JSON.stringify({ stabilitySetupAudit, stabilityResultAudit, stabilityComparisonAudit, stabilityRawAudit })}`);
+  if (Object.values(stabilitySetupAudit).some((value) => value === false) || stabilitySetupAudit.modes !== 6 || !stabilityResultAudit.progress || !stabilityResultAudit.recommendation || !stabilityResultAudit.completed || !stabilityResultAudit.elapsed || !stabilityResultAudit.globalLog || !stabilityComparisonAudit.table || stabilityComparisonAudit.rows < 2 || !stabilityComparisonAudit.headers || !stabilityComparisonAudit.filter || !stabilityComparisonAudit.sort || !stabilityComparisonAudit.columns || !stabilityComparisonAudit.copy || stabilityRawAudit < 2) failures.push(`Activity Stream Stability Probe UI/run audit failed ${JSON.stringify({ stabilitySetupAudit, stabilityResultAudit, stabilityComparisonAudit, stabilityRawAudit })}`);
+  await window.webContents.executeJavaScript(`window.location.hash = "#/dashboard";`);
+  await wait(180);
+  await window.webContents.executeJavaScript(`window.location.hash = "#/precision-probe";`);
+  await wait(220);
+  const stabilityPersistenceAudit = await window.webContents.executeJavaScript(`(() => ({ activeRaw: document.querySelector("[data-testid='probe-mode-raw']")?.classList.contains("btn-primary") === true, rawRounds: document.querySelectorAll("[data-testid='stability-raw-results'] details").length }))()`);
+  if (!stabilityPersistenceAudit.activeRaw || stabilityPersistenceAudit.rawRounds < 2) failures.push(`Stability session persistence audit failed ${JSON.stringify(stabilityPersistenceAudit)}`);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-benchmark']")?.click();`);
+  await wait(80);
+  await window.webContents.executeJavaScript(`(() => { const input = document.querySelector("[data-testid='benchmark-runs']"); if (input instanceof HTMLInputElement) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "1"); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); } document.querySelector("[data-testid='run-benchmark']")?.click(); })()`);
+  await wait(900);
+  const benchmarkAudit = await window.webContents.executeJavaScript(`(() => ({ samples: document.querySelectorAll("[data-testid='benchmark-samples'] tbody tr").length, text: document.body.textContent || "" }))()`);
+  if (benchmarkAudit.samples < 1 || !benchmarkAudit.text.includes("escaped_username") || !benchmarkAudit.text.includes("Activity Stream 效能基準")) failures.push(`Activity Stream Benchmark audit failed ${JSON.stringify(benchmarkAudit)}`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-stability']")?.click();`);
   await wait(100);
   await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return; const proto = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype; Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='stability-round-count']", "32"); set("[data-testid='stability-round-delay']", "1000"); document.querySelector("[data-testid='round-mode-force_all_rounds']")?.click(); })()`);
@@ -3872,6 +3981,8 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(100);
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll("a")).find((link) => link.getAttribute("href") === "#/precision-probe")?.click();`);
   await wait(350);
+  await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-precision']")?.click();`);
+  await wait(120);
   const standardFlowUiAudit = await window.webContents.executeJavaScript(`(() => ({ panel: Boolean(document.querySelector("[data-testid='standard-activity-stream-flow']")), selected: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("roger_hsieh"), escaped: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("roger\\_hsieh"), date: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("update-date AFTER/BEFORE"), chunking: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("Auto"), limit: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("500"), advancedClosed: !document.querySelector("[data-testid='advanced-diagnostics']"), noMainUserInput: !document.querySelector("[data-testid='activity-stream-user']"), noMainQueryMode: !document.querySelector("[data-testid='activity-stream-query-mode']"), noMainDateMode: !document.querySelector("[data-testid='activity-stream-date-query-mode']"), noMainMax: !document.querySelector("[data-testid='probe-max-results']") }))()`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='run-activity-stream']")?.click();`);
   await wait(700);
@@ -4242,6 +4353,8 @@ async function runUiSmoke(window: BrowserWindow) {
   const failedIssueSummaryFixture = fullFetchFailureSummary(latestFullFetchFailedIssues);
   const emptyFailedIssueSummaryFixture = fullFetchFailureSummary([]);
   if (failedIssueSummaryFixture.failedCount !== 1 || failedIssueSummaryFixture.byHttpStatus["404"] !== 1 || failedIssueSummaryFixture.byErrorCode.HTTP_404 !== 1 || failedIssueSummaryFixture.byStage.issue_full_fetch !== 1 || failedIssueSummaryFixture.bySource.recommended_related_issue !== 1 || emptyFailedIssueSummaryFixture.failedCount !== 0) failures.push(`full fetch failure summary fixtures failed ${JSON.stringify({ failedIssueSummaryFixture, emptyFailedIssueSummaryFixture })}`);
+  await window.webContents.executeJavaScript(`window.desktopApp?.userAnalysis?.exportSourceArchive?.({ selectedUser: "roger_hsieh", rawData: { rawIssueResponsesSanitized: [{ issueKey: "SMOKE-101", json: { id: "101", key: "SMOKE-101", fields: { updated: "2026-07-02T09:00:00.000Z", summary: "Source archive smoke fixture" } } }] } });`);
+  await wait(180);
   await window.webContents.executeJavaScript(`document.querySelector("[data-debug-panel-state='collapsed']")?.querySelector("button")?.click();`);
   await wait(100);
   await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll("button")).find((button) => button.title?.includes("Save Debug Log"))?.click();`);
@@ -4264,7 +4377,7 @@ async function runUiSmoke(window: BrowserWindow) {
   requiredBundleFiles.push("user-analysis-steps.json", "timeline-issue-groups.json", "timeline-selected-issues.json", "fetch-queue.json", "related-candidate-issues.json", "related-issue-expansion-summary.json", "checkpoint-write-diagnostics.json", "timeline-jira-relation-diagnostics.json", "full-fetch-failed-issues.json", "full-fetch-failure-summary.json", "timeline-event-list-ui-state.json", "select-issues-ui-state.json");
   requiredBundleFiles.push("jira-evidence-events.json", "jira-evidence-summary.json", "jira-evidence-excluded-summary.json", "jira-evidence-schema.json", "analysis-roadmap.json");
   requiredBundleFiles.push("activity-stream-stability-probe.json", "activity-stream-attempts.json", "activity-stream-attempt-comparison.csv", "activity-stream-window-summary.csv", "activity-stream-stability-recommendation.json");
-  requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-rounds.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.csv", "activity-stream-stability-recommendation-v2.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json");
+  requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-stability-setup.json", "activity-stream-rounds.json", "activity-stream-round-comparison.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.json", "activity-stream-window-diagnostics.csv", "activity-stream-raw-diagnostics.json", "activity-stream-stability-ui-state.json", "activity-stream-stability-recommendation-v2.json", "activity-stream-benchmark.json", "activity-stream-benchmark.csv", "activity-stream-benchmark-summary.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json", "source-archive-export-index.json", "source-archive-import-packages");
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
   const bundleText = debugBundlePath ? actualBundleFiles.filter((name) => fs.statSync(path.join(debugBundlePath, name)).isFile()).map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
@@ -4305,6 +4418,10 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleStabilityRoundsV2 = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-rounds.json"), "utf8")));
     const bundleStabilityRecommendationV2 = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-stability-recommendation-v2.json"), "utf8")));
     const bundleSourceArchiveAssessment = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "source-archive-file-assessment.json"), "utf8")));
+    const bundleSourceArchiveIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "source-archive-export-index.json"), "utf8")));
+    const bundleStabilityUiState = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-stability-ui-state.json"), "utf8")));
+    const bundleWindowDiagnostics = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-window-diagnostics.json"), "utf8")));
+    const bundleBenchmark = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-benchmark.json"), "utf8")));
     const bundleTimelineCsv = fs.readFileSync(path.join(debugBundlePath, "user-activity-timeline.csv"));
     const bundleAutoSavedIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "auto-saved-results-index.json"), "utf8")));
     const bundleTimeline = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "session-timeline.json"), "utf8") as string) as Array<Record<string, unknown>>;
@@ -4324,6 +4441,8 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleStabilitySummaryV2 = asRecord(bundleSummary.activityStreamRoundStabilityV2);
     const stabilityRoundRows = Array.isArray(bundleStabilityRoundsV2.rounds) ? bundleStabilityRoundsV2.rounds.map(asRecord) : [];
     if (bundleStabilityProbeV2.schemaVersion !== "activity_stream_stability_probe_v2" || bundleStabilityProbeV2.executionOrder !== "round_first" || !String(bundleStabilityProbeV2.probeRunId).startsWith("ASR-") || stabilityRoundRows.length < 2 || stabilityRoundRows.some((round) => !round.roundEventSetFingerprint || !round.roundPrimaryJiraKeySetFingerprint || Number(round.totalRounds) < 1) || !asRecord(bundleStabilityRecommendationV2.recommendation).recommendedRoundCount || bundleStabilitySummaryV2.available !== true || Number(bundleStabilitySummaryV2.roundCount) < 2 || bundleSourceArchiveAssessment.schemaVersion !== "source_archive_file_assessment_v1") failures.push(`debug bundle Round Stability V2 audit failed ${JSON.stringify({ probe: bundleStabilityProbeV2.probeRunId, rounds: stabilityRoundRows.length, recommendation: bundleStabilityRecommendationV2, summary: bundleStabilitySummaryV2 })}`);
+    const diagnosticWindows = Array.isArray(bundleWindowDiagnostics.windows) ? bundleWindowDiagnostics.windows.map(asRecord) : [];
+    if (bundleStabilityProbe.status !== "legacy_v1_not_applicable" || !bundleStabilityUiState.latestProbeRunId || diagnosticWindows.length < 1 || diagnosticWindows.some((item) => !item.logicalRequestId || !item.classification || Number(item.physicalHttpRequestCount) < 1 || !item.processingTiming) || bundleBenchmark.schemaVersion !== "activity_stream_benchmark_v1" || Number(asRecord(bundleBenchmark.summary).runCount) < 1 || bundleSourceArchiveIndex.includedInDebugBundle !== true || !fs.existsSync(path.join(debugBundlePath, "source-archive-import-packages", String(bundleSourceArchiveIndex.fileName)))) failures.push(`v0.2.27 reliability bundle audit failed ${JSON.stringify({ legacy: bundleStabilityProbe, uiState: bundleStabilityUiState, diagnosticWindows: diagnosticWindows.length, benchmark: bundleBenchmark.benchmarkRunId, sourceArchive: bundleSourceArchiveIndex })}`);
     if (bundleEvidenceEvents.length < 1 || bundleEvidenceEvents.some((item) => !/^sha256:[0-9a-f]{64}$/.test(String(item.evidenceId)) || !item.evidenceScope || !item.evidenceType || !item.activityType) || Number(bundleJiraEvidenceSummary.directEvidenceCount) < 1 || Number(bundleJiraEvidenceExcluded.excludedCount) < 1 || bundleEvidencePolicy.recursive !== false || Number(bundleEvidencePolicy.maxDepth) !== 1 || bundleEvidencePolicy.relatedIssuesAsPrimaryEvidence !== false || bundleJiraEvidenceSchema.schemaVersion !== "jira_evidence_event_v1" || bundleRoadmapAnalyzers.cloudAiAnalyzer !== "planned" || !bundleText.includes("Direct Jira Evidence:") || !bundleText.includes("Related Issue Expansion Policy:") || !bundleText.includes("Analyzer Roadmap:") || !bundleText.includes("Data Source Roadmap:") || !bundleText.includes("Product Goals:")) failures.push(`debug bundle direct Jira evidence audit failed ${JSON.stringify({ events: bundleEvidenceEvents.length, summary: bundleJiraEvidenceSummary, excluded: bundleJiraEvidenceExcluded, policy: bundleEvidencePolicy, schema: bundleJiraEvidenceSchema.schemaVersion, roadmap: bundleRoadmapAnalyzers })}`);
     if (!latestBundleRunId || !bundleHistory.some((run) => String(run?.runId || "") === latestBundleRunId) || String(asRecord(bundlePaths.latestRunResult).runId || "") !== latestBundleRunId || bundleSummary.snapshotConsistent !== true) failures.push(`debug bundle snapshot consistency failed: latest=${latestBundleRunId}`);
     if (bundleStandardFlow.enabled !== true || bundleStandardFlow.variant !== "escaped_username" || bundleStandardFlow.activityStreamQueryUser !== "roger\\_hsieh" || Number(bundleStandardFlow.perChunkMaxResults) !== 500 || bundleClassifier.enabled !== true || bundleClassifier.commentPriorityHigherThanAttachment !== true || bundleClassifier.rulesVersion !== "1.1" || !asRecord(bundleSummary.standardActivityStreamFlow).selectedUser || !bundleSummary.activityTypeClassifierDiagnostics) failures.push(`debug bundle standard flow/classifier diagnostics failed: ${JSON.stringify({ bundleStandardFlow, bundleClassifier })}`);

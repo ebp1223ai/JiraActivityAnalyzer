@@ -3,6 +3,19 @@ import { splitActivityStreamWindows, type ActivityStreamMergeStrategy, type Acti
 
 export type RoundExecutionMode = "stop_when_stable" | "force_all_rounds";
 export type RoundStability = "insufficient_rounds" | "unstable" | "probably_stable" | "stable";
+export type ActivityStreamResultClassification = "http_200_with_entries" | "http_200_no_entries" | "timeout" | "aborted" | "empty_response" | "partial_response" | "parse_failed" | "network_error" | "http_error";
+
+export type PhysicalHttpRequestDiagnostic = {
+  physicalRequestId: string; probeRunId: string; roundNumber: number; windowNumber: number;
+  requestWindowStart: string; requestWindowEnd: string; variant: "escaped_username";
+  requestStartedAt: string; requestSentAt: string; responseHeadersReceivedAt: string; responseBodyCompletedAt: string; requestCompletedAt: string;
+  httpStatus: string; responseBytes: number; atomEntryCount: number; parsedEventCount: number;
+  timeout: boolean; aborted: boolean; errorType: string; errorMessageSanitized: string;
+  httpDurationMs: number; timeToFirstByteMs: number | null; timeToFirstByteAvailable: boolean; responseDownloadMs: number;
+  pagination: boolean; retry: boolean;
+};
+
+export type ProcessingTiming = { xmlParseMs: number; eventNormalizationMs: number; jiraKeyExtractionMs: number; deduplicationMs: number; fingerprintMs: number; comparisonMs: number; resultAssemblyMs: number; totalProcessingMs: number };
 
 export type ActivityStreamStabilityConfigV2 = {
   selectedUser: string;
@@ -44,6 +57,15 @@ export type ActivityStreamRoundWindowResult = {
   status: "completed" | "failed" | "cancelled";
   httpStatus: string;
   requestSucceeded: boolean;
+  classification: ActivityStreamResultClassification;
+  logicalRequestId: string;
+  logicalFetchDurationMs: number;
+  logicalWindowRequestCount: 1;
+  physicalHttpRequestCount: number;
+  paginationRequestCount: number;
+  retryRequestCount: number;
+  physicalRequests: PhysicalHttpRequestDiagnostic[];
+  processingTiming: ProcessingTiming;
   apiDurationMs: number;
   processingDurationMs: number;
   totalRequestDurationMs: number;
@@ -153,6 +175,10 @@ export type RoundWindowFetchResult = {
   rawEventCount: number;
   entries: Record<string, unknown>[];
   apiDurationMs: number;
+  classification?: ActivityStreamResultClassification;
+  logicalFetchDurationMs?: number;
+  processingDurationMs?: number;
+  physicalRequests?: PhysicalHttpRequestDiagnostic[];
   errorType?: string;
   errorMessage?: string;
   rawResultSanitized?: Record<string, unknown>;
@@ -171,6 +197,8 @@ export type RoundProgress = {
   requestWindowEnd: string;
   currentApiDurationMs: number;
   averageApiDurationMs: number;
+  averageLogicalFetchDurationMs: number;
+  averagePhysicalHttpDurationMs: number;
   averageProcessingDurationMs: number;
   elapsedMs: number;
   estimatedRemainingMs: number;
@@ -189,6 +217,17 @@ export type RoundExecutorOptions = {
   delay?: (milliseconds: number) => Promise<void>;
   now?: () => number;
 };
+
+export function classifyActivityStreamResult(input: { httpStatus: string; atomEntryCount: number; parsedEventCount: number; responseBytes: number; timeout?: boolean; aborted?: boolean; errorType?: string }): ActivityStreamResultClassification {
+  if (input.timeout) return "timeout";
+  if (input.aborted) return "aborted";
+  if (input.errorType === "partial_response") return "partial_response";
+  if (input.errorType === "parse_failed" || input.errorType === "parser_failed") return "parse_failed";
+  if (input.errorType === "network_error" || input.errorType === "NETWORK_ERROR") return "network_error";
+  if (input.httpStatus !== "200") return "http_error";
+  if (input.responseBytes <= 0) return "empty_response";
+  return input.atomEntryCount > 0 || input.parsedEventCount > 0 ? "http_200_with_entries" : "http_200_no_entries";
+}
 
 const jiraKeyPattern = /\b[A-Z][A-Z0-9_]+-\d+\b/g;
 
@@ -292,6 +331,8 @@ export async function executeRoundFirstStability(config: ActivityStreamStability
   let completedRequests = 0;
   let totalApiDuration = 0;
   let totalProcessingDuration = 0;
+  let completedPhysicalRequests = 0;
+  let totalPhysicalHttpDuration = 0;
   const progress = (stage: RoundProgress["stage"], roundNumber: number, windowNumber: number, start = "", end = "", currentApiDurationMs = 0) => {
     const now = options.now?.() ?? Date.now();
     const elapsedMs = Math.max(0, now - startedAtMs);
@@ -299,7 +340,7 @@ export async function executeRoundFirstStability(config: ActivityStreamStability
     const remaining = Math.max(0, totalRequests - completedRequests);
     const remainingRoundDelays = Math.max(0, config.fullScanRoundCount - roundNumber) * config.delayBetweenRoundsMs;
     const estimatedRemainingMs = Math.round(averageRequestMs * remaining + remainingRoundDelays);
-    options.onProgress?.({ probeRunId: options.probeRunId, stage, currentRound: roundNumber, totalRounds: config.fullScanRoundCount, currentWindow: windowNumber, totalWindows: windows.length, completedRequests, totalRequests, requestWindowStart: start, requestWindowEnd: end, currentApiDurationMs, averageApiDurationMs: completedRequests ? Math.round(totalApiDuration / completedRequests) : 0, averageProcessingDurationMs: completedRequests ? Math.round(totalProcessingDuration / completedRequests) : 0, elapsedMs, estimatedRemainingMs, estimatedCompletionTime: new Date(now + estimatedRemainingMs).toISOString(), currentStability: compareCompletedRounds(rounds).stability });
+    options.onProgress?.({ probeRunId: options.probeRunId, stage, currentRound: roundNumber, totalRounds: config.fullScanRoundCount, currentWindow: windowNumber, totalWindows: windows.length, completedRequests, totalRequests, requestWindowStart: start, requestWindowEnd: end, currentApiDurationMs, averageApiDurationMs: completedRequests ? Math.round(totalApiDuration / completedRequests) : 0, averageLogicalFetchDurationMs: completedRequests ? Math.round(totalApiDuration / completedRequests) : 0, averagePhysicalHttpDurationMs: completedPhysicalRequests ? Math.round(totalPhysicalHttpDuration / completedPhysicalRequests) : 0, averageProcessingDurationMs: completedRequests ? Math.round(totalProcessingDuration / completedRequests) : 0, elapsedMs, estimatedRemainingMs, estimatedCompletionTime: new Date(now + estimatedRemainingMs).toISOString(), currentStability: compareCompletedRounds(rounds).stability });
   };
   let cancelled = false;
   for (let roundIndex = 0; roundIndex < config.fullScanRoundCount; roundIndex += 1) {
@@ -321,22 +362,45 @@ export async function executeRoundFirstStability(config: ActivityStreamStability
       } catch (error) {
         fetched = { httpStatus: "-", requestSucceeded: false, rawEventCount: 0, entries: [], apiDurationMs: Math.max(0, (options.now?.() ?? Date.now()) - windowStartedMs), errorType: "request_error", errorMessage: error instanceof Error ? error.message : String(error) };
       }
-      const processingStarted = options.now?.() ?? Date.now();
-      const normalizedEvents = Array.from(new Map(fetched.entries.map(normalizeRoundEvent).map((event) => [event.stableEventId, event])).values());
-      const processingDurationMs = Math.max(0, (options.now?.() ?? Date.now()) - processingStarted);
+      const clock = () => options.now?.() ?? Date.now();
+      const processingStarted = clock();
+      const parseCompleted = clock();
+      const normalized = fetched.entries.map(normalizeRoundEvent);
+      const normalizationCompleted = clock();
+      const normalizedEvents = Array.from(new Map(normalized.map((event) => [event.stableEventId, event])).values());
+      const dedupCompleted = clock();
       const primary = unique(normalizedEvents.flatMap((event) => event.primaryJiraKeys));
       const referenced = unique(normalizedEvents.flatMap((event) => event.referencedJiraKeys));
       const all = unique(normalizedEvents.flatMap((event) => event.allJiraLikeKeys));
+      const keyExtractionCompleted = clock();
       const previousWindow = rounds[rounds.length - 1]?.windows.find((item) => item.windowId === window.windowId);
       const currentIds = new Set(normalizedEvents.map((event) => event.stableEventId));
       const previousIds = new Set(previousWindow?.normalizedEvents.map((event) => event.stableEventId) ?? []);
-      const completedAtMs = options.now?.() ?? Date.now();
-      const result: ActivityStreamRoundWindowResult = { roundId, roundNumber, windowId: window.windowId, windowNumber, windowCount: windows.length, requestWindowStart: window.start, requestWindowEnd: window.end, startedAt: new Date(windowStartedMs).toISOString(), completedAt: new Date(completedAtMs).toISOString(), status: fetched.requestSucceeded ? "completed" : "failed", httpStatus: fetched.httpStatus, requestSucceeded: fetched.requestSucceeded, apiDurationMs: fetched.apiDurationMs, processingDurationMs, totalRequestDurationMs: fetched.apiDurationMs + processingDurationMs, rawEventCount: fetched.rawEventCount, normalizedEventCount: fetched.entries.length, uniqueEventCount: normalizedEvents.length, primaryJiraKeyCount: primary.length, referencedJiraKeyCount: referenced.length, allJiraLikeKeyCount: all.length, eventSetFingerprint: fingerprint([...currentIds]), primaryJiraKeySetFingerprint: fingerprint(primary), referencedJiraKeySetFingerprint: fingerprint(referenced), newEventsComparedWithPreviousRound: previousWindow ? setDiff(currentIds, previousIds) : currentIds.size, missingEventsComparedWithPreviousRound: previousWindow ? setDiff(previousIds, currentIds) : 0, errorType: fetched.errorType ?? "", errorMessage: (fetched.errorMessage ?? "").slice(0, 300), normalizedEvents, rawResultSanitized: fetched.rawResultSanitized ?? {} };
+      const fingerprintStarted = clock();
+      const eventSetFingerprint = fingerprint([...currentIds]);
+      const primaryJiraKeySetFingerprint = fingerprint(primary);
+      const referencedJiraKeySetFingerprint = fingerprint(referenced);
+      const fingerprintCompleted = clock();
+      const comparisonStarted = clock();
+      const newEvents = previousWindow ? setDiff(currentIds, previousIds) : currentIds.size;
+      const missingEvents = previousWindow ? setDiff(previousIds, currentIds) : 0;
+      const comparisonCompleted = clock();
+      const assemblyStarted = clock();
+      const completedAtMs = clock();
+      const upstreamXmlParseMs = Math.max(0, fetched.processingDurationMs ?? 0);
+      const localProcessingMs = Math.max(0, completedAtMs - processingStarted);
+      const processingTiming: ProcessingTiming = { xmlParseMs: upstreamXmlParseMs + Math.max(0, parseCompleted - processingStarted), eventNormalizationMs: Math.max(0, normalizationCompleted - parseCompleted), jiraKeyExtractionMs: Math.max(0, keyExtractionCompleted - dedupCompleted), deduplicationMs: Math.max(0, dedupCompleted - normalizationCompleted), fingerprintMs: Math.max(0, fingerprintCompleted - fingerprintStarted), comparisonMs: Math.max(0, comparisonCompleted - comparisonStarted), resultAssemblyMs: Math.max(0, completedAtMs - assemblyStarted), totalProcessingMs: upstreamXmlParseMs + localProcessingMs };
+      const physicalRequests = fetched.physicalRequests ?? [];
+      const classification = fetched.classification ?? classifyActivityStreamResult({ httpStatus: fetched.httpStatus, atomEntryCount: fetched.rawEventCount, parsedEventCount: fetched.entries.length, responseBytes: physicalRequests.reduce((sum, item) => sum + item.responseBytes, 0), errorType: fetched.errorType });
+      const logicalFetchDurationMs = fetched.logicalFetchDurationMs ?? fetched.apiDurationMs;
+      const result: ActivityStreamRoundWindowResult = { roundId, roundNumber, windowId: window.windowId, windowNumber, windowCount: windows.length, requestWindowStart: window.start, requestWindowEnd: window.end, startedAt: new Date(windowStartedMs).toISOString(), completedAt: new Date(completedAtMs).toISOString(), status: fetched.requestSucceeded ? "completed" : "failed", httpStatus: fetched.httpStatus, requestSucceeded: fetched.requestSucceeded, classification, logicalRequestId: `${roundId}-${window.windowId}`, logicalFetchDurationMs, logicalWindowRequestCount: 1, physicalHttpRequestCount: physicalRequests.length || 1, paginationRequestCount: physicalRequests.filter((item) => item.pagination).length, retryRequestCount: physicalRequests.filter((item) => item.retry).length, physicalRequests, processingTiming, apiDurationMs: logicalFetchDurationMs, processingDurationMs: processingTiming.totalProcessingMs, totalRequestDurationMs: logicalFetchDurationMs + processingTiming.totalProcessingMs, rawEventCount: fetched.rawEventCount, normalizedEventCount: fetched.entries.length, uniqueEventCount: normalizedEvents.length, primaryJiraKeyCount: primary.length, referencedJiraKeyCount: referenced.length, allJiraLikeKeyCount: all.length, eventSetFingerprint, primaryJiraKeySetFingerprint, referencedJiraKeySetFingerprint, newEventsComparedWithPreviousRound: newEvents, missingEventsComparedWithPreviousRound: missingEvents, errorType: fetched.errorType ?? "", errorMessage: (fetched.errorMessage ?? "").slice(0, 300), normalizedEvents, rawResultSanitized: fetched.rawResultSanitized ?? {} };
       roundWindows.push(result);
       completedRequests += 1;
-      totalApiDuration += fetched.apiDurationMs;
-      totalProcessingDuration += processingDurationMs;
-      progress("window_complete", roundNumber, windowNumber, window.start, window.end, fetched.apiDurationMs);
+      totalApiDuration += logicalFetchDurationMs;
+      totalProcessingDuration += processingTiming.totalProcessingMs;
+      completedPhysicalRequests += physicalRequests.length || 1;
+      totalPhysicalHttpDuration += physicalRequests.length ? physicalRequests.reduce((sum, item) => sum + item.httpDurationMs, 0) : logicalFetchDurationMs;
+      progress("window_complete", roundNumber, windowNumber, window.start, window.end, logicalFetchDurationMs);
     }
     const normalizedEvents = Array.from(new Map(roundWindows.flatMap((window) => window.normalizedEvents).map((event) => [event.stableEventId, event])).values());
     const currentEventIds = new Set(normalizedEvents.map((event) => event.stableEventId));
