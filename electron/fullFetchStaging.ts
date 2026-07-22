@@ -4,15 +4,16 @@ import { atomicWriteJsonStream, atomicWriteNdjsonStream, directorySize, hashFile
 import { buildCurrentIssueSnapshot, normalizeCurrentIssueFields, type NormalizedCurrentField } from "./normalizedCurrentFields.js";
 import { hasSensitiveData } from "./sourceArchiveExporter.js";
 import { createStreamingZip, verifyStreamingZip, type StreamingZipEntry } from "./streamingZip.js";
+import { aggregateFullFetchStatus, canonicalIssueStatus } from "./fullFetchStatus.js";
 
-export const FULL_FETCH_STAGING_SCHEMA = "full_fetch_staging_v2";
-export const FULL_FETCH_INDEX_SCHEMA = "full_fetch_run_index_v2";
-export const FULL_FETCH_COMPLETENESS_POLICY = "full_fetch_completeness_v3";
+export const FULL_FETCH_STAGING_SCHEMA = "full_fetch_staging_v3";
+export const FULL_FETCH_INDEX_SCHEMA = "full_fetch_run_index_v3";
+export const FULL_FETCH_COMPLETENESS_POLICY = "full_fetch_completeness_v4";
 export const RETENTION_DAYS = 7;
 export const CANCELLED_RETENTION_DAYS = 30;
 
-export type StagingStatus = "created" | "running" | "completed" | "completed_with_errors" | "cancelled" | "failed_final" | "aborted_on_restart" | "discarded" | "legacy_incomplete";
-export type TargetStatus = "pending" | "in_progress" | "eligible" | "required_partial" | "failed_issue" | "failed_final" | "not_attempted_due_to_run_failure" | "excluded";
+export type StagingStatus = "created" | "running" | "completed" | "completed_with_partial" | "completed_with_errors" | "failed" | "cancelled" | "failed_final" | "aborted_on_restart" | "discarded" | "legacy_incomplete";
+export type TargetStatus = "pending" | "in_progress" | "eligible" | "partial" | "required_partial" | "failed_issue" | "failed_final" | "not_attempted_due_to_run_failure" | "excluded";
 type LegacyTargetStatus = "interrupted" | "partial" | "failed_retryable" | "failed_non_retryable" | "failed_after_resume_retry";
 export type OptionalEndpointState = "available" | "unsupported" | "permission_denied" | "temporarily_unavailable" | "not_attempted";
 
@@ -91,15 +92,16 @@ export type StagingState = {
 };
 export type StagingRun = { dir: string; state: StagingState; index: StagingIndex };
 export type TargetOutcome = {
-  status: "eligible" | "required_partial" | "failed" | "excluded";
+  status: "eligible" | "partial" | "required_partial" | "failed" | "excluded";
   rawEnvelope?: Record<string, unknown>; missingSections?: string[]; failedEndpoints?: string[];
   optionalEndpointStatus?: Record<string, OptionalEndpointStatus>; optionalWarnings?: string[]; classification?: string;
   errorType?: string; errorMessage?: string;
 };
 
-const terminalRunStatuses = new Set<StagingStatus>(["completed", "completed_with_errors", "cancelled", "failed_final", "aborted_on_restart", "discarded", "legacy_incomplete"]);
-const terminalTargetStatuses = new Set<TargetStatus | LegacyTargetStatus>(["eligible", "required_partial", "failed_issue", "failed_final", "not_attempted_due_to_run_failure", "excluded", "partial", "failed_non_retryable", "failed_after_resume_retry"]);
+const terminalRunStatuses = new Set<StagingStatus>(["completed", "completed_with_partial", "completed_with_errors", "failed", "cancelled", "failed_final", "aborted_on_restart", "discarded", "legacy_incomplete"]);
+const terminalTargetStatuses = new Set<TargetStatus | LegacyTargetStatus>(["eligible", "partial", "required_partial", "failed_issue", "failed_final", "not_attempted_due_to_run_failure", "excluded", "failed_non_retryable", "failed_after_resume_retry"]);
 const mutationLocks = new Set<string>();
+const lastPreviewIssueByStaging = new Map<string, string>();
 
 function now() { return new Date().toISOString(); }
 function record(value: unknown): Record<string, unknown> { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
@@ -132,7 +134,7 @@ function defaultRunContext(selectedUser: string, queue: Array<{ key: string; sou
 export function deriveState(state: StagingState, index: StagingIndex): StagingState {
   const count = (...statuses: Array<TargetStatus | LegacyTargetStatus>) => index.targets.filter((target) => statuses.includes(target.status)).length;
   const eligible = count("eligible");
-  const requiredPartial = count("required_partial", "partial");
+  const requiredPartial = count("partial", "required_partial");
   const failedIssue = count("failed_issue", "failed_non_retryable", "failed_after_resume_retry");
   const failedFinal = count("failed_final");
   const notAttempted = count("not_attempted_due_to_run_failure");
@@ -144,12 +146,12 @@ export function deriveState(state: StagingState, index: StagingIndex): StagingSt
 
 function resultDocument(run: StagingRun) {
   return {
-    schemaVersion: "full_fetch_result_index_v3", appVersion: "0.2.30", runId: run.state.fullFetchRunId, stagingId: run.state.stagingId,
+    schemaVersion: "full_fetch_result_index_v4", appVersion: "0.2.31", runId: run.state.fullFetchRunId, stagingId: run.state.stagingId,
     status: run.state.status, createdAt: run.state.createdAt, startedAt: run.state.startedAt, finishedAt: run.state.finishedAt, failureTime: run.state.failureTime,
     lastCompletedIssue: run.state.lastCompletedObjectKey, faultingIssue: run.state.faultingObjectKey, runError: run.state.runError,
     counts: { total: run.state.total, completed: run.state.completed, eligible: run.state.eligible, partial: run.state.requiredPartial, failed: run.state.failed, notAttempted: run.state.notAttempted, excluded: run.state.excluded },
     stagingSizeBytes: directorySize(run.dir), archiveEligible: run.state.status === "completed" && run.state.requiredPartial === 0 && run.state.failed === 0 && run.state.notAttempted === 0,
-    issues: run.index.targets.map((target) => ({ issueKey: target.objectKey, status: target.status, classification: target.classification, errorCode: target.errorType, errorMessage: target.lastError, sizeBytes: target.sizeBytes, snapshotFetchedAt: target.snapshotFetchedAt, normalizedCurrentFields: target.normalizedCurrentFields, currentIssueSnapshotRef: target.currentIssueSnapshotRef, normalizedCurrentFieldsRef: target.normalizedCurrentFieldsRef, issueManifestRef: target.issueManifestRef, canonicalFiles: target.canonicalFiles, coverage: target.coverage }))
+    issues: run.index.targets.map((target) => ({ issueKey: target.objectKey, status: canonicalIssueStatus(target.status) ?? target.status, originalStatus: target.status, classification: target.classification, errorCode: target.errorType, errorMessage: target.lastError, sizeBytes: target.sizeBytes, snapshotFetchedAt: target.snapshotFetchedAt, normalizedCurrentFields: target.normalizedCurrentFields, currentIssueSnapshotRef: target.currentIssueSnapshotRef, normalizedCurrentFieldsRef: target.normalizedCurrentFieldsRef, issueManifestRef: target.issueManifestRef, canonicalFiles: target.canonicalFiles, coverage: target.coverage }))
   };
 }
 
@@ -200,8 +202,19 @@ export function loadStagingRun(runDir: string): StagingRun {
   if (!fs.existsSync(statePath)) return loadLegacyRun(runDir);
   const state = readSmallJson<StagingState>(statePath);
   const index = readSmallJson<StagingIndex>(paths(runDir).index);
-  if (state.schemaVersion !== FULL_FETCH_STAGING_SCHEMA || index.schemaVersion !== FULL_FETCH_INDEX_SCHEMA || state.stagingId !== index.stagingId) throw new Error("Unsupported or inconsistent Full Fetch staging schema.");
-  const compatibleState = { ...state, cancelledAt: state.cancelledAt ?? null, successfulExportAt: state.successfulExportAt ?? null, lastExportAttemptAt: state.lastExportAttemptAt ?? null, exportError: state.exportError ?? null };
+  if (state.stagingId !== index.stagingId) throw new Error("Unsupported or inconsistent Full Fetch staging schema.");
+  const currentSchema = state.schemaVersion === FULL_FETCH_STAGING_SCHEMA && index.schemaVersion === FULL_FETCH_INDEX_SCHEMA;
+  const v0230Schema = state.schemaVersion === "full_fetch_staging_v2" && index.schemaVersion === "full_fetch_run_index_v2";
+  if (!currentSchema && !v0230Schema) throw new Error("Unsupported or inconsistent Full Fetch staging schema.");
+  const compatibleState = {
+    ...state,
+    cancelledAt: state.cancelledAt ?? null,
+    successfulExportAt: state.successfulExportAt ?? null,
+    lastExportAttemptAt: state.lastExportAttemptAt ?? null,
+    exportError: state.exportError ?? null,
+    legacyReadOnly: v0230Schema || state.legacyReadOnly === true,
+    legacyMessage: v0230Schema ? "v0.2.30 Full Fetch staging is readable in compatibility mode and will not be mutated." : state.legacyMessage ?? ""
+  };
   const run = { dir: runDir, state: compatibleState, index };
   run.state = deriveState({ ...compatibleState, stagingSizeBytes: directorySize(runDir) }, index);
   return run;
@@ -245,6 +258,17 @@ function verifyCanonicalFiles(run: StagingRun, files: Record<string, FileReferen
   return failures;
 }
 
+function paginationVerified(value: Record<string, unknown>) {
+  const reportedTotal = Number(value.reportedTotal);
+  const fetchedCount = Number(value.fetchedCount);
+  const duplicateCount = Number(value.duplicateCount);
+  return value.paginationComplete === true
+    && Number.isInteger(reportedTotal)
+    && reportedTotal >= 0
+    && fetchedCount === reportedTotal
+    && duplicateCount === 0;
+}
+
 export function completeTarget(run: StagingRun, objectKey: string, outcome: TargetOutcome) {
   assertMutable(run);
   const key = safeIssueDirectoryName(objectKey);
@@ -254,7 +278,7 @@ export function completeTarget(run: StagingRun, objectKey: string, outcome: Targ
   target.optionalEndpointStatus = outcome.optionalEndpointStatus ?? {};
   target.optionalWarnings = Array.from(new Set([...(outcome.optionalWarnings ?? []), ...Object.values(target.optionalEndpointStatus).flatMap((entry) => entry?.warning ? [entry.warning] : [])].map((item) => cleanText(item)).filter(Boolean)));
   if (outcome.status === "failed") {
-    target.status = "failed_issue"; target.errorType = cleanText(outcome.errorType || "issue_fetch_failed"); target.lastError = cleanText(outcome.errorMessage); target.classification = cleanText(outcome.classification || "issue_scoped_failure"); target.updatedAt = completedAt;
+    target.status = "failed_final"; target.errorType = cleanText(outcome.errorType || "issue_fetch_failed"); target.lastError = cleanText(outcome.errorMessage); target.classification = cleanText(outcome.classification || "issue_scoped_failure"); target.updatedAt = completedAt;
     appendNdjson(paths(run.dir).issueErrors, { time: completedAt, issueKey: key, status: target.status, errorCode: target.errorType, message: target.lastError });
     run.state.lastCompletedObjectKey = key; persist(run); return target;
   }
@@ -284,14 +308,16 @@ export function completeTarget(run: StagingRun, objectKey: string, outcome: Targ
   const pagination = record(envelope.paginationMetadata);
   const changelogPagination = record(pagination.changelog);
   const commentsPagination = record(pagination.comments);
+  const changelogPaginationComplete = paginationVerified(changelogPagination);
+  const commentsPaginationComplete = paginationVerified(commentsPagination);
   const validationFailures: string[] = [];
   if (!snapshot.id || String(snapshot.key).toUpperCase() !== key) validationFailures.push("issue_identity_mismatch");
   if (snapshot.sectionStatus.fields !== "returned") validationFailures.push("full_fields_not_returned");
-  if (changelogPagination.complete !== true) validationFailures.push("changelog_pagination_incomplete");
-  if (commentsPagination.complete !== true) validationFailures.push("comments_pagination_incomplete");
+  if (!changelogPaginationComplete) validationFailures.push("changelog_pagination_incomplete");
+  if (!commentsPaginationComplete) validationFailures.push("comments_pagination_incomplete");
   validationFailures.push(...verifyCanonicalFiles(run, canonicalFiles));
   const missing = Array.from(new Set([...(outcome.missingSections ?? []), ...validationFailures]));
-  const finalStatus = outcome.status === "required_partial" || missing.length > 0 ? "required_partial" : "eligible";
+  const finalStatus: TargetStatus = outcome.status === "partial" || outcome.status === "required_partial" || missing.length > 0 ? "partial" : "eligible";
   const issueEndpoint = endpointInfo(envelope, `/issue/${key}`);
   const changelogEndpoint = endpointInfo(envelope, "/changelog");
   const commentsEndpoint = endpointInfo(envelope, "/comment");
@@ -299,15 +325,15 @@ export function completeTarget(run: StagingRun, objectKey: string, outcome: Targ
   const coverage = [
     fileCoverage("current_issue_snapshot", true, true, validationFailures.some((item) => item.includes("identity") || item.includes("fields") || item.startsWith("currentIssueSnapshot:")) ? "failed" : "complete", canonicalFiles.currentIssueSnapshot, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("normalized_current_fields", true, true, "complete", canonicalFiles.normalizedCurrentFields, "", { ...issueEndpoint, fetchedAt }),
-    fileCoverage("changelog", true, true, changelogPagination.complete === true ? "complete" : "partial", canonicalFiles.changelog, changelogPagination.complete === true ? "" : "Changelog pagination incomplete", { ...changelogEndpoint, fetchedAt, pageCount: Number(changelogPagination.pageCount ?? 0) }),
-    fileCoverage("comments", true, true, commentsPagination.complete === true ? "complete" : "partial", canonicalFiles.comments, commentsPagination.complete === true ? "" : "Comments pagination incomplete", { ...commentsEndpoint, fetchedAt, pageCount: Number(commentsPagination.pageCount ?? 0) }),
+    fileCoverage("changelog", true, true, changelogPaginationComplete ? "complete" : "partial", canonicalFiles.changelog, changelogPaginationComplete ? "" : "Changelog pagination incomplete", { ...changelogEndpoint, fetchedAt, pageCount: Number(changelogPagination.pageCount ?? 0) }),
+    fileCoverage("comments", true, true, commentsPaginationComplete ? "complete" : "partial", canonicalFiles.comments, commentsPaginationComplete ? "" : "Comments pagination incomplete", { ...commentsEndpoint, fetchedAt, pageCount: Number(commentsPagination.pageCount ?? 0) }),
     fileCoverage("attachments", true, true, "metadata_only", canonicalFiles.attachments, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("users", true, true, "complete", canonicalFiles.users, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("evidence", true, true, "complete", canonicalFiles.evidence, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("issue_links", true, true, "complete", canonicalFiles.issueLinks, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("remote_links", remoteStatus?.enabled === true, remoteStatus?.status !== "not_attempted", remoteStatus?.status === "available" ? "complete" : "not_collected", canonicalFiles.remoteLinks, remoteStatus?.warning ?? "", { fetchedAt: remoteStatus?.fetchedAt ?? null, attemptCount: remoteStatus?.attemptCount ?? 0, httpStatus: remoteStatus?.httpStatus ?? null })
   ];
-  const issueManifest = { schemaVersion: "full_fetch_issue_manifest_v2", appVersion: "0.2.30", runId: run.state.fullFetchRunId, stagingId: run.state.stagingId, issueId: snapshot.id, issueKey: key, status: finalStatus, fetchedAt: snapshot.fetchedAt, committedAt: completedAt, currentIssueSnapshotRef: canonicalFiles.currentIssueSnapshot, normalizedCurrentFieldsRef: canonicalFiles.normalizedCurrentFields, canonicalFiles, coverage, coreValidation: { identityVerified: !validationFailures.includes("issue_identity_mismatch"), fullFieldsReturned: snapshot.sectionStatus.fields === "returned", changelogPaginationComplete: changelogPagination.complete === true, commentsPaginationComplete: commentsPagination.complete === true, canonicalHashSizeAndParseVerified: !validationFailures.some((item) => item.includes("canonical_")), failures: validationFailures }, missingSections: missing, failedEndpoints: outcome.failedEndpoints ?? [], optionalWarnings: target.optionalWarnings, classification: finalStatus === "eligible" ? outcome.classification ?? "complete" : "required_core_section_incomplete" };
+  const issueManifest = { schemaVersion: "full_fetch_issue_manifest_v3", appVersion: "0.2.31", runId: run.state.fullFetchRunId, stagingId: run.state.stagingId, issueId: snapshot.id, issueKey: key, status: finalStatus, fetchedAt: snapshot.fetchedAt, committedAt: completedAt, currentIssueSnapshotRef: canonicalFiles.currentIssueSnapshot, normalizedCurrentFieldsRef: canonicalFiles.normalizedCurrentFields, canonicalFiles, coverage, coreValidation: { identityVerified: !validationFailures.includes("issue_identity_mismatch"), fullFieldsReturned: snapshot.sectionStatus.fields === "returned", changelogPaginationComplete, commentsPaginationComplete, canonicalHashSizeAndParseVerified: !validationFailures.some((item) => item.includes("canonical_")), failures: validationFailures }, missingSections: missing, failedEndpoints: outcome.failedEndpoints ?? [], optionalWarnings: target.optionalWarnings, classification: finalStatus === "eligible" ? outcome.classification ?? "complete" : "required_core_section_incomplete" };
   const manifestRef = atomicWriteJsonStream(path.join(issueDir, "issue-manifest.json"), issueManifest, reference("issue-manifest.json"));
   target.status = finalStatus; target.classification = cleanText(finalStatus === "eligible" ? outcome.classification || target.status : "required_core_section_incomplete"); target.errorType = cleanText(finalStatus === "eligible" ? outcome.errorType : "eligible_validation_failed"); target.lastError = cleanText(finalStatus === "eligible" ? outcome.errorMessage : missing.join(", ")); target.currentIssueSnapshotRef = canonicalFiles.currentIssueSnapshot; target.snapshotFetchedAt = snapshot.fetchedAt; target.normalizedCurrentFieldsRef = canonicalFiles.normalizedCurrentFields; target.normalizedCurrentFields = normalized.fields; target.issueManifestRef = manifestRef; target.canonicalFiles = canonicalFiles; target.coverage = coverage; target.sizeBytes = Object.values(canonicalFiles).reduce((sum, ref) => sum + ref.sizeBytes, 0) + manifestRef.sizeBytes; target.updatedAt = completedAt;
   if (finalStatus !== "eligible") appendNdjson(paths(run.dir).issueErrors, { time: completedAt, issueKey: key, status: finalStatus, errorCode: target.errorType, message: target.lastError, canonicalFiles });
@@ -334,12 +360,18 @@ export function failStagingRun(run: StagingRun, faultingIssue: string, error: un
     else if (target.status === "pending") { target.status = "not_attempted_due_to_run_failure"; target.classification = "not_attempted_due_to_run_failure"; target.updatedAt = failedAt; }
   }
   const typedStage = error && typeof error === "object" && "stage" in error && typeof (error as { stage?: unknown }).stage === "string" ? (error as { stage: string }).stage : stage;
-  run.state.status = "failed_final"; run.state.finishedAt = failedAt; run.state.failureTime = failedAt; run.state.faultingObjectKey = key; run.state.runError = { code: errorCode(error), stage: cleanText(typedStage, 160), name: error instanceof Error ? error.name : "Error", message: cleanText(error instanceof Error ? error.message : error), stackSummary: cleanText(error instanceof Error ? error.stack : "", 4000), failedAt };
+  run.state.status = "failed"; run.state.finishedAt = failedAt; run.state.failureTime = failedAt; run.state.faultingObjectKey = key; run.state.runError = { code: errorCode(error), stage: cleanText(typedStage, 160), name: error instanceof Error ? error.name : "Error", message: cleanText(error instanceof Error ? error.message : error), stackSummary: cleanText(error instanceof Error ? error.stack : "", 4000), failedAt };
   try { persist(run); atomicSmallJson(paths(run.dir).errors, { schemaVersion: "full_fetch_run_errors_v1", runId: run.state.fullFetchRunId, stagingId: run.state.stagingId, runError: run.state.runError, faultingIssue: key, notAttemptedIssues: run.index.targets.filter((target) => target.status === "not_attempted_due_to_run_failure").map((target) => target.objectKey) }, run.dir); }
-  catch (manifestError) { try { fs.writeFileSync(path.join(run.dir, "emergency-error-manifest.json"), JSON.stringify({ runId: run.state.fullFetchRunId, stagingId: run.state.stagingId, status: "failed_final", faultingIssue: key, errorCode: run.state.runError.code, errorMessage: run.state.runError.message, manifestError: cleanText(manifestError) }), "utf8"); } catch { /* Last-resort failure must not retain the process lock. */ } }
+  catch (manifestError) { try { fs.writeFileSync(path.join(run.dir, "emergency-error-manifest.json"), JSON.stringify({ runId: run.state.fullFetchRunId, stagingId: run.state.stagingId, status: "failed", faultingIssue: key, errorCode: run.state.runError.code, errorMessage: run.state.runError.message, manifestError: cleanText(manifestError) }), "utf8"); } catch { /* Last-resort failure must not retain the process lock. */ } }
   return run.state;
 }
-export function finalizeStagingRun(run: StagingRun, cancelled = false) { assertMutable(run); if (run.state.remaining > 0) for (const target of run.index.targets) if (target.status === "pending") { target.status = "not_attempted_due_to_run_failure"; target.classification = cancelled ? "not_attempted_due_to_user_cancellation" : "not_attempted"; } run.state.status = cancelled ? "cancelled" : run.index.targets.some((target) => ["required_partial", "failed_issue", "failed_final", "not_attempted_due_to_run_failure"].includes(target.status)) ? "completed_with_errors" : "completed"; run.state.finishedAt = now(); run.state.cancelledAt = cancelled ? run.state.finishedAt : null; persist(run); return run.state; }
+export function finalizeStagingRun(run: StagingRun, cancelled = false) {
+  assertMutable(run);
+  if (run.state.remaining > 0) for (const target of run.index.targets) if (target.status === "pending") { target.status = "not_attempted_due_to_run_failure"; target.classification = cancelled ? "not_attempted_due_to_user_cancellation" : "not_attempted"; }
+  const aggregate = aggregateFullFetchStatus(run.index.targets.map((target) => target.status), false);
+  run.state.status = cancelled ? "cancelled" : aggregate.status;
+  run.state.finishedAt = now(); run.state.cancelledAt = cancelled ? run.state.finishedAt : null; persist(run); return run.state;
+}
 
 export function recoverStaleStaging(rootDir: string) {
   fs.mkdirSync(rootDir, { recursive: true }); const recovered: StagingRun[] = [];
@@ -349,7 +381,7 @@ export function recoverStaleStaging(rootDir: string) {
       const run = loadStagingRun(runDir);
       if (!run.state.legacyReadOnly && run.state.status === "running") {
         const failedAt = now(); for (const target of run.index.targets) { if (target.status === "in_progress") { target.status = "failed_final"; target.errorType = "process_restarted"; target.lastError = "The previous app process ended before this issue committed."; } else if (target.status === "pending") target.status = "not_attempted_due_to_run_failure"; }
-        run.state.status = "aborted_on_restart"; run.state.failureTime = failedAt; run.state.finishedAt = failedAt; run.state.runError = { code: "process_restarted", stage: "startup_recovery", name: "AbortedOnRestart", message: "The previous Full Fetch process ended while the run was active.", stackSummary: "", failedAt }; persist(run); recovered.push(run);
+        run.state.status = "failed"; run.state.failureTime = failedAt; run.state.finishedAt = failedAt; run.state.runError = { code: "process_restarted", stage: "startup_recovery", name: "AbortedOnRestart", message: "The previous Full Fetch process ended while the run was active.", stackSummary: "", failedAt }; persist(run); recovered.push(run);
       }
     } catch { /* Invalid directories are not mutated automatically. */ }
   }
@@ -367,9 +399,11 @@ export function listStagingRuns(rootDir: string, legacyRootDir?: string) {
   }
   return runs.sort((a, b) => b.state.updatedAt.localeCompare(a.state.updatedAt));
 }
-export function previewStaging(run: StagingRun) { run.state = deriveState({ ...run.state, stagingSizeBytes: directorySize(run.dir) }, run.index); return { ...run.state, stagingPath: run.dir, blockingErrors: run.index.targets.filter((target) => ["failed_issue", "failed_final"].includes(target.status)).map((target) => ({ objectKey: target.objectKey, errorCode: target.errorType, error: target.lastError })), issueSummaries: run.index.targets.map((target) => ({ issueKey: target.objectKey, status: target.status, classification: target.classification, sizeBytes: target.sizeBytes, snapshotFetchedAt: target.snapshotFetchedAt, currentIssueSnapshotRef: target.currentIssueSnapshotRef, normalizedCurrentFieldsRef: target.normalizedCurrentFieldsRef, issueManifestRef: target.issueManifestRef, coverage: target.coverage })) }; }
+export function previewStaging(run: StagingRun) { run.state = deriveState({ ...run.state, stagingSizeBytes: directorySize(run.dir) }, run.index); return { ...run.state, stagingPath: run.dir, blockingErrors: run.index.targets.filter((target) => ["failed_issue", "failed_final"].includes(target.status)).map((target) => ({ objectKey: target.objectKey, errorCode: target.errorType, error: target.lastError })), issueSummaries: run.index.targets.map((target) => ({ issueKey: target.objectKey, status: canonicalIssueStatus(target.status) ?? target.status, originalStatus: target.status, classification: target.classification, sizeBytes: target.sizeBytes, snapshotFetchedAt: target.snapshotFetchedAt, currentIssueSnapshotRef: target.currentIssueSnapshotRef, normalizedCurrentFieldsRef: target.normalizedCurrentFieldsRef, issueManifestRef: target.issueManifestRef, coverage: target.coverage })) }; }
 
 export function previewStagingIssue(run: StagingRun, issueKey: string) {
+  const loadStartedAt = Date.now();
+  const heapBeforeBytes = process.memoryUsage().heapUsed;
   const key = safeIssueDirectoryName(issueKey);
   const target = run.index.targets.find((item) => item.objectKey === key);
   if (!target) throw new Error(`Full Fetch Issue is not present in this run: ${key}`);
@@ -380,7 +414,21 @@ export function previewStagingIssue(run: StagingRun, issueKey: string) {
     snapshot = readSmallJson<Record<string, unknown>>(resolveInside(run.dir, target.currentIssueSnapshotRef.path), 32 * 1024 * 1024);
     snapshotLoadStatus = "loaded";
   }
-  return { issueKey: key, status: target.status, classification: target.classification, sizeBytes: target.sizeBytes, snapshotFetchedAt: target.snapshotFetchedAt, currentIssueSnapshotRef: target.currentIssueSnapshotRef, normalizedCurrentFieldsRef: target.normalizedCurrentFieldsRef, issueManifestRef: target.issueManifestRef, normalizedCurrentFields: Array.isArray(normalized?.fields) ? normalized.fields : [], snapshot, snapshotLoadStatus, coverage: target.coverage, optionalEndpointStatus: target.optionalEndpointStatus, warnings: target.optionalWarnings };
+  const previousIssueKey = lastPreviewIssueByStaging.get(run.state.stagingId) ?? "";
+  lastPreviewIssueByStaging.set(run.state.stagingId, key);
+  const diagnostics = {
+    loadedIssueKey: key,
+    loadedFileSize: (target.currentIssueSnapshotRef?.sizeBytes ?? 0) + (target.normalizedCurrentFieldsRef?.sizeBytes ?? 0),
+    loadDurationMs: Date.now() - loadStartedAt,
+    rendererHeapBefore: null,
+    rendererHeapAfter: null,
+    mainHeapBeforeBytes: heapBeforeBytes,
+    mainHeapAfterBytes: process.memoryUsage().heapUsed,
+    previousIssueReleased: Boolean(previousIssueKey && previousIssueKey !== key),
+    previousIssueKey: previousIssueKey && previousIssueKey !== key ? previousIssueKey : ""
+  };
+  appendStagingDiagnostic(run.dir, "lazy_load_issue", diagnostics);
+  return { issueKey: key, status: canonicalIssueStatus(target.status) ?? target.status, originalStatus: target.status, classification: target.classification, sizeBytes: target.sizeBytes, snapshotFetchedAt: target.snapshotFetchedAt, currentIssueSnapshotRef: target.currentIssueSnapshotRef, normalizedCurrentFieldsRef: target.normalizedCurrentFieldsRef, issueManifestRef: target.issueManifestRef, normalizedCurrentFields: Array.isArray(normalized?.fields) ? normalized.fields : [], snapshot, snapshotLoadStatus, coverage: target.coverage, optionalEndpointStatus: target.optionalEndpointStatus, warnings: target.optionalWarnings, diagnostics };
 }
 
 export function deleteFailedStaging(rootDir: string, stagingId: string) {
@@ -390,7 +438,7 @@ export function deleteFailedStaging(rootDir: string, stagingId: string) {
   const resolved = fs.realpathSync(candidate);
   if (resolved === root || path.dirname(resolved) !== root || !resolved.startsWith(`${root}${path.sep}`)) throw new Error("Staging target escapes the staging root.");
   const run = loadStagingRun(resolved);
-  if (run.state.legacyReadOnly || !["failed_final", "aborted_on_restart", "completed_with_errors", "discarded"].includes(run.state.status)) throw new Error("Only failed or discarded v0.2.30 staging can be deleted.");
+  if (run.state.legacyReadOnly || !["failed", "failed_final", "aborted_on_restart", "completed_with_partial", "completed_with_errors", "discarded"].includes(run.state.status)) throw new Error("Only failed, partial, or discarded v0.2.31 staging can be deleted.");
   if (run.state.status !== "discarded") { run.state.status = "discarded"; run.state.finishedAt ??= now(); persist(run); }
   fs.rmSync(resolved, { recursive: true, force: false }); return { ok: true, stagingId, deletedPath: resolved };
 }
@@ -400,7 +448,7 @@ export function cleanupExpiredStaging(rootDir: string, at = new Date()) {
   if (!fs.existsSync(rootDir)) return results;
   for (const run of listStagingRuns(rootDir)) {
     if (mutationLocks.has(run.state.stagingId) || ["created", "running"].includes(run.state.status)) { results.push({ stagingId: run.state.stagingId, removed: false, reason: "active_staging" }); continue; }
-    if (["failed_final", "aborted_on_restart", "completed_with_errors", "legacy_incomplete"].includes(run.state.status)) { results.push({ stagingId: run.state.stagingId, removed: false, reason: "fetch_failure_permanent_retention" }); continue; }
+    if (["failed", "failed_final", "aborted_on_restart", "completed_with_partial", "completed_with_errors", "legacy_incomplete"].includes(run.state.status)) { results.push({ stagingId: run.state.stagingId, removed: false, reason: "fetch_failure_permanent_retention" }); continue; }
     if (run.state.exportError && !run.state.safeToCleanup) { results.push({ stagingId: run.state.stagingId, removed: false, reason: "export_failure_permanent_retention" }); continue; }
     const cancelledAt = run.state.cancelledAt ? new Date(run.state.cancelledAt).getTime() : NaN;
     if (run.state.status === "cancelled" && Number.isFinite(cancelledAt) && cancelledAt + CANCELLED_RETENTION_DAYS * 86400000 <= at.getTime()) { fs.rmSync(run.dir, { recursive: true, force: true }); results.push({ stagingId: run.state.stagingId, removed: true, reason: "cancelled_retention_expired" }); continue; }
@@ -435,9 +483,9 @@ export function exportStaging(run: StagingRun, outputDir: string, _partial = fal
       if (invalid) throw new Error(`Eligible canonical verification failed for ${target.objectKey}: ${invalid.verification.errorCode || "canonical_json_unreadable"}`);
     }
     const canonical = archiveEntries(run, prefix);
-    const objectIndex = { schemaVersion: "source_object_index_v3", appVersion: "0.2.30", stagingId: run.state.stagingId, fullFetchRunId: run.state.fullFetchRunId, objects: run.index.targets.filter((target) => target.status === "eligible").map((target) => ({ sourceSystem: "jira", objectType: "issue", objectKey: target.objectKey, issueManifestRef: target.issueManifestRef, currentIssueSnapshotRef: target.currentIssueSnapshotRef, normalizedCurrentFieldsRef: target.normalizedCurrentFieldsRef, canonicalFiles: target.canonicalFiles, sizeBytes: target.sizeBytes })) };
+    const objectIndex = { schemaVersion: "source_object_index_v3", appVersion: "0.2.31", stagingId: run.state.stagingId, fullFetchRunId: run.state.fullFetchRunId, objects: run.index.targets.filter((target) => target.status === "eligible").map((target) => ({ sourceSystem: "jira", objectType: "issue", objectKey: target.objectKey, issueManifestRef: target.issueManifestRef, currentIssueSnapshotRef: target.currentIssueSnapshotRef, normalizedCurrentFieldsRef: target.normalizedCurrentFieldsRef, canonicalFiles: target.canonicalFiles, sizeBytes: target.sizeBytes })) };
     let verification: ArchiveVerification = { eligibleCount: run.state.eligible, entryCount: canonical.length + 2, expectedSizeBytes: canonical.reduce((sum, entry) => sum + fs.statSync(entry.filePath!).size, 0), verifiedSizeBytes: 0, hashMatchedCount: 0, zipReopenVerified: false, requiredEntriesReadable: false, manifestConsistent: false, safeForAutomaticImport: false };
-    const manifest = () => Buffer.from(`${JSON.stringify({ schemaVersion: "source_archive_import_package_v3", sectionMetadataVersion: "coverage_v2", appVersion: "0.2.30", exportedAt, packageStatus: "complete", stagingId: run.state.stagingId, fullFetchRunId: run.state.fullFetchRunId, eligible: run.state.eligible, verification, canonicalStorage: "per_issue_file_backed", futureImporterPolicy: "Import eligible records only and verify every canonical file reference before insertion." }, null, 2)}\n`, "utf8");
+    const manifest = () => Buffer.from(`${JSON.stringify({ schemaVersion: "source_archive_import_package_v3", sectionMetadataVersion: "coverage_v2", appVersion: "0.2.31", exportedAt, packageStatus: "complete", stagingId: run.state.stagingId, fullFetchRunId: run.state.fullFetchRunId, eligible: run.state.eligible, verification, canonicalStorage: "per_issue_file_backed", futureImporterPolicy: "Import eligible records only and verify every canonical file reference before insertion." }, null, 2)}\n`, "utf8");
     const indexBytes = Buffer.from(`${JSON.stringify(objectIndex, null, 2)}\n`, "utf8");
     const makeEntries = () => [{ name: `${prefix}source-archive-import-manifest.json`, data: manifest() }, { name: `${prefix}source-object-index.json`, data: indexBytes }, ...canonical];
     packagePath = path.join(outputDir, `source-archive-import-package-${run.state.stagingId}-complete.zip`);

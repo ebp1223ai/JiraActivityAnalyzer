@@ -293,14 +293,14 @@ export function AnalysisPage() {
   const fetchReportPageCount = Math.max(1, Math.ceil(filteredFetchReport.length / userAnalysis.fetchReportPageSize));
   const fetchReportPage = Math.min(userAnalysis.fetchReportPage, fetchReportPageCount);
   const pagedFetchReport = filteredFetchReport.slice((fetchReportPage - 1) * userAnalysis.fetchReportPageSize, fetchReportPage * userAnalysis.fetchReportPageSize);
-  const hasFullFetchResult = ["completed", "completed_with_errors", "failed_final", "aborted_on_restart"].includes(userAnalysis.fullFetchStatus);
+  const hasFullFetchResult = ["completed", "completed_with_partial", "completed_with_errors", "failed", "failed_final", "aborted_on_restart"].includes(userAnalysis.fullFetchStatus);
   const relatedReviewDone = userAnalysis.workflowSteps.relatedReview === "completed" || userAnalysis.workflowSteps.relatedReview === "skipped";
   const exportReady = Boolean(userAnalysis.timelineSummary || hasFullFetchResult || userAnalysis.relatedCandidateIssues.length > 0) && (!hasFullFetchResult || relatedReviewDone);
   const dateRangeDays = userAnalysis.startDate && userAnalysis.endDate
     ? Math.round((Date.parse(userAnalysis.endDate) - Date.parse(userAnalysis.startDate)) / 86400000) + 1
     : 0;
   const dateRangeWarning = dateRangeDays > 90 ? "Date range is over 90 days. User Analysis may take longer; narrow the range if possible." : "";
-  const fullFetchCompletedCount = userAnalysis.fullFetchProgress.success + userAnalysis.fullFetchProgress.failed + userAnalysis.fullFetchProgress.skipped;
+  const fullFetchCompletedCount = userAnalysis.fullFetchProgress.success + (userAnalysis.fullFetchProgress.partial ?? 0) + userAnalysis.fullFetchProgress.failed + userAnalysis.fullFetchProgress.skipped;
   const fullFetchProgressPercent = userAnalysis.fullFetchProgress.total > 0
     ? Math.min(100, Math.round((fullFetchCompletedCount / userAnalysis.fullFetchProgress.total) * 100))
     : 0;
@@ -333,6 +333,8 @@ export function AnalysisPage() {
       return userAnalysis.timelineStatus === "completed" ? { state: "ready", reason: "Timeline issue groups are ready. / Jira 群組已就緒。" } : { state: "blocked", reason: "Build Activity Timeline first. / 請先建立活動時間線。" };
     }
     if (step === "queue") {
+      if (userAnalysis.fullFetchStatus === "failed") return { state: "failed", reason: "Full Fetch failed. Review the retained staging diagnostics. / 完整抓取失敗，請檢查保留的暫存診斷。" };
+      if (userAnalysis.fullFetchStatus === "completed_with_partial") return { state: "warning", reason: "Full Fetch completed with partial required data. / 完整抓取已完成，但部分必要資料不完整。" };
       if (userAnalysis.fullFetchStatus === "failed_final" || userAnalysis.fullFetchStatus === "aborted_on_restart") return { state: "failed", reason: "Full Fetch ended permanently. Review the failed run details. / 完整抓取已永久結束，請檢查失敗執行詳情。" };
       if (userAnalysis.fullFetchStatus === "completed_with_errors") return { state: "warning", reason: "Full Fetch completed with issue-level errors. / 完整抓取已完成，但部分 Jira 發生錯誤。" };
       if (active) return { state: "current", reason: "Review queue and run Full Fetch. / 檢查佇列並執行完整抓取。" };
@@ -632,7 +634,7 @@ export function AnalysisPage() {
     try {
       const response = await window.desktopApp?.userAnalysis?.previewFullFetchIssue?.({ stagingId, issueKey });
       if (!response?.ok) throw new Error("Issue preview could not be loaded.");
-      setIssueSnapshotPreviews((current) => ({ ...current, [issueKey]: response.preview }));
+      setIssueSnapshotPreviews({ [issueKey]: response.preview });
     } catch (error) { patchState({ errors: [error instanceof Error ? error.message : "Issue preview failed."] }); }
     finally { setIssueSnapshotLoading(""); }
   }
@@ -1474,16 +1476,23 @@ export function AnalysisPage() {
         directIssueKeys: userAnalysis.selectedTimelineIssueKeys
       });
       if (!response) throw new Error("Electron User Analysis Full Fetch API is not available.");
+      const preflight = (response.preflight ?? {}) as Record<string, unknown>;
+      if (response.ok === false && response.run == null && preflight.ok === false) {
+        const preflightErrors = Array.isArray(response.errors) ? response.errors as string[] : ["Preflight validation failed / 抓取前驗證失敗"];
+        patchState({ fullFetchStatus: "idle", fullFetchRunId: "", fullFetchStartedAt: "", fullFetchFinishedAt: "", fullFetchStaging: null, fullFetchErrors: preflightErrors, errors: preflightErrors, fullFetchWarnings: Array.isArray(response.warnings) ? response.warnings as string[] : [], notice: "Preflight validation failed / 抓取前驗證失敗" });
+        appendDebugLog("analysis", ["[ERROR] Preflight validation failed / 抓取前驗證失敗", "[INFO] No Full Fetch run or staging was created."]);
+        return;
+      }
       const run = (response.run ?? {}) as Record<string, unknown>;
       const diagnostics = (response.diagnostics ?? run.diagnostics ?? {}) as Record<string, unknown>;
       const finalMemory = (diagnostics.finalMemory ?? {}) as UserAnalysisFullFetchMemory;
-      const status = String(run.status ?? (response.ok ? "completed" : "failed_final")) as typeof userAnalysis.fullFetchStatus;
+      const status = String(run.status ?? (response.ok ? "completed" : "failed")) as typeof userAnalysis.fullFetchStatus;
       const relatedCandidateIssues = (Array.isArray(response.relatedCandidateIssues) ? response.relatedCandidateIssues : []) as typeof userAnalysis.relatedCandidateIssues;
       const jiraEvidenceSummary = response.jiraEvidenceSummary as JiraEvidenceSummary | undefined;
       const workflowSteps = {
         ...userAnalysis.workflowSteps,
         fetchQueue: "completed" as const,
-        fullFetch: status === "failed_final" || status === "aborted_on_restart" ? "failed" as const : "completed" as const,
+        fullFetch: ["failed", "failed_final", "aborted_on_restart"].includes(status) ? "failed" as const : "completed" as const,
         relatedIssues: relatedCandidateIssues.length > 0 ? "not_run" as const : "empty" as const,
         relatedDiscovery: "completed" as const,
         relatedReview: userAnalysis.workflowSteps.relatedReview,
@@ -1516,13 +1525,13 @@ export function AnalysisPage() {
         fullFetchErrors: Array.isArray(response.errors) ? response.errors as string[] : [],
         errors: Array.isArray(response.errors) ? response.errors as string[] : [],
         warnings: [...userAnalysis.warnings, ...(Array.isArray(response.warnings) ? response.warnings as string[] : [])],
-        notice: `Full Fetch ${status}: ${(response.summary as Record<string, unknown> | undefined)?.success ?? 0} success, ${(response.summary as Record<string, unknown> | undefined)?.failed ?? 0} failed.`
+        notice: `Full Fetch ${status}: ${(response.summary as Record<string, unknown> | undefined)?.eligible ?? 0} eligible, ${(response.summary as Record<string, unknown> | undefined)?.partial ?? 0} partial, ${(response.summary as Record<string, unknown> | undefined)?.failed ?? 0} failed.`
       });
       void persistWorkflowSnapshot({ steps: workflowSteps, relatedCandidateIssues, sessionEvent: "related_issues_expanded" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Full Fetch failed.";
       patchState({
-        fullFetchStatus: "failed_final",
+        fullFetchStatus: "failed",
         workflowSteps: { ...userAnalysis.workflowSteps, fullFetch: "failed" },
         fullFetchFinishedAt: new Date().toISOString(),
         fullFetchErrors: [message],
@@ -1876,6 +1885,7 @@ export function AnalysisPage() {
             <MiniStat label="Current / 目前" value={`${userAnalysis.fullFetchProgress.currentIndex} / ${userAnalysis.fullFetchProgress.total}`} />
             <MiniStat label="Current Issue / 目前 Jira" value={userAnalysis.fullFetchProgress.currentIssueKey || "-"} />
             <MiniStat label="Success / 成功" value={userAnalysis.fullFetchProgress.success} />
+            <MiniStat label="Partial / 部分完成" value={userAnalysis.fullFetchProgress.partial ?? 0} />
             <MiniStat label="Failed / 失敗" value={userAnalysis.fullFetchProgress.failed} />
             <MiniStat label="Skipped / 略過" value={userAnalysis.fullFetchProgress.skipped} />
             <MiniStat label="Elapsed / 已耗時" value={formatDuration(userAnalysis.fullFetchProgress.elapsedMs)} />
@@ -2296,6 +2306,7 @@ export function AnalysisPage() {
               <select className="field" value={userAnalysis.fetchReportFilter} onChange={(event) => { logAnalysisAction("USER_ACTION", `Status filter changed / 狀態篩選變更: value=${event.target.value}`); patchState({ fetchReportFilter: event.target.value as typeof userAnalysis.fetchReportFilter, fetchReportPage: 1 }); }}>
                 <option value="all">All / 全部</option>
                 <option value="success">Success / 成功</option>
+                <option value="partial">Partial / 部分完成</option>
                 <option value="failed">Failed / 失敗</option>
               </select>
               <select className="field" value={userAnalysis.fetchReportPageSize} onChange={(event) => { logAnalysisAction("USER_ACTION", `Rows per page changed / 每頁筆數變更: value=${event.target.value}`); patchState({ fetchReportPageSize: Number(event.target.value), fetchReportPage: 1 }); }}>

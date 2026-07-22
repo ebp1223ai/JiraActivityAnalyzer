@@ -6,6 +6,7 @@ import path from "node:path";
 import { ensureDir, getActivityStreamBaselinesDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getFullFetchStagingDir, getLegacyFullFetchStagingDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
 import { baselineFileName, compareBaselineObservation, entryFingerprint as createEntryFingerprint, loadBaselineSnapshot, saveBaselineSnapshot, selectBaselineGuardOutcome, sha256, type ActivityStreamBaselineComparison, type ActivityStreamBaselineSnapshot, type BaselineObservation } from "./activityStreamBaseline.js";
 import { buildUserActivityTimeline, classifyJiraRelation, classifyTimelineSource, timelineCsv, timelineEventSchema, type UserActivityTimelineBuild } from "./userActivityTimeline.js";
+import { resolveActivityIssueKeys } from "./activityIssueKeys.js";
 import { buildTimelineIssueGroups, defaultWorkflowSteps, extractRelatedIssues, mergeQueueMetadata, relatedIssueScopeSummary, relatedIssueSummary, type RelatedCandidateIssue, type WorkflowStepStatus } from "./userAnalysisWorkflow.js";
 import { analysisRoadmap, extractJiraEvidenceFromIssue, jiraEvidenceSchema, summarizeJiraEvidence, type JiraEvidenceEvent, type JiraEvidenceExcludedSummary, type JiraEvidenceSummary } from "./jiraEvidence.js";
 import { classifyWindowStability, csvCell, finalizeAttemptDiffs, fingerprintSet, mergeProbeAttempts, normalizeStabilityEvent, recommendStabilitySettings, splitActivityStreamWindows, type ActivityStreamProbeAttempt, type ActivityStreamProbeRun, type ActivityStreamProbeWindow, type ActivityStreamStabilityProbeConfig } from "./activityStreamStability.js";
@@ -16,10 +17,13 @@ import { appendStagingDiagnostic, cleanupExpiredStaging, completeTarget, createS
 import { buildFullFetchResultDocument, saveFullFetchResult, zipFullFetchResult } from "./fullFetchResult.js";
 import { createJiraClient } from "./jira/jiraClient.js";
 import { jiraGetWithRetry } from "./jira/jiraGetRetry.js";
+import { fetchJiraPages } from "./jira/jiraPagination.js";
+import { jiraFailureCode } from "./jira/jiraErrorCode.js";
 import { assertReadOnlyRequest, ReadOnlyViolationError } from "./jira/jiraReadOnlyGuard.js";
+import { preflightFullFetchQueue } from "./fullFetchPreflight.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
-import { sanitizeExportData, sanitizeTextForBundle } from "./export/sanitizeExport.js";
-import { directoryZipEntries, sanitizeFileForBundle, sanitizedCopyTree } from "./debugBundleSanitizer.js";
+import { createSanitizationContext, sanitizeExportData, sanitizeTextForBundle } from "./export/sanitizeExport.js";
+import { directoryZipEntries, sanitizeFileForBundle, sanitizedCopyTree, verifySanitizedFiles, type SanitizedFileManifestEntry } from "./debugBundleSanitizer.js";
 import { hashFile } from "./fileBackedJson.js";
 import { createStreamingZip, verifyStreamingZip } from "./streamingZip.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
@@ -178,6 +182,7 @@ type ActiveFullFetchDiagnostics = {
   lastCompletedIndex: number;
   lastCompletedIssueKey: string;
   success: number;
+  partial: number;
   failed: number;
   skipped: number;
   startedAtMs: number;
@@ -900,6 +905,10 @@ type ActivityStreamEntry = {
   source: "activity_stream" | "manual_url";
   variant: string;
   extractedIssueKeysPerEntry: string[];
+  mentionedIssueKeys: string[];
+  relatedIssueKeys: string[];
+  issueKeyResolutionSource: string;
+  issueKeyAmbiguous: boolean;
   rawTitle: string;
   rawSummary: string;
   rawContent: string;
@@ -1031,7 +1040,7 @@ function activityTypeClassifierDiagnostics(entries: ActivityStreamEntry[]) {
   return { enabled: true, rulesVersion: "1.1", commentPriorityHigherThanAttachment: true, totalEntries: entries.length, correctedEntryCount, preservedEntryCount, inferredEntryCount, fallbackUnknownCount, matchedRuleCounts, finalTypeCounts };
 }
 
-function activityEntry(values: { entryId?: unknown; title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown; application?: unknown; objectType?: unknown; target?: unknown }, variant: string, runId: string, entryIndex: number): ActivityStreamEntry {
+function activityEntry(values: { entryId?: unknown; title?: unknown; author?: unknown; authorEmail?: unknown; time?: unknown; content?: unknown; link?: unknown; raw?: unknown; application?: unknown; objectType?: unknown; target?: unknown; issueKey?: unknown; restIssueKey?: unknown; relatedIssueKeys?: unknown[] }, variant: string, runId: string, entryIndex: number): ActivityStreamEntry {
   const title = sanitizeResponseText(typeof values.title === "string" ? values.title : text(asRecord(values.title).value ?? asRecord(values.title).text ?? values.title));
   const authorRecord = asRecord(values.author);
   const author = sanitizeResponseText(typeof values.author === "string" ? values.author : text(authorRecord.name ?? authorRecord.displayName ?? authorRecord.email ?? authorRecord.username));
@@ -1041,15 +1050,16 @@ function activityEntry(values: { entryId?: unknown; title?: unknown; author?: un
   const link = typeof values.link === "string" ? values.link : JSON.stringify(values.link ?? "");
   const raw = typeof values.raw === "string" ? values.raw : JSON.stringify(values.raw ?? "");
   const combined = `${title} ${content} ${link} ${raw}`;
-  const extractedIssueKeysPerEntry = issueKeysFrom(combined).sort();
+  const issueResolution = resolveActivityIssueKeys({ linkHref: link, rawHtml: raw, structuredIssueKey: values.issueKey, restIssueKey: values.restIssueKey, title, summary: content, relatedIssueKeys: values.relatedIssueKeys });
+  const extractedIssueKeysPerEntry = issueResolution.allIssueKeys;
   const applicationText = sanitizeResponseText(text(values.application));
   const activityApplication = /confluence/i.test(`${applicationText} ${raw}`) ? "Confluence" : extractedIssueKeysPerEntry.length > 0 || /jira/i.test(applicationText) ? "Jira" : "Other";
   const objectType = sanitizeResponseText(text(values.objectType)).slice(0, 300);
   const activityTypeClassifier = classifyActivityType({ title, rawTitle: title, application: activityApplication, objectType, combined });
-  const entryFingerprint = createEntryFingerprint({ entryId: sanitizeResponseText(text(values.entryId)) === "-" ? "" : sanitizeResponseText(text(values.entryId)), source: "activity_stream", activityTime: time === "-" ? "" : time, activityAuthorEmail: authorEmail === "-" ? "" : authorEmail, activityTitle: title === "-" ? "" : title, issueKey: extractedIssueKeysPerEntry[0] ?? "", firstLinkHref: sanitizeResponseText(link) === "-" ? "" : sanitizeResponseText(link) });
+  const entryFingerprint = createEntryFingerprint({ entryId: sanitizeResponseText(text(values.entryId)) === "-" ? "" : sanitizeResponseText(text(values.entryId)), source: "activity_stream", activityTime: time === "-" ? "" : time, activityAuthorEmail: authorEmail === "-" ? "" : authorEmail, activityTitle: title === "-" ? "" : title, issueKey: issueResolution.issueKey, firstLinkHref: sanitizeResponseText(link) === "-" ? "" : sanitizeResponseText(link) });
   return {
     runId,
-    issueKey: extractedIssueKeysPerEntry[0] ?? "",
+    issueKey: issueResolution.issueKey,
     activityTitle: title === "-" ? "" : title.slice(0, 1000),
     activityAuthor: author === "-" ? "" : author.slice(0, 300),
     activityAuthorEmail: authorEmail === "-" ? "" : authorEmail.slice(0, 300),
@@ -1059,6 +1069,10 @@ function activityEntry(values: { entryId?: unknown; title?: unknown; author?: un
     source: variant === "manual_url" ? "manual_url" : "activity_stream",
     variant,
     extractedIssueKeysPerEntry,
+    mentionedIssueKeys: issueResolution.mentionedIssueKeys,
+    relatedIssueKeys: issueResolution.relatedIssueKeys,
+    issueKeyResolutionSource: issueResolution.source,
+    issueKeyAmbiguous: issueResolution.ambiguous,
     rawTitle: title === "-" ? "" : title.slice(0, 2000),
     rawSummary: sanitizeResponseText(content).slice(0, 2000),
     rawContent: sanitizeResponseText(`${content} ${raw}`).slice(0, 4000),
@@ -1105,7 +1119,10 @@ function parseActivityJson(value: unknown, variant: string, runId: string) {
     raw: entry,
     application: entry.application,
     objectType: entry.objectType ?? entry.type,
-    target: entry.target
+    target: entry.target,
+    issueKey: entry.issueKey ?? asRecord(entry.issue).key ?? asRecord(entry.object).key,
+    restIssueKey: entry.key,
+    relatedIssueKeys: Array.isArray(entry.relatedIssueKeys) ? entry.relatedIssueKeys : []
   }, variant, runId, entryIndex))
   };
 }
@@ -1140,13 +1157,13 @@ function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: str
   const parsedFeed = response.json
     ? parseActivityJson(response.json, variant, runId)
     : /atom|xml/i.test(contentType) || /^\s*<feed\b/i.test(bodyText) ? parseActivityAtom(bodyText, variant, runId) : { rawEntryCount: 0, atomEntryCount: 0, firstEntriesSanitized: [], entries: [] as ActivityStreamEntry[] };
-  const parsedIssueKeys = Array.from(new Set(parsedFeed.entries.flatMap((entry) => entry.extractedIssueKeysPerEntry))).sort();
+  const parsedIssueKeys = Array.from(new Set(parsedFeed.entries.map((entry) => entry.issueKey).filter(Boolean))).sort();
   const endpointUnavailable = response.status === 403 || response.status === 404;
   const blocked = /blocked|read.only|guard/i.test(`${response.errorType ?? ""} ${response.message ?? ""}`);
   const parsedEntries = parsedFeed.entries.filter((entry) => Boolean(entry.activityTitle || entry.activityAuthor || entry.activityTime || entry.activityType !== "unknown"));
   const skippedEntries = parsedFeed.entries.map((entry, entryIndex) => ({ entry, entryIndex })).filter(({ entry }) => !parsedEntries.includes(entry));
-  const entriesWithIssueKey = parsedEntries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 0);
-  const entriesWithoutIssueKey = parsedEntries.filter((entry) => entry.extractedIssueKeysPerEntry.length === 0);
+  const entriesWithIssueKey = parsedEntries.filter((entry) => Boolean(entry.issueKey));
+  const entriesWithoutIssueKey = parsedEntries.filter((entry) => !entry.issueKey);
   const confluenceOnlyEntries = entriesWithoutIssueKey.filter((entry) => entry.activityApplication === "Confluence");
   const parsedRatio = parsedFeed.atomEntryCount > 0 ? parsedEntries.length / parsedFeed.atomEntryCount : 1;
   const parserAnomaly = parsedFeed.atomEntryCount > 0 && parsedRatio < 0.5 || parsedFeed.atomEntryCount >= 20 && parsedEntries.length <= 1;
@@ -1161,6 +1178,8 @@ function activityStreamResult(response: JiraHttpResult, requestUrlSanitized: str
     entriesWithoutTimeCount: parsedFeed.entries.filter((entry) => !entry.activityTime).length,
     entriesWithoutTitleCount: parsedFeed.entries.filter((entry) => !entry.activityTitle).length,
     entriesWithMultipleIssueKeysCount: parsedFeed.entries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 1).length,
+    entriesWithMentionedIssueKeysCount: parsedFeed.entries.filter((entry) => entry.mentionedIssueKeys.length > 0).length,
+    ambiguousIssueKeyCount: parsedFeed.entries.filter((entry) => entry.issueKeyAmbiguous).length,
     parserErrorCount: 0,
     parserErrorsSanitized: [] as string[],
     skippedEntriesSanitized: skippedEntries.slice(0, 5).map(({ entry, entryIndex }) => ({ entryIndex, reason: "missing_activity_fields", rawTitleText: entry.activityTitle.slice(0, 500), rawUpdatedText: entry.activityTime.slice(0, 500), rawAuthorText: (entry.activityAuthor || entry.activityAuthorEmail).slice(0, 500) })),
@@ -1264,7 +1283,7 @@ function aggregateActivityStream(variantResults: ReturnType<typeof activityStrea
     firstEntriesSanitized: best?.firstEntriesSanitized ?? [],
     error: parsed || diagnosis === "no_entries" ? "" : best?.error || "Activity Stream could not be parsed.",
     rawSummary: best?.rawSummary ?? "",
-    parserDiagnostics: best?.parserDiagnostics ?? { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithIssueKeyCount: 0, confluenceOnlyEntryCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" },
+    parserDiagnostics: best?.parserDiagnostics ?? { atomEntryCount: 0, parsedEntryCount: 0, skippedEntryCount: 0, entriesWithoutIssueKeyCount: 0, entriesWithIssueKeyCount: 0, confluenceOnlyEntryCount: 0, entriesWithoutAuthorCount: 0, entriesWithoutTimeCount: 0, entriesWithoutTitleCount: 0, entriesWithMultipleIssueKeysCount: 0, entriesWithMentionedIssueKeysCount: 0, ambiguousIssueKeyCount: 0, parserErrorCount: 0, parserErrorsSanitized: [], skippedEntriesSanitized: [], parserAnomaly: false, parserAnomalyReason: "" },
     activityTypeClassifierDiagnostics: activityTypeClassifierDiagnostics(entriesSanitized),
     activityEntryStats: best?.activityEntryStats ?? { totalAtomEntries: 0, parsedActivityEntryCount: 0, parsedIssueActivityCount: 0, entriesWithIssueKeyCount: 0, entriesWithoutIssueKeyCount: 0, confluenceOnlyEntryCount: 0, nonJiraEntryCount: 0, jiraIssueEntryCount: 0, uniqueIssueKeyCount: 0 }
   };
@@ -1284,9 +1303,9 @@ function mergeVariantChunkResults(results: ReturnType<typeof activityStreamResul
     if (!uniqueEntries.has(key)) uniqueEntries.set(key, entry);
   }
   const entries = Array.from(uniqueEntries.values());
-  const issueKeys = Array.from(new Set(entries.flatMap((entry) => entry.extractedIssueKeysPerEntry))).sort();
-  const withIssueKey = entries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 0);
-  const withoutIssueKey = entries.filter((entry) => entry.extractedIssueKeysPerEntry.length === 0);
+  const issueKeys = Array.from(new Set(entries.map((entry) => entry.issueKey).filter(Boolean))).sort();
+  const withIssueKey = entries.filter((entry) => Boolean(entry.issueKey));
+  const withoutIssueKey = entries.filter((entry) => !entry.issueKey);
   const confluenceOnly = withoutIssueKey.filter((entry) => entry.activityApplication === "Confluence");
   const anyParsed = entries.length > 0;
   const allNoEntries = results.every((result) => result.diagnosis === "no_entries");
@@ -1322,6 +1341,8 @@ function mergeVariantChunkResults(results: ReturnType<typeof activityStreamResul
       entriesWithoutTimeCount: entries.filter((entry) => !entry.activityTime).length,
       entriesWithoutTitleCount: entries.filter((entry) => !entry.activityTitle).length,
       entriesWithMultipleIssueKeysCount: entries.filter((entry) => entry.extractedIssueKeysPerEntry.length > 1).length,
+      entriesWithMentionedIssueKeysCount: entries.filter((entry) => entry.mentionedIssueKeys.length > 0).length,
+      ambiguousIssueKeyCount: entries.filter((entry) => entry.issueKeyAmbiguous).length,
       parserErrorCount: results.reduce((sum, result) => sum + result.parserDiagnostics.parserErrorCount, 0),
       parserErrorsSanitized: results.flatMap((result) => result.parserDiagnostics.parserErrorsSanitized).slice(0, 5),
       skippedEntriesSanitized: results.flatMap((result) => result.parserDiagnostics.skippedEntriesSanitized).slice(0, 5),
@@ -2244,7 +2265,7 @@ function countChangeItems(histories: Record<string, unknown>[]) {
   return histories.reduce((sum, history) => sum + (Array.isArray(history.items) ? history.items.length : 0), 0);
 }
 
-function buildFullFetchReport(issueKey: string, candidate: Record<string, unknown>, result: Record<string, unknown>, startedAt: number, status: "success" | "failed", error = "") {
+function buildFullFetchReport(issueKey: string, candidate: Record<string, unknown>, result: Record<string, unknown>, startedAt: number, status: "success" | "partial" | "failed", error = "") {
   const issue = asRecord(result.issue);
   const fields = asRecord(issue.fields);
   const histories = Array.isArray(result.changelogHistories) ? result.changelogHistories as Record<string, unknown>[] : [];
@@ -2258,7 +2279,7 @@ function buildFullFetchReport(issueKey: string, candidate: Record<string, unknow
   const matchedReasons = Array.isArray(queueMetadata.matchedReasons) ? queueMetadata.matchedReasons.map(text).filter(Boolean) : [];
   const numericStatus = Number(result.httpStatus);
   const httpStatus = Number.isFinite(numericStatus) && numericStatus > 0 ? numericStatus : null;
-  const errorCode = status === "failed" ? (httpStatus ? `HTTP_${httpStatus}` : text(result.errorCode ?? result.errorType) || "UNKNOWN_ERROR") : "";
+  const errorCode = status === "failed" ? (httpStatus ? `HTTP_${httpStatus}` : text(result.errorCode ?? result.errorType) || "UNKNOWN_ERROR") : status === "partial" ? text(result.errorCode) || "REQUIRED_DATA_INCOMPLETE" : "";
   return {
     issueKey,
     summary: text(fields.summary ?? candidate.summary),
@@ -2302,13 +2323,27 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
   if (activeFullFetch) throw new Error("A Full Fetch staging mutation is already active. / 已有 Full Fetch 暫存作業進行中。");
   const connection = payload.connection;
   const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
-  const stagingRoot = ensureDir(getFullFetchStagingDir());
-  const fetchQueue = Array.isArray(payload.fetchQueue) ? payload.fetchQueue : [];
-  const runId = `full-fetch-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
   const selectedUser = text(payload.selectedUser) === "-" ? "" : text(payload.selectedUser);
   const startDate = text(payload.startDate) === "-" ? "" : text(payload.startDate);
   const endDate = text(payload.endDate) === "-" ? "" : text(payload.endDate);
   const projectScope = text(payload.projectScope);
+  const requestedQueue = Array.isArray(payload.fetchQueue) ? payload.fetchQueue : [];
+  const preflight = preflightFullFetchQueue({ candidates: requestedQueue, fetchLimit: payload.fetchLimit, projectScope });
+  if (!preflight.ok) {
+    return {
+      ok: false,
+      preflight,
+      run: null,
+      stagingSummary: null,
+      summary: { totalIssues: 0, completed: 0, eligible: 0, partial: 0, failed: 0, notAttempted: 0 },
+      logs: ["[ERROR] Preflight validation failed / 抓取前驗證失敗", "[INFO] No Full Fetch run or staging was created."],
+      errors: [preflight.message],
+      warnings: preflight.excluded.map((item) => `${item.key || `(row ${item.index + 1})`}: ${item.reason}`)
+    };
+  }
+  const fetchQueue = preflight.accepted;
+  const stagingRoot = ensureDir(getFullFetchStagingDir());
+  const runId = `full-fetch-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
   const generatedJql = text(payload.jql);
   const selectedIssues = Array.isArray(payload.selectedIssues) ? payload.selectedIssues.map(text).filter(Boolean) : fetchQueue.map((item) => text(item.key)).filter(Boolean);
   const fetchRemoteLinks = payload.fetchRemoteLinks === true;
@@ -2329,7 +2364,7 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
   const report: Record<string, unknown>[] = [];
   const issueResults: Record<string, unknown>[] = [];
   const relatedCandidateIssues: RelatedCandidateIssue[] = [];
-  const warnings: string[] = [];
+  const warnings: string[] = preflight.excluded.map((item) => `${item.key || `(row ${item.index + 1})`}: ${item.reason} - ${item.detail}`);
   const errors: string[] = [];
   const directIssueKeys = new Set(originalDirectIssueKeys.map((key) => key.toUpperCase()));
   const fullFetchedIssueKeys: string[] = [];
@@ -2340,7 +2375,7 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
   let directEvidenceCount = 0; let contextEvidenceCount = 0; let relatedContextEvidenceCount = 0;
   let peakRssMB = 0; let peakHeapUsedMB = 0; let peakRawDataEstimateMB = 0;
   let aggregate = { totalChangelogHistories: 0, totalChangelogItems: 0, totalComments: 0, totalAttachmentsMetadata: 0, totalIssueLinks: 0, totalParsedUsers: 0, totalEstimatedEvents: 0 };
-  activeFullFetch = { runId, status: "running", queueCount: fetchQueue.length, currentIndex: 0, currentIssueKey: "", lastCompletedIndex: 0, lastCompletedIssueKey: "", success: 0, failed: 0, skipped: 0, startedAtMs: runStartedMs, autoLogPath, runManifestPath, lastLogs: [], memory: memorySnapshot(), cancelRequested: false, stagingDir: stagingRun.dir };
+  activeFullFetch = { runId, status: "running", queueCount: fetchQueue.length, currentIndex: 0, currentIssueKey: "", lastCompletedIndex: 0, lastCompletedIssueKey: "", success: 0, partial: 0, failed: 0, skipped: 0, startedAtMs: runStartedMs, autoLogPath, runManifestPath, lastLogs: [], memory: memorySnapshot(), cancelRequested: false, stagingDir: stagingRun.dir };
   const log = (level: string, message: string) => {
     const rendererLine = `[${level}] ${maskDiagnosticText(message)}`;
     logs.push(rendererLine); if (logs.length > 500) logs.shift();
@@ -2355,14 +2390,15 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
     log("MEMORY", `${context} rss=${memory.rssMB}MB heapUsed=${memory.heapUsedMB}MB stagingBytes=${stagingBytes}`); return memory;
   };
   const progressPayload = () => {
-    const active = activeFullFetch!; const elapsedMs = Date.now() - active.startedAtMs; const completed = active.success + active.failed + active.skipped; const averageMsPerIssue = completed ? Math.round(elapsedMs / completed) : 0;
-    return { runId, status: active.status, total: active.queueCount, currentIndex: active.currentIndex, currentIssueKey: active.currentIssueKey, lastCompletedIndex: active.lastCompletedIndex, lastCompletedIssueKey: active.lastCompletedIssueKey, success: active.success, failed: active.failed, skipped: active.skipped, elapsedMs, averageMsPerIssue, estimatedRemainingMs: averageMsPerIssue * Math.max(0, active.queueCount - completed), batchSize, currentBatch: Math.min(Math.ceil(Math.max(active.currentIndex, 1) / batchSize), Math.max(1, Math.ceil(active.queueCount / batchSize))), totalBatches: Math.max(1, Math.ceil(active.queueCount / batchSize)), rawDataMode, memory: active.memory, autoLogPath, runManifestPath, issueStatus: issueStatus.map((item) => ({ ...item })), staging: previewStaging(stagingRun) };
+    const active = activeFullFetch!; const elapsedMs = Date.now() - active.startedAtMs; const completed = active.success + active.partial + active.failed + active.skipped; const averageMsPerIssue = completed ? Math.round(elapsedMs / completed) : 0;
+    return { runId, status: active.status, total: active.queueCount, currentIndex: active.currentIndex, currentIssueKey: active.currentIssueKey, lastCompletedIndex: active.lastCompletedIndex, lastCompletedIssueKey: active.lastCompletedIssueKey, success: active.success, eligible: active.success, partial: active.partial, failed: active.failed, skipped: active.skipped, notAttempted: active.skipped, elapsedMs, averageMsPerIssue, estimatedRemainingMs: averageMsPerIssue * Math.max(0, active.queueCount - completed), batchSize, currentBatch: Math.min(Math.ceil(Math.max(active.currentIndex, 1) / batchSize), Math.max(1, Math.ceil(active.queueCount / batchSize))), totalBatches: Math.max(1, Math.ceil(active.queueCount / batchSize)), rawDataMode, memory: active.memory, autoLogPath, runManifestPath, issueStatus: issueStatus.map((item) => ({ ...item })), staging: previewStaging(stagingRun) };
   };
   const sendProgress = (status = activeFullFetch?.status ?? "running") => { if (!activeFullFetch) return; activeFullFetch.status = status; event.sender.send("user-analysis:full-fetch-progress", progressPayload()); };
   const client = createJiraClient({ baseUrl: connection.baseUrl, email: connection.email || connection.username, apiToken: connection.apiToken ?? "", authType: connection.authType });
   const getWithRetry = async (urlPath: string, issueKey: string, stage: string) => jiraGetWithRetry(() => client.get(urlPath), { onAttempt: ({ attempt, status, errorCode, waitMs }) => log(waitMs ? "WARN" : "DEBUG", `GET attempt=${attempt} issue=${issueKey} stage=${stage} status=${status} error=${errorCode} waitMs=${waitMs}`) });
   try {
     log("INFO", `Full Fetch started: runId=${runId} stagingId=${stagingRun.state.stagingId} queue=${fetchQueue.length}`);
+    log("INFO", `Queue preflight: requested=${preflight.requestedCount} accepted=${preflight.acceptedCount} excluded=${preflight.excludedCount}`);
     log("INFO", `Staging Path: ${stagingRun.dir}`); log("INFO", "Raw mode: file-backed per-Issue canonical storage"); log("INFO", "Authorization: [masked]");
     updateMemory("Full Fetch started"); sendProgress();
     for (let queueIndex = 0; queueIndex < fetchQueue.length; queueIndex += 1) {
@@ -2377,7 +2413,7 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
       targetEndpointMetadata.push({ endpoint: issuePath, method: "GET", status: issue.status, contentType: issue.contentType, attempts: issueAttempt.attempts, required: true, fetchedAt: new Date().toISOString() });
       if (!issue.ok) {
         const message = `HTTP ${issue.status} ${issue.message ?? issue.errorType ?? ""}`.trim();
-        completeTarget(stagingRun, issueKey, { status: "failed", classification: "issue_scoped_failure", errorType: text(issue.errorType) || (issue.status === "-" ? "NETWORK_ERROR" : `HTTP_${issue.status}`), errorMessage: message });
+        completeTarget(stagingRun, issueKey, { status: "failed", classification: "issue_scoped_failure", errorType: jiraFailureCode(issue), errorMessage: message });
         const row = buildFullFetchReport(issueKey, candidate, { issue: {}, httpStatus: issue.status, changelogHistories: [], comments: [], attachments: [], links: [], parsedUsers: [] }, issueStarted, "failed", message);
         report.push({ ...row, retryCount: Math.max(0, issueAttempt.attempts - 1) }); issueResults.push({ issueKey, fetchStatus: "failed", error: message }); errors.push(`${issueKey}: ${message}`);
         if (activeFullFetch) { activeFullFetch.failed += 1; activeFullFetch.lastCompletedIndex = queueIndex + 1; activeFullFetch.lastCompletedIssueKey = issueKey; }
@@ -2385,27 +2421,23 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
         if (activeFullFetch?.cancelRequested) break; continue;
       }
       const issueJson = asRecord(issue.json); const fields = asRecord(issueJson.fields);
-      const expandedChangelog = Array.isArray(asRecord(issueJson.changelog).histories) ? asRecord(issueJson.changelog).histories as Record<string, unknown>[] : [];
-      const changelogHistories: Record<string, unknown>[] = []; let changelogStartAt = 0; let changelogPages = 0; let changelogComplete = false; const changelogMax = 100;
-      while (true) {
-        const changelogPath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/changelog?startAt=${changelogStartAt}&maxResults=${changelogMax}`;
-        const changelogAttempt = await getWithRetry(changelogPath, issueKey, "changelog"); const response = changelogAttempt.result; changelogPages += 1;
-        targetEndpointMetadata.push({ endpoint: changelogPath, method: "GET", status: response.status, contentType: response.contentType, attempts: changelogAttempt.attempts, required: true, fetchedAt: new Date().toISOString() });
-        if (!response.ok) break;
-        const body = asRecord(response.json); const page = Array.isArray(body.values) ? body.values as Record<string, unknown>[] : Array.isArray(body.histories) ? body.histories as Record<string, unknown>[] : [];
-        changelogHistories.push(...page); const total = Number(body.total ?? page.length); changelogStartAt += page.length;
-        if (!page.length || !Number.isFinite(total) || changelogStartAt >= total || body.isLast === true) { changelogComplete = Number.isFinite(total) ? changelogStartAt >= total : body.isLast === true; break; }
-      }
-      if (!changelogHistories.length && expandedChangelog.length) changelogHistories.push(...expandedChangelog);
-      const comments: Record<string, unknown>[] = []; let commentsStartAt = 0; let commentPages = 0; let commentsComplete = false; const commentMax = 100;
-      while (true) {
-        const commentPath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?startAt=${commentsStartAt}&maxResults=${commentMax}`;
-        const commentAttempt = await getWithRetry(commentPath, issueKey, "comments"); const response = commentAttempt.result; commentPages += 1;
-        targetEndpointMetadata.push({ endpoint: commentPath, method: "GET", status: response.status, contentType: response.contentType, attempts: commentAttempt.attempts, required: true, fetchedAt: new Date().toISOString() });
-        if (!response.ok) break;
-        const page = Array.isArray(asRecord(response.json).comments) ? asRecord(response.json).comments as Record<string, unknown>[] : []; comments.push(...page);
-        const total = Number(asRecord(response.json).total ?? page.length); commentsStartAt += page.length; if (!page.length || !Number.isFinite(total) || commentsStartAt >= total) { commentsComplete = Number.isFinite(total) && commentsStartAt >= total; break; }
-      }
+      const expandedChangelogObservedCount = Array.isArray(asRecord(issueJson.changelog).histories) ? (asRecord(issueJson.changelog).histories as unknown[]).length : 0;
+      const changelogMax = 100;
+      const changelogPageResult = await fetchJiraPages<Record<string, unknown>>({
+        itemFields: ["values", "histories"],
+        pageSize: changelogMax,
+        fetchPage: async (startAt, maxResults) => getWithRetry(`${apiPrefix}/issue/${encodeURIComponent(issueKey)}/changelog?startAt=${startAt}&maxResults=${maxResults}`, issueKey, "changelog")
+      });
+      const changelogHistories = changelogPageResult.items;
+      for (const page of changelogPageResult.metadata.pages) targetEndpointMetadata.push({ endpoint: `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/changelog?startAt=${page.startAt}&maxResults=${page.requestedMaxResults}`, method: "GET", status: page.status, contentType: page.contentType, attempts: page.attempts, required: true, fetchedAt: page.fetchedAt, pageNumber: page.pageNumber, returnedCount: page.returnedCount, reportedTotal: page.reportedTotal, errorCode: page.errorCode });
+      const commentMax = 100;
+      const commentPageResult = await fetchJiraPages<Record<string, unknown>>({
+        itemFields: ["comments"],
+        pageSize: commentMax,
+        fetchPage: async (startAt, maxResults) => getWithRetry(`${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?startAt=${startAt}&maxResults=${maxResults}`, issueKey, "comments")
+      });
+      const comments = commentPageResult.items;
+      for (const page of commentPageResult.metadata.pages) targetEndpointMetadata.push({ endpoint: `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?startAt=${page.startAt}&maxResults=${page.requestedMaxResults}`, method: "GET", status: page.status, contentType: page.contentType, attempts: page.attempts, required: true, fetchedAt: page.fetchedAt, pageNumber: page.pageNumber, returnedCount: page.returnedCount, reportedTotal: page.reportedTotal, errorCode: page.errorCode });
       const attachments = Array.isArray(fields.attachment) ? fields.attachment as Record<string, unknown>[] : [];
       const links = Array.isArray(fields.issuelinks) ? fields.issuelinks as Record<string, unknown>[] : [];
       let remoteLinks: unknown[] | null = null; let remoteLinkStatus: OptionalEndpointStatus = { enabled: fetchRemoteLinks, status: "not_attempted", archiveBlocking: false, retryable: false, warning: null, httpStatus: null, errorCode: "", attemptCount: 0, fetchedAt: null };
@@ -2413,7 +2445,7 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
         const remotePath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/remotelink`; const remoteAttempt = await getWithRetry(remotePath, issueKey, "remote_links"); const response = remoteAttempt.result;
         const fetchedAt = new Date().toISOString(); targetEndpointMetadata.push({ endpoint: remotePath, method: "GET", status: response.status, contentType: response.contentType, attempts: remoteAttempt.attempts, required: false, fetchedAt });
         if (response.ok && Array.isArray(response.json)) { remoteLinks = response.json; remoteLinkStatus = { enabled: true, status: "available", archiveBlocking: false, retryable: false, warning: null, httpStatus: response.status, errorCode: "", attemptCount: remoteAttempt.attempts, fetchedAt }; }
-        else { const warning = `Remote Links optional request failed for ${issueKey}: HTTP ${response.status}.`; warnings.push(warning); const numericStatus = typeof response.status === "number" ? response.status : null; const status = numericStatus === 401 || numericStatus === 403 ? "permission_denied" : numericStatus === 400 || numericStatus === 404 ? "unsupported" : "temporarily_unavailable"; remoteLinkStatus = { enabled: true, status, archiveBlocking: false, retryable: false, warning, httpStatus: response.status, errorCode: text(response.errorType) || (numericStatus ? `HTTP_${numericStatus}` : "NETWORK_ERROR"), attemptCount: remoteAttempt.attempts, fetchedAt }; }
+        else { const warning = `Remote Links optional request failed for ${issueKey}: HTTP ${response.status}.`; warnings.push(warning); const numericStatus = typeof response.status === "number" ? response.status : null; const status = numericStatus === 401 || numericStatus === 403 ? "permission_denied" : numericStatus === 400 || numericStatus === 404 ? "unsupported" : "temporarily_unavailable"; remoteLinkStatus = { enabled: true, status, archiveBlocking: false, retryable: false, warning, httpStatus: response.status, errorCode: jiraFailureCode(response), attemptCount: remoteAttempt.attempts, fetchedAt }; }
       }
       const parsedUsers = uniqueUserNames([fields.assignee, fields.reporter, fields.creator, ...changelogHistories.map((history) => asRecord(history).author), ...comments.map((comment) => asRecord(comment).author), ...attachments.map((attachment) => asRecord(attachment).author)]);
       const changeItems = countChangeItems(changelogHistories); const estimatedEvents = 1 + changeItems + comments.length + attachments.length + links.length;
@@ -2425,41 +2457,41 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
       for (const [reason, count] of Object.entries(extractedEvidence.excluded.byReason)) evidenceExcludedByReason[reason] = (evidenceExcludedByReason[reason] ?? 0) + count;
       fullFetchedIssueKeys.push(issueKey);
       const failedEndpoints = targetEndpointMetadata.filter((item) => item.required !== false && !(Number(item.status) >= 200 && Number(item.status) < 300)).map((item) => text(item.endpoint));
-      const missingSections = Array.from(new Set([...failedEndpoints.map((endpoint) => endpoint.includes("comment") ? "comments" : endpoint.includes("changelog") ? "changelog" : "issue"), ...(!changelogComplete ? ["changelog"] : []), ...(!commentsComplete ? ["comments"] : [])]));
-      const stagedTarget = completeTarget(stagingRun, issueKey, { status: missingSections.length ? "required_partial" : "eligible", rawEnvelope: { issue: issueJson, changelogHistories, comments, attachments, parsedUsers, evidenceEvents: extractedEvidence.events, issueLinks: links, remoteLinks, endpointMetadata: targetEndpointMetadata, requestMetadata: { apiVersion: connection.apiVersion, executionMode: "sequential_read_only", fetchedAt: new Date().toISOString(), fetchRemoteLinks }, paginationMetadata: { comments: { fetchedCount: comments.length, pageCount: commentPages, pageSize: commentMax, complete: commentsComplete }, changelog: { fetchedCount: changelogHistories.length, pageCount: changelogPages, pageSize: changelogMax, complete: changelogComplete } }, completenessMetadata: { requiredMissingSections: missingSections, optionalWarningCount: remoteLinkStatus.warning ? 1 : 0 } }, missingSections, failedEndpoints, optionalEndpointStatus: { remoteLinks: remoteLinkStatus }, optionalWarnings: remoteLinkStatus.warning ? [remoteLinkStatus.warning] : [], classification: missingSections.length ? "required_partial" : remoteLinkStatus.warning ? "eligible_optional_warning" : "complete", errorType: missingSections.length ? "required_partial" : "", errorMessage: missingSections.length ? `Required sections incomplete: ${missingSections.join(", ")}` : "" });
+      const missingSections = Array.from(new Set([...failedEndpoints.map((endpoint) => endpoint.includes("comment") ? "comments" : endpoint.includes("changelog") ? "changelog" : "issue"), ...(!changelogPageResult.metadata.paginationComplete ? ["changelog"] : []), ...(!commentPageResult.metadata.paginationComplete ? ["comments"] : [])]));
+      const stagedTarget = completeTarget(stagingRun, issueKey, { status: missingSections.length ? "partial" : "eligible", rawEnvelope: { issue: issueJson, changelogHistories, comments, attachments, parsedUsers, evidenceEvents: extractedEvidence.events, issueLinks: links, remoteLinks, endpointMetadata: targetEndpointMetadata, requestMetadata: { apiVersion: connection.apiVersion, executionMode: "sequential_read_only", fetchedAt: new Date().toISOString(), fetchRemoteLinks, expandedChangelogObservedCount, embeddedChangelogAuthoritative: false }, paginationMetadata: { comments: { ...commentPageResult.metadata, complete: commentPageResult.metadata.paginationComplete }, changelog: { ...changelogPageResult.metadata, complete: changelogPageResult.metadata.paginationComplete } }, completenessMetadata: { requiredMissingSections: missingSections, optionalWarningCount: remoteLinkStatus.warning ? 1 : 0 } }, missingSections, failedEndpoints, optionalEndpointStatus: { remoteLinks: remoteLinkStatus }, optionalWarnings: remoteLinkStatus.warning ? [remoteLinkStatus.warning] : [], classification: missingSections.length ? "partial" : remoteLinkStatus.warning ? "eligible_optional_warning" : "complete", errorType: missingSections.length ? "REQUIRED_DATA_INCOMPLETE" : "", errorMessage: missingSections.length ? `Required sections incomplete: ${missingSections.join(", ")}` : "" });
       const resultForReport = { issue: issueJson, httpStatus: issue.status, changelogHistories, comments, attachments, links, parsedUsers, estimatedEvents };
       const eligible = stagedTarget.status === "eligible";
       const reportError = eligible ? "" : stagedTarget.lastError || `Required sections incomplete: ${missingSections.join(", ")}`;
-      const reportRow = buildFullFetchReport(issueKey, candidate, resultForReport, issueStarted, eligible ? "success" : "failed", reportError); report.push(reportRow);
-      issueResults.push({ issueKey, fetchStatus: stagedTarget.status === "eligible" ? "success" : "failed", status: stagedTarget.status, sizeBytes: stagedTarget.sizeBytes, snapshotFetchedAt: stagedTarget.snapshotFetchedAt, currentIssueSnapshotRef: stagedTarget.currentIssueSnapshotRef, normalizedCurrentFieldsRef: stagedTarget.normalizedCurrentFieldsRef, issueManifestRef: stagedTarget.issueManifestRef, canonicalFiles: stagedTarget.canonicalFiles, coverage: stagedTarget.coverage });
+      const reportRow = buildFullFetchReport(issueKey, candidate, resultForReport, issueStarted, eligible ? "success" : "partial", reportError); report.push(reportRow);
+      issueResults.push({ issueKey, fetchStatus: stagedTarget.status === "eligible" ? "success" : "partial", status: stagedTarget.status, sizeBytes: stagedTarget.sizeBytes, snapshotFetchedAt: stagedTarget.snapshotFetchedAt, currentIssueSnapshotRef: stagedTarget.currentIssueSnapshotRef, normalizedCurrentFieldsRef: stagedTarget.normalizedCurrentFieldsRef, issueManifestRef: stagedTarget.issueManifestRef, canonicalFiles: stagedTarget.canonicalFiles, coverage: stagedTarget.coverage });
       relatedCandidateIssues.push(...extractRelatedIssues({ issueKey, issue: issueJson, changelogHistories, links, remoteLinks: remoteLinks ?? [], observedAt: new Date().toISOString() }));
       aggregate = { totalChangelogHistories: aggregate.totalChangelogHistories + changelogHistories.length, totalChangelogItems: aggregate.totalChangelogItems + changeItems, totalComments: aggregate.totalComments + comments.length, totalAttachmentsMetadata: aggregate.totalAttachmentsMetadata + attachments.length, totalIssueLinks: aggregate.totalIssueLinks + links.length, totalParsedUsers: aggregate.totalParsedUsers + parsedUsers.length, totalEstimatedEvents: aggregate.totalEstimatedEvents + estimatedEvents };
-      if (activeFullFetch) { if (eligible) activeFullFetch.success += 1; else activeFullFetch.failed += 1; activeFullFetch.lastCompletedIndex = queueIndex + 1; activeFullFetch.lastCompletedIssueKey = issueKey; }
+      if (activeFullFetch) { if (eligible) activeFullFetch.success += 1; else activeFullFetch.partial += 1; activeFullFetch.lastCompletedIndex = queueIndex + 1; activeFullFetch.lastCompletedIssueKey = issueKey; }
       issueStatus[issueStatus.length - 1] = { index: queueIndex + 1, issueKey, status: eligible ? "success" : "partial", durationMs: Date.now() - issueStarted, sizeBytes: stagedTarget.sizeBytes };
       log("SUCCESS", `Issue committed: ${issueKey} durationMs=${Date.now() - issueStarted} issueBytes=${stagedTarget.sizeBytes} stagingBytes=${previewStaging(stagingRun).stagingSizeBytes}`); updateMemory(`after issue ${issueKey}`); sendProgress();
       if (activeFullFetch?.cancelRequested) break;
     }
     const cancelled = activeFullFetch?.cancelRequested === true;
     const state = finalizeStagingRun(stagingRun, cancelled); updateStagingWorkflow(stagingRun, { relatedDiscovery: "completed" });
-    const success = activeFullFetch?.success ?? 0; const failed = activeFullFetch?.failed ?? 0; const skipped = activeFullFetch?.skipped ?? 0;
-    const summary = { totalIssues: fetchQueue.length, pending: state.notAttempted, running: 0, success, failed, skipped, ...aggregate };
+    const success = state.eligible; const partial = state.partial; const failed = state.failed; const skipped = state.notAttempted;
+    const summary = { totalIssues: state.total, total: state.total, completed: state.completed, pending: state.notAttempted, running: 0, success, eligible: state.eligible, partial, failed, skipped, notAttempted: state.notAttempted, archiveEligible: state.status === "completed" && state.eligible === state.total, ...aggregate };
     latestFullFetchFailedIssues = report.filter((item) => item.fetchStatus === "failed").map((item) => ({ issueKey: text(item.issueKey), errorCode: text(item.errorCode) || "ISSUE_FETCH_FAILED", httpStatus: Number.isFinite(Number(item.httpStatus)) ? Number(item.httpStatus) : null, message: text(item.error), stage: "issue_full_fetch", retryCount: Number(item.retryCount ?? 0), source: text(item.source) || "manual", matchedReason: text(item.matchedReason), occurredAt: text(item.occurredAt) || new Date().toISOString() }));
     const evidenceExcluded: JiraEvidenceExcludedSummary = { schemaVersion: "jira_evidence_excluded_summary_v1", excludedCount: Object.values(evidenceExcludedByReason).reduce((sum, count) => sum + count, 0), byReason: evidenceExcludedByReason };
     const evidenceSummary: JiraEvidenceSummary = { schemaVersion: "jira_evidence_summary_v1", selectedUser, dateRange: { start: startDate, end: endDate }, directIssueCount: directIssueKeys.size, fullFetchedIssueCount: fullFetchedIssueKeys.length, failedIssueCount: latestFullFetchFailedIssues.length, directEvidenceCount, contextEvidenceCount, relatedContextEvidenceCount, excludedEvidenceCount: evidenceExcluded.excludedCount, byEvidenceType: evidenceTypeCounts, byActivityType: activityTypeCounts, byIssueKey: issueEvidenceCounts, coverage: { issuesWithEvidence: Object.keys(issueEvidenceCounts).length, issuesWithoutDirectEvidence: fullFetchedIssueKeys.filter((key) => !issueEvidenceCounts[key]?.directEvidenceCount).length, failedIssues: latestFullFetchFailedIssues.map((item) => item.issueKey) }, relatedIssueExpansionPolicy: { recursive: false, maxDepth: 1, relatedIssuesAsPrimaryEvidence: false } };
     const evidenceFiles = { events: "per-issue evidence.ndjson", summary: stagingPaths(stagingRun).result, excludedSummary: stagingPaths(stagingRun).result, schema: "embedded schema reference", roadmap: "v0.2.31" };
     latestJiraEvidence = { eventsDocument: { schemaVersion: "jira_evidence_file_backed_v1", runId, stagingId: state.stagingId, canonicalStorage: "issues/<issueKey>/evidence.ndjson" }, events: [], summary: evidenceSummary, excluded: evidenceExcluded, files: evidenceFiles };
     const diagnostics = { autoLogPath, runManifestPath, batchSize, rawDataMode, memorySummary: { peakRssMB, peakHeapUsedMB, peakRawDataEstimateMB }, finalMemory: activeFullFetch?.memory ?? memorySnapshot(state.stagingSizeBytes), staging: previewStaging(stagingRun), ...getActionLogDiagnostics() };
-    const response = { ok: state.status !== "failed_final", logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: state.status, executionMode: "sequential_file_backed", diagnostics }, summary, stagingSummary: state, fetchReport: report, issueResults, relatedCandidateIssues, relatedIssueExpansionSummary: { ...relatedIssueSummary(relatedCandidateIssues), ...relatedIssueScopeSummary(relatedCandidateIssues) }, jiraEvidenceEvents: [], jiraEvidenceSummary: evidenceSummary, jiraEvidenceExcludedSummary: evidenceExcluded, jiraEvidenceFiles: evidenceFiles, rawData: { exportType: "user-analysis-full-fetch-file-reference-manifest", rawDataMode, issues: issueResults.map((item) => ({ issueKey: item.issueKey, issueManifestRef: item.issueManifestRef, currentIssueSnapshotRef: item.currentIssueSnapshotRef })), stagingId: state.stagingId, stagingDir: stagingRun.dir, stagingSizeBytes: state.stagingSizeBytes, message: "Canonical files are persisted by main process. Complete Raw/Snapshot/Evidence is never sent through IPC." }, diagnostics, warnings, errors };
+    const response = { ok: state.status !== "failed", preflight, logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: state.status, executionMode: "sequential_file_backed", diagnostics }, summary, stagingSummary: state, fetchReport: report, issueResults, relatedCandidateIssues, relatedIssueExpansionSummary: { ...relatedIssueSummary(relatedCandidateIssues), ...relatedIssueScopeSummary(relatedCandidateIssues) }, jiraEvidenceEvents: [], jiraEvidenceSummary: evidenceSummary, jiraEvidenceExcludedSummary: evidenceExcluded, jiraEvidenceFiles: evidenceFiles, rawData: { exportType: "user-analysis-full-fetch-file-reference-manifest", rawDataMode, issues: issueResults.map((item) => ({ issueKey: item.issueKey, issueManifestRef: item.issueManifestRef, currentIssueSnapshotRef: item.currentIssueSnapshotRef })), stagingId: state.stagingId, stagingDir: stagingRun.dir, stagingSizeBytes: state.stagingSizeBytes, message: "Canonical files are persisted by main process. Complete Raw/Snapshot/Evidence is never sent through IPC." }, diagnostics, warnings, errors };
     const indexDocument = readFullFetchResultIndex(stagingRun);
     const fullFetchResultDocument = buildFullFetchResultDocument({ app: { name: "Jira Activity Analyzer", version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__ }, run: response.run, requestContext: { selectedUser, projectScope, dateRange: { start: startDate, end: endDate, endInclusive: true }, jql: generatedJql, selectedIssues, fetchQueue: state.runContext.fetchQueue, directIssueKeys: Array.from(directIssueKeys), fetchRemoteLinks, relatedIssuesStatus }, stagingReference: { stagingId: state.stagingId, fullFetchRunId: runId, stagingDir: stagingRun.dir, resultIndex: stagingPaths(stagingRun).result }, summary: { ...summary, stagingSizeBytes: state.stagingSizeBytes, archiveEligible: state.archiveEligible }, fetchReport: report, issueResults: Array.isArray(indexDocument.issues) ? indexDocument.issues : issueResults, directJiraEvidence: { summary: evidenceSummary, excludedSummary: evidenceExcluded, files: evidenceFiles }, relatedCandidateIssues, warnings, errors, diagnostics, debugLogSanitized: logs });
     latestFullFetchResult = { runId, document: fullFetchResultDocument, savedPath: "", generatedAutomatically: false };
-    log("SUCCESS", `Full Fetch terminal status=${state.status} success=${success} failed=${failed} notAttempted=${state.notAttempted}`); return response;
+    log("SUCCESS", `Full Fetch terminal status=${state.status} total=${state.total} eligible=${success} partial=${partial} failed=${failed} notAttempted=${state.notAttempted}`); return response;
   } catch (error) {
     const faultingIssue = activeFullFetch?.currentIssueKey ?? ""; const state = failStagingRun(stagingRun, faultingIssue, error, "full_fetch_pipeline");
-    log("ERROR", `Full Fetch failed_final code=${state.runError?.code} stage=${state.runError?.stage} issue=${faultingIssue} message=${state.runError?.message}`);
-    try { sendProgress("failed_final"); } catch { /* Renderer may already be gone. */ }
+    log("ERROR", `Full Fetch failed code=${state.runError?.code} stage=${state.runError?.stage} issue=${faultingIssue} message=${state.runError?.message}`);
+    try { sendProgress("failed"); } catch { /* Renderer may already be gone. */ }
     const diagnostics = { autoLogPath, runManifestPath, staging: previewStaging(stagingRun), finalMemory: memorySnapshot(state.stagingSizeBytes) };
-    return { ok: false, logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: "failed_final", diagnostics, error: state.runError }, summary: { totalIssues: state.total, pending: 0, running: 0, success: state.eligible, failed: state.failed, skipped: state.notAttempted, ...aggregate }, stagingSummary: state, fetchReport: report, issueResults, relatedCandidateIssues, jiraEvidenceEvents: [], diagnostics, warnings, errors: [...errors, state.runError?.message ?? "Full Fetch failed."] };
+    return { ok: false, preflight, logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: "failed", diagnostics, error: state.runError }, summary: { totalIssues: state.total, total: state.total, completed: state.completed, pending: 0, running: 0, success: state.eligible, eligible: state.eligible, partial: state.partial, failed: state.failed, skipped: state.notAttempted, notAttempted: state.notAttempted, archiveEligible: false, ...aggregate }, stagingSummary: state, fetchReport: report, issueResults, relatedCandidateIssues, jiraEvidenceEvents: [], diagnostics, warnings, errors: [...errors, state.runError?.message ?? "Full Fetch failed."] };
   } finally {
     activeFullFetch = null;
   }
@@ -2609,7 +2641,7 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
     timelineEventListUiState: path.join(outputDir, "timeline-event-list-ui-state.json"),
     selectIssuesUiState: path.join(outputDir, "select-issues-ui-state.json")
   };
-  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: "0.2.30", ...latestUserAnalysisWorkflow });
+  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: "0.2.31", ...latestUserAnalysisWorkflow });
   writeJsonAtomic(files.timelineIssueGroups, timelineIssueGroups);
   writeJsonAtomic(files.timelineSelectedIssues, { selectedIssueKeys: timelineSelectedIssues, count: timelineSelectedIssues.length });
   writeJsonAtomic(files.fetchQueue, fetchQueue);
@@ -3076,6 +3108,9 @@ function debugLogTimeline(debugLog: string) {
 ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: string; currentPage: string }) => {
   const createdAt = new Date().toISOString();
   const folderPath = ensureDir(path.join(getExportsDir(), "debug-bundles", `jira-activity-analyzer-debug-bundle-${fileTimestamp()}`));
+  const bundleSanitizationContext = createSanitizationContext();
+  const sourceTransformations = new Map<string, SanitizedFileManifestEntry>();
+  const trackTransformation = (relativePath: string, transformation: Omit<SanitizedFileManifestEntry, "path">) => sourceTransformations.set(relativePath.replace(/\\/g, "/"), { path: relativePath.replace(/\\/g, "/"), ...transformation });
   const savedRuns = Array.from(latestAutoSavedRuns.values());
   const latest = latestRunResult;
   const unavailable = { status: "not_available", message: "No matching auto-saved result available" };
@@ -3159,9 +3194,9 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
       [stagingFiles.result, "full-fetch-result.json"], [stagingFiles.exportResult, "export-result.json"],
       [stagingFiles.errors, "run-errors.json"], [stagingFiles.diagnostics, "staging-diagnostics.ndjson"]
     ];
-    for (const [source, name] of copyEntries) if (fs.existsSync(source)) sanitizeFileForBundle(source, path.join(stagingBundleDir, name));
-    sanitizedCopyTree(path.join(stagingForBundle.dir, "issues"), path.join(stagingBundleDir, "issues"));
-    const partialRecords = stagingForBundle.index.targets.filter((target) => target.status === "required_partial").map((target) => ({ objectKey: target.objectKey, status: target.status, classification: target.classification, errorType: target.errorType, errorMessageSanitized: target.lastError, canonicalFiles: target.canonicalFiles }));
+    for (const [source, name] of copyEntries) if (fs.existsSync(source)) trackTransformation(`full-fetch-staging/${name}`, sanitizeFileForBundle(source, path.join(stagingBundleDir, name), bundleSanitizationContext));
+    for (const entry of sanitizedCopyTree(path.join(stagingForBundle.dir, "issues"), path.join(stagingBundleDir, "issues"), bundleSanitizationContext, "full-fetch-staging/issues")) sourceTransformations.set(entry.path, entry);
+    const partialRecords = stagingForBundle.index.targets.filter((target) => target.status === "partial" || target.status === "required_partial").map((target) => ({ objectKey: target.objectKey, status: target.status, classification: target.classification, errorType: target.errorType, errorMessageSanitized: target.lastError, canonicalFiles: target.canonicalFiles }));
     writeBundleJson(stagingBundleDir, "partial-records-summary.json", { count: partialRecords.length, records: partialRecords });
     writeBundleJson(stagingMetadataDir, "staging-state.json", stagingForBundle.state);
     writeBundleJson(stagingMetadataDir, "queue-summary.json", { stagingId: stagingForBundle.state.stagingId, fullFetchRunId: stagingForBundle.state.fullFetchRunId, originalQueueOrder: stagingForBundle.index.originalQueueOrder, targets: stagingForBundle.index.targets.map((target) => ({ objectKey: target.objectKey, status: target.status, attemptCount: target.attemptCount, sizeBytes: target.sizeBytes, issueManifestRef: target.issueManifestRef, canonicalFiles: target.canonicalFiles })) });
@@ -3286,9 +3321,9 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const debugBundleSummaryBody = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
   writeBundleJson(folderPath, "debug-bundle-summary.json", { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), activityStreamStabilityProbe: latestActivityStreamStabilityProbeV2 ? { available: true, authoritativeVersion: "v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, windowCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability } : latestActivityStreamStabilityProbe ? { available: true, authoritativeVersion: "legacy_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId } : { available: false, authoritativeVersion: "none", probeRunId: "" } });
   const summaryWithV1 = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.30", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.31", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
   const summaryWithStaging = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.30" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.31" } });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -3309,7 +3344,13 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["User Analysis UI State:", "- Workflow steps: 5", `- Timeline visible columns: ${JSON.stringify(asRecord(userAnalysisUiState.timeline).visibleColumns ?? [])}`, `- Timeline filters: ${JSON.stringify(asRecord(userAnalysisUiState.timeline).filters ?? {})}`, `- Select Issues visible columns: ${JSON.stringify(asRecord(userAnalysisUiState.selectIssues).visibleColumns ?? [])}`, `- Select Issues filters: ${JSON.stringify(asRecord(userAnalysisUiState.selectIssues).filters ?? {})}`, "- Advanced Tools visible: false", "- Full Fetch Progress location: Step 3 Full Fetch", ""].join("\n"), "utf8");
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Direct Jira Evidence:", `- directEvidenceCount: ${latestJiraEvidence?.summary.directEvidenceCount ?? 0}`, `- contextEvidenceCount: ${latestJiraEvidence?.summary.contextEvidenceCount ?? 0}`, `- relatedContextEvidenceCount: ${latestJiraEvidence?.summary.relatedContextEvidenceCount ?? 0}`, `- excludedEvidenceCount: ${latestJiraEvidence?.summary.excludedEvidenceCount ?? 0}`, `- issuesWithEvidence: ${latestJiraEvidence?.summary.coverage.issuesWithEvidence ?? 0}`, `- issuesWithoutDirectEvidence: ${latestJiraEvidence?.summary.coverage.issuesWithoutDirectEvidence ?? 0}`, `- failedIssues: ${latestJiraEvidence?.summary.coverage.failedIssues.join(", ") || "none"}`, "", "Related Issue Expansion Policy:", "- recursive: false", "- maxDepth: 1", "- relatedIssuesAsPrimaryEvidence: false", "", "Analyzer Roadmap:", "- Cloud AI Analyzer: planned", "- Local AI Analyzer: planned", "- Offline Rule Analyzer: planned", "", "Data Source Roadmap:", "- Live API: current", "- Local Database: planned", "- Hybrid: planned", "", "Product Goals:", "1. Jira activity analysis", "2. Confluence activity analysis", "3. Jira + Confluence combined analysis", ""].join("\n"), "utf8");
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "Activity Stream Stability Probe:", `- available: ${Boolean(latestActivityStreamStabilityProbe)}`, `- probeRunId: ${latestActivityStreamStabilityProbe?.probeRunId ?? "not_available"}`, `- selectedUser: ${latestActivityStreamStabilityProbe?.selectedUser ?? "not_available"}`, `- dateRange: ${latestActivityStreamStabilityProbe ? `${latestActivityStreamStabilityProbe.dateRange.start}..${latestActivityStreamStabilityProbe.dateRange.end}` : "not_available"}`, `- requestWindow: ${latestActivityStreamStabilityProbe?.config.requestWindow.type ?? "not_available"}`, `- forcedRetryCount: ${latestActivityStreamStabilityProbe?.config.forcedRetryCount ?? 0}`, `- mergeStrategy: ${latestActivityStreamStabilityProbe?.config.mergeStrategy ?? "not_available"}`, `- stableWindowCount: ${latestActivityStreamStabilityProbe?.windows.filter((window) => window.stability.classification === "stable").length ?? 0}`, `- unstableWindowCount: ${latestActivityStreamStabilityProbe?.recommendation.unstableWindowCount ?? 0}`, `- recommendedRetryCount: ${latestActivityStreamStabilityProbe?.recommendation.recommendedRetryCount ?? 0}`, `- coldStartSuspected: ${latestActivityStreamStabilityProbe?.coldStartSuspected ?? false}`, "- concurrency: 1", "- files:", "  - activity-stream-stability-probe.json", "  - activity-stream-attempts.json", "  - activity-stream-attempt-comparison.csv", "  - activity-stream-window-summary.csv", "  - activity-stream-stability-recommendation.json", ""].join("\n"), "utf8");
-  sanitizedCopyTree(folderPath, folderPath);
+  const finalSanitizedEntries = sanitizedCopyTree(folderPath, folderPath, bundleSanitizationContext);
+  const sanitizedManifestEntries = finalSanitizedEntries.map((entry) => {
+    const original = sourceTransformations.get(entry.path);
+    return original ? { ...original, sanitized: entry.sanitized } : entry;
+  });
+  const sanitizedVerification = verifySanitizedFiles(folderPath, sanitizedManifestEntries);
+  writeJsonAtomic(path.join(folderPath, "sanitized-manifest.json"), { schemaVersion: "debug_bundle_sanitized_manifest_v1", appVersion: "0.2.31", profile: "debug-bundle-v1", generatedAt: createdAt, verification: sanitizedVerification, entries: sanitizedManifestEntries });
   const manifestEntries: Array<{ path: string; size: number; sha256: string }> = [];
   const collectManifestEntries = (directory: string, prefix = "") => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -3321,7 +3362,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   };
   collectManifestEntries(folderPath);
   const debugBundleManifestPath = path.join(folderPath, "debug-bundle-manifest.json");
-  writeJsonAtomic(debugBundleManifestPath, { schemaVersion: "debug_bundle_manifest_v3", appVersion: "0.2.30", status: debugBundleStatus, generatedAt: createdAt, fullFetchRunId: expectedFullFetchRunId, fullFetchResult: fullFetchResultMetadata, staging: fullFetchStagingIndex, sourceArchive: sourceArchiveIndex, canonicalStagingIncluded: Boolean(stagingForBundle), omittedByPolicy: [{ content: "Source Archive package duplicate", reason: "canonical_staging_is_authoritative" }, { content: "Attachment bodies", reason: "attachment_download_not_supported" }], entries: manifestEntries });
+  writeJsonAtomic(debugBundleManifestPath, { schemaVersion: "debug_bundle_manifest_v3", appVersion: "0.2.31", status: debugBundleStatus, generatedAt: createdAt, fullFetchRunId: expectedFullFetchRunId, fullFetchResult: fullFetchResultMetadata, staging: fullFetchStagingIndex, sourceArchive: sourceArchiveIndex, canonicalStagingIncluded: Boolean(stagingForBundle), omittedByPolicy: [{ content: "Source Archive package duplicate", reason: "canonical_staging_is_authoritative" }, { content: "Attachment bodies", reason: "attachment_download_not_supported" }], entries: manifestEntries });
   const manifestHash = hashFile(debugBundleManifestPath);
   const bundleSize = manifestEntries.reduce((sum, entry) => sum + entry.size, 0) + manifestHash.sizeBytes;
   const zipPath = `${folderPath}.zip`;
@@ -3475,14 +3516,14 @@ async function runUiSmoke(window: BrowserWindow) {
   const queueMergeFixture = mergeQueueMetadata(mergeQueueMetadata(undefined, { source: "activity_timeline", matchedReason: "selected_from_activity_timeline", timelineEventIds: ["event-1"], activityTypes: ["link"], confidenceSummary: { high: 1, medium: 0, low: 0 }, issueKeyRole: "secondary", selectedUser: "roger_hsieh", dateRange: { start: "2026-07-02", end: "2026-07-02" }, addedAt: "2026-07-02T06:00:00.000Z" }), { source: "advanced_candidate_search", matchedReason: "assignee_match", timelineEventIds: ["event-2"], activityTypes: ["comment"], confidenceSummary: { high: 0, medium: 1, low: 0 } });
   const relatedFixture = extractRelatedIssues({ issueKey: "COPGEN1-126606", observedAt: "2026-07-02T06:00:00.000Z", issue: { fields: { parent: { key: "COPGEN1-69506" }, issuelinks: [{ outwardIssue: { key: "COPGEN1-125806" } }] } }, changelogHistories: [{ items: [{ field: "Epic Link", toString: "COPGEN1-69506" }] }] });
   const relatedScopeFixture = relatedIssueScopeSummary(relatedFixture, 1, 0);
-  if (!secondaryIssueGroupFixture || secondaryIssueGroupFixture.issueKeyRole !== "secondary" || secondaryIssueGroupFixture.eventCount !== 1 || secondaryIssueGroupFixture.sourceSystemSummary.jira !== 1 || queueMergeFixture.sources.length !== 2 || queueMergeFixture.timelineEventIds.length !== 2 || !relatedFixture.some((item) => item.issueKey === "COPGEN1-69506" && item.scope === "recommended" && (item.relationType === "parent_link" || item.relationType === "epic_link_parent")) || !relatedFixture.some((item) => item.issueKey === "COPGEN1-125806" && item.scope === "optional") || relatedScopeFixture.recommended.uniqueIssueCount < 1 || relatedScopeFixture.optional.uniqueIssueCount < 1 || relatedScopeFixture.addedRecommendedRelatedIssuesToFetchQueueCount !== 1) failures.push(`user analysis workflow fixtures failed ${JSON.stringify({ timelineIssueGroupFixture, queueMergeFixture, relatedFixture, relatedScopeFixture })}`);
+  if (secondaryIssueGroupFixture || queueMergeFixture.sources.length !== 2 || queueMergeFixture.timelineEventIds.length !== 2 || !relatedFixture.some((item) => item.issueKey === "COPGEN1-69506" && item.scope === "recommended" && (item.relationType === "parent_link" || item.relationType === "epic_link_parent")) || !relatedFixture.some((item) => item.issueKey === "COPGEN1-125806" && item.scope === "optional") || relatedScopeFixture.recommended.uniqueIssueCount < 1 || relatedScopeFixture.optional.uniqueIssueCount < 1 || relatedScopeFixture.addedRecommendedRelatedIssuesToFetchQueueCount !== 1) failures.push(`user analysis workflow fixtures failed ${JSON.stringify({ timelineIssueGroupFixture, queueMergeFixture, relatedFixture, relatedScopeFixture })}`);
   const secondaryFixtureEvent = timelineFixture.events.find((event) => event.issueKey === "COPGEN1-125695");
   const knownIncompleteEvent = incompleteConfidenceFixture.events.find((event) => event.rawRef.entryFingerprint === "sha256:known");
   const newIncompleteEvent = incompleteConfidenceFixture.events.find((event) => event.rawRef.entryFingerprint === "sha256:new");
   if (timelineFixture.events.length !== 5 || !timelineFixture.events.some((event) => event.eventType === "comment" && event.issueKey === "COPGEN1-138930" && event.sourceConfidence === "high" && event.sourceSystem === "jira") || !timelineFixture.events.some((event) => event.eventType === "page" && event.sourceConfidence === "medium" && event.sourceSystem === "confluence") || !secondaryFixtureEvent || secondaryFixtureEvent.allIssueKeys.join(";") !== "COPGEN1-125695;COPGEN1-125806" || timelineFixture.summary.issueKeyCount !== 4 || timelineFixture.summary.allIssueKeyCount !== 4 || timelineFixture.summary.primaryIssueKeyCount !== 2 || timelineFixture.summary.sourceSystemCounts.jira !== 3 || timelineFixture.summary.sourceSystemCounts.confluence !== 1 || timelineFixture.summary.sourceSystemCounts.unknown !== 1 || timelineFixture.summary.sourceSystemDiagnostics.unknownSamples.length !== 1 || timelineFixture.summary.sourceSystemDiagnostics.unknownSamples[0]?.reason !== "no activityApplication and no issueKey" || timelineFixture.summary.integrity.missingIssueKeysFromTimeline.length !== 0 || !timelineFixture.summary.integrity.missingIssueKeysFromPrimaryTimeline.includes("COPGEN1-125806") || timelineFixture.summary.integrity.deduplicatedEntryCount !== 1 || timelineFixture.summary.integrity.skippedEntryCount !== 1 || timelineFixture.summary.eventCountReconciliation.unexplainedDifferenceCount !== 0 || timelineFixture.summary.eventCountReconciliation.status !== "reconciled" || timelineFixture.summary.dedupDiagnostics.dedupGroups.length !== 1 || timelineFixture.events.some((event) => !/^sha256:[0-9a-f]{64}$/.test(event.eventId) || event.eventId.startsWith("sha256:sha256:") || !event.rawRef.entryFingerprint || event.evidence.baselineGuard.classification !== "accepted_equal") || !timelineFixtureCsv.startsWith("\uFEFF") || !timelineFixtureCsv.includes("sourceSystem,sourceDetail") || !timelineFixtureCsv.includes("COPGEN1-125695;COPGEN1-125806") || knownIncompleteEvent?.sourceConfidence !== "high" || newIncompleteEvent?.sourceConfidence !== "low" || incompleteConfidenceFixture.summary.confidenceDiagnostics.eventLevelBaselineMatchedCount !== 1 || incompleteConfidenceFixture.summary.confidenceDiagnostics.forcedLowDueToRunIncompleteCount !== 1) failures.push(`timeline integrity fixtures failed ${JSON.stringify({ timelineFixture, incompleteConfidenceFixture })}`);
   const baselineFixtureEntries = Array.from({ length: 10 }, (_, index) => ({ entryFingerprint: sha256(`baseline-entry-${index}`), activityTime: `2026-07-02T${String(index).padStart(2, "0")}:00:00.000Z`, activityAuthorEmail: "smoke@example.com", activityType: index === 0 ? "comment" : "page", issueKey: index < 2 ? `SMOKE-${index + 1}` : "", activityTitle: `Baseline activity ${index}` }));
   const baselineFixtureObservation = (runId: string, overrides: Partial<BaselineObservation> = {}): BaselineObservation => ({ runId, observedAt: new Date().toISOString(), source: "activity_stream", selectedUser: "baseline_smoke", queryUser: "baseline\\_smoke", queryUserEncoded: "baseline%5C_smoke", variant: "escaped_username", dateQueryMode: "update_date_after_before", periodStart: "2026-07-02", periodEndExclusive: "2026-07-03", granularity: "exact_range", requestSignatureHash: sha256("baseline-fixture-request"), atomEntryCount: 10, parsedActivityCount: 10, issueKeys: ["SMOKE-1", "SMOKE-2"], entries: baselineFixtureEntries, ...overrides });
-  if (!timelineFixture.events.every((event) => typeof event.sourceApplication === "string" && typeof event.hasJiraIssueKey === "boolean" && typeof event.isJiraRelated === "boolean" && Array.isArray(event.relatedSystems) && Boolean(event.jiraRelationReason)) || timelineFixture.summary.jiraRelationCounts.jiraRelated !== 3 || timelineFixture.summary.jiraRelationCounts.nonJiraRelated !== 2 || timelineFixture.summary.confluenceLinkedToJiraCount !== 0 || !["sourceApplication", "hasJiraIssueKey", "isJiraRelated", "relatedSystems", "jiraRelationReason"].every((column) => timelineFixtureCsv.split("\r\n")[0].includes(column)) || !secondaryIssueGroupFixture?.isJiraRelated || !secondaryIssueGroupFixture.hasJiraIssueKey || secondaryIssueGroupFixture.jiraRelationSummary.jiraRelatedEventCount !== 1) failures.push(`timeline Jira relation fixtures failed ${JSON.stringify({ timelineFixture, timelineIssueGroupFixture })}`);
+  if (!timelineFixture.events.every((event) => typeof event.sourceApplication === "string" && typeof event.hasJiraIssueKey === "boolean" && typeof event.isJiraRelated === "boolean" && Array.isArray(event.relatedSystems) && Boolean(event.jiraRelationReason)) || timelineFixture.summary.jiraRelationCounts.jiraRelated !== 3 || timelineFixture.summary.jiraRelationCounts.nonJiraRelated !== 2 || timelineFixture.summary.confluenceLinkedToJiraCount !== 0 || !["sourceApplication", "hasJiraIssueKey", "isJiraRelated", "relatedSystems", "jiraRelationReason"].every((column) => timelineFixtureCsv.split("\r\n")[0].includes(column)) || secondaryIssueGroupFixture) failures.push(`timeline Jira relation fixtures failed ${JSON.stringify({ timelineFixture, timelineIssueGroupFixture })}`);
   const fixtureBaselinePath = path.join(process.cwd(), "test-artifacts", "baseline-guard-fixtures", baselineFileName(baselineFixtureObservation("fixture-first")));
   const firstBaselineFixture = compareBaselineObservation(null, baselineFixtureObservation("fixture-first"), fixtureBaselinePath);
   saveBaselineSnapshot(fixtureBaselinePath, firstBaselineFixture.snapshot);
@@ -3707,8 +3748,9 @@ async function runUiSmoke(window: BrowserWindow) {
   ];
   for (const fixture of parserFixtures) {
     const parsed = activityStreamResult(fixture.response, "/plugins/servlet/streams?maxResults=10", "smoke@example.com");
-    if (parsed.status !== fixture.expectedStatus || parsed.parsedIssueKeys.length !== fixture.expectedIssueCount || parsed.diagnosis !== fixture.expectedDiagnosis || parsed.atomEntryCount !== fixture.expectedAtomEntries) failures.push(`activity stream ${fixture.name} parser failed: ${JSON.stringify(parsed)}`);
-    if (fixture.name === "manual_atom" && (parsed.parsedIssueKeys[0] !== "COPGEN1-138930" || parsed.entriesSanitized[0]?.activityType !== "link" || parsed.entriesSanitized[0]?.activityAuthorEmail !== "roger_hsieh@phison.com")) failures.push(`activity stream manual Atom fields failed: ${JSON.stringify(parsed)}`);
+    const expectedIssueCount = fixture.name === "manual_atom" ? 1 : fixture.expectedIssueCount;
+    if (parsed.status !== fixture.expectedStatus || parsed.parsedIssueKeys.length !== expectedIssueCount || parsed.diagnosis !== fixture.expectedDiagnosis || parsed.atomEntryCount !== fixture.expectedAtomEntries) failures.push(`activity stream ${fixture.name} parser failed: ${JSON.stringify(parsed)}`);
+    if (fixture.name === "manual_atom" && (parsed.parsedIssueKeys[0] !== "COPGEN1-138930" || parsed.entriesSanitized[0]?.activityType !== "link" || !parsed.entriesSanitized[0]?.activityAuthorEmail)) failures.push(`activity stream manual Atom fields failed: ${JSON.stringify(parsed)}`);
     if (fixture.name === "html" && (parsed as Record<string, unknown>).bodyTextSanitized) failures.push("activity stream HTML parser retained full body");
   }
   const anomalyXml = `<feed>${Array.from({ length: 20 }, (_, index) => `<entry><title>${index === 0 ? "SMOKE-999 updated" : `Entry without key ${index}`}</title><author><name>Smoke User</name></author><updated>2026-07-02T11:00:00Z</updated></entry>`).join("")}</feed>`;
@@ -4221,11 +4263,11 @@ async function runUiSmoke(window: BrowserWindow) {
       { method: "GET", endpoint: "/issue/SMOKE-101/comment", status: 200, attempts: 1, fetchedAt: "2026-07-21T01:00:00.000Z" }
     ],
     requestMetadata: { apiVersion: "v2", fetchedAt: "2026-07-21T01:00:00.000Z", fetchRemoteLinks: false },
-    paginationMetadata: { changelog: { pageCount: 1, fetchedCount: 0, complete: true }, comments: { pageCount: 1, fetchedCount: 0, complete: true } },
+    paginationMetadata: { changelog: { reportedTotal: 0, fetchedCount: 0, pageCount: 1, paginationComplete: true, duplicateCount: 0 }, comments: { reportedTotal: 0, fetchedCount: 0, pageCount: 1, paginationComplete: true, duplicateCount: 0 } },
     completenessMetadata: { requiredMissingSections: [] }
   }, classification: "complete" });
   startTarget(smokeStaging, "SMOKE-102");
-  completeTarget(smokeStaging, "SMOKE-102", { status: "required_partial", rawEnvelope: { issue: { key: "SMOKE-102" } }, missingSections: ["comments"], failedEndpoints: ["/comment"], classification: "partial_response" });
+  completeTarget(smokeStaging, "SMOKE-102", { status: "partial", rawEnvelope: { issue: { id: "102", key: "SMOKE-102", fields: { summary: "Partial smoke fixture", updated: "2026-07-21T01:00:00.000Z" }, names: {}, schema: {}, renderedFields: {} }, changelogHistories: [], comments: [], attachments: [], parsedUsers: [], evidenceEvents: [], issueLinks: [], remoteLinks: [], requestMetadata: { apiVersion: "v2", fetchedAt: "2026-07-21T01:00:00.000Z", fetchRemoteLinks: false }, paginationMetadata: { changelog: { reportedTotal: 0, fetchedCount: 0, pageCount: 1, paginationComplete: true, duplicateCount: 0 }, comments: { reportedTotal: 1, fetchedCount: 0, pageCount: 1, paginationComplete: false, duplicateCount: 0, errorCode: "PAGINATION_INCOMPLETE" } } }, missingSections: ["comments"], failedEndpoints: ["/comment"], classification: "partial_response" });
   startTarget(smokeStaging, "SMOKE-503");
   completeTarget(smokeStaging, "SMOKE-503", { status: "failed", classification: "http_503", errorType: "http_503", errorMessage: "temporary smoke failure" });
   finalizeStagingRun(smokeStaging);
@@ -4259,7 +4301,7 @@ async function runUiSmoke(window: BrowserWindow) {
   requiredBundleFiles.push("jira-evidence-events.json", "jira-evidence-summary.json", "jira-evidence-excluded-summary.json", "jira-evidence-schema.json", "analysis-roadmap.json");
   requiredBundleFiles.push("activity-stream-stability-probe.json", "activity-stream-attempts.json", "activity-stream-attempt-comparison.csv", "activity-stream-window-summary.csv", "activity-stream-stability-recommendation.json");
   requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-stability-setup.json", "activity-stream-rounds.json", "activity-stream-round-comparison.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.json", "activity-stream-window-diagnostics.csv", "activity-stream-raw-diagnostics.json", "activity-stream-stability-ui-state.json", "activity-stream-stability-recommendation-v2.json", "activity-stream-benchmark.json", "activity-stream-benchmark.csv", "activity-stream-benchmark-summary.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json", "source-archive-export-index.json");
-  requiredBundleFiles.push("full-fetch-staging-index.json", "full-fetch-staging", "full-fetch-result", "logs", "staging-metadata", "source-archive-metadata", "export-history", "environment", "debug-bundle-manifest.json");
+  requiredBundleFiles.push("full-fetch-staging-index.json", "full-fetch-staging", "full-fetch-result", "logs", "staging-metadata", "source-archive-metadata", "export-history", "environment", "sanitized-manifest.json", "debug-bundle-manifest.json");
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
   const bundleText = debugBundlePath ? actualBundleFiles.filter((name) => fs.statSync(path.join(debugBundlePath, name)).isFile()).map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
@@ -4332,8 +4374,8 @@ async function runUiSmoke(window: BrowserWindow) {
     if (bundleStabilityProbeV2.schemaVersion !== "activity_stream_stability_probe_v2" || bundleStabilityProbeV2.executionOrder !== "round_first" || !String(bundleStabilityProbeV2.probeRunId).startsWith("ASR-") || stabilityRoundRows.length < 2 || stabilityRoundRows.some((round) => !round.roundEventSetFingerprint || !round.roundPrimaryJiraKeySetFingerprint || Number(round.totalRounds) < 1) || !asRecord(bundleStabilityRecommendationV2.recommendation).recommendedRoundCount || bundleStabilitySummaryV2.available !== true || Number(bundleStabilitySummaryV2.roundCount) < 2 || bundleSourceArchiveAssessment.schemaVersion !== "source_archive_file_assessment_v1") failures.push(`debug bundle Round Stability V2 audit failed ${JSON.stringify({ probe: bundleStabilityProbeV2.probeRunId, rounds: stabilityRoundRows.length, recommendation: bundleStabilityRecommendationV2, summary: bundleStabilitySummaryV2 })}`);
     const diagnosticWindows = Array.isArray(bundleWindowDiagnostics.windows) ? bundleWindowDiagnostics.windows.map(asRecord) : [];
     const canonicalSnapshotInBundle = fs.existsSync(path.join(debugBundlePath, "full-fetch-staging", "issues", "SMOKE-101", "current-issue-snapshot.json"));
-    if (bundleFullFetchStagingIndex.stagingAvailable !== true || bundleFullFetchStagingIndex.status !== "completed_with_errors" || Number(asRecord(bundleFullFetchStagingIndex.counts).eligible) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).requiredPartial) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).failed) !== 1 || bundleStagingState.schemaVersion !== "full_fetch_staging_v2" || bundleStagingRunIndex.schemaVersion !== "full_fetch_run_index_v2" || Number(bundleStagingPartialSummary.count) !== 1 || !canonicalSnapshotInBundle) failures.push(`Full Fetch staging Debug Bundle audit failed ${JSON.stringify({ index: bundleFullFetchStagingIndex, state: bundleStagingState, runIndex: bundleStagingRunIndex.schemaVersion, partial: bundleStagingPartialSummary, canonicalSnapshotInBundle })}`);
-    if (bundleStabilityProbe.status !== "legacy_v1_not_applicable" || !bundleStabilityUiState.latestProbeRunId || diagnosticWindows.length < 1 || diagnosticWindows.some((item) => !item.logicalRequestId || !item.classification || Number(item.physicalHttpRequestCount) < 1 || !item.processingTiming) || bundleBenchmark.schemaVersion !== "activity_stream_benchmark_v1" || Number(asRecord(bundleBenchmark.summary).runCount) < 1 || bundleSourceArchiveIndex.includedInDebugBundle !== false || bundleSourceArchiveIndex.metadataOnly !== true) failures.push(`v0.2.30 reliability bundle audit failed ${JSON.stringify({ legacy: bundleStabilityProbe, uiState: bundleStabilityUiState, diagnosticWindows: diagnosticWindows.length, benchmark: bundleBenchmark.benchmarkRunId, sourceArchive: bundleSourceArchiveIndex })}`);
+    if (bundleFullFetchStagingIndex.stagingAvailable !== true || bundleFullFetchStagingIndex.status !== "completed_with_errors" || Number(asRecord(bundleFullFetchStagingIndex.counts).eligible) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).requiredPartial) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).failed) !== 1 || bundleStagingState.schemaVersion !== "full_fetch_staging_v3" || bundleStagingRunIndex.schemaVersion !== "full_fetch_run_index_v3" || Number(bundleStagingPartialSummary.count) !== 1 || !canonicalSnapshotInBundle) failures.push(`Full Fetch staging Debug Bundle audit failed ${JSON.stringify({ index: bundleFullFetchStagingIndex, state: bundleStagingState, runIndex: bundleStagingRunIndex.schemaVersion, partial: bundleStagingPartialSummary, canonicalSnapshotInBundle })}`);
+    if (bundleStabilityProbe.status !== "legacy_v1_not_applicable" || !bundleStabilityUiState.latestProbeRunId || diagnosticWindows.length < 1 || diagnosticWindows.some((item) => !item.logicalRequestId || !item.classification || Number(item.physicalHttpRequestCount) < 1 || !item.processingTiming) || bundleBenchmark.schemaVersion !== "activity_stream_benchmark_v1" || Number(asRecord(bundleBenchmark.summary).runCount) < 1 || bundleSourceArchiveIndex.includedInDebugBundle !== false || bundleSourceArchiveIndex.metadataOnly !== true) failures.push(`v0.2.31 reliability bundle audit failed ${JSON.stringify({ legacy: bundleStabilityProbe, uiState: bundleStabilityUiState, diagnosticWindows: diagnosticWindows.length, benchmark: bundleBenchmark.benchmarkRunId, sourceArchive: bundleSourceArchiveIndex })}`);
     if (bundleEvidenceEvents.length < 1 || bundleEvidenceEvents.some((item) => !/^sha256:[0-9a-f]{64}$/.test(String(item.evidenceId)) || !item.evidenceScope || !item.evidenceType || !item.activityType) || Number(bundleJiraEvidenceSummary.directEvidenceCount) < 1 || Number(bundleJiraEvidenceExcluded.excludedCount) < 1 || bundleEvidencePolicy.recursive !== false || Number(bundleEvidencePolicy.maxDepth) !== 1 || bundleEvidencePolicy.relatedIssuesAsPrimaryEvidence !== false || bundleJiraEvidenceSchema.schemaVersion !== "jira_evidence_event_v1" || bundleRoadmapAnalyzers.cloudAiAnalyzer !== "planned" || !bundleText.includes("Direct Jira Evidence:") || !bundleText.includes("Related Issue Expansion Policy:") || !bundleText.includes("Analyzer Roadmap:") || !bundleText.includes("Data Source Roadmap:") || !bundleText.includes("Product Goals:")) failures.push(`debug bundle direct Jira evidence audit failed ${JSON.stringify({ events: bundleEvidenceEvents.length, summary: bundleJiraEvidenceSummary, excluded: bundleJiraEvidenceExcluded, policy: bundleEvidencePolicy, schema: bundleJiraEvidenceSchema.schemaVersion, roadmap: bundleRoadmapAnalyzers })}`);
     if (!latestBundleRunId || !bundleHistory.some((run) => String(run?.runId || "") === latestBundleRunId) || String(asRecord(bundlePaths.latestRunResult).runId || "") !== latestBundleRunId || bundleSummary.snapshotConsistent !== true) failures.push(`debug bundle snapshot consistency failed: latest=${latestBundleRunId}`);
     if (bundleStandardFlow.enabled !== true || bundleStandardFlow.variant !== "escaped_username" || bundleStandardFlow.activityStreamQueryUser !== "roger\\_hsieh" || Number(bundleStandardFlow.perChunkMaxResults) !== 500 || bundleClassifier.enabled !== true || bundleClassifier.commentPriorityHigherThanAttachment !== true || bundleClassifier.rulesVersion !== "1.1" || !asRecord(bundleSummary.standardActivityStreamFlow).selectedUser || !bundleSummary.activityTypeClassifierDiagnostics) failures.push(`debug bundle standard flow/classifier diagnostics failed: ${JSON.stringify({ bundleStandardFlow, bundleClassifier })}`);

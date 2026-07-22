@@ -128,7 +128,7 @@ export function buildTimelineIssueGroups(events: TimelineEventLike[]): TimelineI
   const groups = new Map<string, TimelineIssueGroup & { primary: boolean; secondary: boolean }>();
   for (const event of events) {
     const primary = event.issueKey.toUpperCase();
-    const keys = unique([primary, ...(event.allIssueKeys ?? []).map((key) => key.toUpperCase())].filter(Boolean));
+    const keys = primary ? [primary] : [];
     for (const issueKey of keys) {
       const current = groups.get(issueKey) ?? {
         issueKey,

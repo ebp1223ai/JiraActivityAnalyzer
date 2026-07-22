@@ -447,7 +447,7 @@ export type UserAnalysisFullFetchReportRow = {
   issueKey: string;
   summary: string;
   status: string;
-  fetchStatus: "pending" | "running" | "success" | "failed" | "skipped";
+  fetchStatus: "pending" | "running" | "success" | "partial" | "failed" | "skipped";
   httpStatus: string;
   errorCode: string;
   stage: string;
@@ -469,11 +469,17 @@ export type UserAnalysisFullFetchReportRow = {
 
 export type UserAnalysisFullFetchSummary = {
   totalIssues: number;
+  total?: number;
+  completed?: number;
   pending: number;
   running: number;
   success: number;
+  eligible?: number;
+  partial?: number;
   failed: number;
   skipped: number;
+  notAttempted?: number;
+  archiveEligible?: boolean;
   totalChangelogHistories: number;
   totalChangelogItems: number;
   totalComments: number;
@@ -547,8 +553,11 @@ export type UserAnalysisFullFetchProgress = {
   lastCompletedIndex: number;
   lastCompletedIssueKey: string;
   success: number;
+  eligible?: number;
+  partial?: number;
   failed: number;
   skipped: number;
+  notAttempted?: number;
   elapsedMs: number;
   averageMsPerIssue: number;
   estimatedRemainingMs: number;
@@ -689,7 +698,7 @@ export type UserAnalysisSessionState = {
   fullFetchRunId: string;
   fullFetchStartedAt: string;
   fullFetchFinishedAt: string;
-  fullFetchStatus: "idle" | "running" | "completed" | "completed_with_errors" | "failed_final" | "aborted_on_restart" | "discarded";
+  fullFetchStatus: "idle" | "running" | "completed" | "completed_with_partial" | "completed_with_errors" | "failed" | "failed_final" | "aborted_on_restart" | "discarded";
   fullFetchSummary: UserAnalysisFullFetchSummary;
   fullFetchReport: UserAnalysisFullFetchReportRow[];
   fullFetchResultsByIssue: unknown[];
@@ -720,7 +729,7 @@ export type UserAnalysisSessionState = {
   largeQueueConfirmError: string;
   fetchReportPage: number;
   fetchReportPageSize: number;
-  fetchReportFilter: "all" | "success" | "failed";
+  fetchReportFilter: "all" | "success" | "partial" | "failed";
   lastSavedFullFetchResultPath: string;
   rawSearchMetadata: unknown | null;
   saving: boolean;

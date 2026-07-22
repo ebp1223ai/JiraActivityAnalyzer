@@ -1,4 +1,5 @@
 import type { JiraHttpResult } from "./jiraTypes.js";
+import { jiraFailureCode } from "./jiraErrorCode.js";
 
 export type JiraGetRetryEvent = {
   attempt: number;
@@ -31,7 +32,7 @@ export async function jiraGetWithRetry(
     result = await get();
     const retry = !result.ok && shouldRetryJiraGet(result) && attempt < maxAttempts;
     const waitMs = retry ? jiraRetryDelayMs(result, attempt) : 0;
-    options.onAttempt?.({ attempt, status: result.status, errorCode: String(result.errorType ?? (result.status === "-" ? "NETWORK_ERROR" : `HTTP_${result.status}`)), waitMs });
+    options.onAttempt?.({ attempt, status: result.status, errorCode: jiraFailureCode(result), waitMs });
     if (!retry) return { result, attempts: attempt };
     await sleep(waitMs);
   }

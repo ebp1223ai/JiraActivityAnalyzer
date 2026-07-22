@@ -9,6 +9,8 @@ export type JiraRelationReason = "source_application_jira" | "has_jira_issue_key
 export type TimelineSourceEntry = {
   issueKey?: string;
   extractedIssueKeysPerEntry?: string[];
+  mentionedIssueKeys?: string[];
+  relatedIssueKeys?: string[];
   activityTime?: string;
   activityType?: string;
   activityTitle?: string;
@@ -73,6 +75,8 @@ export type UserActivityTimelineEvent = {
   displayName: string;
   issueKey: string;
   allIssueKeys: string[];
+  mentionedIssueKeys: string[];
+  relatedIssueKeys: string[];
   eventTime: string;
   eventType: TimelineEventType;
   eventTitle: string;
@@ -252,9 +256,11 @@ export function buildUserActivityTimeline(input: {
     }
     try {
       const eventType = mappedType(String(entry.activityTypeClassifier?.finalType ?? entry.activityType ?? "unknown"));
-      const extractedIssueKeys = uniqueInOrder(entry.extractedIssueKeysPerEntry ?? []);
-      const issueKey = String(entry.issueKey ?? extractedIssueKeys[0] ?? "").trim();
-      const allIssueKeys = extractedIssueKeys.length > 0 ? extractedIssueKeys : uniqueInOrder([issueKey]);
+  const extractedIssueKeys = uniqueInOrder(entry.extractedIssueKeysPerEntry ?? []);
+  const issueKey = String(entry.issueKey ?? "").trim().toUpperCase();
+  const mentionedIssueKeys = uniqueInOrder(entry.mentionedIssueKeys ?? []).filter((key) => key !== issueKey);
+  const relatedIssueKeys = uniqueInOrder(entry.relatedIssueKeys ?? []).filter((key) => key !== issueKey && !mentionedIssueKeys.includes(key));
+  const allIssueKeys = uniqueInOrder([issueKey, ...mentionedIssueKeys, ...relatedIssueKeys, ...extractedIssueKeys].filter(Boolean));
       const fingerprint = normalizeSha256Id(String(entry.entryFingerprint || sha256(JSON.stringify(entry))));
       const fingerprintMatched = baselineFingerprints.has(fingerprint);
       const eventTime = String(entry.activityTime);
@@ -266,8 +272,10 @@ export function buildUserActivityTimeline(input: {
         eventId,
         userKey: String(entry.activityAuthorEmail || input.selectedUser),
         displayName: String(entry.activityAuthor || input.selectedUser),
-        issueKey,
-        allIssueKeys,
+    issueKey,
+    allIssueKeys,
+    mentionedIssueKeys,
+    relatedIssueKeys,
         eventTime,
         eventType,
         eventTitle: String(entry.activityTitle || entry.rawTitle || "Untitled activity"),

@@ -5,15 +5,20 @@ export class ReadOnlyViolationError extends Error {
   }
 }
 
-const allowedReadOnlyPaths = [
-  /^\/rest\/api\/[23]\/myself$/,
-  /^\/rest\/api\/[23]\/issue\/[^/?#]+(?:\?.*)?$/,
-  /^\/rest\/api\/[23]\/issue\/[^/?#]+\/comment(?:\?.*)?$/,
-  /^\/rest\/api\/[23]\/issue\/[^/?#]+\/worklog(?:\?.*)?$/,
-  /^\/rest\/api\/[23]\/issue\/[^/?#]+\/transitions(?:\?.*)?$/,
-  /^\/rest\/api\/[23]\/search(?:\?.*)?$/,
-  /^\/rest\/api\/[23]\/field$/,
-  /^\/rest\/api\/[23]\/attachment\/[^/?#]+$/
+type ReadOnlyRoute = { path: RegExp; query: ReadonlySet<string> };
+
+const queryKeys = (...values: string[]) => new Set(values);
+const allowedReadOnlyRoutes: ReadOnlyRoute[] = [
+  { path: /^\/rest\/api\/[23]\/myself$/, query: queryKeys() },
+  { path: /^\/rest\/api\/[23]\/issue\/[^/?#]+$/, query: queryKeys("fields", "expand") },
+  { path: /^\/rest\/api\/[23]\/issue\/[^/?#]+\/changelog$/, query: queryKeys("startAt", "maxResults") },
+  { path: /^\/rest\/api\/[23]\/issue\/[^/?#]+\/comment$/, query: queryKeys("startAt", "maxResults", "orderBy", "expand") },
+  { path: /^\/rest\/api\/[23]\/issue\/[^/?#]+\/worklog$/, query: queryKeys("startAt", "maxResults", "startedAfter", "startedBefore", "expand") },
+  { path: /^\/rest\/api\/[23]\/issue\/[^/?#]+\/transitions$/, query: queryKeys("expand") },
+  { path: /^\/rest\/api\/[23]\/issue\/[^/?#]+\/remotelink$/, query: queryKeys() },
+  { path: /^\/rest\/api\/[23]\/search$/, query: queryKeys("jql", "startAt", "maxResults", "fields", "expand", "validateQuery", "properties") },
+  { path: /^\/rest\/api\/[23]\/field$/, query: queryKeys() },
+  { path: /^\/rest\/api\/[23]\/attachment\/[^/?#]+$/, query: queryKeys() }
 ];
 
 const activityStreamQueryKeys = new Set([
@@ -52,8 +57,9 @@ export function assertReadOnlyRequest(method: string, pathName: string) {
     return;
   }
 
-  const allowed = allowedReadOnlyPaths.some((pattern) => pattern.test(pathName));
-  if (!allowed) {
+  const route = allowedReadOnlyRoutes.find((candidate) => candidate.path.test(url.pathname));
+  const hasDisallowedQuery = !route || url.hash || Array.from(url.searchParams.keys()).some((key) => !route.query.has(key));
+  if (!route || hasDisallowedQuery) {
     throw new ReadOnlyViolationError(method, pathName);
   }
 }

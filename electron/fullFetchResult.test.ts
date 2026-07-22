@@ -8,7 +8,7 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-full-fetch-result-v3-"))
 try {
   const forbiddenEmbeddedPayload = "must-not-be-embedded".repeat(100_000);
   const document = buildFullFetchResultDocument({
-    app: { name: "Jira Activity Analyzer", version: "0.2.30", buildTime: "test", gitCommit: "test", gitBranch: "test" },
+    app: { name: "Jira Activity Analyzer", version: "0.2.31", buildTime: "test", gitCommit: "test", gitBranch: "test" },
     run: { runId: "full-fetch-file-backed-1", status: "completed" },
     requestContext: { selectedUser: "fixture.user", dateRange: { start: "2026-07-01", end: "2026-07-22" } },
     stagingReference: { stagingId: "FFS-FILE-BACKED-1", resultIndex: "full-fetch-result.json" },

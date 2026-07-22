@@ -63,7 +63,10 @@ function envelope(issueKey: string, description = "safe fixture") {
       { method: "GET", endpoint: `/issue/${issueKey}/comment`, status: 200, attempts: 1, fetchedAt: "2026-07-22T00:00:00.000Z" }
     ],
     requestMetadata: { apiVersion: "v2", fetchedAt: "2026-07-22T00:00:00.000Z", fetchRemoteLinks: false },
-    paginationMetadata: { comments: { pageCount: 1, fetchedCount: 1, complete: true }, changelog: { pageCount: 1, fetchedCount: 1, complete: true } },
+    paginationMetadata: {
+      comments: { reportedTotal: 1, fetchedCount: 1, rawFetchedCount: 1, pageCount: 1, duplicateCount: 0, paginationComplete: true, complete: true },
+      changelog: { reportedTotal: 1, fetchedCount: 1, rawFetchedCount: 1, pageCount: 1, duplicateCount: 0, paginationComplete: true, complete: true }
+    },
     completenessMetadata: { requiredMissingSections: [] }
   };
 }
@@ -116,6 +119,17 @@ try {
   const remoteWarning = completeTarget(complete, "ABC-2", { status: "eligible", rawEnvelope: remoteWarningEnvelope, optionalEndpointStatus: { remoteLinks: { enabled: true, status: "permission_denied", archiveBlocking: false, retryable: false, warning: "Remote Links permission denied.", httpStatus: 403, errorCode: "HTTP_403", attemptCount: 1, fetchedAt: "2026-07-22T00:00:00.000Z" } }, optionalWarnings: ["Remote Links permission denied."] });
   assert.equal(remoteWarning.status, "eligible", "Remote Links failure must not block Eligible");
   assert.equal(remoteWarning.optionalEndpointStatus.remoteLinks.status, "permission_denied");
+  let previousKey = "ABC-1";
+  for (let index = 0; index < 10; index += 1) {
+    const issueKey = index % 2 === 0 ? "ABC-2" : "ABC-1";
+    const switchedPreview = previewStagingIssue(complete, issueKey);
+    assert.equal(switchedPreview.diagnostics.loadedIssueKey, issueKey);
+    assert.ok(switchedPreview.diagnostics.loadedFileSize > 0);
+    assert.ok(switchedPreview.diagnostics.loadDurationMs >= 0);
+    assert.equal(switchedPreview.diagnostics.previousIssueReleased, true);
+    assert.equal(switchedPreview.diagnostics.previousIssueKey, previousKey);
+    previousKey = issueKey;
+  }
   const completeState = finalizeStagingRun(complete);
   assert.equal(completeState.status, "completed");
   assert.equal(completeState.remaining, 0);
@@ -131,17 +145,17 @@ try {
   const coreIncomplete = createStagingRun(stagingRoot, { runId: "run-core-incomplete", selectedUser: "fixture.user", queue: [{ key: "CORE-1" }] });
   setStagingStatus(coreIncomplete, "running"); startTarget(coreIncomplete, "CORE-1");
   const incompleteEnvelope = envelope("CORE-1") as Record<string, unknown>;
-  (incompleteEnvelope.paginationMetadata as Record<string, Record<string, unknown>>).comments.complete = false;
+  (incompleteEnvelope.paginationMetadata as Record<string, Record<string, unknown>>).comments.paginationComplete = false;
   const incompleteTarget = completeTarget(coreIncomplete, "CORE-1", { status: "eligible", rawEnvelope: incompleteEnvelope });
-  assert.equal(incompleteTarget.status, "required_partial");
+  assert.equal(incompleteTarget.status, "partial");
   assert.ok(incompleteTarget.currentIssueSnapshotRef && fs.existsSync(path.join(coreIncomplete.dir, incompleteTarget.currentIssueSnapshotRef.path)), "Raw must be retained when core validation fails");
-  assert.equal(finalizeStagingRun(coreIncomplete).status, "completed_with_errors");
+  assert.equal(finalizeStagingRun(coreIncomplete).status, "completed_with_partial");
 
   const partial = createStagingRun(stagingRoot, { runId: "run-partial", selectedUser: "fixture.user", queue: [{ key: "PART-1" }] });
   setStagingStatus(partial, "running");
   startTarget(partial, "PART-1");
-  completeTarget(partial, "PART-1", { status: "required_partial", rawEnvelope: envelope("PART-1"), missingSections: ["comments"], failedEndpoints: ["/comment"], classification: "required_partial" });
-  assert.equal(finalizeStagingRun(partial).status, "completed_with_errors");
+  completeTarget(partial, "PART-1", { status: "partial", rawEnvelope: envelope("PART-1"), missingSections: ["comments"], failedEndpoints: ["/comment"], classification: "partial" });
+  assert.equal(finalizeStagingRun(partial).status, "completed_with_partial");
   assert.throws(() => exportStaging(partial, exportsDir), /Only a complete Full Fetch run/);
   assert.equal(isStagingMutationLocked(partial.state.stagingId), false);
 
@@ -154,7 +168,7 @@ try {
   }
   startTarget(failed, "BIG-20");
   const failedState = failStagingRun(failed, "BIG-20", new FileBackedWriteError("json_value_range_error", "Canonical JSON value exceeded the writer range.", new RangeError("fixture")), "full_fetch_pipeline");
-  assert.equal(failedState.status, "failed_final");
+  assert.equal(failedState.status, "failed");
   assert.equal(failedState.runError?.code, "json_value_range_error");
   assert.equal(failedState.runError?.stage, "canonical_write");
   assert.equal(failedState.faultingObjectKey, "BIG-20");
@@ -170,7 +184,7 @@ try {
   setStagingStatus(stale, "running");
   startTarget(stale, "STALE-1");
   const recovered = recoverStaleStaging(stagingRoot).find((run) => run.state.stagingId === stale.state.stagingId);
-  assert.equal(recovered?.state.status, "aborted_on_restart");
+  assert.equal(recovered?.state.status, "failed");
   assert.equal(recovered?.index.targets[0].status, "failed_final");
   assert.equal(recovered?.index.targets[1].status, "not_attempted_due_to_run_failure");
 
@@ -185,12 +199,29 @@ try {
   assert.match(legacy.state.legacyMessage, /Resume is no longer supported/);
   assert.throws(() => exportStaging(legacy, exportsDir), /read-only|Only a complete/i);
 
+  const v0230 = createStagingRun(stagingRoot, { runId: "run-v0230-compat", selectedUser: "fixture.user", queue: [{ key: "OLD-230" }] });
+  const v0230Paths = stagingPaths(v0230);
+  const v0230State = JSON.parse(fs.readFileSync(v0230Paths.state, "utf8"));
+  const v0230Index = JSON.parse(fs.readFileSync(v0230Paths.index, "utf8"));
+  v0230State.schemaVersion = "full_fetch_staging_v2";
+  v0230Index.schemaVersion = "full_fetch_run_index_v2";
+  fs.writeFileSync(v0230Paths.state, JSON.stringify(v0230State), "utf8");
+  fs.writeFileSync(v0230Paths.index, JSON.stringify(v0230Index), "utf8");
+  const v0230StateBefore = fs.readFileSync(v0230Paths.state);
+  const v0230IndexBefore = fs.readFileSync(v0230Paths.index);
+  const loadedV0230 = loadStagingRun(v0230.dir);
+  assert.equal(loadedV0230.state.legacyReadOnly, true);
+  assert.match(loadedV0230.state.legacyMessage, /v0\.2\.30/);
+  assert.deepEqual(fs.readFileSync(v0230Paths.state), v0230StateBefore);
+  assert.deepEqual(fs.readFileSync(v0230Paths.index), v0230IndexBefore);
+  assert.throws(() => setStagingStatus(loadedV0230, "running"), /read-only/i);
+
   const listed = listStagingRuns(stagingRoot, legacyRoot);
   assert.ok(listed.some((run) => run.state.stagingId === complete.state.stagingId));
   assert.ok(listed.some((run) => run.state.stagingId === "FFS-LEGACY" && run.state.legacyReadOnly));
   const debug = stagingDebugIndex(failed);
   assert.equal(debug.stagingAvailable, true);
-  assert.equal(debug.status, "failed_final");
+  assert.equal(debug.status, "failed");
   assert.equal(debug.faultingIssue, "BIG-20");
   assert.ok(debug.includedFiles.includes("run-errors.json"));
 
@@ -198,7 +229,7 @@ try {
   const deleted = deleteFailedStaging(stagingRoot, failed.state.stagingId);
   assert.equal(deleted.ok, true);
   assert.equal(fs.existsSync(failed.dir), false);
-  assert.throws(() => deleteFailedStaging(stagingRoot, complete.state.stagingId), /Only failed or discarded/);
+  assert.throws(() => deleteFailedStaging(stagingRoot, complete.state.stagingId), /Only failed, partial, or discarded/);
 
   const cancelled = createStagingRun(stagingRoot, { runId: "run-cancelled", selectedUser: "fixture.user", queue: [{ key: "STOP-1" }] });
   setStagingStatus(cancelled, "running");
@@ -221,7 +252,7 @@ try {
   assert.equal(previewStaging(partial).stagingSizeBytes > 0, true);
   assert.ok(fs.existsSync(stagingPaths(partial).result));
 
-  console.log("Full Fetch v0.2.30 file-backed staging tests passed.");
+  console.log("Full Fetch v0.2.31 file-backed staging tests passed.");
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
 }

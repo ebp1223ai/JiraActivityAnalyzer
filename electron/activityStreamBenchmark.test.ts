@@ -19,7 +19,7 @@ assert.equal(classifyActivityStreamResult({ httpStatus: "500", atomEntryCount: 0
 
 async function main() {
   let cancelled = false;
-  const run = await executeActivityStreamBenchmark({ selectedUser: "roger_hsieh", startDate: "2026-07-01", endDate: "2026-07-07", runs: 20, variant: "escaped_username", concurrency: 1 }, { benchmarkRunId: "bench-test", shouldCancel: () => cancelled, fetchSample: async (runNumber) => { cancelled = runNumber === 1; return { httpStatus: "200", requestSucceeded: true, rawEventCount: 0, entries: [], apiDurationMs: 1, logicalFetchDurationMs: 1, classification: "http_200_no_entries", physicalRequests: [] }; } });
+  const run = await executeActivityStreamBenchmark({ selectedUser: "synthetic_user", startDate: "2026-07-01", endDate: "2026-07-07", runs: 20, variant: "escaped_username", concurrency: 1 }, { benchmarkRunId: "bench-test", shouldCancel: () => cancelled, fetchSample: async (runNumber) => { cancelled = runNumber === 1; return { httpStatus: "200", requestSucceeded: true, rawEventCount: 0, entries: [], apiDurationMs: 1, logicalFetchDurationMs: 1, classification: "http_200_no_entries", physicalRequests: [] }; } });
   assert.equal(run.status, "cancelled");
   assert.equal(run.samples.length, 1);
   console.log("Activity Stream benchmark tests passed.");
