@@ -52,6 +52,20 @@ export function findSensitiveData(value: unknown, currentPath = "$"): string[] {
   return typeof value === "string" && sensitiveValue.test(value) ? [currentPath] : [];
 }
 
+export function hasSensitiveData(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    for (const item of value) if (hasSensitiveData(item)) return true;
+    return false;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (sensitiveKey.test(key) || hasSensitiveData(child)) return true;
+    }
+    return false;
+  }
+  return typeof value === "string" && sensitiveValue.test(value);
+}
+
 function payloadRecord(item: unknown, system: SourceArchiveSystem): { raw: Record<string, unknown>; key: string; fileName: string; jsonPath: string } {
   const wrapper = record(item);
   const issueWrapper = record(wrapper.issue);
@@ -158,6 +172,33 @@ export function listZipEntries(zip: Buffer): string[] {
   return entries;
 }
 
+export function readZipEntries(zip: Buffer): Map<string, Buffer> {
+  const entries = new Map<string, Buffer>();
+  let offset = 0;
+  while (offset + 30 <= zip.length && zip.readUInt32LE(offset) === 0x04034b50) {
+    const flags = zip.readUInt16LE(offset + 6);
+    const compression = zip.readUInt16LE(offset + 8);
+    const checksum = zip.readUInt32LE(offset + 14);
+    const compressedSize = zip.readUInt32LE(offset + 18);
+    const uncompressedSize = zip.readUInt32LE(offset + 22);
+    const nameLength = zip.readUInt16LE(offset + 26);
+    const extraLength = zip.readUInt16LE(offset + 28);
+    if ((flags & 0x0008) !== 0 || compression !== 0) throw new Error("Unsupported ZIP entry encoding.");
+    const nameStart = offset + 30;
+    const dataStart = nameStart + nameLength + extraLength;
+    const dataEnd = dataStart + compressedSize;
+    if (dataEnd > zip.length || compressedSize !== uncompressedSize) throw new Error("ZIP entry is truncated or inconsistent.");
+    const name = zip.subarray(nameStart, nameStart + nameLength).toString("utf8");
+    const data = Buffer.from(zip.subarray(dataStart, dataEnd));
+    if (crc32(data) !== checksum) throw new Error(`ZIP CRC mismatch: ${name}`);
+    if (entries.has(name)) throw new Error(`Duplicate ZIP entry: ${name}`);
+    entries.set(name, data);
+    offset = dataEnd;
+  }
+  if (entries.size === 0 || offset + 4 > zip.length || zip.readUInt32LE(offset) !== 0x02014b50) throw new Error("ZIP central directory is missing.");
+  return entries;
+}
+
 export function buildSourceArchivePackage(input: SourceArchiveInput): SourceArchivePackage {
   const exportedAt = input.exportedAt ?? new Date().toISOString();
   const timestamp = exportedAt.replace(/[-:TZ.]/g, "").slice(0, 14);
@@ -192,7 +233,7 @@ export function buildSourceArchivePackage(input: SourceArchiveInput): SourceArch
     exportErrorCount: errors.filter((item) => item.code === "sensitive_data_detected").length
   };
   const refs = payloads.map(({ sourceSystem, objectType, objectKey, contentHash, sourceBundleName: bundle, sourceFileName, sourceJsonPath }) => ({ sourceSystem, objectType, objectKey, contentHash, sourceBundleName: bundle, sourceFileName, sourceJsonPath }));
-  const manifest = { schemaVersion: "source_archive_import_package_v1", appVersion: "0.2.28", exportedAt, packageScope: "full_fetch_raw_json_only", jira: { count: jira.length, file: "jira-full-fetch-payloads.jsonl" }, confluence: { count: confluence.length, file: "confluence-full-fetch-payloads.jsonl" }, sensitiveDataScan: { passed: summary.exportErrorCount === 0, excludedPayloadCount: summary.exportErrorCount }, files: ["source-archive-import-manifest.json", "jira-full-fetch-payloads.jsonl", "confluence-full-fetch-payloads.jsonl", "source-import-refs.json", "source-archive-import-summary.json", "source-archive-import-errors.json", "README_Source_Archive_Import.txt"] };
+  const manifest = { schemaVersion: "source_archive_import_package_v1", appVersion: "0.2.30", exportedAt, packageScope: "full_fetch_raw_json_only", jira: { count: jira.length, file: "jira-full-fetch-payloads.jsonl" }, confluence: { count: confluence.length, file: "confluence-full-fetch-payloads.jsonl" }, sensitiveDataScan: { passed: summary.exportErrorCount === 0, excludedPayloadCount: summary.exportErrorCount }, files: ["source-archive-import-manifest.json", "jira-full-fetch-payloads.jsonl", "confluence-full-fetch-payloads.jsonl", "source-import-refs.json", "source-archive-import-summary.json", "source-archive-import-errors.json", "README_Source_Archive_Import.txt"] };
   const prefix = "source-archive-import-package/";
   const files: Record<string, Buffer> = {
     [`${prefix}source-archive-import-manifest.json`]: json(manifest),

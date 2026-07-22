@@ -3,6 +3,7 @@ import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { defaultWorkflowSteps, type FetchQueueMetadata, type RelatedCandidateIssue, type TimelineIssueGroup, type WorkflowStepStatus } from "../../electron/userAnalysisWorkflow";
 import type { ActivityStreamProbeRunV2 } from "../../electron/activityStreamRoundStability";
 import type { ActivityStreamBenchmarkRun } from "../../electron/activityStreamBenchmark";
+import { USER_ANALYSIS_DEFAULTS, userAnalysisInitialDates } from "../../electron/analysisDefaults";
 
 export type SessionTableState = {
   page: number;
@@ -554,10 +555,11 @@ export type UserAnalysisFullFetchProgress = {
   batchSize: number;
   currentBatch: number;
   totalBatches: number;
-  rawDataMode: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory";
+  rawDataMode: "auto_save_raw_per_issue";
+  fetchRemoteLinks: boolean;
   memory: UserAnalysisFullFetchMemory;
   autoLogPath: string;
-  checkpointPath: string;
+  runManifestPath: string;
   issueStatus: Array<{ index: number; issueKey: string; status: string; durationMs?: number; error?: string }>;
 };
 
@@ -687,7 +689,7 @@ export type UserAnalysisSessionState = {
   fullFetchRunId: string;
   fullFetchStartedAt: string;
   fullFetchFinishedAt: string;
-  fullFetchStatus: "idle" | "running" | "paused" | "cancelled" | "completed" | "completed_with_errors" | "failed";
+  fullFetchStatus: "idle" | "running" | "completed" | "completed_with_errors" | "failed_final" | "aborted_on_restart" | "discarded";
   fullFetchSummary: UserAnalysisFullFetchSummary;
   fullFetchReport: UserAnalysisFullFetchReportRow[];
   fullFetchResultsByIssue: unknown[];
@@ -703,16 +705,16 @@ export type UserAnalysisSessionState = {
   fullFetchProgress: UserAnalysisFullFetchProgress;
   fullFetchMemory: UserAnalysisFullFetchMemory;
   autoLogPath: string;
-  checkpointPath: string;
+  runManifestPath: string;
   fullFetchStaging: Record<string, unknown> | null;
   stagingWarningDismissed: boolean;
   actionLogPath: string;
   actionLogAvailable: boolean;
-  rawDataMode: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory";
+  rawDataMode: "auto_save_raw_per_issue";
+  fetchRemoteLinks: boolean;
   batchSize: 10 | 20 | 40 | "all";
-  pauseAfterCurrentIssue: boolean;
-  previousUnfinishedRun: Record<string, unknown> | null;
-  previousUnfinishedDismissed: boolean;
+  failedFullFetchRun: Record<string, unknown> | null;
+  failedFullFetchRunDismissed: boolean;
   largeQueueConfirmationOpen: boolean;
   largeQueueConfirmInput: string;
   largeQueueConfirmError: string;
@@ -720,7 +722,6 @@ export type UserAnalysisSessionState = {
   fetchReportPageSize: number;
   fetchReportFilter: "all" | "success" | "failed";
   lastSavedFullFetchResultPath: string;
-  lastSavedFullFetchRawDataPath: string;
   rawSearchMetadata: unknown | null;
   saving: boolean;
   loading: boolean;
@@ -763,10 +764,12 @@ const initialJiraProbe: JiraProbeSessionState = {
   saving: false
 };
 
+const initialAnalysisDates = userAnalysisInitialDates();
+
 const initialUserAnalysis: UserAnalysisSessionState = {
   selectedUsersText: "roger_hsieh",
-  startDate: "2026-07-01",
-  endDate: "2026-07-07",
+  startDate: initialAnalysisDates.startDate,
+  endDate: initialAnalysisDates.endDate,
   searchMode: "standard",
   generatedJql: "",
   generatedBaseJql: "",
@@ -807,12 +810,12 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   expandedTimelineEvents: [],
   expandedTimelineIssueGroups: [],
   timelineExportPaths: { jsonPath: "", csvPath: "", summaryPath: "" },
-  activityStreamRequestWindow: "7_days",
+  activityStreamRequestWindow: USER_ANALYSIS_DEFAULTS.requestWindow,
   activityStreamCustomWindowDays: 7,
   activityStreamForcedRetryCount: 5,
-  activityStreamFullScanRoundCount: 3,
+  activityStreamFullScanRoundCount: USER_ANALYSIS_DEFAULTS.fullScanRoundCount,
   activityStreamDelayBetweenRoundsMs: 1000,
-  activityStreamRoundExecutionMode: "stop_when_stable",
+  activityStreamRoundExecutionMode: USER_ANALYSIS_DEFAULTS.roundExecutionMode,
   activityStreamMergeStrategy: "union",
   stabilityActiveTab: "precision",
   stabilityRoundExecutionMode: "force_all_rounds",
@@ -840,7 +843,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   activityStreamDateQueryResults: [],
   activityStreamMaxResultsDiagnostics: { requestedMaxResults: 50, maxResultsSource: "quick", actualAtomEntryCount: 0, parsedActivityCount: 0, serverCapDetected: "unknown", serverCapValueEstimated: null, responseTimeMs: 0, responseSizeKB: 0, largeMaxResultsWarningShown: false, largeMaxResultsConfirmed: false, warnings: [] },
   activityStreamCapTestResults: [],
-  precisionProjectScope: "",
+  precisionProjectScope: USER_ANALYSIS_DEFAULTS.projectScope,
   activityStreamUser: "",
   activityStreamQueryMode: "auto",
   advancedDiagnosticsOpen: false,
@@ -983,23 +986,24 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     currentBatch: 0,
     totalBatches: 0,
     rawDataMode: "auto_save_raw_per_issue",
+    fetchRemoteLinks: USER_ANALYSIS_DEFAULTS.fetchRemoteLinks,
     memory: { rssMB: 0, heapUsedMB: 0, heapTotalMB: 0, externalMB: 0, systemFreeMB: 0, rawDataEstimateMB: 0 },
     autoLogPath: "",
-    checkpointPath: "",
+    runManifestPath: "",
     issueStatus: []
   },
   fullFetchMemory: { rssMB: 0, heapUsedMB: 0, heapTotalMB: 0, externalMB: 0, systemFreeMB: 0, rawDataEstimateMB: 0 },
   autoLogPath: "",
-  checkpointPath: "",
+  runManifestPath: "",
   fullFetchStaging: null,
   stagingWarningDismissed: false,
   actionLogPath: "",
   actionLogAvailable: false,
   rawDataMode: "auto_save_raw_per_issue",
+  fetchRemoteLinks: USER_ANALYSIS_DEFAULTS.fetchRemoteLinks,
   batchSize: 10,
-  pauseAfterCurrentIssue: false,
-  previousUnfinishedRun: null,
-  previousUnfinishedDismissed: false,
+  failedFullFetchRun: null,
+  failedFullFetchRunDismissed: false,
   largeQueueConfirmationOpen: false,
   largeQueueConfirmInput: "",
   largeQueueConfirmError: "",
@@ -1007,7 +1011,6 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   fetchReportPageSize: 40,
   fetchReportFilter: "all",
   lastSavedFullFetchResultPath: "",
-  lastSavedFullFetchRawDataPath: "",
   rawSearchMetadata: null,
   saving: false,
   loading: false,

@@ -3,20 +3,25 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
-import { ensureDir, getActivityStreamBaselinesDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getFullFetchStagingDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
+import { ensureDir, getActivityStreamBaselinesDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashLogsDir, getDatabaseDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getFullFetchStagingDir, getLegacyFullFetchStagingDir, getLogsDir, getProbeResultsDir, getRawDataDir } from "./appPaths.js";
 import { baselineFileName, compareBaselineObservation, entryFingerprint as createEntryFingerprint, loadBaselineSnapshot, saveBaselineSnapshot, selectBaselineGuardOutcome, sha256, type ActivityStreamBaselineComparison, type ActivityStreamBaselineSnapshot, type BaselineObservation } from "./activityStreamBaseline.js";
 import { buildUserActivityTimeline, classifyJiraRelation, classifyTimelineSource, timelineCsv, timelineEventSchema, type UserActivityTimelineBuild } from "./userActivityTimeline.js";
-import { buildTimelineIssueGroups, extractRelatedIssues, mergeQueueMetadata, relatedIssueScopeSummary, relatedIssueSummary, type RelatedCandidateIssue, type WorkflowStepStatus } from "./userAnalysisWorkflow.js";
+import { buildTimelineIssueGroups, defaultWorkflowSteps, extractRelatedIssues, mergeQueueMetadata, relatedIssueScopeSummary, relatedIssueSummary, type RelatedCandidateIssue, type WorkflowStepStatus } from "./userAnalysisWorkflow.js";
 import { analysisRoadmap, extractJiraEvidenceFromIssue, jiraEvidenceSchema, summarizeJiraEvidence, type JiraEvidenceEvent, type JiraEvidenceExcludedSummary, type JiraEvidenceSummary } from "./jiraEvidence.js";
 import { classifyWindowStability, csvCell, finalizeAttemptDiffs, fingerprintSet, mergeProbeAttempts, normalizeStabilityEvent, recommendStabilitySettings, splitActivityStreamWindows, type ActivityStreamProbeAttempt, type ActivityStreamProbeRun, type ActivityStreamProbeWindow, type ActivityStreamStabilityProbeConfig } from "./activityStreamStability.js";
 import { classifyActivityStreamResult, executeRoundFirstStability, type ActivityStreamProbeRunV2, type ActivityStreamRound, type ActivityStreamRoundWindowResult, type ActivityStreamStabilityConfigV2, type PhysicalHttpRequestDiagnostic, type RoundWindowFetchResult } from "./activityStreamRoundStability.js";
 import { benchmarkCsv, executeActivityStreamBenchmark, type ActivityStreamBenchmarkConfig, type ActivityStreamBenchmarkRun } from "./activityStreamBenchmark.js";
 import { buildSourceArchivePackage } from "./sourceArchiveExporter.js";
-import { appendStagingDiagnostic, cancelAndExportPartial, cleanupExpiredStaging, completeTarget, createStagingRun, discardStaging, exportStaging, loadStagingRun, previewStaging, scanRecoverableStaging, selectResumeTargets, setStagingStatus, stagingDebugIndex, stagingPaths, startTarget, type StagingRun } from "./fullFetchStaging.js";
+import { appendStagingDiagnostic, cleanupExpiredStaging, completeTarget, createStagingRun, deleteFailedStaging, exportStaging, failStagingRun, finalizeStagingRun, listStagingRuns, loadStagingRun, previewStaging, previewStagingIssue, readFullFetchResultIndex, recordStep5Action, recoverStaleStaging, setStagingStatus, stagingDebugIndex, stagingPaths, startTarget, updateStagingWorkflow, type OptionalEndpointStatus, type StagingRun } from "./fullFetchStaging.js";
+import { buildFullFetchResultDocument, saveFullFetchResult, zipFullFetchResult } from "./fullFetchResult.js";
 import { createJiraClient } from "./jira/jiraClient.js";
+import { jiraGetWithRetry } from "./jira/jiraGetRetry.js";
 import { assertReadOnlyRequest, ReadOnlyViolationError } from "./jira/jiraReadOnlyGuard.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
-import { sanitizeExportData } from "./export/sanitizeExport.js";
+import { sanitizeExportData, sanitizeTextForBundle } from "./export/sanitizeExport.js";
+import { directoryZipEntries, sanitizeFileForBundle, sanitizedCopyTree } from "./debugBundleSanitizer.js";
+import { hashFile } from "./fileBackedJson.js";
+import { createStreamingZip, verifyStreamingZip } from "./streamingZip.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
 import { sanitizeRawJson, sanitizeResponseText } from "./jira/safeJson.js";
 import type { JiraHttpResult, ProbeRequest } from "./jira/jiraTypes.js";
@@ -55,14 +60,12 @@ let latestActivityStreamStabilityProbe: (ActivityStreamProbeRun & { files: Recor
 let latestActivityStreamStabilityProbeV2: (ActivityStreamProbeRunV2 & { files: Record<string, string> }) | null = null;
 let latestActivityStreamBenchmark: (ActivityStreamBenchmarkRun & { files: Record<string, string> }) | null = null;
 let latestStabilityUiState: Record<string, unknown> = { activeTab: "stability", filters: {}, sort: {}, visibleColumns: {}, latestProbeRunId: "", statePersistedAt: "" };
-let latestSourceArchiveExport: { fileName: string; filePath: string; exportRunId: string; selectedUser: string; createdAt: string; sizeBytes: number; sha256: string; jiraObjectCount: number; confluenceObjectCount: number } | null = null;
+let latestSourceArchiveExport: { fileName: string; filePath: string; exportRunId: string; selectedUser: string; createdAt: string; sizeBytes: number; sha256: string; jiraObjectCount: number; confluenceObjectCount: number; packageStatus?: string; safeForAutomaticImport?: boolean; verification?: Record<string, unknown> } | null = null;
 let activeStabilityProbe: { runId: string; cancelled: boolean } | null = null;
 let activeActivityStreamBenchmark: { runId: string; cancelled: boolean } | null = null;
 let activeTimelineBuild: { runId: string; cancelled: boolean } | null = null;
 let lastActivityStreamQueryAt = "";
 const appSessionId = `app-session-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-type CheckpointWriteDiagnostics = { checkpointWriteAttempts: number; retryCount: number; fallbackDirectWriteCount: number; lastErrorCode: string; lastRecovered: boolean; events: Array<{ type: string; attempt?: number; errorCode?: string; reason?: string; time: string }> };
-let latestCheckpointWriteDiagnostics: CheckpointWriteDiagnostics = { checkpointWriteAttempts: 0, retryCount: 0, fallbackDirectWriteCount: 0, lastErrorCode: "", lastRecovered: false, events: [] };
 let latestRunResult: AutoSavedRun | null = null;
 let lastSuccessfulResult: AutoSavedRun | null = null;
 let lastParsedResult: AutoSavedRun | null = null;
@@ -79,6 +82,8 @@ const crossPageDebugBundleTodo = [
 
 if (isUiSmoke) {
   app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch("no-sandbox");
+  app.commandLine.appendSwitch("in-process-gpu");
   app.commandLine.appendSwitch("disable-gpu");
   app.commandLine.appendSwitch("disable-gpu-compositing");
   app.setPath("userData", path.resolve(process.cwd(), "test-artifacts/electron-ui-profile"));
@@ -177,16 +182,16 @@ type ActiveFullFetchDiagnostics = {
   skipped: number;
   startedAtMs: number;
   autoLogPath: string;
-  checkpointPath: string;
+  runManifestPath: string;
   lastLogs: string[];
   memory: FullFetchMemory;
-  pauseRequested: boolean;
   cancelRequested: boolean;
   stagingDir: string;
 };
 
 let activeFullFetch: ActiveFullFetchDiagnostics | null = null;
 let latestFullFetchStaging: StagingRun | null = null;
+let latestFullFetchResult: { runId: string; document: Record<string, unknown>; savedPath: string; generatedAutomatically: boolean } | null = null;
 
 function memorySnapshot(rawBytes = 0): FullFetchMemory {
   const memory = process.memoryUsage();
@@ -202,9 +207,7 @@ function memorySnapshot(rawBytes = 0): FullFetchMemory {
 }
 
 function maskDiagnosticText(value: string) {
-  return value
-    .replace(/(Authorization\s*:\s*)(?!\[masked\])[^\r\n]+/gi, "$1[masked]")
-    .replace(/((?:api[_ -]?)?token\s*[:=]\s*)(?!\[masked\])[^\s,;]+/gi, "$1[masked]");
+  return sanitizeTextForBundle(value);
 }
 
 function appendRuntimeLog(filePath: string, level: string, message: string) {
@@ -256,47 +259,46 @@ function buildDebugLogExportContent(content: string) {
 
 function writeJsonAtomic(filePath: string, data: unknown) {
   ensureDir(path.dirname(filePath));
-  const temporaryPath = `${filePath}.tmp`;
-  fs.writeFileSync(temporaryPath, JSON.stringify(sanitizeRawJson(data), null, 2), "utf8");
-  fs.renameSync(temporaryPath, filePath);
+  const temporaryPath = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+  const body = JSON.stringify(sanitizeRawJson(data), null, 2);
+  const descriptor = fs.openSync(temporaryPath, "wx");
+  try {
+    fs.writeFileSync(descriptor, body, "utf8");
+    fs.fsyncSync(descriptor);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+
+  const delays = [0, 50, 100, 250, 500];
+  let lastError: unknown;
+  try {
+    for (let attempt = 0; attempt < delays.length; attempt += 1) {
+      if (delays[attempt] > 0) sleepSync(delays[attempt]);
+      try {
+        fs.renameSync(temporaryPath, filePath);
+        return;
+      } catch (error) {
+        lastError = error;
+        const code = error && typeof error === "object" && "code" in error ? String(error.code) : "UNKNOWN";
+        const retryable = code === "EPERM" || code === "EBUSY" || code === "EACCES" || code === "EEXIST";
+        if (!retryable) throw error;
+        try {
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+          fs.renameSync(temporaryPath, filePath);
+          return;
+        } catch (replaceError) {
+          lastError = replaceError;
+        }
+      }
+    }
+    throw lastError;
+  } finally {
+    try { if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath); } catch { /* Temporary file cleanup is best effort. */ }
+  }
 }
 
 function sleepSync(milliseconds: number) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
-}
-
-function writeCheckpointReliable(filePath: string, data: unknown, diagnostics: CheckpointWriteDiagnostics, options: { rename?: typeof fs.renameSync; delays?: number[]; onEvent?: (event: CheckpointWriteDiagnostics["events"][number]) => void } = {}) {
-  ensureDir(path.dirname(filePath));
-  const temporaryPath = `${filePath}.tmp`;
-  const body = JSON.stringify(sanitizeRawJson(data), null, 2);
-  const rename = options.rename ?? fs.renameSync;
-  const delays = options.delays ?? [100, 250, 500, 1000, 2000];
-  fs.writeFileSync(temporaryPath, body, "utf8");
-  for (let attempt = 1; attempt <= delays.length + 1; attempt += 1) {
-    diagnostics.checkpointWriteAttempts += 1;
-    try {
-      rename(temporaryPath, filePath);
-      diagnostics.lastRecovered = attempt > 1;
-      return;
-    } catch (error) {
-      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "UNKNOWN";
-      diagnostics.lastErrorCode = code;
-      const retryable = code === "EPERM" || code === "EBUSY" || code === "EACCES";
-      if (!retryable || attempt > delays.length) break;
-      diagnostics.retryCount += 1;
-      const event = { type: "checkpoint_write_retry", attempt: attempt + 1, errorCode: code, time: new Date().toISOString() };
-      diagnostics.events.push(event);
-      options.onEvent?.(event);
-      if (delays[attempt - 1] > 0) sleepSync(delays[attempt - 1]);
-    }
-  }
-  const fallbackEvent = { type: "checkpoint_write_fallback_direct_write", reason: "atomic_rename_failed", time: new Date().toISOString() };
-  diagnostics.fallbackDirectWriteCount += 1;
-  diagnostics.events.push(fallbackEvent);
-  options.onEvent?.(fallbackEvent);
-  fs.writeFileSync(filePath, body, "utf8");
-  diagnostics.lastRecovered = true;
-  try { fs.unlinkSync(temporaryPath); } catch { /* Temporary file cleanup is best effort. */ }
 }
 
 function crashDiagnostic(reason: string, details: Record<string, unknown> = {}) {
@@ -325,22 +327,16 @@ function crashDiagnostic(reason: string, details: Record<string, unknown> = {}) 
         skipped: active.skipped,
         memory: active.memory,
         autoLogPath: active.autoLogPath,
-        checkpointPath: active.checkpointPath
+        runManifestPath: active.runManifestPath
       } : null,
       lastDebugLogLines: active?.lastLogs ?? []
     };
     fs.writeFileSync(crashPath, maskDiagnosticText(JSON.stringify(payload, null, 2)), "utf8");
     if (active) {
-      try {
-        const existing = fs.existsSync(active.checkpointPath) ? JSON.parse(fs.readFileSync(active.checkpointPath, "utf8")) : {};
-        writeJsonAtomic(active.checkpointPath, { ...existing, status: "crashed", lastUpdatedAt: new Date().toISOString(), crashPath, memory: active.memory });
-      } catch (checkpointError) {
-        console.error("[crash checkpoint update failed]", checkpointError);
-      }
       appendRuntimeLog(active.autoLogPath, "ERROR", `Crash diagnostic written: ${crashPath}`);
       try {
         const stagingRun = loadStagingRun(active.stagingDir);
-        setStagingStatus(stagingRun, "interrupted");
+        failStagingRun(stagingRun, active.currentIssueKey, new Error(`Process failure: ${reason}`), "process_crash");
         appendStagingDiagnostic(stagingRun.dir, "process_crash", { stagingId: stagingRun.state.stagingId, runId: stagingRun.state.fullFetchRunId, errorType: reason, errorMessage: JSON.stringify(details) });
       } catch (stagingError) {
         console.error("[staging crash diagnostic failed]", stagingError);
@@ -1939,10 +1935,10 @@ ipcMain.handle("user-analysis:build-activity-timeline", async (ipcEvent, payload
   if (!selectedUser || !payload.startDate || !payload.endDate) throw new Error("Please select a user and date range first. / 請先選擇使用者與日期範圍。");
   const timelineRunId = `tlrun-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const sourceRunId = `asrun-${Date.now()}-timeline`;
-  const requestWindow = payload.requestWindow ?? { type: "7_days", customDays: null };
+  const requestWindow = payload.requestWindow ?? { type: "calendar_month", customDays: null };
   const fullScanRoundCount = Math.max(1, Math.min(32, Math.trunc(Number(payload.fullScanRoundCount ?? payload.forcedRetryCount ?? 3))));
   const delayBetweenRoundsMs = isUiSmoke ? 0 : Number(payload.delayBetweenRoundsMs ?? 1000);
-  const roundExecutionMode = payload.roundExecutionMode ?? "stop_when_stable";
+  const roundExecutionMode = payload.roundExecutionMode ?? "force_all_rounds";
   const mergeStrategy = payload.mergeStrategy ?? "union";
   const config: ActivityStreamStabilityConfigV2 = { selectedUser, dateRange: { start: payload.startDate, end: payload.endDate }, projectScope: String(payload.projectScope || ""), requestWindow, fullScanRoundCount, delayBetweenRoundsMs, mergeStrategy, roundExecutionMode };
   const runLogs: string[] = [`[INFO] Timeline round settings: requestWindow=${requestWindow.type} fullScanRoundCount=${fullScanRoundCount} roundExecutionMode=${roundExecutionMode} mergeStrategy=${mergeStrategy}`, "[INFO] Round-first execution; concurrency=1"];
@@ -2297,565 +2293,225 @@ function fullFetchFailureSummary(items: FullFetchFailedIssue[]) {
   return { failedCount: items.length, byHttpStatus: count(items.map((item) => item.httpStatus)), byErrorCode: count(items.map((item) => item.errorCode)), byStage: count(items.map((item) => item.stage)), bySource: count(items.map((item) => item.source)) };
 }
 
-function checkpointSemanticDiagnostics(diagnostics: CheckpointWriteDiagnostics) {
-  const checkpointRecoveryMethod = diagnostics.fallbackDirectWriteCount > 0 ? "fallback_direct_write" : diagnostics.retryCount > 0 && diagnostics.lastRecovered ? "retry" : "none";
-  return { ...diagnostics, lastCheckpointErrorCode: diagnostics.lastErrorCode, lastCheckpointErrorRecovered: diagnostics.lastRecovered, fullFetchInterruptedByCheckpoint: false, checkpointRecoveryMethod };
-}
-
 ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
-  connection: AppConnection;
-  fetchQueue: Record<string, unknown>[];
-  fetchLimit: number;
-  batchSize?: number | "all";
-  rawDataMode?: "summary_only" | "auto_save_raw_per_issue" | "full_raw_in_memory";
-  selectedUser?: string;
-  startDate?: string;
-  endDate?: string;
-  directIssueKeys?: string[];
-  resumeStagingId?: string;
+  connection: AppConnection; fetchQueue: Record<string, unknown>[]; fetchLimit: number; batchSize?: number | "all";
+  rawDataMode?: "auto_save_raw_per_issue"; selectedUser?: string; startDate?: string; endDate?: string;
+  projectScope?: string; jql?: string; candidateIssues?: Record<string, unknown>[]; selectedIssues?: string[]; relatedIssuesStatus?: string;
+  fetchRemoteLinks?: boolean; directIssueKeys?: string[];
 }) => {
   if (activeFullFetch) throw new Error("A Full Fetch staging mutation is already active. / 已有 Full Fetch 暫存作業進行中。");
   const connection = payload.connection;
   const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
   const stagingRoot = ensureDir(getFullFetchStagingDir());
-  const requestedQueue = Array.isArray(payload.fetchQueue) ? payload.fetchQueue : [];
-  const resumeStaging = payload.resumeStagingId ? loadStagingRun(path.join(stagingRoot, path.basename(payload.resumeStagingId))) : null;
-  const unresolved = resumeStaging ? null : scanRecoverableStaging(stagingRoot);
-  if (unresolved) throw new Error(`Resolve existing Full Fetch staging before starting a new run: ${unresolved.state.stagingId}`);
-  const fetchQueue = resumeStaging ? selectResumeTargets(resumeStaging).map((target) => target.candidate) : requestedQueue;
-  const runId = resumeStaging?.state.fullFetchRunId ?? `full-fetch-${Date.now()}`;
+  const fetchQueue = Array.isArray(payload.fetchQueue) ? payload.fetchQueue : [];
+  const runId = `full-fetch-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
+  const selectedUser = text(payload.selectedUser) === "-" ? "" : text(payload.selectedUser);
+  const startDate = text(payload.startDate) === "-" ? "" : text(payload.startDate);
+  const endDate = text(payload.endDate) === "-" ? "" : text(payload.endDate);
+  const projectScope = text(payload.projectScope);
+  const generatedJql = text(payload.jql);
+  const selectedIssues = Array.isArray(payload.selectedIssues) ? payload.selectedIssues.map(text).filter(Boolean) : fetchQueue.map((item) => text(item.key)).filter(Boolean);
+  const fetchRemoteLinks = payload.fetchRemoteLinks === true;
+  const relatedIssuesStatus = text(payload.relatedIssuesStatus) || "not_started";
+  const originalDirectIssueKeys = Array.isArray(payload.directIssueKeys) ? payload.directIssueKeys.map(text).filter(Boolean) : [];
   const startedAt = new Date().toISOString();
   const runStartedMs = Date.now();
   const batchSize = payload.batchSize === "all" ? Math.max(fetchQueue.length, 1) : Math.max(1, Number(payload.batchSize ?? 10));
-  const rawDataMode = payload.rawDataMode ?? "auto_save_raw_per_issue";
-  const runStamp = fileTimestamp();
-  const fullFetchLogDir = ensureDir(getFullFetchLogsDir());
-  const autoLogPath = path.join(fullFetchLogDir, `full-fetch-${runStamp}.log`);
-  const checkpointPath = path.join(fullFetchLogDir, `full-fetch-${runStamp}.checkpoint.json`);
-  const rawIssuesDir = "";
+  const rawDataMode = "auto_save_raw_per_issue" as const;
+  const autoLogPath = path.join(ensureDir(getFullFetchLogsDir()), `full-fetch-${fileTimestamp()}.log`);
   fs.writeFileSync(autoLogPath, "", "utf8");
-  const logs: string[] = [];
-  let rawDataEstimateBytes = 0;
-  let peakRssMB = 0;
-  let peakHeapUsedMB = 0;
-  let peakRawDataEstimateMB = 0;
-  const issueStatus: Record<string, unknown>[] = [];
-  const rawManifest: Record<string, unknown>[] = [];
-  const checkpointWriteDiagnostics: CheckpointWriteDiagnostics = { checkpointWriteAttempts: 0, retryCount: 0, fallbackDirectWriteCount: 0, lastErrorCode: "", lastRecovered: false, events: [] };
-  latestCheckpointWriteDiagnostics = checkpointWriteDiagnostics;
-  const stagingRun = resumeStaging ?? createStagingRun(stagingRoot, { runId, selectedUser: text(payload.selectedUser), queue: fetchQueue, createdAt: startedAt });
+  const stagingRun = createStagingRun(stagingRoot, { runId, selectedUser, queue: fetchQueue, createdAt: startedAt, runContext: { selectedUser, projectScope, dateRange: { start: startDate, end: endDate }, jql: generatedJql, selectedIssues, directIssueKeys: originalDirectIssueKeys, relatedIssuesStatus, fetchRemoteLinks } });
   latestFullFetchStaging = stagingRun;
-  setStagingStatus(stagingRun, resumeStaging ? "resuming" : "running");
-  appendStagingDiagnostic(stagingRun.dir, resumeStaging ? "resume_start" : "staging_create", { stagingId: stagingRun.state.stagingId, runId, remaining: stagingRun.state.remaining });
-  activeFullFetch = {
-    runId,
-    status: "running",
-    queueCount: fetchQueue.length,
-    currentIndex: 0,
-    currentIssueKey: "",
-    lastCompletedIndex: 0,
-    lastCompletedIssueKey: "",
-    success: 0,
-    failed: 0,
-    skipped: 0,
-    startedAtMs: runStartedMs,
-    autoLogPath,
-    checkpointPath,
-    lastLogs: [],
-    memory: memorySnapshot(),
-    pauseRequested: false,
-    cancelRequested: false,
-    stagingDir: stagingRun.dir
-  };
-  const log = (level: string, message: string) => {
-    const rendererLine = `[${level}] ${maskDiagnosticText(message)}`;
-    logs.push(rendererLine);
-    appendRuntimeLog(autoLogPath, level, message);
-    event.sender.send("user-analysis:full-fetch-log", rendererLine);
-  };
-  const updateMemory = (context: string) => {
-    const memory = memorySnapshot(rawDataEstimateBytes);
-    if (activeFullFetch) activeFullFetch.memory = memory;
-    peakRssMB = Math.max(peakRssMB, memory.rssMB);
-    peakHeapUsedMB = Math.max(peakHeapUsedMB, memory.heapUsedMB);
-    peakRawDataEstimateMB = Math.max(peakRawDataEstimateMB, memory.rawDataEstimateMB);
-    log("MEMORY", `${context} rss=${memory.rssMB}MB heapUsed=${memory.heapUsedMB}MB heapTotal=${memory.heapTotalMB}MB external=${memory.externalMB}MB systemFree=${memory.systemFreeMB}MB rawEstimate=${memory.rawDataEstimateMB}MB`);
-    return memory;
-  };
-  const progressPayload = () => {
-    const active = activeFullFetch!;
-    const elapsedMs = Date.now() - active.startedAtMs;
-    const completed = active.success + active.failed + active.skipped;
-    const averageMsPerIssue = completed > 0 ? Math.round(elapsedMs / completed) : 0;
-    return {
-      runId,
-      status: active.status,
-      total: active.queueCount,
-      currentIndex: active.currentIndex,
-      currentIssueKey: active.currentIssueKey,
-      lastCompletedIndex: active.lastCompletedIndex,
-      lastCompletedIssueKey: active.lastCompletedIssueKey,
-      success: active.success,
-      failed: active.failed,
-      skipped: active.skipped,
-      elapsedMs,
-      averageMsPerIssue,
-      estimatedRemainingMs: averageMsPerIssue * Math.max(0, active.queueCount - completed),
-      batchSize,
-      currentBatch: Math.min(Math.ceil(Math.max(active.currentIndex, 1) / batchSize), Math.max(1, Math.ceil(active.queueCount / batchSize))),
-      totalBatches: Math.max(1, Math.ceil(active.queueCount / batchSize)),
-      rawDataMode,
-      memory: active.memory,
-      autoLogPath,
-      checkpointPath,
-      issueStatus: issueStatus.map((item) => ({ ...item })),
-      staging: { ...stagingRun.state, stagingDir: stagingRun.dir }
-    };
-  };
-  const updateCheckpoint = (status = activeFullFetch?.status ?? "running") => {
-    if (!activeFullFetch) return;
-    activeFullFetch.status = status;
-    const progress = progressPayload();
-    writeCheckpointReliable(checkpointPath, {
-      version: app.getVersion(),
-      startedAt,
-      lastUpdatedAt: new Date().toISOString(),
-      queueCount: fetchQueue.length,
-      ...progress,
-      autoLogPath,
-      checkpointPath,
-      memory: activeFullFetch.memory,
-      issueStatus
-    }, checkpointWriteDiagnostics, { onEvent: (entry) => log(entry.type === "checkpoint_write_retry" ? "WARN" : "ERROR", JSON.stringify(entry)) });
-    event.sender.send("user-analysis:full-fetch-progress", progress);
-    log("INFO", `Checkpoint updated: status=${status} current=${progress.currentIndex}/${progress.total} lastCompleted=${progress.lastCompletedIndex}`);
-  };
-  log("INFO", "Full Fetch started");
-  log("INFO", `Run ID: ${runId}`);
-  log("INFO", `Queue Count: ${fetchQueue.length}`);
-  log("INFO", `Batch Size: ${batchSize}`);
-  log("INFO", `Raw Data Mode: ${rawDataMode}`);
-  log("INFO", `Auto Log Path: ${autoLogPath}`);
-  log("INFO", `Checkpoint Path: ${checkpointPath}`);
-  log("INFO", `Full Fetch Staging: ${stagingRun.state.stagingId}`);
-  log("INFO", `Staging Path: ${stagingRun.dir}`);
-  log("USER_ACTION", `Full Fetch execution started: queueCount=${fetchQueue.length} batchSize=${batchSize} rawDataMode=${rawDataMode}`);
-  log("INFO", "Data Source Mode: Live Jira API");
-  log("INFO", `API Version: ${connection.apiVersion === "v3" ? "Jira Cloud v3" : "Jira Server/Data Center v2"}`);
-  log("INFO", `Auth Type: ${connection.authType === "bearer" ? "Bearer Token / PAT" : "Basic Auth"}`);
-  log("INFO", "Authorization: [masked]");
-  log("INFO", "Execution Mode: Sequential read-only fetch");
-  log("INFO", "No database write will be performed");
-  log("INFO", "No Jira write will be performed");
-  log("INFO", "No attachment file download will be performed");
-  updateMemory("Full Fetch started");
-  updateCheckpoint("running");
-  const client = createJiraClient({
-    baseUrl: connection.baseUrl,
-    email: connection.email || connection.username,
-    apiToken: connection.apiToken ?? "",
-    authType: connection.authType
-  });
-
+  setStagingStatus(stagingRun, "running");
+  const runManifestPath = stagingPaths(stagingRun).state;
+  const logs: string[] = [];
+  const issueStatus: Record<string, unknown>[] = [];
   const report: Record<string, unknown>[] = [];
   const issueResults: Record<string, unknown>[] = [];
   const relatedCandidateIssues: RelatedCandidateIssue[] = [];
-  const endpointMetadata: Record<string, unknown>[] = [];
   const warnings: string[] = [];
   const errors: string[] = [];
-  const selectedUser = resumeStaging?.state.selectedUser ?? (text(payload.selectedUser) === "-" ? "" : text(payload.selectedUser));
-  const startDate = text(payload.startDate) === "-" ? "" : text(payload.startDate);
-  const endDate = text(payload.endDate) === "-" ? "" : text(payload.endDate);
-  const directIssueKeys = new Set((Array.isArray(payload.directIssueKeys) ? payload.directIssueKeys : []).map((key) => text(key).toUpperCase()).filter(Boolean));
-  const evidenceEvents: JiraEvidenceEvent[] = [];
-  const evidenceExcludedByReason: Record<string, number> = {};
+  const directIssueKeys = new Set(originalDirectIssueKeys.map((key) => key.toUpperCase()));
   const fullFetchedIssueKeys: string[] = [];
-
-  for (let queueIndex = 0; queueIndex < fetchQueue.length; queueIndex += 1) {
-    const candidate = fetchQueue[queueIndex];
-    const issueKey = text(candidate.key).toUpperCase();
-    const issueStarted = Date.now();
-    const priorStagingStatus = stagingRun.checkpoint.targets.find((target) => target.objectKey === issueKey)?.status;
-    startTarget(stagingRun, issueKey, Boolean(resumeStaging && priorStagingStatus === "failed_retryable"));
-    if (activeFullFetch) {
-      activeFullFetch.currentIndex = queueIndex + 1;
-      activeFullFetch.currentIssueKey = issueKey;
-    }
-    issueStatus.push({ index: queueIndex + 1, issueKey, status: "running", startedAt: new Date().toISOString() });
-    log("PROGRESS", `${queueIndex + 1}/${fetchQueue.length} started: ${issueKey}`);
-    log("INFO", `Full Fetch issue started: ${issueKey}`);
-    updateMemory(`before issue ${issueKey}`);
-    updateCheckpoint("running");
-    const issuePath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}?fields=*all&expand=names,schema,renderedFields,changelog`;
-    log("DEBUG", `GET ${apiPrefix}/issue/${issueKey}?fields=*all&expand=names,schema,renderedFields,changelog`);
-    const issue = await client.get(issuePath);
-    endpointMetadata.push({ issueKey, endpoint: `${apiPrefix}/issue/${issueKey}`, method: "GET", status: issue.status, contentType: issue.contentType });
-    const initialRawIssue = { issueKey, endpoint: "issue", status: issue.status, json: sanitizeRawJson(issue.json), bodyPreview: issue.bodyPreview };
-    rawDataEstimateBytes += Buffer.byteLength(JSON.stringify(initialRawIssue), "utf8");
-    if (!issue.ok) {
-      const message = `HTTP ${issue.status} ${issue.message ?? issue.errorType ?? ""}`.trim();
-      log("ERROR", `Full Fetch issue failed: ${issueKey} ${message}`);
-      log("INFO", "Continue with next issue");
-      errors.push(`${issueKey}: ${message}`);
-      const failedResult = { issue: {}, httpStatus: issue.status, changelogHistories: [], comments: [], attachments: [], links: [], parsedUsers: [] };
-      report.push(buildFullFetchReport(issueKey, candidate, failedResult, issueStarted, "failed", message));
-      issueResults.push({ issueKey, fetchStatus: "failed", error: message });
-      completeTarget(stagingRun, issueKey, { status: "failed", classification: issue.status ? `http_${issue.status}` : text(issue.errorType) || "network_error", errorType: text(issue.errorType) || (issue.status ? `http_${issue.status}` : "network_error"), errorMessage: message });
-      if (activeFullFetch) {
-        activeFullFetch.failed += 1;
-        activeFullFetch.lastCompletedIndex = queueIndex + 1;
-        activeFullFetch.lastCompletedIssueKey = issueKey;
+  const evidenceExcludedByReason: Record<string, number> = {};
+  const evidenceTypeCounts: Record<string, number> = {};
+  const activityTypeCounts: Record<string, number> = {};
+  const issueEvidenceCounts: Record<string, { directEvidenceCount: number; contextEvidenceCount: number; activityTypes: string[] }> = {};
+  let directEvidenceCount = 0; let contextEvidenceCount = 0; let relatedContextEvidenceCount = 0;
+  let peakRssMB = 0; let peakHeapUsedMB = 0; let peakRawDataEstimateMB = 0;
+  let aggregate = { totalChangelogHistories: 0, totalChangelogItems: 0, totalComments: 0, totalAttachmentsMetadata: 0, totalIssueLinks: 0, totalParsedUsers: 0, totalEstimatedEvents: 0 };
+  activeFullFetch = { runId, status: "running", queueCount: fetchQueue.length, currentIndex: 0, currentIssueKey: "", lastCompletedIndex: 0, lastCompletedIssueKey: "", success: 0, failed: 0, skipped: 0, startedAtMs: runStartedMs, autoLogPath, runManifestPath, lastLogs: [], memory: memorySnapshot(), cancelRequested: false, stagingDir: stagingRun.dir };
+  const log = (level: string, message: string) => {
+    const rendererLine = `[${level}] ${maskDiagnosticText(message)}`;
+    logs.push(rendererLine); if (logs.length > 500) logs.shift();
+    if (activeFullFetch) activeFullFetch.lastLogs = logs.slice(-100);
+    appendRuntimeLog(autoLogPath, level, message); event.sender.send("user-analysis:full-fetch-log", rendererLine);
+  };
+  const updateMemory = (context: string) => {
+    const stagingBytes = previewStaging(stagingRun).stagingSizeBytes;
+    const memory = memorySnapshot(stagingBytes);
+    if (activeFullFetch) activeFullFetch.memory = memory;
+    peakRssMB = Math.max(peakRssMB, memory.rssMB); peakHeapUsedMB = Math.max(peakHeapUsedMB, memory.heapUsedMB); peakRawDataEstimateMB = Math.max(peakRawDataEstimateMB, memory.rawDataEstimateMB);
+    log("MEMORY", `${context} rss=${memory.rssMB}MB heapUsed=${memory.heapUsedMB}MB stagingBytes=${stagingBytes}`); return memory;
+  };
+  const progressPayload = () => {
+    const active = activeFullFetch!; const elapsedMs = Date.now() - active.startedAtMs; const completed = active.success + active.failed + active.skipped; const averageMsPerIssue = completed ? Math.round(elapsedMs / completed) : 0;
+    return { runId, status: active.status, total: active.queueCount, currentIndex: active.currentIndex, currentIssueKey: active.currentIssueKey, lastCompletedIndex: active.lastCompletedIndex, lastCompletedIssueKey: active.lastCompletedIssueKey, success: active.success, failed: active.failed, skipped: active.skipped, elapsedMs, averageMsPerIssue, estimatedRemainingMs: averageMsPerIssue * Math.max(0, active.queueCount - completed), batchSize, currentBatch: Math.min(Math.ceil(Math.max(active.currentIndex, 1) / batchSize), Math.max(1, Math.ceil(active.queueCount / batchSize))), totalBatches: Math.max(1, Math.ceil(active.queueCount / batchSize)), rawDataMode, memory: active.memory, autoLogPath, runManifestPath, issueStatus: issueStatus.map((item) => ({ ...item })), staging: previewStaging(stagingRun) };
+  };
+  const sendProgress = (status = activeFullFetch?.status ?? "running") => { if (!activeFullFetch) return; activeFullFetch.status = status; event.sender.send("user-analysis:full-fetch-progress", progressPayload()); };
+  const client = createJiraClient({ baseUrl: connection.baseUrl, email: connection.email || connection.username, apiToken: connection.apiToken ?? "", authType: connection.authType });
+  const getWithRetry = async (urlPath: string, issueKey: string, stage: string) => jiraGetWithRetry(() => client.get(urlPath), { onAttempt: ({ attempt, status, errorCode, waitMs }) => log(waitMs ? "WARN" : "DEBUG", `GET attempt=${attempt} issue=${issueKey} stage=${stage} status=${status} error=${errorCode} waitMs=${waitMs}`) });
+  try {
+    log("INFO", `Full Fetch started: runId=${runId} stagingId=${stagingRun.state.stagingId} queue=${fetchQueue.length}`);
+    log("INFO", `Staging Path: ${stagingRun.dir}`); log("INFO", "Raw mode: file-backed per-Issue canonical storage"); log("INFO", "Authorization: [masked]");
+    updateMemory("Full Fetch started"); sendProgress();
+    for (let queueIndex = 0; queueIndex < fetchQueue.length; queueIndex += 1) {
+      if (activeFullFetch?.cancelRequested) break;
+      const candidate = fetchQueue[queueIndex]; const issueKey = text(candidate.key).toUpperCase(); const issueStarted = Date.now();
+      startTarget(stagingRun, issueKey);
+      if (activeFullFetch) { activeFullFetch.currentIndex = queueIndex + 1; activeFullFetch.currentIssueKey = issueKey; }
+      issueStatus.push({ index: queueIndex + 1, issueKey, status: "running", startedAt: new Date().toISOString() }); sendProgress();
+      const targetEndpointMetadata: Record<string, unknown>[] = [];
+      const issuePath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}?fields=*all&expand=names,schema,renderedFields,changelog`;
+      const issueAttempt = await getWithRetry(issuePath, issueKey, "issue"); const issue = issueAttempt.result;
+      targetEndpointMetadata.push({ endpoint: issuePath, method: "GET", status: issue.status, contentType: issue.contentType, attempts: issueAttempt.attempts, required: true, fetchedAt: new Date().toISOString() });
+      if (!issue.ok) {
+        const message = `HTTP ${issue.status} ${issue.message ?? issue.errorType ?? ""}`.trim();
+        completeTarget(stagingRun, issueKey, { status: "failed", classification: "issue_scoped_failure", errorType: text(issue.errorType) || (issue.status === "-" ? "NETWORK_ERROR" : `HTTP_${issue.status}`), errorMessage: message });
+        const row = buildFullFetchReport(issueKey, candidate, { issue: {}, httpStatus: issue.status, changelogHistories: [], comments: [], attachments: [], links: [], parsedUsers: [] }, issueStarted, "failed", message);
+        report.push({ ...row, retryCount: Math.max(0, issueAttempt.attempts - 1) }); issueResults.push({ issueKey, fetchStatus: "failed", error: message }); errors.push(`${issueKey}: ${message}`);
+        if (activeFullFetch) { activeFullFetch.failed += 1; activeFullFetch.lastCompletedIndex = queueIndex + 1; activeFullFetch.lastCompletedIssueKey = issueKey; }
+        issueStatus[issueStatus.length - 1] = { index: queueIndex + 1, issueKey, status: "failed", durationMs: Date.now() - issueStarted, error: message }; updateMemory(`after failed issue ${issueKey}`); sendProgress();
+        if (activeFullFetch?.cancelRequested) break; continue;
       }
-      issueStatus[issueStatus.length - 1] = { index: queueIndex + 1, issueKey, status: "failed", durationMs: Date.now() - issueStarted, error: message };
-      rawDataEstimateBytes = 0;
-      updateMemory(`after failed issue ${issueKey}`);
-      updateCheckpoint("running");
-      if ((queueIndex + 1) % batchSize === 0 || queueIndex + 1 === fetchQueue.length) {
-        const batchNumber = Math.ceil((queueIndex + 1) / batchSize);
-        log("BATCH", `${batchNumber}/${Math.max(1, Math.ceil(fetchQueue.length / batchSize))} completed: success=${activeFullFetch?.success ?? 0} failed=${activeFullFetch?.failed ?? 0} skipped=${activeFullFetch?.skipped ?? 0}`);
-        updateMemory(`after batch ${batchNumber}`);
-        updateCheckpoint("running");
+      const issueJson = asRecord(issue.json); const fields = asRecord(issueJson.fields);
+      const expandedChangelog = Array.isArray(asRecord(issueJson.changelog).histories) ? asRecord(issueJson.changelog).histories as Record<string, unknown>[] : [];
+      const changelogHistories: Record<string, unknown>[] = []; let changelogStartAt = 0; let changelogPages = 0; let changelogComplete = false; const changelogMax = 100;
+      while (true) {
+        const changelogPath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/changelog?startAt=${changelogStartAt}&maxResults=${changelogMax}`;
+        const changelogAttempt = await getWithRetry(changelogPath, issueKey, "changelog"); const response = changelogAttempt.result; changelogPages += 1;
+        targetEndpointMetadata.push({ endpoint: changelogPath, method: "GET", status: response.status, contentType: response.contentType, attempts: changelogAttempt.attempts, required: true, fetchedAt: new Date().toISOString() });
+        if (!response.ok) break;
+        const body = asRecord(response.json); const page = Array.isArray(body.values) ? body.values as Record<string, unknown>[] : Array.isArray(body.histories) ? body.histories as Record<string, unknown>[] : [];
+        changelogHistories.push(...page); const total = Number(body.total ?? page.length); changelogStartAt += page.length;
+        if (!page.length || !Number.isFinite(total) || changelogStartAt >= total || body.isLast === true) { changelogComplete = Number.isFinite(total) ? changelogStartAt >= total : body.isLast === true; break; }
       }
-      if (activeFullFetch?.cancelRequested) {
-        log("INFO", `Cancel acknowledged after failed issue: ${issueKey}`);
-        break;
+      if (!changelogHistories.length && expandedChangelog.length) changelogHistories.push(...expandedChangelog);
+      const comments: Record<string, unknown>[] = []; let commentsStartAt = 0; let commentPages = 0; let commentsComplete = false; const commentMax = 100;
+      while (true) {
+        const commentPath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?startAt=${commentsStartAt}&maxResults=${commentMax}`;
+        const commentAttempt = await getWithRetry(commentPath, issueKey, "comments"); const response = commentAttempt.result; commentPages += 1;
+        targetEndpointMetadata.push({ endpoint: commentPath, method: "GET", status: response.status, contentType: response.contentType, attempts: commentAttempt.attempts, required: true, fetchedAt: new Date().toISOString() });
+        if (!response.ok) break;
+        const page = Array.isArray(asRecord(response.json).comments) ? asRecord(response.json).comments as Record<string, unknown>[] : []; comments.push(...page);
+        const total = Number(asRecord(response.json).total ?? page.length); commentsStartAt += page.length; if (!page.length || !Number.isFinite(total) || commentsStartAt >= total) { commentsComplete = Number.isFinite(total) && commentsStartAt >= total; break; }
       }
-      if (activeFullFetch?.pauseRequested) {
-        log("INFO", `Paused after current failed issue: ${issueKey}`);
-        updateCheckpoint("paused");
-        break;
+      const attachments = Array.isArray(fields.attachment) ? fields.attachment as Record<string, unknown>[] : [];
+      const links = Array.isArray(fields.issuelinks) ? fields.issuelinks as Record<string, unknown>[] : [];
+      let remoteLinks: unknown[] | null = null; let remoteLinkStatus: OptionalEndpointStatus = { enabled: fetchRemoteLinks, status: "not_attempted", archiveBlocking: false, retryable: false, warning: null, httpStatus: null, errorCode: "", attemptCount: 0, fetchedAt: null };
+      if (fetchRemoteLinks) {
+        const remotePath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/remotelink`; const remoteAttempt = await getWithRetry(remotePath, issueKey, "remote_links"); const response = remoteAttempt.result;
+        const fetchedAt = new Date().toISOString(); targetEndpointMetadata.push({ endpoint: remotePath, method: "GET", status: response.status, contentType: response.contentType, attempts: remoteAttempt.attempts, required: false, fetchedAt });
+        if (response.ok && Array.isArray(response.json)) { remoteLinks = response.json; remoteLinkStatus = { enabled: true, status: "available", archiveBlocking: false, retryable: false, warning: null, httpStatus: response.status, errorCode: "", attemptCount: remoteAttempt.attempts, fetchedAt }; }
+        else { const warning = `Remote Links optional request failed for ${issueKey}: HTTP ${response.status}.`; warnings.push(warning); const numericStatus = typeof response.status === "number" ? response.status : null; const status = numericStatus === 401 || numericStatus === 403 ? "permission_denied" : numericStatus === 400 || numericStatus === 404 ? "unsupported" : "temporarily_unavailable"; remoteLinkStatus = { enabled: true, status, archiveBlocking: false, retryable: false, warning, httpStatus: response.status, errorCode: text(response.errorType) || (numericStatus ? `HTTP_${numericStatus}` : "NETWORK_ERROR"), attemptCount: remoteAttempt.attempts, fetchedAt }; }
       }
-      continue;
+      const parsedUsers = uniqueUserNames([fields.assignee, fields.reporter, fields.creator, ...changelogHistories.map((history) => asRecord(history).author), ...comments.map((comment) => asRecord(comment).author), ...attachments.map((attachment) => asRecord(attachment).author)]);
+      const changeItems = countChangeItems(changelogHistories); const estimatedEvents = 1 + changeItems + comments.length + attachments.length + links.length;
+      const queueMetadata = asRecord(candidate.queueMetadata); const queueSources = Array.isArray(queueMetadata.sources) ? queueMetadata.sources.map(text) : [];
+      const directActivityIssue = directIssueKeys.has(issueKey) || queueSources.includes("activity_timeline"); if (directActivityIssue) directIssueKeys.add(issueKey);
+      const relatedTimelineEventIds = Array.isArray(queueMetadata.timelineEventIds) ? queueMetadata.timelineEventIds.map(text).filter(Boolean) : [];
+      const extractedEvidence = extractJiraEvidenceFromIssue({ selectedUser, startDate, endDate, issueKey, directActivityIssue, relatedTimelineEventIds, issue: issueJson, changelogHistories, comments, attachments, links, remoteLinks: (remoteLinks ?? []).map(asRecord) });
+      for (const evidence of extractedEvidence.events) { evidenceTypeCounts[evidence.evidenceType] = (evidenceTypeCounts[evidence.evidenceType] ?? 0) + 1; activityTypeCounts[evidence.activityType] = (activityTypeCounts[evidence.activityType] ?? 0) + 1; const item = issueEvidenceCounts[issueKey] ?? { directEvidenceCount: 0, contextEvidenceCount: 0, activityTypes: [] }; if (evidence.evidenceScope === "direct") { item.directEvidenceCount += 1; directEvidenceCount += 1; } else { item.contextEvidenceCount += 1; if (evidence.evidenceScope === "related_context") relatedContextEvidenceCount += 1; else contextEvidenceCount += 1; } if (!item.activityTypes.includes(evidence.activityType)) item.activityTypes.push(evidence.activityType); issueEvidenceCounts[issueKey] = item; }
+      for (const [reason, count] of Object.entries(extractedEvidence.excluded.byReason)) evidenceExcludedByReason[reason] = (evidenceExcludedByReason[reason] ?? 0) + count;
+      fullFetchedIssueKeys.push(issueKey);
+      const failedEndpoints = targetEndpointMetadata.filter((item) => item.required !== false && !(Number(item.status) >= 200 && Number(item.status) < 300)).map((item) => text(item.endpoint));
+      const missingSections = Array.from(new Set([...failedEndpoints.map((endpoint) => endpoint.includes("comment") ? "comments" : endpoint.includes("changelog") ? "changelog" : "issue"), ...(!changelogComplete ? ["changelog"] : []), ...(!commentsComplete ? ["comments"] : [])]));
+      const stagedTarget = completeTarget(stagingRun, issueKey, { status: missingSections.length ? "required_partial" : "eligible", rawEnvelope: { issue: issueJson, changelogHistories, comments, attachments, parsedUsers, evidenceEvents: extractedEvidence.events, issueLinks: links, remoteLinks, endpointMetadata: targetEndpointMetadata, requestMetadata: { apiVersion: connection.apiVersion, executionMode: "sequential_read_only", fetchedAt: new Date().toISOString(), fetchRemoteLinks }, paginationMetadata: { comments: { fetchedCount: comments.length, pageCount: commentPages, pageSize: commentMax, complete: commentsComplete }, changelog: { fetchedCount: changelogHistories.length, pageCount: changelogPages, pageSize: changelogMax, complete: changelogComplete } }, completenessMetadata: { requiredMissingSections: missingSections, optionalWarningCount: remoteLinkStatus.warning ? 1 : 0 } }, missingSections, failedEndpoints, optionalEndpointStatus: { remoteLinks: remoteLinkStatus }, optionalWarnings: remoteLinkStatus.warning ? [remoteLinkStatus.warning] : [], classification: missingSections.length ? "required_partial" : remoteLinkStatus.warning ? "eligible_optional_warning" : "complete", errorType: missingSections.length ? "required_partial" : "", errorMessage: missingSections.length ? `Required sections incomplete: ${missingSections.join(", ")}` : "" });
+      const resultForReport = { issue: issueJson, httpStatus: issue.status, changelogHistories, comments, attachments, links, parsedUsers, estimatedEvents };
+      const eligible = stagedTarget.status === "eligible";
+      const reportError = eligible ? "" : stagedTarget.lastError || `Required sections incomplete: ${missingSections.join(", ")}`;
+      const reportRow = buildFullFetchReport(issueKey, candidate, resultForReport, issueStarted, eligible ? "success" : "failed", reportError); report.push(reportRow);
+      issueResults.push({ issueKey, fetchStatus: stagedTarget.status === "eligible" ? "success" : "failed", status: stagedTarget.status, sizeBytes: stagedTarget.sizeBytes, snapshotFetchedAt: stagedTarget.snapshotFetchedAt, currentIssueSnapshotRef: stagedTarget.currentIssueSnapshotRef, normalizedCurrentFieldsRef: stagedTarget.normalizedCurrentFieldsRef, issueManifestRef: stagedTarget.issueManifestRef, canonicalFiles: stagedTarget.canonicalFiles, coverage: stagedTarget.coverage });
+      relatedCandidateIssues.push(...extractRelatedIssues({ issueKey, issue: issueJson, changelogHistories, links, remoteLinks: remoteLinks ?? [], observedAt: new Date().toISOString() }));
+      aggregate = { totalChangelogHistories: aggregate.totalChangelogHistories + changelogHistories.length, totalChangelogItems: aggregate.totalChangelogItems + changeItems, totalComments: aggregate.totalComments + comments.length, totalAttachmentsMetadata: aggregate.totalAttachmentsMetadata + attachments.length, totalIssueLinks: aggregate.totalIssueLinks + links.length, totalParsedUsers: aggregate.totalParsedUsers + parsedUsers.length, totalEstimatedEvents: aggregate.totalEstimatedEvents + estimatedEvents };
+      if (activeFullFetch) { if (eligible) activeFullFetch.success += 1; else activeFullFetch.failed += 1; activeFullFetch.lastCompletedIndex = queueIndex + 1; activeFullFetch.lastCompletedIssueKey = issueKey; }
+      issueStatus[issueStatus.length - 1] = { index: queueIndex + 1, issueKey, status: eligible ? "success" : "partial", durationMs: Date.now() - issueStarted, sizeBytes: stagedTarget.sizeBytes };
+      log("SUCCESS", `Issue committed: ${issueKey} durationMs=${Date.now() - issueStarted} issueBytes=${stagedTarget.sizeBytes} stagingBytes=${previewStaging(stagingRun).stagingSizeBytes}`); updateMemory(`after issue ${issueKey}`); sendProgress();
+      if (activeFullFetch?.cancelRequested) break;
     }
-
-    const issueJson = asRecord(issue.json);
-    const fields = asRecord(issueJson.fields);
-    let changelogRoot = asRecord(issueJson.changelog);
-    let changelogHistories = Array.isArray(changelogRoot.histories) ? changelogRoot.histories as Record<string, unknown>[] : [];
-    if (changelogHistories.length === 0) {
-      const changelogPath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}?expand=changelog`;
-      log("DEBUG", `GET ${apiPrefix}/issue/${issueKey}?expand=changelog`);
-      const changelogResponse = await client.get(changelogPath);
-      endpointMetadata.push({ issueKey, endpoint: `${apiPrefix}/issue/${issueKey}?expand=changelog`, method: "GET", status: changelogResponse.status, contentType: changelogResponse.contentType });
-      if (changelogResponse.ok) {
-        const changelogJson = asRecord(changelogResponse.json);
-        changelogRoot = asRecord(changelogJson.changelog);
-        changelogHistories = Array.isArray(changelogRoot.histories) ? changelogRoot.histories as Record<string, unknown>[] : [];
-        const fallbackRaw = { issueKey, endpoint: "issue-changelog-fallback", status: changelogResponse.status, json: sanitizeRawJson(changelogResponse.json), bodyPreview: changelogResponse.bodyPreview };
-        rawDataEstimateBytes += Buffer.byteLength(JSON.stringify(fallbackRaw), "utf8");
-      } else {
-        const message = `Changelog fallback failed for ${issueKey}: HTTP ${changelogResponse.status} ${changelogResponse.message ?? changelogResponse.errorType ?? ""}`.trim();
-        warnings.push(message);
-        log("WARN", message);
-      }
-    }
-    const comments: Record<string, unknown>[] = [];
-    let commentsStartAt = 0;
-    const commentMax = 100;
-    const commentSafetyLimit = 1000;
-    while (commentsStartAt < commentSafetyLimit) {
-      log("DEBUG", `GET ${apiPrefix}/issue/${issueKey}/comment?startAt=${commentsStartAt}&maxResults=${commentMax}`);
-      const commentsResponse = await client.get(`${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?startAt=${commentsStartAt}&maxResults=${commentMax}`);
-      endpointMetadata.push({ issueKey, endpoint: `${apiPrefix}/issue/${issueKey}/comment`, method: "GET", startAt: commentsStartAt, maxResults: commentMax, status: commentsResponse.status, contentType: commentsResponse.contentType });
-      const commentRaw = { issueKey, startAt: commentsStartAt, status: commentsResponse.status, json: sanitizeRawJson(commentsResponse.json), bodyPreview: commentsResponse.bodyPreview };
-      rawDataEstimateBytes += Buffer.byteLength(JSON.stringify(commentRaw), "utf8");
-      if (!commentsResponse.ok) {
-        const message = `Comments pagination failed for ${issueKey}: HTTP ${commentsResponse.status} ${commentsResponse.message ?? commentsResponse.errorType ?? ""}`.trim();
-        warnings.push(message);
-        log("WARN", message);
-        break;
-      }
-      const commentJson = asRecord(commentsResponse.json);
-      const pageComments = Array.isArray(commentJson.comments) ? commentJson.comments as Record<string, unknown>[] : [];
-      comments.push(...pageComments);
-      const total = Number(commentJson.total ?? pageComments.length) || pageComments.length;
-      commentsStartAt += pageComments.length;
-      if (pageComments.length === 0 || commentsStartAt >= total) break;
-    }
-
-    const attachments = Array.isArray(fields.attachment) ? fields.attachment as Record<string, unknown>[] : [];
-    const links = Array.isArray(fields.issuelinks) ? fields.issuelinks as Record<string, unknown>[] : [];
-    let remoteLinks: unknown[] = [];
-    const remoteLinkPath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/remotelink`;
-    log("DEBUG", `GET ${apiPrefix}/issue/${issueKey}/remotelink`);
-    const remoteLinkResponse = await client.get(remoteLinkPath);
-    endpointMetadata.push({ issueKey, endpoint: `${apiPrefix}/issue/${issueKey}/remotelink`, method: "GET", status: remoteLinkResponse.status, contentType: remoteLinkResponse.contentType });
-    if (remoteLinkResponse.ok && Array.isArray(remoteLinkResponse.json)) remoteLinks = remoteLinkResponse.json;
-    else if (!remoteLinkResponse.ok && remoteLinkResponse.status !== 404) warnings.push(`Remote links unavailable for ${issueKey}: HTTP ${remoteLinkResponse.status}`);
-    const changeItems = countChangeItems(changelogHistories);
-    const parsedUsers = uniqueUserNames([
-      fields.assignee,
-      fields.reporter,
-      fields.creator,
-      ...changelogHistories.map((history) => asRecord(history).author),
-      ...comments.map((comment) => asRecord(comment).author),
-      ...attachments.map((attachment) => asRecord(attachment).author)
-    ]);
-    const result = {
-      issueKey,
-      fetchStatus: "success",
-      httpStatus: issue.status,
-      issue: issueJson,
-      changelogHistories,
-      comments,
-      attachments,
-      links,
-      remoteLinks,
-      parsedUsers,
-      estimatedEvents: 1 + changeItems + comments.length + attachments.length + links.length
-    };
-    const queueMetadata = asRecord(candidate.queueMetadata);
-    const queueSources = Array.isArray(queueMetadata.sources) ? queueMetadata.sources.map(text) : [];
-    const directActivityIssue = directIssueKeys.has(issueKey) || queueSources.includes("activity_timeline");
-    if (directActivityIssue) directIssueKeys.add(issueKey);
-    const relatedTimelineEventIds = Array.isArray(queueMetadata.timelineEventIds) ? queueMetadata.timelineEventIds.map(text).filter(Boolean) : [];
-    const extractedEvidence = extractJiraEvidenceFromIssue({ selectedUser, startDate, endDate, issueKey, directActivityIssue, relatedTimelineEventIds, issue: issueJson, changelogHistories, comments, attachments, links, remoteLinks: remoteLinks.map(asRecord) });
-    evidenceEvents.push(...extractedEvidence.events);
-    for (const [reason, count] of Object.entries(extractedEvidence.excluded.byReason)) evidenceExcludedByReason[reason] = (evidenceExcludedByReason[reason] ?? 0) + count;
-    fullFetchedIssueKeys.push(issueKey);
-    log("INFO", `Direct Jira evidence extracted: issue=${issueKey} direct=${extractedEvidence.events.filter((item) => item.evidenceScope === "direct").length} context=${extractedEvidence.events.filter((item) => item.evidenceScope !== "direct").length} excluded=${extractedEvidence.excluded.excludedCount}`);
-    log("INFO", `Issue full fields parsed: ${Object.keys(fields).length}`);
-    log("INFO", `Changelog parsed: ${changelogHistories.length} histories / ${changeItems} items`);
-    log("INFO", `Comments parsed: ${comments.length}`);
-    log("INFO", `Attachments parsed: ${attachments.length} metadata only`);
-    log("INFO", "No attachment file download performed");
-    log("INFO", `Issue links parsed: ${links.length}`);
-    log("INFO", `Parsed users: ${parsedUsers.length}`);
-    log("INFO", `Estimated activity events: ${result.estimatedEvents}`);
-    const targetEndpointMetadata = endpointMetadata.filter((item) => item.issueKey === issueKey);
-    const failedEndpoints = targetEndpointMetadata.filter((item) => {
-      const statusCode = Number(item.status ?? 0);
-      return !(statusCode >= 200 && statusCode < 300) && !(text(item.endpoint).includes("remotelink") && statusCode === 404);
-    }).map((item) => text(item.endpoint));
-    const missingSections = Array.from(new Set(failedEndpoints.map((endpoint) => endpoint.includes("comment") ? "comments" : endpoint.includes("changelog") ? "changelog" : endpoint.includes("remotelink") ? "remote_links" : "issue")));
-    const stagedTarget = completeTarget(stagingRun, issueKey, {
-      status: missingSections.length ? "partial" : "eligible",
-      rawEnvelope: {
-        issue: sanitizeRawJson(issueJson),
-        result: sanitizeRawJson(result),
-        endpointMetadata: sanitizeRawJson(targetEndpointMetadata),
-        sourceUpdatedAt: text(fields.updated) || null,
-        requiredSections: { issue: "complete", changelog: missingSections.includes("changelog") ? "failed" : "complete", comments: missingSections.includes("comments") ? "failed" : "complete", attachments: "complete_metadata_only", links: missingSections.includes("remote_links") ? "partial" : "complete" }
-      },
-      missingSections,
-      failedEndpoints,
-      classification: missingSections.length ? "partial_response" : "complete",
-      retryable: missingSections.length > 0,
-      errorType: missingSections.length ? "partial_response" : "",
-      errorMessage: missingSections.length ? `Required sections incomplete: ${missingSections.join(", ")}` : ""
-    });
-    const reportRow = buildFullFetchReport(issueKey, candidate, result, issueStarted, "success");
-    relatedCandidateIssues.push(...extractRelatedIssues({ issueKey, issue: issueJson, changelogHistories, links, remoteLinks, observedAt: new Date().toISOString() }));
-    report.push(reportRow);
-    const resultSummary = { ...reportRow, rawFilePath: "" };
-    if ((rawDataMode === "auto_save_raw_per_issue" || rawDataMode === "full_raw_in_memory") && stagedTarget.rawFilePath) {
-      const rawFilePath = path.join(stagingRun.dir, stagedTarget.rawFilePath);
-      resultSummary.rawFilePath = rawFilePath;
-      rawManifest.push({ issueKey, rawFilePath });
-      log("INFO", `Raw data saved per issue: ${rawFilePath}`);
-    }
-    rawDataEstimateBytes = 0;
-    issueResults.push(resultSummary);
-    if (activeFullFetch) {
-      activeFullFetch.success += 1;
-      activeFullFetch.lastCompletedIndex = queueIndex + 1;
-      activeFullFetch.lastCompletedIssueKey = issueKey;
-    }
-    const durationMs = Date.now() - issueStarted;
-    issueStatus[issueStatus.length - 1] = { index: queueIndex + 1, issueKey, status: "success", durationMs };
-    const progress = progressPayload();
-    log("PROGRESS", `${queueIndex + 1}/${fetchQueue.length} completed: ${issueKey} status=success duration=${durationMs}ms success=${progress.success} failed=${progress.failed} skipped=${progress.skipped} eta=${progress.estimatedRemainingMs}ms`);
-    log("SUCCESS", `Full Fetch issue completed: ${issueKey}`);
-    if ((queueIndex + 1) % 5 === 0 || rawDataEstimateBytes > 50 * 1024 * 1024) updateMemory(`after issue ${issueKey}`);
-    updateCheckpoint("running");
-    if ((queueIndex + 1) % batchSize === 0 || queueIndex + 1 === fetchQueue.length) {
-      const batchNumber = Math.ceil((queueIndex + 1) / batchSize);
-      log("BATCH", `${batchNumber}/${Math.max(1, Math.ceil(fetchQueue.length / batchSize))} completed: success=${activeFullFetch?.success ?? 0} failed=${activeFullFetch?.failed ?? 0} skipped=${activeFullFetch?.skipped ?? 0}`);
-      updateMemory(`after batch ${batchNumber}`);
-      updateCheckpoint("running");
-    }
-    if (activeFullFetch?.cancelRequested) {
-      log("INFO", `Cancel acknowledged after issue: ${issueKey}`);
-      break;
-    }
-    if (activeFullFetch?.pauseRequested) {
-      log("INFO", `Paused after current issue: ${issueKey}`);
-      updateCheckpoint("paused");
-      break;
-    }
+    const cancelled = activeFullFetch?.cancelRequested === true;
+    const state = finalizeStagingRun(stagingRun, cancelled); updateStagingWorkflow(stagingRun, { relatedDiscovery: "completed" });
+    const success = activeFullFetch?.success ?? 0; const failed = activeFullFetch?.failed ?? 0; const skipped = activeFullFetch?.skipped ?? 0;
+    const summary = { totalIssues: fetchQueue.length, pending: state.notAttempted, running: 0, success, failed, skipped, ...aggregate };
+    latestFullFetchFailedIssues = report.filter((item) => item.fetchStatus === "failed").map((item) => ({ issueKey: text(item.issueKey), errorCode: text(item.errorCode) || "ISSUE_FETCH_FAILED", httpStatus: Number.isFinite(Number(item.httpStatus)) ? Number(item.httpStatus) : null, message: text(item.error), stage: "issue_full_fetch", retryCount: Number(item.retryCount ?? 0), source: text(item.source) || "manual", matchedReason: text(item.matchedReason), occurredAt: text(item.occurredAt) || new Date().toISOString() }));
+    const evidenceExcluded: JiraEvidenceExcludedSummary = { schemaVersion: "jira_evidence_excluded_summary_v1", excludedCount: Object.values(evidenceExcludedByReason).reduce((sum, count) => sum + count, 0), byReason: evidenceExcludedByReason };
+    const evidenceSummary: JiraEvidenceSummary = { schemaVersion: "jira_evidence_summary_v1", selectedUser, dateRange: { start: startDate, end: endDate }, directIssueCount: directIssueKeys.size, fullFetchedIssueCount: fullFetchedIssueKeys.length, failedIssueCount: latestFullFetchFailedIssues.length, directEvidenceCount, contextEvidenceCount, relatedContextEvidenceCount, excludedEvidenceCount: evidenceExcluded.excludedCount, byEvidenceType: evidenceTypeCounts, byActivityType: activityTypeCounts, byIssueKey: issueEvidenceCounts, coverage: { issuesWithEvidence: Object.keys(issueEvidenceCounts).length, issuesWithoutDirectEvidence: fullFetchedIssueKeys.filter((key) => !issueEvidenceCounts[key]?.directEvidenceCount).length, failedIssues: latestFullFetchFailedIssues.map((item) => item.issueKey) }, relatedIssueExpansionPolicy: { recursive: false, maxDepth: 1, relatedIssuesAsPrimaryEvidence: false } };
+    const evidenceFiles = { events: "per-issue evidence.ndjson", summary: stagingPaths(stagingRun).result, excludedSummary: stagingPaths(stagingRun).result, schema: "embedded schema reference", roadmap: "v0.2.31" };
+    latestJiraEvidence = { eventsDocument: { schemaVersion: "jira_evidence_file_backed_v1", runId, stagingId: state.stagingId, canonicalStorage: "issues/<issueKey>/evidence.ndjson" }, events: [], summary: evidenceSummary, excluded: evidenceExcluded, files: evidenceFiles };
+    const diagnostics = { autoLogPath, runManifestPath, batchSize, rawDataMode, memorySummary: { peakRssMB, peakHeapUsedMB, peakRawDataEstimateMB }, finalMemory: activeFullFetch?.memory ?? memorySnapshot(state.stagingSizeBytes), staging: previewStaging(stagingRun), ...getActionLogDiagnostics() };
+    const response = { ok: state.status !== "failed_final", logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: state.status, executionMode: "sequential_file_backed", diagnostics }, summary, stagingSummary: state, fetchReport: report, issueResults, relatedCandidateIssues, relatedIssueExpansionSummary: { ...relatedIssueSummary(relatedCandidateIssues), ...relatedIssueScopeSummary(relatedCandidateIssues) }, jiraEvidenceEvents: [], jiraEvidenceSummary: evidenceSummary, jiraEvidenceExcludedSummary: evidenceExcluded, jiraEvidenceFiles: evidenceFiles, rawData: { exportType: "user-analysis-full-fetch-file-reference-manifest", rawDataMode, issues: issueResults.map((item) => ({ issueKey: item.issueKey, issueManifestRef: item.issueManifestRef, currentIssueSnapshotRef: item.currentIssueSnapshotRef })), stagingId: state.stagingId, stagingDir: stagingRun.dir, stagingSizeBytes: state.stagingSizeBytes, message: "Canonical files are persisted by main process. Complete Raw/Snapshot/Evidence is never sent through IPC." }, diagnostics, warnings, errors };
+    const indexDocument = readFullFetchResultIndex(stagingRun);
+    const fullFetchResultDocument = buildFullFetchResultDocument({ app: { name: "Jira Activity Analyzer", version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__ }, run: response.run, requestContext: { selectedUser, projectScope, dateRange: { start: startDate, end: endDate, endInclusive: true }, jql: generatedJql, selectedIssues, fetchQueue: state.runContext.fetchQueue, directIssueKeys: Array.from(directIssueKeys), fetchRemoteLinks, relatedIssuesStatus }, stagingReference: { stagingId: state.stagingId, fullFetchRunId: runId, stagingDir: stagingRun.dir, resultIndex: stagingPaths(stagingRun).result }, summary: { ...summary, stagingSizeBytes: state.stagingSizeBytes, archiveEligible: state.archiveEligible }, fetchReport: report, issueResults: Array.isArray(indexDocument.issues) ? indexDocument.issues : issueResults, directJiraEvidence: { summary: evidenceSummary, excludedSummary: evidenceExcluded, files: evidenceFiles }, relatedCandidateIssues, warnings, errors, diagnostics, debugLogSanitized: logs });
+    latestFullFetchResult = { runId, document: fullFetchResultDocument, savedPath: "", generatedAutomatically: false };
+    log("SUCCESS", `Full Fetch terminal status=${state.status} success=${success} failed=${failed} notAttempted=${state.notAttempted}`); return response;
+  } catch (error) {
+    const faultingIssue = activeFullFetch?.currentIssueKey ?? ""; const state = failStagingRun(stagingRun, faultingIssue, error, "full_fetch_pipeline");
+    log("ERROR", `Full Fetch failed_final code=${state.runError?.code} stage=${state.runError?.stage} issue=${faultingIssue} message=${state.runError?.message}`);
+    try { sendProgress("failed_final"); } catch { /* Renderer may already be gone. */ }
+    const diagnostics = { autoLogPath, runManifestPath, staging: previewStaging(stagingRun), finalMemory: memorySnapshot(state.stagingSizeBytes) };
+    return { ok: false, logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: "failed_final", diagnostics, error: state.runError }, summary: { totalIssues: state.total, pending: 0, running: 0, success: state.eligible, failed: state.failed, skipped: state.notAttempted, ...aggregate }, stagingSummary: state, fetchReport: report, issueResults, relatedCandidateIssues, jiraEvidenceEvents: [], diagnostics, warnings, errors: [...errors, state.runError?.message ?? "Full Fetch failed."] };
+  } finally {
+    activeFullFetch = null;
   }
-
-  const success = activeFullFetch?.success ?? report.filter((item) => item.fetchStatus === "success").length;
-  const failed = activeFullFetch?.failed ?? report.filter((item) => item.fetchStatus === "failed").length;
-  const skipped = report.filter((item) => item.fetchStatus === "skipped").length;
-  const paused = activeFullFetch?.status === "paused";
-  const cancelled = Boolean(activeFullFetch?.cancelRequested);
-  const completedCount = success + failed + skipped;
-  const summary = {
-    totalIssues: fetchQueue.length,
-    pending: Math.max(0, fetchQueue.length - completedCount),
-    running: 0,
-    success,
-    failed,
-    skipped,
-    totalChangelogHistories: report.reduce((sum, item) => sum + Number(item.changelogHistories ?? 0), 0),
-    totalChangelogItems: report.reduce((sum, item) => sum + Number(item.changelogItems ?? 0), 0),
-    totalComments: report.reduce((sum, item) => sum + Number(item.comments ?? 0), 0),
-    totalAttachmentsMetadata: report.reduce((sum, item) => sum + Number(item.attachmentsMetadata ?? 0), 0),
-    totalIssueLinks: report.reduce((sum, item) => sum + Number(item.issueLinks ?? 0), 0),
-    totalParsedUsers: report.reduce((sum, item) => sum + Number(item.parsedUsers ?? 0), 0),
-    totalEstimatedEvents: report.reduce((sum, item) => sum + Number(item.estimatedEvents ?? 0), 0)
-  };
-  const status = cancelled ? "cancelled" : paused ? "paused" : failed > 0 ? "completed_with_errors" : "completed";
-  latestFullFetchFailedIssues = report.filter((item) => item.fetchStatus === "failed").map((item) => ({ issueKey: text(item.issueKey), errorCode: text(item.errorCode) || "UNKNOWN_ERROR", httpStatus: Number.isFinite(Number(item.httpStatus)) ? Number(item.httpStatus) : null, message: text(item.error), stage: "issue_full_fetch", retryCount: Number(item.retryCount ?? 0), source: text(item.source) || "manual", matchedReason: text(item.matchedReason), occurredAt: text(item.occurredAt) || new Date().toISOString() }));
-  const selectedTargetKeys = fetchQueue.map((item) => text(item.key).toUpperCase()).filter(Boolean);
-  const succeededTargetKeys = report.filter((item) => item.fetchStatus === "success").map((item) => text(item.issueKey).toUpperCase());
-  const failedTargetKeys = latestFullFetchFailedIssues.map((item) => item.issueKey);
-  latestFullFetchCoverageDiagnostics = {
-    schemaVersion: "full_fetch_coverage_diagnostics_v1",
-    generatedAt: new Date().toISOString(),
-    jira: {
-      primaryActivityStreamTargets: Array.from(directIssueKeys).sort(),
-      selectedTargets: selectedTargetKeys,
-      fullFetchSucceeded: succeededTargetKeys,
-      fullFetchFailed: failedTargetKeys,
-      notSelected: Array.from(directIssueKeys).filter((key) => !selectedTargetKeys.includes(key)).sort(),
-      missingFullFetch: selectedTargetKeys.filter((key) => !succeededTargetKeys.includes(key) && !failedTargetKeys.includes(key)).sort()
-    },
-    confluence: { primaryActivityStreamTargets: [], selectedTargets: [], fullFetchSucceeded: [], fullFetchFailed: [], notSelected: [], missingFullFetch: [] }
-  };
-  const evidenceExcluded: JiraEvidenceExcludedSummary = { schemaVersion: "jira_evidence_excluded_summary_v1", excludedCount: Object.values(evidenceExcludedByReason).reduce((sum, count) => sum + count, 0), byReason: evidenceExcludedByReason };
-  const evidenceSummary = summarizeJiraEvidence({ selectedUser, startDate, endDate, directIssueKeys: Array.from(directIssueKeys), fullFetchedIssueKeys, failedIssueKeys: latestFullFetchFailedIssues.map((item) => item.issueKey), events: evidenceEvents, excluded: evidenceExcluded });
-  const evidenceOutputDir = ensureDir(path.join(getExportsDir(), "user-analysis", "evidence"));
-  const evidenceFiles = {
-    events: path.join(evidenceOutputDir, "jira-evidence-events.json"),
-    summary: path.join(evidenceOutputDir, "jira-evidence-summary.json"),
-    excludedSummary: path.join(evidenceOutputDir, "jira-evidence-excluded-summary.json"),
-    schema: path.join(evidenceOutputDir, "jira-evidence-schema.json"),
-    roadmap: path.join(evidenceOutputDir, "analysis-roadmap.json")
-  };
-  const evidenceEventsDocument = { schemaVersion: "jira_evidence_dataset_v1", selectedUser, dateRange: { start: startDate, end: endDate }, generatedAt: new Date().toISOString(), source: "jira_full_fetch", directIssueKeys: Array.from(directIssueKeys).sort(), events: evidenceEvents };
-  writeJsonAtomic(evidenceFiles.events, evidenceEventsDocument);
-  writeJsonAtomic(evidenceFiles.summary, evidenceSummary);
-  writeJsonAtomic(evidenceFiles.excludedSummary, evidenceExcluded);
-  writeJsonAtomic(evidenceFiles.schema, jiraEvidenceSchema);
-  writeJsonAtomic(evidenceFiles.roadmap, analysisRoadmap);
-  latestJiraEvidence = { eventsDocument: evidenceEventsDocument, events: evidenceEvents, summary: evidenceSummary, excluded: evidenceExcluded, files: evidenceFiles };
-  log("INFO", `Direct Jira Evidence dataset saved: ${evidenceFiles.events}`);
-  log("INFO", `Direct evidence=${evidenceSummary.directEvidenceCount} context=${evidenceSummary.contextEvidenceCount} relatedContext=${evidenceSummary.relatedContextEvidenceCount} excluded=${evidenceSummary.excludedEvidenceCount}`);
-  let automaticPartialExport: Record<string, unknown> | null = null;
-  if (cancelled) {
-    log("INFO", "Cancel requested; flushing staging and generating Partial Source Archive Import Package");
-    try {
-      automaticPartialExport = cancelAndExportPartial(stagingRun, ensureDir(path.join(getExportsDir(), "source-archive-import-packages"))) as unknown as Record<string, unknown>;
-      log("SUCCESS", `Partial Source Archive package saved: ${String(automaticPartialExport.packagePath ?? "")}`);
-    } catch (error) {
-      log("ERROR", `Automatic Partial Package export failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-    updateCheckpoint("cancelled");
-  } else if (paused) {
-    log("INFO", `Full Fetch paused: success=${success}, failed=${failed}, skipped=${skipped}`);
-    setStagingStatus(stagingRun, "interrupted");
-    updateCheckpoint("paused");
-  } else {
-    log("SUCCESS", `Full Fetch completed: success=${success}, failed=${failed}, skipped=${skipped}`);
-    updateMemory("Full Fetch completed");
-    updateCheckpoint("completed");
-    setStagingStatus(stagingRun, stagingRun.state.remaining === 0 ? "ready_to_export" : "interrupted");
-    if (resumeStaging) appendStagingDiagnostic(stagingRun.dir, "resume_complete", { stagingId: stagingRun.state.stagingId, completed: stagingRun.state.completed, remaining: stagingRun.state.remaining });
-  }
-  log("INFO", `Auto log saved: ${autoLogPath}`);
-  log("INFO", `Checkpoint updated: status=${paused ? "paused" : "completed"}`);
-  log("INFO", "No database write performed");
-  const diagnostics = {
-    autoLogPath,
-    checkpointPath,
-    batchSize,
-    rawDataMode,
-    rawIssuesDir,
-    memorySummary: { peakRssMB, peakHeapUsedMB, peakRawDataEstimateMB },
-    finalMemory: activeFullFetch?.memory ?? memorySnapshot(rawDataEstimateBytes),
-    checkpointWriteDiagnostics,
-    staging: { ...stagingRun.state, stagingDir: stagingRun.dir },
-    automaticPartialExport,
-    ...getActionLogDiagnostics()
-  };
-  const response = {
-    ok: true,
-    logs,
-    run: {
-      runId,
-      startedAt,
-      finishedAt: new Date().toISOString(),
-      status,
-      executionMode: "sequential",
-      diagnostics
-    },
-    summary,
-    fetchReport: report,
-    issueResults,
-    relatedCandidateIssues,
-    relatedIssueExpansionSummary: { ...relatedIssueSummary(relatedCandidateIssues), ...relatedIssueScopeSummary(relatedCandidateIssues) },
-    jiraEvidenceEvents: evidenceEvents,
-    jiraEvidenceSummary: evidenceSummary,
-    jiraEvidenceExcludedSummary: evidenceExcluded,
-    jiraEvidenceFiles: evidenceFiles,
-    rawData: rawDataMode === "auto_save_raw_per_issue" || rawDataMode === "full_raw_in_memory" ? {
-      exportType: "user-analysis-full-fetch-raw-data-manifest",
-      rawDataMode,
-      issues: rawManifest,
-      stagingId: stagingRun.state.stagingId,
-      stagingDir: stagingRun.dir,
-      endpointCount: endpointMetadata.length,
-      message: "Raw Full Fetch payloads are persisted in main-process staging and are not copied to renderer memory."
-    } : {
-      exportType: "user-analysis-full-fetch-summary-only",
-      rawDataMode,
-      message: "Full raw responses were not retained in memory."
-    },
-    diagnostics,
-    warnings,
-    errors
-  };
-  activeFullFetch = null;
-  return response;
-});
-
-ipcMain.handle("user-analysis:pause-full-fetch", async () => {
-  if (!activeFullFetch || activeFullFetch.status !== "running") return { ok: false, message: "No Full Fetch is currently running." };
-  activeFullFetch.pauseRequested = true;
-  appendRuntimeLog(activeFullFetch.autoLogPath, "INFO", "Pause requested. Full Fetch will pause after the current issue.");
-  return { ok: true, runId: activeFullFetch.runId };
 });
 
 ipcMain.handle("user-analysis:cancel-full-fetch", async () => {
   if (!activeFullFetch || activeFullFetch.status !== "running") return { ok: false, message: "No Full Fetch is currently running. / 目前沒有執行中的 Full Fetch。" };
   activeFullFetch.cancelRequested = true;
   const run = loadStagingRun(activeFullFetch.stagingDir);
-  setStagingStatus(run, "cancel_requested");
   appendStagingDiagnostic(run.dir, "cancel_requested", { stagingId: run.state.stagingId, runId: run.state.fullFetchRunId });
   appendRuntimeLog(activeFullFetch.autoLogPath, "INFO", "Cancel requested. No new target will be scheduled; the active target will finish safely.");
   return { ok: true, runId: activeFullFetch.runId, stagingId: run.state.stagingId };
 });
 
 ipcMain.handle("user-analysis:scan-full-fetch-staging", async () => {
-  const run = scanRecoverableStaging(ensureDir(getFullFetchStagingDir()));
-  latestFullFetchStaging = run;
-  return run ? { found: true, state: run.state, checkpoint: run.checkpoint, preview: previewStaging(run) } : { found: false };
+  const root = ensureDir(getFullFetchStagingDir());
+  recoverStaleStaging(root);
+  const runs = listStagingRuns(root, getLegacyFullFetchStagingDir());
+  latestFullFetchStaging = runs.find((run) => !run.state.legacyReadOnly) ?? null;
+  return {
+    found: runs.length > 0,
+    runs: runs.map((run) => ({ state: run.state, preview: previewStaging(run) })),
+    latest: runs[0] ? { state: runs[0].state, preview: previewStaging(runs[0]) } : null
+  };
 });
 
-ipcMain.handle("user-analysis:full-fetch-staging-action", async (_event, payload: { stagingId: string; action: "resume" | "export_completed" | "discard" | "decide_later" }) => {
-  const run = loadStagingRun(path.join(ensureDir(getFullFetchStagingDir()), path.basename(payload.stagingId)));
+ipcMain.handle("user-analysis:preview-full-fetch-issue", async (_event, payload: { stagingId: string; issueKey: string }) => {
+  const root = ensureDir(getFullFetchStagingDir());
+  const stagingId = path.basename(String(payload.stagingId ?? ""));
+  const run = loadStagingRun(path.join(root, stagingId));
+  return { ok: true, preview: previewStagingIssue(run, payload.issueKey) };
+});
+
+ipcMain.handle("user-analysis:full-fetch-staging-action", async (_event, payload: { stagingId: string; action: "open_folder" | "export_completed" | "delete_failed" }) => {
+  const root = ensureDir(getFullFetchStagingDir());
+  const run = loadStagingRun(path.join(root, path.basename(payload.stagingId)));
   latestFullFetchStaging = run;
-  if (payload.action === "decide_later") return { ok: true, action: payload.action, state: run.state, persistentWarning: true };
-  if (payload.action === "discard") return { ok: true, action: payload.action, state: discardStaging(run) };
+  if (payload.action === "open_folder") {
+    const error = await shell.openPath(run.dir);
+    return { ok: !error, action: payload.action, state: run.state, folderPath: run.dir, error };
+  }
+  if (payload.action === "delete_failed") {
+    const result = deleteFailedStaging(root, run.state.stagingId);
+    if (latestFullFetchStaging?.state.stagingId === run.state.stagingId) latestFullFetchStaging = null;
+    return { ok: true, action: payload.action, result };
+  }
   if (payload.action === "export_completed") {
-    const result = exportStaging(run, ensureDir(path.join(getExportsDir(), "source-archive-import-packages")), true);
-    latestSourceArchiveExport = { fileName: path.basename(result.packagePath), filePath: result.packagePath, exportRunId: `staging-export-${Date.now()}`, selectedUser: run.state.selectedUser, createdAt: result.exportedAt, sizeBytes: Number(result.fileSize), sha256: result.packageSha256, jiraObjectCount: run.state.eligible, confluenceObjectCount: 0 };
+    const result = exportStaging(run, ensureDir(path.join(getExportsDir(), "source-archive-import-packages")));
+    latestSourceArchiveExport = { fileName: path.basename(result.packagePath), filePath: result.packagePath, exportRunId: `staging-export-${Date.now()}`, selectedUser: run.state.selectedUser, createdAt: result.exportedAt, sizeBytes: Number(result.fileSize), sha256: result.packageSha256, jiraObjectCount: run.state.eligible, confluenceObjectCount: 0, packageStatus: result.packageStatus, safeForAutomaticImport: result.safeForAutomaticImport, verification: result.verification };
     return { ok: true, action: payload.action, state: run.state, result };
   }
-  setStagingStatus(run, "interrupted");
-  return { ok: true, action: payload.action, state: run.state, resumeQueue: selectResumeTargets(run).map((target) => ({ objectKey: target.objectKey, status: target.status, attemptCount: target.attemptCount, resumeRetryCount: target.resumeRetryCount })) };
+  return { ok: false, action: payload.action, state: run.state, error: "Unsupported staging action." };
 });
 
 function sourceArchivePayloads(rawData: unknown): unknown[] {
@@ -2891,10 +2547,10 @@ function prepareSourceArchive(payload: { rawData?: unknown; confluenceRawData?: 
 ipcMain.handle("user-analysis:preview-source-archive", async (_event, payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => {
   if (payload.stagingId) {
     const run = loadStagingRun(path.join(ensureDir(getFullFetchStagingDir()), path.basename(payload.stagingId)));
-    return { fileName: `source-archive-import-package-${run.state.stagingId}.zip`, manifest: { schemaVersion: "source_archive_import_package_v1", packageStatus: run.state.remaining || run.state.partial || run.state.failed ? "partial" : "complete", safeForAutomaticImport: !(run.state.remaining || run.state.partial || run.state.failed) }, summary: previewStaging(run), errors: [], logs: ["[INFO] Preview read lightweight Full Fetch staging summaries", "[INFO] No raw payload collection was transmitted to renderer", "[INFO] No Source Archive database write performed"] };
+    const preview = previewStaging(run);
+    return { ok: true, fileName: `source-archive-import-package-${run.state.stagingId}.zip`, manifest: { schemaVersion: "source_archive_import_package_v2", packageStatus: run.state.remaining ? "partial" : "ready_for_verification", safeForAutomaticImport: false }, summary: { ...preview, jiraFullFetchObjectCount: run.state.eligible, confluenceFullFetchObjectCount: 0, missingObjectKeyCount: 0 }, errors: [], logs: ["[INFO] Preview read lightweight Full Fetch staging summaries", "[INFO] Final integrity status is assigned only after ZIP reopen verification", "[INFO] No raw payload collection was transmitted to renderer", "[INFO] No Source Archive database write performed"] };
   }
-  const prepared = prepareSourceArchive(payload);
-  return { fileName: prepared.fileName, manifest: prepared.manifest, summary: prepared.summary, errors: prepared.errors, logs: ["[INFO] Source Archive package preview completed", ...prepared.logs, "[INFO] No Source Archive database write performed"] };
+  return { ok: false, fileName: "", manifest: { packageStatus: "blocked", safeForAutomaticImport: false }, summary: {}, errors: [{ code: "staging_id_required", message: "Source Archive Export requires an explicit Full Fetch staging ID." }], logs: ["[ERROR] Source Archive preview blocked: staging ID is required", "[INFO] Renderer memory is not accepted as an archive source", "[INFO] No database write performed"] };
 });
 
 ipcMain.handle("user-analysis:export-source-archive", async (_event, payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => {
@@ -2902,16 +2558,10 @@ ipcMain.handle("user-analysis:export-source-archive", async (_event, payload: { 
     const run = loadStagingRun(path.join(ensureDir(getFullFetchStagingDir()), path.basename(payload.stagingId)));
     const result = exportStaging(run, ensureDir(path.join(getExportsDir(), "source-archive-import-packages")));
     latestFullFetchStaging = run;
-    latestSourceArchiveExport = { fileName: path.basename(result.packagePath), filePath: result.packagePath, exportRunId: `staging-export-${Date.now()}`, selectedUser: run.state.selectedUser, createdAt: result.exportedAt, sizeBytes: Number(result.fileSize), sha256: result.packageSha256, jiraObjectCount: run.state.eligible, confluenceObjectCount: 0 };
-    return { ok: true, exportRunId: latestSourceArchiveExport.exportRunId, fileName: latestSourceArchiveExport.fileName, filePath: result.packagePath, folderPath: path.dirname(result.packagePath), manifest: { packageStatus: result.packageStatus, safeForAutomaticImport: result.safeForAutomaticImport }, summary: run.state, errors: [], logs: ["[INFO] Source Archive export built from Full Fetch staging files", `[INFO] Package SHA-256: ${result.packageSha256}`, "[INFO] No database write performed"] };
+    latestSourceArchiveExport = { fileName: path.basename(result.packagePath), filePath: result.packagePath, exportRunId: `staging-export-${Date.now()}`, selectedUser: run.state.selectedUser, createdAt: result.exportedAt, sizeBytes: Number(result.fileSize), sha256: result.packageSha256, jiraObjectCount: run.state.eligible, confluenceObjectCount: 0, packageStatus: result.packageStatus, safeForAutomaticImport: result.safeForAutomaticImport, verification: result.verification };
+    return { ok: result.packageStatus === "complete", exportRunId: latestSourceArchiveExport.exportRunId, fileName: latestSourceArchiveExport.fileName, filePath: result.packagePath, folderPath: path.dirname(result.packagePath), manifest: { packageStatus: result.packageStatus, safeForAutomaticImport: result.safeForAutomaticImport }, summary: run.state, verification: result.verification, errors: result.errors, logs: ["[INFO] Source Archive export rebuilt from this Run's Full Fetch staging raw files", `[INFO] Package status: ${result.packageStatus}`, `[INFO] Package SHA-256: ${result.packageSha256}`, `[INFO] safeForAutomaticImport=${result.safeForAutomaticImport}`, "[INFO] No database write performed"] };
   }
-  const exportRunId = `source-archive-${Date.now()}`;
-  const prepared = prepareSourceArchive(payload);
-  const folderPath = ensureDir(path.join(getExportsDir(), "source-archive-import-packages"));
-  const filePath = path.join(folderPath, prepared.fileName);
-  fs.writeFileSync(filePath, prepared.zip);
-  latestSourceArchiveExport = { fileName: prepared.fileName, filePath, exportRunId, selectedUser: String(payload.selectedUser || ""), createdAt: new Date().toISOString(), sizeBytes: prepared.zip.length, sha256: crypto.createHash("sha256").update(prepared.zip).digest("hex"), jiraObjectCount: Number(prepared.summary.jiraFullFetchObjectCount ?? 0), confluenceObjectCount: Number(prepared.summary.confluenceFullFetchObjectCount ?? 0) };
-  return { ok: true, exportRunId, fileName: prepared.fileName, filePath, folderPath, manifest: prepared.manifest, summary: prepared.summary, errors: prepared.errors, logs: [`[INFO] Source Archive export started: exportRunId=${exportRunId}`, ...prepared.logs.map((line) => line.replace("[INFO] ", `[INFO] exportRunId=${exportRunId} `)), `[INFO] Source Archive import package saved: ${filePath}`, "[INFO] Sensitive data scan completed", "[INFO] No Source Archive database write performed", "[INFO] No Jira write performed", "[INFO] No Confluence write performed", "[INFO] No attachment file download performed"] };
+  return { ok: false, exportRunId: "", fileName: "", filePath: "", folderPath: "", manifest: { packageStatus: "blocked", safeForAutomaticImport: false }, summary: {}, errors: [{ code: "staging_id_required", message: "Source Archive Export requires an explicit Full Fetch staging ID." }], logs: ["[ERROR] Source Archive export blocked: staging ID is required", "[INFO] Renderer memory is not accepted as an archive source", "[INFO] No database write performed"] };
 });
 
 ipcMain.handle("user-analysis:log-action", async (_event, payload: { category?: string; message?: string }) => {
@@ -2950,6 +2600,7 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
   const outputDir = ensureDir(path.join(getExportsDir(), "user-analysis", "workflow"));
   const summary = relatedIssueSummary(relatedCandidateIssues);
   const files: Record<string, string> = {
+    workflowSnapshot: path.join(outputDir, "user-analysis-workflow-snapshot.json"),
     timelineIssueGroups: path.join(outputDir, "timeline-issue-groups.json"),
     timelineSelectedIssues: path.join(outputDir, "timeline-selected-issues.json"),
     fetchQueue: path.join(outputDir, "fetch-queue.json"),
@@ -2958,6 +2609,7 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
     timelineEventListUiState: path.join(outputDir, "timeline-event-list-ui-state.json"),
     selectIssuesUiState: path.join(outputDir, "select-issues-ui-state.json")
   };
+  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: "0.2.30", ...latestUserAnalysisWorkflow });
   writeJsonAtomic(files.timelineIssueGroups, timelineIssueGroups);
   writeJsonAtomic(files.timelineSelectedIssues, { selectedIssueKeys: timelineSelectedIssues, count: timelineSelectedIssues.length });
   writeJsonAtomic(files.fetchQueue, fetchQueue);
@@ -2972,28 +2624,32 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
   return { ok: true, outputDir, files };
 });
 
-ipcMain.handle("user-analysis:action-log-diagnostics", async () => getActionLogDiagnostics());
-
-ipcMain.handle("user-analysis:latest-full-fetch-checkpoint", async () => {
-  const directory = ensureDir(getFullFetchLogsDir());
-  const files = fs.readdirSync(directory)
-    .filter((name) => name.endsWith(".checkpoint.json"))
-    .map((name) => ({ path: path.join(directory, name), modified: fs.statSync(path.join(directory, name)).mtimeMs }))
-    .sort((a, b) => b.modified - a.modified);
-  if (files.length === 0) return { found: false };
+ipcMain.handle("user-analysis:load-workflow-snapshot", async () => {
+  const filePath = path.join(getExportsDir(), "user-analysis", "workflow", "user-analysis-workflow-snapshot.json");
+  if (!fs.existsSync(filePath)) return { found: false, filePath };
   try {
-    const checkpoint = JSON.parse(fs.readFileSync(files[0].path, "utf8")) as Record<string, unknown>;
-    const status = text(checkpoint.status);
-    return {
-      found: true,
-      unfinished: !["completed", "failed", "cancelled"].includes(status),
-      checkpointPath: files[0].path,
-      checkpoint: sanitizeRawJson(checkpoint)
+    const snapshot = JSON.parse(fs.readFileSync(filePath, "utf8")) as Record<string, unknown>;
+    if (snapshot.schemaVersion !== "user_analysis_workflow_snapshot_v2") return { found: false, filePath, error: "Unsupported workflow snapshot schema." };
+    latestUserAnalysisWorkflow = {
+      steps: { ...defaultWorkflowSteps(), ...asRecord(snapshot.steps) } as WorkflowStepStatus,
+      timelineIssueGroups: Array.isArray(snapshot.timelineIssueGroups) ? snapshot.timelineIssueGroups : [],
+      timelineSelectedIssues: Array.isArray(snapshot.timelineSelectedIssues) ? snapshot.timelineSelectedIssues.map(text).filter(Boolean) : [],
+      fetchQueue: Array.isArray(snapshot.fetchQueue) ? snapshot.fetchQueue : [],
+      relatedCandidateIssues: Array.isArray(snapshot.relatedCandidateIssues) ? snapshot.relatedCandidateIssues as RelatedCandidateIssue[] : [],
+      addedTimelineIssuesToFetchQueueCount: Number(snapshot.addedTimelineIssuesToFetchQueueCount ?? 0),
+      addedRelatedIssuesToFetchQueueCount: Number(snapshot.addedRelatedIssuesToFetchQueueCount ?? 0),
+      addedRecommendedRelatedIssuesToFetchQueueCount: Number(snapshot.addedRecommendedRelatedIssuesToFetchQueueCount ?? 0),
+      addedOptionalRelatedIssuesToFetchQueueCount: Number(snapshot.addedOptionalRelatedIssuesToFetchQueueCount ?? 0),
+      uiState: asRecord(snapshot.uiState),
+      updatedAt: text(snapshot.updatedAt)
     };
+    return { found: true, filePath, snapshot: latestUserAnalysisWorkflow };
   } catch (error) {
-    return { found: true, unfinished: false, checkpointPath: files[0].path, error: error instanceof Error ? error.message : String(error) };
+    return { found: false, filePath, error: maskDiagnosticText(error instanceof Error ? error.message : String(error)) };
   }
 });
+
+ipcMain.handle("user-analysis:action-log-diagnostics", async () => getActionLogDiagnostics());
 
 ipcMain.handle("user-analysis:open-diagnostics-folder", async (_event, payload?: { filePath?: string }) => {
   const logsRoot = path.resolve(getLogsDir());
@@ -3007,6 +2663,18 @@ ipcMain.handle("user-analysis:open-diagnostics-folder", async (_event, payload?:
 
 ipcMain.handle("user-analysis:save-export", async (_event, payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => {
   return saveExportJson(payload);
+});
+
+ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: { runId: string }) => {
+  const runId = text(payload?.runId);
+  if (!latestFullFetchResult || latestFullFetchResult.runId !== runId) throw new Error("The requested Full Fetch Result is not available for this run.");
+  const outputDir = ensureDir(path.join(getExportsDir(), "user-analysis"));
+  const saved = saveFullFetchResult(latestFullFetchResult.document, outputDir, `user-analysis-full-fetch-${fileTimestamp()}.json`);
+  latestFullFetchResult = { ...latestFullFetchResult, savedPath: saved.filePath, generatedAutomatically: false };
+  if (latestFullFetchStaging?.state.fullFetchRunId === runId) {
+    recordStep5Action(latestFullFetchStaging, { action: "full_fetch_result_saved", timestamp: new Date().toISOString(), runId, outputPath: saved.filePath, fileSize: saved.fileSize, sha256: saved.sha256, issueCount: latestFullFetchStaging.state.total, eligibleCount: latestFullFetchStaging.state.eligible, result: "completed", error: "", generatedAutomatically: false });
+  }
+  return { canceled: false, ...saved, staging: latestFullFetchStaging?.state ?? null };
 });
 
 ipcMain.handle("user-analysis:open-export-folder", async (_event, payload?: { folderPath?: string }) => {
@@ -3418,9 +3086,14 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const pathTracking = { latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult), autoSavedResultPaths: autoSavedCandidates.map((run) => summarize(run)) };
   const actionLog = sessionUserActions.length > 0 ? sessionUserActions.map((action) => action.raw).join("\n") : "No user action log entries are available for this session.";
   const debugContent = `${maskDiagnosticText(payload.debugLog).trimEnd()}\n`;
+  const bundleLogsDir = ensureDir(path.join(folderPath, "logs"));
+  const environmentDir = ensureDir(path.join(folderPath, "environment"));
   fs.writeFileSync(path.join(folderPath, "debug-log.txt"), debugContent, "utf8");
   fs.writeFileSync(path.join(folderPath, "user-action-log.txt"), `${maskDiagnosticText(actionLog).trimEnd()}\n`, "utf8");
+  fs.writeFileSync(path.join(bundleLogsDir, "debug-log.txt"), debugContent, "utf8");
+  fs.writeFileSync(path.join(bundleLogsDir, "user-action-log.txt"), `${maskDiagnosticText(actionLog).trimEnd()}\n`, "utf8");
   writeBundleJson(folderPath, "app-metadata.json", { name: "Jira Activity Analyzer", version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__, sessionStartTime, generatedAt: createdAt, currentPage: payload.currentPage });
+  writeBundleJson(environmentDir, "app-metadata.json", { name: "Jira Activity Analyzer", version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__, sessionStartTime, generatedAt: createdAt, currentPage: payload.currentPage, platform: process.platform, arch: process.arch });
   writeBundleJson(folderPath, "request-context.json", asRecord(latest?.data.requestContext));
   writeBundleJson(folderPath, "latest-result.json", latest?.data ?? unavailable);
   writeBundleJson(folderPath, "latest-run-result.json", latest?.data ?? unavailable);
@@ -3476,18 +3149,49 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   }
   const fullFetchStagingIndex = stagingDebugIndex(stagingForBundle);
   writeBundleJson(folderPath, "full-fetch-staging-index.json", fullFetchStagingIndex);
+  const stagingMetadataDir = ensureDir(path.join(folderPath, "staging-metadata"));
+  writeBundleJson(stagingMetadataDir, "full-fetch-staging-index.json", fullFetchStagingIndex);
   if (stagingForBundle) {
     const stagingBundleDir = ensureDir(path.join(folderPath, "full-fetch-staging"));
     const stagingFiles = stagingPaths(stagingForBundle);
     const copyEntries = [
-      [stagingFiles.state, "staging-state.json"], [stagingFiles.checkpoint, "queue-checkpoint.json"],
-      [stagingFiles.index, "source-object-index.json"], [stagingFiles.exportResult, "export-result.json"],
-      [stagingFiles.errors, "errors.jsonl"]
+      [stagingFiles.state, "manifest.json"], [stagingFiles.index, "run-index.json"],
+      [stagingFiles.result, "full-fetch-result.json"], [stagingFiles.exportResult, "export-result.json"],
+      [stagingFiles.errors, "run-errors.json"], [stagingFiles.diagnostics, "staging-diagnostics.ndjson"]
     ];
-    for (const [source, name] of copyEntries) if (fs.existsSync(source)) fs.copyFileSync(source, path.join(stagingBundleDir, name));
-    const partialRecords = stagingForBundle.checkpoint.targets.filter((target) => target.status === "partial").map((target) => ({ objectKey: target.objectKey, status: target.status, classification: target.classification, errorType: target.errorType, errorMessageSanitized: target.lastError, rawFileOmitted: true }));
+    for (const [source, name] of copyEntries) if (fs.existsSync(source)) sanitizeFileForBundle(source, path.join(stagingBundleDir, name));
+    sanitizedCopyTree(path.join(stagingForBundle.dir, "issues"), path.join(stagingBundleDir, "issues"));
+    const partialRecords = stagingForBundle.index.targets.filter((target) => target.status === "required_partial").map((target) => ({ objectKey: target.objectKey, status: target.status, classification: target.classification, errorType: target.errorType, errorMessageSanitized: target.lastError, canonicalFiles: target.canonicalFiles }));
     writeBundleJson(stagingBundleDir, "partial-records-summary.json", { count: partialRecords.length, records: partialRecords });
+    writeBundleJson(stagingMetadataDir, "staging-state.json", stagingForBundle.state);
+    writeBundleJson(stagingMetadataDir, "queue-summary.json", { stagingId: stagingForBundle.state.stagingId, fullFetchRunId: stagingForBundle.state.fullFetchRunId, originalQueueOrder: stagingForBundle.index.originalQueueOrder, targets: stagingForBundle.index.targets.map((target) => ({ objectKey: target.objectKey, status: target.status, attemptCount: target.attemptCount, sizeBytes: target.sizeBytes, issueManifestRef: target.issueManifestRef, canonicalFiles: target.canonicalFiles })) });
   }
+  let fullFetchResultMetadata: Record<string, unknown> = { included: false, status: "not_available", reason: "No Full Fetch Result is available for the current run." };
+  let debugBundleStatus: "completed" | "completed_with_errors" = "completed";
+  const expectedFullFetchRunId = stagingForBundle?.state.fullFetchRunId ?? latestFullFetchResult?.runId ?? "";
+  const resultFolder = ensureDir(path.join(folderPath, "full-fetch-result"));
+  if (latestFullFetchResult && latestFullFetchResult.runId === expectedFullFetchRunId) {
+    try {
+      let sourcePath = latestFullFetchResult.savedPath;
+      let generatedAutomatically = latestFullFetchResult.generatedAutomatically;
+      if (!sourcePath || !fs.existsSync(sourcePath)) {
+        const saved = saveFullFetchResult(latestFullFetchResult.document, ensureDir(path.join(getExportsDir(), "user-analysis")), `user-analysis-full-fetch-${fileTimestamp()}.json`);
+        sourcePath = saved.filePath;
+        generatedAutomatically = true;
+        latestFullFetchResult = { ...latestFullFetchResult, savedPath: sourcePath, generatedAutomatically: true };
+      }
+      const compressed = zipFullFetchResult({ document: latestFullFetchResult.document, sourcePath, outputDir: resultFolder, generatedAutomatically });
+      fullFetchResultMetadata = { ...compressed, included: true, sourcePath: path.basename(sourcePath) };
+    } catch (error) {
+      debugBundleStatus = "completed_with_errors";
+      fullFetchResultMetadata = { included: false, status: "compression_failed", runId: expectedFullFetchRunId, error: maskDiagnosticText(error instanceof Error ? error.message : String(error)) };
+    }
+  } else if (expectedFullFetchRunId) {
+    debugBundleStatus = "completed_with_errors";
+    fullFetchResultMetadata = { included: false, status: "run_mismatch", expectedRunId: expectedFullFetchRunId, availableRunId: latestFullFetchResult?.runId ?? "", error: "No matching Full Fetch Result document is available." };
+  }
+  writeBundleJson(resultFolder, "full-fetch-result-metadata.json", fullFetchResultMetadata);
+  writeBundleJson(folderPath, "full-fetch-result-index.json", fullFetchResultMetadata);
   const unavailableEvidence = { status: "not_available", message: "No Direct Jira Evidence dataset has been extracted in this session." };
   writeBundleJson(folderPath, "jira-evidence-events.json", latestJiraEvidence?.eventsDocument ?? unavailableEvidence);
   writeBundleJson(folderPath, "jira-evidence-summary.json", latestJiraEvidence?.summary ?? unavailableEvidence);
@@ -3513,15 +3217,13 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   writeBundleJson(folderPath, "activity-stream-benchmark.json", latestActivityStreamBenchmark ?? { status: "not_available", message: "No Activity Stream Benchmark has run in this session. / 本次工作階段尚未執行 Activity Stream 效能基準。" });
   fs.writeFileSync(path.join(folderPath, "activity-stream-benchmark.csv"), latestActivityStreamBenchmark ? benchmarkCsv(latestActivityStreamBenchmark) : "\uFEFFstatus,message\r\nnot_available,No Activity Stream Benchmark result\r\n", "utf8");
   writeBundleJson(folderPath, "activity-stream-benchmark-summary.json", latestActivityStreamBenchmark ? { schemaVersion: "activity_stream_benchmark_summary_v1", benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, config: latestActivityStreamBenchmark.config, summary: latestActivityStreamBenchmark.summary } : { status: "not_available" });
-  const sourceArchiveIndex = { ...(latestSourceArchiveExport ?? { fileName: "", exportRunId: "", selectedUser: "", createdAt: "", sizeBytes: 0, sha256: "", jiraObjectCount: 0, confluenceObjectCount: 0 }), includedInDebugBundle: false, excludeReason: latestSourceArchiveExport ? "" : "not_available", sourcePathSanitized: latestSourceArchiveExport ? path.basename(latestSourceArchiveExport.filePath) : "" };
-  if (latestSourceArchiveExport && fs.existsSync(latestSourceArchiveExport.filePath)) {
-    const archiveFolder = ensureDir(path.join(folderPath, "source-archive-import-packages"));
-    fs.copyFileSync(latestSourceArchiveExport.filePath, path.join(archiveFolder, latestSourceArchiveExport.fileName));
-    sourceArchiveIndex.includedInDebugBundle = true;
-  } else if (latestSourceArchiveExport) {
-    sourceArchiveIndex.excludeReason = "file_not_found";
-  }
+  const sourceArchiveIndex = { ...(latestSourceArchiveExport ?? { fileName: "", exportRunId: "", selectedUser: "", createdAt: "", sizeBytes: 0, sha256: "", jiraObjectCount: 0, confluenceObjectCount: 0 }), includedInDebugBundle: false, excludeReason: latestSourceArchiveExport ? "source_archive_payload_omitted_by_policy" : "not_available", sourcePathSanitized: latestSourceArchiveExport ? path.basename(latestSourceArchiveExport.filePath) : "", metadataOnly: true };
   writeBundleJson(folderPath, "source-archive-export-index.json", sourceArchiveIndex);
+  const sourceArchiveMetadataDir = ensureDir(path.join(folderPath, "source-archive-metadata"));
+  writeBundleJson(sourceArchiveMetadataDir, "source-archive-export-index.json", sourceArchiveIndex);
+  writeBundleJson(sourceArchiveMetadataDir, "source-archive-verification.json", latestSourceArchiveExport?.verification ?? { status: "not_available" });
+  const exportHistoryDir = ensureDir(path.join(folderPath, "export-history"));
+  writeBundleJson(exportHistoryDir, "step-5-history.json", { fullFetchRunId: expectedFullFetchRunId, actions: stagingForBundle?.state.step5History ?? [], note: "Source payloads and attachment files are omitted by policy." });
   writeBundleJson(folderPath, "full-fetch-coverage-diagnostics.json", latestFullFetchCoverageDiagnostics ?? { status: "not_available", jira: {}, confluence: {} });
   writeBundleJson(folderPath, "source-archive-file-assessment.json", {
     schemaVersion: "source_archive_file_assessment_v1",
@@ -3552,8 +3254,6 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   writeBundleJson(folderPath, "select-issues-ui-state.json", asRecord(userAnalysisUiState.selectIssues));
   const workflowRelatedScope = latestUserAnalysisWorkflow ? relatedIssueScopeSummary(latestUserAnalysisWorkflow.relatedCandidateIssues, latestUserAnalysisWorkflow.addedRecommendedRelatedIssuesToFetchQueueCount, latestUserAnalysisWorkflow.addedOptionalRelatedIssuesToFetchQueueCount) : unavailableWorkflow;
   writeBundleJson(folderPath, "related-issue-expansion-summary.json", latestUserAnalysisWorkflow ? { ...relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues), ...workflowRelatedScope, addedRelatedIssuesToFetchQueueCount: latestUserAnalysisWorkflow.addedRelatedIssuesToFetchQueueCount } : unavailableWorkflow);
-  const checkpointDiagnostics = checkpointSemanticDiagnostics(latestCheckpointWriteDiagnostics);
-  writeBundleJson(folderPath, "checkpoint-write-diagnostics.json", checkpointDiagnostics);
   const sessionTimeline = [
     ...sessionUserActions.map((action, index) => ({ time: action.time, source: "user_action", type: "user_action", sequence: index, action: action.message, page: payload.currentPage })),
     ...debugLogTimeline(payload.debugLog),
@@ -3584,11 +3284,11 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   writeBundleJson(folderPath, "debug-bundle-summary.json", { generatedAt: createdAt, currentPage: payload.currentPage, latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), latestNoEntriesResult: summarize(latestNoEntriesResult), runHistoryCount: runHistory.length, snapshotConsistent: !latestRunResult || runHistory.some((run) => run?.runId === latestRunResult?.runId), dateRangeChunking: latestChunkedRun?.data.dateRangeChunking ?? { enabled: false }, chunkMergeStats: latestChunkedRun?.data.chunkMergeStats ?? {}, standardActivityStreamFlow, activityTypeClassifierDiagnostics: classifierDiagnostics, activityStreamBaselineGuard, userActivityTimeline, timelineIntegrity, timelineSourceSystem: { available: timelineSourceSystemDiagnostics.available, ...timelineSourceSystemDiagnostics.sourceSystemCounts, defaultSelectIssuesFilter: "jira" }, timelineJiraRelation: { available: timelineJiraRelationDiagnostics.available, ...timelineJiraRelationDiagnostics.jiraRelationCounts, confluenceLinkedToJiraCount: timelineJiraRelationDiagnostics.confluenceLinkedToJiraCount, defaultSelectIssuesFilter: "jira_related" }, fullFetchFailures: { available: true, failedCount: failureSummary.failedCount, hasFailedIssuesFile: true }, directJiraEvidence: latestJiraEvidence ? { available: true, directEvidenceCount: latestJiraEvidence.summary.directEvidenceCount, contextEvidenceCount: latestJiraEvidence.summary.contextEvidenceCount, relatedContextEvidenceCount: latestJiraEvidence.summary.relatedContextEvidenceCount, excludedEvidenceCount: latestJiraEvidence.summary.excludedEvidenceCount, issuesWithEvidence: latestJiraEvidence.summary.coverage.issuesWithEvidence, issuesWithoutDirectEvidence: latestJiraEvidence.summary.coverage.issuesWithoutDirectEvidence, failedIssueCount: latestJiraEvidence.summary.failedIssueCount } : { available: false, directEvidenceCount: 0, contextEvidenceCount: 0, relatedContextEvidenceCount: 0, excludedEvidenceCount: 0, issuesWithEvidence: 0, issuesWithoutDirectEvidence: 0, failedIssueCount: failureSummary.failedCount }, userAnalysisWorkflow: latestUserAnalysisWorkflow ?? unavailableWorkflow, userAnalysisUiState: { workflowStepCount: Number(userAnalysisUiState.workflowStepCount ?? 5), advancedToolsVisible: userAnalysisUiState.advancedToolsVisible === true, fullFetchProgressLocation: String(userAnalysisUiState.fullFetchProgressLocation ?? "step3_full_fetch"), timelineVisibleColumnCount: Array.isArray(asRecord(userAnalysisUiState.timeline).visibleColumns) ? (asRecord(userAnalysisUiState.timeline).visibleColumns as unknown[]).length : 0, selectIssuesVisibleColumnCount: Array.isArray(asRecord(userAnalysisUiState.selectIssues).visibleColumns) ? (asRecord(userAnalysisUiState.selectIssues).visibleColumns as unknown[]).length : 0 }, relatedIssueScopeSummary: workflowRelatedScope, advancedDiagnosticsUsed, includedAutoSavedResults: autoSavedResultsIncluded, missingAutoSavedResults: autoSavedResultsMissing, fullSessionBundle: { enabled: true, sessionStartTime, bundleGeneratedAt: createdAt, totalUserActions: sessionUserActions.length, totalRuns: runHistory.length, totalAutoSavedResults: autoSavedCandidates.length, includedAutoSavedResultCount: autoSavedResultsIncluded.length, missingAutoSavedResultCount: autoSavedResultsMissing.length } });
   const debugBundleSummaryPath = path.join(folderPath, "debug-bundle-summary.json");
   const debugBundleSummaryBody = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeJsonAtomic(debugBundleSummaryPath, { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), checkpointWriteDiagnostics: checkpointDiagnostics, activityStreamStabilityProbe: latestActivityStreamStabilityProbeV2 ? { available: true, authoritativeVersion: "v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, windowCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability } : latestActivityStreamStabilityProbe ? { available: true, authoritativeVersion: "legacy_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId } : { available: false, authoritativeVersion: "none", probeRunId: "" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), activityStreamStabilityProbe: latestActivityStreamStabilityProbeV2 ? { available: true, authoritativeVersion: "v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, windowCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability } : latestActivityStreamStabilityProbe ? { available: true, authoritativeVersion: "legacy_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId } : { available: false, authoritativeVersion: "none", probeRunId: "" } });
   const summaryWithV1 = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeJsonAtomic(debugBundleSummaryPath, { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.28", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.30", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
   const summaryWithStaging = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeJsonAtomic(debugBundleSummaryPath, { ...summaryWithStaging, fullFetchStaging: fullFetchStagingIndex, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.28" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.30" } });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -3608,10 +3308,43 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "User Analysis Workflow:", ...Object.entries(latestUserAnalysisWorkflow?.steps ?? {}).map(([step, status]) => `- ${step}: ${status}`), "Timeline Issue Selection:", `- totalIssueGroups: ${latestUserAnalysisWorkflow?.timelineIssueGroups.length ?? 0}`, `- selectedIssueCount: ${latestUserAnalysisWorkflow?.timelineSelectedIssues.length ?? 0}`, `- addedToFetchQueueCount: ${latestUserAnalysisWorkflow?.addedTimelineIssuesToFetchQueueCount ?? 0}`, "Related Issue Expansion:", `- relatedIssueCount: ${latestUserAnalysisWorkflow ? relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues).relatedIssueCount : 0}`, `- relationTypeCounts: ${JSON.stringify(latestUserAnalysisWorkflow ? relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues).relationTypeCounts : {})}`, `- Recommended: ${JSON.stringify(asRecord(workflowRelatedScope).recommended ?? {})}`, `- Optional: ${JSON.stringify(asRecord(workflowRelatedScope).optional ?? {})}`, `- addedRecommendedToFetchQueueCount: ${Number(asRecord(workflowRelatedScope).addedRecommendedToFetchQueueCount ?? 0)}`, `- addedOptionalToFetchQueueCount: ${Number(asRecord(workflowRelatedScope).addedOptionalToFetchQueueCount ?? 0)}`, `- addedRelatedIssuesToFetchQueueCount: ${latestUserAnalysisWorkflow?.addedRelatedIssuesToFetchQueueCount ?? 0}`, ""].join("\n"), "utf8");
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["User Analysis UI State:", "- Workflow steps: 5", `- Timeline visible columns: ${JSON.stringify(asRecord(userAnalysisUiState.timeline).visibleColumns ?? [])}`, `- Timeline filters: ${JSON.stringify(asRecord(userAnalysisUiState.timeline).filters ?? {})}`, `- Select Issues visible columns: ${JSON.stringify(asRecord(userAnalysisUiState.selectIssues).visibleColumns ?? [])}`, `- Select Issues filters: ${JSON.stringify(asRecord(userAnalysisUiState.selectIssues).filters ?? {})}`, "- Advanced Tools visible: false", "- Full Fetch Progress location: Step 3 Full Fetch", ""].join("\n"), "utf8");
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Direct Jira Evidence:", `- directEvidenceCount: ${latestJiraEvidence?.summary.directEvidenceCount ?? 0}`, `- contextEvidenceCount: ${latestJiraEvidence?.summary.contextEvidenceCount ?? 0}`, `- relatedContextEvidenceCount: ${latestJiraEvidence?.summary.relatedContextEvidenceCount ?? 0}`, `- excludedEvidenceCount: ${latestJiraEvidence?.summary.excludedEvidenceCount ?? 0}`, `- issuesWithEvidence: ${latestJiraEvidence?.summary.coverage.issuesWithEvidence ?? 0}`, `- issuesWithoutDirectEvidence: ${latestJiraEvidence?.summary.coverage.issuesWithoutDirectEvidence ?? 0}`, `- failedIssues: ${latestJiraEvidence?.summary.coverage.failedIssues.join(", ") || "none"}`, "", "Related Issue Expansion Policy:", "- recursive: false", "- maxDepth: 1", "- relatedIssuesAsPrimaryEvidence: false", "", "Analyzer Roadmap:", "- Cloud AI Analyzer: planned", "- Local AI Analyzer: planned", "- Offline Rule Analyzer: planned", "", "Data Source Roadmap:", "- Live API: current", "- Local Database: planned", "- Hybrid: planned", "", "Product Goals:", "1. Jira activity analysis", "2. Confluence activity analysis", "3. Jira + Confluence combined analysis", ""].join("\n"), "utf8");
-  fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "Checkpoint Write Diagnostics:", `- checkpointWriteAttempts: ${checkpointDiagnostics.checkpointWriteAttempts}`, `- retryCount: ${checkpointDiagnostics.retryCount}`, `- fallbackDirectWriteCount: ${checkpointDiagnostics.fallbackDirectWriteCount}`, `- lastCheckpointErrorCode: ${checkpointDiagnostics.lastCheckpointErrorCode || "none"}`, `- lastCheckpointErrorRecovered: ${checkpointDiagnostics.lastCheckpointErrorRecovered}`, `- fullFetchInterruptedByCheckpoint: ${checkpointDiagnostics.fullFetchInterruptedByCheckpoint}`, `- checkpointRecoveryMethod: ${checkpointDiagnostics.checkpointRecoveryMethod}`, ""].join("\n"), "utf8");
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "Activity Stream Stability Probe:", `- available: ${Boolean(latestActivityStreamStabilityProbe)}`, `- probeRunId: ${latestActivityStreamStabilityProbe?.probeRunId ?? "not_available"}`, `- selectedUser: ${latestActivityStreamStabilityProbe?.selectedUser ?? "not_available"}`, `- dateRange: ${latestActivityStreamStabilityProbe ? `${latestActivityStreamStabilityProbe.dateRange.start}..${latestActivityStreamStabilityProbe.dateRange.end}` : "not_available"}`, `- requestWindow: ${latestActivityStreamStabilityProbe?.config.requestWindow.type ?? "not_available"}`, `- forcedRetryCount: ${latestActivityStreamStabilityProbe?.config.forcedRetryCount ?? 0}`, `- mergeStrategy: ${latestActivityStreamStabilityProbe?.config.mergeStrategy ?? "not_available"}`, `- stableWindowCount: ${latestActivityStreamStabilityProbe?.windows.filter((window) => window.stability.classification === "stable").length ?? 0}`, `- unstableWindowCount: ${latestActivityStreamStabilityProbe?.recommendation.unstableWindowCount ?? 0}`, `- recommendedRetryCount: ${latestActivityStreamStabilityProbe?.recommendation.recommendedRetryCount ?? 0}`, `- coldStartSuspected: ${latestActivityStreamStabilityProbe?.coldStartSuspected ?? false}`, "- concurrency: 1", "- files:", "  - activity-stream-stability-probe.json", "  - activity-stream-attempts.json", "  - activity-stream-attempt-comparison.csv", "  - activity-stream-window-summary.csv", "  - activity-stream-stability-recommendation.json", ""].join("\n"), "utf8");
-  lastDebugBundle = { path: folderPath, createdAt };
-  return { canceled: false, folderPath, filePath: folderPath, createdAt, includedFiles: fs.readdirSync(folderPath), crossPageDebugBundleTodo };
+  sanitizedCopyTree(folderPath, folderPath);
+  const manifestEntries: Array<{ path: string; size: number; sha256: string }> = [];
+  const collectManifestEntries = (directory: string, prefix = "") => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      const relativePath = path.join(prefix, entry.name).replace(/\\/g, "/");
+      if (entry.isDirectory()) collectManifestEntries(absolute, relativePath);
+      else { const file = hashFile(absolute); manifestEntries.push({ path: relativePath, size: file.sizeBytes, sha256: file.sha256 }); }
+    }
+  };
+  collectManifestEntries(folderPath);
+  const debugBundleManifestPath = path.join(folderPath, "debug-bundle-manifest.json");
+  writeJsonAtomic(debugBundleManifestPath, { schemaVersion: "debug_bundle_manifest_v3", appVersion: "0.2.30", status: debugBundleStatus, generatedAt: createdAt, fullFetchRunId: expectedFullFetchRunId, fullFetchResult: fullFetchResultMetadata, staging: fullFetchStagingIndex, sourceArchive: sourceArchiveIndex, canonicalStagingIncluded: Boolean(stagingForBundle), omittedByPolicy: [{ content: "Source Archive package duplicate", reason: "canonical_staging_is_authoritative" }, { content: "Attachment bodies", reason: "attachment_download_not_supported" }], entries: manifestEntries });
+  const manifestHash = hashFile(debugBundleManifestPath);
+  const bundleSize = manifestEntries.reduce((sum, entry) => sum + entry.size, 0) + manifestHash.sizeBytes;
+  const zipPath = `${folderPath}.zip`;
+  let zipSize = 0;
+  let zipSha256 = "";
+  try {
+    const zipped = createStreamingZip(zipPath, directoryZipEntries(folderPath));
+    verifyStreamingZip(zipPath, zipped.entries);
+    zipSize = zipped.sizeBytes; zipSha256 = zipped.sha256;
+  } catch (error) {
+    try { fs.rmSync(zipPath, { force: true }); } catch { /* incomplete ZIP cleanup */ }
+    const volume = fs.statfsSync(path.dirname(folderPath));
+    const freeBytes = Number(volume.bavail) * Number(volume.bsize);
+    const errorCode = error && typeof error === "object" && "code" in error ? String((error as { code?: unknown }).code) : "debug_bundle_zip_failed";
+    const stage = error && typeof error === "object" && "stage" in error ? String((error as { stage?: unknown }).stage) : "debug_bundle_zip";
+    writeBundleJson(folderPath, "debug-bundle-error.json", { schemaVersion: "debug_bundle_error_v1", status: "failed", errorCode, stage, freeBytes, message: error instanceof Error ? error.message : String(error), stagingRetained: Boolean(stagingForBundle) });
+    return { canceled: false, status: "failed", folderPath, filePath: "", createdAt, includedFiles: fs.readdirSync(folderPath), fullFetchResult: fullFetchResultMetadata, errorCode, stage, freeBytes, crossPageDebugBundleTodo };
+  }
+  if (stagingForBundle) {
+    recordStep5Action(stagingForBundle, { action: "debug_bundle_generated", timestamp: createdAt, runId: stagingForBundle.state.fullFetchRunId, outputPath: zipPath, fileSize: zipSize, sha256: zipSha256, issueCount: stagingForBundle.state.total, eligibleCount: stagingForBundle.state.eligible, result: debugBundleStatus, error: debugBundleStatus === "completed" ? "" : String(fullFetchResultMetadata.error ?? "Full Fetch Result inclusion failed"), generatedAutomatically: Boolean(fullFetchResultMetadata.generatedAutomatically) });
+  }
+  lastDebugBundle = { path: zipPath, createdAt };
+  return { canceled: false, status: debugBundleStatus, folderPath, filePath: zipPath, createdAt, bundleSizeBytes: zipSize, uncompressedSizeBytes: bundleSize, warningThresholdExceeded: zipSize >= 500 * 1024 * 1024, includedFiles: fs.readdirSync(folderPath), fullFetchResult: fullFetchResultMetadata, crossPageDebugBundleTodo };
 });
 
 ipcMain.handle("debug-log:open-folder", async (_event, payload: { folderPath: string }) => {
@@ -3784,8 +3517,19 @@ async function runUiSmoke(window: BrowserWindow) {
       await wait(250);
 
       for (const route of uiRoutes) {
-        await window.webContents.executeJavaScript(`window.location.hash = ${JSON.stringify(route.hash)};`);
-        await wait(350);
+        await window.webContents.executeJavaScript(`(() => { const link = Array.from(document.querySelectorAll("nav a")).find((element) => element.getAttribute("href") === ${JSON.stringify(route.hash)}); if (link instanceof HTMLElement) link.click(); else window.location.hash = ${JSON.stringify(route.hash)}; })()`);
+        const expectedPath = route.hash;
+        let routeReady = false;
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+          const state = await window.webContents.executeJavaScript(`(() => { const active = Array.from(document.querySelectorAll("nav a")).find((element) => String(element.className).includes("bg-blue-50")); return { hash: window.location.hash, title: document.querySelector("h1")?.textContent || "", activePath: active?.getAttribute("href") || "" }; })()`);
+          if (state.hash === route.hash && String(state.title).includes(route.title) && state.activePath === expectedPath) {
+            routeReady = true;
+            break;
+          }
+          await wait(100);
+        }
+        if (!routeReady) failures.push(`${viewport.width}x${viewport.height} ${debugState} ${route.name}: route did not settle before audit`);
+        await wait(180);
 
         const audit = await window.webContents.executeJavaScript(`
         (() => {
@@ -3886,6 +3630,8 @@ async function runUiSmoke(window: BrowserWindow) {
         }
 
         if (shouldCaptureUi && viewport.capture) {
+          await window.webContents.executeJavaScript(`new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))`);
+          await wait(180);
           const image = await window.capturePage();
           const filename = `${viewport.width}x${viewport.height}-${debugState}-${route.name}.png`;
           fs.writeFileSync(path.join(captureDir, filename), image.toPNG());
@@ -4001,21 +3747,6 @@ async function runUiSmoke(window: BrowserWindow) {
     const actual = activityType(fixture.title, fixture.application ?? "Jira", fixture.objectType ?? "issue");
     if (actual !== fixture.expected) failures.push(`activity type classification failed: ${fixture.title} => ${actual} expected ${fixture.expected}`);
   }
-  const checkpointFixtureDir = ensureDir(path.join(getAppLogsDir(), "ui-smoke-checkpoints"));
-  const retryCheckpointPath = path.join(checkpointFixtureDir, "retry-recovered.json");
-  const retryDiagnostics: CheckpointWriteDiagnostics = { checkpointWriteAttempts: 0, retryCount: 0, fallbackDirectWriteCount: 0, lastErrorCode: "", lastRecovered: false, events: [] };
-  let retryRenameAttempts = 0;
-  writeCheckpointReliable(retryCheckpointPath, { fixture: "retry-recovered" }, retryDiagnostics, { delays: [0], rename: (from, to) => {
-    retryRenameAttempts += 1;
-    if (retryRenameAttempts === 1) throw Object.assign(new Error("smoke transient rename failure"), { code: "EBUSY" });
-    fs.renameSync(from, to);
-  } });
-  if (!fs.existsSync(retryCheckpointPath) || retryDiagnostics.retryCount !== 1 || retryDiagnostics.fallbackDirectWriteCount !== 0 || retryDiagnostics.lastRecovered !== true) failures.push(`checkpoint retry recovery failed: ${JSON.stringify(retryDiagnostics)}`);
-  const fallbackCheckpointPath = path.join(checkpointFixtureDir, "fallback-recovered.json");
-  const fallbackDiagnostics: CheckpointWriteDiagnostics = { checkpointWriteAttempts: 0, retryCount: 0, fallbackDirectWriteCount: 0, lastErrorCode: "", lastRecovered: false, events: [] };
-  writeCheckpointReliable(fallbackCheckpointPath, { fixture: "fallback-recovered" }, fallbackDiagnostics, { delays: [0, 0, 0, 0, 0], rename: () => { throw Object.assign(new Error("smoke persistent rename failure"), { code: "EPERM" }); } });
-  latestCheckpointWriteDiagnostics = fallbackDiagnostics;
-  if (!fs.existsSync(fallbackCheckpointPath) || fallbackDiagnostics.retryCount !== 5 || fallbackDiagnostics.fallbackDirectWriteCount !== 1 || fallbackDiagnostics.lastRecovered !== true || fallbackDiagnostics.events.at(-1)?.type !== "checkpoint_write_fallback_direct_write") failures.push(`checkpoint direct-write fallback failed: ${JSON.stringify(fallbackDiagnostics)}`);
   const commentRegressionEntry = activityEntry({ title: "謝正洪(roger_hsieh) commented on COPGEN1-138930 - [JACKSONQLC-3024] IOFULLSEQWRT Failure", content: "attachment metadata exists elsewhere", raw: "<activity:object-type>attachment</activity:object-type>", application: "Jira", objectType: "issue" }, "escaped_username", "asrun-classifier", 0);
   if (commentRegressionEntry.activityType !== "comment" || commentRegressionEntry.issueKey !== "COPGEN1-138930" || commentRegressionEntry.activityApplication !== "Jira" || commentRegressionEntry.activityTypeClassifier.matchedRule !== "commented_on" || commentRegressionEntry.activityTypeClassifier.finalType !== "comment" || commentRegressionEntry.activityTypeClassifier.priority !== 100) failures.push(`commented-on classifier regression failed: ${JSON.stringify(commentRegressionEntry)}`);
   window.setSize(1280, 720, false);
@@ -4087,7 +3818,7 @@ async function runUiSmoke(window: BrowserWindow) {
     return { count, labels, states: cards.map((el) => el.getAttribute("data-step-state")), colorBars: cards.every((el) => el.className.includes("border-l-4")), badges: cards.every((el) => (el.textContent || "").includes("Status:")), reasons: cards.every((el) => Boolean(el.querySelector("[data-step-reason]")?.textContent?.trim())), setup: Boolean(document.querySelector("[data-testid='analysis-setup-user']")), selectBlocked: selectIssues instanceof HTMLButtonElement && selectIssues.disabled, relatedBlocked: related instanceof HTMLButtonElement && related.disabled, advancedHidden: !document.querySelector("[data-testid='advanced-tools-toggle']") && !document.querySelector("#candidate-search") && !body.includes("Advanced Candidate Search") && !body.includes("Preview JQL"), hasPrecisionTab: Boolean(document.querySelector("[data-testid='workflow-precision']")), stepLabels: ["Setup & Build Timeline", "Select Issues", "Full Fetch", "Related Issues", "Export"].every((label) => labels.some((text) => text.includes(label))) };
   })()`);
   if (analysisWorkflowAudit.count !== 5 || !analysisWorkflowAudit.setup || !analysisWorkflowAudit.selectBlocked || !analysisWorkflowAudit.relatedBlocked || !analysisWorkflowAudit.advancedHidden || analysisWorkflowAudit.hasPrecisionTab || !analysisWorkflowAudit.stepLabels || !analysisWorkflowAudit.states.includes("current") || !analysisWorkflowAudit.states.includes("blocked") || !analysisWorkflowAudit.colorBars || !analysisWorkflowAudit.badges || !analysisWorkflowAudit.reasons) failures.push(`User Analysis workflow visual state audit failed: ${JSON.stringify(analysisWorkflowAudit)}`);
-  const simplifiedTimelineSetupAudit = await window.webContents.executeJavaScript(`(() => { const status = document.querySelector("[data-testid='analysis-setup-status']")?.textContent || ""; return { requestWindow: document.querySelector("[data-testid='analysis-request-window']")?.value === "7_days", rounds: document.querySelector("[data-testid='analysis-full-scan-round-count']")?.value === "3", delay: Boolean(document.querySelector("[data-testid='analysis-round-delay']")), mode: document.querySelector("[data-testid='analysis-round-mode']")?.value === "stop_when_stable", merge: document.querySelector("[data-testid='analysis-merge-strategy']")?.value === "union", openProbe: Boolean(document.querySelector("[data-testid='open-stability-probe']")), duplicateRemoved: !document.querySelector("[data-testid='setup-build-activity-timeline']"), statusOnly: status.includes("Setup is ready. Build Activity Timeline"), lowerBuild: Boolean(document.querySelector("[data-testid='build-activity-timeline']")) }; })()`);
+  const simplifiedTimelineSetupAudit = await window.webContents.executeJavaScript(`(() => { const status = document.querySelector("[data-testid='analysis-setup-status']")?.textContent || ""; return { requestWindow: document.querySelector("[data-testid='analysis-request-window']")?.value === "7_days", rounds: document.querySelector("[data-testid='analysis-full-scan-round-count']")?.value === "3", delay: Boolean(document.querySelector("[data-testid='analysis-round-delay']")), mode: document.querySelector("[data-testid='analysis-round-mode']")?.value === "force_all_rounds", merge: document.querySelector("[data-testid='analysis-merge-strategy']")?.value === "union", openProbe: Boolean(document.querySelector("[data-testid='open-stability-probe']")), duplicateRemoved: !document.querySelector("[data-testid='setup-build-activity-timeline']"), statusOnly: status.includes("Setup is ready. Build Activity Timeline"), lowerBuild: Boolean(document.querySelector("[data-testid='build-activity-timeline']")) }; })()`);
   if (!simplifiedTimelineSetupAudit.requestWindow || !simplifiedTimelineSetupAudit.rounds || !simplifiedTimelineSetupAudit.delay || !simplifiedTimelineSetupAudit.mode || !simplifiedTimelineSetupAudit.merge || !simplifiedTimelineSetupAudit.openProbe || !simplifiedTimelineSetupAudit.duplicateRemoved || !simplifiedTimelineSetupAudit.statusOnly || !simplifiedTimelineSetupAudit.lowerBuild) failures.push(`User Analysis Stability settings/duplicate build audit failed ${JSON.stringify(simplifiedTimelineSetupAudit)}`);
   await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:seed-workflow-visual-state", { detail: { state: "failed" } }));`);
   await wait(100);
@@ -4328,7 +4059,7 @@ async function runUiSmoke(window: BrowserWindow) {
   const precisionEntries = Array.isArray(precisionActivityStream.entriesSanitized) ? precisionActivityStream.entriesSanitized.map(asRecord) : [];
   if (precisionEntries.some((entry) => !String(entry.entryFingerprint || "").startsWith("sha256:"))) failures.push("activity stream entry fingerprint export audit failed");
   if (precisionSource.token !== "[masked]" || precisionSource.authorization !== "[masked]" || precisionSource.readOnly !== true || precisionSource.databaseWrite !== false || precisionSource.attachmentDownload !== false) failures.push(`precision probe export safety flags/masking failed ${JSON.stringify(precisionSource)}`);
-  const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User Override changed: value=smoke_user@example.com", "Button clicked: Run Activity Stream Probe", "Manual Activity Stream URL changed", "Button clicked: Run Manual URL Replay", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
+  const requiredPrecisionActions = ["Navigation clicked: User Activity Precision Probe", "Activity Stream Query Mode changed: value=auto", "Activity Stream User Override changed: value=user-", "@masked.invalid", "Button clicked: Run Activity Stream Probe", "Manual Activity Stream URL changed", "Button clicked: Run Manual URL Replay", "Button clicked: Run Precision Probe", "Button clicked: Add Precise Candidates to Fetch Queue", "Button clicked: Save Precision Probe Result"];
   const missingPrecisionActions = requiredPrecisionActions.filter((entry) => !precisionActionTimeline.includes(entry));
   if (missingPrecisionActions.length > 0) failures.push(`precision probe action log missing ${JSON.stringify(missingPrecisionActions)}`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='reset-entry-filters']")?.click();`);
@@ -4456,12 +4187,6 @@ async function runUiSmoke(window: BrowserWindow) {
   const timelineInputGuardAudit = await window.webContents.executeJavaScript(`(() => { const button = document.querySelector("[data-testid='build-activity-timeline']"); return Boolean(document.querySelector("[data-testid='analysis-setup-blocked']")) && button instanceof HTMLButtonElement && button.disabled; })()`);
   await window.webContents.executeJavaScript(`(() => { const input = document.querySelector("[data-testid='analysis-setup-user']"); if (input instanceof HTMLInputElement) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "roger_hsieh"); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
   if (!timelineInputGuardAudit) failures.push("activity timeline missing selected user/date guard audit failed");
-  await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:seed-full-fetch-recovery", { detail: { state: { stagingId: "FFS-SMOKE-RECOVERY", status: "interrupted", selectedUser: "roger_hsieh", updatedAt: "2026-07-21T01:00:00.000Z", total: 4, completed: 2, eligible: 1, partial: 1, failed: 0, remaining: 2, lastCompletedObjectKey: "SMOKE-102" } } }));`);
-  await wait(120);
-  const stagingRecoveryUiAudit = await window.webContents.executeJavaScript(`(() => { const modal = document.querySelector("[data-testid='full-fetch-recovery-modal']"); const text = modal?.textContent || ""; return { modal: Boolean(modal), bilingual: text.includes("Incomplete Full Fetch Found") && text.includes("發現未完成的 Full Fetch"), resume: text.includes("Resume Remaining Queue") && text.includes("繼續剩餘佇列"), exportCompleted: text.includes("Export Completed Records") && text.includes("匯出已完成資料"), discard: text.includes("Discard Staging") && text.includes("捨棄暫存"), decideLater: text.includes("Decide Later") && text.includes("稍後決定"), counts: text.includes("2/4") && text.includes("SMOKE-102") }; })()`);
-  await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:clear-full-fetch-recovery"));`);
-  await wait(80);
-  if (!stagingRecoveryUiAudit.modal || !stagingRecoveryUiAudit.bilingual || !stagingRecoveryUiAudit.resume || !stagingRecoveryUiAudit.exportCompleted || !stagingRecoveryUiAudit.discard || !stagingRecoveryUiAudit.decideLater || !stagingRecoveryUiAudit.counts) failures.push(`Full Fetch staging recovery modal audit failed ${JSON.stringify(stagingRecoveryUiAudit)}`);
   await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:seed-full-fetch-failure"));`);
   await wait(120);
   const failedIssuesUiAudit = await window.webContents.executeJavaScript(`(() => { const panel = document.querySelector("[data-testid='full-fetch-failed-issues']"); const text = panel?.textContent || ""; return { panel: Boolean(panel), issueKey: text.includes("SMOKE-404"), status: text.includes("404") && text.includes("HTTP_404"), stage: text.includes("issue_full_fetch"), source: text.includes("recommended_related_issue"), reason: text.includes("epic_link_parent"), message: text.includes("HTTP 404 Not Found") }; })()`);
@@ -4487,12 +4212,23 @@ async function runUiSmoke(window: BrowserWindow) {
   if (failedIssueSummaryFixture.failedCount !== 1 || failedIssueSummaryFixture.byHttpStatus["404"] !== 1 || failedIssueSummaryFixture.byErrorCode.HTTP_404 !== 1 || failedIssueSummaryFixture.byStage.issue_full_fetch !== 1 || failedIssueSummaryFixture.bySource.recommended_related_issue !== 1 || emptyFailedIssueSummaryFixture.failedCount !== 0) failures.push(`full fetch failure summary fixtures failed ${JSON.stringify({ failedIssueSummaryFixture, emptyFailedIssueSummaryFixture })}`);
   const smokeStaging = createStagingRun(ensureDir(getFullFetchStagingDir()), { runId: `ui-smoke-${Date.now()}`, selectedUser: "roger_hsieh", queue: [{ key: "SMOKE-101" }, { key: "SMOKE-102" }, { key: "SMOKE-503" }] });
   startTarget(smokeStaging, "SMOKE-101");
-  completeTarget(smokeStaging, "SMOKE-101", { status: "eligible", rawEnvelope: { issue: { key: "SMOKE-101", fields: { updated: "2026-07-21T01:00:00.000Z" } }, requiredSections: { issue: "complete", changelog: "complete", comments: "complete" } }, classification: "complete" });
+  completeTarget(smokeStaging, "SMOKE-101", { status: "eligible", rawEnvelope: {
+    issue: { id: "101", key: "SMOKE-101", fields: { summary: "Source archive smoke fixture", updated: "2026-07-21T01:00:00.000Z" }, names: {}, schema: {}, renderedFields: {} },
+    changelogHistories: [], comments: [], attachments: [], parsedUsers: [], evidenceEvents: [], issueLinks: [], remoteLinks: [],
+    endpointMetadata: [
+      { method: "GET", endpoint: "/issue/SMOKE-101", status: 200, attempts: 1, fetchedAt: "2026-07-21T01:00:00.000Z" },
+      { method: "GET", endpoint: "/issue/SMOKE-101/changelog", status: 200, attempts: 1, fetchedAt: "2026-07-21T01:00:00.000Z" },
+      { method: "GET", endpoint: "/issue/SMOKE-101/comment", status: 200, attempts: 1, fetchedAt: "2026-07-21T01:00:00.000Z" }
+    ],
+    requestMetadata: { apiVersion: "v2", fetchedAt: "2026-07-21T01:00:00.000Z", fetchRemoteLinks: false },
+    paginationMetadata: { changelog: { pageCount: 1, fetchedCount: 0, complete: true }, comments: { pageCount: 1, fetchedCount: 0, complete: true } },
+    completenessMetadata: { requiredMissingSections: [] }
+  }, classification: "complete" });
   startTarget(smokeStaging, "SMOKE-102");
-  completeTarget(smokeStaging, "SMOKE-102", { status: "partial", rawEnvelope: { issue: { key: "SMOKE-102" } }, missingSections: ["comments"], failedEndpoints: ["/comment"], classification: "partial_response", retryable: true });
+  completeTarget(smokeStaging, "SMOKE-102", { status: "required_partial", rawEnvelope: { issue: { key: "SMOKE-102" } }, missingSections: ["comments"], failedEndpoints: ["/comment"], classification: "partial_response" });
   startTarget(smokeStaging, "SMOKE-503");
   completeTarget(smokeStaging, "SMOKE-503", { status: "failed", classification: "http_503", errorType: "http_503", errorMessage: "temporary smoke failure" });
-  setStagingStatus(smokeStaging, "interrupted");
+  finalizeStagingRun(smokeStaging);
   latestFullFetchStaging = smokeStaging;
   await window.webContents.executeJavaScript(`window.desktopApp?.userAnalysis?.exportSourceArchive?.({ selectedUser: "roger_hsieh", rawData: { rawIssueResponsesSanitized: [{ issueKey: "SMOKE-101", json: { id: "101", key: "SMOKE-101", fields: { updated: "2026-07-02T09:00:00.000Z", summary: "Source archive smoke fixture" } } }] } });`);
   await wait(180);
@@ -4513,19 +4249,27 @@ async function runUiSmoke(window: BrowserWindow) {
   const standardBaselineAttempts = asRecord(standardBaselineAutoSave?.activityStream).baselineGuardAttemptResults;
   if (!standardBaselineAutoSave || !standardBaselineComparison.snapshotKey || !standardBaselineComparison.baselineCounts || !standardBaselineComparison.currentCounts || Number(standardBaselineRetry.maxRetries) !== 2 || !Array.isArray(standardBaselineRetry.attempts) || standardBaselineRetry.attempts.length > 3 || !Array.isArray(standardBaselineAttempts) || standardBaselineAttempts.length !== standardBaselineRetry.attempts.length) failures.push(`standard baseline auto-save audit failed ${JSON.stringify({ standardBaselineComparison, standardBaselineRetry, standardBaselineAttempts })}`);
   const newDebugBundles = fs.readdirSync(debugBundlesDir).filter((name) => !debugBundlesBefore.has(name));
-  const debugBundlePath = newDebugBundles.length > 0 ? path.join(debugBundlesDir, newDebugBundles.at(-1)!) : "";
+  const debugBundleZipName = newDebugBundles.find((name) => name.endsWith(".zip"));
+  const debugBundleFolderName = debugBundleZipName?.slice(0, -4)
+    ?? newDebugBundles.find((name) => fs.statSync(path.join(debugBundlesDir, name)).isDirectory());
+  const debugBundlePath = debugBundleFolderName ? path.join(debugBundlesDir, debugBundleFolderName) : "";
+  const debugBundleZipPath = debugBundleZipName ? path.join(debugBundlesDir, debugBundleZipName) : "";
   const requiredBundleFiles = ["debug-log.txt", "user-action-log.txt", "app-metadata.json", "request-context.json", "latest-result.json", "latest-run-result.json", "last-successful-result.json", "last-parsed-result.json", "latest-no-entries-result.json", "latest-activity-stream-result.json", "latest-precision-probe-result.json", "latest-manual-url-replay-result.json", "latest-maxresults-cap-test.json", "run-history.json", "activity-stream-run-history.json", "auto-saved-result-paths.json", "auto-saved-results", "auto-saved-results-index.json", "session-timeline.json", "activity-stream-chunk-results.json", "activity-stream-merged-result.json", "standard-activity-stream-flow.json", "activity-type-classifier-diagnostics.json", "activity-stream-baseline-comparison.json", "activity-stream-baseline-snapshot.json", "activity-stream-baseline-history.json", "activity-stream-baseline-comparisons.json", "user-activity-timeline.json", "user-activity-timeline.csv", "timeline-build-summary.json", "timeline-event-schema.json", "timeline-integrity-diagnostics.json", "timeline-dedup-diagnostics.json", "timeline-issue-key-diagnostics.json", "timeline-source-system-diagnostics.json", "debug-bundle-summary.json", "README_for_GPT.txt"];
-  requiredBundleFiles.push("user-analysis-steps.json", "timeline-issue-groups.json", "timeline-selected-issues.json", "fetch-queue.json", "related-candidate-issues.json", "related-issue-expansion-summary.json", "checkpoint-write-diagnostics.json", "timeline-jira-relation-diagnostics.json", "full-fetch-failed-issues.json", "full-fetch-failure-summary.json", "timeline-event-list-ui-state.json", "select-issues-ui-state.json");
+  requiredBundleFiles.push("user-analysis-steps.json", "timeline-issue-groups.json", "timeline-selected-issues.json", "fetch-queue.json", "related-candidate-issues.json", "related-issue-expansion-summary.json", "timeline-jira-relation-diagnostics.json", "full-fetch-failed-issues.json", "full-fetch-failure-summary.json", "timeline-event-list-ui-state.json", "select-issues-ui-state.json");
   requiredBundleFiles.push("jira-evidence-events.json", "jira-evidence-summary.json", "jira-evidence-excluded-summary.json", "jira-evidence-schema.json", "analysis-roadmap.json");
   requiredBundleFiles.push("activity-stream-stability-probe.json", "activity-stream-attempts.json", "activity-stream-attempt-comparison.csv", "activity-stream-window-summary.csv", "activity-stream-stability-recommendation.json");
-  requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-stability-setup.json", "activity-stream-rounds.json", "activity-stream-round-comparison.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.json", "activity-stream-window-diagnostics.csv", "activity-stream-raw-diagnostics.json", "activity-stream-stability-ui-state.json", "activity-stream-stability-recommendation-v2.json", "activity-stream-benchmark.json", "activity-stream-benchmark.csv", "activity-stream-benchmark-summary.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json", "source-archive-export-index.json", "source-archive-import-packages");
-  requiredBundleFiles.push("full-fetch-staging-index.json", "full-fetch-staging");
+  requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-stability-setup.json", "activity-stream-rounds.json", "activity-stream-round-comparison.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.json", "activity-stream-window-diagnostics.csv", "activity-stream-raw-diagnostics.json", "activity-stream-stability-ui-state.json", "activity-stream-stability-recommendation-v2.json", "activity-stream-benchmark.json", "activity-stream-benchmark.csv", "activity-stream-benchmark-summary.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json", "source-archive-export-index.json");
+  requiredBundleFiles.push("full-fetch-staging-index.json", "full-fetch-staging", "full-fetch-result", "logs", "staging-metadata", "source-archive-metadata", "export-history", "environment", "debug-bundle-manifest.json");
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
   const bundleText = debugBundlePath ? actualBundleFiles.filter((name) => fs.statSync(path.join(debugBundlePath, name)).isFile()).map((name) => fs.readFileSync(path.join(debugBundlePath, name), "utf8")).join("\n") : "";
   if (!autoSaveUiAudit.visible || !autoSaveUiAudit.activity || !autoSaveUiAudit.path || !autoSaveUiAudit.open || !autoSaveUiAudit.copy) failures.push(`last auto-save UI audit failed ${JSON.stringify(autoSaveUiAudit)}`);
-  if (!debugBundleUiAudit.path || !debugBundleUiAudit.open || !debugBundleUiAudit.copy || missingBundleFiles.length > 0) failures.push(`debug bundle UI/files audit failed ${JSON.stringify({ debugBundleUiAudit, missingBundleFiles })}`);
-  if (!bundleText.includes("Jira Activity Analyzer Debug Bundle") || !bundleText.includes("Standard Activity Stream Flow:") || !bundleText.includes("Activity Type Classifier:") || !bundleText.includes("commentPriorityHigherThanAttachment: true") || !bundleText.includes("Cross-page TODO") || /secret-value|JSESSIONID|Authorization:\s*(?!\[masked\])/i.test(bundleText)) failures.push("debug bundle README/classifier/sensitive-data audit failed");
+  if (!debugBundleUiAudit.path || !debugBundleUiAudit.open || !debugBundleUiAudit.copy || !debugBundleZipPath || !fs.statSync(debugBundleZipPath).isFile() || missingBundleFiles.length > 0) failures.push(`debug bundle UI/files audit failed ${JSON.stringify({ debugBundleUiAudit, debugBundleZipPath, missingBundleFiles })}`);
+  const hasUnmaskedBundleCredential = bundleText.split(/\r?\n/).some((line) =>
+    (/Authorization:/i.test(line) && !/Authorization:\s*\[masked\]/i.test(line))
+    || (/JSESSIONID:/i.test(line) && !/JSESSIONID:\s*\[masked\]/i.test(line))
+  );
+  if (!bundleText.includes("Jira Activity Analyzer Debug Bundle") || !bundleText.includes("Standard Activity Stream Flow:") || !bundleText.includes("Activity Type Classifier:") || !bundleText.includes("commentPriorityHigherThanAttachment: true") || !bundleText.includes("Cross-page TODO") || /secret-value/i.test(bundleText) || hasUnmaskedBundleCredential) failures.push("debug bundle README/classifier/sensitive-data audit failed");
   if (debugBundlePath) {
     const latestBundleResult = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "latest-run-result.json"), "utf8")));
     const bundleHistory = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "run-history.json"), "utf8")) as Array<Record<string, unknown>>;
@@ -4562,8 +4306,8 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleSourceArchiveAssessment = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "source-archive-file-assessment.json"), "utf8")));
     const bundleSourceArchiveIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "source-archive-export-index.json"), "utf8")));
     const bundleFullFetchStagingIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "full-fetch-staging-index.json"), "utf8")));
-    const bundleStagingState = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "full-fetch-staging", "staging-state.json"), "utf8")));
-    const bundleStagingCheckpoint = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "full-fetch-staging", "queue-checkpoint.json"), "utf8")));
+    const bundleStagingState = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "full-fetch-staging", "manifest.json"), "utf8")));
+    const bundleStagingRunIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "full-fetch-staging", "run-index.json"), "utf8")));
     const bundleStagingPartialSummary = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "full-fetch-staging", "partial-records-summary.json"), "utf8")));
     const bundleStabilityUiState = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-stability-ui-state.json"), "utf8")));
     const bundleWindowDiagnostics = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-window-diagnostics.json"), "utf8")));
@@ -4575,7 +4319,6 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleTimelineGroups = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "timeline-issue-groups.json"), "utf8")) as Array<Record<string, unknown>>;
     const bundleRelatedIssues = JSON.parse(fs.readFileSync(path.join(debugBundlePath, "related-candidate-issues.json"), "utf8")) as Array<Record<string, unknown>>;
     const bundleRelatedScope = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "related-issue-expansion-summary.json"), "utf8")));
-    const bundleCheckpointDiagnostics = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "checkpoint-write-diagnostics.json"), "utf8")));
     const bundleTimelineUiState = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "timeline-event-list-ui-state.json"), "utf8")));
     const bundleSelectIssuesUiState = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "select-issues-ui-state.json"), "utf8")));
     const fullSessionBundle = asRecord(bundleSummary.fullSessionBundle);
@@ -4588,8 +4331,9 @@ async function runUiSmoke(window: BrowserWindow) {
     const stabilityRoundRows = Array.isArray(bundleStabilityRoundsV2.rounds) ? bundleStabilityRoundsV2.rounds.map(asRecord) : [];
     if (bundleStabilityProbeV2.schemaVersion !== "activity_stream_stability_probe_v2" || bundleStabilityProbeV2.executionOrder !== "round_first" || !String(bundleStabilityProbeV2.probeRunId).startsWith("ASR-") || stabilityRoundRows.length < 2 || stabilityRoundRows.some((round) => !round.roundEventSetFingerprint || !round.roundPrimaryJiraKeySetFingerprint || Number(round.totalRounds) < 1) || !asRecord(bundleStabilityRecommendationV2.recommendation).recommendedRoundCount || bundleStabilitySummaryV2.available !== true || Number(bundleStabilitySummaryV2.roundCount) < 2 || bundleSourceArchiveAssessment.schemaVersion !== "source_archive_file_assessment_v1") failures.push(`debug bundle Round Stability V2 audit failed ${JSON.stringify({ probe: bundleStabilityProbeV2.probeRunId, rounds: stabilityRoundRows.length, recommendation: bundleStabilityRecommendationV2, summary: bundleStabilitySummaryV2 })}`);
     const diagnosticWindows = Array.isArray(bundleWindowDiagnostics.windows) ? bundleWindowDiagnostics.windows.map(asRecord) : [];
-    if (bundleFullFetchStagingIndex.stagingAvailable !== true || bundleFullFetchStagingIndex.recoverable !== true || bundleFullFetchStagingIndex.sourceArchivePackage !== "not_finalized" || Number(asRecord(bundleFullFetchStagingIndex.counts).eligible) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).partial) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).failed) !== 1 || Number(bundleFullFetchStagingIndex.omittedCount) < 2 || bundleStagingState.schemaVersion !== "full_fetch_staging_v1" || bundleStagingCheckpoint.schemaVersion !== "full_fetch_queue_checkpoint_v1" || Number(bundleStagingPartialSummary.count) !== 1) failures.push(`Full Fetch staging Debug Bundle audit failed ${JSON.stringify({ index: bundleFullFetchStagingIndex, state: bundleStagingState, checkpoint: bundleStagingCheckpoint.schemaVersion, partial: bundleStagingPartialSummary })}`);
-    if (bundleStabilityProbe.status !== "legacy_v1_not_applicable" || !bundleStabilityUiState.latestProbeRunId || diagnosticWindows.length < 1 || diagnosticWindows.some((item) => !item.logicalRequestId || !item.classification || Number(item.physicalHttpRequestCount) < 1 || !item.processingTiming) || bundleBenchmark.schemaVersion !== "activity_stream_benchmark_v1" || Number(asRecord(bundleBenchmark.summary).runCount) < 1 || bundleSourceArchiveIndex.includedInDebugBundle !== true || !fs.existsSync(path.join(debugBundlePath, "source-archive-import-packages", String(bundleSourceArchiveIndex.fileName)))) failures.push(`v0.2.28 reliability bundle audit failed ${JSON.stringify({ legacy: bundleStabilityProbe, uiState: bundleStabilityUiState, diagnosticWindows: diagnosticWindows.length, benchmark: bundleBenchmark.benchmarkRunId, sourceArchive: bundleSourceArchiveIndex })}`);
+    const canonicalSnapshotInBundle = fs.existsSync(path.join(debugBundlePath, "full-fetch-staging", "issues", "SMOKE-101", "current-issue-snapshot.json"));
+    if (bundleFullFetchStagingIndex.stagingAvailable !== true || bundleFullFetchStagingIndex.status !== "completed_with_errors" || Number(asRecord(bundleFullFetchStagingIndex.counts).eligible) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).requiredPartial) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).failed) !== 1 || bundleStagingState.schemaVersion !== "full_fetch_staging_v2" || bundleStagingRunIndex.schemaVersion !== "full_fetch_run_index_v2" || Number(bundleStagingPartialSummary.count) !== 1 || !canonicalSnapshotInBundle) failures.push(`Full Fetch staging Debug Bundle audit failed ${JSON.stringify({ index: bundleFullFetchStagingIndex, state: bundleStagingState, runIndex: bundleStagingRunIndex.schemaVersion, partial: bundleStagingPartialSummary, canonicalSnapshotInBundle })}`);
+    if (bundleStabilityProbe.status !== "legacy_v1_not_applicable" || !bundleStabilityUiState.latestProbeRunId || diagnosticWindows.length < 1 || diagnosticWindows.some((item) => !item.logicalRequestId || !item.classification || Number(item.physicalHttpRequestCount) < 1 || !item.processingTiming) || bundleBenchmark.schemaVersion !== "activity_stream_benchmark_v1" || Number(asRecord(bundleBenchmark.summary).runCount) < 1 || bundleSourceArchiveIndex.includedInDebugBundle !== false || bundleSourceArchiveIndex.metadataOnly !== true) failures.push(`v0.2.30 reliability bundle audit failed ${JSON.stringify({ legacy: bundleStabilityProbe, uiState: bundleStabilityUiState, diagnosticWindows: diagnosticWindows.length, benchmark: bundleBenchmark.benchmarkRunId, sourceArchive: bundleSourceArchiveIndex })}`);
     if (bundleEvidenceEvents.length < 1 || bundleEvidenceEvents.some((item) => !/^sha256:[0-9a-f]{64}$/.test(String(item.evidenceId)) || !item.evidenceScope || !item.evidenceType || !item.activityType) || Number(bundleJiraEvidenceSummary.directEvidenceCount) < 1 || Number(bundleJiraEvidenceExcluded.excludedCount) < 1 || bundleEvidencePolicy.recursive !== false || Number(bundleEvidencePolicy.maxDepth) !== 1 || bundleEvidencePolicy.relatedIssuesAsPrimaryEvidence !== false || bundleJiraEvidenceSchema.schemaVersion !== "jira_evidence_event_v1" || bundleRoadmapAnalyzers.cloudAiAnalyzer !== "planned" || !bundleText.includes("Direct Jira Evidence:") || !bundleText.includes("Related Issue Expansion Policy:") || !bundleText.includes("Analyzer Roadmap:") || !bundleText.includes("Data Source Roadmap:") || !bundleText.includes("Product Goals:")) failures.push(`debug bundle direct Jira evidence audit failed ${JSON.stringify({ events: bundleEvidenceEvents.length, summary: bundleJiraEvidenceSummary, excluded: bundleJiraEvidenceExcluded, policy: bundleEvidencePolicy, schema: bundleJiraEvidenceSchema.schemaVersion, roadmap: bundleRoadmapAnalyzers })}`);
     if (!latestBundleRunId || !bundleHistory.some((run) => String(run?.runId || "") === latestBundleRunId) || String(asRecord(bundlePaths.latestRunResult).runId || "") !== latestBundleRunId || bundleSummary.snapshotConsistent !== true) failures.push(`debug bundle snapshot consistency failed: latest=${latestBundleRunId}`);
     if (bundleStandardFlow.enabled !== true || bundleStandardFlow.variant !== "escaped_username" || bundleStandardFlow.activityStreamQueryUser !== "roger\\_hsieh" || Number(bundleStandardFlow.perChunkMaxResults) !== 500 || bundleClassifier.enabled !== true || bundleClassifier.commentPriorityHigherThanAttachment !== true || bundleClassifier.rulesVersion !== "1.1" || !asRecord(bundleSummary.standardActivityStreamFlow).selectedUser || !bundleSummary.activityTypeClassifierDiagnostics) failures.push(`debug bundle standard flow/classifier diagnostics failed: ${JSON.stringify({ bundleStandardFlow, bundleClassifier })}`);
@@ -4599,7 +4343,6 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleTimelineIntegritySummary = asRecord(bundleSummary.timelineIntegrity);
     const bundleUserAnalysisUiSummary = asRecord(bundleSummary.userAnalysisUiState);
     if (bundleWorkflowSteps.activityTimeline !== "completed" || "advancedCandidateSearch" in bundleWorkflowSteps || !bundleTimelineGroups.some((group) => group.issueKey === "COPGEN1-125806" && group.issueKeyRole === "secondary" && Number(asRecord(group.sourceSystemSummary).jira) === 1) || !bundleRelatedIssues.some((item) => item.issueKey === "COPGEN1-69506" && item.relationType === "parent_link" && item.scope === "recommended") || Number(asRecord(bundleRelatedScope.recommended).uniqueIssueCount) < 1 || Number(asRecord(asRecord(bundleSummary.relatedIssueScopeSummary).recommended).uniqueIssueCount) < 1 || !bundleSummary.userAnalysisWorkflow || Number(bundleUserAnalysisUiSummary.workflowStepCount) !== 5 || bundleUserAnalysisUiSummary.advancedToolsVisible !== false || bundleUserAnalysisUiSummary.fullFetchProgressLocation !== "step3_full_fetch" || !Array.isArray(bundleTimelineUiState.visibleColumns) || !Array.isArray(bundleSelectIssuesUiState.visibleColumns) || !asRecord(bundleTimelineUiState.filters).sourceApplications || !asRecord(bundleSelectIssuesUiState.filters).jiraRelations || !bundleTimeline.some((entry) => entry.type === "timeline_issues_added_to_fetch_queue") || !bundleTimeline.some((entry) => entry.type === "related_issues_expanded") || !bundleText.includes("User Analysis Workflow:") || !bundleText.includes("User Analysis UI State:") || !bundleText.includes("Timeline visible columns:") || !bundleText.includes("Select Issues filters:") || !bundleText.includes("Recommended:") || !bundleText.includes("Optional:")) failures.push(`debug bundle User Analysis workflow/UI state audit failed: ${JSON.stringify({ bundleWorkflowSteps, bundleTimelineGroups, bundleRelatedIssues, bundleRelatedScope, bundleUserAnalysisUiSummary, bundleTimelineUiState, bundleSelectIssuesUiState, summaryScope: bundleSummary.relatedIssueScopeSummary })}`);
-    if (Number(bundleCheckpointDiagnostics.retryCount) < 1 || Number(bundleCheckpointDiagnostics.fallbackDirectWriteCount) < 1 || bundleCheckpointDiagnostics.lastRecovered !== true || bundleCheckpointDiagnostics.lastCheckpointErrorRecovered !== true || bundleCheckpointDiagnostics.fullFetchInterruptedByCheckpoint !== false || bundleCheckpointDiagnostics.checkpointRecoveryMethod !== "fallback_direct_write" || !Array.isArray(bundleCheckpointDiagnostics.events)) failures.push(`debug bundle checkpoint diagnostics audit failed: ${JSON.stringify(bundleCheckpointDiagnostics)}`);
     const bundleTimelineSourceSummary = asRecord(bundleSummary.timelineSourceSystem);
     const bundleRelationGroup = bundleTimelineGroups.find((group) => group.issueKey === "COPGEN1-125806");
     if (!bundleRelationGroup || bundleRelationGroup.isJiraRelated !== true || bundleRelationGroup.hasJiraIssueKey !== true || Number(asRecord(bundleRelationGroup.jiraRelationSummary).jiraRelatedEventCount) !== 1) failures.push(`debug bundle timeline Jira relation group audit failed: ${JSON.stringify(bundleRelationGroup)}`);
@@ -4888,7 +4631,9 @@ app.whenReady().then(() => {
   try {
     const cleanup = cleanupExpiredStaging(ensureDir(getFullFetchStagingDir()));
     console.log("[full-fetch-staging cleanup]", cleanup);
-    latestFullFetchStaging = scanRecoverableStaging(ensureDir(getFullFetchStagingDir()));
+    const stagingRoot = ensureDir(getFullFetchStagingDir());
+    recoverStaleStaging(stagingRoot);
+    latestFullFetchStaging = listStagingRuns(stagingRoot, getLegacyFullFetchStagingDir()).find((run) => !run.state.legacyReadOnly) ?? null;
   } catch (error) {
     console.error("[full-fetch-staging startup scan failed]", error);
   }

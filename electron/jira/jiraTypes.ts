@@ -38,6 +38,7 @@ export type JiraHttpResult = {
   responseBytes?: number;
   timeout?: boolean;
   aborted?: boolean;
+  retryAfterSeconds?: number;
 };
 
 export type ProbeEndpointResult = {

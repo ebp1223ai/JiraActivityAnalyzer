@@ -204,6 +204,7 @@ export type RoundProgress = {
   estimatedRemainingMs: number;
   estimatedCompletionTime: string;
   currentStability: RoundStability;
+  stableSinceRound: number | null;
 };
 
 export type RoundExecutorOptions = {
@@ -340,7 +341,8 @@ export async function executeRoundFirstStability(config: ActivityStreamStability
     const remaining = Math.max(0, totalRequests - completedRequests);
     const remainingRoundDelays = Math.max(0, config.fullScanRoundCount - roundNumber) * config.delayBetweenRoundsMs;
     const estimatedRemainingMs = Math.round(averageRequestMs * remaining + remainingRoundDelays);
-    options.onProgress?.({ probeRunId: options.probeRunId, stage, currentRound: roundNumber, totalRounds: config.fullScanRoundCount, currentWindow: windowNumber, totalWindows: windows.length, completedRequests, totalRequests, requestWindowStart: start, requestWindowEnd: end, currentApiDurationMs, averageApiDurationMs: completedRequests ? Math.round(totalApiDuration / completedRequests) : 0, averageLogicalFetchDurationMs: completedRequests ? Math.round(totalApiDuration / completedRequests) : 0, averagePhysicalHttpDurationMs: completedPhysicalRequests ? Math.round(totalPhysicalHttpDuration / completedPhysicalRequests) : 0, averageProcessingDurationMs: completedRequests ? Math.round(totalProcessingDuration / completedRequests) : 0, elapsedMs, estimatedRemainingMs, estimatedCompletionTime: new Date(now + estimatedRemainingMs).toISOString(), currentStability: compareCompletedRounds(rounds).stability });
+    const comparison = compareCompletedRounds(rounds);
+    options.onProgress?.({ probeRunId: options.probeRunId, stage, currentRound: roundNumber, totalRounds: config.fullScanRoundCount, currentWindow: windowNumber, totalWindows: windows.length, completedRequests, totalRequests, requestWindowStart: start, requestWindowEnd: end, currentApiDurationMs, averageApiDurationMs: completedRequests ? Math.round(totalApiDuration / completedRequests) : 0, averageLogicalFetchDurationMs: completedRequests ? Math.round(totalApiDuration / completedRequests) : 0, averagePhysicalHttpDurationMs: completedPhysicalRequests ? Math.round(totalPhysicalHttpDuration / completedPhysicalRequests) : 0, averageProcessingDurationMs: completedRequests ? Math.round(totalProcessingDuration / completedRequests) : 0, elapsedMs, estimatedRemainingMs, estimatedCompletionTime: new Date(now + estimatedRemainingMs).toISOString(), currentStability: comparison.stability, stableSinceRound: comparison.firstStableRound });
   };
   let cancelled = false;
   for (let roundIndex = 0; roundIndex < config.fullScanRoundCount; roundIndex += 1) {

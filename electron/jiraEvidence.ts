@@ -107,13 +107,19 @@ function canonical(value: unknown): string {
   return JSON.stringify(value) ?? "null";
 }
 
-function preview(value: unknown, maxLength = 360): string {
+function preview(value: unknown): string {
   const plain = typeof value === "string" ? value : value === null || value === undefined ? "" : JSON.stringify(value);
   return plain
     .replace(/(authorization|token|password|cookie|session)\s*[:=]\s*[^\s,;]+/gi, "$1: [masked]")
     .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, maxLength);
+    .trim();
+}
+
+function completeEvidenceText(value: unknown): string {
+  const plain = typeof value === "string" ? value : value === null || value === undefined ? "" : JSON.stringify(value);
+  return plain
+    .replace(/(authorization|token|password|cookie|session)\s*[:=]\s*[^\s,;]+/gi, "$1: [masked]")
+    .trim();
 }
 
 function identities(value: unknown): string[] {
@@ -196,7 +202,7 @@ export function extractJiraEvidenceFromIssue(input: JiraEvidenceIssueInput): { e
     const actorSource = authorMatches ? comment.author : comment.updateAuthor;
     const eventTime = valueText(authorMatches ? comment.created : comment.updated);
     const rawRef = { type: "comment", commentId: valueText(comment.id), index };
-    events.push(event(input, { evidenceScope: directScope, evidenceType: "jira_comment", activityType: "comment", actor: valueText(actorSource), eventTime, withinSelectedDateRange: true, field: "comment", fromValue: "", toValue: "", title: "Added or updated Jira comment", contentSummary: preview(comment.body), rawTextPreview: preview(comment.body), confidence: "high", extractionReason: "comment author/updateAuthor and created/updated time match selected user/date range", rawRef }));
+    events.push(event(input, { evidenceScope: directScope, evidenceType: "jira_comment", activityType: "comment", actor: valueText(actorSource), eventTime, withinSelectedDateRange: true, field: "comment", fromValue: "", toValue: "", title: "Added or updated Jira comment", contentSummary: completeEvidenceText(comment.body), rawTextPreview: preview(comment.body), confidence: "high", extractionReason: "comment author/updateAuthor and created/updated time match selected user/date range", rawRef }));
   });
 
   input.changelogHistories.forEach((history, historyIndex) => {
@@ -235,7 +241,7 @@ export function extractJiraEvidenceFromIssue(input: JiraEvidenceIssueInput): { e
     }
     const evidenceType: JiraEvidenceType = remote ? (matches ? "jira_remote_link" : "jira_remote_link_context") : (matches ? "jira_issue_link" : "jira_issue_link_context");
     const rawRef = { type: remote ? "remote_link" : "issue_link", linkId: valueText(link.id), index };
-    events.push(event(input, { evidenceScope: matches && input.directActivityIssue ? directScope : contextScope, evidenceType, activityType: remote ? "remote_link" : "issue_link", actor: matches ? valueText(author) : "", eventTime: matches ? valueText(time) : "", withinSelectedDateRange: matches, field: remote ? "remote_link" : "issue_link", fromValue: "", toValue: valueText(record(link.outwardIssue).key ?? record(link.inwardIssue).key ?? link.object), title: remote ? "Remote link context" : "Issue link context", contentSummary: preview(link), rawTextPreview: preview(link), confidence: matches ? "high" : "medium", extractionReason: matches ? "link author and time match selected user/date range" : "link has no attributable author/time and is retained as context only", rawRef }));
+    events.push(event(input, { evidenceScope: matches && input.directActivityIssue ? directScope : contextScope, evidenceType, activityType: remote ? "remote_link" : "issue_link", actor: matches ? valueText(author) : "", eventTime: matches ? valueText(time) : "", withinSelectedDateRange: matches, field: remote ? "remote_link" : "issue_link", fromValue: "", toValue: valueText(record(link.outwardIssue).key ?? record(link.inwardIssue).key ?? link.object), title: remote ? "Remote link context" : "Issue link context", contentSummary: completeEvidenceText(link), rawTextPreview: preview(link), confidence: matches ? "high" : "medium", extractionReason: matches ? "link author and time match selected user/date range" : "link has no attributable author/time and is retained as context only", rawRef }));
   };
   input.links.forEach((link, index) => extractLink(link, index, false));
   input.remoteLinks.forEach((link, index) => extractLink(link, index, true));
@@ -244,7 +250,7 @@ export function extractJiraEvidenceFromIssue(input: JiraEvidenceIssueInput): { e
   const snapshot = { summary: fields.summary, description: fields.description, status: record(fields.status).name, assignee: fields.assignee, reporter: fields.reporter, creator: fields.creator };
   const snapshotTime = valueText(fields.updated ?? fields.created);
   const snapshotRef = { type: "issue_snapshot", issueId: valueText(input.issue.id) };
-  events.push(event(input, { evidenceScope: contextScope, evidenceType: "jira_issue_snapshot_context", activityType: "issue_snapshot", actor: "", eventTime: snapshotTime, withinSelectedDateRange: dateMatches(snapshotTime, input.startDate, input.endDate), field: "issue_fields_snapshot", fromValue: "", toValue: "", title: `Issue snapshot: ${valueText(fields.summary) || input.issueKey}`, contentSummary: preview(snapshot), rawTextPreview: preview(snapshot), confidence: "medium", extractionReason: input.directActivityIssue ? "issue fields snapshot is analysis context, not direct user activity" : "related issue snapshot is related context and not primary evidence", rawRef: snapshotRef }));
+  events.push(event(input, { evidenceScope: contextScope, evidenceType: "jira_issue_snapshot_context", activityType: "issue_snapshot", actor: "", eventTime: snapshotTime, withinSelectedDateRange: dateMatches(snapshotTime, input.startDate, input.endDate), field: "issue_fields_snapshot", fromValue: "", toValue: "", title: `Issue snapshot: ${valueText(fields.summary) || input.issueKey}`, contentSummary: completeEvidenceText(snapshot), rawTextPreview: preview(snapshot), confidence: "medium", extractionReason: input.directActivityIssue ? "issue fields snapshot is analysis context, not direct user activity" : "related issue snapshot is related context and not primary evidence", rawRef: snapshotRef }));
 
   return { events, excluded: { schemaVersion: "jira_evidence_excluded_summary_v1", excludedCount: Object.values(byReason).reduce((sum, count) => sum + count, 0), byReason } };
 }

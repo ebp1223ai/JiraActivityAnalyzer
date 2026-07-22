@@ -74,8 +74,9 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, on
     onUserAction?.("Save Debug Bundle requested / 要求儲存除錯套件");
     if (window.desktopApp?.appDebug?.saveBundle) {
       const result = await window.desktopApp.appDebug.saveBundle({ debugLog: content, currentPage });
-      setNotice(result.canceled ? "Save canceled" : "Debug Bundle saved");
-      onUserAction?.(result.canceled ? "Debug Bundle save cancelled / 除錯套件儲存已取消" : "Debug Bundle saved / 除錯套件已儲存");
+      const failed = result.status === "failed";
+      setNotice(result.canceled ? "Save canceled" : failed ? `Debug Bundle failed: ${String(result.errorCode ?? "unknown_error")}` : result.warningThresholdExceeded ? "Debug Bundle saved (over 500 MiB warning threshold)" : "Debug Bundle saved");
+      onUserAction?.(result.canceled ? "Debug Bundle save cancelled / 除錯套件儲存已取消" : failed ? "Debug Bundle save failed / 除錯套件儲存失敗" : "Debug Bundle saved / 除錯套件已儲存");
       if (!result.canceled && result.folderPath) {
         setLastBundlePath(result.folderPath);
         onAppend?.([`[INFO] Debug Bundle saved: ${result.folderPath}`, `[INFO] Included files: ${(result.includedFiles ?? []).join(", ")}`]);
@@ -160,6 +161,10 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, on
           <Trash2 size={16} />
           <span>Clear<br />清除</span>
         </button>
+      </div>
+      <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-bold leading-relaxed text-amber-950" data-testid="debug-bundle-content-warning">
+        Debug Bundle may contain company Jira content and personal data such as Issue summaries, descriptions, and comments. Credentials are removed and user identities are pseudonymized.<br />
+        除錯套件可能包含公司 Jira 內容與個人資料，例如摘要、描述及留言；憑證會移除，使用者識別資料會一致性假名化。
       </div>
 
       {notice ? <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700" data-no-clip="true">{notice}</div> : null}

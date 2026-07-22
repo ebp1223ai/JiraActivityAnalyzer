@@ -6,6 +6,9 @@ export type WorkflowStepStatus = {
   fetchQueue: "empty" | "ready" | "completed";
   fullFetch: "not_run" | "completed" | "failed";
   relatedIssues: "not_run" | "completed" | "empty";
+  relatedDiscovery: "not_started" | "completed";
+  relatedReview: "not_started" | "completed" | "skipped";
+  relatedFullFetch: "not_started" | "running" | "completed" | "skipped";
   exports: "not_run" | "completed";
 };
 
@@ -114,6 +117,9 @@ export function defaultWorkflowSteps(): WorkflowStepStatus {
     fetchQueue: "empty",
     fullFetch: "not_run",
     relatedIssues: "not_run",
+    relatedDiscovery: "not_started",
+    relatedReview: "not_started",
+    relatedFullFetch: "not_started",
     exports: "not_run"
   };
 }

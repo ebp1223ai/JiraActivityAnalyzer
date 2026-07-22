@@ -49,6 +49,14 @@ export function createJiraClient(options: JiraClientOptions) {
       });
       const headersMs = Date.now();
       const contentType = response.headers.get("content-type") ?? "";
+      const retryAfterHeader = response.headers.get("retry-after") ?? "";
+      const retryAfterValue = retryAfterHeader.trim();
+      const retryAfterDate = Date.parse(retryAfterValue);
+      const retryAfterSeconds = /^\d+(?:\.\d+)?$/.test(retryAfterValue)
+        ? Number(retryAfterValue)
+        : Number.isFinite(retryAfterDate)
+          ? Math.max(0, Math.ceil((retryAfterDate - Date.now()) / 1000))
+          : undefined;
       const text = await response.text();
       const bodyCompletedMs = Date.now();
       return {
@@ -64,7 +72,8 @@ export function createJiraClient(options: JiraClientOptions) {
         responseDownloadMs: bodyCompletedMs - headersMs,
         responseBytes: Buffer.byteLength(text, "utf8"),
         timeout: false,
-        aborted: false
+        aborted: false,
+        retryAfterSeconds
       };
     } catch (error) {
       const completedMs = Date.now();

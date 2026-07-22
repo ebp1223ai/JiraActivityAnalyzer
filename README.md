@@ -4,17 +4,23 @@ Electron desktop application for read-only Jira activity inspection and analysis
 
 ## User Analysis Workflow
 
-Version 0.2.28 adds crash-safe **Full Fetch Staging / Full Fetch 增量暫存** while preserving the guarded five-step User Analysis workflow, Activity Stream reliability diagnostics, and direct Jira evidence extraction:
+Version 0.2.30 replaces resumable Full Fetch staging with **crash-safe, file-backed terminal runs / 當機安全的檔案式終態執行** while preserving the guarded five-step User Analysis workflow, Activity Stream reliability diagnostics, and direct Jira evidence extraction:
 
-- Every selected Full Fetch target is persisted by the Electron main process before UI completion is reported.
-- `staging-state.json` and `queue-checkpoint.json` are updated atomically after each target state change.
-- Startup detects interrupted staging and offers Resume Remaining Queue, Export Completed Records, Discard Staging, or Decide Later without making an automatic Jira request.
-- Resume keeps the original queue order, skips eligible/excluded targets, retries partial targets, and automatically retries an eligible retryable failure exactly once. Non-retryable 400/401/403/404 failures are skipped.
-- Cancel stops scheduling new targets, flushes staging, and automatically creates a Partial Source Archive Import Package with `safeForAutomaticImport = false`.
-- Partial records remain individual `partial/<issue-key>.raw.json` files and never enter the eligible JSONL payload stream.
-- Preview reads lightweight staging summaries only; final export is built from staging files rather than renderer memory.
-- Successfully exported staging is retained for seven days. The final ZIP is not deleted with expired staging.
-- Debug Bundles include staging state, checkpoint, object index, export result, sanitized error summary, and a staging index while omitting large raw target files by default.
+- Every successful Issue is committed under `%LOCALAPPDATA%/JiraActivityAnalyzer/full-fetch-staging/<staging-id>/issues/<issue-key>/` before UI completion is reported.
+- Canonical files include Current Issue Snapshot, normalized current fields, changelog NDJSON, comments NDJSON, attachment metadata, users, evidence NDJSON, issue links, remote links, request metadata, and an Issue manifest with hashes and sizes.
+- Run state uses explicit terminal statuses: `completed`, `completed_with_errors`, `cancelled`, `failed_final`, `aborted_on_restart`, and `discarded`. A terminal run can never return to `running`.
+- Cross-restart Resume and recoverable queues are removed. Startup marks a previously running process as `aborted_on_restart`; **Start New Full Fetch / 開始新的完整抓取** always creates a new Run ID and staging directory.
+- Same-run GET retries are limited to three attempts for network/timeout, 408, 429, and selected 5xx failures. HTTP 400, 401, 403, and 404 are never retried.
+- Run-level failures write a small error manifest, identify the faulting Issue, mark remaining Issues as not attempted, release mutation locks, and permanently retain the failed staging until explicit deletion.
+- Eligible requires consistent Issue ID/Key, returned full fields, complete Changelog and Comments pagination, readable canonical JSON/NDJSON, and matching SHA-256 and file sizes. Core validation failures retain canonical Raw and a failure record but are excluded from formal import.
+- Start Date normalization reports `present`, `absent`, `unparseable`, or `ambiguous`. Start Date and user enrichment warnings, normalized-field warnings, and attachment bodies not being downloaded do not block Eligible when core Raw remains complete.
+- Remote Links is optional and OFF by default. Its states are `available`, `unsupported`, `permission_denied`, `temporarily_unavailable`, and `not_attempted`; failures retain HTTP/error/attempt metadata and warnings without blocking Eligible or masquerading as an empty response.
+- Only a fully `completed` run can produce a formal Source Archive. Export streams canonical files into a versioned ZIP with manifest, Issue index, hashes, and section coverage, reopens the ZIP, and verifies entry hashes and sizes before `safeForAutomaticImport` becomes true.
+- Successfully verified staging is retained for seven days from successful export. User-cancelled staging is retained for 30 days. Fetch failures, export failures, incomplete runs, and legacy staging are retained permanently until explicit safe deletion; a successful export retry starts the seven-day window. Active staging and formal Export ZIP files are never removed by staging cleanup.
+- Legacy v0.2.29 staging is visible through a read-only adapter and cannot be resumed or formally exported.
+- Step 5 provides Save Full Fetch Result, Export Source Archive Import Package, and Generate Debug Bundle. The old manual Save Full Fetch Raw Data action is removed because main-process staging owns raw persistence.
+- Preview uses Run Summary → Issue List → single-Issue expansion. Snapshot and normalized fields are read only for the expanded Issue; the complete Run Raw is never sent through renderer IPC.
+- Debug Bundles include the current Run's complete sanitized canonical Evidence and Full Fetch Result in a streaming, atomically renamed ZIP. Credentials and token URL parameters are removed; email, accountId, and displayName are deterministically pseudonymized. Issue Key, Summary, Description, and Comments remain available, so the UI warns that a bundle may contain company Jira content and personal data. Attachment bodies are never downloaded or included.
 
 - Stability setup, results, active tab, filters, sort, and visible columns persist for the current app session.
 - Formal Stability and Timeline queries use only `escaped_username`; new executions do not perform username/email variant discovery.
@@ -29,11 +35,13 @@ Version 0.2.28 adds crash-safe **Full Fetch Staging / Full Fetch 增量暫存** 
 4. Related Issues
 5. Export
 
-The Stability Probe defaults to **Force All Rounds / 強制執行全部輪次**. Formal Timeline building defaults to **Stop When Stable / 穩定後提前停止**. Both use the same sequential round-first executor: every date window in a round completes before round stability is evaluated, and the configured delay is applied only between complete rounds.
+The Stability Probe and formal Timeline builder default to **Force All Rounds / 強制執行全部輪次** with three rounds. Both use the same sequential round-first executor: every date window in a round completes before round stability is evaluated, and the configured delay is applied only between complete rounds. Stable results do not stop the default three-round run.
 
 Round diagnostics separate primary Jira targets from Jira-like keys referenced in titles or summaries. V2 exports include round fingerprints, union, intersection, variable events, consistency rate, per-window diagnostics, API/processing duration, progress, and ETA. Legacy v1 files remain identifiable as `window_first`; they are not converted into synthetic rounds.
 
-The Source Archive Import Package contains only eligible sanitized Jira and Confluence Full Fetch raw JSON envelopes. It excludes Activity Stream data, probe results, timeline, evidence, coverage diagnostics, UI state, debug logs, credentials, attachment files, and partial Full Fetch records. Export performs a sensitive-data scan before writing the package. Version 0.2.28 does not create or write a Source Archive SQLite database.
+The Source Archive Import Package contains only eligible canonical Issue files from a fully completed staging Run. Required-partial, final-failed, not-attempted, and excluded records block formal export. Export performs streaming hash and ZIP reopen verification. Version 0.2.30 does not create or write a Source Archive SQLite database.
+
+User Analysis defaults are Project Scope `COPGEN1`, Start Date `2026-01-01`, End Date equal to the current `Asia/Taipei` calendar date, Calendar Month request windows, Force All Rounds, three rounds, and Fetch Remote Links OFF. For 2026-01-01 through 2026-07-21 this produces seven calendar windows and 21 logical window-round tasks.
 
 Step 1 combines the selected user, inclusive date range, optional project scope, Live Jira API source, timeline build action, timeline summary, and event inspection. Later steps repeat a compact setup summary and remain blocked until their required evidence exists. Advanced Tools and Candidate Search are no longer exposed in User Analysis.
 
@@ -51,6 +59,7 @@ Evidence IDs use a stable SHA-256 fingerprint. The review table supports multi-s
 
 Workflow exports are auto-saved under `<runtime>/exports/user-analysis/workflow/`:
 
+- `user-analysis-workflow-snapshot.json`
 - `timeline-issue-groups.json`
 - `timeline-source-system-diagnostics.json` (Debug Bundle)
 - `timeline-jira-relation-diagnostics.json` (Debug Bundle)
@@ -69,7 +78,7 @@ Workflow exports are auto-saved under `<runtime>/exports/user-analysis/workflow/
 - `jira-evidence-schema.json`
 - `analysis-roadmap.json`
 
-Checkpoint writes use an atomic temporary-file rename with retries at 100, 250, 500, 1000, and 2000 ms for `EPERM`, `EBUSY`, and `EACCES`. If rename remains unavailable, the app falls back to a direct checkpoint write and records structured recovery diagnostics instead of aborting a successful Full Fetch. Full Fetch reports list failed issues and aggregate them by HTTP status, error code, stage, and queue source. Debug Bundles include those reports, Jira-relation diagnostics, workflow details, and session events. This workflow remains read-only: it does not write Jira or a database and does not download attachment bodies.
+Canonical JSON and NDJSON files use bounded writes, temporary files, atomic replacement, SHA-256 hashes, and per-file sizes. Full Fetch reports list failed Issues and aggregate them by HTTP status, error code, stage, and queue source. Debug Bundles include those reports, canonical staging, Jira-relation diagnostics, workflow details, and session events. This workflow remains read-only: it does not write Jira or a database and does not download attachment bodies.
 
 The analyzer roadmap reserves Cloud AI Analyzer, Local AI Analyzer, and Offline Rule Analyzer as planned consumers of the normalized evidence schema. Live API is the current data source; Local Database and Hybrid sources are planned. Product goals cover Jira activity analysis, Confluence activity analysis, and combined Jira + Confluence analysis.
 
@@ -96,24 +105,23 @@ Build Time is shown in the sidebar and in Settings > System Status.
 
 ## Full Fetch Stability and Diagnostics
 
-User Analysis Full Fetch is a sequential, read-only Jira operation. Version 0.2.3 adds runtime diagnostics intended for larger queues:
+User Analysis Full Fetch is a sequential, read-only Jira operation. Version 0.2.30 keeps runtime diagnostics while replacing the old recovery model:
 
 - An auto log is created immediately under `<runtime>/logs/full-fetch/` and appended throughout the run.
-- An atomic checkpoint JSON records the current issue, last completed issue, counts, timing, memory, and per-issue status.
+- A small run manifest and index record terminal state, current/faulting Issue, counts, timing, hashes, sizes, and per-Issue canonical references.
 - The UI shows total/current progress, success/failed/skipped counts, elapsed time, average time, ETA, batch progress, and Node process memory snapshots.
 - Batch Size supports 10, 20, 40, or All; the default is 10.
-- Raw Data Mode supports Summary Only, Auto-save Raw per Issue, and Full Raw in Memory. Auto-save Raw per Issue is the default and writes sanitized issue files under `<runtime>/exports/raw-data/full-fetch-run-*/issues/`.
-- Auto-save and Summary Only keep full raw Jira responses out of renderer session memory. Full Raw in Memory is intended only for small queues and displays additional warnings.
+- Full Fetch always uses file-backed canonical storage. Complete raw Issue, Snapshot, and Evidence collections are not transmitted through renderer IPC.
 - Queues over 10 issues display a warning; queues over 40 require typing `CONFIRM` before requests begin.
-- Pause After Current Issue lets the active Jira request finish, writes a paused checkpoint, and does not start the next issue. Resume is not implemented in this version.
-- On the next visit to User Analysis, the newest unfinished checkpoint is shown with its current/last issue and diagnostic paths.
+- Stop After Current Issue lets the active Jira request finish safely and marks unscheduled Issues as not attempted. It does not create a resumable queue or partial formal archive.
+- On restart, stale running state becomes `aborted_on_restart` and is shown as terminal failed-run diagnostics with Open Folder, Create Debug Bundle, and explicit Delete actions.
 - Main/renderer/child process failures and unresponsive windows write masked diagnostics under `<runtime>/logs/crash/`.
 
-Runtime logs, checkpoints, raw diagnostic files, exports, databases, and release artifacts are ignored by Git. Full Fetch does not write Jira, does not write a database, and does not download attachment bodies.
+Runtime logs, staging files, raw diagnostic files, exports, databases, and release artifacts are ignored by Git. Full Fetch does not write Jira, does not write a database, and does not download attachment bodies.
 
 ## Large Queue Confirmation and User Actions
 
-Version 0.2.4 replaces the browser prompt used for Full Fetch queues over 40 issues with an in-app bilingual confirmation dialog. The Run Full Fetch button remains available for large queues; the user must type `CONFIRM` before the renderer invokes the Full Fetch IPC. Cancelling or submitting a non-matching value does not create a Full Fetch run, auto log, or checkpoint.
+Version 0.2.4 replaced the browser prompt used for Full Fetch queues over 40 issues with an in-app bilingual confirmation dialog. The Start New Full Fetch button remains available for large queues; the user must type `CONFIRM` before the renderer invokes the Full Fetch IPC. Cancelling or submitting a non-matching value does not create a Full Fetch run, auto log, or staging directory.
 
 User Analysis records important interactions with these diagnostic categories:
 

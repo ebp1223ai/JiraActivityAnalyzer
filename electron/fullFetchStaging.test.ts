@@ -2,56 +2,226 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { atomicWriteJson, cancelAndExportPartial, cleanupExpiredStaging, completeTarget, createStagingRun, discardStaging, exportStaging, loadStagingRun, previewStaging, retainUntil, scanRecoverableStaging, selectResumeTargets, setStagingStatus, stagingDebugIndex, stagingPaths, startTarget } from "./fullFetchStaging.js";
-import { listZipEntries } from "./sourceArchiveExporter.js";
+import { FileBackedWriteError } from "./fileBackedJson.js";
+import { resolveFullFetchStagingRoot } from "./fullFetchStagingPath.js";
+import { buildCurrentIssueSnapshot, normalizeCurrentIssueFields } from "./normalizedCurrentFields.js";
+import {
+  cleanupExpiredStaging,
+  completeTarget,
+  createStagingRun,
+  deleteFailedStaging,
+  exportStaging,
+  failStagingRun,
+  finalizeStagingRun,
+  isStagingMutationLocked,
+  listStagingRuns,
+  loadStagingRun,
+  previewStaging,
+  previewStagingIssue,
+  recoverStaleStaging,
+  setStagingStatus,
+  stagingDebugIndex,
+  stagingPaths,
+  startTarget
+} from "./fullFetchStaging.js";
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-full-fetch-staging-"));
+const root = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0230-staging-"));
 const stagingRoot = path.join(root, "full-fetch-staging");
 const exportsDir = path.join(root, "exports");
-const issue = (key: string) => ({ key, fields: { updated: "2026-07-21T01:00:00.000Z", summary: key } });
-const envelope = (key: string) => ({ issue: issue(key), sections: { issue: "complete", changelog: "complete", comments: "complete", attachments: "not_applicable", links: "complete" } });
+
+function envelope(issueKey: string, description = "safe fixture") {
+  return {
+    issue: {
+      id: issueKey.replace(/\D/g, "") || "1",
+      key: issueKey,
+      self: `https://jira.example.invalid/rest/api/2/issue/${issueKey}`,
+      fields: {
+        summary: description,
+        issuetype: { name: "Task" },
+        priority: { name: "Medium" },
+        status: { name: "In Progress" },
+        labels: ["full-fetch", "v0.2.30"],
+        customfield_12345: "2026-07-01",
+        duedate: "2026-07-31",
+        created: "2026-07-01T08:00:00.000+0800",
+        updated: "2026-07-22T08:00:00.000+0800"
+      },
+      names: { customfield_12345: "Start Date" },
+      schema: { customfield_12345: { type: "date", custom: "com.atlassian.jira.plugin.system.customfieldtypes:datepicker" } },
+      renderedFields: {}
+    },
+    changelogHistories: [{ id: "1", items: [{ field: "status", fromString: "Open", toString: "In Progress" }] }],
+    comments: [{ id: "1", body: description }],
+    attachments: [{ id: "1", filename: "fixture.txt", size: 42 }],
+    parsedUsers: ["fixture.user"],
+    evidenceEvents: [{ evidenceId: "fixture", issueKey }],
+    issueLinks: [],
+    remoteLinks: [],
+    endpointMetadata: [
+      { method: "GET", endpoint: `/issue/${issueKey}`, status: 200, attempts: 1, fetchedAt: "2026-07-22T00:00:00.000Z" },
+      { method: "GET", endpoint: `/issue/${issueKey}/changelog`, status: 200, attempts: 1, fetchedAt: "2026-07-22T00:00:00.000Z" },
+      { method: "GET", endpoint: `/issue/${issueKey}/comment`, status: 200, attempts: 1, fetchedAt: "2026-07-22T00:00:00.000Z" }
+    ],
+    requestMetadata: { apiVersion: "v2", fetchedAt: "2026-07-22T00:00:00.000Z", fetchRemoteLinks: false },
+    paginationMetadata: { comments: { pageCount: 1, fetchedCount: 1, complete: true }, changelog: { pageCount: 1, fetchedCount: 1, complete: true } },
+    completenessMetadata: { requiredMissingSections: [] }
+  };
+}
 
 try {
-  const run = createStagingRun(stagingRoot, { runId: "run-1", selectedUser: "roger_hsieh", queue: [{ key: "ABC-1" }, { key: "ABC-2" }, { key: "ABC-3" }, { key: "ABC-4" }] });
-  assert.equal(run.state.total, 4); assert.equal(run.state.status, "created"); assert.ok(fs.existsSync(stagingPaths(run).state)); assert.doesNotThrow(() => loadStagingRun(run.dir));
-  startTarget(run, "ABC-1");
-  const first = completeTarget(run, "ABC-1", { status: "eligible", rawEnvelope: envelope("ABC-1"), classification: "complete" });
-  assert.equal(first.status, "eligible"); assert.ok(first.rawFilePath.includes("completed/")); assert.match(first.contentHash, /^sha256:[a-f0-9]{64}$/); const originalHash = first.contentHash;
-  startTarget(run, "ABC-1"); const duplicate = completeTarget(run, "ABC-1", { status: "eligible", rawEnvelope: envelope("ABC-1"), classification: "complete" }); assert.equal(duplicate.contentHash, originalHash); assert.equal(fs.readFileSync(stagingPaths(run).eligible, "utf8").trim().split(/\r?\n/).length, 1);
-  startTarget(run, "ABC-2");
-  const partial = completeTarget(run, "ABC-2", { status: "partial", rawEnvelope: envelope("ABC-2"), missingSections: ["comments"], failedEndpoints: ["/comment"], classification: "partial_response", retryable: true, errorType: "timeout", errorMessage: "Token: secret-value timed out" });
-  assert.equal(partial.status, "partial"); assert.ok(partial.rawFilePath.includes("partial/"));
-  const eligibleJsonl = fs.readFileSync(stagingPaths(run).eligible, "utf8"); assert.match(eligibleJsonl, /ABC-1/); assert.doesNotMatch(eligibleJsonl, /ABC-2/); assert.doesNotMatch(fs.readFileSync(path.join(run.dir, partial.rawFilePath), "utf8"), /secret-value/);
-  startTarget(run, "ABC-3"); const failed = completeTarget(run, "ABC-3", { status: "failed", classification: "http_503", errorType: "http_503", errorMessage: "temporary" }); assert.equal(failed.status, "failed_retryable");
-  startTarget(run, "ABC-4"); completeTarget(run, "ABC-4", { status: "failed", classification: "http_401", errorType: "http_401", errorMessage: "Authorization: Bearer real-secret", retryable: false }); assert.doesNotMatch(fs.readFileSync(stagingPaths(run).errors, "utf8"), /real-secret/);
-  assert.equal(run.state.remaining, 2);
-  assert.deepEqual(selectResumeTargets(run).map((target) => target.objectKey), ["ABC-2", "ABC-3"]);
-  startTarget(run, "ABC-3", true); const failedAgain = completeTarget(run, "ABC-3", { status: "failed", classification: "timeout", errorType: "timeout", errorMessage: "again", retryable: true }); assert.equal(failedAgain.status, "failed_after_resume_retry"); assert.equal(failedAgain.resumeRetryCount, 1);
-  assert.deepEqual(selectResumeTargets(run).map((target) => target.objectKey), ["ABC-2"]);
-  startTarget(run, "ABC-2", true); const recovered = completeTarget(run, "ABC-2", { status: "eligible", rawEnvelope: envelope("ABC-2"), classification: "complete" }); assert.equal(recovered.status, "eligible"); assert.equal(run.checkpoint.targets[0].contentHash, originalHash);
-  const preview = previewStaging(run); assert.equal(preview.eligible, 2); assert.equal(preview.failed, 2); assert.ok(preview.stagingSizeBytes > 0);
-  assert.equal(preview.remaining, 0);
-  setStagingStatus(run, "running"); const interrupted = scanRecoverableStaging(stagingRoot); assert.equal(interrupted?.state.status, "interrupted"); assert.deepEqual(selectResumeTargets(interrupted!).map((target) => target.objectKey), []);
-  const partialExport = cancelAndExportPartial(interrupted!, exportsDir); assert.equal(partialExport.packageStatus, "partial"); assert.equal(partialExport.safeForAutomaticImport, false); assert.ok(fs.existsSync(partialExport.packagePath)); assert.ok(listZipEntries(fs.readFileSync(partialExport.packagePath)).includes("source-archive-import-package/jira-full-fetch-payloads.jsonl")); assert.equal(interrupted!.state.status, "partial_exported");
-  const cancelResumeRun = createStagingRun(stagingRoot, { runId: "cancel-resume", selectedUser: "u", queue: [{ key: "CANCEL-1" }, { key: "CANCEL-2" }] }); startTarget(cancelResumeRun, "CANCEL-1"); completeTarget(cancelResumeRun, "CANCEL-1", { status: "eligible", rawEnvelope: envelope("CANCEL-1") }); cancelAndExportPartial(cancelResumeRun, exportsDir); assert.equal(cancelResumeRun.state.remaining, 1); const afterCancelRecovery = scanRecoverableStaging(stagingRoot); assert.equal(afterCancelRecovery?.state.stagingId, cancelResumeRun.state.stagingId); assert.deepEqual(selectResumeTargets(afterCancelRecovery!).map((target) => target.objectKey), ["CANCEL-2"]);
-  assert.equal(new Date(retainUntil("2026-07-01T00:00:00.000Z")).getTime(), new Date("2026-07-08T00:00:00.000Z").getTime());
-  const debug = stagingDebugIndex(interrupted); assert.equal(debug.stagingAvailable, true); assert.ok(debug.omittedCount >= 2); assert.equal(debug.finalPackageHash?.length, 64);
-  const staleRun = createStagingRun(stagingRoot, { runId: "stale", selectedUser: "u", queue: [{ key: "STALE-1" }, { key: "STALE-2" }] });
-  setStagingStatus(staleRun, "running"); startTarget(staleRun, "STALE-1"); startTarget(staleRun, "STALE-2", true);
-  const staleRecovered = scanRecoverableStaging(stagingRoot)!;
-  const staleReloaded = loadStagingRun(staleRun.dir);
-  assert.equal(staleReloaded.checkpoint.targets[0].status, "in_progress");
-  assert.equal(staleReloaded.checkpoint.targets[1].status, "failed_after_resume_retry");
-  assert.deepEqual(selectResumeTargets(staleReloaded).map((target) => target.objectKey), ["STALE-1"]);
-  assert.ok(staleRecovered);
-  const completeRun = createStagingRun(stagingRoot, { runId: "run-complete", selectedUser: "u", queue: [{ key: "DONE-1" }] }); startTarget(completeRun, "DONE-1"); completeTarget(completeRun, "DONE-1", { status: "eligible", rawEnvelope: envelope("DONE-1") }); setStagingStatus(completeRun, "ready_to_export");
-  const finalExport = exportStaging(completeRun, exportsDir); assert.equal(finalExport.packageStatus, "complete"); assert.equal(finalExport.safeForAutomaticImport, true); assert.equal(completeRun.state.status, "exported");
-  const failedExportRun = createStagingRun(stagingRoot, { runId: "export-retry", selectedUser: "u", queue: [{ key: "RETRY-1" }] }); startTarget(failedExportRun, "RETRY-1"); completeTarget(failedExportRun, "RETRY-1", { status: "eligible", rawEnvelope: envelope("RETRY-1") });
-  const blockedOutput = path.join(root, "blocked-output"); fs.writeFileSync(blockedOutput, "file", "utf8"); assert.throws(() => exportStaging(failedExportRun, blockedOutput)); assert.equal(failedExportRun.state.status, "export_failed"); fs.rmSync(blockedOutput); const retryExport = exportStaging(failedExportRun, exportsDir); assert.equal(retryExport.packageStatus, "complete");
-  const sensitiveRun = createStagingRun(stagingRoot, { runId: "sensitive", selectedUser: "u", queue: [{ key: "SECRET-1" }] }); startTarget(sensitiveRun, "SECRET-1"); const sensitive = completeTarget(sensitiveRun, "SECRET-1", { status: "eligible", rawEnvelope: { ...envelope("SECRET-1"), apiToken: "must-not-leak" } }); assert.equal(sensitive.status, "failed_non_retryable"); assert.equal(fs.existsSync(stagingPaths(sensitiveRun).eligible), false);
-  const early = cleanupExpiredStaging(stagingRoot, new Date(completeRun.state.exportedAt!)); assert.ok(early.some((item) => item.stagingId === completeRun.state.stagingId && !item.removed));
-  const late = cleanupExpiredStaging(stagingRoot, new Date(new Date(completeRun.state.retainUntil!).getTime() + 1)); assert.ok(late.some((item) => item.stagingId === completeRun.state.stagingId && item.removed)); assert.ok(fs.existsSync(finalExport.packagePath));
-  const discarded = createStagingRun(stagingRoot, { runId: "discard", selectedUser: "u", queue: [] }); discardStaging(discarded); assert.equal(discarded.state.status, "discarded");
-  const atomicPath = path.join(root, "atomic.json"); atomicWriteJson(atomicPath, { ok: true }); assert.deepEqual(JSON.parse(fs.readFileSync(atomicPath, "utf8")), { ok: true }); assert.equal(fs.readdirSync(root).some((name) => name.endsWith(".tmp")), false);
-  console.log("Full Fetch staging unit/integration tests passed.");
-} finally { fs.rmSync(root, { recursive: true, force: true }); }
+  assert.equal(resolveFullFetchStagingRoot({ platform: "win32", localAppData: "C:\\Users\\fixture\\AppData\\Local", temporaryDir: root, userDataDir: path.join(root, "user-data") }), path.join("C:\\Users\\fixture\\AppData\\Local", "JiraActivityAnalyzer", "full-fetch-staging"));
+  assert.equal(resolveFullFetchStagingRoot({ override: path.join(root, "custom"), temporaryDir: root, userDataDir: path.join(root, "user-data") }), path.join(root, "custom"));
+
+  const normalizedFixture = normalizeCurrentIssueFields(buildCurrentIssueSnapshot({
+    key: "FIELD-1",
+    fields: { duedate: null, customfield_date_a: "2026-07-01", customfield_date_b: "2026-07-02", customfield_text: "not a date" },
+    names: { customfield_date_a: "Start Date", customfield_date_b: " start date ", customfield_text: "Start Date" },
+    schema: { customfield_date_a: { type: "date" }, customfield_date_b: { type: "datetime" }, customfield_text: { type: "string" } }
+  }, "2026-07-22T00:00:00.000Z"));
+  assert.equal(normalizedFixture.fields.find((field) => field.key === "dueDate")?.valueStatus, "present_empty");
+  assert.equal(normalizedFixture.fields.find((field) => field.key === "startDate")?.valueStatus, "field_ambiguous");
+  assert.equal(normalizedFixture.fields.find((field) => field.key === "startDate")?.semanticStatus, "ambiguous");
+  assert.deepEqual(normalizedFixture.fields.find((field) => field.key === "startDate")?.candidateFieldIds, ["customfield_date_a", "customfield_date_b"]);
+  const unresolvedStart = normalizeCurrentIssueFields(buildCurrentIssueSnapshot({ key: "FIELD-2", fields: {}, names: {}, schema: {} }));
+  assert.equal(unresolvedStart.fields.find((field) => field.key === "startDate")?.valueStatus, "field_unresolved");
+  assert.equal(unresolvedStart.fields.find((field) => field.key === "startDate")?.semanticStatus, "absent");
+  const unparseableStart = normalizeCurrentIssueFields(buildCurrentIssueSnapshot({ key: "FIELD-3", fields: { customfield_bad: "not-a-date" }, names: { customfield_bad: "Start Date" }, schema: { customfield_bad: { type: "date" } } }));
+  assert.equal(unparseableStart.fields.find((field) => field.key === "startDate")?.semanticStatus, "unparseable");
+
+  const complete = createStagingRun(stagingRoot, {
+    runId: "run-complete",
+    selectedUser: "fixture.user",
+    queue: [{ key: "ABC-1" }, { key: "ABC-2" }],
+    runContext: { projectScope: "ABC", dateRange: { start: "2026-07-01", end: "2026-07-22" }, selectedIssues: ["ABC-1", "ABC-2"] }
+  });
+  setStagingStatus(complete, "running");
+  startTarget(complete, "ABC-1");
+  const first = completeTarget(complete, "ABC-1", { status: "eligible", rawEnvelope: envelope("ABC-1", "x".repeat(256 * 1024)) });
+  assert.equal(first.status, "eligible");
+  assert.ok(first.sizeBytes > 512 * 1024, "canonical files should stream values larger than the writer chunk size");
+  assert.ok(first.currentIssueSnapshotRef && fs.existsSync(path.join(complete.dir, first.currentIssueSnapshotRef.path)));
+  assert.equal(first.normalizedCurrentFields.find((field) => field.key === "startDate")?.value, "2026-07-01");
+  assert.equal(first.normalizedCurrentFields.find((field) => field.key === "startDate")?.valueStatus, "present_value");
+  assert.equal(first.normalizedCurrentFields.find((field) => field.key === "resolution")?.valueStatus, "not_returned");
+  const runPreview = previewStaging(complete);
+  assert.equal(Object.prototype.hasOwnProperty.call(runPreview.issueSummaries[0], "normalizedCurrentFields"), false, "run preview must not preload Issue fields");
+  const expandedPreview = previewStagingIssue(complete, "ABC-1");
+  assert.equal(expandedPreview.snapshotLoadStatus, "loaded");
+  assert.ok(expandedPreview.normalizedCurrentFields.length > 0);
+
+  startTarget(complete, "ABC-2");
+  const remoteWarningEnvelope = envelope("ABC-2") as Record<string, unknown>;
+  (remoteWarningEnvelope.requestMetadata as Record<string, unknown>).fetchRemoteLinks = true;
+  remoteWarningEnvelope.remoteLinks = null;
+  const remoteWarning = completeTarget(complete, "ABC-2", { status: "eligible", rawEnvelope: remoteWarningEnvelope, optionalEndpointStatus: { remoteLinks: { enabled: true, status: "permission_denied", archiveBlocking: false, retryable: false, warning: "Remote Links permission denied.", httpStatus: 403, errorCode: "HTTP_403", attemptCount: 1, fetchedAt: "2026-07-22T00:00:00.000Z" } }, optionalWarnings: ["Remote Links permission denied."] });
+  assert.equal(remoteWarning.status, "eligible", "Remote Links failure must not block Eligible");
+  assert.equal(remoteWarning.optionalEndpointStatus.remoteLinks.status, "permission_denied");
+  const completeState = finalizeStagingRun(complete);
+  assert.equal(completeState.status, "completed");
+  assert.equal(completeState.remaining, 0);
+  assert.equal(completeState.archiveEligible, 2);
+  const exported = exportStaging(complete, exportsDir);
+  assert.equal(exported.packageStatus, "complete");
+  assert.equal(exported.safeForAutomaticImport, true);
+  assert.equal(exported.verification.zipReopenVerified, true);
+  assert.equal(exported.verification.hashMatchedCount, exported.verification.entryCount);
+  assert.equal(isStagingMutationLocked(complete.state.stagingId), false);
+  assert.ok(fs.existsSync(exported.packagePath));
+
+  const coreIncomplete = createStagingRun(stagingRoot, { runId: "run-core-incomplete", selectedUser: "fixture.user", queue: [{ key: "CORE-1" }] });
+  setStagingStatus(coreIncomplete, "running"); startTarget(coreIncomplete, "CORE-1");
+  const incompleteEnvelope = envelope("CORE-1") as Record<string, unknown>;
+  (incompleteEnvelope.paginationMetadata as Record<string, Record<string, unknown>>).comments.complete = false;
+  const incompleteTarget = completeTarget(coreIncomplete, "CORE-1", { status: "eligible", rawEnvelope: incompleteEnvelope });
+  assert.equal(incompleteTarget.status, "required_partial");
+  assert.ok(incompleteTarget.currentIssueSnapshotRef && fs.existsSync(path.join(coreIncomplete.dir, incompleteTarget.currentIssueSnapshotRef.path)), "Raw must be retained when core validation fails");
+  assert.equal(finalizeStagingRun(coreIncomplete).status, "completed_with_errors");
+
+  const partial = createStagingRun(stagingRoot, { runId: "run-partial", selectedUser: "fixture.user", queue: [{ key: "PART-1" }] });
+  setStagingStatus(partial, "running");
+  startTarget(partial, "PART-1");
+  completeTarget(partial, "PART-1", { status: "required_partial", rawEnvelope: envelope("PART-1"), missingSections: ["comments"], failedEndpoints: ["/comment"], classification: "required_partial" });
+  assert.equal(finalizeStagingRun(partial).status, "completed_with_errors");
+  assert.throws(() => exportStaging(partial, exportsDir), /Only a complete Full Fetch run/);
+  assert.equal(isStagingMutationLocked(partial.state.stagingId), false);
+
+  const largeQueue = Array.from({ length: 100 }, (_, index) => ({ key: `BIG-${index + 1}` }));
+  const failed = createStagingRun(stagingRoot, { runId: "run-failed-at-20", selectedUser: "fixture.user", queue: largeQueue });
+  setStagingStatus(failed, "running");
+  for (let index = 0; index < 19; index += 1) {
+    startTarget(failed, largeQueue[index].key);
+    completeTarget(failed, largeQueue[index].key, { status: "excluded", classification: "lightweight_test_fixture" });
+  }
+  startTarget(failed, "BIG-20");
+  const failedState = failStagingRun(failed, "BIG-20", new FileBackedWriteError("json_value_range_error", "Canonical JSON value exceeded the writer range.", new RangeError("fixture")), "full_fetch_pipeline");
+  assert.equal(failedState.status, "failed_final");
+  assert.equal(failedState.runError?.code, "json_value_range_error");
+  assert.equal(failedState.runError?.stage, "canonical_write");
+  assert.equal(failedState.faultingObjectKey, "BIG-20");
+  assert.equal(failedState.notAttempted, 80);
+  assert.equal(failed.index.targets.find((target) => target.objectKey === "BIG-20")?.status, "failed_final");
+  assert.equal(isStagingMutationLocked(failed.state.stagingId), false);
+  assert.throws(() => exportStaging(failed, exportsDir), /Only a complete Full Fetch run/);
+  const independentRun = createStagingRun(stagingRoot, { runId: "run-after-failure", selectedUser: "fixture.user", queue: [{ key: "NEXT-1" }] });
+  assert.equal(independentRun.state.status, "created");
+  assert.notEqual(independentRun.state.stagingId, failed.state.stagingId);
+
+  const stale = createStagingRun(stagingRoot, { runId: "run-stale", selectedUser: "fixture.user", queue: [{ key: "STALE-1" }, { key: "STALE-2" }] });
+  setStagingStatus(stale, "running");
+  startTarget(stale, "STALE-1");
+  const recovered = recoverStaleStaging(stagingRoot).find((run) => run.state.stagingId === stale.state.stagingId);
+  assert.equal(recovered?.state.status, "aborted_on_restart");
+  assert.equal(recovered?.index.targets[0].status, "failed_final");
+  assert.equal(recovered?.index.targets[1].status, "not_attempted_due_to_run_failure");
+
+  const legacyRoot = path.join(root, "legacy-full-fetch-staging");
+  const legacyDir = path.join(legacyRoot, "FFS-LEGACY");
+  fs.mkdirSync(legacyDir, { recursive: true });
+  fs.writeFileSync(path.join(legacyDir, "staging-state.json"), JSON.stringify({ stagingId: "FFS-LEGACY", fullFetchRunId: "legacy-run", selectedUser: "legacy.user", createdAt: "2026-07-01T00:00:00.000Z" }), "utf8");
+  fs.writeFileSync(path.join(legacyDir, "queue-checkpoint.json"), JSON.stringify({ targets: [{ objectKey: "OLD-1", status: "interrupted" }] }), "utf8");
+  const legacy = loadStagingRun(legacyDir);
+  assert.equal(legacy.state.status, "legacy_incomplete");
+  assert.equal(legacy.state.legacyReadOnly, true);
+  assert.match(legacy.state.legacyMessage, /Resume is no longer supported/);
+  assert.throws(() => exportStaging(legacy, exportsDir), /read-only|Only a complete/i);
+
+  const listed = listStagingRuns(stagingRoot, legacyRoot);
+  assert.ok(listed.some((run) => run.state.stagingId === complete.state.stagingId));
+  assert.ok(listed.some((run) => run.state.stagingId === "FFS-LEGACY" && run.state.legacyReadOnly));
+  const debug = stagingDebugIndex(failed);
+  assert.equal(debug.stagingAvailable, true);
+  assert.equal(debug.status, "failed_final");
+  assert.equal(debug.faultingIssue, "BIG-20");
+  assert.ok(debug.includedFiles.includes("run-errors.json"));
+
+  assert.throws(() => deleteFailedStaging(stagingRoot, "../escape"), /Invalid staging ID/);
+  const deleted = deleteFailedStaging(stagingRoot, failed.state.stagingId);
+  assert.equal(deleted.ok, true);
+  assert.equal(fs.existsSync(failed.dir), false);
+  assert.throws(() => deleteFailedStaging(stagingRoot, complete.state.stagingId), /Only failed or discarded/);
+
+  const cancelled = createStagingRun(stagingRoot, { runId: "run-cancelled", selectedUser: "fixture.user", queue: [{ key: "STOP-1" }] });
+  setStagingStatus(cancelled, "running");
+  assert.equal(finalizeStagingRun(cancelled, true).status, "cancelled");
+
+  const exportFailure = createStagingRun(stagingRoot, { runId: "run-export-failure", selectedUser: "fixture.user", queue: [{ key: "EXP-1" }] });
+  setStagingStatus(exportFailure, "running"); startTarget(exportFailure, "EXP-1"); completeTarget(exportFailure, "EXP-1", { status: "eligible", rawEnvelope: envelope("EXP-1") }); finalizeStagingRun(exportFailure);
+  const invalidOutput = path.join(root, "not-a-directory"); fs.writeFileSync(invalidOutput, "fixture", "utf8");
+  assert.throws(() => exportStaging(exportFailure, invalidOutput, false, "2026-07-22T00:00:00.000Z"));
+  assert.equal(exportFailure.state.safeToCleanup, false); assert.equal((exportFailure.state.exportError?.code.length ?? 0) > 0, true);
+  fs.rmSync(invalidOutput);
+  const retryExport = exportStaging(exportFailure, exportsDir, false, "2026-08-01T00:00:00.000Z");
+  assert.equal(exportFailure.state.exportError, null); assert.equal(exportFailure.state.successfulExportAt, "2026-08-01T00:00:00.000Z");
+
+  const retention = cleanupExpiredStaging(stagingRoot, new Date("2030-01-01T00:00:00.000Z"));
+  assert.ok(retention.some((item) => item.stagingId === partial.state.stagingId && item.reason === "fetch_failure_permanent_retention"));
+  assert.ok(retention.some((item) => item.stagingId === cancelled.state.stagingId && item.reason === "cancelled_retention_expired" && item.removed));
+  assert.ok(retention.some((item) => item.stagingId === exportFailure.state.stagingId && item.reason === "verified_export_retention_expired" && item.removed));
+  assert.ok(fs.existsSync(retryExport.packagePath), "cleanup must not delete formal Export ZIP outside staging");
+  assert.equal(previewStaging(partial).stagingSizeBytes > 0, true);
+  assert.ok(fs.existsSync(stagingPaths(partial).result));
+
+  console.log("Full Fetch v0.2.30 file-backed staging tests passed.");
+} finally {
+  fs.rmSync(root, { recursive: true, force: true });
+}

@@ -1,6 +1,8 @@
 import { app } from "electron";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { resolveFullFetchStagingRoot } from "./fullFetchStagingPath.js";
 
 function executableDir() {
   if (process.env.PORTABLE_EXECUTABLE_DIR) return process.env.PORTABLE_EXECUTABLE_DIR;
@@ -9,6 +11,9 @@ function executableDir() {
 }
 
 export function getAppRuntimeDir() {
+  if (process.env.ELECTRON_UI_SMOKE === "1") {
+    return path.resolve(process.cwd(), "test-artifacts", `electron-ui-runtime-${process.pid}`);
+  }
   if (app.isPackaged) return executableDir();
   return process.cwd();
 }
@@ -66,6 +71,18 @@ export function getFullFetchRawRunsDir() {
 }
 
 export function getFullFetchStagingDir() {
+  return resolveFullFetchStagingRoot({
+    override: process.env.JAA_FULL_FETCH_STAGING_ROOT,
+    uiSmoke: process.env.ELECTRON_UI_SMOKE === "1",
+    processId: process.pid,
+    platform: process.platform,
+    localAppData: process.env.LOCALAPPDATA,
+    temporaryDir: os.tmpdir(),
+    userDataDir: app.getPath("userData")
+  });
+}
+
+export function getLegacyFullFetchStagingDir() {
   return path.join(getAppRuntimeDir(), "full-fetch-staging");
 }
 

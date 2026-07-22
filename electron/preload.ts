@@ -53,14 +53,14 @@ contextBridge.exposeInMainWorld("desktopApp", {
     fullFetch: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch", payload),
     previewSourceArchive: (payload: unknown) => ipcRenderer.invoke("user-analysis:preview-source-archive", payload),
     exportSourceArchive: (payload: unknown) => ipcRenderer.invoke("user-analysis:export-source-archive", payload),
-    pauseFullFetch: () => ipcRenderer.invoke("user-analysis:pause-full-fetch"),
     cancelFullFetch: () => ipcRenderer.invoke("user-analysis:cancel-full-fetch"),
     scanFullFetchStaging: () => ipcRenderer.invoke("user-analysis:scan-full-fetch-staging"),
+    previewFullFetchIssue: (payload: { stagingId: string; issueKey: string }) => ipcRenderer.invoke("user-analysis:preview-full-fetch-issue", payload),
     fullFetchStagingAction: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch-staging-action", payload),
     logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO"; message: string }) => ipcRenderer.invoke("user-analysis:log-action", payload),
     updateWorkflowSnapshot: (payload: unknown) => ipcRenderer.invoke("user-analysis:update-workflow-snapshot", payload),
+    loadWorkflowSnapshot: () => ipcRenderer.invoke("user-analysis:load-workflow-snapshot"),
     actionLogDiagnostics: () => ipcRenderer.invoke("user-analysis:action-log-diagnostics"),
-    latestFullFetchCheckpoint: () => ipcRenderer.invoke("user-analysis:latest-full-fetch-checkpoint"),
     openDiagnosticsFolder: (payload?: { filePath?: string }) => ipcRenderer.invoke("user-analysis:open-diagnostics-folder", payload),
     onFullFetchProgress: (callback: (progress: unknown) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => callback(progress);
@@ -73,6 +73,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
       return () => ipcRenderer.removeListener("user-analysis:full-fetch-log", listener);
     },
     saveExport: (payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => ipcRenderer.invoke("user-analysis:save-export", payload),
+    saveFullFetchResult: (payload: { runId: string }) => ipcRenderer.invoke("user-analysis:save-full-fetch-result", payload),
     openExportFolder: (payload?: { folderPath?: string }) => ipcRenderer.invoke("user-analysis:open-export-folder", payload),
     autoSaveRun: (payload: unknown) => ipcRenderer.invoke("user-analysis:auto-save-run", payload)
   },
