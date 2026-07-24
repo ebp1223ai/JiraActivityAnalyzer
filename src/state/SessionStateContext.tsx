@@ -1,6 +1,6 @@
 import { createContext, useContext, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { defaultWorkflowSteps, type FetchQueueMetadata, type RelatedCandidateIssue, type TimelineIssueGroup, type WorkflowStepStatus } from "../../electron/userAnalysisWorkflow";
+import { defaultWorkflowSteps, type FetchQueueMetadata, type IssueKeySetReconciliation, type RelatedCandidateIssue, type TimelineIssueGroup, type WorkflowStepStatus } from "../../electron/userAnalysisWorkflow";
 import type { ActivityStreamProbeRunV2 } from "../../electron/activityStreamRoundStability";
 import type { ActivityStreamBenchmarkRun } from "../../electron/activityStreamBenchmark";
 import { USER_ANALYSIS_DEFAULTS, userAnalysisInitialDates } from "../../electron/analysisDefaults";
@@ -443,43 +443,28 @@ export type UserAnalysisPrecisionIssueKeySets = {
   recommendedIssueKeys: string[];
 };
 
-export type UserAnalysisFullFetchReportRow = {
-  issueKey: string;
-  summary: string;
-  status: string;
-  fetchStatus: "pending" | "running" | "success" | "partial" | "failed" | "skipped";
-  httpStatus: string;
-  errorCode: string;
-  stage: string;
-  source: string;
-  matchedReason: string;
-  retryCount: number;
-  occurredAt: string;
-  changelogHistories: number;
-  changelogItems: number;
-  comments: number;
-  attachmentsMetadata: number;
-  issueLinks: number;
-  parsedUsers: number;
-  estimatedEvents: number;
-  duration: string;
-  error: string;
-  lastFetchedAt: string;
-};
-
 export type UserAnalysisFullFetchSummary = {
+  queueTotal?: number;
   totalIssues: number;
   total?: number;
+  planned?: number;
   completed?: number;
   pending: number;
   running: number;
   success: number;
   eligible?: number;
+  excluded?: number;
+  invalid?: number;
+  attempted?: number;
   partial?: number;
   failed: number;
   skipped: number;
   notAttempted?: number;
   archiveEligible?: boolean;
+  archiveBlockedReasons?: string[];
+  countReconciliationPassed?: boolean;
+  countReconciliation?: Record<string, unknown>;
+  issueKeyReconciliation?: IssueKeySetReconciliation;
   totalChangelogHistories: number;
   totalChangelogItems: number;
   totalComments: number;
@@ -487,34 +472,6 @@ export type UserAnalysisFullFetchSummary = {
   totalIssueLinks: number;
   totalParsedUsers: number;
   totalEstimatedEvents: number;
-};
-
-export type JiraEvidenceEvent = {
-  evidenceId: string;
-  schemaVersion: "jira_evidence_event_v1";
-  system: "jira";
-  evidenceScope: "direct" | "context" | "related_context" | "excluded";
-  evidenceType: "jira_comment" | "jira_changelog" | "jira_attachment_metadata" | "jira_issue_link" | "jira_issue_link_context" | "jira_remote_link" | "jira_remote_link_context" | "jira_issue_snapshot_context";
-  activityType: string;
-  issueKey: string;
-  projectKey: string;
-  selectedUser: string;
-  actor: string;
-  eventTime: string;
-  withinSelectedDateRange: boolean;
-  source: "jira_full_fetch";
-  sourceIssueKey: string;
-  sourceLayer: "direct_activity_issue" | "evidence_related_issue";
-  relatedToTimelineEventIds: string[];
-  field: string;
-  fromValue: string;
-  toValue: string;
-  title: string;
-  contentSummary: string;
-  rawTextPreview: string;
-  confidence: "high" | "medium" | "low";
-  extractionReason: string;
-  rawRef: Record<string, unknown>;
 };
 
 export type JiraEvidenceSummary = {
@@ -547,7 +504,11 @@ export type UserAnalysisFullFetchMemory = {
 export type UserAnalysisFullFetchProgress = {
   runId: string;
   status: string;
+  queueTotal?: number;
   total: number;
+  planned?: number;
+  excluded?: number;
+  invalid?: number;
   currentIndex: number;
   currentIssueKey: string;
   lastCompletedIndex: number;
@@ -561,9 +522,6 @@ export type UserAnalysisFullFetchProgress = {
   elapsedMs: number;
   averageMsPerIssue: number;
   estimatedRemainingMs: number;
-  batchSize: number;
-  currentBatch: number;
-  totalBatches: number;
   rawDataMode: "auto_save_raw_per_issue";
   fetchRemoteLinks: boolean;
   memory: UserAnalysisFullFetchMemory;
@@ -586,7 +544,6 @@ export type UserAnalysisSessionState = {
   jqlStrategy: "base search without updatedBy" | "base-in-query" | "base-or-chain-fallback";
   updatedByStatus: "disabled" | "success" | "failed" | "not_supported";
   candidateSafetyLimit: number;
-  fetchLimit: number;
   candidateIssues: UserAnalysisCandidateIssue[];
   selectedForFetch: string[];
   excludedIssues: string[];
@@ -685,7 +642,6 @@ export type UserAnalysisSessionState = {
   lastSavedPrecisionProbePath: string;
   showHelpTips: boolean;
   helpOpen: boolean;
-  expandedFetchReportIssues: string[];
   page: number;
   pageSize: number;
   search: string;
@@ -700,15 +656,7 @@ export type UserAnalysisSessionState = {
   fullFetchFinishedAt: string;
   fullFetchStatus: "idle" | "running" | "completed" | "completed_with_partial" | "completed_with_errors" | "failed" | "failed_final" | "aborted_on_restart" | "discarded";
   fullFetchSummary: UserAnalysisFullFetchSummary;
-  fullFetchReport: UserAnalysisFullFetchReportRow[];
-  fullFetchResultsByIssue: unknown[];
-  fullFetchRawDataByIssueSanitized: unknown | null;
-  jiraEvidenceEvents: JiraEvidenceEvent[];
   jiraEvidenceSummary: JiraEvidenceSummary | null;
-  jiraEvidenceExcludedSummary: { schemaVersion: string; excludedCount: number; byReason: Record<string, number> } | null;
-  jiraEvidenceFiles: { events: string; summary: string; excludedSummary: string; schema: string; roadmap: string } | null;
-  jiraEvidenceFilters: { evidenceTypes: string[]; activityTypes: string[]; issueKeys: string[]; scopes: string[]; confidences: string[]; actors: string[] };
-  expandedJiraEvidence: string[];
   fullFetchWarnings: string[];
   fullFetchErrors: string[];
   fullFetchProgress: UserAnalysisFullFetchProgress;
@@ -721,15 +669,11 @@ export type UserAnalysisSessionState = {
   actionLogAvailable: boolean;
   rawDataMode: "auto_save_raw_per_issue";
   fetchRemoteLinks: boolean;
-  batchSize: 10 | 20 | 40 | "all";
   failedFullFetchRun: Record<string, unknown> | null;
   failedFullFetchRunDismissed: boolean;
   largeQueueConfirmationOpen: boolean;
   largeQueueConfirmInput: string;
   largeQueueConfirmError: string;
-  fetchReportPage: number;
-  fetchReportPageSize: number;
-  fetchReportFilter: "all" | "success" | "partial" | "failed";
   lastSavedFullFetchResultPath: string;
   rawSearchMetadata: unknown | null;
   saving: boolean;
@@ -789,7 +733,6 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   jqlStrategy: "base search without updatedBy",
   updatedByStatus: "disabled",
   candidateSafetyLimit: 1000,
-  fetchLimit: 40,
   candidateIssues: [],
   selectedForFetch: [],
   excludedIssues: [],
@@ -937,7 +880,6 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   lastSavedPrecisionProbePath: "",
   showHelpTips: true,
   helpOpen: false,
-  expandedFetchReportIssues: [],
   page: 1,
   pageSize: 40,
   search: "",
@@ -952,12 +894,20 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   fullFetchFinishedAt: "",
   fullFetchStatus: "idle",
   fullFetchSummary: {
+    queueTotal: 0,
     totalIssues: 0,
+    planned: 0,
     pending: 0,
     running: 0,
     success: 0,
+    eligible: 0,
+    excluded: 0,
+    invalid: 0,
+    attempted: 0,
     failed: 0,
     skipped: 0,
+    countReconciliationPassed: true,
+    archiveBlockedReasons: [],
     totalChangelogHistories: 0,
     totalChangelogItems: 0,
     totalComments: 0,
@@ -966,15 +916,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     totalParsedUsers: 0,
     totalEstimatedEvents: 0
   },
-  fullFetchReport: [],
-  fullFetchResultsByIssue: [],
-  fullFetchRawDataByIssueSanitized: null,
-  jiraEvidenceEvents: [],
   jiraEvidenceSummary: null,
-  jiraEvidenceExcludedSummary: null,
-  jiraEvidenceFiles: null,
-  jiraEvidenceFilters: { evidenceTypes: [], activityTypes: [], issueKeys: [], scopes: ["direct"], confidences: [], actors: ["roger_hsieh"] },
-  expandedJiraEvidence: [],
   fullFetchWarnings: [],
   fullFetchErrors: [],
   fullFetchProgress: {
@@ -991,9 +933,6 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     elapsedMs: 0,
     averageMsPerIssue: 0,
     estimatedRemainingMs: 0,
-    batchSize: 10,
-    currentBatch: 0,
-    totalBatches: 0,
     rawDataMode: "auto_save_raw_per_issue",
     fetchRemoteLinks: USER_ANALYSIS_DEFAULTS.fetchRemoteLinks,
     memory: { rssMB: 0, heapUsedMB: 0, heapTotalMB: 0, externalMB: 0, systemFreeMB: 0, rawDataEstimateMB: 0 },
@@ -1010,15 +949,11 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   actionLogAvailable: false,
   rawDataMode: "auto_save_raw_per_issue",
   fetchRemoteLinks: USER_ANALYSIS_DEFAULTS.fetchRemoteLinks,
-  batchSize: 10,
   failedFullFetchRun: null,
   failedFullFetchRunDismissed: false,
   largeQueueConfirmationOpen: false,
   largeQueueConfirmInput: "",
   largeQueueConfirmError: "",
-  fetchReportPage: 1,
-  fetchReportPageSize: 40,
-  fetchReportFilter: "all",
   lastSavedFullFetchResultPath: "",
   rawSearchMetadata: null,
   saving: false,

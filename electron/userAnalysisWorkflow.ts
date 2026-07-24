@@ -45,6 +45,57 @@ export type FetchQueueMetadata = {
   addedAt: string;
 };
 
+export type QueueTransitionRejection = {
+  issueKey: string;
+  reason: "INVALID_ISSUE_KEY" | "CANDIDATE_GROUP_NOT_FOUND" | "UNVERIFIED_JIRA_PROVENANCE";
+};
+
+export type QueueCandidateLike = {
+  key: string;
+  matchedReason: string;
+  queueMetadata?: FetchQueueMetadata;
+};
+
+export type TimelineQueueTransitionResult<T extends QueueCandidateLike> = {
+  ok: boolean;
+  error: string;
+  candidateIssues: T[];
+  selectedForFetch: string[];
+  acceptedIssueKeys: string[];
+  rejections: QueueTransitionRejection[];
+  selectedCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  deduplicatedCount: number;
+  addedCount: number;
+  mergedCount: number;
+  queueCountBefore: number;
+  queueCountAfter: number;
+};
+
+export type IssueKeySetReconciliation = {
+  schemaVersion: "selection_fetch_queue_reconciliation_v1";
+  status: "MATCH" | "MISMATCH";
+  sets: {
+    selected: { count: number; issueKeys: string[] };
+    fetchQueue: { count: number; issueKeys: string[] };
+    attempted: { count: number; issueKeys: string[] };
+    completed: { count: number; issueKeys: string[] };
+    partial: { count: number; issueKeys: string[] };
+    failed: { count: number; issueKeys: string[] };
+  };
+  differences: {
+    missingFromQueue: string[];
+    unexpectedInQueue: string[];
+    missingFromAttempted: string[];
+    unexpectedInAttempted: string[];
+    missingOutcome: string[];
+    unexpectedOutcome: string[];
+    duplicateOutcomeKeys: string[];
+    multiOutcomeKeys: string[];
+  };
+};
+
 export type RelatedIssueRelationType =
   | "epic_child_parent"
   | "epic_link_parent"
@@ -89,7 +140,7 @@ type TimelineEventLike = {
 
 const issueKeyPattern = /\b[A-Z][A-Z0-9_]*-\d+\b/g;
 
-function unique<T>(values: T[]) {
+function unique<T>(values: readonly T[]) {
   return Array.from(new Set(values));
 }
 
@@ -99,6 +150,15 @@ function record(value: unknown): Record<string, unknown> {
 
 function text(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? unique(value.map(text).filter(Boolean)) : [];
+}
+
+function finiteCount(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
 }
 
 function extractIssueKey(value: unknown) {
@@ -181,21 +241,229 @@ export function buildTimelineIssueGroups(events: TimelineEventLike[]): TimelineI
   })).sort((a, b) => b.eventCount - a.eventCount || a.issueKey.localeCompare(b.issueKey));
 }
 
-export function mergeQueueMetadata(current: FetchQueueMetadata | undefined, incoming: Partial<FetchQueueMetadata> & { source: FetchQueueSource; matchedReason: string }): FetchQueueMetadata {
+export function normalizeFetchQueueMetadata(value: unknown): FetchQueueMetadata {
+  const input = record(value);
+  const dateRange = record(input.dateRange);
+  const confidence = record(input.confidenceSummary);
+  const sources = stringArray(input.sources).filter((source): source is FetchQueueSource =>
+    ["activity_timeline", "advanced_candidate_search", "recommended_related_issue", "optional_related_issue", "manual"].includes(source)
+  );
+  const issueKeyRole = text(input.issueKeyRole);
   return {
-    sources: unique([...(current?.sources ?? []), incoming.source]),
-    matchedReasons: unique([...(current?.matchedReasons ?? []), incoming.matchedReason]),
-    selectedUser: incoming.selectedUser ?? current?.selectedUser ?? "",
-    dateRange: incoming.dateRange ?? current?.dateRange ?? { start: "", end: "" },
-    timelineEventIds: unique([...(current?.timelineEventIds ?? []), ...(incoming.timelineEventIds ?? [])]),
-    activityTypes: unique([...(current?.activityTypes ?? []), ...(incoming.activityTypes ?? [])]),
+    sources,
+    matchedReasons: stringArray(input.matchedReasons),
+    selectedUser: text(input.selectedUser),
+    dateRange: { start: text(dateRange.start), end: text(dateRange.end) },
+    timelineEventIds: stringArray(input.timelineEventIds),
+    activityTypes: stringArray(input.activityTypes),
     confidenceSummary: {
-      high: Math.max(current?.confidenceSummary.high ?? 0, incoming.confidenceSummary?.high ?? 0),
-      medium: Math.max(current?.confidenceSummary.medium ?? 0, incoming.confidenceSummary?.medium ?? 0),
-      low: Math.max(current?.confidenceSummary.low ?? 0, incoming.confidenceSummary?.low ?? 0)
+      high: finiteCount(confidence.high),
+      medium: finiteCount(confidence.medium),
+      low: finiteCount(confidence.low)
     },
-    issueKeyRole: incoming.issueKeyRole ?? current?.issueKeyRole ?? "unknown",
-    addedAt: current?.addedAt ?? incoming.addedAt ?? new Date().toISOString()
+    issueKeyRole: ["primary", "secondary", "primary_and_secondary"].includes(issueKeyRole)
+      ? issueKeyRole as TimelineIssueGroup["issueKeyRole"]
+      : "unknown",
+    addedAt: text(input.addedAt)
+  };
+}
+
+export function mergeQueueMetadata(current: FetchQueueMetadata | Partial<FetchQueueMetadata> | null | undefined, incoming: Partial<FetchQueueMetadata> & { source: FetchQueueSource; matchedReason: string }): FetchQueueMetadata {
+  const normalized = normalizeFetchQueueMetadata(current);
+  const incomingNormalized = normalizeFetchQueueMetadata(incoming);
+  return {
+    sources: unique([...normalized.sources, incoming.source]),
+    matchedReasons: unique([...normalized.matchedReasons, incoming.matchedReason]),
+    selectedUser: incomingNormalized.selectedUser || normalized.selectedUser,
+    dateRange: incomingNormalized.dateRange.start || incomingNormalized.dateRange.end ? incomingNormalized.dateRange : normalized.dateRange,
+    timelineEventIds: unique([...normalized.timelineEventIds, ...incomingNormalized.timelineEventIds]),
+    activityTypes: unique([...normalized.activityTypes, ...incomingNormalized.activityTypes]),
+    confidenceSummary: {
+      high: Math.max(normalized.confidenceSummary.high, incomingNormalized.confidenceSummary.high),
+      medium: Math.max(normalized.confidenceSummary.medium, incomingNormalized.confidenceSummary.medium),
+      low: Math.max(normalized.confidenceSummary.low, incomingNormalized.confidenceSummary.low)
+    },
+    issueKeyRole: incomingNormalized.issueKeyRole !== "unknown" ? incomingNormalized.issueKeyRole : normalized.issueKeyRole,
+    addedAt: normalized.addedAt || incomingNormalized.addedAt || new Date().toISOString()
+  };
+}
+
+const exactIssueKeyPattern = /^[A-Z][A-Z0-9_]*-\d+$/;
+
+export function normalizeIssueKey(value: unknown) {
+  const issueKey = text(value).trim().toUpperCase();
+  return exactIssueKeyPattern.test(issueKey) ? issueKey : "";
+}
+
+export function buildTimelineQueueTransition<T extends QueueCandidateLike>(input: {
+  groups: readonly unknown[];
+  selectedIssueKeys: readonly string[];
+  candidateIssues: readonly T[];
+  selectedForFetch: readonly string[];
+  selectedUser: string;
+  dateRange: { start: string; end: string };
+  addedAt?: string;
+  createCandidate: (issueKey: string, metadata: FetchQueueMetadata) => T;
+}): TimelineQueueTransitionResult<T> {
+  const selectedRaw = input.selectedIssueKeys.map((key) => text(key).trim().toUpperCase()).filter(Boolean);
+  const selectedKeys = unique(selectedRaw);
+  const groupByKey = new Map<string, Record<string, unknown>>();
+  let duplicateGroups = 0;
+  for (const value of input.groups) {
+    const group = record(value);
+    const issueKey = text(group.issueKey).trim().toUpperCase();
+    if (!issueKey || !selectedKeys.includes(issueKey)) continue;
+    if (groupByKey.has(issueKey)) duplicateGroups += 1;
+    else groupByKey.set(issueKey, group);
+  }
+
+  const existing = new Map<string, T>();
+  let duplicateExisting = 0;
+  for (const candidate of input.candidateIssues) {
+    const issueKey = text(candidate.key).trim().toUpperCase();
+    if (!issueKey) continue;
+    const normalized = {
+      ...candidate,
+      key: issueKey,
+      queueMetadata: normalizeFetchQueueMetadata(candidate.queueMetadata)
+    };
+    if (existing.has(issueKey)) duplicateExisting += 1;
+    else existing.set(issueKey, normalized);
+  }
+
+  const acceptedIssueKeys: string[] = [];
+  const rejections: QueueTransitionRejection[] = [];
+  let addedCount = 0;
+  let mergedCount = 0;
+  const addedAt = input.addedAt ?? new Date().toISOString();
+
+  for (const issueKey of selectedKeys) {
+    if (!exactIssueKeyPattern.test(issueKey)) {
+      rejections.push({ issueKey, reason: "INVALID_ISSUE_KEY" });
+      continue;
+    }
+    const group = groupByKey.get(issueKey);
+    if (!group) {
+      rejections.push({ issueKey, reason: "CANDIDATE_GROUP_NOT_FOUND" });
+      continue;
+    }
+    if (group.isJiraRelated !== true || group.hasJiraIssueKey !== true) {
+      rejections.push({ issueKey, reason: "UNVERIFIED_JIRA_PROVENANCE" });
+      continue;
+    }
+
+    const current = existing.get(issueKey);
+    const metadata = mergeQueueMetadata(current?.queueMetadata, {
+      source: "activity_timeline",
+      matchedReason: "selected_from_activity_timeline",
+      selectedUser: input.selectedUser,
+      dateRange: input.dateRange,
+      timelineEventIds: stringArray(group.timelineEventIds),
+      activityTypes: stringArray(group.activityTypes),
+      confidenceSummary: normalizeFetchQueueMetadata({ confidenceSummary: group.confidenceSummary }).confidenceSummary,
+      issueKeyRole: normalizeFetchQueueMetadata({ issueKeyRole: group.issueKeyRole }).issueKeyRole,
+      addedAt
+    });
+    if (current) {
+      existing.set(issueKey, { ...current, matchedReason: metadata.matchedReasons.join(", "), queueMetadata: metadata });
+      mergedCount += 1;
+    } else {
+      existing.set(issueKey, input.createCandidate(issueKey, metadata));
+      addedCount += 1;
+    }
+    acceptedIssueKeys.push(issueKey);
+  }
+
+  // A Step 2 confirmation starts a new queue. Candidate records may be reused for
+  // metadata, but keys from a previous queue are never carried into this run.
+  const selectedForFetch = [...acceptedIssueKeys];
+  const candidateIssues = Array.from(existing.values());
+  const ok = selectedKeys.length > 0 && acceptedIssueKeys.length > 0;
+  return {
+    ok,
+    error: selectedKeys.length === 0
+      ? "No Candidate Issue Groups were selected."
+      : acceptedIssueKeys.length === 0
+        ? "No selected Candidate Issue Group passed Jira provenance validation."
+        : "",
+    candidateIssues,
+    selectedForFetch,
+    acceptedIssueKeys,
+    rejections,
+    selectedCount: selectedKeys.length,
+    acceptedCount: acceptedIssueKeys.length,
+    rejectedCount: rejections.length,
+    deduplicatedCount: selectedRaw.length - selectedKeys.length + duplicateGroups + duplicateExisting,
+    addedCount,
+    mergedCount,
+    queueCountBefore: unique(input.selectedForFetch).length,
+    queueCountAfter: selectedForFetch.length
+  };
+}
+
+function normalizedIssueKeys(values: readonly unknown[]) {
+  const issueKeys: string[] = [];
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const value of values) {
+    const issueKey = normalizeIssueKey(value);
+    if (!issueKey) continue;
+    if (seen.has(issueKey)) duplicates.add(issueKey);
+    else {
+      seen.add(issueKey);
+      issueKeys.push(issueKey);
+    }
+  }
+  return { issueKeys, duplicates: Array.from(duplicates) };
+}
+
+function difference(left: readonly string[], right: readonly string[]) {
+  const rightSet = new Set(right);
+  return left.filter((issueKey) => !rightSet.has(issueKey));
+}
+
+export function reconcileIssueKeySets(input: {
+  selectedIssueKeys: readonly unknown[];
+  fetchQueueIssueKeys: readonly unknown[];
+  attemptedIssueKeys: readonly unknown[];
+  completedIssueKeys: readonly unknown[];
+  partialIssueKeys: readonly unknown[];
+  failedIssueKeys: readonly unknown[];
+}): IssueKeySetReconciliation {
+  const selected = normalizedIssueKeys(input.selectedIssueKeys);
+  const fetchQueue = normalizedIssueKeys(input.fetchQueueIssueKeys);
+  const attempted = normalizedIssueKeys(input.attemptedIssueKeys);
+  const completed = normalizedIssueKeys(input.completedIssueKeys);
+  const partial = normalizedIssueKeys(input.partialIssueKeys);
+  const failed = normalizedIssueKeys(input.failedIssueKeys);
+  const outcomeUnion = unique([...completed.issueKeys, ...partial.issueKeys, ...failed.issueKeys]);
+  const outcomeMembership = new Map<string, number>();
+  for (const issueKey of [...completed.issueKeys, ...partial.issueKeys, ...failed.issueKeys]) {
+    outcomeMembership.set(issueKey, (outcomeMembership.get(issueKey) ?? 0) + 1);
+  }
+  const differences = {
+    missingFromQueue: difference(selected.issueKeys, fetchQueue.issueKeys),
+    unexpectedInQueue: difference(fetchQueue.issueKeys, selected.issueKeys),
+    missingFromAttempted: difference(fetchQueue.issueKeys, attempted.issueKeys),
+    unexpectedInAttempted: difference(attempted.issueKeys, fetchQueue.issueKeys),
+    missingOutcome: difference(attempted.issueKeys, outcomeUnion),
+    unexpectedOutcome: difference(outcomeUnion, attempted.issueKeys),
+    duplicateOutcomeKeys: unique([...completed.duplicates, ...partial.duplicates, ...failed.duplicates]),
+    multiOutcomeKeys: Array.from(outcomeMembership.entries()).filter(([, count]) => count > 1).map(([issueKey]) => issueKey)
+  };
+  const status = Object.values(differences).every((values) => values.length === 0) ? "MATCH" : "MISMATCH";
+  return {
+    schemaVersion: "selection_fetch_queue_reconciliation_v1",
+    status,
+    sets: {
+      selected: { count: selected.issueKeys.length, issueKeys: selected.issueKeys },
+      fetchQueue: { count: fetchQueue.issueKeys.length, issueKeys: fetchQueue.issueKeys },
+      attempted: { count: attempted.issueKeys.length, issueKeys: attempted.issueKeys },
+      completed: { count: completed.issueKeys.length, issueKeys: completed.issueKeys },
+      partial: { count: partial.issueKeys.length, issueKeys: partial.issueKeys },
+      failed: { count: failed.issueKeys.length, issueKeys: failed.issueKeys }
+    },
+    differences
   };
 }
 

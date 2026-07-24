@@ -1,37 +1,49 @@
-import { app } from "electron";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { resolveFullFetchStagingRoot } from "./fullFetchStagingPath.js";
+import { appRootDirectories, assertPathInsideRoot, configureAppRoot, getConfiguredAppRoot, resolveInsideRoot, verifyWritableAppRoot } from "./appRoot.js";
 
-function executableDir() {
-  if (process.env.PORTABLE_EXECUTABLE_DIR) return process.env.PORTABLE_EXECUTABLE_DIR;
-  if (process.env.PORTABLE_EXECUTABLE_FILE) return path.dirname(process.env.PORTABLE_EXECUTABLE_FILE);
-  return path.dirname(process.execPath);
+export function initializeAppRoot(root: string) {
+  const configured = configureAppRoot(root);
+  verifyWritableAppRoot(configured);
+  const directories = appRootDirectories(configured);
+  for (const directory of Object.values(directories)) ensureDir(directory);
+  return directories;
 }
 
 export function getAppRuntimeDir() {
-  if (process.env.ELECTRON_UI_SMOKE === "1") {
-    return path.resolve(process.cwd(), "test-artifacts", `electron-ui-runtime-${process.pid}`);
-  }
-  if (app.isPackaged) return executableDir();
-  return process.cwd();
+  return getConfiguredAppRoot();
 }
 
 export function getAppDataDir() {
-  return path.join(getAppRuntimeDir(), "data");
+  return appRootDirectories(getConfiguredAppRoot()).appData;
 }
 
 export function getDataDir() {
   return getAppDataDir();
 }
 
+export function getCacheDir() {
+  return appRootDirectories(getConfiguredAppRoot()).cache;
+}
+
+export function getSessionDataDir() {
+  return appRootDirectories(getConfiguredAppRoot()).sessionData;
+}
+
+export function getTempDir() {
+  return appRootDirectories(getConfiguredAppRoot()).temp;
+}
+
+export function getCrashDumpsDir() {
+  return appRootDirectories(getConfiguredAppRoot()).crashDumps;
+}
+
 export function getActivityStreamBaselinesDir() {
-  return path.join(getDataDir(), "activity-stream-baselines");
+  return resolveInsideRoot(getDataDir(), "activity-stream-baselines");
 }
 
 export function getDefaultEnvPath() {
-  return path.join(getAppRuntimeDir(), ".env");
+  return resolveInsideRoot(getAppRuntimeDir(), ".env");
 }
 
 export function getEnvPath() {
@@ -39,31 +51,43 @@ export function getEnvPath() {
 }
 
 export function getLogsDir() {
-  return path.join(getAppRuntimeDir(), "logs");
+  return appRootDirectories(getConfiguredAppRoot()).logs;
 }
 
 export function getFullFetchLogsDir() {
-  return path.join(getLogsDir(), "full-fetch");
+  return resolveInsideRoot(getLogsDir(), "full-fetch");
 }
 
 export function getCrashLogsDir() {
-  return path.join(getLogsDir(), "crash");
+  return resolveInsideRoot(getLogsDir(), "crash");
 }
 
 export function getAppLogsDir() {
-  return path.join(getLogsDir(), "app");
+  return resolveInsideRoot(getLogsDir(), "app");
 }
 
 export function getExportsDir() {
-  return path.join(getAppRuntimeDir(), "exports");
+  return appRootDirectories(getConfiguredAppRoot()).exports;
+}
+
+export function getDebugFoldersDir() {
+  return appRootDirectories(getConfiguredAppRoot()).debugFolders;
+}
+
+export function getFullFetchResultsDir() {
+  return appRootDirectories(getConfiguredAppRoot()).fullFetchResults;
+}
+
+export function getSourceArchivesDir() {
+  return appRootDirectories(getConfiguredAppRoot()).sourceArchives;
 }
 
 export function getProbeResultsDir() {
-  return path.join(getAppRuntimeDir(), "probe-results");
+  return resolveInsideRoot(getExportsDir(), "probe-results");
 }
 
 export function getRawDataDir() {
-  return path.join(getExportsDir(), "raw-data");
+  return resolveInsideRoot(getExportsDir(), "raw-data");
 }
 
 export function getFullFetchRawRunsDir() {
@@ -71,42 +95,39 @@ export function getFullFetchRawRunsDir() {
 }
 
 export function getFullFetchStagingDir() {
-  return resolveFullFetchStagingRoot({
-    override: process.env.JAA_FULL_FETCH_STAGING_ROOT,
-    uiSmoke: process.env.ELECTRON_UI_SMOKE === "1",
-    processId: process.pid,
-    platform: process.platform,
-    localAppData: process.env.LOCALAPPDATA,
-    temporaryDir: os.tmpdir(),
-    userDataDir: app.getPath("userData")
-  });
+  return appRootDirectories(getConfiguredAppRoot()).fullFetchStaging;
 }
 
 export function getLegacyFullFetchStagingDir() {
-  return path.join(getAppRuntimeDir(), "full-fetch-staging");
+  return getFullFetchStagingDir();
 }
 
 export function getBackupsDir() {
-  return path.join(getAppRuntimeDir(), "backups");
+  return resolveInsideRoot(getAppRuntimeDir(), "backups");
 }
 
 export function getDatabaseDir() {
-  return getAppDataDir();
+  return resolveInsideRoot(getAppDataDir(), "database");
 }
 
 export function getConfigDir() {
-  return path.join(getAppRuntimeDir(), "config");
+  return resolveInsideRoot(getAppDataDir(), "config");
 }
 
 export function getConfigPath() {
-  return path.join(getConfigDir(), "app-config.json");
+  return resolveInsideRoot(getConfigDir(), "app-config.json");
 }
 
 export function getConnectionsPath() {
-  return path.join(getConfigDir(), "connections.json");
+  return resolveInsideRoot(getConfigDir(), "connections.json");
 }
 
 export function ensureDir(dirPath: string) {
-  fs.mkdirSync(dirPath, { recursive: true });
-  return dirPath;
+  const safePath = assertPathInsideRoot(getConfiguredAppRoot(), dirPath);
+  fs.mkdirSync(safePath, { recursive: true });
+  return safePath;
+}
+
+export function assertAppPath(target: string) {
+  return assertPathInsideRoot(getConfiguredAppRoot(), path.resolve(target));
 }

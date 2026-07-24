@@ -12,10 +12,16 @@ export function extractJiraIssueKeys(value: unknown) {
 
 export type ActivityIssueKeyResolution = {
   issueKey: string;
+  candidateIssueKeys: string[];
+  rejectedCandidateIssueKeys: Array<{
+    issueKey: string;
+    provenance: "title_text" | "summary_text";
+    reason: "unstructured_text_is_not_authoritative";
+  }>;
   mentionedIssueKeys: string[];
   relatedIssueKeys: string[];
   allIssueKeys: string[];
-  source: "browse_href" | "structured_field" | "rest_key" | "unique_fallback" | "unresolved";
+  source: "browse_href" | "structured_field" | "rest_key" | "unresolved";
   ambiguous: boolean;
 };
 
@@ -33,23 +39,33 @@ export function resolveActivityIssueKeys(input: {
   const hrefKeys = unique(Array.from(`${linkText} ${rawHtml}`.matchAll(browsePattern), (match) => match[1]));
   const structured = extractJiraIssueKeys(String(input.structuredIssueKey ?? ""));
   const rest = extractJiraIssueKeys(String(input.restIssueKey ?? ""));
-  const fallback = unique([
-    ...extractJiraIssueKeys(input.title),
-    ...extractJiraIssueKeys(input.summary)
-  ]);
+  const titleCandidates = extractJiraIssueKeys(input.title);
+  const summaryCandidates = extractJiraIssueKeys(input.summary);
+  const fallback = unique([...titleCandidates, ...summaryCandidates]);
 
   let issueKey = "";
   let source: ActivityIssueKeyResolution["source"] = "unresolved";
-  if (hrefKeys.length === 1) { issueKey = hrefKeys[0]; source = "browse_href"; }
+  if (hrefKeys.length >= 1) { issueKey = hrefKeys[0]; source = "browse_href"; }
   else if (structured.length === 1) { issueKey = structured[0]; source = "structured_field"; }
   else if (rest.length === 1) { issueKey = rest[0]; source = "rest_key"; }
-  else if (hrefKeys.length === 0 && structured.length === 0 && rest.length === 0 && fallback.length === 1) { issueKey = fallback[0]; source = "unique_fallback"; }
 
-  const relatedIssueKeys = unique((input.relatedIssueKeys ?? []).flatMap(extractJiraIssueKeys)).filter((key) => key !== issueKey);
-  const mentionedIssueKeys = fallback.filter((key) => key !== issueKey && !relatedIssueKeys.includes(key));
-  const allIssueKeys = unique([issueKey, ...mentionedIssueKeys, ...relatedIssueKeys].filter(Boolean));
+  const relatedIssueKeys = unique([
+    ...hrefKeys.slice(1),
+    ...(input.relatedIssueKeys ?? []).flatMap(extractJiraIssueKeys)
+  ]).filter((key) => key !== issueKey);
+  const mentionedIssueKeys: string[] = [];
+  const allIssueKeys = unique([issueKey, ...relatedIssueKeys].filter(Boolean));
+  const rejectedCandidateIssueKeys = fallback
+    .filter((key) => key !== issueKey && !relatedIssueKeys.includes(key))
+    .map((key) => ({
+      issueKey: key,
+      provenance: titleCandidates.includes(key) ? "title_text" as const : "summary_text" as const,
+      reason: "unstructured_text_is_not_authoritative" as const
+    }));
   return {
     issueKey,
+    candidateIssueKeys: fallback,
+    rejectedCandidateIssueKeys,
     mentionedIssueKeys,
     relatedIssueKeys,
     allIssueKeys,

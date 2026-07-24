@@ -109,7 +109,7 @@ export function SettingsPage() {
         </SectionCard>
         <SectionCard title="預設匯入選項" subtitle="Import Defaults">
           <SettingRow label="Default Event Lookback"><select className="field"><option>Last 30 days</option></select></SettingRow>
-          <SettingRow label="Batch Size"><select className="field"><option>500</option></select></SettingRow>
+          <SettingRow label="Import Page Size"><select className="field"><option>500</option></select></SettingRow>
           <div className="flex items-center justify-between gap-3 font-bold">Show summary after import <Toggle /></div>
         </SectionCard>
         <SectionCard title="匯出與報表" subtitle="Export & Reports">

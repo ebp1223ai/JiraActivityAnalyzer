@@ -107,6 +107,7 @@ export function PrecisionProbePage() {
   const connectionReady = Boolean(window.desktopApp?.uiSmoke || (activeConnection?.baseUrl && activeConnection?.apiToken));
   const latestRunIdRef = useRef(userAnalysis.currentActivityStreamRunId);
   const runningRef = useRef(userAnalysis.isActivityStreamRunning);
+  const stabilityExecutionIdRef = useRef(0);
   const [largeQueryConfirmation, setLargeQueryConfirmation] = useState<{ open: boolean; input: string; error: string; action: "activity" | "precision" | "cap" | ""; advanced: boolean }>({ open: false, input: "", error: "", action: "", advanced: false });
   const [resultTrackingDetailsOpen, setResultTrackingDetailsOpen] = useState(false);
   const probeMode = userAnalysis.stabilityActiveTab;
@@ -243,6 +244,8 @@ export function PrecisionProbePage() {
 
   async function executeStabilityProbe(confirmedLargeRun = false) {
     if (stabilityRunning || !activeConnection || selectedUsers.length !== 1) return;
+    const executionId = stabilityExecutionIdRef.current + 1;
+    stabilityExecutionIdRef.current = executionId;
     setStabilityRunning(true);
     setStabilityRun(null);
     setStabilityProgress({ stage: "starting", currentRound: 0, totalRounds: userAnalysis.activityStreamFullScanRoundCount, currentWindow: 0, totalWindows: estimatedStabilityWindows() });
@@ -250,10 +253,16 @@ export function PrecisionProbePage() {
     try {
       const result = await window.desktopApp?.userAnalysis?.activityStreamStabilityProbe?.({ connection: activeConnection, confirmedLargeRun, config: { selectedUser: selectedUsers[0], dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate }, projectScope: userAnalysis.precisionProjectScope, requestWindow: { type: userAnalysis.activityStreamRequestWindow, customDays: userAnalysis.activityStreamRequestWindow === "custom_days" ? userAnalysis.activityStreamCustomWindowDays : null }, fullScanRoundCount: userAnalysis.activityStreamFullScanRoundCount, delayBetweenRoundsMs: userAnalysis.activityStreamDelayBetweenRoundsMs, roundExecutionMode: probeRoundExecutionMode, mergeStrategy: userAnalysis.activityStreamMergeStrategy } });
       if (!result) throw new Error("Stability Probe IPC is unavailable.");
-      setStabilityRun(result as unknown as ActivityStreamProbeRunV2 & { files?: Record<string, string> });
+      if (executionId !== stabilityExecutionIdRef.current) return;
+      const completedRun = result as unknown as ActivityStreamProbeRunV2 & { files?: Record<string, string> };
+      if (!Array.isArray(completedRun.rounds) || !Array.isArray(completedRun.windowDiagnostics)) {
+        throw new Error("Stability Probe returned an incomplete result.");
+      }
+      setStabilityRun(completedRun);
       setStabilityRunning(false);
       appendDebugLog("precision", [...(Array.isArray(result.logs) ? result.logs.map(String) : []), `[INFO][stability-probe] runId=${String(result.probeRunId)} stage=complete message=Probe result and diagnostics exported`, "[INFO] No database write performed", "[INFO] No Jira write performed", "[INFO] Token: [masked]", "[INFO] Authorization: [masked]"]);
     } catch (error) {
+      if (executionId !== stabilityExecutionIdRef.current) return;
       setStabilityRunning(false);
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes("CONFIRM_REQUIRED")) setStabilityConfirmOpen(true);
@@ -263,6 +272,7 @@ export function PrecisionProbePage() {
 
   async function cancelStabilityProbe() {
     logAction("USER_ACTION", "Button clicked: Cancel Stability Probe");
+    setStabilityRunning(false);
     await window.desktopApp?.userAnalysis?.cancelStabilityProbe?.();
   }
 

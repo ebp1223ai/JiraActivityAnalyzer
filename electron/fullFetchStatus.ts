@@ -1,6 +1,34 @@
 export type CanonicalIssueStatus = "eligible" | "partial" | "failed_final" | "not_attempted_due_to_run_failure";
 export type CanonicalRunStatus = "completed" | "completed_with_partial" | "completed_with_errors" | "failed";
 
+export type FullFetchReconciliationInput = {
+  queueTotal: number;
+  eligible: number;
+  excluded: number;
+  invalid: number;
+  planned: number;
+  attempted: number;
+  completed: number;
+  partial: number;
+  failed: number;
+  notAttempted: number;
+};
+
+export function reconcileFullFetchCounts(input: FullFetchReconciliationInput) {
+  const checks = [
+    { code: "QUEUE_TOTAL_MISMATCH", formula: "queueTotal = eligible + excluded + invalid", expected: input.eligible + input.excluded + input.invalid, actual: input.queueTotal },
+    { code: "PLANNED_ELIGIBLE_MISMATCH", formula: "planned = eligible", expected: input.eligible, actual: input.planned },
+    { code: "ELIGIBLE_ATTEMPT_MISMATCH", formula: "eligible = attempted + notAttempted", expected: input.attempted + input.notAttempted, actual: input.eligible },
+    { code: "ATTEMPT_OUTCOME_MISMATCH", formula: "attempted = completed + partial + failed", expected: input.completed + input.partial + input.failed, actual: input.attempted }
+  ].map((check) => ({ ...check, passed: check.expected === check.actual }));
+  return {
+    ...input,
+    countReconciliationPassed: checks.every((check) => check.passed),
+    checks,
+    errors: checks.filter((check) => !check.passed)
+  };
+}
+
 export function canonicalIssueStatus(status: string): CanonicalIssueStatus | null {
   if (status === "eligible") return "eligible";
   if (status === "partial" || status === "required_partial") return "partial";

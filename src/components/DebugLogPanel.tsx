@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Copy, Download, FolderOpen, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Download, FolderOpen, Trash2, X } from "lucide-react";
 
 type Props = {
   collapsed: boolean;
@@ -38,16 +38,10 @@ function displayParts(line: string) {
   return match ? { date: match[1], time: match[2], message: match[3] } : { date: "", time: "", message: line };
 }
 
-function debugFileName() {
-  const date = new Date();
-  const pad = (value: number) => String(value).padStart(2, "0");
-  const timestamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
-  return `jira-activity-analyzer-debug-${timestamp}.txt`;
-}
-
 export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, onUserAction, currentPage }: Props) {
   const [notice, setNotice] = useState("");
   const [lastBundlePath, setLastBundlePath] = useState("");
+  const [lastBundleCounts, setLastBundleCounts] = useState({ successful: 0, unavailable: 0, failed: 0 });
   const [autoScroll, setAutoScroll] = useState(true);
   const logContainerRef = useRef<HTMLDivElement>(null);
   const content = logs.join("\n");
@@ -71,43 +65,33 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, on
   }
 
   async function handleDownload() {
-    onUserAction?.("Save Debug Bundle requested / 要求儲存除錯套件");
-    if (window.desktopApp?.appDebug?.saveBundle) {
+    onUserAction?.("Export Debug Folder requested / 要求匯出除錯資料夾");
+    try {
+      if (!window.desktopApp?.appDebug?.saveBundle) {
+        setNotice("Debug Folder is unavailable in this runtime.");
+        onUserAction?.("Debug Folder export unavailable / 除錯資料夾匯出不可用");
+        return;
+      }
       const result = await window.desktopApp.appDebug.saveBundle({ debugLog: content, currentPage });
       const failed = result.status === "failed";
-      setNotice(result.canceled ? "Save canceled" : failed ? `Debug Bundle failed: ${String(result.errorCode ?? "unknown_error")}` : result.warningThresholdExceeded ? "Debug Bundle saved (over 500 MiB warning threshold)" : "Debug Bundle saved");
-      onUserAction?.(result.canceled ? "Debug Bundle save cancelled / 除錯套件儲存已取消" : failed ? "Debug Bundle save failed / 除錯套件儲存失敗" : "Debug Bundle saved / 除錯套件已儲存");
+      const partial = result.status === "completed_with_errors" || Number(result.failedFileCount ?? 0) > 0;
+      setNotice(result.canceled ? "Export canceled" : failed ? `Debug Folder failed: ${String(result.errorCode ?? "unknown_error")}` : partial ? "Debug Folder completed with copy failures." : "Debug Folder completed successfully.");
+      onUserAction?.(result.canceled ? "Debug Folder export cancelled / 除錯資料夾匯出已取消" : failed ? "Debug Folder export failed / 除錯資料夾匯出失敗" : "Debug Folder exported / 除錯資料夾已匯出");
       if (!result.canceled && result.folderPath) {
         setLastBundlePath(result.folderPath);
-        onAppend?.([`[INFO] Debug Bundle saved: ${result.folderPath}`, `[INFO] Included files: ${(result.includedFiles ?? []).join(", ")}`]);
+        setLastBundleCounts({
+          successful: Number(result.successfulFileCount ?? 0),
+          unavailable: Number(result.unavailableOrNotRunCount ?? 0),
+          failed: Number(result.failedFileCount ?? 0)
+        });
+        onAppend?.([`[INFO] Debug Folder exported: ${result.folderPath}`, `[INFO] Files collected: ${result.successfulFileCount ?? 0}; unavailable/not run: ${result.unavailableOrNotRunCount ?? 0}; copy failures: ${result.failedFileCount ?? 0}`]);
       }
-      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setNotice(`Debug Folder failed: ${message}`);
+      onUserAction?.("Debug Folder export failed / 除錯資料夾匯出失敗");
+      onAppend?.([`[ERROR] Debug Folder failed: ${message}`]);
     }
-    if (window.desktopApp?.appDebug?.saveTextFile) {
-      const result = await window.desktopApp.appDebug.saveTextFile({
-        defaultFileName: debugFileName(),
-        content
-      });
-      setNotice(result.canceled ? "Download canceled" : "Downloaded");
-      onUserAction?.(result.canceled ? "Debug Log save cancelled / 除錯紀錄儲存已取消" : "Debug Log saved / 除錯紀錄已儲存");
-      if (!result.canceled) {
-        onAppend?.([
-          `[INFO] Output folder ready: ${result.folderPath ?? ""}`,
-          `[INFO] Debug log saved: ${result.filePath ?? ""}`
-        ]);
-      }
-      return;
-    }
-
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = debugFileName();
-    link.click();
-    URL.revokeObjectURL(url);
-    setNotice("Downloaded");
-    onUserAction?.("Debug Log saved / 除錯紀錄已儲存");
   }
 
   function handleClear() {
@@ -153,9 +137,9 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, on
           <Copy size={16} />
           <span>Copy<br />複製</span>
         </button>
-        <button className="btn min-w-[72px] flex-1 px-3" data-no-clip="true" title="Save Debug Log / 儲存除錯紀錄" onClick={handleDownload}>
+        <button className="btn min-w-[72px] flex-1 px-3" data-no-clip="true" title="Export Debug Folder / 匯出除錯資料夾" onClick={handleDownload}>
           <Download size={16} />
-          <span>Bundle<br />套件</span>
+          <span>Folder<br />資料夾</span>
         </button>
         <button className="btn btn-danger min-w-[72px] flex-1 px-3" data-no-clip="true" title="Clear Debug Log / 清除除錯紀錄" onClick={handleClear}>
           <Trash2 size={16} />
@@ -163,12 +147,12 @@ export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, on
         </button>
       </div>
       <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-bold leading-relaxed text-amber-950" data-testid="debug-bundle-content-warning">
-        Debug Bundle may contain company Jira content and personal data such as Issue summaries, descriptions, and comments. Credentials are removed and user identities are pseudonymized.<br />
-        除錯套件可能包含公司 Jira 內容與個人資料，例如摘要、描述及留言；憑證會移除，使用者識別資料會一致性假名化。
+        Debug Folder copies existing diagnostic files without compression or content rewriting. It may contain company Jira content and personal data; review it before sharing.<br />
+        除錯資料夾會直接複製既有診斷檔，不壓縮也不改寫內容；其中可能包含公司 Jira 內容與個人資料，分享前請先檢查。
       </div>
 
       {notice ? <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700" data-no-clip="true">{notice}</div> : null}
-      {lastBundlePath ? <div className="mt-3 min-w-0 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-900"><div className="font-black">Last Debug Bundle / 最後 Debug Bundle</div><div className="mt-1 break-all" data-testid="last-debug-bundle-path">{lastBundlePath}</div><div className="mt-2 flex flex-wrap gap-2"><button data-testid="open-debug-bundle" className="btn px-2 py-1 text-xs" type="button" onClick={() => void window.desktopApp?.appDebug?.openFolder?.({ folderPath: lastBundlePath })}><FolderOpen size={14} />Open Folder</button><button data-testid="copy-debug-bundle-path" className="btn px-2 py-1 text-xs" type="button" onClick={() => void navigator.clipboard?.writeText(lastBundlePath)}><Copy size={14} />Copy Path</button></div></div> : null}
+      {lastBundlePath ? <div className="mt-3 min-w-0 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-900" data-testid="debug-folder-completion"><div className="font-black">{lastBundleCounts.failed > 0 ? "Debug Folder completed with copy failures" : "Debug Folder created successfully"}</div><div className="mt-1">Files collected: {lastBundleCounts.successful}</div><div>Unavailable / not run: {lastBundleCounts.unavailable}</div><div>Copy failures: {lastBundleCounts.failed}</div><div className="mt-1 break-all" data-testid="last-debug-bundle-path">{lastBundlePath}</div><div className="mt-2 flex flex-wrap gap-2"><button data-testid="open-debug-bundle" className="btn px-2 py-1 text-xs" type="button" onClick={() => void window.desktopApp?.appDebug?.openFolder?.({ folderPath: lastBundlePath })}><FolderOpen size={14} />Open</button><button data-testid="copy-debug-bundle-path" className="btn px-2 py-1 text-xs" type="button" onClick={() => void navigator.clipboard?.writeText(lastBundlePath)}><Copy size={14} />Copy path</button><button data-testid="close-debug-bundle-result" className="btn px-2 py-1 text-xs" type="button" onClick={() => { setLastBundlePath(""); setNotice(""); }}><X size={14} />Close</button></div></div> : null}
 
       <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-900">
         Debug Log records the current operation flow, API calls, warnings, and errors.<br />

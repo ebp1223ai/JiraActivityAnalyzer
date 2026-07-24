@@ -17,7 +17,6 @@ import {
   listStagingRuns,
   loadStagingRun,
   previewStaging,
-  previewStagingIssue,
   recoverStaleStaging,
   setStagingStatus,
   stagingDebugIndex,
@@ -72,8 +71,9 @@ function envelope(issueKey: string, description = "safe fixture") {
 }
 
 try {
-  assert.equal(resolveFullFetchStagingRoot({ platform: "win32", localAppData: "C:\\Users\\fixture\\AppData\\Local", temporaryDir: root, userDataDir: path.join(root, "user-data") }), path.join("C:\\Users\\fixture\\AppData\\Local", "JiraActivityAnalyzer", "full-fetch-staging"));
-  assert.equal(resolveFullFetchStagingRoot({ override: path.join(root, "custom"), temporaryDir: root, userDataDir: path.join(root, "user-data") }), path.join(root, "custom"));
+  assert.equal(resolveFullFetchStagingRoot({ appRoot: root }), path.join(root, "full-fetch-staging"));
+  assert.equal(resolveFullFetchStagingRoot({ appRoot: root, override: path.join(root, "ignored") }), path.join(root, "full-fetch-staging"));
+  assert.equal(resolveFullFetchStagingRoot({ appRoot: root, override: path.join(root, "custom"), allowDevelopmentOverride: true }), path.join(root, "custom"));
 
   const normalizedFixture = normalizeCurrentIssueFields(buildCurrentIssueSnapshot({
     key: "FIELD-1",
@@ -107,10 +107,7 @@ try {
   assert.equal(first.normalizedCurrentFields.find((field) => field.key === "startDate")?.valueStatus, "present_value");
   assert.equal(first.normalizedCurrentFields.find((field) => field.key === "resolution")?.valueStatus, "not_returned");
   const runPreview = previewStaging(complete);
-  assert.equal(Object.prototype.hasOwnProperty.call(runPreview.issueSummaries[0], "normalizedCurrentFields"), false, "run preview must not preload Issue fields");
-  const expandedPreview = previewStagingIssue(complete, "ABC-1");
-  assert.equal(expandedPreview.snapshotLoadStatus, "loaded");
-  assert.ok(expandedPreview.normalizedCurrentFields.length > 0);
+  assert.equal(Object.prototype.hasOwnProperty.call(runPreview, "issueSummaries"), false, "normal staging preview must not expose per-Issue rows");
 
   startTarget(complete, "ABC-2");
   const remoteWarningEnvelope = envelope("ABC-2") as Record<string, unknown>;
@@ -119,17 +116,6 @@ try {
   const remoteWarning = completeTarget(complete, "ABC-2", { status: "eligible", rawEnvelope: remoteWarningEnvelope, optionalEndpointStatus: { remoteLinks: { enabled: true, status: "permission_denied", archiveBlocking: false, retryable: false, warning: "Remote Links permission denied.", httpStatus: 403, errorCode: "HTTP_403", attemptCount: 1, fetchedAt: "2026-07-22T00:00:00.000Z" } }, optionalWarnings: ["Remote Links permission denied."] });
   assert.equal(remoteWarning.status, "eligible", "Remote Links failure must not block Eligible");
   assert.equal(remoteWarning.optionalEndpointStatus.remoteLinks.status, "permission_denied");
-  let previousKey = "ABC-1";
-  for (let index = 0; index < 10; index += 1) {
-    const issueKey = index % 2 === 0 ? "ABC-2" : "ABC-1";
-    const switchedPreview = previewStagingIssue(complete, issueKey);
-    assert.equal(switchedPreview.diagnostics.loadedIssueKey, issueKey);
-    assert.ok(switchedPreview.diagnostics.loadedFileSize > 0);
-    assert.ok(switchedPreview.diagnostics.loadDurationMs >= 0);
-    assert.equal(switchedPreview.diagnostics.previousIssueReleased, true);
-    assert.equal(switchedPreview.diagnostics.previousIssueKey, previousKey);
-    previousKey = issueKey;
-  }
   const completeState = finalizeStagingRun(complete);
   assert.equal(completeState.status, "completed");
   assert.equal(completeState.remaining, 0);
@@ -252,7 +238,7 @@ try {
   assert.equal(previewStaging(partial).stagingSizeBytes > 0, true);
   assert.ok(fs.existsSync(stagingPaths(partial).result));
 
-  console.log("Full Fetch v0.2.31 file-backed staging tests passed.");
+  console.log("Full Fetch v0.2.33 file-backed staging tests passed.");
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
 }

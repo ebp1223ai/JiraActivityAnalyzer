@@ -1,0 +1,831 @@
+{
+  "schemaVersion": 1,
+  "project": "JiraActivityAnalyzer",
+  "version": "v0.2.33",
+  "timezone": "Asia/Taipei",
+  "startedAt": "2026-07-23T11:23:07.265+08:00",
+  "finishedAt": "2026-07-23T12:53:03.548+08:00",
+  "wallClockSeconds": 5396.283,
+  "officialUiElapsedSeconds": null,
+  "officialUiElapsedStatus": "unavailable_to_codex",
+  "phases": [
+    {
+      "id": "phase-prompt",
+      "name": "Prompt and requirement reading",
+      "startedAt": "2026-07-23T11:23:07.265+08:00",
+      "finishedAt": "2026-07-23T11:24:10.000+08:00",
+      "wallClockSeconds": 62.735,
+      "status": "completed",
+      "outcome": "Read the v0.2.33 scope, non-goals, release requirements, and ledger rules.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-baseline",
+      "name": "Repository and version baseline inspection",
+      "startedAt": "2026-07-23T11:24:10.000+08:00",
+      "finishedAt": "2026-07-23T11:33:22.218+08:00",
+      "wallClockSeconds": 552.218,
+      "status": "completed",
+      "outcome": "Created the work branch, inspected the dirty worktree, version surfaces, scripts, startup flow, and existing v0.2.32 changes.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-design",
+      "name": "Code investigation and implementation design",
+      "startedAt": "2026-07-23T11:33:22.218+08:00",
+      "finishedAt": "2026-07-23T11:37:14.173+08:00",
+      "wallClockSeconds": 231.955,
+      "status": "completed",
+      "outcome": "Mapped write paths, Debug Folder collection, result UI state, and Jira-key provenance boundaries.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-app-root",
+      "name": "APP_ROOT and Electron path refactor",
+      "startedAt": "2026-07-23T11:37:14.173+08:00",
+      "finishedAt": "2026-07-23T11:41:51.760+08:00",
+      "wallClockSeconds": 277.587,
+      "status": "completed",
+      "outcome": "Centralized canonical root resolution, containment, writable preflight, and early Electron path redirection.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-debug-folder",
+      "name": "Debug Folder one-click modification",
+      "startedAt": "2026-07-23T11:41:51.760+08:00",
+      "finishedAt": "2026-07-23T11:43:35.276+08:00",
+      "wallClockSeconds": 103.516,
+      "status": "completed",
+      "outcome": "Removed destination selection and added collision-safe directory collection with concise completion controls.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-result-ui",
+      "name": "Full Fetch result UI cleanup",
+      "startedAt": "2026-07-23T11:43:35.276+08:00",
+      "finishedAt": "2026-07-23T11:45:21.534+08:00",
+      "wallClockSeconds": 106.258,
+      "status": "completed",
+      "outcome": "Removed normal issue/evidence browsing while retaining concise summaries and background persistence.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-issue-key",
+      "name": "Jira Issue Key provenance correction",
+      "startedAt": "2026-07-23T11:45:21.534+08:00",
+      "finishedAt": "2026-07-23T11:51:31.790+08:00",
+      "wallClockSeconds": 370.256,
+      "status": "completed_with_retry",
+      "outcome": "Rejected unstructured candidates across semantic key paths and retained structured IMAGE-2026 as a positive non-blacklist case.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-tests",
+      "name": "Test additions and corrections",
+      "startedAt": "2026-07-23T11:51:31.790+08:00",
+      "finishedAt": "2026-07-23T11:57:56.236+08:00",
+      "wallClockSeconds": 384.446,
+      "status": "completed",
+      "outcome": "Added APP_ROOT, Debug Folder, provenance, architecture, and ledger validation coverage.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-automated-validation",
+      "name": "Typecheck, complete tests, and production build",
+      "startedAt": "2026-07-23T11:57:56.236+08:00",
+      "finishedAt": "2026-07-23T12:07:31.991+08:00",
+      "wallClockSeconds": 575.755,
+      "status": "completed_with_retry",
+      "outcome": "Typecheck, unit suite, build, and source Electron UI smoke reached passing results after fixture correction.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-distribution",
+      "name": "Installer and Portable distribution",
+      "startedAt": "2026-07-23T12:07:31.991+08:00",
+      "finishedAt": "2026-07-23T12:12:19.125+08:00",
+      "wallClockSeconds": 287.134,
+      "status": "completed",
+      "outcome": "Generated signed Setup and Portable v0.2.33 artifacts through electron-builder.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-packaged-diagnostics",
+      "name": "Packaged smoke diagnostics and correction",
+      "startedAt": "2026-07-23T12:12:19.125+08:00",
+      "finishedAt": "2026-07-23T12:27:35.766+08:00",
+      "wallClockSeconds": 916.641,
+      "status": "completed_with_retries",
+      "outcome": "Diagnosed the cancellation race and packaged workflow-state contamination; retained every failed attempt.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-final-verification",
+      "name": "Final corrections, waits, rebuild, and packaged verification",
+      "startedAt": "2026-07-23T12:27:35.766+08:00",
+      "finishedAt": "2026-07-23T12:43:21.296+08:00",
+      "wallClockSeconds": 945.53,
+      "status": "completed_with_retries",
+      "outcome": "Isolated smoke state, made navigation readiness deterministic, reran complete tests, rebuilt artifacts, and passed packaged smoke.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    },
+    {
+      "id": "phase-delivery",
+      "name": "Artifact, path, Git, diff, secret, ledger, and report preparation",
+      "startedAt": "2026-07-23T12:43:21.296+08:00",
+      "finishedAt": "2026-07-23T12:53:03.548+08:00",
+      "wallClockSeconds": 582.252,
+      "status": "completed",
+      "outcome": "Inspected artifact hashes, checked paths and secrets, preserved untracked exceptions, and prepared the reconciled ledger.",
+      "overlap": {
+        "overlapped": false,
+        "withPhaseIds": []
+      }
+    }
+  ],
+  "commands": [
+    {
+      "id": "cmd-branch-01",
+      "phaseId": "phase-baseline",
+      "command": "git switch -c codex/v0.2.33-portable-output-ui-cleanup-ledger",
+      "attempt": 1,
+      "startedAt": "2026-07-23T11:24:34.326+08:00",
+      "finishedAt": "2026-07-23T11:24:34.538+08:00",
+      "elapsedSeconds": 0.212,
+      "result": "failed",
+      "detail": "Sandbox denied the first branch creation attempt.",
+      "exitCode": 1,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-branch-02",
+      "phaseId": "phase-baseline",
+      "command": "git switch -c codex/v0.2.33-portable-output-ui-cleanup-ledger",
+      "attempt": 2,
+      "startedAt": "2026-07-23T11:24:48.367+08:00",
+      "finishedAt": "2026-07-23T11:24:48.457+08:00",
+      "elapsedSeconds": 0.09,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-typecheck-01",
+      "phaseId": "phase-issue-key",
+      "command": "npm run typecheck",
+      "attempt": 1,
+      "startedAt": "2026-07-23T11:45:21.534+08:00",
+      "finishedAt": "2026-07-23T11:45:29.833+08:00",
+      "elapsedSeconds": 8.299,
+      "result": "failed",
+      "detail": "Initial implementation exposed type errors that were corrected before validation.",
+      "exitCode": 1,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-typecheck-02",
+      "phaseId": "phase-issue-key",
+      "command": "npm run typecheck",
+      "attempt": 2,
+      "startedAt": "2026-07-23T11:45:50.459+08:00",
+      "finishedAt": "2026-07-23T11:46:06.718+08:00",
+      "elapsedSeconds": 16.259,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-unit-01",
+      "phaseId": "phase-tests",
+      "command": "npm run test:unit",
+      "attempt": 1,
+      "startedAt": "2026-07-23T11:51:31.790+08:00",
+      "finishedAt": "2026-07-23T11:51:59.536+08:00",
+      "elapsedSeconds": 27.746,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-typecheck-03",
+      "phaseId": "phase-automated-validation",
+      "command": "npm run typecheck",
+      "attempt": 3,
+      "startedAt": "2026-07-23T11:57:56.236+08:00",
+      "finishedAt": "2026-07-23T11:58:12.203+08:00",
+      "elapsedSeconds": 15.967,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-unit-02",
+      "phaseId": "phase-automated-validation",
+      "command": "npm run test:unit",
+      "attempt": 2,
+      "startedAt": "2026-07-23T11:58:27.182+08:00",
+      "finishedAt": "2026-07-23T11:58:54.516+08:00",
+      "elapsedSeconds": 27.334,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-build-01",
+      "phaseId": "phase-automated-validation",
+      "command": "npm run build",
+      "attempt": 1,
+      "startedAt": "2026-07-23T11:59:00.886+08:00",
+      "finishedAt": "2026-07-23T11:59:19.163+08:00",
+      "elapsedSeconds": 18.277,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-ui-01",
+      "phaseId": "phase-automated-validation",
+      "command": "npm run test:ui",
+      "attempt": 1,
+      "startedAt": "2026-07-23T11:59:26.257+08:00",
+      "finishedAt": "2026-07-23T12:01:06.195+08:00",
+      "elapsedSeconds": 99.938,
+      "result": "failed",
+      "detail": "Existing UI-smoke fixture assumptions no longer matched the provenance rules.",
+      "exitCode": 1,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-ui-02",
+      "phaseId": "phase-automated-validation",
+      "command": "npm run test:ui",
+      "attempt": 2,
+      "startedAt": "2026-07-23T12:05:33.648+08:00",
+      "finishedAt": "2026-07-23T12:07:31.991+08:00",
+      "elapsedSeconds": 118.343,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-dist-01",
+      "phaseId": "phase-distribution",
+      "command": "npm run dist",
+      "attempt": 1,
+      "startedAt": "2026-07-23T12:07:42.687+08:00",
+      "finishedAt": "2026-07-23T12:12:19.125+08:00",
+      "elapsedSeconds": 276.438,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-portable-01",
+      "phaseId": "phase-packaged-diagnostics",
+      "command": "portable executable UI smoke",
+      "attempt": 1,
+      "startedAt": "2026-07-23T12:12:38.964+08:00",
+      "finishedAt": "2026-07-23T12:13:48.146+08:00",
+      "elapsedSeconds": 69.182,
+      "result": "failed",
+      "detail": "The first packaged attempt did not retain a diagnostic console result.",
+      "exitCode": 1,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-portable-02",
+      "phaseId": "phase-packaged-diagnostics",
+      "command": "portable executable UI smoke",
+      "attempt": 2,
+      "startedAt": "2026-07-23T12:14:42.116+08:00",
+      "finishedAt": "2026-07-23T12:15:57.373+08:00",
+      "elapsedSeconds": 75.257,
+      "result": "failed",
+      "detail": "Packaged renderer diagnostics exposed a stale stability-probe cancellation race.",
+      "exitCode": 1,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-typecheck-04",
+      "phaseId": "phase-packaged-diagnostics",
+      "command": "npm run typecheck",
+      "attempt": 4,
+      "startedAt": "2026-07-23T12:18:30.437+08:00",
+      "finishedAt": "2026-07-23T12:18:46.210+08:00",
+      "elapsedSeconds": 15.773,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-ui-03",
+      "phaseId": "phase-packaged-diagnostics",
+      "command": "npm run test:ui",
+      "attempt": 3,
+      "startedAt": "2026-07-23T12:18:55.831+08:00",
+      "finishedAt": "2026-07-23T12:20:31.991+08:00",
+      "elapsedSeconds": 96.16,
+      "result": "failed",
+      "detail": "Cancellation visibility still raced the next test action.",
+      "exitCode": 1,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-ui-04",
+      "phaseId": "phase-packaged-diagnostics",
+      "command": "npm run test:ui",
+      "attempt": 4,
+      "startedAt": "2026-07-23T12:20:54.868+08:00",
+      "finishedAt": "2026-07-23T12:22:27.350+08:00",
+      "elapsedSeconds": 92.482,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-dist-02",
+      "phaseId": "phase-packaged-diagnostics",
+      "command": "npm run dist",
+      "attempt": 2,
+      "startedAt": "2026-07-23T12:22:39.777+08:00",
+      "finishedAt": "2026-07-23T12:26:07.450+08:00",
+      "elapsedSeconds": 207.673,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-portable-03",
+      "phaseId": "phase-packaged-diagnostics",
+      "command": "portable executable UI smoke",
+      "attempt": 3,
+      "startedAt": "2026-07-23T12:26:25.399+08:00",
+      "finishedAt": "2026-07-23T12:27:35.767+08:00",
+      "elapsedSeconds": 70.368,
+      "result": "failed",
+      "detail": "The packaged smoke restored an existing workflow snapshot and fixed-delay navigation cascaded into false UI failures.",
+      "exitCode": 1,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-typecheck-05",
+      "phaseId": "phase-final-verification",
+      "command": "npm run typecheck",
+      "attempt": 5,
+      "startedAt": "2026-07-23T12:32:00.000+08:00",
+      "finishedAt": "2026-07-23T12:32:01.600+08:00",
+      "elapsedSeconds": 1.6,
+      "result": "failed",
+      "detail": "PowerShell execution policy blocked npm.ps1; npm.cmd was used afterward.",
+      "exitCode": 1,
+      "parallelGroupId": "parallel-powershell-policy"
+    },
+    {
+      "id": "cmd-v0233-01",
+      "phaseId": "phase-final-verification",
+      "command": "npm run test:v0.2.33",
+      "attempt": 1,
+      "startedAt": "2026-07-23T12:32:00.000+08:00",
+      "finishedAt": "2026-07-23T12:32:01.600+08:00",
+      "elapsedSeconds": 1.6,
+      "result": "failed",
+      "detail": "PowerShell execution policy blocked npm.ps1; npm.cmd was used afterward.",
+      "exitCode": 1,
+      "parallelGroupId": "parallel-powershell-policy"
+    },
+    {
+      "id": "cmd-typecheck-06",
+      "phaseId": "phase-final-verification",
+      "command": "npm.cmd run typecheck",
+      "attempt": 6,
+      "startedAt": "2026-07-23T12:32:15.000+08:00",
+      "finishedAt": "2026-07-23T12:32:35.300+08:00",
+      "elapsedSeconds": 20.3,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-focused-checks",
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-v0233-02",
+      "phaseId": "phase-final-verification",
+      "command": "npm.cmd run test:v0.2.33",
+      "attempt": 2,
+      "startedAt": "2026-07-23T12:32:15.000+08:00",
+      "finishedAt": "2026-07-23T12:32:48.600+08:00",
+      "elapsedSeconds": 33.6,
+      "result": "failed",
+      "detail": "All code checks passed; the final ledger validation correctly failed because this ledger had not been created yet.",
+      "exitCode": 1,
+      "parallelGroupId": "parallel-focused-checks"
+    },
+    {
+      "id": "cmd-unit-03",
+      "phaseId": "phase-final-verification",
+      "command": "npm.cmd run test:unit",
+      "attempt": 3,
+      "startedAt": "2026-07-23T12:33:00.000+08:00",
+      "finishedAt": "2026-07-23T12:33:38.100+08:00",
+      "elapsedSeconds": 38.1,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-unit-ui",
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-ui-05",
+      "phaseId": "phase-final-verification",
+      "command": "npm.cmd run test:ui",
+      "attempt": 5,
+      "startedAt": "2026-07-23T12:33:00.000+08:00",
+      "finishedAt": "2026-07-23T12:34:44.500+08:00",
+      "elapsedSeconds": 104.5,
+      "result": "failed",
+      "detail": "The first route readiness selector was conditional on the active Analysis workflow subpage.",
+      "exitCode": 1,
+      "parallelGroupId": "parallel-unit-ui"
+    },
+    {
+      "id": "cmd-typecheck-07",
+      "phaseId": "phase-final-verification",
+      "command": "npm.cmd run typecheck",
+      "attempt": 7,
+      "startedAt": "2026-07-23T12:35:30.000+08:00",
+      "finishedAt": "2026-07-23T12:35:51.700+08:00",
+      "elapsedSeconds": 21.7,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-final-focused",
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-architecture-01",
+      "phaseId": "phase-final-verification",
+      "command": "node scripts/test-v0233-architecture.cjs",
+      "attempt": 1,
+      "startedAt": "2026-07-23T12:35:30.000+08:00",
+      "finishedAt": "2026-07-23T12:35:31.800+08:00",
+      "elapsedSeconds": 1.8,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-final-focused",
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-ui-06",
+      "phaseId": "phase-final-verification",
+      "command": "npm.cmd run test:ui",
+      "attempt": 6,
+      "startedAt": "2026-07-23T12:36:36.373+08:00",
+      "finishedAt": "2026-07-23T12:38:16.073+08:00",
+      "elapsedSeconds": 99.7,
+      "result": "passed",
+      "detail": "Electron UI smoke passed: routes=9, viewports=5, screenshots=disabled.",
+      "exitCode": 0,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-dist-03",
+      "phaseId": "phase-final-verification",
+      "command": "npm.cmd run dist",
+      "attempt": 3,
+      "startedAt": "2026-07-23T12:38:33.000+08:00",
+      "finishedAt": "2026-07-23T12:42:05.400+08:00",
+      "elapsedSeconds": 212.4,
+      "result": "passed",
+      "exitCode": 0,
+      "parallelGroupId": null,
+      "detail": "Completed successfully."
+    },
+    {
+      "id": "cmd-portable-04",
+      "phaseId": "phase-final-verification",
+      "command": "release/Jira Activity Analyzer Portable 0.2.33.exe (ELECTRON_UI_SMOKE=1)",
+      "attempt": 4,
+      "startedAt": "2026-07-23T12:42:09.000+08:00",
+      "finishedAt": "2026-07-23T12:43:21.296+08:00",
+      "elapsedSeconds": 72.296,
+      "result": "passed",
+      "detail": "Packaged app log: release/logs/app/ui-smoke-20260723_124321.log.",
+      "exitCode": 0,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-v0233-03",
+      "phaseId": "phase-delivery",
+      "command": "npm.cmd run test:v0.2.33",
+      "attempt": 3,
+      "startedAt": "2026-07-23T12:44:30.000+08:00",
+      "finishedAt": "2026-07-23T12:44:58.800+08:00",
+      "elapsedSeconds": 28.8,
+      "result": "passed",
+      "detail": "Version-specific path, Debug Folder, Full Fetch, provenance, architecture, and ledger checks passed.",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-delivery-checks"
+    },
+    {
+      "id": "cmd-artifacts-01",
+      "phaseId": "phase-delivery",
+      "command": "Inspect release artifacts and calculate SHA-256",
+      "attempt": 1,
+      "startedAt": "2026-07-23T12:44:30.000+08:00",
+      "finishedAt": "2026-07-23T12:44:33.100+08:00",
+      "elapsedSeconds": 3.1,
+      "result": "passed",
+      "detail": "Installer and Portable artifacts existed with non-zero sizes and SHA-256 values.",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-delivery-checks"
+    },
+    {
+      "id": "cmd-git-audit-01",
+      "phaseId": "phase-delivery",
+      "command": "git diff --check; git status --short; git branch --show-current",
+      "attempt": 1,
+      "startedAt": "2026-07-23T12:44:30.000+08:00",
+      "finishedAt": "2026-07-23T12:44:32.200+08:00",
+      "elapsedSeconds": 2.2,
+      "result": "passed",
+      "detail": "Diff whitespace check passed; branch and preserved dirty-worktree state were recorded.",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-delivery-checks"
+    },
+    {
+      "id": "cmd-path-audit-01",
+      "phaseId": "phase-delivery",
+      "command": "Static APP_ROOT and external-path audit",
+      "attempt": 1,
+      "startedAt": "2026-07-23T12:45:30.000+08:00",
+      "finishedAt": "2026-07-23T12:45:32.000+08:00",
+      "elapsedSeconds": 2,
+      "result": "passed",
+      "detail": "Remaining current-working-directory references were confined to explicit development or UI-smoke test roots.",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-static-audits"
+    },
+    {
+      "id": "cmd-secret-audit-01",
+      "phaseId": "phase-delivery",
+      "command": "Changed-file plaintext credential pattern audit",
+      "attempt": 1,
+      "startedAt": "2026-07-23T12:45:30.000+08:00",
+      "finishedAt": "2026-07-23T12:45:32.500+08:00",
+      "elapsedSeconds": 2.5,
+      "result": "passed",
+      "detail": "No plaintext secret pattern was found in the tracked diff; no environment file was read.",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-static-audits"
+    },
+    {
+      "id": "cmd-protected-audit-01",
+      "phaseId": "phase-delivery",
+      "command": "Protected untracked-path audit",
+      "attempt": 1,
+      "startedAt": "2026-07-23T12:45:30.000+08:00",
+      "finishedAt": "2026-07-23T12:45:31.600+08:00",
+      "elapsedSeconds": 1.6,
+      "result": "failed",
+      "detail": "The first PowerShell reporting expression had a pipeline syntax error; it did not modify any file.",
+      "exitCode": 1,
+      "parallelGroupId": "parallel-static-audits"
+    },
+    {
+      "id": "cmd-protected-audit-02",
+      "phaseId": "phase-delivery",
+      "command": "Protected untracked-path audit",
+      "attempt": 2,
+      "startedAt": "2026-07-23T12:45:45.000+08:00",
+      "finishedAt": "2026-07-23T12:45:47.400+08:00",
+      "elapsedSeconds": 2.4,
+      "result": "passed",
+      "detail": "All five protected paths still exist and remain untracked.",
+      "exitCode": 0,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-ledger-01",
+      "phaseId": "phase-delivery",
+      "command": "npm.cmd run test:ledger",
+      "attempt": 1,
+      "startedAt": "2026-07-23T12:49:30.000+08:00",
+      "finishedAt": "2026-07-23T12:49:32.200+08:00",
+      "elapsedSeconds": 2.2,
+      "result": "passed",
+      "detail": "The expanded 13-phase ledger parsed and reconciled successfully.",
+      "exitCode": 0,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-v0233-04",
+      "phaseId": "phase-delivery",
+      "command": "npm.cmd run test:v0.2.33",
+      "attempt": 4,
+      "startedAt": "2026-07-23T12:49:55.000+08:00",
+      "finishedAt": "2026-07-23T12:50:25.000+08:00",
+      "elapsedSeconds": 30,
+      "result": "passed",
+      "detail": "Final version-specific suite passed with the strengthened ledger validator.",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-final-delivery"
+    },
+    {
+      "id": "cmd-git-audit-02",
+      "phaseId": "phase-delivery",
+      "command": "git diff --check",
+      "attempt": 2,
+      "startedAt": "2026-07-23T12:49:55.000+08:00",
+      "finishedAt": "2026-07-23T12:49:56.500+08:00",
+      "elapsedSeconds": 1.5,
+      "result": "passed",
+      "detail": "Final whitespace audit passed; line-ending notices were informational.",
+      "exitCode": 0,
+      "parallelGroupId": "parallel-final-delivery"
+    },
+    {
+      "id": "cmd-ledger-02",
+      "phaseId": "phase-delivery",
+      "command": "npm.cmd run test:ledger",
+      "attempt": 2,
+      "startedAt": "2026-07-23T12:51:30.000+08:00",
+      "finishedAt": "2026-07-23T12:51:32.300+08:00",
+      "elapsedSeconds": 2.3,
+      "result": "failed",
+      "detail": "The strengthened validator found an arithmetic omission in failed/retried command seconds; the ledger was corrected.",
+      "exitCode": 1,
+      "parallelGroupId": null
+    },
+    {
+      "id": "cmd-ledger-03",
+      "phaseId": "phase-delivery",
+      "command": "node scripts/validate-execution-ledger.cjs",
+      "attempt": 3,
+      "startedAt": "2026-07-23T12:53:03.380+08:00",
+      "finishedAt": "2026-07-23T12:53:03.548+08:00",
+      "elapsedSeconds": 0.168,
+      "result": "passed",
+      "detail": "Final captured ledger validation passed after arithmetic correction.",
+      "exitCode": 0,
+      "parallelGroupId": null
+    }
+  ],
+  "parallelGroups": [
+    {
+      "id": "parallel-powershell-policy",
+      "commandIds": [
+        "cmd-typecheck-05",
+        "cmd-v0233-01"
+      ],
+      "startedAt": "2026-07-23T12:32:00.000+08:00",
+      "finishedAt": "2026-07-23T12:32:01.600+08:00",
+      "batchWallClockSeconds": 1.6,
+      "cumulativeCommandSeconds": 3.2
+    },
+    {
+      "id": "parallel-focused-checks",
+      "commandIds": [
+        "cmd-typecheck-06",
+        "cmd-v0233-02"
+      ],
+      "startedAt": "2026-07-23T12:32:15.000+08:00",
+      "finishedAt": "2026-07-23T12:32:48.600+08:00",
+      "batchWallClockSeconds": 33.6,
+      "cumulativeCommandSeconds": 53.9
+    },
+    {
+      "id": "parallel-unit-ui",
+      "commandIds": [
+        "cmd-unit-03",
+        "cmd-ui-05"
+      ],
+      "startedAt": "2026-07-23T12:33:00.000+08:00",
+      "finishedAt": "2026-07-23T12:34:44.500+08:00",
+      "batchWallClockSeconds": 104.5,
+      "cumulativeCommandSeconds": 142.6
+    },
+    {
+      "id": "parallel-final-focused",
+      "commandIds": [
+        "cmd-typecheck-07",
+        "cmd-architecture-01"
+      ],
+      "startedAt": "2026-07-23T12:35:30.000+08:00",
+      "finishedAt": "2026-07-23T12:35:51.700+08:00",
+      "batchWallClockSeconds": 21.7,
+      "cumulativeCommandSeconds": 23.5
+    },
+    {
+      "id": "parallel-delivery-checks",
+      "commandIds": [
+        "cmd-v0233-03",
+        "cmd-artifacts-01",
+        "cmd-git-audit-01"
+      ],
+      "startedAt": "2026-07-23T12:44:30.000+08:00",
+      "finishedAt": "2026-07-23T12:44:58.800+08:00",
+      "batchWallClockSeconds": 28.8,
+      "cumulativeCommandSeconds": 34.1
+    },
+    {
+      "id": "parallel-static-audits",
+      "commandIds": [
+        "cmd-path-audit-01",
+        "cmd-secret-audit-01",
+        "cmd-protected-audit-01"
+      ],
+      "startedAt": "2026-07-23T12:45:30.000+08:00",
+      "finishedAt": "2026-07-23T12:45:32.500+08:00",
+      "batchWallClockSeconds": 2.5,
+      "cumulativeCommandSeconds": 6.1
+    },
+    {
+      "id": "parallel-final-delivery",
+      "commandIds": [
+        "cmd-v0233-04",
+        "cmd-git-audit-02"
+      ],
+      "startedAt": "2026-07-23T12:49:55.000+08:00",
+      "finishedAt": "2026-07-23T12:50:25.000+08:00",
+      "batchWallClockSeconds": 30,
+      "cumulativeCommandSeconds": 31.5
+    }
+  ],
+  "failedAttempts": [
+    "cmd-branch-01",
+    "cmd-typecheck-01",
+    "cmd-ui-01",
+    "cmd-portable-01",
+    "cmd-portable-02",
+    "cmd-ui-03",
+    "cmd-portable-03",
+    "cmd-typecheck-05",
+    "cmd-v0233-01",
+    "cmd-v0233-02",
+    "cmd-ui-05",
+    "cmd-protected-audit-01",
+    "cmd-ledger-02"
+  ],
+  "summary": {
+    "nonOverlappingPhaseSeconds": 5396.283,
+    "unaccountedSeconds": 0,
+    "cumulativeCommandSeconds": 1922.162,
+    "failedOrRetriedCommandSeconds": 1585.901,
+    "reconciliationToleranceSeconds": 0.01,
+    "reconciliationPassed": true,
+    "officialUiDifferenceSeconds": null
+  },
+  "notes": [
+    "Wall-clock duration is measured from the Codex request metadata start through final ledger preparation.",
+    "Cumulative command time is diagnostic only and is not the total elapsed time; parallel command durations intentionally overlap.",
+    "The official Codex UI elapsed timer was unavailable, so no estimate or UI difference was invented.",
+    "No lint script exists in package.json.",
+    "Automated Windows portable smoke passed against the packaged v0.2.33 executable.",
+    "Real company Jira and interactive Windows acceptance are NOT RUN because credentials, VPN/SSO access, and user-driven acceptance were not available to Codex.",
+    "No token, password, authorization value, cookie, database payload, or user environment file is recorded in this ledger."
+  ]
+}

@@ -5,6 +5,12 @@ contextBridge.exposeInMainWorld("desktopApp", {
   shell: "electron",
   nodeAccess: false,
   uiSmoke: process.env.ELECTRON_UI_SMOKE === "1",
+  appDiagnostics: {
+    reportRendererEvent: (payload: unknown) => ipcRenderer.invoke("diagnostics:renderer-event", payload),
+    reportTransition: (payload: unknown) => ipcRenderer.invoke("diagnostics:transition", payload),
+    getContext: () => ipcRenderer.invoke("diagnostics:get-context"),
+    openLogsFolder: () => ipcRenderer.invoke("diagnostics:open-logs")
+  },
   jiraProbe: {
     run: (request: unknown) => ipcRenderer.invoke("jira-probe:run", request),
     loadEnv: () => ipcRenderer.invoke("jira-probe:load-env"),
@@ -55,7 +61,6 @@ contextBridge.exposeInMainWorld("desktopApp", {
     exportSourceArchive: (payload: unknown) => ipcRenderer.invoke("user-analysis:export-source-archive", payload),
     cancelFullFetch: () => ipcRenderer.invoke("user-analysis:cancel-full-fetch"),
     scanFullFetchStaging: () => ipcRenderer.invoke("user-analysis:scan-full-fetch-staging"),
-    previewFullFetchIssue: (payload: { stagingId: string; issueKey: string }) => ipcRenderer.invoke("user-analysis:preview-full-fetch-issue", payload),
     fullFetchStagingAction: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch-staging-action", payload),
     logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO"; message: string }) => ipcRenderer.invoke("user-analysis:log-action", payload),
     updateWorkflowSnapshot: (payload: unknown) => ipcRenderer.invoke("user-analysis:update-workflow-snapshot", payload),

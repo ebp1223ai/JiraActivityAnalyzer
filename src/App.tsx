@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AppLayout } from "./components/AppLayout";
 import { buildInfo } from "./buildInfo";
 import { AnalysisPage } from "./routes/AnalysisPage";
@@ -14,6 +14,18 @@ import { TimelinePage } from "./routes/TimelinePage";
 import { ConnectionProvider } from "./state/ConnectionContext";
 import { SessionStateProvider } from "./state/SessionStateContext";
 
+function UiSmokeErrorTrigger() {
+  const [shouldThrow, setShouldThrow] = useState(false);
+  useEffect(() => {
+    if (!window.desktopApp?.uiSmoke) return;
+    const trigger = () => setShouldThrow(true);
+    window.addEventListener("jaa:test-error-boundary", trigger);
+    return () => window.removeEventListener("jaa:test-error-boundary", trigger);
+  }, []);
+  if (shouldThrow) throw new Error("Controlled renderer error: Authorization: Bearer ui-smoke-secret");
+  return null;
+}
+
 export default function App() {
   useEffect(() => {
     document.title = `Jira Activity Analyzer ${buildInfo.version}`;
@@ -22,6 +34,7 @@ export default function App() {
   return (
     <ConnectionProvider>
       <SessionStateProvider>
+        <UiSmokeErrorTrigger />
         <Routes>
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardPage />} />

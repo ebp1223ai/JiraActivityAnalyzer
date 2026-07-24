@@ -8,6 +8,12 @@ declare global {
       shell: string;
       nodeAccess: boolean;
       uiSmoke?: boolean;
+      appDiagnostics?: {
+        reportRendererEvent: (payload: Record<string, unknown>) => Promise<{ ok: boolean; incidentId: string }>;
+        reportTransition: (payload: Record<string, unknown>) => Promise<{ ok: boolean; incidentId: string }>;
+        getContext: () => Promise<{ sessionId: string; previousSessionId: string; logsDir: string; appRoot: string }>;
+        openLogsFolder: () => Promise<{ ok: boolean; folderPath: string; error?: string }>;
+      };
       jiraProbe?: {
         run: (request: JiraProbeRequest) => Promise<JiraProbeResult>;
         loadEnv: () => Promise<{
@@ -72,17 +78,16 @@ declare global {
         activityStreamBenchmark: (payload: { connection: JiraConnection; config: Record<string, unknown> }) => Promise<Record<string, unknown>>;
         cancelActivityStreamBenchmark: () => Promise<{ ok: boolean; benchmarkRunId?: string; message?: string }>;
         onActivityStreamBenchmarkProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
-        buildActivityTimeline: (payload: { connection: JiraConnection; selectedUser: string; startDate: string; endDate: string; projectScope: string; requestWindow: { type: "1_day" | "7_days" | "14_days" | "calendar_month" | "custom_days"; customDays: number | null }; fullScanRoundCount: number; delayBetweenRoundsMs: number; roundExecutionMode: "stop_when_stable" | "force_all_rounds"; mergeStrategy: "union" | "last_stable" }) => Promise<Record<string, unknown>>;
+        buildActivityTimeline: (payload: { connection: JiraConnection; selectedUser: string; startDate: string; endDate: string; requestWindow: { type: "1_day" | "7_days" | "14_days" | "calendar_month" | "custom_days"; customDays: number | null }; fullScanRoundCount: number; delayBetweenRoundsMs: number; roundExecutionMode: "stop_when_stable" | "force_all_rounds"; mergeStrategy: "union" | "last_stable" }) => Promise<Record<string, unknown>>;
         cancelActivityTimeline: () => Promise<{ ok: boolean; runId?: string; message?: string }>;
         onActivityTimelineProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
         activityStreamManualReplay: (payload: { connection: JiraConnection; manualUrl: string; runId: string }) => Promise<Record<string, unknown>>;
         precisionProbe: (payload: { connection: JiraConnection; selectedUsers: string[]; startInclusive: string; endExclusive: string; activityStreamEndInclusive: string; projectScope: string; activityStreamUser: string; activityStreamQueryMode: "auto" | "username" | "escaped_username" | "email" | "custom"; activityStreamRelativeLinks: boolean; activityStreamRunId: string; activityStreamDateQueryMode: "none" | "startDate_endDate" | "update_date_after_before" | "both"; activityStreamChunkingMode?: "off" | "auto" | "monthly" | "weekly" | "custom_days"; activityStreamCustomChunkDays?: number; maxResults: number; maxResultsSource: "custom" | "quick"; largeMaxResultsConfirmed: boolean; standardFlow?: boolean; advancedOverrideUsed?: boolean; broadJql: string }) => Promise<Record<string, unknown>>;
-      fullFetch: (payload: { connection: JiraConnection; fetchQueue: unknown[]; fetchLimit: number; batchSize: number | "all"; rawDataMode: "auto_save_raw_per_issue"; selectedUser: string; startDate: string; endDate: string; projectScope: string; jql: string; candidateIssues: unknown[]; selectedIssues: string[]; relatedIssuesStatus: string; fetchRemoteLinks: boolean; directIssueKeys: string[] }) => Promise<Record<string, unknown>>;
+      fullFetch: (payload: { connection: JiraConnection; fetchQueue: unknown[]; rawDataMode: "auto_save_raw_per_issue"; selectedUser: string; startDate: string; endDate: string; jql: string; candidateIssues: unknown[]; selectedIssues: string[]; relatedIssuesStatus: string; fetchRemoteLinks: boolean; directIssueKeys: string[] }) => Promise<Record<string, unknown>>;
         previewSourceArchive: (payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => Promise<Record<string, unknown>>;
         exportSourceArchive: (payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => Promise<Record<string, unknown>>;
         cancelFullFetch: () => Promise<{ ok: boolean; runId?: string; stagingId?: string; message?: string }>;
       scanFullFetchStaging: () => Promise<{ found: boolean; runs?: Array<{ state: Record<string, unknown>; preview: Record<string, unknown> }>; latest?: { state: Record<string, unknown>; preview: Record<string, unknown> } | null }>;
-      previewFullFetchIssue: (payload: { stagingId: string; issueKey: string }) => Promise<{ ok: boolean; preview: Record<string, unknown> }>;
       fullFetchStagingAction: (payload: { stagingId: string; action: "open_folder" | "export_completed" | "delete_failed" }) => Promise<Record<string, unknown>>;
         logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO"; message: string }) => Promise<{ ok: boolean; appLogPath?: string; actionLogPath?: string; actionLogAvailable?: boolean; fullFetchLogPath?: string; error?: string }>;
         updateWorkflowSnapshot: (payload: Record<string, unknown>) => Promise<{ ok: boolean; outputDir: string; files: Record<string, string> }>;
@@ -98,7 +103,7 @@ declare global {
       };
       appDebug?: {
         saveTextFile: (payload: { defaultFileName: string; content: string }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string; actionLogPath?: string; actionLogAvailable?: boolean }>;
-        saveBundle: (payload: { debugLog: string; currentPage: string }) => Promise<{ canceled: boolean; status?: "completed" | "completed_with_errors" | "failed"; filePath?: string; folderPath?: string; createdAt?: string; bundleSizeBytes?: number; uncompressedSizeBytes?: number; warningThresholdExceeded?: boolean; errorCode?: string; stage?: string; freeBytes?: number; includedFiles?: string[]; fullFetchResult?: Record<string, unknown>; crossPageDebugBundleTodo?: string[] }>;
+        saveBundle: (payload: { debugLog: string; currentPage: string }) => Promise<{ canceled: boolean; status?: "completed" | "completed_with_errors" | "failed"; filePath?: string; folderPath?: string; createdAt?: string; bundleSizeBytes?: number; successfulFileCount?: number; unavailableOrNotRunCount?: number; sourcesNotObserved?: number; featuresNotRun?: number; sourcesMissing?: number; placeholderFilesCreated?: number; failedFileCount?: number; errorCode?: string; stage?: string; includedFiles?: string[]; fullFetchResult?: Record<string, unknown>; crossPageDebugBundleTodo?: string[] }>;
         openFolder: (payload: { folderPath: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;
       };
     };

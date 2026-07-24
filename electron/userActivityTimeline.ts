@@ -143,7 +143,7 @@ export type UserActivityTimelineSummary = {
 export type UserActivityTimelineBuild = { timelineRunId: string; summary: UserActivityTimelineSummary; events: UserActivityTimelineEvent[] };
 
 const eventTypes = new Set<TimelineEventType>(["comment", "attachment", "link", "page", "field_change", "status_change", "assignee_change", "resolution_change", "unknown"]);
-const jiraIssueKeyPattern = /^[A-Z][A-Z0-9]+-\d+$/;
+const jiraIssueKeyPattern = /^[A-Z][A-Z0-9_]*-\d+$/;
 
 function mappedType(value: string): TimelineEventType {
   return eventTypes.has(value as TimelineEventType) ? value as TimelineEventType : "unknown";
@@ -163,6 +163,11 @@ function uniqueInOrder(values: string[]) {
     unique.push(value);
   }
   return unique;
+}
+
+function authoritativeIssueKeys(values: string[]) {
+  return uniqueInOrder(values.map((value) => value.trim().toUpperCase()))
+    .filter((value) => jiraIssueKeyPattern.test(value));
 }
 
 function eventConfidence(eventType: TimelineEventType, issueKey: string, classification: string, fingerprintMatched: boolean): TimelineConfidence {
@@ -256,11 +261,11 @@ export function buildUserActivityTimeline(input: {
     }
     try {
       const eventType = mappedType(String(entry.activityTypeClassifier?.finalType ?? entry.activityType ?? "unknown"));
-  const extractedIssueKeys = uniqueInOrder(entry.extractedIssueKeysPerEntry ?? []);
-  const issueKey = String(entry.issueKey ?? "").trim().toUpperCase();
-  const mentionedIssueKeys = uniqueInOrder(entry.mentionedIssueKeys ?? []).filter((key) => key !== issueKey);
-  const relatedIssueKeys = uniqueInOrder(entry.relatedIssueKeys ?? []).filter((key) => key !== issueKey && !mentionedIssueKeys.includes(key));
-  const allIssueKeys = uniqueInOrder([issueKey, ...mentionedIssueKeys, ...relatedIssueKeys, ...extractedIssueKeys].filter(Boolean));
+      const rawIssueKey = String(entry.issueKey ?? "").trim().toUpperCase();
+      const issueKey = jiraIssueKeyPattern.test(rawIssueKey) ? rawIssueKey : "";
+      const mentionedIssueKeys: string[] = [];
+      const relatedIssueKeys = authoritativeIssueKeys(entry.relatedIssueKeys ?? []).filter((key) => key !== issueKey);
+      const allIssueKeys = uniqueInOrder([issueKey, ...relatedIssueKeys].filter(Boolean));
       const fingerprint = normalizeSha256Id(String(entry.entryFingerprint || sha256(JSON.stringify(entry))));
       const fingerprintMatched = baselineFingerprints.has(fingerprint);
       const eventTime = String(entry.activityTime);
@@ -272,10 +277,10 @@ export function buildUserActivityTimeline(input: {
         eventId,
         userKey: String(entry.activityAuthorEmail || input.selectedUser),
         displayName: String(entry.activityAuthor || input.selectedUser),
-    issueKey,
-    allIssueKeys,
-    mentionedIssueKeys,
-    relatedIssueKeys,
+        issueKey,
+        allIssueKeys,
+        mentionedIssueKeys,
+        relatedIssueKeys,
         eventTime,
         eventType,
         eventTitle: String(entry.activityTitle || entry.rawTitle || "Untitled activity"),
@@ -308,9 +313,13 @@ export function buildUserActivityTimeline(input: {
   });
 
   const events = Array.from(eventsById.values()).map(({ event }) => event).sort((left, right) => right.eventTime.localeCompare(left.eventTime));
-  const sourceIssueKeys = uniqueInOrder(input.sourceIssueKeys);
-  const primaryIssueKeys = uniqueInOrder(events.map((event) => event.issueKey));
-  const allIssueKeys = uniqueInOrder(events.flatMap((event) => event.allIssueKeys));
+  const authoritativeSourceKeys = authoritativeIssueKeys(input.entries.flatMap((entry) => [
+    String(entry.issueKey ?? ""),
+    ...(entry.relatedIssueKeys ?? [])
+  ]));
+  const sourceIssueKeys = authoritativeIssueKeys(input.sourceIssueKeys).filter((key) => authoritativeSourceKeys.includes(key));
+  const primaryIssueKeys = authoritativeIssueKeys(events.map((event) => event.issueKey));
+  const allIssueKeys = authoritativeIssueKeys(events.flatMap((event) => event.allIssueKeys));
   const missingIssueKeysFromTimeline = sourceIssueKeys.filter((key) => !allIssueKeys.includes(key));
   const missingIssueKeysFromPrimaryTimeline = sourceIssueKeys.filter((key) => !primaryIssueKeys.includes(key));
   const deduplicatedEntryCount = Array.from(dedupGroups.values()).reduce((sum, group) => sum + group.deduplicatedEntryIndexes.length, 0);

@@ -2,32 +2,50 @@
 
 Electron desktop application for read-only Jira activity inspection and analysis.
 
+## v0.2.34 Selection / Fetch Queue Correctness
+
+User Analysis Step 1 now builds the Activity Timeline for the selected user and inclusive date range across all projects; Project Scope is no longer shown, sent through the active renderer flow, or applied by the Electron handler.
+
+Step 2 Project Key remains a display-only filter. Selections are maintained as one normalized global set across projects. Confirming Step 2 creates a fresh Fetch Queue from that set in stable selection order and replaces the previous queue. A selected Issue with trusted structured provenance is not rejected because it belongs to another project; legacy `PROJECT_SCOPE_MISMATCH` values remain readable but are not produced by new runs.
+
+After Full Fetch, `selection_fetch_queue_reconciliation_v1` compares the actual Selected, Fetch Queue, Attempted, Completed, Partial, and Failed Issue Key sets. It reports counts, normalized keys, missing/unexpected keys, duplicate outcomes, and multi-outcome keys as `MATCH` or `MISMATCH`. This is post-run diagnostics only and does not add a pre-run blocking workflow.
+
+## v0.2.33 Hotfix Diagnostics
+
+The v0.2.33 hotfix keeps the product SemVer at `0.2.33` and adds a new build time/commit identity. Candidate Issue Groups are validated and normalized before the Fetch Queue and Step 3 state are committed. Legacy session snapshots with missing optional queue metadata no longer crash the renderer.
+
+Renderer, main-process, and queue-transition diagnostics are persisted by session under `<APP_ROOT>/logs/sessions/`. A new launch retains the previous session, and Export Debug Folder collects current and previous session evidence. The manifest distinguishes `copied`, `not_observed`, `not_run`, `source_missing`, and `copy_failed`; an unexecuted Full Fetch reports `failedCount: null` and does not claim a failed-issues evidence file. Each Debug Folder also includes `path-audit.json` with the actual APP_ROOT-derived paths and containment result.
+
+If a React render error still occurs, the root Error Boundary shows an incident reference and safe Reload, Dashboard, Copy reference, and Open logs actions instead of a blank window. Diagnostic values are bounded and masked before persistence.
+
 ## User Analysis Workflow
 
-Version 0.2.31, **Full Fetch Correctness & Validation**, validates the crash-safe, file-backed terminal-run design introduced in v0.2.30 while preserving the guarded five-step User Analysis workflow, Activity Stream reliability diagnostics, and direct Jira evidence extraction:
+Version 0.2.34, **Selection / Fetch Queue Correctness**, keeps the crash-safe, file-backed terminal-run design while correcting selection and queue identity:
 
-- Every successful Issue is committed under `%LOCALAPPDATA%/JiraActivityAnalyzer/full-fetch-staging/<staging-id>/issues/<issue-key>/` before UI completion is reported.
+- Packaged application data is contained under `APP_ROOT`, the directory containing the launched executable. Electron data, cache, crash dumps, session data, logs, temporary application files, Full Fetch staging, and exports no longer intentionally fall back to AppData or OS temp locations.
+- Every successful Issue is committed under `<APP_ROOT>/full-fetch-staging/<staging-id>/issues/<issue-key>/` before UI completion is reported.
 - Canonical files include Current Issue Snapshot, normalized current fields, changelog NDJSON, comments NDJSON, attachment metadata, users, evidence NDJSON, issue links, remote links, request metadata, and an Issue manifest with hashes and sizes.
 - Canonical Issue outcomes are `eligible`, `partial`, `failed_final`, and `not_attempted_due_to_run_failure`. Canonical Run outcomes are `completed`, `completed_with_partial`, `completed_with_errors`, and `failed`; lifecycle-only cancelled/discarded records remain terminal and can never return to `running`.
 - Cross-restart Resume and recoverable queues remain removed. Startup converts a stale running process to a terminal `failed` record; **Start New Full Fetch / 開始新的完整抓取** always creates a new Run ID and staging directory.
 - Same-run GET retries are limited to three attempts for network/timeout, 408, 429, and selected 5xx failures. HTTP 400, 401, 403, and 404 are never retried.
 - Run-level failures write a small error manifest, identify the faulting Issue, mark remaining Issues as not attempted, release mutation locks, and permanently retain the failed staging until explicit deletion.
-- Eligible requires consistent Issue ID/Key, returned full fields, complete dedicated-endpoint Changelog and Comments pagination, readable canonical JSON/NDJSON, and matching SHA-256 and file sizes. Dedicated pagination records reported/fetched totals, page counts, duplicates, and per-page request metadata; embedded Changelog is diagnostic only and cannot prove completeness.
+- Changelog is read from the Issue API `expand=changelog`. Observed histories are always persisted. `histories.length === total` is Complete; fewer histories, an unavailable total, missing data, or invalid data is Partial with a stable machine-readable reason. Full Fetch does not require the unsupported per-Issue `/changelog` endpoint. Comments retain dedicated pagination and verification.
 - Start Date normalization reports `present`, `absent`, `unparseable`, or `ambiguous`. Start Date and user enrichment warnings, normalized-field warnings, and attachment bodies not being downloaded do not block Eligible when core Raw remains complete.
 - Remote Links is optional and OFF by default. Its states are `available`, `unsupported`, `permission_denied`, `temporarily_unavailable`, and `not_attempted`; failures retain HTTP/error/attempt metadata and warnings without blocking Eligible or masquerading as an empty response.
-- Only a fully `completed` run can produce a formal Source Archive. Export streams canonical files into a versioned ZIP with manifest, Issue index, hashes, and section coverage, reopens the ZIP, and verifies entry hashes and sizes before `safeForAutomaticImport` becomes true.
+- Only a fully `completed`, count-reconciled run with no Partial, Failed, or Not Attempted issues can produce a formal Source Archive. Export keeps the existing versioned ZIP verification flow; this is separate from Debug Folder export.
 - Successfully verified staging is retained for seven days from successful export. User-cancelled staging is retained for 30 days. Fetch failures, export failures, incomplete runs, and legacy staging are retained permanently until explicit safe deletion; a successful export retry starts the seven-day window. Active staging and formal Export ZIP files are never removed by staging cleanup.
-- Legacy v0.2.29 and v0.2.30 staging are visible through read-only compatibility adapters and are never mutated, resumed, or promoted to Eligible by v0.2.31.
-- Step 5 provides Save Full Fetch Result, Export Source Archive Import Package, and Generate Debug Bundle. The old manual Save Full Fetch Raw Data action is removed because main-process staging owns raw persistence.
-- Preview uses Run Summary → Issue List → single-Issue expansion. Snapshot and normalized fields are read only for the expanded Issue; the complete Run Raw is never sent through renderer IPC.
-- Debug Bundles use one bundle-scoped sanitization context across canonical files, logs, metadata, and paths. Credentials are masked and identity fields are consistently pseudonymized. `sanitized-manifest.json` separates source hash/size from the actual sanitized hash/size and is verified before the streaming, atomically renamed ZIP is published. Issue Key, Summary, Description, and Comments remain available, so the UI warns that a bundle may contain company Jira content and personal data. Attachment bodies are never downloaded or included.
+- Legacy v0.2.29, v0.2.30, and v0.2.31 staging are visible through read-only compatibility adapters and are never mutated, resumed, or promoted to Eligible.
+- Step 5 provides Save Full Fetch Result, Export Source Archive Import Package, and Export Debug Folder. The old manual Save Full Fetch Raw Data action is removed because main-process staging owns raw persistence.
+- Normal results show a concise Full Fetch summary and evidence counts only. Per-Issue snapshots, normalized fields, changelog, comments, attachment metadata, evidence, and completeness data remain in main-process file-backed storage and are not exposed through a result browser.
+- Debug Folder export is one click and automatically creates `<APP_ROOT>/exports/debug-folders/jira-activity-analyzer-debug-folder-YYYYMMDD_HHmmss[-02]`. It remains an ordinary directory without compression; individual copy failures do not stop remaining files.
+- Jira-like matches from unstructured text, attachment names, image URLs, or markup remain rejected-candidate diagnostics. Only structured Jira fields, REST keys, verified `/browse/` URLs, and explicit related-key fields enter Jira Issue Key semantic collections.
 
 - Stability setup, results, active tab, filters, sort, and visible columns persist for the current app session.
 - Formal Stability and Timeline queries use only `escaped_username`; new executions do not perform username/email variant discovery.
 - Logical window requests and physical HTTP requests have separate counts, timings, pagination/retry flags, and result classifications.
 - Processing timing is separated from HTTP timing, including normalization, Jira-key extraction, deduplication, fingerprint, comparison, and assembly stages.
 - Activity Stream Benchmark runs 1-20 isolated, sequential, read-only samples and exports JSON, CSV, and summary files without changing Timeline, Candidate Set, or Full Fetch state.
-- Debug Bundles include independent Stability setup, round comparison, window diagnostics, raw diagnostics, UI state, Benchmark exports, and the latest successful Source Archive package from the current session.
+- Debug Folders include independent Stability setup, round comparison, window diagnostics, raw diagnostics, UI state, Benchmark exports, and available Full Fetch staging metadata from the current session. Formal Source Archive ZIPs remain a separate export flow.
 
 1. Setup & Build Timeline
 2. Select Issues
@@ -39,46 +57,44 @@ The Stability Probe and formal Timeline builder default to **Force All Rounds / 
 
 Round diagnostics separate primary Jira targets from Jira-like keys referenced in titles or summaries. V2 exports include round fingerprints, union, intersection, variable events, consistency rate, per-window diagnostics, API/processing duration, progress, and ETA. Legacy v1 files remain identifiable as `window_first`; they are not converted into synthetic rounds.
 
-The Source Archive Import Package contains only eligible canonical Issue files from a fully completed staging Run. Partial, final-failed, not-attempted, and excluded records block formal export. Export performs streaming hash and ZIP reopen verification. Version 0.2.31 does not create or write a Source Archive SQLite database.
+The Source Archive Import Package contains only eligible canonical Issue files from a fully completed and reconciled staging Run. Partial, final-failed, not-attempted, or count-mismatched records block formal export. Export performs streaming hash and ZIP reopen verification. Version 0.2.34 does not create or write a Source Archive SQLite database.
 
-User Analysis defaults are Project Scope `COPGEN1`, Start Date `2026-01-01`, End Date equal to the current `Asia/Taipei` calendar date, Calendar Month request windows, Force All Rounds, three rounds, and Fetch Remote Links OFF. For 2026-01-01 through 2026-07-21 this produces seven calendar windows and 21 logical window-round tasks.
+User Analysis defaults are Start Date `2026-01-01`, End Date equal to the current `Asia/Taipei` calendar date, Calendar Month request windows, Force All Rounds, three rounds, and Fetch Remote Links OFF. Step 1 always uses all projects. For 2026-01-01 through 2026-07-21 this produces seven calendar windows and 21 logical window-round tasks.
 
-Step 1 combines the selected user, inclusive date range, optional project scope, Live Jira API source, timeline build action, timeline summary, and event inspection. Later steps repeat a compact setup summary and remain blocked until their required evidence exists. Advanced Tools and Candidate Search are no longer exposed in User Analysis.
+Step 1 combines the selected user, inclusive date range, Live Jira API source, timeline build action, timeline summary, and event inspection. Later steps repeat a compact setup summary and remain blocked until their required evidence exists. Advanced Tools and Candidate Search are no longer exposed in User Analysis.
 
-Timeline Issue Groups are built only from the event's trusted primary `issueKey`. `/browse/<IssueKey>` is preferred over structured fields, REST keys, and restricted unique-text fallback. Jira-like keys in summaries are retained separately as `mentionedIssueKeys` or `relatedIssueKeys`; compatibility `allIssueKeys` is never a Fetch Queue source. Ambiguous fallback candidates are rejected rather than guessed. Queue preflight then validates source, format, project scope, duplicates, prior entries, and Fetch Limit before creating a Run.
+Timeline Issue Groups are built only from the event's trusted primary `issueKey`. `/browse/<IssueKey>`, structured fields, and REST keys are trusted sources. Plain-text regex matches, including attachment names such as `IMAGE-2026`, remain low-confidence candidates only and cannot become a primary key or Fetch Queue source. Queue preflight validates every raw item, source, format, duplicate, and prior entry without applying a fetch-count limit or Project Scope exclusion.
 
 Timeline events classify their source application separately from their Jira relationship. `sourceSystem` and `sourceDetail` remain backward compatible, while `sourceApplication`, `hasJiraIssueKey`, `isJiraRelated`, `relatedSystems`, and `jiraRelationReason` identify Jira-related evidence. A Confluence event that references a Jira issue is Jira-related; a Confluence-only page edit is not. Issue groups aggregate both source and Jira-relation diagnostics.
 
-Timeline Event List and Select Issues both provide Column Settings with fixed required columns, optional columns, and expandable row details for long evidence. Their checkbox filters use OR semantics within one category and AND semantics across categories. The default is Jira-related plus Jira and Confluence source applications, so Confluence references to Jira issues remain visible while pure Confluence page edits, Other, and Unknown remain excluded. An explicit Project Scope becomes the default Project Key filter. Each filter can be cleared independently, all filters can be cleared together, and all visible issue groups can be selected.
+Timeline Event List and Select Issues both provide Column Settings with fixed required columns, optional columns, and expandable row details for long evidence. Their checkbox filters use OR semantics within one category and AND semantics across categories. The default is Jira-related plus Jira and Confluence source applications, so Confluence references to Jira issues remain visible while pure Confluence page edits, Other, and Unknown remain excluded. Project Key filters only the current display; selecting visible rows merges them into the cross-project global Selected Set. Each filter can be cleared independently, all filters can be cleared together, and all visible issue groups can be selected.
 
 After Full Fetch, Related Issues are derived from sanitized read-only metadata. Parent and epic hierarchy relationships are grouped as Recommended Scope and can be added together. Links, mentions, remote links, and other weaker evidence are Optional Scope and require explicit per-issue selection; there is no add-all optional action. Queue metadata distinguishes `recommended_related_issue` from `optional_related_issue`.
 
-Step 3 includes Direct Jira Evidence Review. Comments, changelog items, and attachment metadata become `direct` evidence only when both actor and inclusive date range match the selected analysis setup. Issue links, remote links, and issue snapshots without reliable actor/time attribution remain `context`. Evidence extracted from a fetched related issue remains `related_context`; it is never promoted to primary evidence. Related expansion is non-recursive, has a maximum depth of one, and never downloads attachment bodies.
+Step 3 displays concise Direct and Context evidence counts. Comments, changelog items, and attachment metadata still become `direct` evidence only when actor and inclusive date range match the selected setup. Issue links, remote links, and snapshots without reliable actor/time attribution remain `context`; related-issue evidence remains `related_context`. Detailed evidence records continue to be written to file-backed staging but are no longer browsed, filtered, paginated, or previewed in the normal UI.
 
-Evidence IDs use a stable SHA-256 fingerprint. The review table supports multi-select Evidence Type, Activity Type, Issue Key, Scope, Confidence, and Actor filters, with OR semantics inside one filter and AND semantics across filters. Row details retain the extraction reason and raw reference without exposing credentials.
-
-Workflow exports are auto-saved under `<runtime>/exports/user-analysis/workflow/`:
+Workflow exports are auto-saved under `<APP_ROOT>/exports/user-analysis/workflow/`:
 
 - `user-analysis-workflow-snapshot.json`
 - `timeline-issue-groups.json`
-- `timeline-source-system-diagnostics.json` (Debug Bundle)
-- `timeline-jira-relation-diagnostics.json` (Debug Bundle)
+- `timeline-source-system-diagnostics.json` (Debug Folder)
+- `timeline-jira-relation-diagnostics.json` (Debug Folder)
 - `timeline-selected-issues.json`
 - `fetch-queue.json`
 - `related-candidate-issues.json`
 - `related-issue-expansion-summary.json`
-- `checkpoint-write-diagnostics.json` (Debug Bundle)
-- `full-fetch-failed-issues.json` (Debug Bundle)
-- `full-fetch-failure-summary.json` (Debug Bundle)
-- `timeline-event-list-ui-state.json` (Debug Bundle)
-- `select-issues-ui-state.json` (Debug Bundle)
+- `checkpoint-write-diagnostics.json` (Debug Folder)
+- `full-fetch-failed-issues.json` (Debug Folder)
+- `full-fetch-failure-summary.json` (Debug Folder)
+- `timeline-event-list-ui-state.json` (Debug Folder)
+- `select-issues-ui-state.json` (Debug Folder)
 - `jira-evidence-events.json`
 - `jira-evidence-summary.json`
 - `jira-evidence-excluded-summary.json`
 - `jira-evidence-schema.json`
 - `analysis-roadmap.json`
 
-Canonical JSON and NDJSON files use bounded writes, temporary files, atomic replacement, SHA-256 hashes, and per-file sizes. Full Fetch reports list failed Issues and aggregate them by HTTP status, error code, stage, and queue source. Debug Bundles include those reports, canonical staging, Jira-relation diagnostics, workflow details, and session events. This workflow remains read-only: it does not write Jira or a database and does not download attachment bodies.
+Canonical JSON and NDJSON files use bounded writes, temporary files, atomic replacement, SHA-256 hashes, and per-file sizes. Full Fetch reports include Queue Total, Eligible/Planned, Excluded, Invalid, Attempted, Completed, Partial, Failed, Not Attempted, reconciliation results, and Changelog/Comments observed totals. Debug Folders include the existing reports, canonical staging, Jira-relation diagnostics, workflow details, and session events as ordinary files. This workflow remains read-only: it does not write Jira or a database and does not download attachment bodies.
 
 The analyzer roadmap reserves Cloud AI Analyzer, Local AI Analyzer, and Offline Rule Analyzer as planned consumers of the normalized evidence schema. Live API is the current data source; Local Database and Hybrid sources are planned. Product goals cover Jira activity analysis, Confluence activity analysis, and combined Jira + Confluence analysis.
 
@@ -105,31 +121,31 @@ Build Time is shown in the sidebar and in Settings > System Status.
 
 ## Full Fetch Stability and Diagnostics
 
-User Analysis Full Fetch is a sequential, read-only Jira operation. Version 0.2.31 keeps the v0.2.30 file-backed runtime and adds strict correctness diagnostics:
+User Analysis Full Fetch is a sequential, read-only Jira operation. Version 0.2.34 processes every Eligible queue item from an immutable confirmed snapshot:
 
-- An auto log is created immediately under `<runtime>/logs/full-fetch/` and appended throughout the run.
+- An auto log is created immediately under `<APP_ROOT>/logs/full-fetch/` and appended throughout the run.
 - A small run manifest and index record terminal state, current/faulting Issue, counts, timing, hashes, sizes, and per-Issue canonical references.
-- The UI, logs, manifests, exports, and Debug Bundle use one canonical aggregation for Total, Completed, Eligible, Partial, Failed, and Not Attempted. Partial is never counted as Failed.
-- Batch Size supports 10, 20, 40, or All; the default is 10.
+- The UI, logs, manifests, exports, and Debug Folder expose one canonical aggregation for Queue Total, Eligible/Planned, Excluded, Invalid, Attempted, Completed, Partial, Failed, and Not Attempted. Partial is never counted as Failed.
+- Full Fetch has no Fetch Limit or Batch Size. Candidate Discovery keeps a separate safety limit that does not truncate items already in the Fetch Queue.
 - Full Fetch always uses file-backed canonical storage. Complete raw Issue, Snapshot, and Evidence collections are not transmitted through renderer IPC.
-- Queues over 10 issues display a warning; queues over 40 require typing `CONFIRM` before requests begin.
+- Multi-Issue Full Fetch requires one `CONFIRM` action after full preflight and then processes all Eligible items. There is no per-40-item confirmation or truncation.
 - Stop After Current Issue lets the active Jira request finish safely and marks unscheduled Issues as not attempted. It does not create a resumable queue or partial formal archive.
-- On restart, stale running state becomes a terminal `failed` record and is shown with Open Folder, Create Debug Bundle, and explicit Delete actions. No Resume action is exposed.
-- Main/renderer/child process failures and unresponsive windows write masked diagnostics under `<runtime>/logs/crash/`.
+- On restart, stale running state becomes a terminal `failed` record and is shown with Open Folder, Export Debug Folder, and explicit Delete actions. No Resume action is exposed.
+- Main/renderer/child process failures and unresponsive windows write masked diagnostics under `<APP_ROOT>/logs/crash/`.
 
 Runtime logs, staging files, raw diagnostic files, exports, databases, and release artifacts are ignored by Git. Full Fetch does not write Jira, does not write a database, and does not download attachment bodies.
 
-### v0.2.31 Acceptance Checklist
+### v0.2.34 Acceptance Checklist
 
-The production acceptance run must be a new v0.2.31 Run; the existing v0.2.30 Partial Run remains unchanged as diagnostic evidence. In the company environment, rerun the same 60 Issues and require `Total=60`, `Completed=60`, `Eligible=60`, `Partial=0`, `Failed=0`, `Not Attempted=0`, Run Status `completed`, and Archive Eligible `true`. For every Issue, verify Changelog and Comments `fetchedCount=reportedTotal`, `paginationComplete=true`, and `duplicateCount=0`.
+For `COPGEN1-141509`, verify that Issue `expand=changelog` histories are preserved and `fetchedCount` is compared with Jira's `total`. A 102/102 response must be Complete; 100/387 must retain all 100 histories and be Partial. The unsupported dedicated `/changelog` endpoint is not required.
 
-Also recheck the known baseline Issue, at least one multi-page Changelog and Comments case, ten consecutive lazy-loaded Issue previews, Source Archive manifest/hash/size/parse/reopen verification, JSON/CSV/Debug Bundle export, sanitized secret scanning, restart without Jira refetch or Resume, and both Installer and Portable workflows. A failure-injection run must preserve `failed_final`, `not_attempted_due_to_run_failure`, released locks, retained failed staging, Debug Bundle availability, and a blocked Source Archive.
+For a cross-project queue, expect every explicitly selected Issue with trusted provenance, including `NDS-4316`, to remain in Selected, Queue, and Attempted. Verify `Selected = Queue = Attempted`, mutually exclusive Completed/Partial/Failed outcomes, concise result counts, background per-Issue persistence, strict Source Archive gate, one-click Debug Folder output under `APP_ROOT`, `.env` loading, Installer, and Portable workflows.
 
-Field Evidence / 欄位來源檢視 and Coverage Matrix are explicitly scheduled for v0.2.32; they are not v0.2.31 defects or scope.
+The older plan assigning Coverage Matrix to v0.2.34 was superseded. Field Evidence and Coverage Matrix are not part of v0.2.34 and have no newly assigned release number.
 
-## Large Queue Confirmation and User Actions
+## Full Fetch Confirmation and User Actions
 
-Version 0.2.4 replaced the browser prompt used for Full Fetch queues over 40 issues with an in-app bilingual confirmation dialog. The Start New Full Fetch button remains available for large queues; the user must type `CONFIRM` before the renderer invokes the Full Fetch IPC. Cancelling or submitting a non-matching value does not create a Full Fetch run, auto log, or staging directory.
+The in-app bilingual confirmation dialog now follows full-queue preflight. For a multi-Issue run it shows Queue Total, Eligible, Excluded, Invalid, and the exact planned count; the user types `CONFIRM` once before all Eligible items run. Cancelling or submitting a non-matching value does not create a Full Fetch run, auto log, or staging directory.
 
 User Analysis records important interactions with these diagnostic categories:
 
@@ -137,12 +153,12 @@ User Analysis records important interactions with these diagnostic categories:
 - `[GUARD]` when an action is blocked or confirmation is rejected/cancelled.
 - `[UI_MODAL]` when the large-queue dialog opens or closes.
 
-These records appear in the UI Debug Log and `<runtime>/logs/app/app-YYYYMMDD.log`. While a Full Fetch run is active, subsequent related actions are also appended to its auto log. Confirmation input is never logged verbatim; diagnostics record only `confirmInputMatched=true/false`. Sensitive-value masking remains active for UI, app, Full Fetch, export, and crash logs.
+These records appear in the UI Debug Log and `<APP_ROOT>/logs/app/app-YYYYMMDD.log`. While a Full Fetch run is active, subsequent related actions are also appended to its auto log. Confirmation input is never logged verbatim; diagnostics record only `confirmInputMatched=true/false`. Sensitive-value masking remains active for UI, app, Full Fetch, export, and crash logs.
 
-Version 0.2.5 additionally preserves the complete action timeline in `<runtime>/logs/app/user-actions-YYYYMMDD.log`. This append-only daily file contains `USER_ACTION`, `GUARD`, `UI_MODAL`, and directly related lifecycle entries without Full Fetch per-issue progress noise, so it is not affected by the UI Debug Log's recent 160-line buffer.
+Version 0.2.5 additionally preserves the complete action timeline in `<APP_ROOT>/logs/app/user-actions-YYYYMMDD.log`. This append-only daily file contains `USER_ACTION`, `GUARD`, `UI_MODAL`, and directly related lifecycle entries without Full Fetch per-issue progress noise, so it is not affected by the UI Debug Log's recent 160-line buffer.
 
 - User Analysis > Exports displays the current action log path and provides Open Action Log Folder and Copy Action Log Path controls.
-- Save Debug Log still exports the timestamped, masked UI buffer and now appends the complete daily action timeline plus its source path.
+- Export Debug Folder collects the current masked UI buffer and complete daily action timeline into the automatically created Debug Folder.
 - Full Fetch result and raw manifest exports include `actionLogDiagnostics`; `debugLogNote` explains that `debugLogSanitized` may contain only the recent UI buffer.
 - Action log messages use the same token and Authorization masking as other diagnostics. Large-queue confirmation input is represented only by `confirmInputMatched=true/false`.
 
@@ -174,14 +190,14 @@ Version 0.2.14 simplifies the normal single-user Activity Stream workflow. The s
 - `startDate` / `endDate` query parameters remain available for diagnostics but are marked unreliable in the verified Jira environment.
 - Standard and advanced results remain read-only, do not write a database or Jira, and do not download attachment bodies.
 
-Activity entries use a deterministic rule-based classifier. Comment rules have priority 100 and are evaluated before attachment rules, so `commented on` cannot be misclassified as an attachment. Parsed entries include the matched rule, matched text, priority, source field, previous type, and final type. Exports and Debug Bundles include classifier diagnostics, rules version `1.0`, Standard Activity Stream Flow metadata, and whether Advanced Diagnostics was used.
+Activity entries use a deterministic rule-based classifier. Comment rules have priority 100 and are evaluated before attachment rules, so `commented on` cannot be misclassified as an attachment. Parsed entries include the matched rule, matched text, priority, source field, previous type, and final type. Exports and Debug Folders include classifier diagnostics, rules version `1.0`, Standard Activity Stream Flow metadata, and whether Advanced Diagnostics was used.
 
 ## Export Result / Raw Data
 
-Runtime export files are written under `<runtime>/exports/`. The app creates these common folders:
+Runtime export files are written under `<APP_ROOT>/exports/`. The app creates these common folders:
 
 ```text
-<runtime>/exports/
+<APP_ROOT>/exports/
   jira-analysis/
   jira-probe/
   timeline/
@@ -195,9 +211,9 @@ Runtime export files are written under `<runtime>/exports/`. The app creates the
 
 Jira Analysis supports:
 
-- Save Analysis Result: writes `<runtime>/exports/jira-analysis/jira-analysis-{issueKey}-YYYYMMDD_HHmmss.json`.
-- Save Raw Data: writes `<runtime>/exports/raw-data/jira-analysis-raw-{issueKey}-YYYYMMDD_HHmmss.json`.
-- Save Debug Bundle: writes `<runtime>/exports/debug-bundles/jira-analysis-debug-bundle-{issueKey}-YYYYMMDD_HHmmss.json`.
+- Save Analysis Result: writes `<APP_ROOT>/exports/jira-analysis/jira-analysis-{issueKey}-YYYYMMDD_HHmmss.json`.
+- Save Raw Data: writes `<APP_ROOT>/exports/raw-data/jira-analysis-raw-{issueKey}-YYYYMMDD_HHmmss.json`.
+- Save Debug Bundle: writes `<APP_ROOT>/exports/debug-bundles/jira-analysis-debug-bundle-{issueKey}-YYYYMMDD_HHmmss.json`.
 
 Save buttons are disabled until a Jira Analysis issue is successfully loaded. Exported JSON is created by Electron main process IPC and is sanitized before writing.
 
@@ -228,22 +244,21 @@ Default Real Probe UI values are optimized for Jira Server/Data Center:
 - Mock Mode: `Off`
 - Log Level: `DEBUG`
 
-Runtime files live beside the executable in packaged builds, and under the project root in development. The app creates and uses this layout:
+Runtime files live beside the executable in packaged builds, and under the explicit `.runtime` development root in development. The app creates and uses this layout:
 
 ```text
-<runtime>/
+<APP_ROOT>/
   .env
-  data/
+  app-data/
   logs/
   exports/
   exports/jira-probe/
   exports/raw-data/
   backups/
-  config/
-  data/
+  app-data/config/
 ```
 
-Connections and Jira Probe load the current env path recorded in `<runtime>/config/app-config.json`. If no custom env path is configured, the app falls back to `<runtime>/.env`. If that file is missing, Reload Env creates a safe template automatically and logs the created path. Choose Env File accepts `.env` / `*.env`, stores only the selected path in app-config, and reloads it on the next launch. The app does not create a real database or backup in this UI prototype.
+Connections and Jira Probe load the current env path recorded in `<APP_ROOT>/app-data/config/app-config.json`. If no custom env path is configured, the app uses `<APP_ROOT>/.env`. If that file is missing, Reload Env creates a safe template automatically and logs the created path. Choose Env File accepts `.env` / `*.env`, stores only the selected path in app-config, and reloads it on the next launch. The app does not create a real database or backup in this UI prototype.
 
 ```env
 JIRA_BASE_URL=https://jira.example.com:8443
@@ -284,14 +299,14 @@ JIRA_PROBE_LOG_LEVEL=DEBUG
   - `GET /rest/api/2/issue/{issueKey}/comment`
 - Non-JSON responses such as login pages, SSO redirects, proxy pages, or HTML error pages are handled as readable probe errors instead of raw JSON parse failures.
 - The read-only guard blocks non-GET requests and attachment content/thumbnail URLs.
-- Debug Log Copy, Download, and Clear operate on the current in-memory log state. Download uses a preload IPC save dialog in Electron.
+- Debug Log Copy, Export Folder, and Clear operate on the current in-memory log state. Export Folder uses one-click main-process collection without a destination picker.
 - Connections is `.env` only. The page displays Current Env Path, supports Reload Env, Choose Env File, and Test Connection, and does not write connection records or `connections.json`.
 - Jira Probe uses a fixed Standard read-only issue analysis scope.
 - Data Inspector tabs show sanitized read-only probe data for overview, issue fields, description, changelog, comments, attachments, links, users, activity estimates, raw JSON, and manual compare.
 - Data Inspector supports in-page search and simple data filters. It is UI-only and does not write files or database records.
-- Save Probe Result writes sanitized JSON to `<runtime>/exports/jira-probe/`.
-- Save Raw Data writes sanitized raw API response JSON to `<runtime>/exports/raw-data/`.
-- Debug Log Download opens an Electron save dialog defaulting to `<runtime>/logs/`.
+- Save Probe Result writes sanitized JSON to `<APP_ROOT>/exports/jira-probe/`.
+- Save Raw Data writes sanitized raw API response JSON to `<APP_ROOT>/exports/raw-data/`.
+- Export Debug Folder writes automatically to `<APP_ROOT>/exports/debug-folders/`.
 - Exported JSON includes app version, build time, exported time, run id, base URL, issue key, selected API version, auth type, endpoint coverage, parsed inspector sections, sanitized raw responses, and sanitized debug logs.
 - Exported JSON does not include API token values or Authorization headers.
 - Standard read-only probe scope includes `/myself`, `/issue`, `/issue?expand=changelog`, `/comment`, attachment metadata parsing, issue links parsing, users derived from responses, and activity event estimates.
@@ -337,7 +352,7 @@ Version 0.2.25 adds Stability, Attempt Comparison, and Raw Results modes inside 
 - Every attempt records sanitized counts, timing, HTTP outcome, previous/union differences, idle-gap diagnostics, and SHA-256 event-set and Jira-key-set fingerprints. Results classify each window as `insufficient_attempts`, `unstable`, `probably_stable`, or `stable` based on content rather than counts alone.
 - Union merge deduplicates normalized stable event IDs across attempts. Last Stable uses a confirmed stable attempt; when none exists, the selected Union or Last Attempt fallback is explicit and exported with a warning.
 - Runs are sequential (`concurrency=1`). The UI warns above 100 estimated requests and requires typed confirmation above 500. Cancel stops future attempts and windows while preserving completed partial results for export.
-- The probe writes five sanitized diagnostic files: `activity-stream-stability-probe.json`, `activity-stream-attempts.json`, `activity-stream-attempt-comparison.csv`, `activity-stream-window-summary.csv`, and `activity-stream-stability-recommendation.json`. Save Debug Log includes the latest versions in the Debug Bundle and summarizes them in `README_for_GPT.txt` and `debug-bundle-summary.json`.
+- The probe writes five sanitized diagnostic files: `activity-stream-stability-probe.json`, `activity-stream-attempts.json`, `activity-stream-attempt-comparison.csv`, `activity-stream-window-summary.csv`, and `activity-stream-stability-recommendation.json`. Export Debug Folder includes the latest versions and summarizes them in `README_for_GPT.txt` and `debug-bundle-summary.json`.
 - User Analysis Step 1 exposes only Request Window, Forced Retry Count, Merge Strategy, and an Open Stability Probe shortcut. Defaults are 7 Days, 5 attempts, and Union. Recommendations change these settings only after the user selects Apply Recommendation.
 - Stability Probe does not write Jira or a database, store credentials, replay external URLs, or download attachment bodies.
 
@@ -350,12 +365,14 @@ Version 0.2.25 adds Stability, Attempt Comparison, and Raw Results modes inside 
 - Parsed Entries can be filtered without changing the original sanitized entries by activity type, partial Jira key, key presence, date range, query variant, source, and author. The table paginates at 10, 20, 40, 80, or 160 rows (default 40), resets to page 1 after filter changes, and exposes sanitized expandable details and Copy Entry JSON.
 - Precision Probe exports retain the complete sanitized current entries, current filter state and statistics, `activityEntryStats`, `parsedEntriesTableState`, and at most 200 filtered entries. They also include run history and parser diagnostics, but never tokens, Authorization headers, cookies, sessions, full XML, or HTML login pages.
 
-### Run Auto-Save And Debug Bundles
+### Run Auto-Save And Debug Folders
 
-- Successful and partial Activity Stream, Precision Probe, Manual URL Replay, and MaxResults Cap Test runs are automatically saved as sanitized JSON under `<runtime>/exports/user-analysis/` in their corresponding `activity-stream-runs`, `precision-probe-runs`, `manual-url-replay-runs`, and `maxresults-cap-tests` folders.
+- Successful and partial Activity Stream, Precision Probe, Manual URL Replay, and MaxResults Cap Test runs are automatically saved as sanitized JSON under `<APP_ROOT>/exports/user-analysis/` in their corresponding `activity-stream-runs`, `precision-probe-runs`, `manual-url-replay-runs`, and `maxresults-cap-tests` folders.
 - Last Auto-Saved Result shows the path, save time, run ID, result type, and status, with Open Folder and Copy Path actions.
-- Save Debug Log creates an app-scoped folder under `<runtime>/exports/debug-bundles/`. It includes the sanitized debug log, user action log, app metadata, request context, latest result, run histories, auto-saved result paths, available latest probe results, and `README_for_GPT.txt`.
-- Debug bundles exclude `.env`, tokens, Authorization headers, cookies, session identifiers, raw login HTML, and database data. The bundle metadata lists unavailable result files and the remaining cross-page auto-save/debug-bundle integration checklist.
+- Export Debug Folder creates one timestamped ordinary folder under `<APP_ROOT>/exports/debug-folders/`. It includes the generated debug log, user action log, app metadata, request context, latest result, run histories, auto-saved result paths, available probe results, Full Fetch staging files, and `README_for_GPT.txt`.
+- Collected source files are copied without compression, content rewriting, full-file de-identification, PII scanning, hashing, or archive/tamper validation. Existing generated logs keep their normal credential masking, but the export does not claim that copied source files are sanitized; review the folder before sharing.
+- `manifest.json` records copied paths, sizes, status, and individual copy failures without hashes. A failed source copy does not stop the remaining files from being collected.
+- Debug Folder export never creates `.zip`, `.7z`, `.tar`, `.tar.gz`, or `.gz` output. Formal Source Archive ZIP creation and verification remain independent and keep their Full Fetch completion gate.
 - Cross-page integration remains a documented follow-up for Jira Probe, Jira Analysis, Candidate Discovery, Full Fetch, and Connections/Data Source tests; v0.2.12 does not silently claim those flows are auto-saved.
 
 ### Date Range Chunking And Result Consistency
@@ -366,30 +383,30 @@ Version 0.2.25 adds Stability, Attempt Comparison, and Raw Results modes inside 
 - Merged entries are deduplicated by activity time, author email, normalized title, and first link. Exports include `dateRangeChunking`, `activityStreamChunkResults`, and `chunkMergeStats`.
 - Auto-save tracks Latest Run Result, Last Successful Result, Last Parsed Result, and Latest No Entries Result independently. A newer `no_entries` run never overwrites the last meaningful parsed result.
 - When every query variant returns no entries, `bestVariant` is empty and `bestVariantReason` is `all_variants_no_entries`; no username or email variant is presented as the winner.
-- Debug Bundle creation takes one consistent in-memory snapshot. `latest-run-result.json`, `run-history.json`, and `auto-saved-result-paths.json` therefore refer to the same latest run ID.
-- Debug Bundles also include `last-successful-result.json`, `last-parsed-result.json`, `latest-no-entries-result.json`, `debug-bundle-summary.json`, `activity-stream-chunk-results.json`, and `activity-stream-merged-result.json`.
+- Debug Folder creation takes one consistent in-memory snapshot. `latest-run-result.json`, `run-history.json`, and `auto-saved-result-paths.json` therefore refer to the same latest run ID.
+- Debug Folders also include `last-successful-result.json`, `last-parsed-result.json`, `latest-no-entries-result.json`, `debug-bundle-summary.json`, `activity-stream-chunk-results.json`, and `activity-stream-merged-result.json`.
 
-### Classifier Fallback And Full Session Bundles
+### Classifier Fallback And Full Session Debug Folders
 
 - Activity classification applies high-precision rules first, then preserves a valid previous type. It uses `fallback_unknown` only when neither a rule nor a valid previous type exists.
 - Confluence page metadata, object type, and preserved page classifications keep edited or added page activity as `page`, even when a human-readable title does not contain the word `page`.
 - Classifier diagnostics separate higher-precision corrections, preserved types, inferred types, and true unknown fallbacks.
 - Result Tracking groups roles by run ID. The latest card lists additional roles without rendering duplicate cards, while a different latest no-entries run remains visible.
-- Save Debug Log creates a full-session support bundle from process launch to bundle generation. It includes session-only user actions, all in-memory run summaries, all known auto-save paths, and sanitized copies of every available auto-saved JSON body under `auto-saved-results/`.
+- Export Debug Folder creates a full-session support folder from process launch to export time. It includes session-only user actions, all in-memory run summaries, all known auto-save paths, and unchanged copies of every available auto-saved JSON body under `auto-saved-results/`.
 - `auto-saved-results-index.json` lists included and missing auto-saves with run ID, source path, bundle path, status, diagnosis, parsed count, or a concrete missing reason.
 - `session-timeline.json` combines user actions, renderer Debug Log entries, Activity Stream run history, and auto-save path events in chronological order.
 - Missing auto-save files are reported without aborting bundle creation. Auto-save bodies are deduplicated by resolved path, run ID, or basename.
 
 ### Activity Stream Baseline Guard
 
-- Standard single-user Activity Stream runs maintain an exact-range best-known JSON baseline under `<runtime>/data/activity-stream-baselines/`. Baselines are runtime diagnostics and are not committed.
+- Standard single-user Activity Stream runs maintain an exact-range best-known JSON baseline under `<APP_ROOT>/app-data/activity-stream-baselines/`. Baselines are runtime diagnostics and are not committed.
 - Every sanitized Activity Stream entry has a SHA-256 fingerprint. Atom entry IDs are preferred; otherwise the fingerprint uses source, activity time, author email, normalized title, first issue key, and first link.
 - Baseline keys include source, selected user, escaped query user, variant, date mode, exact period, granularity, and a request signature hash. Credentials and sensitive headers are never part of the signature.
 - Comparisons distinguish first observation, equal, improved, count regression, missing known issue keys, missing known entries, and mixed regression.
 - Improved observations merge new issue keys and entry fingerprints into the best-known baseline. Suspicious observations retain low-confidence diagnostics but cannot remove or replace known baseline data.
 - A suspicious standard result can trigger at most two retries. A recovered retry becomes the accepted result; an unresolved regression is labeled `result_incomplete_candidate` and does not overwrite the baseline.
 - Manual URL Replay and Advanced Diagnostics remain outside automatic Baseline Guard retry behavior.
-- Debug Bundles include the latest baseline comparison, snapshot, history, all session comparisons, summary metadata, and `activity_stream_baseline_guard` timeline events.
+- Debug Folders include the latest baseline comparison, snapshot, history, all session comparisons, summary metadata, and `activity_stream_baseline_guard` timeline events.
 - The baseline is a local data-quality guard, not a claim that Activity Stream is a complete Jira audit log. Monthly rollup baselines remain a follow-up; v0.2.16 implements exact-range baselines only.
 
 ### Date Semantics And MaxResults Diagnostics

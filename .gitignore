@@ -4,6 +4,12 @@ dist-electron
 release
 .env
 /data/
+/app-data/
+/cache/
+/crash-dumps/
+/session-data/
+/temp/
+/.runtime/
 /logs/
 /exports/
 /full-fetch-staging/
