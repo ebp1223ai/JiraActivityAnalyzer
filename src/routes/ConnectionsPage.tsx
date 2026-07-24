@@ -11,12 +11,13 @@ import { useConnectionContext } from "../state/ConnectionContext";
 import { globalDataSourceMode } from "../data/dataSource";
 import type { AppOutletContext } from "../components/AppLayout";
 import type { ConnectionApiVersion, ConnectionAuthType, JiraConnection } from "../types/connection";
+import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 
 function emptyConnection(): JiraConnection {
   return {
     id: "env-jira-connection",
     name: "Current .env Jira Connection",
-    baseUrl: "https://jira.example.com:8443",
+    baseUrl: "",
     authType: "bearer",
     apiVersion: "v2",
     username: "",
@@ -33,7 +34,8 @@ function emptyConnection(): JiraConnection {
 }
 
 export function ConnectionsPage() {
-  const { activeConnection, envStatus, reloadEnv, chooseEnv, testConnection } = useConnectionContext();
+  const { activeConnection, envStatus, reloadEnv, chooseEnv, testAndSaveConnection } = useConnectionContext();
+  const { state: runtimeState, selectExistingDatabase, createNewDatabase } = useRuntimeStatus();
   const { appendDebugLog } = useOutletContext<AppOutletContext>();
   const [draft, setDraft] = useState<JiraConnection>(emptyConnection());
   const [notice, setNotice] = useState("");
@@ -86,11 +88,35 @@ export function ConnectionsPage() {
   }
 
   async function handleTest() {
-    const result = await testConnection(draft);
+    const result = await testAndSaveConnection(draft);
     if (!result) return;
     setDraft(result.connection);
     appendDebugLog("connections", result.logs);
-    setNotice(result.connection.status === "connected" ? "Connection test successful." : "Connection test failed.");
+    setNotice(result.saved
+      ? "Connection test succeeded and .env was updated atomically. / 連線測試成功，已原子更新 .env。"
+      : `Connection test failed (${result.runtime.reasonCode}); .env was not changed. / 連線測試失敗，未修改 .env。`);
+  }
+
+  async function handleSelectDatabase() {
+    const result = await selectExistingDatabase();
+    if (!result || result.canceled) {
+      setNotice("Database selection cancelled. / 已取消選擇資料庫。");
+      return;
+    }
+    setNotice(result.saved
+      ? "Current Database validated and saved. / 資料庫驗證成功並已設為目前資料庫。"
+      : `Database was not changed: ${result.validation?.reasonCode ?? result.error ?? "validation failed"}.`);
+  }
+
+  async function handleCreateDatabase() {
+    const result = await createNewDatabase();
+    if (!result || result.canceled) {
+      setNotice("Database creation cancelled. / 已取消建立資料庫。");
+      return;
+    }
+    setNotice(result.saved
+      ? "Source Archive Database created and selected. / 來源封存資料庫已建立並選用。"
+      : `Database was not created: ${result.error ?? "validation failed"}.`);
   }
 
   const currentEnvPath = envStatus?.currentEnvPath ?? envStatus?.envPath ?? "Env status not loaded";
@@ -137,8 +163,9 @@ export function ConnectionsPage() {
         </div>
 
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm font-semibold leading-relaxed text-blue-800">
-          <div className="font-black">This page currently reads from .env only.</div>
-          <div>To persist changes, edit the current .env file and click Reload Env.</div>
+          <div className="font-black">Runtime reads one .env file only. / 執行階段只讀取單一 .env。</div>
+          <div>Test Connection writes edited Jira keys only after a successful test; comments and unknown keys are preserved.</div>
+          <div>連線測試成功後才會更新 Jira 欄位，既有註解與未知欄位會保留。</div>
           <div className="mt-2 break-all"><b>Current Env Path:</b> {currentEnvPath}</div>
           <div className="break-all"><b>Default Env Path:</b> {envStatus?.defaultEnvPath ?? "-"}</div>
           <div className="break-all"><b>App Config:</b> {envStatus?.appConfigPath ?? "-"}</div>
@@ -174,7 +201,8 @@ export function ConnectionsPage() {
         <div className="mt-6 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
           <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-4 text-sm font-bold text-slate-700">
             Token Source: {draft.tokenSource} {draft.tokenMasked ? `(${draft.tokenMasked})` : ""}<br />
-            No Save to Env. No local connection config is written.
+            Successful Test saves to .env atomically. Failed Test never changes .env.<br />
+            成功測試才原子寫入 .env；失敗測試不修改設定。
           </div>
           <div className="flex min-w-0 flex-wrap gap-3">
             <button className="btn" onClick={handleReloadEnv}><RefreshCw size={16} />Reload Env</button>
@@ -183,6 +211,30 @@ export function ConnectionsPage() {
           </div>
         </div>
         {notice ? <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm font-bold text-green-700">{notice}</div> : null}
+      </SectionCard>
+
+      <SectionCard className="mt-4" title="Current Local Database" subtitle="目前本機 Source Archive Database">
+        <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-4 text-sm font-semibold leading-relaxed">
+            <div><b>Status：</b>{runtimeState.database.status}</div>
+            <div><b>Reason Code：</b>{runtimeState.database.reasonCode}</div>
+            <div className="break-all"><b>Resolved Path：</b>{runtimeState.database.path || "-"}</div>
+            <div className="break-all"><b>Database ID：</b>{runtimeState.database.databaseId || "-"}</div>
+            <div><b>Schema Version：</b>{runtimeState.database.schemaVersion ?? "-"}</div>
+            <div className="break-all"><b>Source Binding：</b>{runtimeState.database.sourceBinding || "Unbound"}</div>
+            <div><b>Read／Write：</b>{runtimeState.database.canRead ? "Read" : "No Read"}／{runtimeState.database.canWrite ? "Write" : "No Write"}</div>
+            {runtimeState.database.status === "MIGRATION_REQUIRED" ? <div className="mt-2 text-amber-800">Migration is required; v0.2.37 only reports this status and does not migrate.</div> : null}
+            {runtimeState.database.status === "JIRA_INSTANCE_MISMATCH" ? <div className="mt-2 text-rose-800">Offline read remains available, but importing the current Jira instance is disabled.</div> : null}
+          </div>
+          <div className="flex flex-wrap content-start gap-3 lg:max-w-[260px]">
+            <button data-testid="select-existing-database" className="btn" type="button" onClick={handleSelectDatabase}><FileInput size={16} />Select Existing／選擇既有</button>
+            <button data-testid="create-new-database" className="btn btn-primary" type="button" onClick={handleCreateDatabase}><Database size={16} />Create New／建立新資料庫</button>
+          </div>
+        </div>
+        <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-900">
+          Relative paths resolve from APP_ROOT; external absolute paths remain external. Validation is read-only and never migrates, repairs, creates, switches, or edits .env on failure.<br />
+          相對路徑以 APP_ROOT 為基準；外部絕對路徑保持原位置。驗證失敗時不遷移、不修復、不建立、不切換，也不修改 .env。
+        </div>
       </SectionCard>
 
       <SectionCard className="mt-4" title="Connection Status" subtitle="read-only test result">

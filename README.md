@@ -1,5 +1,7 @@
 # Jira Activity Analyzer
 
+> v0.2.37 的啟動設定、全域 Jira／Database 狀態、SQLite Source Archive schema、Portable 路徑與安全保存規則，請參閱 [docs/v0.2.37-startup-database-readiness.md](docs/v0.2.37-startup-database-readiness.md)。Windows 封裝體積稽核見 [docs/v0.2.37-package-size-audit.md](docs/v0.2.37-package-size-audit.md)。
+
 Electron desktop application for read-only Jira activity inspection and analysis.
 
 ## v0.2.34 Selection / Fetch Queue Correctness

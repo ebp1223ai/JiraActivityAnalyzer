@@ -32,6 +32,12 @@ import { buildPathAudit } from "./pathAudit.js";
 import { runApiProbe } from "./jira/jiraProbeRunner.js";
 import { sanitizeRawJson, sanitizeResponseText } from "./jira/safeJson.js";
 import type { JiraHttpResult, ProbeRequest } from "./jira/jiraTypes.js";
+import { databasePathForEnv, resolveLocalDatabasePath } from "./appPathResolver.js";
+import { DEFAULT_ENV_TEXT as defaultEnvText, atomicPatchEnv, ensureDefaultRuntimeEnv, loadRuntimeConfig, parseEnvText } from "./runtimeConfig.js";
+import { checkJiraConnection } from "./jiraConnectionCheck.js";
+import { checkDatabaseCompatibility, createSourceArchiveDatabase } from "./sourceArchiveDatabase.js";
+import { StartupCheckCoordinator, initialRuntimeState, type RuntimeState } from "./runtimeStatus.js";
+import { testAndSaveJiraSettings, validateAndSaveDatabaseSelection } from "./startupIntegration.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -150,36 +156,6 @@ const uiViewports = [
 ];
 
 const debugStates = ["expanded", "collapsed"] as const;
-
-const defaultEnvText = `# Jira Activity Analyzer local configuration
-# This file is created automatically when missing.
-# Fill in your Jira Server/Data Center URL and Personal Access Token.
-# Do not commit this file to Git.
-
-JIRA_BASE_URL=https://jira.example.com:8443
-JIRA_EMAIL=
-JIRA_USERNAME=
-JIRA_API_TOKEN=
-JIRA_AUTH_TYPE=bearer
-JIRA_API_VERSION=v2
-JIRA_PROBE_DEFAULT_ISSUE=COPGEN1-138930
-JIRA_PROBE_MOCK_MODE=false
-JIRA_PROBE_LOG_LEVEL=DEBUG
-`;
-
-function parseEnvText(text: string) {
-  const output: Record<string, string> = {};
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const separator = trimmed.indexOf("=");
-    if (separator === -1) continue;
-    const key = trimmed.slice(0, separator).trim();
-    const value = trimmed.slice(separator + 1).trim().replace(/^["']|["']$/g, "");
-    output[key] = value;
-  }
-  return output;
-}
 
 function formatLocalDateTime(date = new Date()) {
   const pad = (part: number) => String(part).padStart(2, "0");
@@ -483,13 +459,14 @@ function connectionFromEnv(env: Record<string, string>): AppConnection {
   const name = "Current .env Jira Connection";
   const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "jira-production";
   const token = env.JIRA_API_TOKEN ?? "";
-  const envApiVersion = (env.JIRA_API_VERSION ?? "v2").toLowerCase();
+  const envApiVersion = (env.JIRA_API_VERSION ?? "2").toLowerCase();
+  const authMode = (env.JIRA_AUTH_MODE ?? env.JIRA_AUTH_TYPE ?? "bearer").toLowerCase();
   return {
     id,
     name,
     baseUrl: env.JIRA_BASE_URL ?? "",
-    authType: ((env.JIRA_AUTH_TYPE ?? "bearer").toLowerCase() === "basic" ? "basic" : "bearer"),
-    apiVersion: ["auto", "v2", "v3"].includes(envApiVersion) ? (envApiVersion as "auto" | "v2" | "v3") : "v2",
+    authType: authMode === "basic" ? "basic" : "bearer",
+    apiVersion: envApiVersion === "auto" ? "auto" : envApiVersion.replace(/^v/, "") === "3" ? "v3" : "v2",
     username: env.JIRA_USERNAME ?? "",
     email: env.JIRA_EMAIL ?? env.JIRA_USERNAME ?? "",
     apiToken: token,
@@ -526,7 +503,16 @@ function writeConnectionFile(data: { activeConnectionId: string; connections: Ap
 function loadConnectionState() {
   const envState = ensureProbeEnv();
   const env = parseEnvText(fs.readFileSync(envState.envPath, "utf8"));
-  const envConnection = connectionFromEnv(env);
+  const envConnection = connectionFromEnv(
+    isUiSmoke && !env.JIRA_BASE_URL
+      ? {
+          ...env,
+          JIRA_BASE_URL: "https://jira-ui-smoke.invalid",
+          JIRA_USERNAME: "ui-smoke",
+          JIRA_EMAIL: "ui-smoke@example.invalid"
+        }
+      : env
+  );
   const connections = [envConnection].map((item) => ({
     ...item,
     active: true
@@ -562,8 +548,10 @@ function toProbeEnvConfig(env: Record<string, string>, sourcePath: string, statu
       username: env.JIRA_USERNAME ?? "",
       apiToken: token,
       hasToken: Boolean(token),
-      authType: (env.JIRA_AUTH_TYPE ?? "bearer").toLowerCase(),
-      apiVersion: (env.JIRA_API_VERSION ?? "v2").toLowerCase(),
+      envFormatVersion: env.ENV_FORMAT_VERSION ?? "2",
+      authType: (env.JIRA_AUTH_MODE ?? env.JIRA_AUTH_TYPE ?? "bearer").toLowerCase(),
+      apiVersion: (env.JIRA_API_VERSION ?? "2").toLowerCase().replace(/^v/, ""),
+      localDatabasePath: env.LOCAL_DATABASE_PATH ?? "",
       issueKey: env.JIRA_PROBE_DEFAULT_ISSUE ?? "",
       depth: "standard",
       mockMode: (env.JIRA_PROBE_MOCK_MODE ?? "false").toLowerCase() === "true",
@@ -580,13 +568,98 @@ function ensureProbeEnv() {
     return toProbeEnvConfig(parseEnvText(fs.readFileSync(envPath, "utf8")), envPath, "loaded");
   }
   const defaultEnvPath = getDefaultEnvPath();
-  fs.writeFileSync(defaultEnvPath, defaultEnvText, { encoding: "utf8", flag: "wx" });
+  ensureDefaultRuntimeEnv(defaultEnvPath);
   setCurrentEnvPath(defaultEnvPath);
   return {
     ...toProbeEnvConfig(parseEnvText(defaultEnvText), defaultEnvPath, "created"),
     paths
   };
 }
+
+let runtimeCoordinator: StartupCheckCoordinator | null = null;
+
+function runtimeStateWithoutRequestId<T extends { requestId: number }>(value: T): Omit<T, "requestId"> {
+  const { requestId: _requestId, ...rest } = value;
+  return rest;
+}
+
+function broadcastRuntimeState(state: RuntimeState) {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) window.webContents.send("runtime-state:changed", state);
+  }
+}
+
+async function runJiraStartupCheck() {
+  if (isUiSmoke) {
+    return {
+      ...runtimeStateWithoutRequestId(initialRuntimeState().jira),
+      status: "NOT_CONFIGURED" as const,
+      reasonCode: "NOT_CONFIGURED" as const,
+      message: "UI smoke uses offline fixtures.",
+      checkedAt: new Date().toISOString()
+    };
+  }
+  try {
+    const config = loadRuntimeConfig(resolveCurrentEnvPath());
+    return await checkJiraConnection({
+      baseUrl: config.jiraBaseUrl,
+      username: config.jiraUsername,
+      email: config.jiraEmail,
+      apiToken: config.jiraApiToken,
+      authMode: config.jiraAuthMode,
+      apiVersion: config.jiraApiVersion
+    });
+  } catch {
+    return {
+      ...runtimeStateWithoutRequestId(initialRuntimeState().jira),
+      status: "UNKNOWN_ERROR" as const,
+      reasonCode: "UNKNOWN_ERROR" as const,
+      message: "Runtime Jira configuration could not be loaded.",
+      checkedAt: new Date().toISOString()
+    };
+  }
+}
+
+async function runDatabaseStartupCheck() {
+  try {
+    const config = loadRuntimeConfig(resolveCurrentEnvPath());
+    const databasePath = resolveLocalDatabasePath(getAppRuntimeDir(), config.localDatabasePath);
+    const jiraIdentity = runtimeCoordinator?.snapshot().jira.status === "CONNECTED"
+      ? runtimeCoordinator.snapshot().jira.serverIdentity
+      : "";
+    return checkDatabaseCompatibility(databasePath, jiraIdentity);
+  } catch {
+    return {
+      ...runtimeStateWithoutRequestId(initialRuntimeState().database),
+      status: "UNKNOWN_ERROR" as const,
+      reasonCode: "UNKNOWN_ERROR" as const,
+      message: "Runtime database configuration could not be loaded.",
+      checkedAt: new Date().toISOString()
+    };
+  }
+}
+
+function getRuntimeCoordinator() {
+  if (!runtimeCoordinator) {
+    runtimeCoordinator = new StartupCheckCoordinator(
+      async () => runJiraStartupCheck(),
+      async () => runDatabaseStartupCheck(),
+      broadcastRuntimeState
+    );
+  }
+  return runtimeCoordinator;
+}
+
+async function startBackgroundChecks() {
+  const coordinator = getRuntimeCoordinator();
+  await coordinator.startParallel();
+  const state = coordinator.snapshot();
+  if (state.jira.status === "CONNECTED" && state.database.path) await coordinator.retryDatabase();
+}
+
+ipcMain.handle("runtime:get-state", async () => getRuntimeCoordinator().snapshot());
+ipcMain.handle("runtime:retry-jira", async () => getRuntimeCoordinator().retryJira());
+ipcMain.handle("runtime:retry-database", async () => getRuntimeCoordinator().retryDatabase());
 
 ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
   if (!request || request.useMock) {
@@ -613,28 +686,156 @@ ipcMain.handle("connection:choose-env", async () => {
     return { canceled: true, state: loadConnectionState() };
   }
   const envPath = result.filePaths[0];
+  if (path.basename(envPath).toLowerCase() === ".env.version") {
+    return { canceled: true, error: ".env.Version is a template and cannot be used as runtime configuration.", state: loadConnectionState() };
+  }
   setCurrentEnvPath(envPath);
   return { canceled: false, state: loadConnectionState() };
 });
 
 ipcMain.handle("connection:save", async (_event, connection: AppConnection) => {
-  const current = readConnectionFile();
-  const existing = current.connections.filter((item) => item.id !== connection.id);
-  const sanitized: AppConnection = {
-    ...connection,
-    apiToken: undefined,
-    tokenMasked: connection.tokenMasked || maskToken(connection.apiToken ?? ""),
-    tokenSource: connection.tokenSource || "session"
-  };
-  const activeConnectionId = connection.active ? connection.id : current.activeConnectionId || connection.id;
-  writeConnectionFile({ activeConnectionId, connections: [sanitized, ...existing] });
+  void connection;
   return loadConnectionState();
 });
 
 ipcMain.handle("connection:set-active", async (_event, id: string) => {
-  const current = readConnectionFile();
-  writeConnectionFile({ activeConnectionId: id, connections: current.connections });
+  void id;
   return loadConnectionState();
+});
+
+ipcMain.handle("connection:test-and-save", async (_event, connection: AppConnection) => {
+  const checkedAndSaved = await testAndSaveJiraSettings({
+    envPath: resolveCurrentEnvPath(),
+    settings: {
+        baseUrl: connection.baseUrl,
+        username: connection.username,
+        email: connection.email,
+        apiToken: connection.apiToken ?? "",
+        authMode: connection.authType,
+        apiVersion: connection.apiVersion
+    },
+    check: isUiSmoke
+      ? async () => ({
+          ...runtimeStateWithoutRequestId(initialRuntimeState().jira),
+          status: "CONNECTED" as const,
+          reasonCode: "CONNECTED" as const,
+          message: "Offline UI smoke connection accepted.",
+          checkedAt: new Date().toISOString(),
+          lastSuccessAt: new Date().toISOString(),
+          latencyMs: 1,
+          baseUrlNormalized: connection.baseUrl.trim().replace(/\/+$/, ""),
+          accountDisplayName: "UI Smoke User",
+          username: connection.username || "ui-smoke",
+          serverIdentity: "jira:ui-smoke"
+        })
+      : checkJiraConnection
+  });
+  const checked = checkedAndSaved.checked;
+  const updatedConnection: AppConnection = {
+    ...connection,
+    baseUrl: checked.baseUrlNormalized || connection.baseUrl,
+    status: checked.status === "CONNECTED" ? "connected" : "failed",
+    lastTestedAt: checked.checkedAt,
+    authenticatedUser: checked.accountDisplayName,
+    tokenMasked: maskToken(connection.apiToken ?? "")
+  };
+  const logs = [
+    `[INFO] Jira connection test result: ${checked.reasonCode}`,
+    `[INFO] Base URL: ${checked.baseUrlNormalized || connection.baseUrl}`,
+    `[INFO] Account: ${checked.accountDisplayName || checked.username || "-"}`,
+    `[INFO] Latency: ${checked.latencyMs ?? "-"} ms`,
+    "[INFO] Authorization: [masked]"
+  ];
+  if (checked.status !== "CONNECTED") {
+    logs.push("[WARN] .env was not modified because the connection test did not succeed.");
+    return { saved: false, connection: updatedConnection, runtime: checked, logs, state: loadConnectionState() };
+  }
+  logs.push(`[INFO] Runtime .env updated atomically: ${resolveCurrentEnvPath()}`);
+  const runtimeState = await getRuntimeCoordinator().retryJira();
+  if (runtimeState.database.path) await getRuntimeCoordinator().retryDatabase();
+  return { saved: true, connection: updatedConnection, runtime: checked, logs, state: loadConnectionState() };
+});
+
+ipcMain.handle("database:check-path", async (_event, payload?: { filePath?: string }) => {
+  const configuredPath = payload?.filePath ?? loadRuntimeConfig(resolveCurrentEnvPath()).localDatabasePath;
+  const resolved = resolveLocalDatabasePath(getAppRuntimeDir(), configuredPath);
+  const jiraIdentity = getRuntimeCoordinator().snapshot().jira.status === "CONNECTED"
+    ? getRuntimeCoordinator().snapshot().jira.serverIdentity
+    : "";
+  return checkDatabaseCompatibility(resolved, jiraIdentity);
+});
+
+ipcMain.handle("database:select-existing", async (_event, payload?: { filePath?: string }) => {
+  let selectedPath = payload?.filePath ?? "";
+  if (!selectedPath) {
+    const result = await dialog.showOpenDialog({
+      title: "Select Existing Source Archive Database / 選擇既有來源封存資料庫",
+      properties: ["openFile"],
+      filters: [
+        { name: "SQLite Database", extensions: ["sqlite", "sqlite3", "db"] },
+        { name: "All Files", extensions: ["*"] }
+      ]
+    });
+    if (result.canceled || !result.filePaths[0]) return { canceled: true, saved: false, state: getRuntimeCoordinator().snapshot() };
+    selectedPath = result.filePaths[0];
+  }
+  const jiraIdentity = getRuntimeCoordinator().snapshot().jira.status === "CONNECTED"
+    ? getRuntimeCoordinator().snapshot().jira.serverIdentity
+    : "";
+  const selected = validateAndSaveDatabaseSelection({
+    appRoot: getAppRuntimeDir(),
+    envPath: resolveCurrentEnvPath(),
+    selectedPath,
+    currentJiraIdentity: jiraIdentity
+  });
+  const validation = selected.validation;
+  if (!selected.saved) {
+    return { canceled: false, saved: false, validation, state: getRuntimeCoordinator().snapshot() };
+  }
+  const state = await getRuntimeCoordinator().retryDatabase();
+  return { canceled: false, saved: true, validation, state };
+});
+
+ipcMain.handle("database:create-new", async (_event, payload?: { filePath?: string }) => {
+  let targetPath = payload?.filePath ?? "";
+  if (!targetPath) {
+    const result = await dialog.showSaveDialog({
+      title: "Create Source Archive Database / 建立來源封存資料庫",
+      defaultPath: path.join(getDatabaseDir(), "jira-activity-analyzer.sqlite"),
+      filters: [{ name: "SQLite Database", extensions: ["sqlite", "sqlite3", "db"] }]
+    });
+    if (result.canceled || !result.filePath) return { canceled: true, saved: false, state: getRuntimeCoordinator().snapshot() };
+    targetPath = result.filePath;
+  }
+  const jira = getRuntimeCoordinator().snapshot().jira;
+  const binding = jira.status === "CONNECTED" && jira.serverIdentity
+    ? {
+        sourceSystem: "jira" as const,
+        serverIdentity: jira.serverIdentity,
+        baseUrlNormalized: jira.baseUrlNormalized,
+        serverTitle: jira.accountDisplayName
+      }
+    : undefined;
+  try {
+    const created = createSourceArchiveDatabase({
+      targetPath,
+      appVersion: __MAIN_APP_VERSION__,
+      binding
+    });
+    atomicPatchEnv(resolveCurrentEnvPath(), {
+      ENV_FORMAT_VERSION: "2",
+      LOCAL_DATABASE_PATH: databasePathForEnv(getAppRuntimeDir(), created.databasePath)
+    });
+    const state = await getRuntimeCoordinator().retryDatabase();
+    return { canceled: false, saved: true, created, state };
+  } catch (error) {
+    return {
+      canceled: false,
+      saved: false,
+      error: error instanceof Error ? error.message : "Database creation failed.",
+      state: getRuntimeCoordinator().snapshot()
+    };
+  }
 });
 
 ipcMain.handle("connection:test", async (_event, connection: AppConnection) => {
@@ -3710,6 +3911,63 @@ async function runUiSmoke(window: BrowserWindow) {
   }
 
   const failures: string[] = [];
+  const smokeDatabasePath = path.join(getTempDir(), `v0237-ui-smoke-${process.pid}.sqlite`);
+  try {
+    if (fs.existsSync(smokeDatabasePath)) fs.rmSync(smokeDatabasePath, { force: true });
+    const startupReadinessAudit = await window.webContents.executeJavaScript(`(async () => {
+      const initial = await window.desktopApp.runtime.getState();
+      const blankDatabase = await window.desktopApp.databases.checkPath({ filePath: "" });
+      const jiraSave = await window.desktopApp.connections.testAndSave({
+        id: "env",
+        name: "UI Smoke Jira",
+        baseUrl: "https://jira-ui-smoke.invalid",
+        username: "ui-smoke",
+        email: "ui-smoke@example.invalid",
+        apiToken: "ui-smoke-runtime-token",
+        authType: "bearer",
+        apiVersion: "v2",
+        isActive: true,
+        status: "untested"
+      });
+      const created = await window.desktopApp.databases.createNew({ filePath: ${JSON.stringify(smokeDatabasePath)} });
+      const selected = await window.desktopApp.databases.selectExisting({ filePath: ${JSON.stringify(smokeDatabasePath)} });
+      window.location.hash = "#/connections";
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      const body = document.body.innerText || "";
+      return {
+        initial,
+        blankDatabase,
+        jiraSaved: jiraSave.saved,
+        jiraRuntimeStatus: jiraSave.runtime?.status,
+        createdSaved: created.saved,
+        createdStatus: created.state?.database?.status,
+        selectedSaved: selected.saved,
+        selectedStatus: selected.validation?.status,
+        hasGlobalStatus: Boolean(document.querySelector("[data-testid='global-runtime-status']")),
+        hasDatabaseActions: Boolean(document.querySelector("[data-testid='select-existing-database']")) &&
+          Boolean(document.querySelector("[data-testid='create-new-database']")),
+        noTokenInUi: !body.includes("ui-smoke-runtime-token"),
+        noTokenInResults: !JSON.stringify({ initial, blankDatabase, created, selected }).includes("ui-smoke-runtime-token")
+      };
+    })()`);
+    if (
+      startupReadinessAudit.blankDatabase?.status !== "NOT_CONFIGURED" ||
+      !startupReadinessAudit.jiraSaved ||
+      startupReadinessAudit.jiraRuntimeStatus !== "CONNECTED" ||
+      !startupReadinessAudit.createdSaved ||
+      startupReadinessAudit.createdStatus !== "READY" ||
+      !startupReadinessAudit.selectedSaved ||
+      startupReadinessAudit.selectedStatus !== "READY" ||
+      !startupReadinessAudit.hasGlobalStatus ||
+      !startupReadinessAudit.hasDatabaseActions ||
+      !startupReadinessAudit.noTokenInUi ||
+      !startupReadinessAudit.noTokenInResults
+    ) {
+      failures.push(`v0.2.37 startup/database UI and IPC audit failed ${JSON.stringify(startupReadinessAudit)}`);
+    }
+  } catch (error) {
+    failures.push(`v0.2.37 startup/database UI and IPC audit threw: ${error instanceof Error ? error.message : String(error)}`);
+  }
   const evidenceFixtureInput = {
     selectedUser: "roger_hsieh",
     startDate: "2026-07-01",
@@ -4033,7 +4291,7 @@ async function runUiSmoke(window: BrowserWindow) {
     const parsed = activityStreamResult(fixture.response, "/plugins/servlet/streams?maxResults=10", "smoke@example.com");
     const expectedIssueCount = fixture.name === "manual_atom" ? 1 : fixture.expectedIssueCount;
     if (parsed.status !== fixture.expectedStatus || parsed.parsedIssueKeys.length !== expectedIssueCount || parsed.diagnosis !== fixture.expectedDiagnosis || parsed.atomEntryCount !== fixture.expectedAtomEntries) failures.push(`activity stream ${fixture.name} parser failed: ${JSON.stringify(parsed)}`);
-    if (fixture.name === "manual_atom" && (parsed.parsedIssueKeys[0] !== "COPGEN1-138930" || parsed.entriesSanitized[0]?.activityType !== "link" || !parsed.entriesSanitized[0]?.activityAuthorEmail)) failures.push(`activity stream manual Atom fields failed: ${JSON.stringify(parsed)}`);
+    if (fixture.name === "manual_atom" && (parsed.parsedIssueKeys[0] !== "SMOKE-203" || parsed.entriesSanitized[0]?.activityType !== "link" || !parsed.entriesSanitized[0]?.activityAuthorEmail)) failures.push(`activity stream manual Atom fields failed: ${JSON.stringify(parsed)}`);
     if (fixture.name === "html" && (parsed as Record<string, unknown>).bodyTextSanitized) failures.push("activity stream HTML parser retained full body");
   }
   const anomalyXml = `<feed>${Array.from({ length: 20 }, (_, index) => `<entry><title>${index === 0 ? "SMOKE-999 updated" : `Entry without key ${index}`}</title><author><name>Smoke User</name></author><updated>2026-07-02T11:00:00Z</updated></entry>`).join("")}</feed>`;
@@ -5044,6 +5302,13 @@ app.whenReady().then(() => {
   }
 
   createMainWindow();
+  setTimeout(() => {
+    void startBackgroundChecks().catch((error) => {
+      persistentDiagnostics.write("main", "startup-background-check-failed", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    });
+  }, 0);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

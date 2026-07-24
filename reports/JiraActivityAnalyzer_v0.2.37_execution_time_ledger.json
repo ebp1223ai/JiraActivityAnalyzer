@@ -1,0 +1,361 @@
+{
+  "schemaVersion": "codex_execution_time_ledger_v1",
+  "release": "v0.2.37",
+  "timezone": "Asia/Taipei",
+  "utcOffset": "+08:00",
+  "overall": {
+    "started_at": "2026-07-25T01:54:00.5156915+08:00",
+    "documentation_cutoff_at": "2026-07-25T02:31:16.7789059+08:00",
+    "duration_seconds_to_documentation_cutoff": 2236.263,
+    "duration_hh_mm_ss_to_documentation_cutoff": "00:37:16.263",
+    "note": "此受版本控制的 ledger 截止於文件完成。最終 Git commit/push/tag 的時間與結果在交付回覆中列出，避免檔案記錄自身 commit SHA 的循環依賴。"
+  },
+  "phases": [
+    {
+      "phase": "1. Repository／規格盤點",
+      "started_at": "2026-07-25T01:54:00.5156915+08:00",
+      "finished_at": "2026-07-25T01:54:34.6840000+08:00",
+      "duration_seconds": 34.168,
+      "command_or_work": "閱讀 v0.2.37 prompt、Git branch/remote/status、package、Electron main/preload/renderer、設定、測試與封裝架構。",
+      "exit_code_or_result": "完成",
+      "notes": "初始 HEAD 7d2554bc14b2e338ad21961b5bc459fb077a2a16；工作樹乾淨。"
+    },
+    {
+      "phase": "2. 回歸基線與版本更新",
+      "started_at": "2026-07-25T01:54:34.6840000+08:00",
+      "finished_at": "2026-07-25T01:55:44.3010000+08:00",
+      "duration_seconds": 69.617,
+      "command_or_work": "基線 typecheck、unit tests；package/lock/buildInfo 升版至 0.2.37。",
+      "exit_code_or_result": "通過",
+      "notes": "基線未連線任何外部 Jira／Confluence。"
+    },
+    {
+      "phase": "3. Configuration／.env／Path 實作",
+      "started_at": "2026-07-25T01:55:44.3010000+08:00",
+      "finished_at": "2026-07-25T02:02:33.3060000+08:00",
+      "duration_seconds": 409.005,
+      "command_or_work": "ENV_FORMAT_VERSION=2、雙語範本、alias/default、targeted atomic patch、.env.Version 拒載、APP_ROOT relative/absolute path resolver。",
+      "exit_code_or_result": "完成",
+      "notes": "與 phase 4 部分重疊；工作是同一批模組的交錯實作，未將重疊時間相加冒充總時間。"
+    },
+    {
+      "phase": "4. Database Schema／Archive Service 實作",
+      "started_at": "2026-07-25T01:56:10.0000000+08:00",
+      "finished_at": "2026-07-25T02:02:33.3060000+08:00",
+      "duration_seconds": 383.306,
+      "command_or_work": "node:sqlite 七表 schema、metadata/migration/binding compatibility、canonical JSON/SHA-256/gzip、dedupe/history/import refs/transaction。",
+      "exit_code_or_result": "完成",
+      "notes": "開始秒數只記錄到工作區間，未取得更細的工具時間戳；與 phase 3 重疊。"
+    },
+    {
+      "phase": "5. Electron Main／Preload／IPC／Runtime State 實作",
+      "started_at": "2026-07-25T02:02:33.3060000+08:00",
+      "finished_at": "2026-07-25T02:08:46.3890000+08:00",
+      "duration_seconds": 373.083,
+      "command_or_work": "平行啟動檢查、stale protection、Jira test/save、Database check/select/create、runtime events 與 preload bridge。",
+      "exit_code_or_result": "完成",
+      "notes": "UI 建立後才排程檢查，不阻擋 renderer。"
+    },
+    {
+      "phase": "6. Renderer／UI 實作",
+      "started_at": "2026-07-25T02:03:30.0000000+08:00",
+      "finished_at": "2026-07-25T02:08:46.3890000+08:00",
+      "duration_seconds": 316.389,
+      "command_or_work": "共用 RuntimeStatusContext、全域狀態列、Retry/Details、Connections Database UI 與 capability 顯示。",
+      "exit_code_or_result": "完成",
+      "notes": "開始秒數只記錄到工作區間；與 phase 5 重疊。"
+    },
+    {
+      "phase": "7. Unit／Integration／Regression 測試撰寫與除錯",
+      "started_at": "2026-07-25T02:02:10.7870000+08:00",
+      "finished_at": "2026-07-25T02:11:54.8893829+08:00",
+      "duration_seconds": 584.102,
+      "command_or_work": "新增 v0.2.37 unit/integration scripts，修正 CJS top-level await，執行型別、完整 unit/integration/regression。",
+      "exit_code_or_result": "通過",
+      "notes": "保留首次 CJS 失敗與 PowerShell npm.ps1 policy retry；所有 Jira 測試皆為 mock。"
+    },
+    {
+      "phase": "8. 最佳化前 Package Build 與 Size Audit",
+      "started_at": "2026-07-25T02:12:00.9556627+08:00",
+      "finished_at": "2026-07-25T02:14:51.0792563+08:00",
+      "duration_seconds": 170.124,
+      "command_or_work": "Production build、baseline npm run dist、ASAR/實體檔案與目錄 size audit。",
+      "exit_code_or_result": "通過",
+      "notes": "Installer 112.346 MiB；Portable 112.127 MiB；win-unpacked 448.915 MiB。"
+    },
+    {
+      "phase": "9. 安全容量最佳化",
+      "started_at": "2026-07-25T02:14:51.0792563+08:00",
+      "finished_at": "2026-07-25T02:15:32.5651313+08:00",
+      "duration_seconds": 41.486,
+      "command_or_work": "建置工具移至 devDependencies；asar/maximum compression；排除 node_modules source map；重算 lockfile。",
+      "exit_code_or_result": "完成",
+      "notes": "未刪除 Electron、SQLite、gzip、DLL、locale 或 production runtime dependency。"
+    },
+    {
+      "phase": "10. 最佳化後 Build／Packaging／Size Audit",
+      "started_at": "2026-07-25T02:15:32.5651313+08:00",
+      "finished_at": "2026-07-25T02:21:41.9674556+08:00",
+      "duration_seconds": 369.402,
+      "command_or_work": "最佳化後重建/封裝/audit；UI smoke 修正後再次產生最終 Installer/Portable 並重做 audit。",
+      "exit_code_or_result": "通過",
+      "notes": "明確遞迴清除輸出命令被環境政策拒絕且未刪檔；改由 Vite emptyOutDir、esbuild overwrite、electron-builder appOutDir rebuild 完成工具支援的乾淨重建。"
+    },
+    {
+      "phase": "11. Packaged Smoke 與安全檢查",
+      "started_at": "2026-07-25T02:17:33.8701505+08:00",
+      "finished_at": "2026-07-25T02:23:44.0490746+08:00",
+      "duration_seconds": 370.179,
+      "command_or_work": "首次 win-unpacked smoke、診斷、離線 UI smoke retry、最終 win-unpacked 與 Portable packaged smoke、credential/path scan。",
+      "exit_code_or_result": "通過（首次嘗試失敗後修正並重試）",
+      "notes": "首次失敗是舊 smoke 假設空白 .env 仍有 base URL，以及 fixture key 斷言不一致；未弱化檢查。Portable runtime 位於執行檔旁。"
+    },
+    {
+      "phase": "12. 文件、Git Diff、Commit、Push 與 Tag",
+      "started_at": "2026-07-25T02:23:44.0490746+08:00",
+      "finished_at": "2026-07-25T02:31:16.7789059+08:00",
+      "duration_seconds": 452.730,
+      "command_or_work": "CHANGELOG、README、configuration/schema/status/package audit 文件與 execution ledger；Git preflight/commit/push/tag 在文件截止後執行。",
+      "exit_code_or_result": "文件完成；Git 結果見最終交付回覆",
+      "notes": "此階段的 Git 子步驟無法在被提交檔案內可靠記錄其最終 SHA，因此以最終回覆作權威記錄。"
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm.cmd run typecheck (baseline)",
+      "started_at": "2026-07-25T01:55:22.6690000+08:00",
+      "finished_at": "2026-07-25T01:55:29.8910000+08:00",
+      "duration_seconds": 7.175,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run test:unit (baseline)",
+      "started_at": "2026-07-25T01:55:36.9070000+08:00",
+      "finished_at": "2026-07-25T01:55:44.3010000+08:00",
+      "duration_seconds": 7.345,
+      "exit_code": 0
+    },
+    {
+      "command": "node scripts/test-v0237.cjs (attempt 1)",
+      "started_at": "2026-07-25T02:02:10.7870000+08:00",
+      "finished_at": "2026-07-25T02:02:10.9790000+08:00",
+      "duration_seconds": 0.145,
+      "exit_code": 1,
+      "notes": "CJS 不允許 top-level await；改以 async main 包裝。"
+    },
+    {
+      "command": "node scripts/test-v0237.cjs (attempt 2)",
+      "started_at": "2026-07-25T02:02:20.9630000+08:00",
+      "finished_at": "2026-07-25T02:02:21.2320000+08:00",
+      "duration_seconds": 0.220,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "started_at": "2026-07-25T02:02:26.2060000+08:00",
+      "finished_at": "2026-07-25T02:02:33.3060000+08:00",
+      "duration_seconds": 7.057,
+      "exit_code": 0
+    },
+    {
+      "command": "typecheck + v0.2.37 unit + integration",
+      "started_at": "2026-07-25T02:08:46.3890000+08:00",
+      "finished_at": "2026-07-25T02:08:54.8060000+08:00",
+      "duration_seconds": 8.366,
+      "exit_code": 0
+    },
+    {
+      "command": "npm run typecheck (PowerShell alias attempt)",
+      "started_at": "2026-07-25T02:10:28.8500776+08:00",
+      "finished_at": "2026-07-25T02:10:28.9166959+08:00",
+      "duration_seconds": 0.067,
+      "exit_code": null,
+      "notes": "npm.ps1 被 PowerShell execution policy 擋下；未執行專案指令。"
+    },
+    {
+      "command": "npm.cmd run typecheck (retry)",
+      "started_at": "2026-07-25T02:10:34.1942597+08:00",
+      "finished_at": "2026-07-25T02:10:41.7081427+08:00",
+      "duration_seconds": 7.514,
+      "exit_code": 0
+    },
+    {
+      "command": "typecheck + test:v0.2.37 + test:integration",
+      "started_at": "2026-07-25T02:11:13.7770183+08:00",
+      "finished_at": "2026-07-25T02:11:22.2614000+08:00",
+      "duration_seconds": 8.484,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run test:unit",
+      "started_at": "2026-07-25T02:11:39.9540300+08:00",
+      "finished_at": "2026-07-25T02:11:45.7802943+08:00",
+      "duration_seconds": 5.826,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run test:integration",
+      "started_at": "2026-07-25T02:11:49.3756433+08:00",
+      "finished_at": "2026-07-25T02:11:49.7558725+08:00",
+      "duration_seconds": 0.380,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run test:regression",
+      "started_at": "2026-07-25T02:11:54.3079929+08:00",
+      "finished_at": "2026-07-25T02:11:54.8893829+08:00",
+      "duration_seconds": 0.581,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run build",
+      "started_at": "2026-07-25T02:12:00.9556627+08:00",
+      "finished_at": "2026-07-25T02:12:12.9424897+08:00",
+      "duration_seconds": 11.987,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run dist (baseline)",
+      "started_at": "2026-07-25T02:12:19.6025801+08:00",
+      "finished_at": "2026-07-25T02:13:24.5406094+08:00",
+      "duration_seconds": 64.938,
+      "exit_code": 0
+    },
+    {
+      "command": "node scripts/audit-package-size.cjs before",
+      "started_at": "2026-07-25T02:14:50.0932617+08:00",
+      "finished_at": "2026-07-25T02:14:51.0792563+08:00",
+      "duration_seconds": 0.986,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd install --package-lock-only --ignore-scripts",
+      "started_at": "2026-07-25T02:15:30.3791457+08:00",
+      "finished_at": "2026-07-25T02:15:32.5651313+08:00",
+      "duration_seconds": 2.186,
+      "exit_code": 0,
+      "notes": "npm audit 摘要為 1 moderate、7 high；本版未執行可能含 breaking change 的 audit fix。"
+    },
+    {
+      "command": "明確清除 dist/dist-electron/release",
+      "started_at": null,
+      "finished_at": null,
+      "duration_seconds": null,
+      "exit_code": null,
+      "notes": "執行環境政策拒絕，未刪除任何檔案；發生於 02:15:32.565 至 02:15:50.868 間，未取得更精細時間。"
+    },
+    {
+      "command": "npm.cmd run dist (optimized rebuild)",
+      "started_at": "2026-07-25T02:15:50.8683020+08:00",
+      "finished_at": "2026-07-25T02:16:37.1268422+08:00",
+      "duration_seconds": 46.259,
+      "exit_code": 0
+    },
+    {
+      "command": "node scripts/audit-package-size.cjs after",
+      "started_at": "2026-07-25T02:16:41.3389601+08:00",
+      "finished_at": "2026-07-25T02:16:41.9865635+08:00",
+      "duration_seconds": 0.648,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run test:unit (post-optimization)",
+      "started_at": "2026-07-25T02:17:02.1361466+08:00",
+      "finished_at": "2026-07-25T02:17:08.0024160+08:00",
+      "duration_seconds": 5.866,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run test:integration (post-optimization)",
+      "started_at": "2026-07-25T02:17:12.7196551+08:00",
+      "finished_at": "2026-07-25T02:17:13.0994434+08:00",
+      "duration_seconds": 0.380,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run test:regression (post-optimization)",
+      "started_at": "2026-07-25T02:17:18.5595886+08:00",
+      "finished_at": "2026-07-25T02:17:19.1605955+08:00",
+      "duration_seconds": 0.601,
+      "exit_code": 0
+    },
+    {
+      "command": "win-unpacked packaged smoke (attempt 1)",
+      "started_at": "2026-07-25T02:17:33.8701505+08:00",
+      "finished_at": "2026-07-25T02:18:22.3558830+08:00",
+      "duration_seconds": 48.486,
+      "exit_code": 1,
+      "notes": "空白 .env 的舊 smoke base URL 假設與 fixture key 斷言不一致；讀取診斷後修正。"
+    },
+    {
+      "command": "npm.cmd run test:ui (offline pre-package retry)",
+      "started_at": "2026-07-25T02:19:44.2609187+08:00",
+      "finished_at": "2026-07-25T02:20:44.8091362+08:00",
+      "duration_seconds": 60.548,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run dist (final optimized package)",
+      "started_at": "2026-07-25T02:20:50.9492264+08:00",
+      "finished_at": "2026-07-25T02:21:37.2674903+08:00",
+      "duration_seconds": 46.318,
+      "exit_code": 0
+    },
+    {
+      "command": "node scripts/audit-package-size.cjs after (final)",
+      "started_at": "2026-07-25T02:21:41.3422889+08:00",
+      "finished_at": "2026-07-25T02:21:41.9674556+08:00",
+      "duration_seconds": 0.625,
+      "exit_code": 0
+    },
+    {
+      "command": "win-unpacked packaged smoke (attempt 2)",
+      "started_at": "2026-07-25T02:21:54.3886819+08:00",
+      "finished_at": "2026-07-25T02:22:42.9474681+08:00",
+      "duration_seconds": 48.559,
+      "exit_code": 0
+    },
+    {
+      "command": "Portable packaged smoke",
+      "started_at": "2026-07-25T02:22:53.4152228+08:00",
+      "finished_at": "2026-07-25T02:23:44.0490746+08:00",
+      "duration_seconds": 50.634,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run test:unit (final gate)",
+      "started_at": "2026-07-25T02:29:35.2831942+08:00",
+      "finished_at": "2026-07-25T02:29:41.0010384+08:00",
+      "duration_seconds": 5.718,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run test:integration (final gate)",
+      "started_at": "2026-07-25T02:29:45.2555914+08:00",
+      "finished_at": "2026-07-25T02:29:45.6131882+08:00",
+      "duration_seconds": 0.358,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run test:regression (final gate)",
+      "started_at": "2026-07-25T02:29:51.6831631+08:00",
+      "finished_at": "2026-07-25T02:29:52.2412102+08:00",
+      "duration_seconds": 0.558,
+      "exit_code": 0
+    },
+    {
+      "command": "npm.cmd run typecheck + ledger JSON validation",
+      "started_at": "2026-07-25T02:30:04.5093550+08:00",
+      "finished_at": "2026-07-25T02:30:10.5338600+08:00",
+      "duration_seconds": 6.025,
+      "exit_code": 0
+    }
+  ],
+  "longest_recorded_commands": [
+    { "command": "npm.cmd run dist (baseline)", "duration_seconds": 64.938 },
+    { "command": "npm.cmd run test:ui (offline pre-package retry)", "duration_seconds": 60.548 },
+    { "command": "Portable packaged smoke", "duration_seconds": 50.634 },
+    { "command": "win-unpacked packaged smoke (attempt 2)", "duration_seconds": 48.559 },
+    { "command": "win-unpacked packaged smoke (attempt 1)", "duration_seconds": 48.486 }
+  ]
+}

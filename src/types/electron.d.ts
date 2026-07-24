@@ -1,5 +1,6 @@
 import type { JiraProbeRequest, JiraProbeResult } from "./jiraProbe";
 import type { ConnectionStatePayload, JiraConnection } from "./connection";
+import type { RuntimeState } from "./runtime";
 
 declare global {
   interface Window {
@@ -61,8 +62,20 @@ declare global {
         chooseEnv: () => Promise<{ canceled: boolean; state: ConnectionStatePayload }>;
         list: () => Promise<ConnectionStatePayload>;
         test: (connection: JiraConnection) => Promise<{ connection: JiraConnection; logs: string[]; result: unknown }>;
+        testAndSave: (connection: JiraConnection) => Promise<{ saved: boolean; connection: JiraConnection; runtime: RuntimeState["jira"]; logs: string[]; state: ConnectionStatePayload }>;
         save: (connection: JiraConnection) => Promise<ConnectionStatePayload>;
         setActive: (id: string) => Promise<ConnectionStatePayload>;
+      };
+      runtime?: {
+        getState: () => Promise<RuntimeState>;
+        retryJira: () => Promise<RuntimeState>;
+        retryDatabase: () => Promise<RuntimeState>;
+        onStateChanged: (callback: (state: RuntimeState) => void) => () => void;
+      };
+      databases?: {
+        checkPath: (payload?: { filePath?: string }) => Promise<RuntimeState["database"]>;
+        selectExisting: (payload?: { filePath?: string }) => Promise<{ canceled: boolean; saved: boolean; validation?: RuntimeState["database"]; state: RuntimeState; error?: string }>;
+        createNew: (payload?: { filePath?: string }) => Promise<{ canceled: boolean; saved: boolean; created?: { databasePath: string; databaseId: string; validation: RuntimeState["database"] }; state: RuntimeState; error?: string }>;
       };
       jiraAnalysis?: {
         load: (payload: { connection: JiraConnection; issueKey: string }) => Promise<Record<string, unknown>>;

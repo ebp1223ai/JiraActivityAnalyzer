@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { DebugLogPanel } from "./DebugLogPanel";
 import { Sidebar } from "./Sidebar";
 import { appendDebugLogLines, clearDebugLogPage, createInitialDebugLogState, type DebugPage } from "../state/debugLogStore";
+import { GlobalRuntimeStatusBar } from "./GlobalRuntimeStatusBar";
 
 const pageByPath: Record<string, DebugPage> = {
   "/": "dashboard",
@@ -37,6 +38,7 @@ export function AppLayout() {
       <Sidebar />
       <main ref={mainRef} className="thin-scroll min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4">
         <div className="mx-auto w-full max-w-[1480px] min-w-0">
+          <GlobalRuntimeStatusBar />
           <Outlet context={{
             appendDebugLog: (targetPage, lines) => {
               setLogsByPage((current) => appendDebugLogLines(current, targetPage, lines));

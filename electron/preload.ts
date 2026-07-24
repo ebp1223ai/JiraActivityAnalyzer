@@ -22,8 +22,24 @@ contextBridge.exposeInMainWorld("desktopApp", {
     chooseEnv: () => ipcRenderer.invoke("connection:choose-env"),
     list: () => ipcRenderer.invoke("connection:list"),
     test: (connection: unknown) => ipcRenderer.invoke("connection:test", connection),
+    testAndSave: (connection: unknown) => ipcRenderer.invoke("connection:test-and-save", connection),
     save: (connection: unknown) => ipcRenderer.invoke("connection:save", connection),
     setActive: (id: string) => ipcRenderer.invoke("connection:set-active", id)
+  },
+  runtime: {
+    getState: () => ipcRenderer.invoke("runtime:get-state"),
+    retryJira: () => ipcRenderer.invoke("runtime:retry-jira"),
+    retryDatabase: () => ipcRenderer.invoke("runtime:retry-database"),
+    onStateChanged: (callback: (state: unknown) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, state: unknown) => callback(state);
+      ipcRenderer.on("runtime-state:changed", listener);
+      return () => ipcRenderer.removeListener("runtime-state:changed", listener);
+    }
+  },
+  databases: {
+    checkPath: (payload?: { filePath?: string }) => ipcRenderer.invoke("database:check-path", payload),
+    selectExisting: (payload?: { filePath?: string }) => ipcRenderer.invoke("database:select-existing", payload),
+    createNew: (payload?: { filePath?: string }) => ipcRenderer.invoke("database:create-new", payload)
   },
   jiraAnalysis: {
     load: (payload: unknown) => ipcRenderer.invoke("jira-analysis:load", payload),

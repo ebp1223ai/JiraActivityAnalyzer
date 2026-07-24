@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.37 - Startup Configuration & Local Database Readiness
+
+- Added the versioned, credential-free `.env.Version` template and `ENV_FORMAT_VERSION=2`; runtime loads only the local `.env`, preserves comments and unknown keys during targeted atomic updates, and saves Jira settings only after a successful connection test.
+- Added one APP_ROOT-aware path resolver, parallel non-blocking Jira and SQLite startup checks, stale-request protection, shared renderer runtime state, retry/details controls, and capability selection that keeps Jira and offline database workflows independent.
+- Added a SQLite Source Archive service using Electron's bundled `node:sqlite`, with seven normalized tables, metadata/schema/source-binding compatibility checks, gzip canonical JSON payloads, SHA-256 deduplication, snapshot history, transactions, and cascade integrity.
+- Added Select Existing and Create New database flows. Invalid or incompatible selections never modify `.env`; `MIGRATION_REQUIRED` remains advisory and has no migration/repair action in this release.
+- Added offline unit, integration, regression, UI, `win-unpacked`, and Portable smoke coverage without connecting to real Jira or Confluence.
+- Audited Windows package size before and after optimization. Moving Vite/TypeScript build tooling to development dependencies, explicitly enabling ASAR/maximum compression, and excluding source maps reduced Installer size by 9.63% and `resources` by 74.17%.
+
 ## 0.2.34 - Selection / Fetch Queue Correctness
 
 - Removed Project Scope from User Analysis Step 1 UI and active Timeline payload; the Electron Timeline handler now enforces all-project semantics even for restored legacy requests.

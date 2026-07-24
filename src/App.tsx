@@ -13,6 +13,7 @@ import { SettingsPage } from "./routes/SettingsPage";
 import { TimelinePage } from "./routes/TimelinePage";
 import { ConnectionProvider } from "./state/ConnectionContext";
 import { SessionStateProvider } from "./state/SessionStateContext";
+import { RuntimeStatusProvider } from "./state/RuntimeStatusContext";
 
 function UiSmokeErrorTrigger() {
   const [shouldThrow, setShouldThrow] = useState(false);
@@ -32,24 +33,26 @@ export default function App() {
   }, []);
 
   return (
-    <ConnectionProvider>
-      <SessionStateProvider>
-        <UiSmokeErrorTrigger />
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/connections" element={<ConnectionsPage />} />
-            <Route path="/import" element={<ImportPage />} />
-            <Route path="/timeline" element={<TimelinePage />} />
-            <Route path="/analysis" element={<AnalysisPage />} />
-            <Route path="/precision-probe" element={<PrecisionProbePage />} />
-            <Route path="/jira-analysis" element={<JiraAnalysisPage />} />
-            <Route path="/jira-probe" element={<JiraProbePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-      </SessionStateProvider>
-    </ConnectionProvider>
+    <RuntimeStatusProvider>
+      <ConnectionProvider>
+        <SessionStateProvider>
+          <UiSmokeErrorTrigger />
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/connections" element={<ConnectionsPage />} />
+              <Route path="/import" element={<ImportPage />} />
+              <Route path="/timeline" element={<TimelinePage />} />
+              <Route path="/analysis" element={<AnalysisPage />} />
+              <Route path="/precision-probe" element={<PrecisionProbePage />} />
+              <Route path="/jira-analysis" element={<JiraAnalysisPage />} />
+              <Route path="/jira-probe" element={<JiraProbePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
+        </SessionStateProvider>
+      </ConnectionProvider>
+    </RuntimeStatusProvider>
   );
 }
