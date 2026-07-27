@@ -200,7 +200,7 @@ try {
   assert.equal(duplicate.sourceObjectVersionId, first.sourceObjectVersionId);
   assert.equal(repository.counts().source_object_versions, 1);
   assert.equal(repository.counts().source_payloads, 1);
-  assert.equal(repository.counts().source_import_refs, 2);
+  assert.equal(repository.counts().source_import_refs, 1);
 
   const changedFixture = structuredClone(fixture);
   changedFixture.fields.summary = "內容已修改";

@@ -53,7 +53,9 @@ function result(status: JiraRuntimeStatus, overrides: Partial<Omit<JiraRuntimeSt
     baseUrlNormalized: overrides.baseUrlNormalized ?? "",
     accountDisplayName: overrides.accountDisplayName ?? "",
     username: overrides.username ?? "",
-    serverIdentity: overrides.serverIdentity ?? ""
+    serverIdentity: overrides.serverIdentity ?? "",
+    serverTitle: overrides.serverTitle ?? "",
+    serverTitleStatus: overrides.serverTitleStatus ?? "unverified"
   };
 }
 
@@ -139,6 +141,8 @@ export async function checkJiraConnection(
     latencyMs: Date.now() - started,
     accountDisplayName: String(myself.json.displayName ?? myself.json.name ?? myself.json.emailAddress ?? "Authenticated"),
     username: String(myself.json.name ?? myself.json.accountId ?? input.username),
-    serverIdentity
+    serverIdentity,
+    serverTitle: String(serverInfo.serverTitle ?? "").trim(),
+    serverTitleStatus: String(serverInfo.serverTitle ?? "").trim() ? "verified" : "unverified"
   });
 }

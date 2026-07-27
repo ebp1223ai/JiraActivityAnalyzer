@@ -35,8 +35,17 @@ import type { JiraHttpResult, ProbeRequest } from "./jira/jiraTypes.js";
 import { databasePathForEnv, resolveLocalDatabasePath } from "./appPathResolver.js";
 import { DEFAULT_ENV_TEXT as defaultEnvText, atomicPatchEnv, ensureDefaultRuntimeEnv, loadRuntimeConfig, parseEnvText } from "./runtimeConfig.js";
 import { checkJiraConnection } from "./jiraConnectionCheck.js";
-import { checkDatabaseCompatibility, createSourceArchiveDatabase } from "./sourceArchiveDatabase.js";
-import { writeFullFetchStagingToCurrentDatabase } from "./sourceArchiveDatabaseWrite.js";
+import {
+  checkDatabaseCompatibility,
+  createSourceArchiveDatabase,
+  migrateSourceArchiveDatabase,
+  updateJiraBindingMetadata,
+  writeSourceArchiveBatch
+} from "./sourceArchiveDatabase.js";
+import {
+  buildSourceVersionProjectionDiagnostics,
+  writeFullFetchStagingToCurrentDatabase
+} from "./sourceArchiveDatabaseWrite.js";
 import { StartupCheckCoordinator, initialRuntimeState, type RuntimeState } from "./runtimeStatus.js";
 import { testAndSaveJiraSettings, validateAndSaveDatabaseSelection } from "./startupIntegration.js";
 
@@ -111,6 +120,7 @@ let latestActivityStreamBenchmark: (ActivityStreamBenchmarkRun & { files: Record
 let latestStabilityUiState: Record<string, unknown> = { activeTab: "stability", filters: {}, sort: {}, visibleColumns: {}, latestProbeRunId: "", statePersistedAt: "" };
 let latestSourceArchiveExport: { fileName: string; filePath: string; exportRunId: string; selectedUser: string; createdAt: string; sizeBytes: number; sha256: string; jiraObjectCount: number; confluenceObjectCount: number; packageStatus?: string; safeForAutomaticImport?: boolean; verification?: Record<string, unknown> } | null = null;
 let latestSourceArchiveDatabaseWrite: Record<string, unknown> | null = null;
+let latestSourceArchiveMigration: unknown = null;
 const activeSourceArchiveDatabaseWrites = new Set<string>();
 let activeStabilityProbe: { runId: string; cancelled: boolean } | null = null;
 let activeActivityStreamBenchmark: { runId: string; cancelled: boolean } | null = null;
@@ -630,7 +640,27 @@ async function runDatabaseStartupCheck() {
     const jiraIdentity = runtimeCoordinator?.snapshot().jira.status === "CONNECTED"
       ? runtimeCoordinator.snapshot().jira.serverIdentity
       : "";
-    return checkDatabaseCompatibility(databasePath, jiraIdentity);
+    let compatibility = checkDatabaseCompatibility(databasePath, jiraIdentity);
+    if (compatibility.status === "MIGRATION_REQUIRED" && activeSourceArchiveDatabaseWrites.size === 0) {
+      const migration = migrateSourceArchiveDatabase({
+        databasePath,
+        appVersion: __MAIN_APP_VERSION__
+      });
+      latestSourceArchiveMigration = migration;
+      if (migration.status === "completed" || migration.status === "not_required") {
+        compatibility = checkDatabaseCompatibility(databasePath, jiraIdentity);
+      } else {
+        return {
+          ...compatibility,
+          status: "MIGRATION_FAILED" as const,
+          reasonCode: "MIGRATION_FAILED" as const,
+          message: `${migration.reasonCode}: ${migration.message}`,
+          migration
+        };
+      }
+      return { ...compatibility, migration };
+    }
+    return { ...compatibility, migration: latestSourceArchiveMigration };
   } catch {
     return {
       ...runtimeStateWithoutRequestId(initialRuntimeState().database),
@@ -729,7 +759,9 @@ ipcMain.handle("connection:test-and-save", async (_event, connection: AppConnect
           baseUrlNormalized: connection.baseUrl.trim().replace(/\/+$/, ""),
           accountDisplayName: "UI Smoke User",
           username: connection.username || "ui-smoke",
-          serverIdentity: "jira:ui-smoke"
+          serverIdentity: "jira:ui-smoke",
+          serverTitle: "UI Smoke Jira",
+          serverTitleStatus: "verified" as const
         })
       : checkJiraConnection
   });
@@ -755,7 +787,19 @@ ipcMain.handle("connection:test-and-save", async (_event, connection: AppConnect
   }
   logs.push(`[INFO] Runtime .env updated atomically: ${resolveCurrentEnvPath()}`);
   const runtimeState = await getRuntimeCoordinator().retryJira();
-  if (runtimeState.database.path) await getRuntimeCoordinator().retryDatabase();
+  if (runtimeState.database.path) {
+    const afterDatabase = await getRuntimeCoordinator().retryDatabase();
+    if (afterDatabase.jira.status === "CONNECTED" && afterDatabase.database.status === "READY") {
+      updateJiraBindingMetadata({
+        databasePath: afterDatabase.database.path,
+        serverIdentity: afterDatabase.jira.serverIdentity,
+        serverTitle: afterDatabase.jira.serverTitle,
+        serverTitleStatus: afterDatabase.jira.serverTitleStatus,
+        connectionLabel: connection.name
+      });
+      await getRuntimeCoordinator().retryDatabase();
+    }
+  }
   return { saved: true, connection: updatedConnection, runtime: checked, logs, state: loadConnectionState() };
 });
 
@@ -811,12 +855,15 @@ ipcMain.handle("database:create-new", async (_event, payload?: { filePath?: stri
     targetPath = result.filePath;
   }
   const jira = getRuntimeCoordinator().snapshot().jira;
+  const connectionLabel = loadConnectionState().activeConnection.name;
   const binding = jira.status === "CONNECTED" && jira.serverIdentity
     ? {
         sourceSystem: "jira" as const,
         serverIdentity: jira.serverIdentity,
         baseUrlNormalized: jira.baseUrlNormalized,
-        serverTitle: jira.accountDisplayName
+        serverTitle: jira.serverTitle,
+        serverTitleStatus: jira.serverTitleStatus,
+        connectionLabel
       }
     : undefined;
   try {
@@ -2625,14 +2672,17 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
   const autoLogPath = path.join(ensureDir(getFullFetchLogsDir()), `full-fetch-${fileTimestamp()}.log`);
   fs.writeFileSync(autoLogPath, "", "utf8");
   const runtimeJira = getRuntimeCoordinator().snapshot().jira;
+  const activeConnectionLabel = loadConnectionState().activeConnection.name;
   const sourceProvenance = runtimeJira.status === "CONNECTED"
     ? {
         sourceSystem: "jira" as const,
         serverIdentity: runtimeJira.serverIdentity,
         baseUrlNormalized: runtimeJira.baseUrlNormalized,
-        serverTitle: runtimeJira.accountDisplayName
+        serverTitle: runtimeJira.serverTitle,
+        serverTitleStatus: runtimeJira.serverTitleStatus,
+        connectionLabel: activeConnectionLabel
       }
-    : { sourceSystem: "jira" as const, serverIdentity: "", baseUrlNormalized: "", serverTitle: "" };
+    : { sourceSystem: "jira" as const, serverIdentity: "", baseUrlNormalized: "", serverTitle: "", serverTitleStatus: "unverified" as const, connectionLabel: activeConnectionLabel };
   const stagingRun = createStagingRun(stagingRoot, { runId, selectedUser, queue: fetchQueue, createdAt: startedAt, runContext: { selectedUser, projectScope, dateRange: { start: startDate, end: endDate }, jql: generatedJql, selectedIssues, directIssueKeys: originalDirectIssueKeys, relatedIssuesStatus, fetchRemoteLinks, queueSnapshot, sourceProvenance } });
   latestFullFetchStaging = stagingRun;
   setStagingStatus(stagingRun, "running");
@@ -2967,7 +3017,7 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
     timelineEventListUiState: path.join(outputDir, "timeline-event-list-ui-state.json"),
     selectIssuesUiState: path.join(outputDir, "select-issues-ui-state.json")
   };
-  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: "0.2.34", ...latestUserAnalysisWorkflow });
+  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: "0.2.39", ...latestUserAnalysisWorkflow });
   writeJsonAtomic(files.timelineIssueGroups, timelineIssueGroups);
   writeJsonAtomic(files.timelineSelectedIssues, { selectedIssueKeys: timelineSelectedIssues, count: timelineSelectedIssues.length });
   writeJsonAtomic(files.fetchQueue, fetchQueue);
@@ -3050,7 +3100,9 @@ ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: {
         sourceSystem: "jira",
         serverIdentity: currentJira.status === "CONNECTED" ? currentJira.serverIdentity : "",
         baseUrlNormalized: currentJira.status === "CONNECTED" ? currentJira.baseUrlNormalized : "",
-        serverTitle: currentJira.status === "CONNECTED" ? currentJira.accountDisplayName : ""
+        serverTitle: currentJira.status === "CONNECTED" ? currentJira.serverTitle : "",
+        serverTitleStatus: currentJira.status === "CONNECTED" ? currentJira.serverTitleStatus : "unverified",
+        connectionLabel: loadConnectionState().activeConnection.name
       }
     });
     latestSourceArchiveDatabaseWrite = databaseWrite;
@@ -3739,6 +3791,21 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     reasonCode: "DATABASE_WRITE_NOT_RUN",
     message: "No Stage 5 database write was observed in this session."
   });
+  writeBundleJson(folderPath, "source-archive-migration.json", latestSourceArchiveMigration ?? {
+    status: "not_run",
+    reasonCode: "MIGRATION_NOT_RUN",
+    message: "No Source Archive schema migration was observed in this session."
+  });
+  const sourceVersionProjectionDir = ensureDir(path.join(folderPath, "source-version-projection"));
+  const sourceVersionDiagnostics = stagingForBundle && latestSourceArchiveDatabaseWrite
+    ? buildSourceVersionProjectionDiagnostics(stagingForBundle, latestSourceArchiveDatabaseWrite)
+    : [];
+  for (const diagnostic of sourceVersionDiagnostics) {
+    const issueKey = diagnostic.issueKey.toUpperCase().replace(/[^A-Z0-9_-]+/g, "_");
+    writeBundleJson(sourceVersionProjectionDir, `${issueKey}-stable-projection.json`, diagnostic.projection);
+    writeBundleJson(sourceVersionProjectionDir, `${issueKey}-hash-input.json`, diagnostic.hashInput);
+    writeBundleJson(sourceVersionProjectionDir, `${issueKey}-version-decision.json`, diagnostic.decision);
+  }
   const sourceArchiveMetadataDir = ensureDir(path.join(folderPath, "source-archive-metadata"));
   writeBundleJson(sourceArchiveMetadataDir, "source-archive-export-index.json", sourceArchiveIndex);
   writeBundleJson(sourceArchiveMetadataDir, "source-archive-verification.json", latestSourceArchiveExport?.verification ?? { status: "not_available" });
@@ -3806,9 +3873,9 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const debugBundleSummaryBody = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
   writeBundleJson(folderPath, "debug-bundle-summary.json", { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), activityStreamStabilityProbe: latestActivityStreamStabilityProbeV2 ? { available: true, authoritativeVersion: "v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, windowCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability } : latestActivityStreamStabilityProbe ? { available: true, authoritativeVersion: "legacy_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId } : { available: false, authoritativeVersion: "none", probeRunId: "" } });
   const summaryWithV1 = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.34", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.39", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
   const summaryWithStaging = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.34" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.39" } });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -3875,7 +3942,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const debugBundleManifestPath = path.join(folderPath, "manifest.json");
   writeJsonAtomic(debugBundleManifestPath, {
     schemaVersion: "debug_folder_manifest_v1",
-    appVersion: "0.2.34",
+    appVersion: __MAIN_APP_VERSION__,
     status: debugBundleStatus,
     generatedAt: createdAt,
     currentPage: payload.currentPage,
@@ -4914,8 +4981,8 @@ async function runUiSmoke(window: BrowserWindow) {
   });
   startTarget(databaseSmokeRun, "SMOKE-801");
   completeTarget(databaseSmokeRun, "SMOKE-801", { status: "eligible", rawEnvelope: {
-    issue: { id: "801", key: "SMOKE-801", fields: { summary: "Packaged database write fixture", updated: "2026-07-27T01:00:00.000Z" }, names: {}, schema: {}, renderedFields: {} },
-    changelogHistories: [], comments: [], attachments: [], parsedUsers: [], evidenceEvents: [], issueLinks: [], remoteLinks: [],
+    issue: { id: "801", key: "SMOKE-801", fields: { summary: "Packaged database write fixture", created: "2026-07-26T01:00:00.000Z", updated: "2026-07-27T01:00:00.000Z" }, names: {}, schema: {}, renderedFields: {} },
+    changelogHistories: [], comments: [{ id: "smoke-comment-1", created: "2026-07-27T00:00:00.000Z", body: "Synthetic packaged comment" }], attachments: [], parsedUsers: [], evidenceEvents: [], issueLinks: [], remoteLinks: [],
     endpointMetadata: [{ method: "GET", endpoint: "/issue/SMOKE-801", status: 200, attempts: 1, fetchedAt: "2026-07-27T01:00:00.000Z" }],
     requestMetadata: { apiVersion: "v2", fetchedAt: "2026-07-27T01:00:00.000Z", fetchRemoteLinks: false },
     paginationMetadata: { changelog: { reportedTotal: 0, fetchedCount: 0, pageCount: 1, paginationComplete: true, duplicateCount: 0 }, comments: { reportedTotal: 0, fetchedCount: 0, pageCount: 1, paginationComplete: true, duplicateCount: 0 } },
@@ -4935,6 +5002,60 @@ async function runUiSmoke(window: BrowserWindow) {
     || databaseSmokeWrite.summary.newPayloads !== 1 || !databaseSmokeWrite.readbackVerified
     || databaseSmokeWrite.foreignKeyCheck !== "passed") {
     failures.push(`v0.2.38 packaged Source Archive database write smoke failed ${JSON.stringify(databaseSmokeWrite)}`);
+  }
+  const changedSmokePayload = {
+    issue: {
+      id: "801",
+      key: "SMOKE-801",
+      fields: {
+        summary: "Packaged database write fixture",
+        created: "2026-07-26T01:00:00.000Z",
+        updated: "2026-07-27T02:00:00.000Z",
+        status: { id: "5", name: "Resolved" }
+      }
+    },
+    changelog: [{
+      id: "smoke-history-1",
+      created: "2026-07-27T02:00:00.000Z",
+      items: [{ fieldId: "status", field: "status", fromString: "Open", toString: "Resolved" }]
+    }],
+    comments: [
+      { id: "smoke-comment-1", created: "2026-07-27T00:00:00.000Z", body: "Synthetic packaged comment" },
+      { id: "smoke-comment-2", created: "2026-07-27T02:30:00.000Z", body: "Synthetic packaged resolution" }
+    ],
+    attachments: [],
+    users: [],
+    issueLinks: [],
+    remoteLinks: [],
+    normalizedCurrentFields: { fetchedAt: "2026-07-27T03:00:00.000Z" },
+    evidence: []
+  };
+  const changedSmokeWrite = writeSourceArchiveBatch({
+    operationId: `ui-smoke-dbwrite-changed-${Date.now()}`,
+    databasePath: databaseSmokePath,
+    jira: databaseSmokeJira,
+    items: [{
+      sourceSystem: "jira", objectType: "issue", objectKey: "SMOKE-801",
+      rawJson: changedSmokePayload, eligibility: "eligible",
+      importRef: { sourceBundleName: "packaged-smoke-changed", sourceFileName: "SMOKE-801.json", sourceJsonPath: "$" }
+    }]
+  });
+  const duplicateSmokeWrite = writeSourceArchiveBatch({
+    operationId: `ui-smoke-dbwrite-duplicate-${Date.now()}`,
+    databasePath: databaseSmokePath,
+    jira: databaseSmokeJira,
+    items: [{
+      sourceSystem: "jira", objectType: "issue", objectKey: "SMOKE-801",
+      rawJson: { ...changedSmokePayload, normalizedCurrentFields: { fetchedAt: "2026-07-27T04:00:00.000Z" } },
+      eligibility: "eligible",
+      importRef: { sourceBundleName: "packaged-smoke-duplicate", sourceFileName: "SMOKE-801.json", sourceJsonPath: "$" }
+    }]
+  });
+  if (changedSmokeWrite.outcomes[0]?.outcome !== "new_version"
+    || duplicateSmokeWrite.outcomes[0]?.outcome !== "duplicate"
+    || duplicateSmokeWrite.summary.newVersions !== 0
+    || duplicateSmokeWrite.summary.activityEventsInserted !== 0) {
+    failures.push(`v0.2.39 packaged stable-version smoke failed ${JSON.stringify({ changedSmokeWrite, duplicateSmokeWrite })}`);
   }
   await window.webContents.executeJavaScript(`window.desktopApp?.userAnalysis?.exportSourceArchive?.({ selectedUser: "roger_hsieh", rawData: { rawIssueResponsesSanitized: [{ issueKey: "SMOKE-101", json: { id: "101", key: "SMOKE-101", fields: { updated: "2026-07-02T09:00:00.000Z", summary: "Source archive smoke fixture" } } }] } });`);
   await wait(180);
@@ -4961,7 +5082,7 @@ async function runUiSmoke(window: BrowserWindow) {
   requiredBundleFiles.push("user-analysis-steps.json", "timeline-issue-groups.json", "timeline-selected-issues.json", "fetch-queue.json", "related-candidate-issues.json", "related-issue-expansion-summary.json", "timeline-jira-relation-diagnostics.json", "full-fetch-failed-issues.json", "full-fetch-failure-summary.json", "timeline-event-list-ui-state.json", "select-issues-ui-state.json");
   requiredBundleFiles.push("jira-evidence-events.json", "jira-evidence-summary.json", "jira-evidence-excluded-summary.json", "jira-evidence-schema.json", "analysis-roadmap.json");
   requiredBundleFiles.push("activity-stream-stability-probe.json", "activity-stream-attempts.json", "activity-stream-attempt-comparison.csv", "activity-stream-window-summary.csv", "activity-stream-stability-recommendation.json");
-  requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-stability-setup.json", "activity-stream-rounds.json", "activity-stream-round-comparison.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.json", "activity-stream-window-diagnostics.csv", "activity-stream-raw-diagnostics.json", "activity-stream-stability-ui-state.json", "activity-stream-stability-recommendation-v2.json", "activity-stream-benchmark.json", "activity-stream-benchmark.csv", "activity-stream-benchmark-summary.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json", "source-archive-export-index.json", "source-archive-database-write.json");
+  requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-stability-setup.json", "activity-stream-rounds.json", "activity-stream-round-comparison.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.json", "activity-stream-window-diagnostics.csv", "activity-stream-raw-diagnostics.json", "activity-stream-stability-ui-state.json", "activity-stream-stability-recommendation-v2.json", "activity-stream-benchmark.json", "activity-stream-benchmark.csv", "activity-stream-benchmark-summary.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json", "source-archive-export-index.json", "source-archive-database-write.json", "source-archive-migration.json", "source-version-projection");
   requiredBundleFiles.push("full-fetch-staging-index.json", "full-fetch-staging", "full-fetch-result", "logs", "staging-metadata", "source-archive-metadata", "export-history", "environment", "sessions", "path-audit.json", "manifest.json");
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));

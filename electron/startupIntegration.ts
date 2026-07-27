@@ -35,7 +35,7 @@ export function validateAndSaveDatabaseSelection(input: {
 }) {
   const selectedPath = path.resolve(input.selectedPath);
   const validation = (input.check ?? checkDatabaseCompatibility)(selectedPath, input.currentJiraIdentity ?? "");
-  if (!["READY", "READY_READ_ONLY", "JIRA_INSTANCE_MISMATCH"].includes(validation.status)) {
+  if (!["READY", "READY_READ_ONLY", "JIRA_INSTANCE_MISMATCH", "MIGRATION_REQUIRED"].includes(validation.status)) {
     return { saved: false, validation };
   }
   (input.patch ?? atomicPatchEnv)(input.envPath, {
@@ -57,6 +57,8 @@ export function connectedFixture(overrides: Partial<Omit<JiraRuntimeState, "requ
     accountDisplayName: "Fixture User",
     username: "fixture-user",
     serverIdentity: "jira:fixture",
+    serverTitle: "Synthetic Jira",
+    serverTitleStatus: "verified",
     ...overrides
   };
 }

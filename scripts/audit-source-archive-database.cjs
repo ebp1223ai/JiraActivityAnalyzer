@@ -20,7 +20,8 @@ try {
     "source_objects",
     "source_object_versions",
     "source_payloads",
-    "source_import_refs"
+    "source_import_refs",
+    "activity_events"
   ];
   const counts = Object.fromEntries(tableNames.map((table) => [
     table,
@@ -40,14 +41,29 @@ try {
     if (crypto.createHash("sha256").update(canonical).digest("hex") !== row.content_hash) throw new Error("Payload hash mismatch.");
     verifiedPayloads += 1;
   }
+  const metadata = db.prepare("SELECT schema_version FROM database_metadata WHERE metadata_key='primary'").get();
+  const missingStableHashes = Number(db.prepare("SELECT COUNT(*) AS count FROM source_object_versions WHERE stable_version_hash IS NULL OR length(stable_version_hash) != 64").get().count);
+  const invalidEventHashes = Number(db.prepare("SELECT COUNT(*) AS count FROM activity_events WHERE length(event_hash) != 64").get().count);
+  const orphanEvents = Number(db.prepare(`SELECT COUNT(*) AS count FROM activity_events e
+    LEFT JOIN source_objects o ON o.source_object_id=e.source_object_id
+    LEFT JOIN source_object_versions v ON v.source_object_version_id=e.object_version_id
+    WHERE o.source_object_id IS NULL OR v.source_object_version_id IS NULL`).get().count);
   const report = {
     databasePath,
+    schemaVersion: Number(metadata.schema_version),
     integrityCheck: db.prepare("PRAGMA integrity_check").get().integrity_check,
     foreignKeyViolations: db.prepare("PRAGMA foreign_key_check").all().length,
     counts,
     verifiedPayloads,
+    missingStableHashes,
+    invalidEventHashes,
+    orphanEvents,
     status: "read_only_audit_passed"
   };
+  if (report.schemaVersion !== 2 || report.integrityCheck !== "ok" || report.foreignKeyViolations
+    || missingStableHashes || invalidEventHashes || orphanEvents) {
+    throw new Error(`Source Archive v2 audit failed: ${JSON.stringify(report)}`);
+  }
   console.log(JSON.stringify(report, null, 2));
 } finally {
   db.close();

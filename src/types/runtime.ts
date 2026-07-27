@@ -6,6 +6,7 @@ export type JiraRuntimeStatus =
 export type DatabaseRuntimeStatus =
   | "CHECKING" | "READY" | "READY_READ_ONLY" | "NOT_CONFIGURED" | "MISSING"
   | "INVALID_SQLITE" | "FOREIGN_DATABASE" | "SCHEMA_INCOMPLETE" | "MIGRATION_REQUIRED"
+  | "MIGRATION_FAILED"
   | "TOO_NEW" | "JIRA_INSTANCE_MISMATCH" | "CORRUPTED" | "LOCKED"
   | "PERMISSION_DENIED" | "UNKNOWN_ERROR";
 
@@ -21,6 +22,8 @@ export type RuntimeState = {
     accountDisplayName: string;
     username: string;
     serverIdentity: string;
+    serverTitle: string;
+    serverTitleStatus: "verified" | "unverified";
     requestId: number;
   };
   database: {
@@ -35,6 +38,7 @@ export type RuntimeState = {
     canRead: boolean;
     canWrite: boolean;
     bindingComparison: "MATCH" | "MISMATCH" | "UNAVAILABLE" | "UNBOUND";
+    migration?: unknown;
     requestId: number;
   };
   capabilities: {

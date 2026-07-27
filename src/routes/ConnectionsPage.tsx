@@ -13,6 +13,12 @@ import type { AppOutletContext } from "../components/AppLayout";
 import type { ConnectionApiVersion, ConnectionAuthType, JiraConnection } from "../types/connection";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
 function emptyConnection(): JiraConnection {
   return {
     id: "env-jira-connection",
@@ -120,6 +126,7 @@ export function ConnectionsPage() {
   }
 
   const currentEnvPath = envStatus?.currentEnvPath ?? envStatus?.envPath ?? "Env status not loaded";
+  const migration = record(runtimeState.database.migration);
 
   return (
     <div className="min-w-0">
@@ -223,7 +230,11 @@ export function ConnectionsPage() {
             <div><b>Schema Version：</b>{runtimeState.database.schemaVersion ?? "-"}</div>
             <div className="break-all"><b>Source Binding：</b>{runtimeState.database.sourceBinding || "Unbound"}</div>
             <div><b>Read／Write：</b>{runtimeState.database.canRead ? "Read" : "No Read"}／{runtimeState.database.canWrite ? "Write" : "No Write"}</div>
-            {runtimeState.database.status === "MIGRATION_REQUIRED" ? <div className="mt-2 text-amber-800">Migration is required; v0.2.37 only reports this status and does not migrate.</div> : null}
+            {migration.status ? <div className={`mt-2 rounded-md border p-2 ${migration.status === "failed" ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+              <b>Schema Migration：</b>{String(migration.status)} · {String(migration.reasonCode ?? "-")}
+              {migration.backupPath ? <div className="mt-1 break-all text-xs"><b>Validated Backup：</b>{String(migration.backupPath)}</div> : null}
+            </div> : null}
+            {runtimeState.database.status === "MIGRATION_FAILED" ? <div className="mt-2 text-red-800">Migration could not complete. The existing database remains unchanged; review the migration diagnostics and validated backup.</div> : null}
             {runtimeState.database.status === "JIRA_INSTANCE_MISMATCH" ? <div className="mt-2 text-rose-800">Offline read remains available, but importing the current Jira instance is disabled.</div> : null}
           </div>
           <div className="flex flex-wrap content-start gap-3 lg:max-w-[260px]">
@@ -242,6 +253,7 @@ export function ConnectionsPage() {
           <MetricCard label="Authenticated User" sub="user" value={draft.authenticatedUser || "-"} icon={UserCheck} tone="bg-green-50 text-green-600" />
           <MetricCard label="Accessible Projects" sub="projects" value={String(draft.accessibleProjectsCount || 0)} icon={Cloud} />
           <MetricCard label="Auth Type" sub="auth" value={draft.authType === "bearer" ? "Bearer" : "Basic"} icon={ShieldCheck} tone="bg-violet-50 text-violet-600" />
+          <MetricCard label="Jira Server Title" sub={runtimeState.jira.serverTitleStatus === "verified" ? "official /serverInfo" : "unverified"} value={runtimeState.jira.serverTitle || "-"} icon={Cloud} />
           <MetricCard label="Last Tested" sub="time" value={draft.lastTestedAt || "-"} icon={KeyRound} tone="bg-amber-50 text-amber-600" />
         </ResponsiveMetricGrid>
       </SectionCard>

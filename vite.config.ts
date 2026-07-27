@@ -39,7 +39,7 @@ export default defineConfig({
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime),
     __APP_VERSION__: JSON.stringify(packageJson.version),
-    __GIT_COMMIT__: JSON.stringify(gitValue("git rev-parse --short HEAD")),
+    __GIT_COMMIT__: JSON.stringify(gitValue("git rev-parse HEAD")),
     __GIT_BRANCH__: JSON.stringify(gitValue("git branch --show-current"))
   }
 });

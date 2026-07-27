@@ -12,12 +12,15 @@ import {
   type SourceArchiveBatchItem
 } from "./sourceArchiveDatabase.js";
 import type { StagingRun, StagingTarget } from "./fullFetchStaging.js";
+import { buildStableSourceProjection } from "./stableSourceProjection.js";
 
 export type JiraSourceProvenance = {
   sourceSystem: "jira";
   serverIdentity: string;
   baseUrlNormalized: string;
   serverTitle: string;
+  serverTitleStatus?: "verified" | "unverified";
+  connectionLabel?: string;
 };
 
 type DatabaseWriteInput = {
@@ -102,6 +105,43 @@ function loadIssuePayload(run: StagingRun, target: StagingTarget) {
   };
 }
 
+export function buildSourceVersionProjectionDiagnostics(
+  run: StagingRun,
+  databaseWrite: { outcomes?: unknown[] }
+) {
+  const outcomes = new Map((Array.isArray(databaseWrite.outcomes) ? databaseWrite.outcomes : [])
+    .map(record)
+    .map((outcome) => [String(outcome.objectKey ?? "").toUpperCase(), outcome]));
+  const serverIdentity = String(run.state.runContext.sourceProvenance?.serverIdentity ?? "");
+  return run.index.targets
+    .filter((target) => target.status === "eligible")
+    .map((target) => {
+      const projection = buildStableSourceProjection(loadIssuePayload(run, target), serverIdentity);
+      const outcome = outcomes.get(target.objectKey.toUpperCase()) ?? {};
+      return {
+        issueKey: target.objectKey,
+        projection: projection.projection,
+        hashInput: {
+          algorithm: "SHA-256",
+          canonicalJson: projection.canonicalJson,
+          stableVersionHash: projection.stableVersionHash
+        },
+        decision: {
+          issueKey: target.objectKey,
+          decision: outcome.outcome ?? "not_available",
+          archivePayloadSha256: outcome.archivePayloadSha256 ?? "",
+          stableVersionHash: outcome.stableVersionHash ?? projection.stableVersionHash,
+          matchedExistingVersionId: outcome.matchedExistingVersionId ?? null,
+          comparedVersionId: outcome.comparedVersionId ?? null,
+          excludedPaths: outcome.excludedPaths ?? projection.excludedPaths,
+          normalizedPaths: outcome.normalizedPaths ?? projection.normalizedPaths,
+          volatileRulesApplied: outcome.volatileRulesApplied ?? projection.volatileRulesApplied,
+          meaningfulChangedPaths: outcome.meaningfulChangedPaths ?? []
+        }
+      };
+    });
+}
+
 function eligibility(target: StagingTarget): SourceArchiveBatchItem["eligibility"] {
   if (target.status === "eligible") return "eligible";
   if (target.status === "partial" || target.status === "required_partial") return "partial";
@@ -130,11 +170,14 @@ function blocked(input: DatabaseWriteInput, reasonCode: string, message: string)
       newPayloads: 0,
       newImportRefs: 0,
       existing: 0,
+      duplicates: 0,
       excludedPartial: input.run.index.targets.filter((target) => ["partial", "required_partial"].includes(target.status)).length,
       excludedFailed: input.run.index.targets.filter((target) => ["failed_issue", "failed_final", "not_attempted_due_to_run_failure"].includes(target.status)).length,
       invalid: input.run.index.targets.filter((target) => ["pending", "in_progress", "excluded"].includes(target.status)).length,
       writeFailed: 0,
-      rolledBack: 0
+      rolledBack: 0,
+      activityEventsInserted: 0,
+      activityEventsExisting: 0
     },
     retries: 0,
     readbackVerified: false,
@@ -199,7 +242,9 @@ export function writeFullFetchStagingToCurrentDatabase(input: DatabaseWriteInput
     jira: {
       serverIdentity: provenance.serverIdentity,
       baseUrlNormalized: provenance.baseUrlNormalized,
-      serverTitle: provenance.serverTitle
+      serverTitle: provenance.serverTitle,
+      serverTitleStatus: provenance.serverTitleStatus,
+      connectionLabel: provenance.connectionLabel
     },
     items,
     observedAt: input.observedAt

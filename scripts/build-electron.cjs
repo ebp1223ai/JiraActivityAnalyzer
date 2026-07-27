@@ -36,7 +36,7 @@ const common = {
   define: {
     __MAIN_APP_VERSION__: JSON.stringify(packageJson.version),
     __MAIN_BUILD_TIME__: JSON.stringify(buildTime),
-    __MAIN_GIT_COMMIT__: JSON.stringify(gitValue("git rev-parse --short HEAD")),
+    __MAIN_GIT_COMMIT__: JSON.stringify(gitValue("git rev-parse HEAD")),
     __MAIN_GIT_BRANCH__: JSON.stringify(gitValue("git branch --show-current"))
   },
   logLevel: "info"

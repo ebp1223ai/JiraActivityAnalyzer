@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.39 - Stable Source Archive and Activity Events
+
+- Separated exact archive payload SHA-256 from Stable Source Projection version identity, with deterministic canonicalization, meaningful changed paths, and a narrow volatile-field registry.
+- Changed stable duplicates to update seen timestamps without inserting Source Object Versions, Payloads, Import Refs, or Activity Events.
+- Added schema v2 migration with SQLite-safe validated backup, transactional legacy stable-hash/event backfill, duplicate-group audit, idempotence, and rollback fault coverage.
+- Added normalized `activity_events` for issue creation, field/status/assignee changes, comment create/update, attachments, and issue links.
+- Separated official Jira `/serverInfo` title from the user connection label and exposed verification/migration status in Connections.
+- Split Stage 5 reporting into file save, database operation, snapshot decisions, and activity event counts; added issue-level projection/hash/decision evidence to Debug Folder.
+- Switched renderer and main build provenance to the full Git commit SHA. Database Merge and legacy duplicate cleanup remain deferred to v0.2.40.
+
 ## 0.2.38 - Source Archive Database Write Correctness
 
 - Connected User Analysis Stage 5 `Save Full Fetch Result` to the current `LOCAL_DATABASE_PATH` SQLite through the typed preload IPC and Electron main process. File JSON, Source Archive ZIP verification, and database write outcomes are reported separately.

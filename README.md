@@ -1,5 +1,20 @@
 # Jira Activity Analyzer
 
+> v0.2.39 adds stable Jira source projection, meaningful snapshot versioning, schema v1-to-v2 migration, and normalized activity events. See [docs/v0.2.39-stable-source-archive.md](docs/v0.2.39-stable-source-archive.md).
+
+## v0.2.39 Stable Source Archive
+
+Source Archive now keeps two hashes with separate responsibilities:
+
+- `content_hash` is the archive payload SHA-256 of the complete canonical UTF-8 payload stored in gzip form. It protects exact archive readback.
+- `stable_version_hash` is SHA-256 of the Stable Source Projection. It decides whether a fetch represents a new Jira source version.
+
+The Stable Source Projection excludes acquisition-only `evidence` and `normalizedCurrentFields.fetchedAt`. A narrow volatile registry normalizes only Java `Object.toString()` identity suffixes observed at `issue.fields.customfield_10900`; it does not blanket-exclude custom fields or ordinary `@` text. Duplicate stable hashes update seen timestamps but do not add Versions, Payloads, Import Refs, or Activity Events.
+
+Schema v2 adds stable identity metadata, official Jira server title status, connection labels, and `activity_events`. A schema v1 database is migrated only after SQLite preflight and a validated `VACUUM INTO` backup. Legacy gzip payload bytes are retained unchanged, stable hashes and events are backfilled in one transaction, and any failure rolls the original database back to schema v1.
+
+Database Merge and cleanup of legacy duplicate versions are intentionally deferred to v0.2.40.
+
 > v0.2.38 已將 User Analysis Stage 5 正式接通目前的 SQLite Source Archive Database。資料正確性、排除規則、手動驗證與唯讀稽核方式見 [docs/v0.2.38-source-archive-database-write.md](docs/v0.2.38-source-archive-database-write.md)。v0.2.37 的啟動與 Schema 文件仍保留於 [docs/v0.2.37-startup-database-readiness.md](docs/v0.2.37-startup-database-readiness.md)。
 
 Electron desktop application for read-only Jira activity inspection and analysis.

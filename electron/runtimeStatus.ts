@@ -6,6 +6,7 @@ export type JiraRuntimeStatus =
 export type DatabaseRuntimeStatus =
   | "CHECKING" | "READY" | "READY_READ_ONLY" | "NOT_CONFIGURED" | "MISSING"
   | "INVALID_SQLITE" | "FOREIGN_DATABASE" | "SCHEMA_INCOMPLETE" | "MIGRATION_REQUIRED"
+  | "MIGRATION_FAILED"
   | "TOO_NEW" | "JIRA_INSTANCE_MISMATCH" | "CORRUPTED" | "LOCKED"
   | "PERMISSION_DENIED" | "UNKNOWN_ERROR";
 
@@ -20,6 +21,8 @@ export type JiraRuntimeState = {
   accountDisplayName: string;
   username: string;
   serverIdentity: string;
+  serverTitle: string;
+  serverTitleStatus: "verified" | "unverified";
   requestId: number;
 };
 
@@ -35,6 +38,7 @@ export type DatabaseRuntimeState = {
   canRead: boolean;
   canWrite: boolean;
   bindingComparison: "MATCH" | "MISMATCH" | "UNAVAILABLE" | "UNBOUND";
+  migration?: unknown;
   requestId: number;
 };
 
@@ -81,7 +85,8 @@ export function initialRuntimeState(): RuntimeState {
   const jira: JiraRuntimeState = {
     status: "CHECKING", reasonCode: "CHECKING", message: "Checking Jira connection.",
     checkedAt: "", lastSuccessAt: "", latencyMs: null, baseUrlNormalized: "",
-    accountDisplayName: "", username: "", serverIdentity: "", requestId: 0
+    accountDisplayName: "", username: "", serverIdentity: "", serverTitle: "",
+    serverTitleStatus: "unverified", requestId: 0
   };
   const database: DatabaseRuntimeState = {
     status: "CHECKING", reasonCode: "CHECKING", message: "Checking current local database.",

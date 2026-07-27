@@ -2642,20 +2642,29 @@ export function AnalysisPage() {
                   </div>
                   <StatusBadge tone={success ? "green" : partial ? "amber" : "red"}>{String(write.status ?? "not_run")}</StatusBadge>
                 </div>
+                <div className="mt-3 text-xs font-black uppercase text-muted">Database Operation / 資料庫操作</div>
                 <div className="mt-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(145px,1fr))] gap-3">
                   <MiniStat label="Preflight" value={String(write.preflightStatus ?? "-")} />
-                  <MiniStat label="Eligible" value={String(summary.eligible ?? 0)} />
+                  <MiniStat label="Attempted" value={String(summary.eligible ?? 0)} />
+                  <MiniStat label="Write Failed" value={String(summary.writeFailed ?? 0)} />
+                  <MiniStat label="Rolled Back" value={String(summary.rolledBack ?? 0)} />
+                  <MiniStat label="Duration" value={`${String(write.durationMs ?? 0)} ms`} />
+                </div>
+                <div className="mt-3 text-xs font-black uppercase text-muted">Snapshot Decisions / Snapshot 判定</div>
+                <div className="mt-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(145px,1fr))] gap-3">
                   <MiniStat label="New Objects" value={String(summary.newObjects ?? 0)} />
                   <MiniStat label="New Versions" value={String(summary.newVersions ?? 0)} />
                   <MiniStat label="New Payloads" value={String(summary.newPayloads ?? 0)} />
                   <MiniStat label="New Import Refs" value={String(summary.newImportRefs ?? 0)} />
-                  <MiniStat label="Existing / Duplicate" value={String(summary.existing ?? 0)} />
+                  <MiniStat label="Duplicates" value={String(summary.duplicates ?? summary.existing ?? 0)} />
                   <MiniStat label="Excluded Partial" value={String(summary.excludedPartial ?? 0)} />
                   <MiniStat label="Excluded Failed" value={String(summary.excludedFailed ?? 0)} />
                   <MiniStat label="Invalid" value={String(summary.invalid ?? 0)} />
-                  <MiniStat label="Write Failed" value={String(summary.writeFailed ?? 0)} />
-                  <MiniStat label="Rolled Back" value={String(summary.rolledBack ?? 0)} />
-                  <MiniStat label="Duration" value={`${String(write.durationMs ?? 0)} ms`} />
+                </div>
+                <div className="mt-3 text-xs font-black uppercase text-muted">Activity Events / 活動事件</div>
+                <div className="mt-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(145px,1fr))] gap-3">
+                  <MiniStat label="Events Inserted" value={String(summary.activityEventsInserted ?? 0)} />
+                  <MiniStat label="Events Existing" value={String(summary.activityEventsExisting ?? 0)} />
                   <MiniStat label="Readback" value={write.readbackVerified === true ? "Passed" : "Not passed"} />
                   <MiniStat label="Foreign Keys" value={String(write.foreignKeyCheck ?? "not_run")} />
                 </div>
