@@ -675,6 +675,8 @@ export type UserAnalysisSessionState = {
   largeQueueConfirmInput: string;
   largeQueueConfirmError: string;
   lastSavedFullFetchResultPath: string;
+  lastFullFetchFileSaveResult: Record<string, unknown> | null;
+  lastDatabaseWriteResult: Record<string, unknown> | null;
   rawSearchMetadata: unknown | null;
   saving: boolean;
   loading: boolean;
@@ -955,6 +957,8 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   largeQueueConfirmInput: "",
   largeQueueConfirmError: "",
   lastSavedFullFetchResultPath: "",
+  lastFullFetchFileSaveResult: null,
+  lastDatabaseWriteResult: null,
   rawSearchMetadata: null,
   saving: false,
   loading: false,

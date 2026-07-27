@@ -1,8 +1,18 @@
 # Jira Activity Analyzer
 
-> v0.2.37 的啟動設定、全域 Jira／Database 狀態、SQLite Source Archive schema、Portable 路徑與安全保存規則，請參閱 [docs/v0.2.37-startup-database-readiness.md](docs/v0.2.37-startup-database-readiness.md)。Windows 封裝體積稽核見 [docs/v0.2.37-package-size-audit.md](docs/v0.2.37-package-size-audit.md)。
+> v0.2.38 已將 User Analysis Stage 5 正式接通目前的 SQLite Source Archive Database。資料正確性、排除規則、手動驗證與唯讀稽核方式見 [docs/v0.2.38-source-archive-database-write.md](docs/v0.2.38-source-archive-database-write.md)。v0.2.37 的啟動與 Schema 文件仍保留於 [docs/v0.2.37-startup-database-readiness.md](docs/v0.2.37-startup-database-readiness.md)。
 
 Electron desktop application for read-only Jira activity inspection and analysis.
+
+## v0.2.38 Source Archive Database Write
+
+`Save Full Fetch Result` now keeps three outcomes distinct: Full Fetch JSON, verified Source Archive ZIP, and Current Database Write. The database target is only the resolved `LOCAL_DATABASE_PATH`; the application does not create a fallback database.
+
+Only file-backed Full Fetch targets with `eligible` status are written. Partial, failed, cancelled, incomplete, invalid-key, stale-run, unsafe-archive, and unverified-server records are excluded before formal data insertion. A database is bound to one verified Jira server and may contain issues from many projects. A different Jira server rejects the entire batch without changing business rows or seen times.
+
+Each Issue stores one deterministic canonical JSON snapshot as SHA-256 plus gzip BLOB in the existing seven-table schema. Identical content reuses the Object, Version, and Payload; changed content adds a Version and Payload while retaining all prior snapshots. Per-Issue savepoints prevent orphan rows, and a new Jira binding is rolled back when every eligible Issue fails. Success requires gzip/JSON/hash/import-reference readback and a clean foreign-key check.
+
+No historical staging import, database merge, `activity_events` table, split comments/changelog tables, migration UI, or automatic repair is included in v0.2.38.
 
 ## v0.2.34 Selection / Fetch Queue Correctness
 

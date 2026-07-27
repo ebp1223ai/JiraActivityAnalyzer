@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.38 - Source Archive Database Write Correctness
+
+- Connected User Analysis Stage 5 `Save Full Fetch Result` to the current `LOCAL_DATABASE_PATH` SQLite through the typed preload IPC and Electron main process. File JSON, Source Archive ZIP verification, and database write outcomes are reported separately.
+- Added frozen Jira server provenance, database compatibility and binding preflight, first-write Jira binding, cross-server batch rejection, and file-backed per-Issue payload loading without copying the Full Fetch dataset through renderer IPC.
+- Added canonical UTF-8 JSON, SHA-256, gzip BLOB storage, Object/Version/Payload/Import Ref deduplication, immutable snapshot history, Jira `source_version_number=NULL`, finite busy handling, per-Issue savepoints, first-binding rollback, and readback/FK verification.
+- Enforced hard exclusion of Partial, Failed, and invalid Issue records from formal Source Archive tables, with explicit reason codes and truthful New/Existing/Excluded/Failed/Rolled Back UI metrics.
+- Added synthetic v0.2.38 database correctness tests, a read-only SQLite audit utility, manual validation guidance, package-size evidence, and execution-time records. No real Jira, Confluence, credential, database, archive, or debug dataset is used by automated tests.
+
 ## 0.2.37 - Startup Configuration & Local Database Readiness
 
 - Added the versioned, credential-free `.env.Version` template and `ENV_FORMAT_VERSION=2`; runtime loads only the local `.env`, preserves comments and unknown keys during targeted atomic updates, and saves Jira settings only after a successful connection test.

@@ -41,6 +41,12 @@ export type FullFetchRunContext = {
     originalQueueOrder: readonly string[];
     items: ReadonlyArray<Readonly<Record<string, unknown>>>;
   };
+  sourceProvenance: {
+    sourceSystem: "jira";
+    serverIdentity: string;
+    baseUrlNormalized: string;
+    serverTitle: string;
+  };
   completenessPolicyVersion: string;
 };
 export type Step5ActionRecord = {
@@ -142,7 +148,7 @@ function lightweightCandidate(candidate: Record<string, unknown>, index: number)
   return { key: safeIssueDirectoryName(String(candidate.key ?? `UNKNOWN-${index + 1}`)), source: cleanText(sources[0] ?? candidate.source ?? "manual", 120), matchedReason: cleanText(metadata.matchedReason ?? candidate.matchedReason, 240) };
 }
 function defaultRunContext(selectedUser: string, queue: Array<{ key: string; source: string; matchedReason: string }>): FullFetchRunContext {
-  return { fullFetchRunId: "", stagingId: "", selectedUser: cleanText(selectedUser, 240), projectScope: "", dateRange: { start: "", end: "" }, jql: "", selectedIssues: queue.map((item) => item.key), fetchQueue: queue, directIssueKeys: [], relatedIssuesStatus: "not_started", fetchRemoteLinks: false, queueSnapshot: { schemaVersion: "full_fetch_queue_snapshot_v1", confirmedAt: "", queueTotal: queue.length, eligibleCount: queue.length, excludedCount: 0, invalidCount: 0, plannedCount: queue.length, originalQueueOrder: queue.map((item) => item.key), items: [] }, completenessPolicyVersion: FULL_FETCH_COMPLETENESS_POLICY };
+  return { fullFetchRunId: "", stagingId: "", selectedUser: cleanText(selectedUser, 240), projectScope: "", dateRange: { start: "", end: "" }, jql: "", selectedIssues: queue.map((item) => item.key), fetchQueue: queue, directIssueKeys: [], relatedIssuesStatus: "not_started", fetchRemoteLinks: false, queueSnapshot: { schemaVersion: "full_fetch_queue_snapshot_v1", confirmedAt: "", queueTotal: queue.length, eligibleCount: queue.length, excludedCount: 0, invalidCount: 0, plannedCount: queue.length, originalQueueOrder: queue.map((item) => item.key), items: [] }, sourceProvenance: { sourceSystem: "jira", serverIdentity: "", baseUrlNormalized: "", serverTitle: "" }, completenessPolicyVersion: FULL_FETCH_COMPLETENESS_POLICY };
 }
 
 export function deriveState(state: StagingState, index: StagingIndex): StagingState {

@@ -110,7 +110,7 @@ declare global {
         onFullFetchProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
         onFullFetchLog: (callback: (line: string) => void) => () => void;
         saveExport: (payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
-        saveFullFetchResult: (payload: { runId: string }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string; fileSize?: number; sha256?: string; staging?: Record<string, unknown> }>;
+        saveFullFetchResult: (payload: { runId: string }) => Promise<{ canceled: boolean; operationId?: string; filePath?: string; folderPath?: string; fileSize?: number; sha256?: string; staging?: Record<string, unknown>; fileSave?: Record<string, unknown>; databaseWrite?: Record<string, unknown>; logs?: string[] }>;
         openExportFolder: (payload?: { folderPath?: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;
         autoSaveRun: (payload: { resultType: "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test"; runId: string; status: string; data: unknown }) => Promise<{ canceled: boolean; runId: string; resultType: string; status: string; savedAt: string; filePath: string; folderPath: string; resultTracking: Record<"latestRunResult" | "lastSuccessfulResult" | "lastParsedResult" | "latestNoEntriesResult", { runId: string; resultType: string; status: string; diagnosis: string; parsedActivityCount: number; savedAt: string; path: string; folderPath: string } | null> }>;
       };

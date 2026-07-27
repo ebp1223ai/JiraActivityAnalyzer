@@ -36,6 +36,7 @@ import { databasePathForEnv, resolveLocalDatabasePath } from "./appPathResolver.
 import { DEFAULT_ENV_TEXT as defaultEnvText, atomicPatchEnv, ensureDefaultRuntimeEnv, loadRuntimeConfig, parseEnvText } from "./runtimeConfig.js";
 import { checkJiraConnection } from "./jiraConnectionCheck.js";
 import { checkDatabaseCompatibility, createSourceArchiveDatabase } from "./sourceArchiveDatabase.js";
+import { writeFullFetchStagingToCurrentDatabase } from "./sourceArchiveDatabaseWrite.js";
 import { StartupCheckCoordinator, initialRuntimeState, type RuntimeState } from "./runtimeStatus.js";
 import { testAndSaveJiraSettings, validateAndSaveDatabaseSelection } from "./startupIntegration.js";
 
@@ -109,6 +110,8 @@ let latestActivityStreamStabilityProbeV2: (ActivityStreamProbeRunV2 & { files: R
 let latestActivityStreamBenchmark: (ActivityStreamBenchmarkRun & { files: Record<string, string> }) | null = null;
 let latestStabilityUiState: Record<string, unknown> = { activeTab: "stability", filters: {}, sort: {}, visibleColumns: {}, latestProbeRunId: "", statePersistedAt: "" };
 let latestSourceArchiveExport: { fileName: string; filePath: string; exportRunId: string; selectedUser: string; createdAt: string; sizeBytes: number; sha256: string; jiraObjectCount: number; confluenceObjectCount: number; packageStatus?: string; safeForAutomaticImport?: boolean; verification?: Record<string, unknown> } | null = null;
+let latestSourceArchiveDatabaseWrite: Record<string, unknown> | null = null;
+const activeSourceArchiveDatabaseWrites = new Set<string>();
 let activeStabilityProbe: { runId: string; cancelled: boolean } | null = null;
 let activeActivityStreamBenchmark: { runId: string; cancelled: boolean } | null = null;
 let activeTimelineBuild: { runId: string; cancelled: boolean } | null = null;
@@ -2621,7 +2624,16 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
   const rawDataMode = "auto_save_raw_per_issue" as const;
   const autoLogPath = path.join(ensureDir(getFullFetchLogsDir()), `full-fetch-${fileTimestamp()}.log`);
   fs.writeFileSync(autoLogPath, "", "utf8");
-  const stagingRun = createStagingRun(stagingRoot, { runId, selectedUser, queue: fetchQueue, createdAt: startedAt, runContext: { selectedUser, projectScope, dateRange: { start: startDate, end: endDate }, jql: generatedJql, selectedIssues, directIssueKeys: originalDirectIssueKeys, relatedIssuesStatus, fetchRemoteLinks, queueSnapshot } });
+  const runtimeJira = getRuntimeCoordinator().snapshot().jira;
+  const sourceProvenance = runtimeJira.status === "CONNECTED"
+    ? {
+        sourceSystem: "jira" as const,
+        serverIdentity: runtimeJira.serverIdentity,
+        baseUrlNormalized: runtimeJira.baseUrlNormalized,
+        serverTitle: runtimeJira.accountDisplayName
+      }
+    : { sourceSystem: "jira" as const, serverIdentity: "", baseUrlNormalized: "", serverTitle: "" };
+  const stagingRun = createStagingRun(stagingRoot, { runId, selectedUser, queue: fetchQueue, createdAt: startedAt, runContext: { selectedUser, projectScope, dateRange: { start: startDate, end: endDate }, jql: generatedJql, selectedIssues, directIssueKeys: originalDirectIssueKeys, relatedIssuesStatus, fetchRemoteLinks, queueSnapshot, sourceProvenance } });
   latestFullFetchStaging = stagingRun;
   setStagingStatus(stagingRun, "running");
   const runManifestPath = stagingPaths(stagingRun).state;
@@ -3015,13 +3027,81 @@ ipcMain.handle("user-analysis:save-export", async (_event, payload: { category: 
 ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: { runId: string }) => {
   const runId = text(payload?.runId);
   if (!latestFullFetchResult || latestFullFetchResult.runId !== runId) throw new Error("The requested Full Fetch Result is not available for this run.");
-  const outputDir = ensureDir(getFullFetchResultsDir());
-  const saved = saveFullFetchResult(latestFullFetchResult.document, outputDir, `user-analysis-full-fetch-${fileTimestamp()}.json`);
-  latestFullFetchResult = { ...latestFullFetchResult, savedPath: saved.filePath, generatedAutomatically: false };
-  if (latestFullFetchStaging?.state.fullFetchRunId === runId) {
-    recordStep5Action(latestFullFetchStaging, { action: "full_fetch_result_saved", timestamp: new Date().toISOString(), runId, outputPath: saved.filePath, fileSize: saved.fileSize, sha256: saved.sha256, issueCount: latestFullFetchStaging.state.total, eligibleCount: latestFullFetchStaging.state.eligible, result: "completed", error: "", generatedAutomatically: false });
+  if (activeSourceArchiveDatabaseWrites.has(runId)) throw new Error("A Save Full Fetch Result operation is already active for this run.");
+  if (!latestFullFetchStaging || latestFullFetchStaging.state.fullFetchRunId !== runId) {
+    throw new Error("FULL_FETCH_RESULT_STALE: The matching Full Fetch staging run is not available.");
   }
-  return { canceled: false, ...saved, staging: latestFullFetchStaging?.state ?? null };
+  activeSourceArchiveDatabaseWrites.add(runId);
+  const operationId = `save-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+  try {
+    const outputDir = ensureDir(getFullFetchResultsDir());
+    const saved = saveFullFetchResult(latestFullFetchResult.document, outputDir, `user-analysis-full-fetch-${fileTimestamp()}.json`);
+    latestFullFetchResult = { ...latestFullFetchResult, savedPath: saved.filePath, generatedAutomatically: false };
+    recordStep5Action(latestFullFetchStaging, { action: "full_fetch_result_saved", timestamp: new Date().toISOString(), runId, outputPath: saved.filePath, fileSize: saved.fileSize, sha256: saved.sha256, issueCount: latestFullFetchStaging.state.total, eligibleCount: latestFullFetchStaging.state.eligible, result: "completed", error: "", generatedAutomatically: false });
+
+    const config = loadRuntimeConfig(resolveCurrentEnvPath());
+    const databasePath = resolveLocalDatabasePath(getAppRuntimeDir(), config.localDatabasePath);
+    const currentJira = getRuntimeCoordinator().snapshot().jira;
+    const databaseWrite = writeFullFetchStagingToCurrentDatabase({
+      operationId,
+      databasePath,
+      run: latestFullFetchStaging,
+      currentJira: {
+        sourceSystem: "jira",
+        serverIdentity: currentJira.status === "CONNECTED" ? currentJira.serverIdentity : "",
+        baseUrlNormalized: currentJira.status === "CONNECTED" ? currentJira.baseUrlNormalized : "",
+        serverTitle: currentJira.status === "CONNECTED" ? currentJira.accountDisplayName : ""
+      }
+    });
+    latestSourceArchiveDatabaseWrite = databaseWrite;
+    appendStagingDiagnostic(latestFullFetchStaging.dir, "source_archive_database_write", {
+      operationId,
+      status: databaseWrite.status,
+      reasonCode: databaseWrite.reasonCode,
+      targetDatabase: databaseWrite.targetDatabase,
+      databaseId: databaseWrite.databaseId,
+      boundJiraServer: databaseWrite.boundJiraServer,
+      preflightStatus: databaseWrite.preflightStatus,
+      summary: databaseWrite.summary,
+      retries: databaseWrite.retries,
+      readbackVerified: databaseWrite.readbackVerified,
+      foreignKeyCheck: databaseWrite.foreignKeyCheck,
+      durationMs: databaseWrite.durationMs,
+      outcomes: databaseWrite.outcomes
+    });
+    await getRuntimeCoordinator().retryDatabase();
+    const archiveForRun = latestSourceArchiveExport?.fileName.includes(latestFullFetchStaging.state.stagingId)
+      ? latestSourceArchiveExport
+      : null;
+    const logs = [
+      `[INFO] Save Operation ID: ${operationId}`,
+      `[INFO] Full Fetch JSON: Success (${saved.fileSize} bytes)`,
+      `[INFO] Source Archive ZIP: ${archiveForRun?.safeForAutomaticImport ? "Success and verified" : "Skipped (use Export Source Archive Import Package)"}`,
+      `[INFO] Database Write: ${databaseWrite.status}`,
+      `[INFO] Database Reason Code: ${databaseWrite.reasonCode}`,
+      `[INFO] Database counts: ${JSON.stringify(databaseWrite.summary)}`,
+      `[INFO] Database readback verified: ${databaseWrite.readbackVerified}`,
+      `[INFO] Foreign key check: ${databaseWrite.foreignKeyCheck}`
+    ];
+    if (!databaseWrite.ok) logs.push(`[WARN] No database write performed or only partial success. Reason Code: ${databaseWrite.reasonCode}`);
+    return {
+      canceled: false,
+      operationId,
+      ...saved,
+      staging: latestFullFetchStaging.state,
+      fileSave: {
+        fullFetchJson: { status: "success", filePath: saved.filePath, fileSize: saved.fileSize, sha256: saved.sha256 },
+        sourceArchiveZip: archiveForRun
+          ? { status: archiveForRun.safeForAutomaticImport ? "success" : "failed", filePath: archiveForRun.filePath, sha256: archiveForRun.sha256 }
+          : { status: "skipped", reasonCode: "SOURCE_ARCHIVE_NOT_EXPORTED" },
+        archiveVerification: archiveForRun?.safeForAutomaticImport ? "success" : "skipped"
+      },
+      databaseWrite,
+      logs
+    };
+  } finally {
+    activeSourceArchiveDatabaseWrites.delete(runId);
+  }
 });
 
 ipcMain.handle("user-analysis:open-export-folder", async (_event, payload?: { folderPath?: string }) => {
@@ -3654,6 +3734,11 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   writeBundleJson(folderPath, "activity-stream-benchmark-summary.json", latestActivityStreamBenchmark ? { schemaVersion: "activity_stream_benchmark_summary_v1", benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, config: latestActivityStreamBenchmark.config, summary: latestActivityStreamBenchmark.summary } : { status: "not_available" });
   const sourceArchiveIndex = { ...(latestSourceArchiveExport ?? { fileName: "", exportRunId: "", selectedUser: "", createdAt: "", sizeBytes: 0, sha256: "", jiraObjectCount: 0, confluenceObjectCount: 0 }), includedInDebugBundle: false, excludeReason: latestSourceArchiveExport ? "source_archive_payload_omitted_by_policy" : "not_available", sourcePathSanitized: latestSourceArchiveExport ? path.basename(latestSourceArchiveExport.filePath) : "", metadataOnly: true };
   writeBundleJson(folderPath, "source-archive-export-index.json", sourceArchiveIndex);
+  writeBundleJson(folderPath, "source-archive-database-write.json", latestSourceArchiveDatabaseWrite ?? {
+    status: "not_run",
+    reasonCode: "DATABASE_WRITE_NOT_RUN",
+    message: "No Stage 5 database write was observed in this session."
+  });
   const sourceArchiveMetadataDir = ensureDir(path.join(folderPath, "source-archive-metadata"));
   writeBundleJson(sourceArchiveMetadataDir, "source-archive-export-index.json", sourceArchiveIndex);
   writeBundleJson(sourceArchiveMetadataDir, "source-archive-verification.json", latestSourceArchiveExport?.verification ?? { status: "not_available" });
@@ -3750,7 +3835,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Jira Relation:", `- Jira-related: ${timelineJiraRelationDiagnostics.jiraRelationCounts.jiraRelated}`, `- Non-Jira: ${timelineJiraRelationDiagnostics.jiraRelationCounts.nonJiraRelated}`, `- Has Jira Issue Key: ${timelineJiraRelationDiagnostics.jiraRelationCounts.hasJiraIssueKey}`, `- Unknown relation: ${timelineJiraRelationDiagnostics.jiraRelationCounts.unknownRelation}`, `- Confluence linked to Jira: ${timelineJiraRelationDiagnostics.confluenceLinkedToJiraCount}`, "- Default Select Issues filter: jira_related + jira/confluence", "- diagnostics: timeline-jira-relation-diagnostics.json", "", "Full Fetch Failures:", `- runStatus: ${failureSummary.runStatus}`, `- failedCount: ${failureSummary.failedCount ?? "not_run"}`, `- full-fetch-failed-issues.json: ${failureSummary.hasFailedIssuesFile ? "included" : "not created (Full Fetch not run)"}`, "- full-fetch-failure-summary.json: included", ""].join("\n"), "utf8");
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "User Analysis Workflow:", ...Object.entries(latestUserAnalysisWorkflow?.steps ?? {}).map(([step, status]) => `- ${step}: ${status}`), "Timeline Issue Selection:", `- totalIssueGroups: ${latestUserAnalysisWorkflow?.timelineIssueGroups.length ?? 0}`, `- selectedIssueCount: ${latestUserAnalysisWorkflow?.timelineSelectedIssues.length ?? 0}`, `- addedToFetchQueueCount: ${latestUserAnalysisWorkflow?.addedTimelineIssuesToFetchQueueCount ?? 0}`, "Related Issue Expansion:", `- relatedIssueCount: ${latestUserAnalysisWorkflow ? relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues).relatedIssueCount : 0}`, `- relationTypeCounts: ${JSON.stringify(latestUserAnalysisWorkflow ? relatedIssueSummary(latestUserAnalysisWorkflow.relatedCandidateIssues).relationTypeCounts : {})}`, `- Recommended: ${JSON.stringify(asRecord(workflowRelatedScope).recommended ?? {})}`, `- Optional: ${JSON.stringify(asRecord(workflowRelatedScope).optional ?? {})}`, `- addedRecommendedToFetchQueueCount: ${Number(asRecord(workflowRelatedScope).addedRecommendedToFetchQueueCount ?? 0)}`, `- addedOptionalToFetchQueueCount: ${Number(asRecord(workflowRelatedScope).addedOptionalToFetchQueueCount ?? 0)}`, `- addedRelatedIssuesToFetchQueueCount: ${latestUserAnalysisWorkflow?.addedRelatedIssuesToFetchQueueCount ?? 0}`, ""].join("\n"), "utf8");
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["User Analysis UI State:", "- Workflow steps: 5", `- Timeline visible columns: ${JSON.stringify(asRecord(userAnalysisUiState.timeline).visibleColumns ?? [])}`, `- Timeline filters: ${JSON.stringify(asRecord(userAnalysisUiState.timeline).filters ?? {})}`, `- Select Issues visible columns: ${JSON.stringify(asRecord(userAnalysisUiState.selectIssues).visibleColumns ?? [])}`, `- Select Issues filters: ${JSON.stringify(asRecord(userAnalysisUiState.selectIssues).filters ?? {})}`, "- Advanced Tools visible: false", "- Full Fetch Progress location: Step 3 Full Fetch", ""].join("\n"), "utf8");
-  fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Direct Jira Evidence:", `- directEvidenceCount: ${latestJiraEvidence?.summary.directEvidenceCount ?? 0}`, `- contextEvidenceCount: ${latestJiraEvidence?.summary.contextEvidenceCount ?? 0}`, `- relatedContextEvidenceCount: ${latestJiraEvidence?.summary.relatedContextEvidenceCount ?? 0}`, `- excludedEvidenceCount: ${latestJiraEvidence?.summary.excludedEvidenceCount ?? 0}`, `- issuesWithEvidence: ${latestJiraEvidence?.summary.coverage.issuesWithEvidence ?? 0}`, `- issuesWithoutDirectEvidence: ${latestJiraEvidence?.summary.coverage.issuesWithoutDirectEvidence ?? 0}`, `- failedIssues: ${latestJiraEvidence?.summary.coverage.failedIssues.join(", ") || "none"}`, "", "Related Issue Expansion Policy:", "- recursive: false", "- maxDepth: 1", "- relatedIssuesAsPrimaryEvidence: false", "", "Analyzer Roadmap:", "- Cloud AI Analyzer: planned", "- Local AI Analyzer: planned", "- Offline Rule Analyzer: planned", "", "Data Source Roadmap:", "- Live API: current", "- Local Database: planned", "- Hybrid: planned", "", "Product Goals:", "1. Jira activity analysis", "2. Confluence activity analysis", "3. Jira + Confluence combined analysis", ""].join("\n"), "utf8");
+  fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["Direct Jira Evidence:", `- directEvidenceCount: ${latestJiraEvidence?.summary.directEvidenceCount ?? 0}`, `- contextEvidenceCount: ${latestJiraEvidence?.summary.contextEvidenceCount ?? 0}`, `- relatedContextEvidenceCount: ${latestJiraEvidence?.summary.relatedContextEvidenceCount ?? 0}`, `- excludedEvidenceCount: ${latestJiraEvidence?.summary.excludedEvidenceCount ?? 0}`, `- issuesWithEvidence: ${latestJiraEvidence?.summary.coverage.issuesWithEvidence ?? 0}`, `- issuesWithoutDirectEvidence: ${latestJiraEvidence?.summary.coverage.issuesWithoutDirectEvidence ?? 0}`, `- failedIssues: ${latestJiraEvidence?.summary.coverage.failedIssues.join(", ") || "none"}`, "", "Related Issue Expansion Policy:", "- recursive: false", "- maxDepth: 1", "- relatedIssuesAsPrimaryEvidence: false", "", "Analyzer Roadmap:", "- Cloud AI Analyzer: planned", "- Local AI Analyzer: planned", "- Offline Rule Analyzer: planned", "", "Data Source Runtime:", "- Live API: current", `- Local Database: ${latestSourceArchiveDatabaseWrite ? String(latestSourceArchiveDatabaseWrite.status ?? "implemented") : "implemented_not_run"}`, "- Hybrid: planned", "- diagnostics: source-archive-database-write.json", "", "Product Goals:", "1. Jira activity analysis", "2. Confluence activity analysis", "3. Jira + Confluence combined analysis", ""].join("\n"), "utf8");
   fs.appendFileSync(path.join(folderPath, "README_for_GPT.txt"), ["", "Activity Stream Stability Probe:", `- available: ${Boolean(latestActivityStreamStabilityProbe)}`, `- probeRunId: ${latestActivityStreamStabilityProbe?.probeRunId ?? "not_available"}`, `- selectedUser: ${latestActivityStreamStabilityProbe?.selectedUser ?? "not_available"}`, `- dateRange: ${latestActivityStreamStabilityProbe ? `${latestActivityStreamStabilityProbe.dateRange.start}..${latestActivityStreamStabilityProbe.dateRange.end}` : "not_available"}`, `- requestWindow: ${latestActivityStreamStabilityProbe?.config.requestWindow.type ?? "not_available"}`, `- forcedRetryCount: ${latestActivityStreamStabilityProbe?.config.forcedRetryCount ?? 0}`, `- mergeStrategy: ${latestActivityStreamStabilityProbe?.config.mergeStrategy ?? "not_available"}`, `- stableWindowCount: ${latestActivityStreamStabilityProbe?.windows.filter((window) => window.stability.classification === "stable").length ?? 0}`, `- unstableWindowCount: ${latestActivityStreamStabilityProbe?.recommendation.unstableWindowCount ?? 0}`, `- recommendedRetryCount: ${latestActivityStreamStabilityProbe?.recommendation.recommendedRetryCount ?? 0}`, `- coldStartSuspected: ${latestActivityStreamStabilityProbe?.coldStartSuspected ?? false}`, "- concurrency: 1", "- files:", "  - activity-stream-stability-probe.json", "  - activity-stream-attempts.json", "  - activity-stream-attempt-comparison.csv", "  - activity-stream-window-summary.csv", "  - activity-stream-stability-recommendation.json", ""].join("\n"), "utf8");
   const copyFailures = copiedEntries.filter((entry) => entry.status === "copy_failed");
   if (copyFailures.length > 0) debugBundleStatus = "completed_with_errors";
@@ -4820,6 +4905,37 @@ async function runUiSmoke(window: BrowserWindow) {
   completeTarget(smokeStaging, "SMOKE-503", { status: "failed", classification: "http_503", errorType: "http_503", errorMessage: "temporary smoke failure" });
   finalizeStagingRun(smokeStaging);
   latestFullFetchStaging = smokeStaging;
+  const databaseSmokeJira = { sourceSystem: "jira" as const, serverIdentity: "jira:ui-smoke-v0238", baseUrlNormalized: "https://jira-ui-smoke.invalid", serverTitle: "UI Smoke Jira" };
+  const databaseSmokeRun = createStagingRun(ensureDir(getFullFetchStagingDir()), {
+    runId: `ui-smoke-database-${Date.now()}`,
+    selectedUser: "ui-smoke-user",
+    queue: [{ key: "SMOKE-801" }],
+    runContext: { sourceProvenance: databaseSmokeJira }
+  });
+  startTarget(databaseSmokeRun, "SMOKE-801");
+  completeTarget(databaseSmokeRun, "SMOKE-801", { status: "eligible", rawEnvelope: {
+    issue: { id: "801", key: "SMOKE-801", fields: { summary: "Packaged database write fixture", updated: "2026-07-27T01:00:00.000Z" }, names: {}, schema: {}, renderedFields: {} },
+    changelogHistories: [], comments: [], attachments: [], parsedUsers: [], evidenceEvents: [], issueLinks: [], remoteLinks: [],
+    endpointMetadata: [{ method: "GET", endpoint: "/issue/SMOKE-801", status: 200, attempts: 1, fetchedAt: "2026-07-27T01:00:00.000Z" }],
+    requestMetadata: { apiVersion: "v2", fetchedAt: "2026-07-27T01:00:00.000Z", fetchRemoteLinks: false },
+    paginationMetadata: { changelog: { reportedTotal: 0, fetchedCount: 0, pageCount: 1, paginationComplete: true, duplicateCount: 0 }, comments: { reportedTotal: 0, fetchedCount: 0, pageCount: 1, paginationComplete: true, duplicateCount: 0 } },
+    completenessMetadata: { requiredMissingSections: [] }
+  }, classification: "complete" });
+  finalizeStagingRun(databaseSmokeRun);
+  const databaseSmokePath = path.join(ensureDir(getTempDir()), `v0238-source-archive-smoke-${Date.now()}.sqlite`);
+  createSourceArchiveDatabase({ targetPath: databaseSmokePath, appVersion: __MAIN_APP_VERSION__ });
+  const databaseSmokeWrite = writeFullFetchStagingToCurrentDatabase({
+    operationId: `ui-smoke-dbwrite-${Date.now()}`,
+    databasePath: databaseSmokePath,
+    run: databaseSmokeRun,
+    currentJira: databaseSmokeJira
+  });
+  latestSourceArchiveDatabaseWrite = databaseSmokeWrite;
+  if (databaseSmokeWrite.status !== "completed" || databaseSmokeWrite.summary.newObjects !== 1
+    || databaseSmokeWrite.summary.newPayloads !== 1 || !databaseSmokeWrite.readbackVerified
+    || databaseSmokeWrite.foreignKeyCheck !== "passed") {
+    failures.push(`v0.2.38 packaged Source Archive database write smoke failed ${JSON.stringify(databaseSmokeWrite)}`);
+  }
   await window.webContents.executeJavaScript(`window.desktopApp?.userAnalysis?.exportSourceArchive?.({ selectedUser: "roger_hsieh", rawData: { rawIssueResponsesSanitized: [{ issueKey: "SMOKE-101", json: { id: "101", key: "SMOKE-101", fields: { updated: "2026-07-02T09:00:00.000Z", summary: "Source archive smoke fixture" } } }] } });`);
   await wait(180);
   await window.webContents.executeJavaScript(`document.querySelector("[data-debug-panel-state='collapsed']")?.querySelector("button")?.click();`);
@@ -4845,7 +4961,7 @@ async function runUiSmoke(window: BrowserWindow) {
   requiredBundleFiles.push("user-analysis-steps.json", "timeline-issue-groups.json", "timeline-selected-issues.json", "fetch-queue.json", "related-candidate-issues.json", "related-issue-expansion-summary.json", "timeline-jira-relation-diagnostics.json", "full-fetch-failed-issues.json", "full-fetch-failure-summary.json", "timeline-event-list-ui-state.json", "select-issues-ui-state.json");
   requiredBundleFiles.push("jira-evidence-events.json", "jira-evidence-summary.json", "jira-evidence-excluded-summary.json", "jira-evidence-schema.json", "analysis-roadmap.json");
   requiredBundleFiles.push("activity-stream-stability-probe.json", "activity-stream-attempts.json", "activity-stream-attempt-comparison.csv", "activity-stream-window-summary.csv", "activity-stream-stability-recommendation.json");
-  requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-stability-setup.json", "activity-stream-rounds.json", "activity-stream-round-comparison.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.json", "activity-stream-window-diagnostics.csv", "activity-stream-raw-diagnostics.json", "activity-stream-stability-ui-state.json", "activity-stream-stability-recommendation-v2.json", "activity-stream-benchmark.json", "activity-stream-benchmark.csv", "activity-stream-benchmark-summary.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json", "source-archive-export-index.json");
+  requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-stability-setup.json", "activity-stream-rounds.json", "activity-stream-round-comparison.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.json", "activity-stream-window-diagnostics.csv", "activity-stream-raw-diagnostics.json", "activity-stream-stability-ui-state.json", "activity-stream-stability-recommendation-v2.json", "activity-stream-benchmark.json", "activity-stream-benchmark.csv", "activity-stream-benchmark-summary.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json", "source-archive-export-index.json", "source-archive-database-write.json");
   requiredBundleFiles.push("full-fetch-staging-index.json", "full-fetch-staging", "full-fetch-result", "logs", "staging-metadata", "source-archive-metadata", "export-history", "environment", "sessions", "path-audit.json", "manifest.json");
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));
@@ -4896,6 +5012,7 @@ async function runUiSmoke(window: BrowserWindow) {
     const bundleStabilityRecommendationV2 = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "activity-stream-stability-recommendation-v2.json"), "utf8")));
     const bundleSourceArchiveAssessment = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "source-archive-file-assessment.json"), "utf8")));
     const bundleSourceArchiveIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "source-archive-export-index.json"), "utf8")));
+    const bundleSourceArchiveDatabaseWrite = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "source-archive-database-write.json"), "utf8")));
     const bundleFullFetchStagingIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "full-fetch-staging-index.json"), "utf8")));
     const bundleStagingState = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "full-fetch-staging", "manifest.json"), "utf8")));
     const bundleStagingRunIndex = asRecord(JSON.parse(fs.readFileSync(path.join(debugBundlePath, "full-fetch-staging", "run-index.json"), "utf8")));
@@ -4931,7 +5048,7 @@ async function runUiSmoke(window: BrowserWindow) {
     const canonicalSnapshotInBundle = fs.existsSync(path.join(debugBundlePath, "full-fetch-staging", "issues", "SMOKE-101", "current-issue-snapshot.json"));
     if (bundleFullFetchStagingIndex.stagingAvailable !== true || bundleFullFetchStagingIndex.status !== "completed_with_errors" || Number(asRecord(bundleFullFetchStagingIndex.counts).eligible) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).requiredPartial) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).failed) !== 1 || bundleStagingState.schemaVersion !== "full_fetch_staging_v4" || bundleStagingRunIndex.schemaVersion !== "full_fetch_run_index_v4" || Number(bundleStagingPartialSummary.count) !== 1 || !canonicalSnapshotInBundle) failures.push(`Full Fetch staging Debug Bundle audit failed ${JSON.stringify({ index: bundleFullFetchStagingIndex, state: bundleStagingState, runIndex: bundleStagingRunIndex.schemaVersion, partial: bundleStagingPartialSummary, canonicalSnapshotInBundle })}`);
     if (bundleStabilityProbe.status !== "legacy_v1_not_applicable" || !bundleStabilityUiState.latestProbeRunId || diagnosticWindows.length < 1 || diagnosticWindows.some((item) => !item.logicalRequestId || !item.classification || Number(item.physicalHttpRequestCount) < 1 || !item.processingTiming) || bundleBenchmark.schemaVersion !== "activity_stream_benchmark_v1" || Number(asRecord(bundleBenchmark.summary).runCount) < 1 || bundleSourceArchiveIndex.includedInDebugBundle !== false || bundleSourceArchiveIndex.metadataOnly !== true) failures.push(`v0.2.31 reliability bundle audit failed ${JSON.stringify({ legacy: bundleStabilityProbe, uiState: bundleStabilityUiState, diagnosticWindows: diagnosticWindows.length, benchmark: bundleBenchmark.benchmarkRunId, sourceArchive: bundleSourceArchiveIndex })}`);
-    if (bundleEvidenceEvents.length < 1 || bundleEvidenceEvents.some((item) => !/^sha256:[0-9a-f]{64}$/.test(String(item.evidenceId)) || !item.evidenceScope || !item.evidenceType || !item.activityType) || Number(bundleJiraEvidenceSummary.directEvidenceCount) < 1 || Number(bundleJiraEvidenceExcluded.excludedCount) < 1 || bundleEvidencePolicy.recursive !== false || Number(bundleEvidencePolicy.maxDepth) !== 1 || bundleEvidencePolicy.relatedIssuesAsPrimaryEvidence !== false || bundleJiraEvidenceSchema.schemaVersion !== "jira_evidence_event_v1" || bundleRoadmapAnalyzers.cloudAiAnalyzer !== "planned" || !bundleText.includes("Direct Jira Evidence:") || !bundleText.includes("Related Issue Expansion Policy:") || !bundleText.includes("Analyzer Roadmap:") || !bundleText.includes("Data Source Roadmap:") || !bundleText.includes("Product Goals:")) failures.push(`debug bundle direct Jira evidence audit failed ${JSON.stringify({ events: bundleEvidenceEvents.length, summary: bundleJiraEvidenceSummary, excluded: bundleJiraEvidenceExcluded, policy: bundleEvidencePolicy, schema: bundleJiraEvidenceSchema.schemaVersion, roadmap: bundleRoadmapAnalyzers })}`);
+    if (bundleEvidenceEvents.length < 1 || bundleEvidenceEvents.some((item) => !/^sha256:[0-9a-f]{64}$/.test(String(item.evidenceId)) || !item.evidenceScope || !item.evidenceType || !item.activityType) || Number(bundleJiraEvidenceSummary.directEvidenceCount) < 1 || Number(bundleJiraEvidenceExcluded.excludedCount) < 1 || bundleEvidencePolicy.recursive !== false || Number(bundleEvidencePolicy.maxDepth) !== 1 || bundleEvidencePolicy.relatedIssuesAsPrimaryEvidence !== false || bundleJiraEvidenceSchema.schemaVersion !== "jira_evidence_event_v1" || bundleRoadmapAnalyzers.cloudAiAnalyzer !== "planned" || bundleSourceArchiveDatabaseWrite.status !== "completed" || Number(asRecord(bundleSourceArchiveDatabaseWrite.summary).newObjects) !== 1 || bundleSourceArchiveDatabaseWrite.readbackVerified !== true || bundleSourceArchiveDatabaseWrite.foreignKeyCheck !== "passed" || !bundleText.includes("Direct Jira Evidence:") || !bundleText.includes("Related Issue Expansion Policy:") || !bundleText.includes("Analyzer Roadmap:") || !bundleText.includes("Data Source Runtime:") || !bundleText.includes("Local Database: completed") || !bundleText.includes("Product Goals:")) failures.push(`debug bundle direct Jira evidence/database write audit failed ${JSON.stringify({ events: bundleEvidenceEvents.length, summary: bundleJiraEvidenceSummary, excluded: bundleJiraEvidenceExcluded, policy: bundleEvidencePolicy, schema: bundleJiraEvidenceSchema.schemaVersion, roadmap: bundleRoadmapAnalyzers, databaseWrite: bundleSourceArchiveDatabaseWrite })}`);
     if (!latestBundleRunId || !bundleHistory.some((run) => String(run?.runId || "") === latestBundleRunId) || String(asRecord(bundlePaths.latestRunResult).runId || "") !== latestBundleRunId || bundleSummary.snapshotConsistent !== true) failures.push(`debug bundle snapshot consistency failed: latest=${latestBundleRunId}`);
     if (bundleStandardFlow.enabled !== true || bundleStandardFlow.variant !== "escaped_username" || bundleStandardFlow.activityStreamQueryUser !== "roger\\_hsieh" || Number(bundleStandardFlow.perChunkMaxResults) !== 500 || bundleClassifier.enabled !== true || bundleClassifier.commentPriorityHigherThanAttachment !== true || bundleClassifier.rulesVersion !== "1.1" || !asRecord(bundleSummary.standardActivityStreamFlow).selectedUser || !bundleSummary.activityTypeClassifierDiagnostics) failures.push(`debug bundle standard flow/classifier diagnostics failed: ${JSON.stringify({ bundleStandardFlow, bundleClassifier })}`);
     if (bundleBaselineGuard.enabled !== true || bundleBaselineComparison.enabled !== true || bundleBaselineSnapshot.schemaVersion !== 1 || !String(bundleBaselineSnapshot.snapshotKey || "").includes("activity_stream|") || bundleBaselineHistory.length < 1 || !bundleTimeline.some((entry) => entry.type === "activity_stream_baseline_guard") || !bundleText.includes("Activity Stream Baseline Guard:") || !bundleText.includes("activity-stream-baseline-comparison.json")) failures.push(`debug bundle baseline guard audit failed: ${JSON.stringify({ bundleBaselineGuard, bundleBaselineComparison, snapshotKey: bundleBaselineSnapshot.snapshotKey, history: bundleBaselineHistory.length })}`);

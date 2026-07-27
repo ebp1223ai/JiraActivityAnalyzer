@@ -117,7 +117,8 @@ CREATE INDEX idx_source_import_refs_bundle ON source_import_refs(source_bundle_n
 
 const volatileCanonicalKeys = new Set([
   "exportedAt", "generatedAt", "bundleName", "fileName", "jsonPath",
-  "packagePath", "outputPath", "executionTimeMs", "durationMs"
+  "packagePath", "outputPath", "temporaryPath", "buildTime",
+  "operationId", "saveOperationId", "executionTimeMs", "durationMs"
 ]);
 
 function canonicalValue(value: unknown): unknown {
@@ -370,14 +371,115 @@ export type StoreSourceSnapshotInput = {
     sourceJsonPath: string;
   };
   simulateFailureAfterPayload?: boolean;
+  simulateFailureAfterVersion?: boolean;
+  simulateFailureAtImportRef?: boolean;
 };
+
+type StoredSnapshot = {
+  sourceObjectId: string;
+  sourceObjectVersionId: string;
+  contentHash: string;
+  createdObject: boolean;
+  createdVersion: boolean;
+  createdPayload: boolean;
+  createdImportRef: boolean;
+  uncompressedSizeBytes: number;
+  compressedSizeBytes: number;
+};
+
+function storeSnapshotInTransaction(db: DatabaseSync, input: StoreSourceSnapshotInput): StoredSnapshot {
+  const objectKey = normalizeSourceObjectKey(input.sourceSystem, input.objectType, input.objectKey);
+  const observedAt = utcTimestamp(input.observedAt);
+  const canonical = canonicalJson(input.rawJson);
+  const uncompressed = Buffer.from(canonical, "utf8");
+  const compressed = gzipSync(uncompressed);
+  const contentHash = crypto.createHash("sha256").update(uncompressed).digest("hex");
+  const sourceVersionNumber = input.sourceSystem === "jira" ? null : input.sourceVersionNumber ?? null;
+  const existingObject = db.prepare(`SELECT source_object_id FROM source_objects
+    WHERE source_system=? AND object_type=? AND object_key=?`).get(
+    input.sourceSystem, input.objectType, objectKey
+  ) as { source_object_id: string } | undefined;
+  const sourceObjectId = existingObject?.source_object_id ?? crypto.randomUUID();
+  if (existingObject) {
+    db.prepare("UPDATE source_objects SET last_seen_at=? WHERE source_object_id=?").run(observedAt, sourceObjectId);
+  } else {
+    db.prepare(`INSERT INTO source_objects
+      (source_object_id, source_system, object_type, object_key, first_seen_at, last_seen_at, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+      sourceObjectId, input.sourceSystem, input.objectType, objectKey, observedAt, observedAt, observedAt
+    );
+  }
+  const existingVersion = db.prepare(`SELECT source_object_version_id FROM source_object_versions
+    WHERE source_object_id=? AND content_hash=?`).get(sourceObjectId, contentHash) as { source_object_version_id: string } | undefined;
+  const versionId = existingVersion?.source_object_version_id ?? crypto.randomUUID();
+  if (existingVersion) {
+    db.prepare("UPDATE source_object_versions SET last_seen_at=? WHERE source_object_version_id=?").run(observedAt, versionId);
+  } else {
+    db.prepare(`INSERT INTO source_object_versions
+      (source_object_version_id, source_object_id, content_hash, source_version_number, source_updated_at, first_seen_at, last_seen_at, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      versionId, sourceObjectId, contentHash, sourceVersionNumber,
+      input.sourceUpdatedAt ? utcTimestamp(input.sourceUpdatedAt) : null,
+      observedAt, observedAt, observedAt
+    );
+    if (input.simulateFailureAfterVersion) throw new Error("SIMULATED_FAILURE_AFTER_VERSION");
+    db.prepare(`INSERT INTO source_payloads
+      (source_payload_id, source_object_version_id, payload_format, text_encoding, compression, compressed_payload,
+       uncompressed_size_bytes, compressed_size_bytes, stored_at)
+      VALUES (?, ?, 'json', 'utf-8', 'gzip', ?, ?, ?, ?)`).run(
+      crypto.randomUUID(), versionId, compressed, uncompressed.byteLength, compressed.byteLength, observedAt
+    );
+  }
+  if (input.simulateFailureAfterPayload) throw new Error("SIMULATED_TRANSACTION_FAILURE");
+  if (input.simulateFailureAtImportRef) throw new Error("SIMULATED_FAILURE_AT_IMPORT_REF");
+  const importRefResult = db.prepare(`INSERT OR IGNORE INTO source_import_refs
+    (source_import_ref_id, source_object_version_id, source_bundle_name, source_file_name, source_json_path, first_seen_at)
+    VALUES (?, ?, ?, ?, ?, ?)`).run(
+    crypto.randomUUID(), versionId, input.importRef.sourceBundleName,
+    input.importRef.sourceFileName, input.importRef.sourceJsonPath, observedAt
+  );
+  const payload = db.prepare(`SELECT compressed_payload, uncompressed_size_bytes, compressed_size_bytes
+    FROM source_payloads WHERE source_object_version_id=?`).get(versionId) as {
+      compressed_payload: Uint8Array;
+      uncompressed_size_bytes: number;
+      compressed_size_bytes: number;
+    } | undefined;
+  if (!payload) throw new Error("PAYLOAD_READBACK_MISSING");
+  const readback = gunzipSync(Buffer.from(payload.compressed_payload)).toString("utf8");
+  if (readback !== canonical || canonicalJson(JSON.parse(readback)) !== canonical) {
+    throw new Error("PAYLOAD_VERIFICATION_FAILED");
+  }
+  if (crypto.createHash("sha256").update(readback, "utf8").digest("hex") !== contentHash) {
+    throw new Error("PAYLOAD_HASH_MISMATCH");
+  }
+  if (payload.uncompressed_size_bytes !== uncompressed.byteLength
+    || payload.compressed_size_bytes !== Buffer.from(payload.compressed_payload).byteLength) {
+    throw new Error("PAYLOAD_SIZE_MISMATCH");
+  }
+  const importRef = db.prepare(`SELECT source_import_ref_id FROM source_import_refs
+    WHERE source_object_version_id=? AND source_bundle_name=? AND source_file_name=? AND source_json_path=?`).get(
+    versionId, input.importRef.sourceBundleName, input.importRef.sourceFileName, input.importRef.sourceJsonPath
+  );
+  if (!importRef) throw new Error("IMPORT_REF_READBACK_MISSING");
+  return {
+    sourceObjectId,
+    sourceObjectVersionId: versionId,
+    contentHash,
+    createdObject: !existingObject,
+    createdVersion: !existingVersion,
+    createdPayload: !existingVersion,
+    createdImportRef: Number(importRefResult.changes) > 0,
+    uncompressedSizeBytes: uncompressed.byteLength,
+    compressedSizeBytes: compressed.byteLength
+  };
+}
 
 export class SourceArchiveRepository {
   private readonly db: DatabaseSync;
 
   constructor(databasePath: string) {
     this.db = new DatabaseSync(path.resolve(databasePath));
-    this.db.exec("PRAGMA foreign_keys = ON");
+    this.db.exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 3000");
   }
 
   close() {
@@ -385,65 +487,11 @@ export class SourceArchiveRepository {
   }
 
   storeSnapshot(input: StoreSourceSnapshotInput) {
-    const objectKey = normalizeSourceObjectKey(input.sourceSystem, input.objectType, input.objectKey);
-    const observedAt = utcTimestamp(input.observedAt);
-    const canonical = canonicalJson(input.rawJson);
-    const uncompressed = Buffer.from(canonical, "utf8");
-    const compressed = gzipSync(uncompressed);
-    const contentHash = crypto.createHash("sha256").update(uncompressed).digest("hex");
-    const sourceVersionNumber = input.sourceSystem === "jira" ? null : input.sourceVersionNumber ?? null;
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      this.db.prepare(`INSERT INTO source_objects
-        (source_object_id, source_system, object_type, object_key, first_seen_at, last_seen_at, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(source_system, object_type, object_key) DO UPDATE SET last_seen_at=excluded.last_seen_at`).run(
-        crypto.randomUUID(), input.sourceSystem, input.objectType, objectKey, observedAt, observedAt, observedAt
-      );
-      const object = this.db.prepare(`SELECT source_object_id FROM source_objects
-        WHERE source_system=? AND object_type=? AND object_key=?`).get(
-        input.sourceSystem, input.objectType, objectKey
-      ) as { source_object_id: string };
-      const existingVersion = this.db.prepare(`SELECT source_object_version_id FROM source_object_versions
-        WHERE source_object_id=? AND content_hash=?`).get(object.source_object_id, contentHash) as { source_object_version_id: string } | undefined;
-      const versionId = existingVersion?.source_object_version_id ?? crypto.randomUUID();
-      if (existingVersion) {
-        this.db.prepare("UPDATE source_object_versions SET last_seen_at=? WHERE source_object_version_id=?").run(observedAt, versionId);
-      } else {
-        this.db.prepare(`INSERT INTO source_object_versions
-          (source_object_version_id, source_object_id, content_hash, source_version_number, source_updated_at, first_seen_at, last_seen_at, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
-          versionId, object.source_object_id, contentHash, sourceVersionNumber,
-          input.sourceUpdatedAt ? utcTimestamp(input.sourceUpdatedAt) : null,
-          observedAt, observedAt, observedAt
-        );
-        this.db.prepare(`INSERT INTO source_payloads
-          (source_payload_id, source_object_version_id, payload_format, text_encoding, compression, compressed_payload,
-           uncompressed_size_bytes, compressed_size_bytes, stored_at)
-          VALUES (?, ?, 'json', 'utf-8', 'gzip', ?, ?, ?, ?)`).run(
-          crypto.randomUUID(), versionId, compressed, uncompressed.byteLength, compressed.byteLength, observedAt
-        );
-      }
-      if (input.simulateFailureAfterPayload) throw new Error("SIMULATED_TRANSACTION_FAILURE");
-      this.db.prepare(`INSERT OR IGNORE INTO source_import_refs
-        (source_import_ref_id, source_object_version_id, source_bundle_name, source_file_name, source_json_path, first_seen_at)
-        VALUES (?, ?, ?, ?, ?, ?)`).run(
-        crypto.randomUUID(), versionId, input.importRef.sourceBundleName,
-        input.importRef.sourceFileName, input.importRef.sourceJsonPath, observedAt
-      );
-      const payload = this.db.prepare("SELECT compressed_payload FROM source_payloads WHERE source_object_version_id=?").get(versionId) as { compressed_payload: Uint8Array };
-      if (gunzipSync(Buffer.from(payload.compressed_payload)).toString("utf8") !== canonical) {
-        throw new Error("PAYLOAD_VERIFICATION_FAILED");
-      }
+      const stored = storeSnapshotInTransaction(this.db, input);
       this.db.exec("COMMIT");
-      return {
-        sourceObjectId: object.source_object_id,
-        sourceObjectVersionId: versionId,
-        contentHash,
-        createdVersion: !existingVersion,
-        uncompressedSizeBytes: uncompressed.byteLength,
-        compressedSizeBytes: compressed.byteLength
-      };
+      return stored;
     } catch (error) {
       this.db.exec("ROLLBACK");
       throw error;
@@ -482,5 +530,333 @@ export class SourceArchiveRepository {
   counts() {
     const value = (table: string) => Number((this.db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count);
     return Object.fromEntries(SOURCE_ARCHIVE_TABLES.map((table) => [table, value(table)])) as Record<(typeof SOURCE_ARCHIVE_TABLES)[number], number>;
+  }
+}
+
+export type SourceArchiveBatchItem = StoreSourceSnapshotInput & {
+  eligibility: "eligible" | "partial" | "failed" | "invalid";
+  loadRawJson?: () => unknown;
+};
+
+export type SourceArchiveBatchWriteInput = {
+  operationId: string;
+  databasePath: string;
+  jira: {
+    serverIdentity: string;
+    baseUrlNormalized: string;
+    serverTitle?: string;
+  };
+  items: SourceArchiveBatchItem[];
+  observedAt?: string;
+  busyRetryLimit?: number;
+};
+
+export type SourceArchiveBatchOutcome = {
+  objectKey: string;
+  outcome: "new_object" | "new_version" | "existing" | "excluded" | "invalid" | "failed_rolled_back";
+  reasonCode: string;
+  sourceObjectId: string;
+  sourceObjectVersionId: string;
+  contentHash: string;
+};
+
+function normalizeBaseUrl(value: string) {
+  const parsed = new URL(value);
+  if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("SOURCE_SERVER_IDENTITY_MISSING");
+  parsed.hash = "";
+  parsed.search = "";
+  parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+  return parsed.toString().replace(/\/+$/, "");
+}
+
+function waitSync(milliseconds: number) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function beginImmediateWithRetry(db: DatabaseSync, retryLimit: number) {
+  let retries = 0;
+  for (;;) {
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      return retries;
+    } catch (error) {
+      if (errorStatus(error) !== "LOCKED" || retries >= retryLimit) throw error;
+      waitSync(50 * (retries + 1));
+      retries += 1;
+    }
+  }
+}
+
+function sourceUpdatedAtFromPayload(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const issue = (value as Record<string, unknown>).issue;
+  if (!issue || typeof issue !== "object" || Array.isArray(issue)) return null;
+  const fields = (issue as Record<string, unknown>).fields;
+  if (!fields || typeof fields !== "object" || Array.isArray(fields)) return null;
+  const updated = (fields as Record<string, unknown>).updated;
+  return typeof updated === "string" && updated.trim() ? updated : null;
+}
+
+export function writeSourceArchiveBatch(input: SourceArchiveBatchWriteInput) {
+  const startedAt = new Date().toISOString();
+  const startedMs = Date.now();
+  const configuredDatabasePath = String(input.databasePath || "").trim();
+  const databasePath = configuredDatabasePath ? path.resolve(configuredDatabasePath) : "";
+  const operationId = String(input.operationId || "").trim();
+  const serverIdentity = String(input.jira.serverIdentity || "").trim();
+  if (!operationId) throw new Error("SAVE_OPERATION_INVALID");
+  if (!databasePath || !path.isAbsolute(databasePath)) {
+    return {
+      ok: false, operationId, status: "preflight_failed", reasonCode: "DATABASE_PATH_MISSING",
+      message: "Current database path is missing.", targetDatabase: databasePath, databaseId: "",
+      boundJiraServer: "", preflightStatus: "NOT_CONFIGURED", outcomes: [] as SourceArchiveBatchOutcome[],
+      summary: { eligible: 0, newObjects: 0, newVersions: 0, newPayloads: 0, newImportRefs: 0, existing: 0, excludedPartial: 0, excludedFailed: 0, invalid: 0, writeFailed: 0, rolledBack: 0 },
+      retries: 0, readbackVerified: false, foreignKeyCheck: "not_run", startedAt,
+      finishedAt: new Date().toISOString(), durationMs: Date.now() - startedMs
+    };
+  }
+  if (!serverIdentity || !String(input.jira.baseUrlNormalized || "").trim()) {
+    return {
+      ok: false, operationId, status: "preflight_failed", reasonCode: "SOURCE_SERVER_IDENTITY_MISSING",
+      message: "Verified Jira server identity or base URL is missing.", targetDatabase: databasePath,
+      databaseId: "", boundJiraServer: "", preflightStatus: "BLOCKED", outcomes: [] as SourceArchiveBatchOutcome[],
+      summary: { eligible: 0, newObjects: 0, newVersions: 0, newPayloads: 0, newImportRefs: 0, existing: 0, excludedPartial: 0, excludedFailed: 0, invalid: 0, writeFailed: 0, rolledBack: 0 },
+      retries: 0, readbackVerified: false, foreignKeyCheck: "not_run", startedAt,
+      finishedAt: new Date().toISOString(), durationMs: Date.now() - startedMs
+    };
+  }
+  let baseUrlNormalized = "";
+  try {
+    baseUrlNormalized = normalizeBaseUrl(input.jira.baseUrlNormalized);
+  } catch {
+    return {
+      ok: false, operationId, status: "preflight_failed", reasonCode: "SOURCE_SERVER_IDENTITY_MISSING",
+      message: "Verified Jira base URL is invalid.", targetDatabase: databasePath,
+      databaseId: "", boundJiraServer: "", preflightStatus: "BLOCKED", outcomes: [] as SourceArchiveBatchOutcome[],
+      summary: { eligible: 0, newObjects: 0, newVersions: 0, newPayloads: 0, newImportRefs: 0, existing: 0, excludedPartial: 0, excludedFailed: 0, invalid: 0, writeFailed: 0, rolledBack: 0 },
+      retries: 0, readbackVerified: false, foreignKeyCheck: "not_run", startedAt,
+      finishedAt: new Date().toISOString(), durationMs: Date.now() - startedMs
+    };
+  }
+  const compatibility = checkDatabaseCompatibility(databasePath, serverIdentity);
+  if (compatibility.status !== "READY") {
+    const reasonCode = compatibility.status === "JIRA_INSTANCE_MISMATCH"
+      ? "SOURCE_SERVER_MISMATCH"
+      : compatibility.status === "MISSING" || compatibility.status === "NOT_CONFIGURED"
+        ? "DATABASE_PATH_MISSING"
+        : compatibility.status === "LOCKED"
+          ? "DATABASE_BUSY"
+          : compatibility.status === "PERMISSION_DENIED" || compatibility.status === "READY_READ_ONLY"
+            ? "DATABASE_PERMISSION_DENIED"
+            : compatibility.status === "CORRUPTED" || compatibility.status === "INVALID_SQLITE"
+              ? "DATABASE_CORRUPTED"
+              : compatibility.status;
+    return {
+      ok: false,
+      operationId,
+      status: "preflight_failed",
+      reasonCode,
+      message: compatibility.message,
+      targetDatabase: databasePath,
+      databaseId: compatibility.databaseId,
+      boundJiraServer: compatibility.sourceBinding,
+      preflightStatus: compatibility.status,
+      outcomes: [] as SourceArchiveBatchOutcome[],
+      summary: {
+        eligible: 0, newObjects: 0, newVersions: 0, newPayloads: 0, newImportRefs: 0,
+        existing: 0, excludedPartial: 0, excludedFailed: 0, invalid: 0, writeFailed: 0, rolledBack: 0
+      },
+      retries: 0,
+      readbackVerified: false,
+      foreignKeyCheck: "not_run",
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedMs
+    };
+  }
+
+  const outcomes: SourceArchiveBatchOutcome[] = [];
+  const summary = {
+    eligible: 0, newObjects: 0, newVersions: 0, newPayloads: 0, newImportRefs: 0,
+    existing: 0, excludedPartial: 0, excludedFailed: 0, invalid: 0, writeFailed: 0, rolledBack: 0
+  };
+  const eligibleItems: SourceArchiveBatchItem[] = [];
+  for (const item of input.items) {
+    if (item.eligibility === "eligible") {
+      try {
+        normalizeSourceObjectKey(item.sourceSystem, item.objectType, item.objectKey);
+        eligibleItems.push(item);
+        summary.eligible += 1;
+      } catch {
+        summary.invalid += 1;
+        outcomes.push({ objectKey: item.objectKey, outcome: "invalid", reasonCode: "ISSUE_KEY_INVALID", sourceObjectId: "", sourceObjectVersionId: "", contentHash: "" });
+      }
+    } else if (item.eligibility === "partial") {
+      summary.excludedPartial += 1;
+      outcomes.push({ objectKey: item.objectKey, outcome: "excluded", reasonCode: "ISSUE_PARTIAL_EXCLUDED", sourceObjectId: "", sourceObjectVersionId: "", contentHash: "" });
+    } else if (item.eligibility === "failed") {
+      summary.excludedFailed += 1;
+      outcomes.push({ objectKey: item.objectKey, outcome: "excluded", reasonCode: "ISSUE_FAILED_EXCLUDED", sourceObjectId: "", sourceObjectVersionId: "", contentHash: "" });
+    } else {
+      summary.invalid += 1;
+      outcomes.push({ objectKey: item.objectKey, outcome: "invalid", reasonCode: "ISSUE_KEY_INVALID", sourceObjectId: "", sourceObjectVersionId: "", contentHash: "" });
+    }
+  }
+
+  let db: DatabaseSync | undefined;
+  let transactionActive = false;
+  let retries = 0;
+  let bindingCreated = false;
+  try {
+    db = new DatabaseSync(databasePath);
+    db.exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 3000");
+    const foreignKeys = db.prepare("PRAGMA foreign_keys").get() as { foreign_keys?: number };
+    if (Number(foreignKeys?.foreign_keys) !== 1) throw new Error("FOREIGN_KEYS_DISABLED");
+    const integrity = db.prepare("PRAGMA integrity_check").get() as { integrity_check?: string };
+    if (integrity?.integrity_check !== "ok") throw new Error("DATABASE_CORRUPTED");
+    const metadata = db.prepare("SELECT database_id FROM database_metadata WHERE metadata_key='primary'").get() as { database_id: string };
+    const binding = db.prepare(`SELECT binding_id, server_identity, base_url_normalized
+      FROM source_system_bindings WHERE database_id=? AND source_system='jira'`).get(metadata.database_id) as {
+        binding_id: string;
+        server_identity: string;
+        base_url_normalized: string;
+      } | undefined;
+    if (binding && (binding.server_identity !== serverIdentity || normalizeBaseUrl(binding.base_url_normalized) !== baseUrlNormalized)) {
+      return {
+        ok: false, operationId, status: "preflight_failed", reasonCode: "SOURCE_SERVER_MISMATCH",
+        message: "Current database is bound to a different Jira server.", targetDatabase: databasePath,
+        databaseId: metadata.database_id, boundJiraServer: binding.server_identity, preflightStatus: "SOURCE_SERVER_MISMATCH",
+        outcomes: [] as SourceArchiveBatchOutcome[], summary: { ...summary, eligible: 0 }, retries: 0,
+        readbackVerified: false, foreignKeyCheck: "not_run", startedAt,
+        finishedAt: new Date().toISOString(), durationMs: Date.now() - startedMs
+      };
+    }
+    if (eligibleItems.length === 0) {
+      return {
+        ok: true, operationId, status: "completed_no_writes", reasonCode: "NO_ELIGIBLE_ISSUES",
+        message: "No eligible Jira issue snapshots were available for database write.", targetDatabase: databasePath,
+        databaseId: metadata.database_id, boundJiraServer: binding?.server_identity ?? "", preflightStatus: "READY",
+        outcomes, summary, retries: 0, readbackVerified: true, foreignKeyCheck: "passed", startedAt,
+        finishedAt: new Date().toISOString(), durationMs: Date.now() - startedMs
+      };
+    }
+    retries = beginImmediateWithRetry(db, Math.max(0, Math.min(5, input.busyRetryLimit ?? 2)));
+    transactionActive = true;
+    if (!binding) {
+      const observedAt = utcTimestamp(input.observedAt);
+      db.prepare(`INSERT INTO source_system_bindings
+        (binding_id, database_id, source_system, server_identity, base_url_normalized, server_title, first_bound_at, last_verified_at)
+        VALUES (?, ?, 'jira', ?, ?, ?, ?, ?)`).run(
+        crypto.randomUUID(), metadata.database_id, serverIdentity, baseUrlNormalized,
+        input.jira.serverTitle || null, observedAt, observedAt
+      );
+      bindingCreated = true;
+    } else {
+      db.prepare("UPDATE source_system_bindings SET last_verified_at=? WHERE binding_id=?").run(
+        utcTimestamp(input.observedAt), binding.binding_id
+      );
+    }
+
+    let successCount = 0;
+    for (let index = 0; index < eligibleItems.length; index += 1) {
+      const item = eligibleItems[index];
+      const savepoint = `issue_${index}`;
+      db.exec(`SAVEPOINT ${savepoint}`);
+      try {
+        const rawJson = item.loadRawJson ? item.loadRawJson() : item.rawJson;
+        if (rawJson === undefined) throw new Error("RAW_PAYLOAD_MISSING");
+        const stored = storeSnapshotInTransaction(db, {
+          ...item,
+          rawJson,
+          sourceUpdatedAt: item.sourceUpdatedAt ?? sourceUpdatedAtFromPayload(rawJson),
+          observedAt: item.observedAt ?? input.observedAt
+        });
+        const foreignKeyViolations = db.prepare("PRAGMA foreign_key_check").all();
+        if (foreignKeyViolations.length > 0) throw new Error("FOREIGN_KEY_CHECK_FAILED");
+        db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+        successCount += 1;
+        summary.newObjects += stored.createdObject ? 1 : 0;
+        summary.newVersions += stored.createdVersion ? 1 : 0;
+        summary.newPayloads += stored.createdPayload ? 1 : 0;
+        summary.newImportRefs += stored.createdImportRef ? 1 : 0;
+        summary.existing += stored.createdVersion ? 0 : 1;
+        outcomes.push({
+          objectKey: item.objectKey,
+          outcome: stored.createdObject ? "new_object" : stored.createdVersion ? "new_version" : "existing",
+          reasonCode: stored.createdVersion ? "DATABASE_WRITE_SUCCESS" : "DUPLICATE_EXISTING",
+          sourceObjectId: stored.sourceObjectId,
+          sourceObjectVersionId: stored.sourceObjectVersionId,
+          contentHash: stored.contentHash
+        });
+      } catch (error) {
+        db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}; RELEASE SAVEPOINT ${savepoint}`);
+        summary.writeFailed += 1;
+        summary.rolledBack += 1;
+        outcomes.push({
+          objectKey: item.objectKey,
+          outcome: "failed_rolled_back",
+          reasonCode: errorStatus(error) === "LOCKED" ? "DATABASE_BUSY" : "DATABASE_WRITE_FAILED",
+          sourceObjectId: "",
+          sourceObjectVersionId: "",
+          contentHash: ""
+        });
+      }
+    }
+    if (successCount === 0 && bindingCreated) {
+      db.exec("ROLLBACK");
+      transactionActive = false;
+      return {
+        ok: false, operationId, status: "failed", reasonCode: "TRANSACTION_ROLLED_BACK",
+        message: "All eligible issue writes failed; the first Jira binding was rolled back.", targetDatabase: databasePath,
+        databaseId: metadata.database_id, boundJiraServer: "", preflightStatus: "READY", outcomes, summary,
+        retries, readbackVerified: false, foreignKeyCheck: "passed", startedAt,
+        finishedAt: new Date().toISOString(), durationMs: Date.now() - startedMs
+      };
+    }
+    if (successCount > 0) {
+      db.prepare("UPDATE database_metadata SET updated_at=? WHERE metadata_key='primary'").run(utcTimestamp(input.observedAt));
+    }
+    const finalForeignKeys = db.prepare("PRAGMA foreign_key_check").all();
+    if (finalForeignKeys.length > 0) throw new Error("FOREIGN_KEY_CHECK_FAILED");
+    db.exec("COMMIT");
+    transactionActive = false;
+    const finishedAt = new Date().toISOString();
+    return {
+      ok: summary.writeFailed === 0,
+      operationId,
+      status: summary.writeFailed === 0 ? "completed" : "completed_with_errors",
+      reasonCode: summary.writeFailed === 0 ? "DATABASE_WRITE_SUCCESS" : "DATABASE_WRITE_PARTIAL_SUCCESS",
+      message: summary.writeFailed === 0 ? "Eligible Jira issue snapshots were stored and verified." : "Some eligible issue writes were rolled back.",
+      targetDatabase: databasePath,
+      databaseId: metadata.database_id,
+      boundJiraServer: serverIdentity,
+      baseUrlNormalized,
+      preflightStatus: "READY",
+      bindingCreated,
+      outcomes,
+      summary,
+      retries,
+      readbackVerified: true,
+      foreignKeyCheck: "passed",
+      startedAt,
+      finishedAt,
+      durationMs: Date.now() - startedMs
+    };
+  } catch (error) {
+    if (transactionActive) {
+      try { db?.exec("ROLLBACK"); } catch { /* Preserve the primary failure. */ }
+    }
+    const reasonCode = errorStatus(error) === "LOCKED" ? "DATABASE_BUSY"
+      : /CORRUPTED|integrity/i.test(error instanceof Error ? error.message : String(error)) ? "DATABASE_CORRUPTED"
+        : "DATABASE_WRITE_FAILED";
+    return {
+      ok: false, operationId, status: "failed", reasonCode,
+      message: reasonCode === "DATABASE_BUSY" ? "Current database is busy or locked." : "Database write failed and was rolled back.",
+      targetDatabase: databasePath, databaseId: compatibility.databaseId, boundJiraServer: compatibility.sourceBinding,
+      preflightStatus: compatibility.status, outcomes, summary, retries, readbackVerified: false,
+      foreignKeyCheck: "failed", startedAt, finishedAt: new Date().toISOString(), durationMs: Date.now() - startedMs
+    };
+  } finally {
+    try { db?.close(); } catch { /* Database cleanup. */ }
   }
 }

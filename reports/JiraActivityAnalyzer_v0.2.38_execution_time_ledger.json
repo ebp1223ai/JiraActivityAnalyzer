@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "codex_execution_time_ledger_v1",
+  "releaseVersion": "0.2.38",
+  "scope": "Source Archive database write correctness implementation and validation",
+  "timezone": "Asia/Taipei",
+  "startedAt": "2026-07-27T11:43:03.873+08:00",
+  "finishedAt": "2026-07-27T12:18:51.8089187+08:00",
+  "wallClockSeconds": 2147.936,
+  "timingPolicy": {
+    "commandDurations": "Exact wall times reported by the command execution tool.",
+    "missingBoundaries": "No estimated timestamps or durations are supplied. A null value means the boundary was not instrumented.",
+    "activeTime": "Sum of recorded command wall times only; editing and reasoning time are not inferred."
+  },
+  "commands": [
+    {
+      "command": "git baseline status and metadata",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 1.1
+    },
+    {
+      "command": "git fetch --all --tags --prune",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 1.3
+    },
+    {
+      "command": "npm.cmd run typecheck (initial)",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 10.9
+    },
+    {
+      "command": "npm.cmd run test:v0.2.38 (initial fixture attempt)",
+      "result": "failed: invalid synthetic Jira key in test fixture",
+      "exitCode": 1,
+      "durationSeconds": 1.7,
+      "retry": "The fixture was corrected; production expectations were not weakened."
+    },
+    {
+      "command": "npm.cmd run typecheck (post-implementation)",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 7.3
+    },
+    {
+      "command": "npm.cmd run test:v0.2.38 (fixture retry)",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 2.9
+    },
+    {
+      "command": "npm.cmd run test:unit",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 17.8
+    },
+    {
+      "command": "npm.cmd run test:integration",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 1.4
+    },
+    {
+      "command": "npm.cmd run test:regression",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 2.0
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 19.6
+    },
+    {
+      "command": "npm.cmd run test:ui",
+      "result": "passed: routes=9, viewports=5, screenshots=disabled",
+      "exitCode": 0,
+      "durationSeconds": 84.7
+    },
+    {
+      "command": "npm.cmd run dist (final release build)",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 83.9
+    },
+    {
+      "command": "packaged Electron UI smoke (final)",
+      "result": "passed: routes=9, viewports=5, screenshots=disabled",
+      "exitCode": 0,
+      "durationSeconds": 64.9
+    },
+    {
+      "command": "node scripts/audit-source-archive-database.cjs <packaged-smoke-db>",
+      "result": "passed: integrity ok, foreign key violations 0, verified payloads 1",
+      "exitCode": 0,
+      "durationSeconds": 0.9
+    },
+    {
+      "command": "node scripts/audit-package-size.cjs v0.2.38-final-clean reports/JiraActivityAnalyzer_v0.2.38_package_size_after.json",
+      "result": "passed",
+      "exitCode": 0,
+      "durationSeconds": 2.0
+    },
+    {
+      "command": "npm.cmd audit --omit=dev --json",
+      "result": "completed with findings: 2 high, 0 critical, fixAvailable=false",
+      "exitCode": 1,
+      "durationSeconds": 2.1
+    }
+  ],
+  "recordedCommandSeconds": 304.5,
+  "uninstrumentedIntervalSeconds": 1843.436,
+  "retries": [
+    {
+      "operation": "v0.2.38 focused test",
+      "count": 1,
+      "reason": "The initial synthetic fixture used an invalid Jira key."
+    },
+    {
+      "operation": "packaged smoke and dist",
+      "count": 3,
+      "reason": "Validated packaged launch behavior, preflight hardening, and final .env.Version release copy."
+    }
+  ],
+  "externalWaitSeconds": 0,
+  "notes": [
+    "No real Jira, Confluence, database archive, token, or credential was used.",
+    "The release artifacts are intentionally ignored by Git and are not part of the commit.",
+    "The uninstrumented interval includes implementation, review, documentation, and user updates; it is not classified as active command time or external waiting."
+  ]
+}

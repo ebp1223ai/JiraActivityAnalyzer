@@ -1,0 +1,1290 @@
+{
+  "label": "v0.2.38-final-clean",
+  "auditedAt": "2026-07-27T04:16:04.473Z",
+  "platform": "win32-x64",
+  "electronVersion": "43.0.0",
+  "asarEnabled": true,
+  "asarUnpackActualScope": "none",
+  "metrics": {
+    "installer": {
+      "path": "Jira Activity Analyzer Setup 0.2.38.exe",
+      "bytes": 106463828,
+      "mib": 101.532
+    },
+    "portable": {
+      "path": "Jira Activity Analyzer Portable 0.2.38.exe",
+      "bytes": 106233813,
+      "mib": 101.312
+    },
+    "winUnpacked": {
+      "bytes": 399170686,
+      "mib": 380.679
+    },
+    "appAsar": {
+      "bytes": 24869564,
+      "mib": 23.717
+    },
+    "appAsarUnpacked": {
+      "exists": false,
+      "bytes": 0,
+      "mib": 0
+    },
+    "resources": {
+      "bytes": 24977197,
+      "mib": 23.82
+    },
+    "packagedNodeModules": {
+      "packedBytes": 21758306,
+      "unpackedBytes": 0,
+      "bytes": 21758306,
+      "mib": 20.75
+    }
+  },
+  "largestFiles": [
+    {
+      "path": "Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "mib": 224.787,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "dxcompiler.dll",
+      "bytes": 25609728,
+      "mib": 24.423,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "resources/app.asar",
+      "bytes": 24869564,
+      "mib": 23.717,
+      "category": "Application Code",
+      "necessary": true,
+      "basis": "正式應用程式程式碼或封裝中繼資料。"
+    },
+    {
+      "path": "LICENSES.chromium.html",
+      "bytes": 20313277,
+      "mib": 19.372,
+      "category": "Application Code",
+      "necessary": true,
+      "basis": "正式應用程式程式碼或封裝中繼資料。"
+    },
+    {
+      "path": "icudtl.dat",
+      "bytes": 10876560,
+      "mib": 10.373,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "libGLESv2.dll",
+      "bytes": 8021504,
+      "mib": 7.65,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "resources.pak",
+      "bytes": 7147269,
+      "mib": 6.816,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "vk_swiftshader.dll",
+      "bytes": 5494784,
+      "mib": 5.24,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "d3dcompiler_47.dll",
+      "bytes": 4741488,
+      "mib": 4.522,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "ffmpeg.dll",
+      "bytes": 3061248,
+      "mib": 2.919,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "locales/ml.pak",
+      "bytes": 1705247,
+      "mib": 1.626,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/ta.pak",
+      "bytes": 1696416,
+      "mib": 1.618,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/kn.pak",
+      "bytes": 1661406,
+      "mib": 1.584,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/te.pak",
+      "bytes": 1571646,
+      "mib": 1.499,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/hi.pak",
+      "bytes": 1529365,
+      "mib": 1.459,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "dxil.dll",
+      "bytes": 1509760,
+      "mib": 1.44,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "locales/bn.pak",
+      "bytes": 1460793,
+      "mib": 1.393,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/gu.pak",
+      "bytes": 1443467,
+      "mib": 1.377,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/mr.pak",
+      "bytes": 1414904,
+      "mib": 1.349,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/th.pak",
+      "bytes": 1320614,
+      "mib": 1.259,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/el.pak",
+      "bytes": 1250786,
+      "mib": 1.193,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/uk.pak",
+      "bytes": 1172427,
+      "mib": 1.118,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/ru.pak",
+      "bytes": 1163087,
+      "mib": 1.109,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/bg.pak",
+      "bytes": 1137844,
+      "mib": 1.085,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/ar.pak",
+      "bytes": 1095898,
+      "mib": 1.045,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "resources/app.asar/dist/assets/index-oAHVUys_.js",
+      "bytes": 1082913,
+      "mib": 1.033,
+      "category": "Application Code",
+      "necessary": true,
+      "basis": "正式應用程式程式碼或封裝中繼資料。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-dom/cjs/react-dom-profiling.development.js",
+      "bytes": 1082082,
+      "mib": 1.032,
+      "category": "Production Dependency",
+      "necessary": true,
+      "basis": "正式執行依賴：react-dom/cjs。"
+    },
+    {
+      "path": "locales/sr.pak",
+      "bytes": 1075610,
+      "mib": 1.026,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-dom/cjs/react-dom-client.development.js",
+      "bytes": 1065698,
+      "mib": 1.016,
+      "category": "Production Dependency",
+      "necessary": true,
+      "basis": "正式執行依賴：react-dom/cjs。"
+    },
+    {
+      "path": "locales/fa.pak",
+      "bytes": 1026720,
+      "mib": 0.979,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/ur.pak",
+      "bytes": 1009975,
+      "mib": 0.963,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/am.pak",
+      "bytes": 994404,
+      "mib": 0.948,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "vulkan-1.dll",
+      "bytes": 924160,
+      "mib": 0.881,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "locales/he.pak",
+      "bytes": 898516,
+      "mib": 0.857,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "resources/app.asar/dist-electron/main.cjs",
+      "bytes": 830495,
+      "mib": 0.792,
+      "category": "Application Code",
+      "necessary": true,
+      "basis": "正式應用程式程式碼或封裝中繼資料。"
+    },
+    {
+      "path": "locales/ja.pak",
+      "bytes": 815268,
+      "mib": 0.778,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/vi.pak",
+      "bytes": 799477,
+      "mib": 0.762,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react/dist/umd/lucide-react.js",
+      "bytes": 795674,
+      "mib": 0.759,
+      "category": "Production Dependency",
+      "necessary": true,
+      "basis": "正式執行依賴：lucide-react/dist。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react/dist/cjs/lucide-react.js",
+      "bytes": 756146,
+      "mib": 0.721,
+      "category": "Production Dependency",
+      "necessary": true,
+      "basis": "正式執行依賴：lucide-react/dist。"
+    },
+    {
+      "path": "locales/lt.pak",
+      "bytes": 751706,
+      "mib": 0.717,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/lv.pak",
+      "bytes": 748765,
+      "mib": 0.714,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "v8_context_snapshot.bin",
+      "bytes": 740048,
+      "mib": 0.706,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "locales/hu.pak",
+      "bytes": 738244,
+      "mib": 0.704,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/fr.pak",
+      "bytes": 738084,
+      "mib": 0.704,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/sk.pak",
+      "bytes": 729969,
+      "mib": 0.696,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/cs.pak",
+      "bytes": 718396,
+      "mib": 0.685,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/pl.pak",
+      "bytes": 717434,
+      "mib": 0.684,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/fil.pak",
+      "bytes": 715474,
+      "mib": 0.682,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/ro.pak",
+      "bytes": 702275,
+      "mib": 0.67,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/sl.pak",
+      "bytes": 698884,
+      "mib": 0.667,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    }
+  ],
+  "largestDirectories": [
+    {
+      "path": "locales",
+      "bytes": 48895643,
+      "mib": 46.631,
+      "packagePercentage": 12.25
+    },
+    {
+      "path": "resources",
+      "bytes": 48688869,
+      "mib": 46.433,
+      "packagePercentage": 12.2
+    },
+    {
+      "path": "resources/app.asar",
+      "bytes": 23711672,
+      "mib": 22.613,
+      "packagePercentage": 5.94
+    },
+    {
+      "path": "resources/app.asar/node_modules",
+      "bytes": 21758306,
+      "mib": 20.75,
+      "packagePercentage": 5.45
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-dom",
+      "bytes": 7318213,
+      "mib": 6.979,
+      "packagePercentage": 1.83
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-dom/cjs",
+      "bytes": 7305668,
+      "mib": 6.967,
+      "packagePercentage": 1.83
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router",
+      "bytes": 3792747,
+      "mib": 3.617,
+      "packagePercentage": 0.95
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react",
+      "bytes": 3509792,
+      "mib": 3.347,
+      "packagePercentage": 0.88
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react/dist",
+      "bytes": 3405791,
+      "mib": 3.248,
+      "packagePercentage": 0.85
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/dist",
+      "bytes": 3344616,
+      "mib": 3.19,
+      "packagePercentage": 0.84
+    },
+    {
+      "path": "resources/app.asar/node_modules/recharts",
+      "bytes": 2578073,
+      "mib": 2.459,
+      "packagePercentage": 0.65
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/dist/production",
+      "bytes": 1672309,
+      "mib": 1.595,
+      "packagePercentage": 0.42
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/dist/development",
+      "bytes": 1672307,
+      "mib": 1.595,
+      "packagePercentage": 0.42
+    },
+    {
+      "path": "resources/app.asar/node_modules/lodash",
+      "bytes": 1412361,
+      "mib": 1.347,
+      "packagePercentage": 0.35
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react/dist/esm",
+      "bytes": 1338991,
+      "mib": 1.277,
+      "packagePercentage": 0.34
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react/dist/umd",
+      "bytes": 1310654,
+      "mib": 1.25,
+      "packagePercentage": 0.33
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react/dist/esm/icons",
+      "bytes": 1134285,
+      "mib": 1.082,
+      "packagePercentage": 0.28
+    },
+    {
+      "path": "resources/app.asar/dist",
+      "bytes": 1114691,
+      "mib": 1.063,
+      "packagePercentage": 0.28
+    },
+    {
+      "path": "resources/app.asar/dist/assets",
+      "bytes": 1114282,
+      "mib": 1.063,
+      "packagePercentage": 0.28
+    },
+    {
+      "path": "resources/app.asar/node_modules/recharts/lib",
+      "bytes": 900972,
+      "mib": 0.859,
+      "packagePercentage": 0.23
+    }
+  ],
+  "capacityByCategory": [
+    {
+      "category": "Electron Required Runtime",
+      "bytes": 297626624,
+      "mib": 283.839
+    },
+    {
+      "category": "Static Asset",
+      "bytes": 56359906,
+      "mib": 53.749
+    },
+    {
+      "category": "Application Code",
+      "bytes": 47137522,
+      "mib": 44.954
+    },
+    {
+      "category": "Production Dependency",
+      "bytes": 21263680,
+      "mib": 20.279
+    },
+    {
+      "category": "Test／Development Artifact",
+      "bytes": 494626,
+      "mib": 0.472
+    }
+  ],
+  "duplicatePhysicalFiles": [],
+  "unexpectedPackagedContent": [
+    {
+      "path": "resources/app.asar/node_modules/decimal.js-light/doc/API.html",
+      "bytes": 51905,
+      "mib": 0.05,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/backend-for-frontend.md",
+      "bytes": 2336,
+      "mib": 0.002,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/code-splitting.md",
+      "bytes": 1767,
+      "mib": 0.002,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/concurrency.md",
+      "bytes": 7603,
+      "mib": 0.007,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/form-vs-fetcher.md",
+      "bytes": 11630,
+      "mib": 0.011,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/hot-module-replacement.md",
+      "bytes": 4915,
+      "mib": 0.005,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/hydration.md",
+      "bytes": 1216,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/index-query-param.md",
+      "bytes": 2656,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/index.md",
+      "bytes": 37,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/lazy-route-discovery.md",
+      "bytes": 3323,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/location.md",
+      "bytes": 194,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/progressive-enhancement.md",
+      "bytes": 6305,
+      "mib": 0.006,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/race-conditions.md",
+      "bytes": 3797,
+      "mib": 0.004,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/react-transitions.md",
+      "bytes": 8731,
+      "mib": 0.008,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/route-matching.md",
+      "bytes": 139,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/server-client-execution.md",
+      "bytes": 61,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/sessions-and-cookies.md",
+      "bytes": 16100,
+      "mib": 0.015,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/special-files.md",
+      "bytes": 939,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/state-management.md",
+      "bytes": 18632,
+      "mib": 0.018,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/styling.md",
+      "bytes": 2614,
+      "mib": 0.002,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/explanation/type-safety.md",
+      "bytes": 2418,
+      "mib": 0.002,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/accessibility.md",
+      "bytes": 2522,
+      "mib": 0.002,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/client-data.md",
+      "bytes": 5809,
+      "mib": 0.006,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/data-strategy.md",
+      "bytes": 11262,
+      "mib": 0.011,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/error-boundary.md",
+      "bytes": 5997,
+      "mib": 0.006,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/error-reporting.md",
+      "bytes": 3565,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/fetchers.md",
+      "bytes": 7234,
+      "mib": 0.007,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/file-route-conventions.md",
+      "bytes": 16567,
+      "mib": 0.016,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/file-uploads.md",
+      "bytes": 5590,
+      "mib": 0.005,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/form-validation.md",
+      "bytes": 3505,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/headers.md",
+      "bytes": 4135,
+      "mib": 0.004,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/index.md",
+      "bytes": 32,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/instrumentation.md",
+      "bytes": 14798,
+      "mib": 0.014,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/meta.md",
+      "bytes": 1095,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/middleware.md",
+      "bytes": 27682,
+      "mib": 0.026,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/navigation-blocking.md",
+      "bytes": 5747,
+      "mib": 0.005,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/optimize-revalidation.md",
+      "bytes": 1143,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/pre-rendering.md",
+      "bytes": 8883,
+      "mib": 0.008,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/presets.md",
+      "bytes": 3051,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/react-server-components.md",
+      "bytes": 29094,
+      "mib": 0.028,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/resource-routes.md",
+      "bytes": 4303,
+      "mib": 0.004,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/route-module-type-safety.md",
+      "bytes": 3452,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/search-params.md",
+      "bytes": 48,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/security.md",
+      "bytes": 1616,
+      "mib": 0.002,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/server-bundles.md",
+      "bytes": 3428,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/spa.md",
+      "bytes": 4869,
+      "mib": 0.005,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/status.md",
+      "bytes": 1527,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/suspense.md",
+      "bytes": 4056,
+      "mib": 0.004,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/using-handle.md",
+      "bytes": 3170,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/view-transitions.md",
+      "bytes": 5777,
+      "mib": 0.006,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/how-to/webhook.md",
+      "bytes": 1224,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/index.md",
+      "bytes": 1146,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/data/actions.md",
+      "bytes": 3198,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/data/custom.md",
+      "bytes": 5102,
+      "mib": 0.005,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/data/data-loading.md",
+      "bytes": 723,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/data/index.md",
+      "bytes": 34,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/data/installation.md",
+      "bytes": 1207,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/data/navigating.md",
+      "bytes": 225,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/data/pending-ui.md",
+      "bytes": 214,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/data/route-object.md",
+      "bytes": 5698,
+      "mib": 0.005,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/data/routing.md",
+      "bytes": 6198,
+      "mib": 0.006,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/data/testing.md",
+      "bytes": 163,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/declarative/index.md",
+      "bytes": 41,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/declarative/installation.md",
+      "bytes": 749,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/declarative/navigating.md",
+      "bytes": 2526,
+      "mib": 0.002,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/declarative/routing.md",
+      "bytes": 5703,
+      "mib": 0.005,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/declarative/url-values.md",
+      "bytes": 1380,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/actions.md",
+      "bytes": 4148,
+      "mib": 0.004,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/data-loading.md",
+      "bytes": 5612,
+      "mib": 0.005,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/deploying.md",
+      "bytes": 2802,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/index.md",
+      "bytes": 39,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/installation.md",
+      "bytes": 984,
+      "mib": 0.001,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/navigating.md",
+      "bytes": 3813,
+      "mib": 0.004,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/pending-ui.md",
+      "bytes": 3418,
+      "mib": 0.003,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/rendering.md",
+      "bytes": 1631,
+      "mib": 0.002,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/route-module.md",
+      "bytes": 14098,
+      "mib": 0.013,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/routing.md",
+      "bytes": 9041,
+      "mib": 0.009,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/framework/testing.md",
+      "bytes": 5019,
+      "mib": 0.005,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/index.md",
+      "bytes": 40,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/start/modes.md",
+      "bytes": 9017,
+      "mib": 0.009,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/upgrading/component-routes.md",
+      "bytes": 9571,
+      "mib": 0.009,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/upgrading/future.md",
+      "bytes": 15739,
+      "mib": 0.015,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/upgrading/index.md",
+      "bytes": 34,
+      "mib": 0,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/upgrading/remix.md",
+      "bytes": 14247,
+      "mib": 0.014,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/upgrading/router-provider.md",
+      "bytes": 11569,
+      "mib": 0.011,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/docs/upgrading/v6.md",
+      "bytes": 10998,
+      "mib": 0.01,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    }
+  ],
+  "notes": [
+    "app.asar 虛擬檔案與 win-unpacked 實體檔案同時列入檔案／目錄排行；app.asar 容器因此與其內容是兩種不同觀察口徑。",
+    "Production Dependencies 為 app.asar 內 node_modules 非 unpacked 檔案，加上 app.asar.unpacked/node_modules 實體檔案。",
+    "重複檔案偵測只掃描 100 KiB 以上的 win-unpacked 實體檔案，避免把 app.asar 虛擬內容重複計算。"
+  ]
+}

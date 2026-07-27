@@ -85,7 +85,7 @@ export const jiraEvidenceSchema = {
 
 export const analysisRoadmap = {
   analyzers: { cloudAiAnalyzer: "planned", localAiAnalyzer: "planned", offlineRuleAnalyzer: "planned" },
-  dataSources: { liveApi: "current", localDatabase: "planned", hybrid: "planned" },
+  dataSources: { liveApi: "current", localDatabase: "current", hybrid: "planned" },
   productGoals: ["jira_activity_analysis", "confluence_activity_analysis", "jira_confluence_combined_analysis"]
 } as const;
 

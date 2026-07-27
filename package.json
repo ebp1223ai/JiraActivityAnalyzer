@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.2.37",
+  "version": "0.2.38",
   "description": "Static Electron desktop UI prototype for Jira Activity Analyzer.",
   "author": "COPGEN",
   "type": "module",
@@ -15,16 +15,18 @@
     "preview": "npm run build && electron dist-electron/main.cjs",
     "dist": "npm run build && node scripts/dist-electron.cjs",
     "test:ui": "npm run build && cross-env ELECTRON_UI_SMOKE=1 ELECTRON_UI_CAPTURE=0 electron dist-electron/main.cjs",
-    "test:unit": "node scripts/test-stability.cjs && node scripts/test-round-stability.cjs && node scripts/test-benchmark.cjs && node scripts/test-analysis-defaults.cjs && node scripts/test-source-archive.cjs && node scripts/test-jira-get-retry.cjs && node scripts/test-full-fetch-correctness.cjs && node scripts/test-full-fetch-staging.cjs && node scripts/test-full-fetch-result.cjs && node scripts/test-debug-folder.cjs && node scripts/test-app-root.cjs && node scripts/test-issue-key-provenance.cjs && node scripts/test-v0233-architecture.cjs && node scripts/test-hotfix.cjs && node scripts/test-v0234.cjs && node scripts/test-v0237.cjs",
+    "test:unit": "node scripts/test-stability.cjs && node scripts/test-round-stability.cjs && node scripts/test-benchmark.cjs && node scripts/test-analysis-defaults.cjs && node scripts/test-source-archive.cjs && node scripts/test-jira-get-retry.cjs && node scripts/test-full-fetch-correctness.cjs && node scripts/test-full-fetch-staging.cjs && node scripts/test-full-fetch-result.cjs && node scripts/test-debug-folder.cjs && node scripts/test-app-root.cjs && node scripts/test-issue-key-provenance.cjs && node scripts/test-v0233-architecture.cjs && node scripts/test-hotfix.cjs && node scripts/test-v0234.cjs && node scripts/test-v0237.cjs && node scripts/test-v0238.cjs",
     "test:hotfix": "node scripts/test-hotfix.cjs",
     "test:v0.2.34": "node scripts/test-v0234.cjs",
     "test:v0.2.37": "node scripts/test-v0237.cjs",
+    "test:v0.2.38": "node scripts/test-v0238.cjs",
     "test:integration": "node scripts/test-v0237-integration.cjs",
     "test:regression": "node scripts/test-full-fetch-correctness.cjs && node scripts/test-hotfix.cjs && node scripts/test-v0234.cjs",
     "test:v0.2.32": "node scripts/test-full-fetch-correctness.cjs && node scripts/test-jira-get-retry.cjs && node scripts/test-full-fetch-staging.cjs && node scripts/test-full-fetch-result.cjs && node scripts/test-debug-folder.cjs",
     "test:v0.2.33": "node scripts/test-app-root.cjs && node scripts/test-debug-folder.cjs && node scripts/test-full-fetch-correctness.cjs && node scripts/test-full-fetch-staging.cjs && node scripts/test-issue-key-provenance.cjs && node scripts/test-v0233-architecture.cjs && node scripts/validate-execution-ledger.cjs",
     "test:ledger": "node scripts/validate-execution-ledger.cjs",
     "audit:package-size": "node scripts/audit-package-size.cjs",
+    "audit:database": "node scripts/audit-source-archive-database.cjs",
     "capture:ui": "npm run build && cross-env ELECTRON_UI_SMOKE=1 ELECTRON_UI_CAPTURE=1 electron dist-electron/main.cjs"
   },
   "dependencies": {

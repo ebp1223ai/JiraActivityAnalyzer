@@ -6,7 +6,7 @@ declare const __GIT_BRANCH__: string;
 export const buildInfo = {
   buildTime: typeof __BUILD_TIME__ === "string" ? __BUILD_TIME__ : "Development Mode",
   timezone: "Asia/Taipei / UTC+08:00",
-  version: typeof __APP_VERSION__ === "string" ? `v${__APP_VERSION__}` : "v0.2.37",
+  version: typeof __APP_VERSION__ === "string" ? `v${__APP_VERSION__}` : "v0.2.38",
   gitCommit: typeof __GIT_COMMIT__ === "string" ? __GIT_COMMIT__ : "unknown",
   gitBranch: typeof __GIT_BRANCH__ === "string" ? __GIT_BRANCH__ : "unknown"
 };

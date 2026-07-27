@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const path = require("node:path");
 const { Arch, Platform, build } = require("electron-builder");
 
 const originalRename = fs.promises.rename.bind(fs.promises);
@@ -27,6 +28,11 @@ fs.promises.rename = async (from, to) => {
 
 build({
   targets: Platform.WINDOWS.createTarget(["nsis", "portable"], Arch.x64)
+}).then(() => {
+  const projectRoot = path.resolve(__dirname, "..");
+  const releaseDir = path.join(projectRoot, "release");
+  fs.copyFileSync(path.join(projectRoot, ".env.Version"), path.join(releaseDir, ".env.Version"));
+  console.log(`  • copied versioned environment template  file=${path.join("release", ".env.Version")}`);
 }).catch((error) => {
   console.error(error);
   process.exit(1);

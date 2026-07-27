@@ -1639,11 +1639,18 @@ export function AnalysisPage() {
         return;
       }
       const steps = { ...userAnalysis.workflowSteps, exports: "completed" as const };
+      const databaseWrite = result.databaseWrite ?? {};
+      const databaseStatus = String(databaseWrite.status ?? "not_run");
+      const databaseMessage = String(databaseWrite.message ?? "Database write did not run.");
       patchState({
         saving: false,
-        notice: `Saved to: ${result.filePath}`,
-        errors: [],
+        notice: databaseStatus === "completed"
+          ? `Full Fetch JSON and Database Write completed: ${result.filePath}`
+          : `Full Fetch JSON saved; Database Write ${databaseStatus}: ${String(databaseWrite.reasonCode ?? "UNKNOWN")}`,
+        errors: databaseStatus === "completed" ? [] : [databaseMessage],
         lastSavedFullFetchResultPath: result.filePath ?? "",
+        lastFullFetchFileSaveResult: result.fileSave ?? null,
+        lastDatabaseWriteResult: result.databaseWrite ?? null,
         fullFetchStaging: result.staging ?? userAnalysis.fullFetchStaging,
         lastSavedExportFolderPath: result.folderPath ?? userAnalysis.lastSavedExportFolderPath,
         workflowSteps: steps
@@ -1651,7 +1658,8 @@ export function AnalysisPage() {
       void persistWorkflowSnapshot({ steps });
       appendDebugLog("analysis", [
         `[INFO] Full fetch result saved: ${result.filePath}`,
-        "[INFO] Export data sanitized"
+        "[INFO] Export data sanitized",
+        ...(result.logs ?? [])
       ]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Save failed.";
@@ -2605,9 +2613,69 @@ export function AnalysisPage() {
                 <Bug size={16} />Export Debug Folder / 匯出除錯資料夾
               </button>
             </div>
+            {userAnalysis.lastFullFetchFileSaveResult ? (() => {
+              const fileSave = userAnalysis.lastFullFetchFileSaveResult;
+              const json = (fileSave.fullFetchJson ?? {}) as Record<string, unknown>;
+              const archive = (fileSave.sourceArchiveZip ?? {}) as Record<string, unknown>;
+              return <div className="rounded-lg border border-blue-200 bg-blue-50 p-4" data-testid="stage5-file-save-result">
+                <div className="font-black text-blue-950">File Save / 檔案保存</div>
+                <div className="mt-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(165px,1fr))] gap-3">
+                  <MiniStat label="Full Fetch JSON" value={String(json.status ?? "not_run")} />
+                  <MiniStat label="Source Archive ZIP" value={String(archive.status ?? "not_run")} />
+                  <MiniStat label="Archive Verification" value={String(fileSave.archiveVerification ?? "not_run")} />
+                </div>
+                <div className="mt-3 break-all text-xs font-semibold text-blue-900" title={String(json.filePath ?? "")}>
+                  {String(json.filePath ?? "No Full Fetch JSON saved.")}
+                </div>
+              </div>;
+            })() : null}
+            {userAnalysis.lastDatabaseWriteResult ? (() => {
+              const write = userAnalysis.lastDatabaseWriteResult;
+              const summary = (write.summary ?? {}) as Record<string, unknown>;
+              const success = write.status === "completed";
+              const partial = write.status === "completed_with_errors";
+              return <div className={`rounded-lg border p-4 ${success ? "border-emerald-200 bg-emerald-50" : partial ? "border-amber-200 bg-amber-50" : "border-red-200 bg-red-50"}`} data-testid="stage5-database-write-result">
+                <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-black text-ink">Database Write / 資料庫寫入</div>
+                    <div className="mt-1 break-words text-sm font-semibold">{String(write.message ?? "")}</div>
+                  </div>
+                  <StatusBadge tone={success ? "green" : partial ? "amber" : "red"}>{String(write.status ?? "not_run")}</StatusBadge>
+                </div>
+                <div className="mt-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(145px,1fr))] gap-3">
+                  <MiniStat label="Preflight" value={String(write.preflightStatus ?? "-")} />
+                  <MiniStat label="Eligible" value={String(summary.eligible ?? 0)} />
+                  <MiniStat label="New Objects" value={String(summary.newObjects ?? 0)} />
+                  <MiniStat label="New Versions" value={String(summary.newVersions ?? 0)} />
+                  <MiniStat label="New Payloads" value={String(summary.newPayloads ?? 0)} />
+                  <MiniStat label="New Import Refs" value={String(summary.newImportRefs ?? 0)} />
+                  <MiniStat label="Existing / Duplicate" value={String(summary.existing ?? 0)} />
+                  <MiniStat label="Excluded Partial" value={String(summary.excludedPartial ?? 0)} />
+                  <MiniStat label="Excluded Failed" value={String(summary.excludedFailed ?? 0)} />
+                  <MiniStat label="Invalid" value={String(summary.invalid ?? 0)} />
+                  <MiniStat label="Write Failed" value={String(summary.writeFailed ?? 0)} />
+                  <MiniStat label="Rolled Back" value={String(summary.rolledBack ?? 0)} />
+                  <MiniStat label="Duration" value={`${String(write.durationMs ?? 0)} ms`} />
+                  <MiniStat label="Readback" value={write.readbackVerified === true ? "Passed" : "Not passed"} />
+                  <MiniStat label="Foreign Keys" value={String(write.foreignKeyCheck ?? "not_run")} />
+                </div>
+                <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 xl:grid-cols-2">
+                  <div className="min-w-0 rounded-md border border-white/80 bg-white p-3">
+                    <div className="text-xs font-black text-muted">Target Database / 目標資料庫</div>
+                    <div className="mt-1 break-all text-xs font-bold" title={String(write.targetDatabase ?? "")}>{String(write.targetDatabase ?? "-")}</div>
+                  </div>
+                  <div className="min-w-0 rounded-md border border-white/80 bg-white p-3">
+                    <div className="text-xs font-black text-muted">Database ID / Bound Jira Server / Reason</div>
+                    <div className="mt-1 break-all text-xs font-bold">{String(write.databaseId ?? "-")} · {String(write.baseUrlNormalized ?? write.boundJiraServer ?? "-")} · {String(write.reasonCode ?? "-")}</div>
+                  </div>
+                </div>
+              </div>;
+            })() : <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-muted" data-testid="stage5-database-write-not-run">
+              Database Write / 資料庫寫入：Not run. Save Full Fetch Result will validate and write the current SQLite configured by LOCAL_DATABASE_PATH.
+            </div>}
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4" data-testid="source-archive-exporter">
               <div className="font-black text-emerald-950">Source Archive Import Package / 來源封存匯入套件</div>
-              <p className="mt-1 text-sm font-semibold leading-relaxed text-emerald-900">Full Fetch Staging / Full Fetch 增量暫存 builds packages from safely persisted main-process files. It does not create or write a database.<br />套件由 main process 已安全落盤的暫存檔建立，不會建立或寫入資料庫。</p>
+              <p className="mt-1 text-sm font-semibold leading-relaxed text-emerald-900">Full Fetch Staging builds the verified ZIP package from persisted main-process files. Database Write is performed separately by Save Full Fetch Result against the current SQLite.<br />Full Fetch 暫存會由主程序檔案建立並驗證 ZIP；資料庫寫入則由「儲存完整抓取結果」獨立寫入目前 SQLite。</p>
               {userAnalysis.fullFetchStaging ? <div className="mt-2 break-words rounded-md border border-emerald-200 bg-white p-2 text-xs font-bold">Staging ID / 暫存編號：{String(userAnalysis.fullFetchStaging.stagingId ?? "-")} · Status / 狀態：{String(userAnalysis.fullFetchStaging.status ?? "-")} · Eligible / 可匯入：{String(userAnalysis.fullFetchStaging.eligible ?? 0)}</div> : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 <button data-testid="preview-source-archive" className="btn" type="button" disabled={sourceArchiveBusy || !userAnalysis.fullFetchStaging} onClick={() => void previewSourceArchive()}><Eye size={16} />Preview Package / 預覽套件</button>
