@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.40 - Current-State Archive and Stable Dedup V2
+
+- Added a separate Current-State SQLite schema with one authoritative Snapshot, Payload, and Sync State per Issue.
+- Added Stable Projection V2, deterministic canonicalization, exact volatile Field ID policy mapping, and ambiguity diagnostics.
+- Added typed Coverage comparison with downgrade, incomparable, and invalid save gates.
+- Added payload gzip/JSON/archive-hash prevalidation and atomic per-Issue transaction rollback.
+- Changed Stage 5 to deduplicate stable-equal saves without rewriting large payload BLOBs.
+- Added read-only legacy v0.2.39 detection; no legacy migration or cleanup is performed.
+- Added Current-State save diagnostics and focused 57-scenario automated coverage.
+
 ## 0.2.39 - Stable Source Archive and Activity Events
 
 - Separated exact archive payload SHA-256 from Stable Source Projection version identity, with deterministic canonicalization, meaningful changed paths, and a narrow volatile-field registry.

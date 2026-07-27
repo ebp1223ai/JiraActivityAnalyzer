@@ -8,11 +8,12 @@ import {
   type FileReference
 } from "./fileBackedJson.js";
 import {
-  writeSourceArchiveBatch,
-  type SourceArchiveBatchItem
-} from "./sourceArchiveDatabase.js";
+  writeCurrentStateBatch,
+  type CurrentStateCandidate
+} from "./currentStateArchive.js";
 import type { StagingRun, StagingTarget } from "./fullFetchStaging.js";
-import { buildStableSourceProjection } from "./stableSourceProjection.js";
+import { buildStableIssueContentV2 } from "./stableIssueContentV2.js";
+import type { CoverageProfile, CoverageState } from "./coverageProfile.js";
 
 export type JiraSourceProvenance = {
   sourceSystem: "jira";
@@ -29,6 +30,7 @@ type DatabaseWriteInput = {
   run: StagingRun;
   currentJira: JiraSourceProvenance;
   observedAt?: string;
+  diagnosticsDir?: string;
 };
 
 function record(value: unknown): Record<string, unknown> {
@@ -105,6 +107,34 @@ function loadIssuePayload(run: StagingRun, target: StagingTarget) {
   };
 }
 
+function coverageState(target: StagingTarget, names: string[], disabled = false): CoverageState {
+  if (disabled) return "Disabled";
+  const entry = target.coverage.find((item) => names.some((name) => item.category.toLowerCase().includes(name)));
+  if (!entry) return "Skipped";
+  if (entry.status === "failed") return "Failed";
+  if (["partial", "permission_limited", "unsupported"].includes(entry.status)) return "Partial";
+  if (!entry.requested && !entry.attempted) return "Skipped";
+  return Number(entry.recordCount) > 0 ? "CompleteNonEmpty" : "CompleteEmpty";
+}
+
+function targetCoverage(run: StagingRun, target: StagingTarget): CoverageProfile {
+  const remoteLinksEnabled = Boolean(run.state.runContext.fetchRemoteLinks);
+  return {
+    fetchProfileVersion: 1,
+    coreFields: target.status === "eligible" ? "CompleteNonEmpty" : "Partial",
+    changelog: coverageState(target, ["changelog", "history"]),
+    comments: coverageState(target, ["comment"]),
+    attachmentsMetadata: coverageState(target, ["attachment"]),
+    issueLinks: coverageState(target, ["issue link", "issuelink"]),
+    remoteLinks: coverageState(target, ["remote link", "remotelink"], !remoteLinksEnabled),
+    parentSubtasks: coverageState(target, ["parent", "subtask"]),
+    relatedIssues: run.state.runContext.relatedIssuesStatus === "skipped"
+      ? "Disabled"
+      : coverageState(target, ["related"]),
+    conservationPassed: target.status === "eligible" && target.partialReasons.length === 0
+  };
+}
+
 export function buildSourceVersionProjectionDiagnostics(
   run: StagingRun,
   databaseWrite: { outcomes?: unknown[] }
@@ -116,7 +146,7 @@ export function buildSourceVersionProjectionDiagnostics(
   return run.index.targets
     .filter((target) => target.status === "eligible")
     .map((target) => {
-      const projection = buildStableSourceProjection(loadIssuePayload(run, target), serverIdentity);
+      const projection = buildStableIssueContentV2(loadIssuePayload(run, target), targetCoverage(run, target), serverIdentity);
       const outcome = outcomes.get(target.objectKey.toUpperCase()) ?? {};
       return {
         issueKey: target.objectKey,
@@ -124,25 +154,25 @@ export function buildSourceVersionProjectionDiagnostics(
         hashInput: {
           algorithm: "SHA-256",
           canonicalJson: projection.canonicalJson,
-          stableVersionHash: projection.stableVersionHash
+          stableVersionHash: projection.stableHash
         },
         decision: {
           issueKey: target.objectKey,
           decision: outcome.outcome ?? "not_available",
-          archivePayloadSha256: outcome.archivePayloadSha256 ?? "",
-          stableVersionHash: outcome.stableVersionHash ?? projection.stableVersionHash,
+          archivePayloadSha256: outcome.archiveSha256 ?? "",
+          stableVersionHash: outcome.stableHash ?? projection.stableHash,
           matchedExistingVersionId: outcome.matchedExistingVersionId ?? null,
           comparedVersionId: outcome.comparedVersionId ?? null,
           excludedPaths: outcome.excludedPaths ?? projection.excludedPaths,
           normalizedPaths: outcome.normalizedPaths ?? projection.normalizedPaths,
-          volatileRulesApplied: outcome.volatileRulesApplied ?? projection.volatileRulesApplied,
+          volatileRulesApplied: outcome.volatileRulesApplied ?? projection.policy,
           meaningfulChangedPaths: outcome.meaningfulChangedPaths ?? []
         }
       };
     });
 }
 
-function eligibility(target: StagingTarget): SourceArchiveBatchItem["eligibility"] {
+function eligibility(target: StagingTarget): CurrentStateCandidate["eligibility"] {
   if (target.status === "eligible") return "eligible";
   if (target.status === "partial" || target.status === "required_partial") return "partial";
   if (target.status === "failed_issue" || target.status === "failed_final"
@@ -150,7 +180,7 @@ function eligibility(target: StagingTarget): SourceArchiveBatchItem["eligibility
   return "invalid";
 }
 
-function blocked(input: DatabaseWriteInput, reasonCode: string, message: string) {
+function blocked(input: DatabaseWriteInput, reasonCode: string, message: string): any {
   const now = new Date().toISOString();
   return {
     ok: false,
@@ -188,7 +218,7 @@ function blocked(input: DatabaseWriteInput, reasonCode: string, message: string)
   };
 }
 
-export function writeFullFetchStagingToCurrentDatabase(input: DatabaseWriteInput) {
+export function writeFullFetchStagingToCurrentDatabase(input: DatabaseWriteInput): any {
   const operationId = input.operationId ?? `dbwrite-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
   const operation = { ...input, operationId };
   if (!path.isAbsolute(input.databasePath || "")) {
@@ -222,31 +252,51 @@ export function writeFullFetchStagingToCurrentDatabase(input: DatabaseWriteInput
     return blocked(operation, "SOURCE_ARCHIVE_UNSAFE", "One or more eligible canonical files failed integrity verification.");
   }
 
-  const items: SourceArchiveBatchItem[] = input.run.index.targets.map((target) => ({
-    sourceSystem: "jira",
-    objectType: "issue",
-    objectKey: target.objectKey,
-    rawJson: undefined,
+  const items: CurrentStateCandidate[] = input.run.index.targets.map((target) => ({
+    issueKey: target.objectKey,
     loadRawJson: target.status === "eligible" ? () => loadIssuePayload(input.run, target) : undefined,
     observedAt: input.observedAt,
-    importRef: {
-      sourceBundleName: input.run.state.stagingId,
-      sourceFileName: `${target.objectKey}.source-snapshot.json`,
-      sourceJsonPath: "$"
-    },
+    coverage: targetCoverage(input.run, target),
     eligibility: eligibility(target)
   }));
-  return writeSourceArchiveBatch({
+  const diagnosticFilePath = input.diagnosticsDir
+    ? path.join(path.resolve(input.diagnosticsDir), `current-state-save-diagnostics-${new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}.json`)
+    : "";
+  const result = writeCurrentStateBatch({
     operationId,
+    runId: input.run.state.fullFetchRunId,
     databasePath: input.databasePath,
     jira: {
       serverIdentity: provenance.serverIdentity,
-      baseUrlNormalized: provenance.baseUrlNormalized,
-      serverTitle: provenance.serverTitle,
-      serverTitleStatus: provenance.serverTitleStatus,
-      connectionLabel: provenance.connectionLabel
+      baseUrlNormalized: provenance.baseUrlNormalized
     },
     items,
-    observedAt: input.observedAt
+    observedAt: input.observedAt,
+    diagnosticFilePath
   });
+  if (diagnosticFilePath) {
+    fs.mkdirSync(path.dirname(diagnosticFilePath), { recursive: true });
+    fs.writeFileSync(diagnosticFilePath, `${JSON.stringify({
+      schemaVersion: "current_state_save_diagnostics_v1",
+      createdAt: new Date().toISOString(),
+      operationId,
+      runId: input.run.state.fullFetchRunId,
+      status: result.status,
+      reasonCode: result.reasonCode,
+      databasePath: result.targetDatabase,
+      storageModel: result.storageModel ?? "Current-State V1",
+      stableHashPolicy: result.stableHashPolicy ?? "V2",
+      summary: result.summary,
+      issues: result.outcomes,
+      security: {
+        tokenIncluded: false,
+        authorizationIncluded: false,
+        fullDescriptionIncluded: false,
+        fullCommentBodyIncluded: false,
+        fullPayloadIncluded: false
+      }
+    }, null, 2)}\n`, "utf8");
+    return { ...result, diagnosticFilePath };
+  }
+  return result;
 }

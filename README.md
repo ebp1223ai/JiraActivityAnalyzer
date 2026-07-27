@@ -1,6 +1,15 @@
 # Jira Activity Analyzer
 
-> v0.2.39 adds stable Jira source projection, meaningful snapshot versioning, schema v1-to-v2 migration, and normalized activity events. See [docs/v0.2.39-stable-source-archive.md](docs/v0.2.39-stable-source-archive.md).
+> v0.2.40 adds a new Current-State archive database with Stable Hash V2, authoritative Coverage gates, atomic per-Issue replacement, and read-only legacy detection. See [docs/v0.2.40-current-state-archive.md](docs/v0.2.40-current-state-archive.md).
+
+## v0.2.40 Current-State Archive
+
+- New databases store at most one Snapshot, one compressed Payload, and one Sync State per Jira Issue.
+- Stable-equal reruns update check metadata without rewriting the Snapshot or Payload BLOB.
+- Coverage downgrade, incomparable scope, Partial, and Failed candidates cannot overwrite formal state.
+- v0.2.39 databases are detected read-only and remain byte-for-byte untouched.
+- Volatile calculated fields are excluded only after exact Jira Field ID resolution from the same Full Fetch `names` map.
+- Formal Jira access remains read-only. Stage 5 writes only to the explicitly configured local SQLite database.
 
 ## v0.2.39 Stable Source Archive
 

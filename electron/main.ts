@@ -36,12 +36,10 @@ import { databasePathForEnv, resolveLocalDatabasePath } from "./appPathResolver.
 import { DEFAULT_ENV_TEXT as defaultEnvText, atomicPatchEnv, ensureDefaultRuntimeEnv, loadRuntimeConfig, parseEnvText } from "./runtimeConfig.js";
 import { checkJiraConnection } from "./jiraConnectionCheck.js";
 import {
-  checkDatabaseCompatibility,
-  createSourceArchiveDatabase,
-  migrateSourceArchiveDatabase,
-  updateJiraBindingMetadata,
-  writeSourceArchiveBatch
-} from "./sourceArchiveDatabase.js";
+  checkCurrentStateDatabaseCompatibility as checkDatabaseCompatibility,
+  createCurrentStateDatabase as createSourceArchiveDatabase,
+  writeCurrentStateBatch
+} from "./currentStateArchive.js";
 import {
   buildSourceVersionProjectionDiagnostics,
   writeFullFetchStagingToCurrentDatabase
@@ -640,26 +638,7 @@ async function runDatabaseStartupCheck() {
     const jiraIdentity = runtimeCoordinator?.snapshot().jira.status === "CONNECTED"
       ? runtimeCoordinator.snapshot().jira.serverIdentity
       : "";
-    let compatibility = checkDatabaseCompatibility(databasePath, jiraIdentity);
-    if (compatibility.status === "MIGRATION_REQUIRED" && activeSourceArchiveDatabaseWrites.size === 0) {
-      const migration = migrateSourceArchiveDatabase({
-        databasePath,
-        appVersion: __MAIN_APP_VERSION__
-      });
-      latestSourceArchiveMigration = migration;
-      if (migration.status === "completed" || migration.status === "not_required") {
-        compatibility = checkDatabaseCompatibility(databasePath, jiraIdentity);
-      } else {
-        return {
-          ...compatibility,
-          status: "MIGRATION_FAILED" as const,
-          reasonCode: "MIGRATION_FAILED" as const,
-          message: `${migration.reasonCode}: ${migration.message}`,
-          migration
-        };
-      }
-      return { ...compatibility, migration };
-    }
+    const compatibility = checkDatabaseCompatibility(databasePath, jiraIdentity);
     return { ...compatibility, migration: latestSourceArchiveMigration };
   } catch {
     return {
@@ -790,13 +769,6 @@ ipcMain.handle("connection:test-and-save", async (_event, connection: AppConnect
   if (runtimeState.database.path) {
     const afterDatabase = await getRuntimeCoordinator().retryDatabase();
     if (afterDatabase.jira.status === "CONNECTED" && afterDatabase.database.status === "READY") {
-      updateJiraBindingMetadata({
-        databasePath: afterDatabase.database.path,
-        serverIdentity: afterDatabase.jira.serverIdentity,
-        serverTitle: afterDatabase.jira.serverTitle,
-        serverTitleStatus: afterDatabase.jira.serverTitleStatus,
-        connectionLabel: connection.name
-      });
       await getRuntimeCoordinator().retryDatabase();
     }
   }
@@ -833,7 +805,8 @@ ipcMain.handle("database:select-existing", async (_event, payload?: { filePath?:
     appRoot: getAppRuntimeDir(),
     envPath: resolveCurrentEnvPath(),
     selectedPath,
-    currentJiraIdentity: jiraIdentity
+    currentJiraIdentity: jiraIdentity,
+    check: checkDatabaseCompatibility
   });
   const validation = selected.validation;
   if (!selected.saved) {
@@ -856,11 +829,16 @@ ipcMain.handle("database:create-new", async (_event, payload?: { filePath?: stri
   }
   const jira = getRuntimeCoordinator().snapshot().jira;
   const connectionLabel = loadConnectionState().activeConnection.name;
-  const binding = jira.status === "CONNECTED" && jira.serverIdentity
+  const smokeRuntimeConfig = isUiSmoke ? loadRuntimeConfig(resolveCurrentEnvPath()) : null;
+  const effectiveBaseUrl = jira.baseUrlNormalized || smokeRuntimeConfig?.jiraBaseUrl || "";
+  const effectiveServerIdentity = jira.serverIdentity || (isUiSmoke && effectiveBaseUrl
+    ? `ui-smoke:${crypto.createHash("sha256").update(effectiveBaseUrl).digest("hex")}`
+    : "");
+  const binding = (jira.status === "CONNECTED" || isUiSmoke) && effectiveServerIdentity && effectiveBaseUrl
     ? {
         sourceSystem: "jira" as const,
-        serverIdentity: jira.serverIdentity,
-        baseUrlNormalized: jira.baseUrlNormalized,
+        serverIdentity: effectiveServerIdentity,
+        baseUrlNormalized: effectiveBaseUrl,
         serverTitle: jira.serverTitle,
         serverTitleStatus: jira.serverTitleStatus,
         connectionLabel
@@ -3017,7 +2995,7 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
     timelineEventListUiState: path.join(outputDir, "timeline-event-list-ui-state.json"),
     selectIssuesUiState: path.join(outputDir, "select-issues-ui-state.json")
   };
-  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: "0.2.39", ...latestUserAnalysisWorkflow });
+  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: "0.2.40", ...latestUserAnalysisWorkflow });
   writeJsonAtomic(files.timelineIssueGroups, timelineIssueGroups);
   writeJsonAtomic(files.timelineSelectedIssues, { selectedIssueKeys: timelineSelectedIssues, count: timelineSelectedIssues.length });
   writeJsonAtomic(files.fetchQueue, fetchQueue);
@@ -3096,6 +3074,7 @@ ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: {
       operationId,
       databasePath,
       run: latestFullFetchStaging,
+      diagnosticsDir: getFullFetchResultsDir(),
       currentJira: {
         sourceSystem: "jira",
         serverIdentity: currentJira.status === "CONNECTED" ? currentJira.serverIdentity : "",
@@ -3873,9 +3852,9 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const debugBundleSummaryBody = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
   writeBundleJson(folderPath, "debug-bundle-summary.json", { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), activityStreamStabilityProbe: latestActivityStreamStabilityProbeV2 ? { available: true, authoritativeVersion: "v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, windowCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability } : latestActivityStreamStabilityProbe ? { available: true, authoritativeVersion: "legacy_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId } : { available: false, authoritativeVersion: "none", probeRunId: "" } });
   const summaryWithV1 = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.39", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.40", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
   const summaryWithStaging = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.39" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.40" } });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -4092,6 +4071,7 @@ async function runUiSmoke(window: BrowserWindow) {
         jiraSaved: jiraSave.saved,
         jiraRuntimeStatus: jiraSave.runtime?.status,
         createdSaved: created.saved,
+        createdError: created.error,
         createdStatus: created.state?.database?.status,
         selectedSaved: selected.saved,
         selectedStatus: selected.validation?.status,
@@ -4990,7 +4970,14 @@ async function runUiSmoke(window: BrowserWindow) {
   }, classification: "complete" });
   finalizeStagingRun(databaseSmokeRun);
   const databaseSmokePath = path.join(ensureDir(getTempDir()), `v0238-source-archive-smoke-${Date.now()}.sqlite`);
-  createSourceArchiveDatabase({ targetPath: databaseSmokePath, appVersion: __MAIN_APP_VERSION__ });
+  createSourceArchiveDatabase({
+    targetPath: databaseSmokePath,
+    appVersion: __MAIN_APP_VERSION__,
+    binding: {
+      serverIdentity: databaseSmokeJira.serverIdentity,
+      baseUrlNormalized: databaseSmokeJira.baseUrlNormalized
+    }
+  });
   const databaseSmokeWrite = writeFullFetchStagingToCurrentDatabase({
     operationId: `ui-smoke-dbwrite-${Date.now()}`,
     databasePath: databaseSmokePath,
@@ -4998,10 +4985,10 @@ async function runUiSmoke(window: BrowserWindow) {
     currentJira: databaseSmokeJira
   });
   latestSourceArchiveDatabaseWrite = databaseSmokeWrite;
-  if (databaseSmokeWrite.status !== "completed" || databaseSmokeWrite.summary.newObjects !== 1
-    || databaseSmokeWrite.summary.newPayloads !== 1 || !databaseSmokeWrite.readbackVerified
-    || databaseSmokeWrite.foreignKeyCheck !== "passed") {
-    failures.push(`v0.2.38 packaged Source Archive database write smoke failed ${JSON.stringify(databaseSmokeWrite)}`);
+  if (databaseSmokeWrite.status !== "completed" || databaseSmokeWrite.summary.newIssues !== 1
+    || databaseSmokeWrite.summary.payloadsCreated !== 1 || !databaseSmokeWrite.readbackVerified
+    || databaseSmokeWrite.foreignKeyCheck !== "ok") {
+    failures.push(`v0.2.40 packaged Current-State database write smoke failed ${JSON.stringify(databaseSmokeWrite)}`);
   }
   const changedSmokePayload = {
     issue: {
@@ -5030,32 +5017,47 @@ async function runUiSmoke(window: BrowserWindow) {
     normalizedCurrentFields: { fetchedAt: "2026-07-27T03:00:00.000Z" },
     evidence: []
   };
-  const changedSmokeWrite = writeSourceArchiveBatch({
+  const smokeCoverage = {
+    fetchProfileVersion: 1,
+    coreFields: "CompleteNonEmpty" as const,
+    changelog: "CompleteNonEmpty" as const,
+    comments: "CompleteNonEmpty" as const,
+    attachmentsMetadata: "CompleteEmpty" as const,
+    issueLinks: "CompleteEmpty" as const,
+    remoteLinks: "Disabled" as const,
+    parentSubtasks: "CompleteEmpty" as const,
+    relatedIssues: "Disabled" as const,
+    conservationPassed: true
+  };
+  const changedSmokeWrite = writeCurrentStateBatch({
     operationId: `ui-smoke-dbwrite-changed-${Date.now()}`,
+    runId: "ui-smoke-changed",
     databasePath: databaseSmokePath,
     jira: databaseSmokeJira,
     items: [{
-      sourceSystem: "jira", objectType: "issue", objectKey: "SMOKE-801",
-      rawJson: changedSmokePayload, eligibility: "eligible",
-      importRef: { sourceBundleName: "packaged-smoke-changed", sourceFileName: "SMOKE-801.json", sourceJsonPath: "$" }
+      issueKey: "SMOKE-801",
+      rawJson: changedSmokePayload,
+      coverage: smokeCoverage,
+      eligibility: "eligible"
     }]
   });
-  const duplicateSmokeWrite = writeSourceArchiveBatch({
+  const duplicateSmokeWrite = writeCurrentStateBatch({
     operationId: `ui-smoke-dbwrite-duplicate-${Date.now()}`,
+    runId: "ui-smoke-duplicate",
     databasePath: databaseSmokePath,
     jira: databaseSmokeJira,
     items: [{
-      sourceSystem: "jira", objectType: "issue", objectKey: "SMOKE-801",
+      issueKey: "SMOKE-801",
       rawJson: { ...changedSmokePayload, normalizedCurrentFields: { fetchedAt: "2026-07-27T04:00:00.000Z" } },
+      coverage: smokeCoverage,
       eligibility: "eligible",
-      importRef: { sourceBundleName: "packaged-smoke-duplicate", sourceFileName: "SMOKE-801.json", sourceJsonPath: "$" }
     }]
   });
-  if (changedSmokeWrite.outcomes[0]?.outcome !== "new_version"
-    || duplicateSmokeWrite.outcomes[0]?.outcome !== "duplicate"
-    || duplicateSmokeWrite.summary.newVersions !== 0
+  if (changedSmokeWrite.outcomes[0]?.outcome !== "updated"
+    || duplicateSmokeWrite.outcomes[0]?.outcome !== "existing"
+    || duplicateSmokeWrite.summary.updatedIssues !== 0
     || duplicateSmokeWrite.summary.activityEventsInserted !== 0) {
-    failures.push(`v0.2.39 packaged stable-version smoke failed ${JSON.stringify({ changedSmokeWrite, duplicateSmokeWrite })}`);
+    failures.push(`v0.2.40 packaged current-state smoke failed ${JSON.stringify({ changedSmokeWrite, duplicateSmokeWrite })}`);
   }
   await window.webContents.executeJavaScript(`window.desktopApp?.userAnalysis?.exportSourceArchive?.({ selectedUser: "roger_hsieh", rawData: { rawIssueResponsesSanitized: [{ issueKey: "SMOKE-101", json: { id: "101", key: "SMOKE-101", fields: { updated: "2026-07-02T09:00:00.000Z", summary: "Source archive smoke fixture" } } }] } });`);
   await wait(180);
@@ -5169,7 +5171,7 @@ async function runUiSmoke(window: BrowserWindow) {
     const canonicalSnapshotInBundle = fs.existsSync(path.join(debugBundlePath, "full-fetch-staging", "issues", "SMOKE-101", "current-issue-snapshot.json"));
     if (bundleFullFetchStagingIndex.stagingAvailable !== true || bundleFullFetchStagingIndex.status !== "completed_with_errors" || Number(asRecord(bundleFullFetchStagingIndex.counts).eligible) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).requiredPartial) !== 1 || Number(asRecord(bundleFullFetchStagingIndex.counts).failed) !== 1 || bundleStagingState.schemaVersion !== "full_fetch_staging_v4" || bundleStagingRunIndex.schemaVersion !== "full_fetch_run_index_v4" || Number(bundleStagingPartialSummary.count) !== 1 || !canonicalSnapshotInBundle) failures.push(`Full Fetch staging Debug Bundle audit failed ${JSON.stringify({ index: bundleFullFetchStagingIndex, state: bundleStagingState, runIndex: bundleStagingRunIndex.schemaVersion, partial: bundleStagingPartialSummary, canonicalSnapshotInBundle })}`);
     if (bundleStabilityProbe.status !== "legacy_v1_not_applicable" || !bundleStabilityUiState.latestProbeRunId || diagnosticWindows.length < 1 || diagnosticWindows.some((item) => !item.logicalRequestId || !item.classification || Number(item.physicalHttpRequestCount) < 1 || !item.processingTiming) || bundleBenchmark.schemaVersion !== "activity_stream_benchmark_v1" || Number(asRecord(bundleBenchmark.summary).runCount) < 1 || bundleSourceArchiveIndex.includedInDebugBundle !== false || bundleSourceArchiveIndex.metadataOnly !== true) failures.push(`v0.2.31 reliability bundle audit failed ${JSON.stringify({ legacy: bundleStabilityProbe, uiState: bundleStabilityUiState, diagnosticWindows: diagnosticWindows.length, benchmark: bundleBenchmark.benchmarkRunId, sourceArchive: bundleSourceArchiveIndex })}`);
-    if (bundleEvidenceEvents.length < 1 || bundleEvidenceEvents.some((item) => !/^sha256:[0-9a-f]{64}$/.test(String(item.evidenceId)) || !item.evidenceScope || !item.evidenceType || !item.activityType) || Number(bundleJiraEvidenceSummary.directEvidenceCount) < 1 || Number(bundleJiraEvidenceExcluded.excludedCount) < 1 || bundleEvidencePolicy.recursive !== false || Number(bundleEvidencePolicy.maxDepth) !== 1 || bundleEvidencePolicy.relatedIssuesAsPrimaryEvidence !== false || bundleJiraEvidenceSchema.schemaVersion !== "jira_evidence_event_v1" || bundleRoadmapAnalyzers.cloudAiAnalyzer !== "planned" || bundleSourceArchiveDatabaseWrite.status !== "completed" || Number(asRecord(bundleSourceArchiveDatabaseWrite.summary).newObjects) !== 1 || bundleSourceArchiveDatabaseWrite.readbackVerified !== true || bundleSourceArchiveDatabaseWrite.foreignKeyCheck !== "passed" || !bundleText.includes("Direct Jira Evidence:") || !bundleText.includes("Related Issue Expansion Policy:") || !bundleText.includes("Analyzer Roadmap:") || !bundleText.includes("Data Source Runtime:") || !bundleText.includes("Local Database: completed") || !bundleText.includes("Product Goals:")) failures.push(`debug bundle direct Jira evidence/database write audit failed ${JSON.stringify({ events: bundleEvidenceEvents.length, summary: bundleJiraEvidenceSummary, excluded: bundleJiraEvidenceExcluded, policy: bundleEvidencePolicy, schema: bundleJiraEvidenceSchema.schemaVersion, roadmap: bundleRoadmapAnalyzers, databaseWrite: bundleSourceArchiveDatabaseWrite })}`);
+    if (bundleEvidenceEvents.length < 1 || bundleEvidenceEvents.some((item) => !/^sha256:[0-9a-f]{64}$/.test(String(item.evidenceId)) || !item.evidenceScope || !item.evidenceType || !item.activityType) || Number(bundleJiraEvidenceSummary.directEvidenceCount) < 1 || Number(bundleJiraEvidenceExcluded.excludedCount) < 1 || bundleEvidencePolicy.recursive !== false || Number(bundleEvidencePolicy.maxDepth) !== 1 || bundleEvidencePolicy.relatedIssuesAsPrimaryEvidence !== false || bundleJiraEvidenceSchema.schemaVersion !== "jira_evidence_event_v1" || bundleRoadmapAnalyzers.cloudAiAnalyzer !== "planned" || bundleSourceArchiveDatabaseWrite.status !== "completed" || Number(asRecord(bundleSourceArchiveDatabaseWrite.summary).newIssues) !== 1 || bundleSourceArchiveDatabaseWrite.readbackVerified !== true || bundleSourceArchiveDatabaseWrite.foreignKeyCheck !== "ok" || !bundleText.includes("Direct Jira Evidence:") || !bundleText.includes("Related Issue Expansion Policy:") || !bundleText.includes("Analyzer Roadmap:") || !bundleText.includes("Data Source Runtime:") || !bundleText.includes("Local Database: completed") || !bundleText.includes("Product Goals:")) failures.push(`debug bundle direct Jira evidence/database write audit failed ${JSON.stringify({ events: bundleEvidenceEvents.length, summary: bundleJiraEvidenceSummary, excluded: bundleJiraEvidenceExcluded, policy: bundleEvidencePolicy, schema: bundleJiraEvidenceSchema.schemaVersion, roadmap: bundleRoadmapAnalyzers, databaseWrite: bundleSourceArchiveDatabaseWrite })}`);
     if (!latestBundleRunId || !bundleHistory.some((run) => String(run?.runId || "") === latestBundleRunId) || String(asRecord(bundlePaths.latestRunResult).runId || "") !== latestBundleRunId || bundleSummary.snapshotConsistent !== true) failures.push(`debug bundle snapshot consistency failed: latest=${latestBundleRunId}`);
     if (bundleStandardFlow.enabled !== true || bundleStandardFlow.variant !== "escaped_username" || bundleStandardFlow.activityStreamQueryUser !== "roger\\_hsieh" || Number(bundleStandardFlow.perChunkMaxResults) !== 500 || bundleClassifier.enabled !== true || bundleClassifier.commentPriorityHigherThanAttachment !== true || bundleClassifier.rulesVersion !== "1.1" || !asRecord(bundleSummary.standardActivityStreamFlow).selectedUser || !bundleSummary.activityTypeClassifierDiagnostics) failures.push(`debug bundle standard flow/classifier diagnostics failed: ${JSON.stringify({ bundleStandardFlow, bundleClassifier })}`);
     if (bundleBaselineGuard.enabled !== true || bundleBaselineComparison.enabled !== true || bundleBaselineSnapshot.schemaVersion !== 1 || !String(bundleBaselineSnapshot.snapshotKey || "").includes("activity_stream|") || bundleBaselineHistory.length < 1 || !bundleTimeline.some((entry) => entry.type === "activity_stream_baseline_guard") || !bundleText.includes("Activity Stream Baseline Guard:") || !bundleText.includes("activity-stream-baseline-comparison.json")) failures.push(`debug bundle baseline guard audit failed: ${JSON.stringify({ bundleBaselineGuard, bundleBaselineComparison, snapshotKey: bundleBaselineSnapshot.snapshotKey, history: bundleBaselineHistory.length })}`);

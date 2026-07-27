@@ -2652,14 +2652,18 @@ export function AnalysisPage() {
                 </div>
                 <div className="mt-3 text-xs font-black uppercase text-muted">Snapshot Decisions / Snapshot 判定</div>
                 <div className="mt-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(145px,1fr))] gap-3">
-                  <MiniStat label="New Objects" value={String(summary.newObjects ?? 0)} />
-                  <MiniStat label="New Versions" value={String(summary.newVersions ?? 0)} />
-                  <MiniStat label="New Payloads" value={String(summary.newPayloads ?? 0)} />
-                  <MiniStat label="New Import Refs" value={String(summary.newImportRefs ?? 0)} />
-                  <MiniStat label="Duplicates" value={String(summary.duplicates ?? summary.existing ?? 0)} />
-                  <MiniStat label="Excluded Partial" value={String(summary.excludedPartial ?? 0)} />
-                  <MiniStat label="Excluded Failed" value={String(summary.excludedFailed ?? 0)} />
-                  <MiniStat label="Invalid" value={String(summary.invalid ?? 0)} />
+                  <MiniStat label="New Issues / 新增 Issue" value={String(summary.newIssues ?? 0)} />
+                  <MiniStat label="Updated Issues / 已更新 Issue" value={String(summary.updatedIssues ?? 0)} />
+                  <MiniStat label="Existing Issues / 既有 Issue" value={String(summary.existingIssues ?? 0)} />
+                  <MiniStat label="Payloads Created / 新增 Payload" value={String(summary.payloadsCreated ?? 0)} />
+                  <MiniStat label="Payloads Replaced / 已取代 Payload" value={String(summary.payloadsReplaced ?? 0)} />
+                  <MiniStat label="Payloads Unchanged / 未變更 Payload" value={String(summary.payloadsUnchanged ?? 0)} />
+                  <MiniStat label="Coverage Downgrade Blocked / Coverage 降級已阻擋" value={String(summary.coverageDowngradeBlocked ?? 0)} />
+                  <MiniStat label="Coverage Incomparable Blocked / Coverage 不可比較已阻擋" value={String(summary.coverageIncomparableBlocked ?? 0)} />
+                  <MiniStat label="Partial/Failed Excluded / Partial/Failed 已排除" value={String(Number(summary.excludedPartial ?? 0) + Number(summary.excludedFailed ?? 0))} />
+                  <MiniStat label="Database Write Failures / 資料庫寫入失敗" value={String(summary.writeFailed ?? 0)} />
+                  <MiniStat label="Stable Hash Policy / 穩定雜湊規則" value={String(write.stableHashPolicy ?? summary.stableHashPolicy ?? "V2")} />
+                  <MiniStat label="Storage Model / 儲存模型" value={String(write.storageModel ?? summary.storageModel ?? "Current-State V1")} />
                 </div>
                 <div className="mt-3 text-xs font-black uppercase text-muted">Activity Events / 活動事件</div>
                 <div className="mt-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(145px,1fr))] gap-3">
@@ -2668,6 +2672,14 @@ export function AnalysisPage() {
                   <MiniStat label="Readback" value={write.readbackVerified === true ? "Passed" : "Not passed"} />
                   <MiniStat label="Foreign Keys" value={String(write.foreignKeyCheck ?? "not_run")} />
                 </div>
+                <p className="mt-3 text-xs font-semibold leading-relaxed text-muted">
+                  Existing Issues update successful-check metadata and Activity Event deduplication only; Snapshot and large Payload data are not rewritten.
+                  <br />既有 Issue 僅更新成功檢查資訊並執行 Activity Event 去重，不會重寫 Snapshot 或大型 Payload。
+                </p>
+                {write.diagnosticFilePath ? <div className="mt-3 min-w-0 rounded-md border border-white/80 bg-white p-3">
+                  <div className="text-xs font-black text-muted">Save Diagnostics / 儲存診斷</div>
+                  <div className="mt-1 break-all text-xs font-bold" title={String(write.diagnosticFilePath)}>{String(write.diagnosticFilePath)}</div>
+                </div> : null}
                 <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 xl:grid-cols-2">
                   <div className="min-w-0 rounded-md border border-white/80 bg-white p-3">
                     <div className="text-xs font-black text-muted">Target Database / 目標資料庫</div>
