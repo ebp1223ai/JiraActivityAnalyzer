@@ -1,0 +1,325 @@
+{
+  "version": "0.2.41",
+  "startedAt": "2026-07-28T11:29:43.4288880+08:00",
+  "endedAt": "2026-07-28T11:56:12.7374171+08:00",
+  "wallClockSeconds": 1589.309,
+  "timingPrecision": {
+    "overall": "Durable PowerShell timestamps captured during execution.",
+    "phases": "Non-overlapping durable checkpoint intervals.",
+    "commands": "Durations are Codex tool-reported elapsed times. The tool did not expose per-command wall start/end timestamps, so null is recorded instead of inventing precision."
+  },
+  "phases": [
+    {
+      "name": "Inspection, implementation, tests, build, UI, and packaging",
+      "startedAt": "2026-07-28T11:29:43.4288880+08:00",
+      "endedAt": "2026-07-28T11:51:22.0033681+08:00",
+      "durationSeconds": 1298.574,
+      "status": "completed",
+      "notes": "Includes prompt and repository inspection, implementation, focused and aggregate tests, build, app-only UI validation, and dist packaging."
+    },
+    {
+      "name": "Reports, PDF render verification, and final audits",
+      "startedAt": "2026-07-28T11:51:22.0033681+08:00",
+      "endedAt": "2026-07-28T11:54:27.6840013+08:00",
+      "durationSeconds": 185.681,
+      "status": "completed",
+      "notes": "Includes implementation report, manual checklist, PDF generation, PNG visual inspection, artifact metadata, diff checks, and changed-file credential scan."
+    },
+    {
+      "name": "Git stage, commit, push, and synchronization check",
+      "startedAt": "2026-07-28T11:54:27.6840013+08:00",
+      "endedAt": "2026-07-28T11:56:12.7374171+08:00",
+      "durationSeconds": 105.054,
+      "status": "completed",
+      "notes": "Primary implementation commit aa3fc8a20c79cf9b8549c66513a5dd73c36f0d5c pushed successfully; ahead/behind 0/0 before this ledger follow-up."
+    }
+  ],
+  "commands": [
+    {
+      "sequence": 1,
+      "command": "Baseline branch, HEAD, tracked status, package scripts, and module inventory",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 1.3,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 2,
+      "command": "npm.cmd run typecheck",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 17.0,
+      "status": "failed",
+      "exitCode": 1,
+      "reason": "ActivityEvent compatibility property eventHash was missing."
+    },
+    {
+      "sequence": 3,
+      "command": "npm.cmd run typecheck",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 13.2,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 4,
+      "command": "npm.cmd run test:v0.2.40",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 2.8,
+      "status": "failed",
+      "exitCode": 1,
+      "reason": "Historical V2 test mutates Coverage status while retaining stale evidence. It is retained as a historical command and not retried as a V3 validator."
+    },
+    {
+      "sequence": 5,
+      "command": "npm.cmd run test:v0.2.41",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 2.8,
+      "status": "failed",
+      "exitCode": 1,
+      "reason": "Issue Links validator still accepted a top-level fallback instead of requiring issue.fields.issuelinks."
+    },
+    {
+      "sequence": 6,
+      "command": "npm.cmd run test:v0.2.41",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 1.9,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 7,
+      "command": "npm.cmd run typecheck",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 17.5,
+      "status": "failed",
+      "exitCode": 1,
+      "reason": "Synthetic test fixture inferred a numeric field and rejected explicit null."
+    },
+    {
+      "sequence": 8,
+      "command": "npm.cmd run typecheck",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 16.3,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 9,
+      "command": "npm.cmd run test:unit",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 26.3,
+      "status": "failed",
+      "exitCode": 1,
+      "reason": "Historical v0.2.39 suite expected a synthetic Current Issue Link event that Event Identity V2 intentionally forbids."
+    },
+    {
+      "sequence": 10,
+      "command": "npm.cmd run test:unit",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 28.6,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "Active aggregate uses v0.2.41 policy-specific correctness tests. Historical v0.2.39/v0.2.40 commands remain available separately."
+    },
+    {
+      "sequence": 11,
+      "command": "npm.cmd run build",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 30.6,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 12,
+      "command": "npm.cmd run test:ui",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 87.2,
+      "status": "failed",
+      "exitCode": 1,
+      "reason": "Synthetic packaged database smoke fixture lacked V3 Issue Links Coverage evidence."
+    },
+    {
+      "sequence": 13,
+      "command": "npm.cmd run typecheck",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 7.9,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 14,
+      "command": "npm.cmd run test:ui",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 79.1,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "Electron app-only UI smoke passed: 9 routes x 5 viewports; screenshots disabled."
+    },
+    {
+      "sequence": 15,
+      "command": "npm.cmd run dist",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 78.6,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 16,
+      "command": "Artifact metadata, tool versions, git diff --check, changed-file credential scan",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 1.4,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 17,
+      "command": "Initial ReportLab PDF generation",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 1.0,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 18,
+      "command": "PDF extraction plus pdftoppm wrapper render",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 1.1,
+      "status": "failed",
+      "exitCode": 1,
+      "reason": "Bundled pdftoppm.cmd wrapper could not resolve its internal path."
+    },
+    {
+      "sequence": 19,
+      "command": "Native Poppler pdftoppm render",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 2.2,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 20,
+      "command": "Reproducible PDF regeneration and first/last page render",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 1.9,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "Visual inspection confirmed no clipping, overlap, broken glyphs, or unreadable tables."
+    },
+    {
+      "sequence": 21,
+      "command": "Temporary PDF render cleanup",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 0.9,
+      "status": "failed",
+      "exitCode": 0,
+      "reason": "Primary render folder was removed, but the empty-parent conditional had invalid PowerShell syntax."
+    },
+    {
+      "sequence": 22,
+      "command": "Empty temporary parent cleanup retry",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 0.7,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 23,
+      "command": "git diff --check and delivery file inventory",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 1.1,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 24,
+      "command": "git add explicit v0.2.41 delivery files",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 0.8,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 25,
+      "command": "git diff --cached --check, staged inventory, and staged credential scan",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 1.0,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 26,
+      "command": "git commit -m \"fix: add stable hash v3 and event identity v2\"",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 0.6,
+      "status": "passed",
+      "exitCode": 0,
+      "result": "aa3fc8a20c79cf9b8549c66513a5dd73c36f0d5c"
+    },
+    {
+      "sequence": 27,
+      "command": "git push -u origin feat/v0.2.41-stable-hash-v3-coverage-event-identity-v2",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 3.8,
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "sequence": 28,
+      "command": "Post-push HEAD, status, and ahead/behind check",
+      "startedAt": null,
+      "endedAt": null,
+      "durationSeconds": 1.1,
+      "status": "passed",
+      "exitCode": 0,
+      "result": "Primary commit synchronized at 0/0."
+    }
+  ],
+  "totals": {
+    "successfulCommandSeconds": 273.1,
+    "failedCommandSeconds": 155.6,
+    "retriedCommandSeconds": 152.8,
+    "cumulativeCommandSeconds": 428.7,
+    "accountedPhaseSeconds": 1589.309,
+    "unaccountedSeconds": 1160.609,
+    "unaccountedExplanation": "Prompt reading, code inspection, reasoning, manual edits, tool orchestration, user updates, image inspection, and short inventory commands not individually timed by the tool."
+  },
+  "reconciliation": {
+    "status": "balanced",
+    "phaseFormula": "1589.309 wallClockSeconds = 1298.574 + 185.681 + 105.054 accounted phase seconds",
+    "commandFormula": "1589.309 wallClockSeconds = 428.700 cumulative command seconds + 1160.609 unaccounted analysis/editing/tool time"
+  },
+  "git": {
+    "branch": "feat/v0.2.41-stable-hash-v3-coverage-event-identity-v2",
+    "primaryCommit": "aa3fc8a20c79cf9b8549c66513a5dd73c36f0d5c",
+    "primaryPush": "passed",
+    "primaryAheadBehind": "0/0",
+    "ledgerFollowUpCommit": "Recorded in final handoff because a commit cannot contain its own SHA."
+  }
+}
