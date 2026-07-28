@@ -2995,7 +2995,7 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
     timelineEventListUiState: path.join(outputDir, "timeline-event-list-ui-state.json"),
     selectIssuesUiState: path.join(outputDir, "select-issues-ui-state.json")
   };
-  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: "0.2.40", ...latestUserAnalysisWorkflow });
+  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: "0.2.41", ...latestUserAnalysisWorkflow });
   writeJsonAtomic(files.timelineIssueGroups, timelineIssueGroups);
   writeJsonAtomic(files.timelineSelectedIssues, { selectedIssueKeys: timelineSelectedIssues, count: timelineSelectedIssues.length });
   writeJsonAtomic(files.fetchQueue, fetchQueue);
@@ -3852,9 +3852,9 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const debugBundleSummaryBody = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
   writeBundleJson(folderPath, "debug-bundle-summary.json", { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), activityStreamStabilityProbe: latestActivityStreamStabilityProbeV2 ? { available: true, authoritativeVersion: "v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, windowCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability } : latestActivityStreamStabilityProbe ? { available: true, authoritativeVersion: "legacy_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId } : { available: false, authoritativeVersion: "none", probeRunId: "" } });
   const summaryWithV1 = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.40", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.41", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
   const summaryWithStaging = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.40" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.41" } });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -4988,7 +4988,7 @@ async function runUiSmoke(window: BrowserWindow) {
   if (databaseSmokeWrite.status !== "completed" || databaseSmokeWrite.summary.newIssues !== 1
     || databaseSmokeWrite.summary.payloadsCreated !== 1 || !databaseSmokeWrite.readbackVerified
     || databaseSmokeWrite.foreignKeyCheck !== "ok") {
-    failures.push(`v0.2.40 packaged Current-State database write smoke failed ${JSON.stringify(databaseSmokeWrite)}`);
+    failures.push(`v0.2.41 packaged Current-State database write smoke failed ${JSON.stringify(databaseSmokeWrite)}`);
   }
   const changedSmokePayload = {
     issue: {
@@ -4998,7 +4998,8 @@ async function runUiSmoke(window: BrowserWindow) {
         summary: "Packaged database write fixture",
         created: "2026-07-26T01:00:00.000Z",
         updated: "2026-07-27T02:00:00.000Z",
-        status: { id: "5", name: "Resolved" }
+        status: { id: "5", name: "Resolved" },
+        issuelinks: []
       }
     },
     changelog: [{
@@ -5027,7 +5028,17 @@ async function runUiSmoke(window: BrowserWindow) {
     remoteLinks: "Disabled" as const,
     parentSubtasks: "CompleteEmpty" as const,
     relatedIssues: "Disabled" as const,
-    conservationPassed: true
+    conservationPassed: true,
+    evidence: {
+      coreFields: { status: "CompleteNonEmpty" as const, itemCount: 1, source: "issue.fields", requestCompleted: true, validationResult: "passed" as const, reasonCode: "CORE_FIELDS_COMPLETE" },
+      changelog: { status: "CompleteNonEmpty" as const, itemCount: 1, source: "changelog", requestCompleted: true, validationResult: "passed" as const, reasonCode: "CHANGELOG_COMPLETE" },
+      comments: { status: "CompleteNonEmpty" as const, itemCount: 2, source: "comments", requestCompleted: true, validationResult: "passed" as const, reasonCode: "COMMENTS_COMPLETE" },
+      attachmentsMetadata: { status: "CompleteEmpty" as const, itemCount: 0, source: "issue.fields.attachment", requestCompleted: true, validationResult: "passed" as const, reasonCode: "ATTACHMENTS_COMPLETE" },
+      issueLinks: { status: "CompleteEmpty" as const, itemCount: 0, source: "issue.fields.issuelinks", requestCompleted: true, validationResult: "passed" as const, reasonCode: "ISSUE_LINKS_FIELD_COMPLETE" },
+      remoteLinks: { status: "Disabled" as const, itemCount: 0, source: "remoteLinks", requestCompleted: false, validationResult: "not_applicable" as const, reasonCode: "REMOTE_LINKS_DISABLED" },
+      parentSubtasks: { status: "CompleteEmpty" as const, itemCount: 0, source: "issue.fields.parent/subtasks", requestCompleted: true, validationResult: "passed" as const, reasonCode: "PARENT_SUBTASKS_COMPLETE" },
+      relatedIssues: { status: "Disabled" as const, itemCount: 0, source: "relatedIssuesDiscovery", requestCompleted: false, validationResult: "not_applicable" as const, reasonCode: "RELATED_ISSUES_DISABLED" }
+    }
   };
   const changedSmokeWrite = writeCurrentStateBatch({
     operationId: `ui-smoke-dbwrite-changed-${Date.now()}`,
@@ -5057,7 +5068,7 @@ async function runUiSmoke(window: BrowserWindow) {
     || duplicateSmokeWrite.outcomes[0]?.outcome !== "existing"
     || duplicateSmokeWrite.summary.updatedIssues !== 0
     || duplicateSmokeWrite.summary.activityEventsInserted !== 0) {
-    failures.push(`v0.2.40 packaged current-state smoke failed ${JSON.stringify({ changedSmokeWrite, duplicateSmokeWrite })}`);
+    failures.push(`v0.2.41 packaged current-state smoke failed ${JSON.stringify({ changedSmokeWrite, duplicateSmokeWrite })}`);
   }
   await window.webContents.executeJavaScript(`window.desktopApp?.userAnalysis?.exportSourceArchive?.({ selectedUser: "roger_hsieh", rawData: { rawIssueResponsesSanitized: [{ issueKey: "SMOKE-101", json: { id: "101", key: "SMOKE-101", fields: { updated: "2026-07-02T09:00:00.000Z", summary: "Source archive smoke fixture" } } }] } });`);
   await wait(180);

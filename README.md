@@ -1,6 +1,17 @@
 # Jira Activity Analyzer
 
-> v0.2.40 adds a new Current-State archive database with Stable Hash V2, authoritative Coverage gates, atomic per-Issue replacement, and read-only legacy detection. See [docs/v0.2.40-current-state-archive.md](docs/v0.2.40-current-state-archive.md).
+> v0.2.41 adds Stable Hash V3, evidence-backed Coverage, Current Observed Metrics, and Jira-native Event Identity V2. It creates a new writable database generation and keeps v0.2.39/v0.2.40 databases read-only. See [docs/v0.2.41-stable-hash-coverage-events.md](docs/v0.2.41-stable-hash-coverage-events.md).
+
+## v0.2.41 Correctness Model
+
+- A database freezes one canonical Stable Hash V3 policy and one Event Identity V2 policy, each protected by a deterministic SHA-256 fingerprint.
+- Volatile calculated fields are resolved from Jira `names` metadata to exact Field IDs. Missing or ambiguous names remain in Stable Hash and produce safe warnings.
+- Stable-equal saves update check counters, Current Observed Metrics, and event deduplication without rewriting the Snapshot or compressed Payload.
+- Issue Links Coverage is proven from `issue.fields.issuelinks`; Remote Links and Related Issues Discovery remain independent dimensions.
+- Comment Created identity is the Jira Comment ID. Comment Updated identity adds Jira's normalized update timestamp.
+- Issue Link events are created only from Jira changelog history items, never by enumerating the current links snapshot.
+- Current Observed Metrics distinguish missing, explicit null, and typed values. They keep only the latest observation and no history.
+- Formal writes remain local SQLite writes in Stage 5. Jira access remains read-only.
 
 ## v0.2.40 Current-State Archive
 

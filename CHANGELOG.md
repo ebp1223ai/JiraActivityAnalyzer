@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.41 - Stable Hash V3, Coverage Correctness, and Event Identity V2
+
+- Added one frozen, canonical Stable Hash V3 policy per new database, including deterministic fingerprints and exact Jira Field ID resolution for volatile calculated fields.
+- Added Current Observed Metrics so authoritative volatile values can advance without creating a content revision or rewriting a stable-equal payload.
+- Added evidence-backed Coverage dimensions and corrected Issue Links coverage to follow `issue.fields.issuelinks` independently from Related Issues discovery.
+- Added Jira-native Event Identity V2 for comments and changelog items; current Issue Link snapshots no longer synthesize repeated events.
+- Added Current-State schema v2 for v0.2.41 databases. v0.2.39 and v0.2.40 databases remain read-only and are never migrated in place.
+- Expanded Stage 5 bilingual diagnostics and added focused stable-hash, coverage, metrics, event-identity, integrity, and rollback tests.
+
 ## 0.2.40 - Current-State Archive and Stable Dedup V2
 
 - Added a separate Current-State SQLite schema with one authoritative Snapshot, Payload, and Sync State per Issue.

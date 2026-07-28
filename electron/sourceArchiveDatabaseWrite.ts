@@ -12,8 +12,8 @@ import {
   type CurrentStateCandidate
 } from "./currentStateArchive.js";
 import type { StagingRun, StagingTarget } from "./fullFetchStaging.js";
-import { buildStableIssueContentV2 } from "./stableIssueContentV2.js";
-import type { CoverageProfile, CoverageState } from "./coverageProfile.js";
+import { buildStableIssueContentV3, resolveEffectiveStableHashPolicyV3 } from "./stableIssueContentV3.js";
+import type { CoverageEvidence, CoverageProfile, CoverageState } from "./coverageProfile.js";
 
 export type JiraSourceProvenance = {
   sourceSystem: "jira";
@@ -81,11 +81,16 @@ function readCanonical(run: StagingRun, target: StagingTarget, key: string, ndjs
 
 function loadIssuePayload(run: StagingRun, target: StagingTarget) {
   const current = record(readCanonical(run, target, "currentIssueSnapshot"));
+  const issueLinks = readCanonical(run, target, "issueLinks");
+  const fields = { ...record(current.fields) };
+  if (!Object.prototype.hasOwnProperty.call(fields, "issuelinks") && Array.isArray(issueLinks)) {
+    fields.issuelinks = issueLinks;
+  }
   const issue = {
     id: current.id ?? null,
     key: current.key ?? target.objectKey,
     self: current.self ?? null,
-    fields: record(current.fields),
+    fields,
     renderedFields: record(current.renderedFields),
     names: record(current.names),
     schema: record(current.schema)
@@ -100,7 +105,7 @@ function loadIssuePayload(run: StagingRun, target: StagingTarget) {
     comments: readCanonical(run, target, "comments", true),
     attachments: readCanonical(run, target, "attachments"),
     users: readCanonical(run, target, "users"),
-    issueLinks: readCanonical(run, target, "issueLinks"),
+    issueLinks,
     remoteLinks: readCanonical(run, target, "remoteLinks"),
     evidence: readCanonical(run, target, "evidence", true),
     normalizedCurrentFields: readCanonical(run, target, "normalizedCurrentFields")
@@ -117,22 +122,82 @@ function coverageState(target: StagingTarget, names: string[], disabled = false)
   return Number(entry.recordCount) > 0 ? "CompleteNonEmpty" : "CompleteEmpty";
 }
 
+function coverageEvidence(
+  target: StagingTarget,
+  names: string[],
+  source: string,
+  disabled = false
+): CoverageEvidence {
+  const status = coverageState(target, names, disabled);
+  const entry = target.coverage.find((item) => names.some((name) => item.category.toLowerCase().includes(name)));
+  return {
+    status,
+    itemCount: disabled ? 0 : Number(entry?.recordCount ?? 0),
+    source,
+    requestCompleted: status === "CompleteEmpty" || status === "CompleteNonEmpty",
+    validationResult: status === "Disabled" || status === "Skipped" ? "not_applicable"
+      : status === "CompleteEmpty" || status === "CompleteNonEmpty" ? "passed" : "failed",
+    reasonCode: disabled ? `${source.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_DISABLED`
+      : entry?.status === "complete" ? `${source.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_COMPLETE`
+        : `${source.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_${status.toUpperCase()}`
+  };
+}
+
 function targetCoverage(run: StagingRun, target: StagingTarget): CoverageProfile {
   const remoteLinksEnabled = Boolean(run.state.runContext.fetchRemoteLinks);
-  return {
+  const issueLinksValue = target.status === "eligible" ? readCanonical(run, target, "issueLinks") : null;
+  const issueLinksValid = Array.isArray(issueLinksValue);
+  const issueLinksState: CoverageState = !issueLinksValid
+    ? "Partial"
+    : issueLinksValue.length > 0 ? "CompleteNonEmpty" : "CompleteEmpty";
+  const profile: CoverageProfile = {
     fetchProfileVersion: 1,
     coreFields: target.status === "eligible" ? "CompleteNonEmpty" : "Partial",
     changelog: coverageState(target, ["changelog", "history"]),
     comments: coverageState(target, ["comment"]),
     attachmentsMetadata: coverageState(target, ["attachment"]),
-    issueLinks: coverageState(target, ["issue link", "issuelink"]),
+    issueLinks: issueLinksState,
     remoteLinks: coverageState(target, ["remote link", "remotelink"], !remoteLinksEnabled),
     parentSubtasks: coverageState(target, ["parent", "subtask"]),
     relatedIssues: run.state.runContext.relatedIssuesStatus === "skipped"
-      ? "Disabled"
+      ? "Skipped"
       : coverageState(target, ["related"]),
     conservationPassed: target.status === "eligible" && target.partialReasons.length === 0
   };
+  profile.evidence = {
+    coreFields: {
+      status: profile.coreFields,
+      itemCount: profile.coreFields === "CompleteNonEmpty" ? 1 : 0,
+      source: "issue.fields",
+      requestCompleted: target.status === "eligible",
+      validationResult: target.status === "eligible" ? "passed" : "failed",
+      reasonCode: target.status === "eligible" ? "CORE_FIELDS_COMPLETE" : "CORE_FIELDS_INCOMPLETE"
+    },
+    changelog: coverageEvidence(target, ["changelog", "history"], "changelog"),
+    comments: coverageEvidence(target, ["comment"], "comments"),
+    attachmentsMetadata: coverageEvidence(target, ["attachment"], "issue.fields.attachment"),
+    issueLinks: {
+      status: issueLinksState,
+      itemCount: issueLinksValid ? issueLinksValue.length : 0,
+      source: "issue.fields.issuelinks",
+      requestCompleted: issueLinksValid,
+      validationResult: issueLinksValid ? "passed" : "failed",
+      reasonCode: issueLinksValid ? "ISSUE_LINKS_FIELD_COMPLETE" : "ISSUE_LINKS_FIELD_INVALID"
+    },
+    remoteLinks: coverageEvidence(target, ["remote link", "remotelink"], "remoteLinks", !remoteLinksEnabled),
+    parentSubtasks: coverageEvidence(target, ["parent", "subtask"], "issue.fields.parent/subtasks"),
+    relatedIssues: run.state.runContext.relatedIssuesStatus === "skipped"
+      ? {
+          status: "Skipped",
+          itemCount: 0,
+          source: "relatedIssuesDiscovery",
+          requestCompleted: false,
+          validationResult: "not_applicable",
+          reasonCode: "RELATED_ISSUES_DISCOVERY_SKIPPED"
+        }
+      : coverageEvidence(target, ["related"], "relatedIssuesDiscovery")
+  };
+  return profile;
 }
 
 export function buildSourceVersionProjectionDiagnostics(
@@ -146,7 +211,10 @@ export function buildSourceVersionProjectionDiagnostics(
   return run.index.targets
     .filter((target) => target.status === "eligible")
     .map((target) => {
-      const projection = buildStableIssueContentV2(loadIssuePayload(run, target), targetCoverage(run, target), serverIdentity);
+      const payload = loadIssuePayload(run, target);
+      const issue = record(record(payload).issue);
+      const resolvedPolicy = resolveEffectiveStableHashPolicyV3(issue.names, issue.schema);
+      const projection = buildStableIssueContentV3(payload, targetCoverage(run, target), resolvedPolicy.policy, serverIdentity);
       const outcome = outcomes.get(target.objectKey.toUpperCase()) ?? {};
       return {
         issueKey: target.objectKey,
@@ -277,7 +345,7 @@ export function writeFullFetchStagingToCurrentDatabase(input: DatabaseWriteInput
   if (diagnosticFilePath) {
     fs.mkdirSync(path.dirname(diagnosticFilePath), { recursive: true });
     fs.writeFileSync(diagnosticFilePath, `${JSON.stringify({
-      schemaVersion: "current_state_save_diagnostics_v1",
+      schemaVersion: "current_state_save_diagnostics_v2",
       createdAt: new Date().toISOString(),
       operationId,
       runId: input.run.state.fullFetchRunId,
@@ -285,7 +353,10 @@ export function writeFullFetchStagingToCurrentDatabase(input: DatabaseWriteInput
       reasonCode: result.reasonCode,
       databasePath: result.targetDatabase,
       storageModel: result.storageModel ?? "Current-State V1",
-      stableHashPolicy: result.stableHashPolicy ?? "V2",
+      stableHashPolicy: result.stableHashPolicy ?? "V3",
+      stablePolicyFingerprint: result.stablePolicyFingerprint ?? "",
+      eventIdentityPolicy: result.eventIdentityPolicy ?? "V2",
+      eventPolicyFingerprint: result.eventPolicyFingerprint ?? "",
       summary: result.summary,
       issues: result.outcomes,
       security: {

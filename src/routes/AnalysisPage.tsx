@@ -2632,6 +2632,7 @@ export function AnalysisPage() {
             {userAnalysis.lastDatabaseWriteResult ? (() => {
               const write = userAnalysis.lastDatabaseWriteResult;
               const summary = (write.summary ?? {}) as Record<string, unknown>;
+              const outcomes = Array.isArray(write.outcomes) ? write.outcomes as Array<Record<string, unknown>> : [];
               const success = write.status === "completed";
               const partial = write.status === "completed_with_errors";
               return <div className={`rounded-lg border p-4 ${success ? "border-emerald-200 bg-emerald-50" : partial ? "border-amber-200 bg-amber-50" : "border-red-200 bg-red-50"}`} data-testid="stage5-database-write-result">
@@ -2662,19 +2663,55 @@ export function AnalysisPage() {
                   <MiniStat label="Coverage Incomparable Blocked / Coverage 不可比較已阻擋" value={String(summary.coverageIncomparableBlocked ?? 0)} />
                   <MiniStat label="Partial/Failed Excluded / Partial/Failed 已排除" value={String(Number(summary.excludedPartial ?? 0) + Number(summary.excludedFailed ?? 0))} />
                   <MiniStat label="Database Write Failures / 資料庫寫入失敗" value={String(summary.writeFailed ?? 0)} />
-                  <MiniStat label="Stable Hash Policy / 穩定雜湊規則" value={String(write.stableHashPolicy ?? summary.stableHashPolicy ?? "V2")} />
+                  <MiniStat label="Stable Hash Policy / 穩定雜湊規則" value={String(write.stableHashPolicy ?? summary.stableHashPolicy ?? "V3")} />
+                  <MiniStat label="Event Identity Policy / 事件識別規則" value={String(write.eventIdentityPolicy ?? summary.eventIdentityPolicy ?? "V2")} />
                   <MiniStat label="Storage Model / 儲存模型" value={String(write.storageModel ?? summary.storageModel ?? "Current-State V1")} />
+                  <MiniStat label="Stable Policy Fingerprint / 穩定規則指紋" value={String(write.stablePolicyFingerprint ?? "-").slice(0, 16)} />
+                  <MiniStat label="Event Policy Fingerprint / 事件規則指紋" value={String(write.eventPolicyFingerprint ?? "-").slice(0, 16)} />
                 </div>
+                {outcomes.length ? <div className="mt-3 min-w-0 overflow-x-auto rounded-md border border-white/80 bg-white" data-testid="stage5-v0241-diagnostics">
+                  <table className="w-full min-w-[860px] text-left text-xs">
+                    <thead className="bg-slate-50 text-muted">
+                      <tr>
+                        <th className="px-3 py-2">Issue / 問題</th>
+                        <th className="px-3 py-2">Outcome / 結果</th>
+                        <th className="px-3 py-2">Reason / 原因</th>
+                        <th className="px-3 py-2">Coverage</th>
+                        <th className="px-3 py-2">Payload</th>
+                        <th className="px-3 py-2">Metrics I/U/=/B</th>
+                        <th className="px-3 py-2">Events New/Existing</th>
+                        <th className="px-3 py-2">Diffs M/I/V/P</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {outcomes.map((outcome, index) => {
+                        const metrics = (outcome.observedMetrics ?? {}) as Record<string, unknown>;
+                        return <tr className="border-t border-line" key={`${String(outcome.objectKey ?? "issue")}-${index}`}>
+                          <td className="px-3 py-2 font-black">{String(outcome.objectKey ?? "-")}</td>
+                          <td className="px-3 py-2">{String(outcome.outcome ?? "-")}</td>
+                          <td className="px-3 py-2">{String(outcome.reasonCode ?? "-")}</td>
+                          <td className="px-3 py-2">{String(outcome.coverageComparison ?? "-")}</td>
+                          <td className="px-3 py-2">{String(outcome.payloadDecision ?? "-")}</td>
+                          <td className="px-3 py-2">{`${String(metrics.inserted ?? 0)}/${String(metrics.updated ?? 0)}/${String(metrics.unchanged ?? 0)}/${String(metrics.blocked ?? 0)}`}</td>
+                          <td className="px-3 py-2">{`${String(outcome.activityEventsInserted ?? 0)}/${String(outcome.activityEventsExisting ?? 0)}`}</td>
+                          <td className="px-3 py-2">{`${Array.isArray(outcome.meaningfulChangedPaths) ? outcome.meaningfulChangedPaths.length : 0}/${Array.isArray(outcome.ignoredRawDifferencePaths) ? outcome.ignoredRawDifferencePaths.length : 0}/${Array.isArray(outcome.volatileMetricDiffs) ? outcome.volatileMetricDiffs.length : 0}/${Array.isArray(outcome.policyDiffs) ? outcome.policyDiffs.length : 0}`}</td>
+                        </tr>;
+                      })}
+                    </tbody>
+                  </table>
+                </div> : null}
                 <div className="mt-3 text-xs font-black uppercase text-muted">Activity Events / 活動事件</div>
                 <div className="mt-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(145px,1fr))] gap-3">
                   <MiniStat label="Events Inserted" value={String(summary.activityEventsInserted ?? 0)} />
                   <MiniStat label="Events Existing" value={String(summary.activityEventsExisting ?? 0)} />
+                  <MiniStat label="Metrics Inserted / 指標新增" value={String(summary.observedMetricsInserted ?? 0)} />
+                  <MiniStat label="Metrics Updated / 指標更新" value={String(summary.observedMetricsUpdated ?? 0)} />
                   <MiniStat label="Readback" value={write.readbackVerified === true ? "Passed" : "Not passed"} />
                   <MiniStat label="Foreign Keys" value={String(write.foreignKeyCheck ?? "not_run")} />
                 </div>
                 <p className="mt-3 text-xs font-semibold leading-relaxed text-muted">
-                  Existing Issues update successful-check metadata and Activity Event deduplication only; Snapshot and large Payload data are not rewritten.
-                  <br />既有 Issue 僅更新成功檢查資訊並執行 Activity Event 去重，不會重寫 Snapshot 或大型 Payload。
+                  Existing Issues update successful-check metadata, Current Observed Metrics, and Activity Event deduplication; Snapshot and large Payload data are not rewritten.
+                  <br />既有 Issue 會更新成功檢查資訊、最新觀測指標並執行 Activity Event 去重，不會重寫 Snapshot 或大型 Payload。
                 </p>
                 {write.diagnosticFilePath ? <div className="mt-3 min-w-0 rounded-md border border-white/80 bg-white p-3">
                   <div className="text-xs font-black text-muted">Save Diagnostics / 儲存診斷</div>

@@ -1,5 +1,28 @@
 import crypto from "node:crypto";
-import { stableCanonicalJson } from "./stableSourceProjection.js";
+import { canonicalJsonV3 } from "./stableIssueContentV3.js";
+
+export const EVENT_IDENTITY_POLICY_VERSION = 2;
+
+export const EFFECTIVE_EVENT_IDENTITY_POLICY_V2 = {
+  policyVersion: EVENT_IDENTITY_POLICY_VERSION,
+  canonicalJsonVersion: 1,
+  identities: {
+    issueCreated: "issue_created:<jiraIssueId>",
+    commentCreated: "comment_created:<commentId>",
+    commentUpdated: "comment_updated:<commentId>:<normalizedUpdatedTimestamp>",
+    changelog: "jira_changelog:<historyId>:<itemIndex>:<normalizedFieldIdentity>",
+    attachmentAdded: "attachment_added:<attachmentId>"
+  },
+  rejectionBehavior: "skip_missing_jira_native_identity",
+  timestampNormalization: "ISO-8601",
+  hashAlgorithm: "SHA-256",
+  byteEncoding: "UTF-8"
+} as const;
+
+export const EVENT_IDENTITY_POLICY_JSON = canonicalJsonV3(EFFECTIVE_EVENT_IDENTITY_POLICY_V2);
+export const EVENT_IDENTITY_POLICY_FINGERPRINT = crypto.createHash("sha256")
+  .update(EVENT_IDENTITY_POLICY_JSON, "utf8")
+  .digest("hex");
 
 export type ActivityEvent = {
   id: string;
@@ -13,21 +36,31 @@ export type ActivityEvent = {
   fromValueJson: string | null;
   toValueJson: string | null;
   sourceRecordId: string;
+  eventIdentityHash: string;
   eventHash: string;
+  identityKeyType: string;
+  jiraNativeSourceId: string;
+  sourceProvenance: "jira_issue" | "jira_changelog" | "jira_comment" | "jira_attachment";
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+export type ActivityEventExtraction = {
+  events: ActivityEvent[];
+  warnings: Array<{ code: string; source: string }>;
+};
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
 }
 
-function list(value: unknown) {
+function list(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
-  if (isRecord(value)) {
-    for (const key of ["items", "values", "comments", "attachments", "links"]) {
-      if (Array.isArray(value[key])) return value[key] as unknown[];
-    }
+  const source = record(value);
+  for (const key of ["items", "values", "comments", "attachments", "links"]) {
+    if (Array.isArray(source[key])) return source[key] as unknown[];
   }
-  return [] as unknown[];
+  return [];
 }
 
 function text(value: unknown) {
@@ -35,161 +68,182 @@ function text(value: unknown) {
 }
 
 function actor(value: unknown) {
-  const record = isRecord(value) ? value : {};
+  const source = record(value);
   return {
-    id: text(record.accountId ?? record.key ?? record.name) || null,
-    name: text(record.displayName ?? record.name ?? record.emailAddress) || null
+    id: text(source.accountId ?? source.key ?? source.name) || null,
+    name: text(source.displayName ?? source.name ?? source.emailAddress) || null
   };
 }
 
-function eventTime(value: unknown, fallback: unknown) {
-  const candidate = text(value || fallback);
-  const parsed = new Date(candidate);
-  return Number.isFinite(parsed.valueOf()) ? parsed.toISOString() : candidate;
+function normalizedTimestamp(value: unknown) {
+  const raw = text(value);
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  return Number.isFinite(parsed.valueOf()) ? parsed.toISOString() : "";
 }
 
-function fallbackId(kind: string, value: unknown) {
-  return `fallback:${kind}:${crypto.createHash("sha256").update(stableCanonicalJson(value)).digest("hex")}`;
+function hashIdentity(serverIdentity: string, issueKey: string, identity: string) {
+  return crypto.createHash("sha256")
+    .update(canonicalJsonV3({ serverIdentity, issueKey, identity }), "utf8")
+    .digest("hex");
 }
 
-function eventHash(serverIdentity: string, issueKey: string, event: Omit<ActivityEvent, "id" | "eventHash">) {
-  return crypto.createHash("sha256").update(stableCanonicalJson({
-    serverIdentity,
-    issueKey,
-    eventType: event.eventType,
-    sourceRecordId: event.sourceRecordId,
-    eventTime: event.eventTime,
-    actorAccountId: event.actorAccountId,
-    fieldId: event.fieldId,
-    fromValueJson: event.fromValueJson,
-    toValueJson: event.toValueJson
-  })).digest("hex");
+function event(
+  serverIdentity: string,
+  issueKey: string,
+  identity: string,
+  value: Omit<ActivityEvent, "id" | "eventIdentityHash" | "eventHash">
+): ActivityEvent {
+  const eventIdentityHash = hashIdentity(serverIdentity, issueKey, identity);
+  return { ...value, id: `event:${eventIdentityHash}`, eventIdentityHash, eventHash: eventIdentityHash };
 }
 
-function finish(serverIdentity: string, issueKey: string, event: Omit<ActivityEvent, "id" | "eventHash">): ActivityEvent {
-  const hash = eventHash(serverIdentity, issueKey, event);
-  return { ...event, id: `event:${hash}`, eventHash: hash };
+function changelogEventType(fieldIdentity: string): ActivityEvent["eventType"] {
+  if (fieldIdentity === "status") return "status_changed";
+  if (fieldIdentity === "assignee") return "assignee_changed";
+  if (["issuelinks", "issuelink", "link", "linked issues"].includes(fieldIdentity)) return "issue_link_changed";
+  return "field_changed";
 }
 
-export function extractActivityEvents(rawJson: unknown, serverIdentity: string, issueKey: string) {
-  if (!isRecord(rawJson)) throw new Error("ACTIVITY_EVENT_PARSE_FAILED:payload_not_object");
-  const issue = isRecord(rawJson.issue)
-    ? rawJson.issue
-    : isRecord(rawJson.fields) || rawJson.key ? rawJson : {};
-  const fields = isRecord(issue.fields) ? issue.fields : {};
+export function extractActivityEventsV2(rawJson: unknown, serverIdentity: string, issueKey: string): ActivityEventExtraction {
+  if (!rawJson || typeof rawJson !== "object" || Array.isArray(rawJson)) {
+    throw new Error("ACTIVITY_EVENT_PARSE_FAILED:payload_not_object");
+  }
+  const raw = record(rawJson);
+  const issue = Object.keys(record(raw.issue)).length ? record(raw.issue) : raw;
+  const fields = record(issue.fields);
   const events: ActivityEvent[] = [];
-  const issueActor = actor(fields.creator);
-  const created = text(fields.created);
-  if (created) {
-    events.push(finish(serverIdentity, issueKey, {
+  const warnings: ActivityEventExtraction["warnings"] = [];
+
+  const jiraIssueId = text(issue.id);
+  const issueCreatedAt = normalizedTimestamp(fields.created);
+  if (jiraIssueId && issueCreatedAt) {
+    const createdBy = actor(fields.creator);
+    events.push(event(serverIdentity, issueKey, `issue_created:${jiraIssueId}`, {
       eventType: "issue_created",
-      eventTime: eventTime(created, ""),
-      actorAccountId: issueActor.id,
-      actorDisplayName: issueActor.name,
+      eventTime: issueCreatedAt,
+      actorAccountId: createdBy.id,
+      actorDisplayName: createdBy.name,
       fieldId: null,
       fieldName: null,
       fromValueJson: null,
-      toValueJson: stableCanonicalJson({ key: issueKey }),
-      sourceRecordId: text(issue.id) || fallbackId("issue", { issueKey, created })
+      toValueJson: canonicalJsonV3({ key: issueKey }),
+      sourceRecordId: jiraIssueId,
+      identityKeyType: "jira_issue_id",
+      jiraNativeSourceId: jiraIssueId,
+      sourceProvenance: "jira_issue"
     }));
   }
 
-  for (const historyValue of list(rawJson.changelog ?? fields.changelog)) {
-    if (!isRecord(historyValue)) continue;
-    const historyActor = actor(historyValue.author);
-    const historyId = text(historyValue.id) || fallbackId("changelog", historyValue);
-    for (const itemValue of list(historyValue.items)) {
-      if (!isRecord(itemValue)) continue;
-      const fieldId = text(itemValue.fieldId ?? itemValue.field) || null;
-      const fieldName = text(itemValue.field) || fieldId;
-      const normalizedField = text(fieldId).toLowerCase();
-      const type = normalizedField === "status" ? "status_changed"
-        : normalizedField === "assignee" ? "assignee_changed"
-          : "field_changed";
-      const sourceRecordId = `${historyId}:${fieldId ?? fallbackId("field", itemValue)}`;
-      events.push(finish(serverIdentity, issueKey, {
-        eventType: type,
-        eventTime: eventTime(historyValue.created, fields.updated),
+  for (const historyValue of list(raw.changelog ?? fields.changelog)) {
+    const history = record(historyValue);
+    const historyId = text(history.id);
+    if (!historyId) {
+      warnings.push({ code: "CHANGELOG_HISTORY_ID_MISSING", source: "changelog" });
+      continue;
+    }
+    const historyTime = normalizedTimestamp(history.created);
+    const historyActor = actor(history.author);
+    list(history.items).forEach((itemValue, itemIndex) => {
+      const item = record(itemValue);
+      const fieldIdentity = text(item.fieldId ?? item.field).trim().toLocaleLowerCase("en-US");
+      if (!fieldIdentity) {
+        warnings.push({ code: "CHANGELOG_FIELD_IDENTITY_MISSING", source: historyId });
+        return;
+      }
+      const identity = `jira_changelog:${historyId}:${itemIndex}:${fieldIdentity}`;
+      events.push(event(serverIdentity, issueKey, identity, {
+        eventType: changelogEventType(fieldIdentity),
+        eventTime: historyTime,
         actorAccountId: historyActor.id,
         actorDisplayName: historyActor.name,
-        fieldId,
-        fieldName,
-        fromValueJson: stableCanonicalJson(itemValue.from ?? itemValue.fromString ?? null),
-        toValueJson: stableCanonicalJson(itemValue.to ?? itemValue.toString ?? null),
-        sourceRecordId
+        fieldId: text(item.fieldId) || null,
+        fieldName: text(item.field) || text(item.fieldId) || null,
+        fromValueJson: canonicalJsonV3(item.from ?? item.fromString ?? null),
+        toValueJson: canonicalJsonV3(item.to ?? item.toString ?? null),
+        sourceRecordId: `${historyId}:${itemIndex}`,
+        identityKeyType: "jira_changelog_history_item",
+        jiraNativeSourceId: historyId,
+        sourceProvenance: "jira_changelog"
       }));
-    }
+    });
   }
 
-  for (const commentValue of list(rawJson.comments ?? fields.comments)) {
-    if (!isRecord(commentValue)) continue;
-    const author = actor(commentValue.author ?? commentValue.updateAuthor);
-    const id = text(commentValue.id) || fallbackId("comment", commentValue);
-    const createdAt = eventTime(commentValue.created, fields.updated);
-    const updatedAt = eventTime(commentValue.updated, commentValue.created);
-    events.push(finish(serverIdentity, issueKey, {
-      eventType: "comment_created",
-      eventTime: createdAt,
-      actorAccountId: author.id,
-      actorDisplayName: author.name,
-      fieldId: null,
-      fieldName: null,
-      fromValueJson: null,
-      toValueJson: stableCanonicalJson(commentValue.body ?? null),
-      sourceRecordId: id
-    }));
-    if (updatedAt && createdAt && updatedAt !== createdAt) {
-      events.push(finish(serverIdentity, issueKey, {
-        eventType: "comment_updated",
-        eventTime: updatedAt,
-        actorAccountId: author.id,
-        actorDisplayName: author.name,
+  for (const commentValue of list(raw.comments ?? record(fields.comment).comments ?? fields.comments)) {
+    const comment = record(commentValue);
+    const commentId = text(comment.id);
+    if (!commentId) {
+      warnings.push({ code: "COMMENT_ID_MISSING", source: "comments" });
+      continue;
+    }
+    const createdAt = normalizedTimestamp(comment.created);
+    const updatedAt = normalizedTimestamp(comment.updated);
+    const commentAuthor = actor(comment.author ?? comment.updateAuthor);
+    if (createdAt) {
+      events.push(event(serverIdentity, issueKey, `comment_created:${commentId}`, {
+        eventType: "comment_created",
+        eventTime: createdAt,
+        actorAccountId: commentAuthor.id,
+        actorDisplayName: commentAuthor.name,
         fieldId: null,
         fieldName: null,
         fromValueJson: null,
-        toValueJson: stableCanonicalJson(commentValue.body ?? null),
-        sourceRecordId: `${id}:updated:${updatedAt}`
+        toValueJson: canonicalJsonV3({ provenance: "current_at_first_observation" }),
+        sourceRecordId: commentId,
+        identityKeyType: "jira_comment_id",
+        jiraNativeSourceId: commentId,
+        sourceProvenance: "jira_comment"
+      }));
+    }
+    if (createdAt && updatedAt && Date.parse(updatedAt) > Date.parse(createdAt)) {
+      events.push(event(serverIdentity, issueKey, `comment_updated:${commentId}:${updatedAt}`, {
+        eventType: "comment_updated",
+        eventTime: updatedAt,
+        actorAccountId: commentAuthor.id,
+        actorDisplayName: commentAuthor.name,
+        fieldId: null,
+        fieldName: null,
+        fromValueJson: null,
+        toValueJson: canonicalJsonV3({ provenance: "current_at_observation" }),
+        sourceRecordId: `${commentId}:${updatedAt}`,
+        identityKeyType: "jira_comment_id_updated_timestamp",
+        jiraNativeSourceId: commentId,
+        sourceProvenance: "jira_comment"
       }));
     }
   }
 
-  for (const attachmentValue of list(rawJson.attachments ?? fields.attachment ?? fields.attachments)) {
-    if (!isRecord(attachmentValue)) continue;
-    const author = actor(attachmentValue.author);
-    const id = text(attachmentValue.id) || fallbackId("attachment", attachmentValue);
-    events.push(finish(serverIdentity, issueKey, {
+  for (const attachmentValue of list(raw.attachments ?? fields.attachment)) {
+    const attachment = record(attachmentValue);
+    const attachmentId = text(attachment.id);
+    if (!attachmentId) {
+      warnings.push({ code: "ATTACHMENT_ID_MISSING", source: "attachments" });
+      continue;
+    }
+    events.push(event(serverIdentity, issueKey, `attachment_added:${attachmentId}`, {
       eventType: "attachment_added",
-      eventTime: eventTime(attachmentValue.created, fields.updated),
-      actorAccountId: author.id,
-      actorDisplayName: author.name,
+      eventTime: normalizedTimestamp(attachment.created),
+      actorAccountId: actor(attachment.author).id,
+      actorDisplayName: actor(attachment.author).name,
       fieldId: null,
       fieldName: null,
       fromValueJson: null,
-      toValueJson: stableCanonicalJson({
-        id: attachmentValue.id ?? null,
-        filename: attachmentValue.filename ?? null,
-        size: attachmentValue.size ?? null,
-        mimeType: attachmentValue.mimeType ?? null
+      toValueJson: canonicalJsonV3({
+        filename: attachment.filename ?? null,
+        mimeType: attachment.mimeType ?? null,
+        size: attachment.size ?? null
       }),
-      sourceRecordId: id
+      sourceRecordId: attachmentId,
+      identityKeyType: "jira_attachment_id",
+      jiraNativeSourceId: attachmentId,
+      sourceProvenance: "jira_attachment"
     }));
   }
 
-  for (const linkValue of list(rawJson.issueLinks ?? fields.issuelinks)) {
-    if (!isRecord(linkValue)) continue;
-    const id = text(linkValue.id) || fallbackId("issue-link", linkValue);
-    events.push(finish(serverIdentity, issueKey, {
-      eventType: "issue_link_changed",
-      eventTime: eventTime(linkValue.created ?? linkValue.updated, fields.updated),
-      actorAccountId: null,
-      actorDisplayName: null,
-      fieldId: "issuelinks",
-      fieldName: "Issue Links",
-      fromValueJson: null,
-      toValueJson: stableCanonicalJson(linkValue),
-      sourceRecordId: id
-    }));
-  }
-  return [...new Map(events.map((event) => [event.eventHash, event])).values()]
-    .sort((left, right) => left.eventTime.localeCompare(right.eventTime) || left.eventHash.localeCompare(right.eventHash));
+  return { events, warnings };
+}
+
+// Compatibility export for existing callers while V2 remains the only active policy.
+export function extractActivityEvents(rawJson: unknown, serverIdentity: string, issueKey: string) {
+  return extractActivityEventsV2(rawJson, serverIdentity, issueKey).events;
 }
