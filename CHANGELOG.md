@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.43 - Unified App Shell and Local Database Viewers
+
+- Reorganized the Electron renderer into one grouped navigation model for Jira Connection, Database Overview, Data Collection, Issue Viewer, User Viewer, Advanced Tools, and Settings while preserving legacy route redirects.
+- Replaced the fixed Debug Log column with a global overlay drawer, WARN+ERROR badge, level filters, search, auto-scroll, copy, export, clear, and an explicit empty state.
+- Added safe read-only IPC queries for Current-State SQLite Database Overview, Issue Viewer, and stable-ID User Viewer. Viewers never call Jira and the renderer cannot provide an arbitrary database path.
+- Reused the existing User Analysis workflow as Data Collection and retained its file-backed Full Fetch, queue, related-issue, export, Source Archive, and database-write gates.
+- Removed mock Dashboard and Settings operational data from active routes. Missing or unsupported local fields now render as empty, not found, or unavailable.
+- Kept Current-State schema version 2 without migration, recreation, or database merge.
+
 ## 0.2.42 - Stable Hash V4 and Build Traceability Repair
 
 - Added Stable Hash V4 with an exact Jira Field ID volatile-metric registry, including confirmed Actual Duration and Review Time mappings.

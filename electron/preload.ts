@@ -41,6 +41,14 @@ contextBridge.exposeInMainWorld("desktopApp", {
     selectExisting: (payload?: { filePath?: string }) => ipcRenderer.invoke("database:select-existing", payload),
     createNew: (payload?: { filePath?: string }) => ipcRenderer.invoke("database:create-new", payload)
   },
+  databaseViewer: {
+    overview: () => ipcRenderer.invoke("database-viewer:overview"),
+    healthCheck: () => ipcRenderer.invoke("database-viewer:health-check"),
+    listIssues: (payload?: unknown) => ipcRenderer.invoke("database-viewer:list-issues", payload),
+    getIssue: (payload: { issueKey: string }) => ipcRenderer.invoke("database-viewer:get-issue", payload),
+    listUsers: (payload?: unknown) => ipcRenderer.invoke("database-viewer:list-users", payload),
+    getUser: (payload: { userId: string; limit?: number; offset?: number }) => ipcRenderer.invoke("database-viewer:get-user", payload)
+  },
   jiraAnalysis: {
     load: (payload: unknown) => ipcRenderer.invoke("jira-analysis:load", payload),
     saveExport: (payload: { category: "jira-analysis" | "raw-data" | "debug-bundles"; defaultFileName: string; data: unknown }) => ipcRenderer.invoke("jira-analysis:save-export", payload)

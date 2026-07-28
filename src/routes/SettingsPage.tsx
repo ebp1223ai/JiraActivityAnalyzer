@@ -1,213 +1,108 @@
-import { useState } from "react";
-import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, Archive, Download, FileArchive, FolderOpen, RefreshCw, Shield, Trash2, Upload } from "lucide-react";
-import { buildInfo } from "../buildInfo";
-import { DataTable } from "../components/DataTable";
-import { FieldLabel, MockModal, Toggle } from "../components/FormControls";
+import { useMemo, useState } from "react";
+import { Download, Eye, FileText, RotateCcw, Save, Settings2 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { SectionCard } from "../components/SectionCard";
-import { StatusBadge } from "../components/StatusBadge";
-import { db } from "../data/mockData";
 
-function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="mb-4 min-w-0"><FieldLabel label={label} />{children}</div>;
-}
+type Category = "general" | "display" | "export" | "logs";
+type AppSettings = {
+  language: string; timeZone: string; rowsPerPage: string; density: string;
+  exportFormat: string; outputPath: string; debugLevel: string; retention: string;
+  performanceLog: boolean; autoScroll: boolean;
+};
 
-function ActionCard({
-  icon: Icon,
-  title,
-  description,
-  tone = "neutral",
-  onClick
-}: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  tone?: "primary" | "warning" | "danger" | "neutral";
-  onClick?: () => void;
-}) {
-  const styles = {
-    primary: "border-blue-200 bg-blue-50 text-blue-700",
-    warning: "border-amber-200 bg-amber-50 text-amber-700",
-    danger: "border-red-200 bg-red-50 text-red-700",
-    neutral: "border-line bg-white text-slate-700"
-  };
+const defaults: AppSettings = {
+  language: "zh-TW / English", timeZone: "Asia/Taipei (UTC+08:00)",
+  rowsPerPage: "25", density: "Comfortable", exportFormat: "JSON",
+  outputPath: "exports", debugLevel: "INFO", retention: "30",
+  performanceLog: true, autoScroll: true
+};
 
-  return (
-    <button
-      className={`min-h-[116px] min-w-0 max-w-full overflow-hidden rounded-lg border p-4 text-left transition hover:shadow-soft ${styles[tone]}`}
-      onClick={onClick}
-      type="button"
-    >
-      <div className="mb-3 flex min-w-0 items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/80">
-          <Icon size={20} />
-        </span>
-        <div className="min-w-0 truncate text-sm font-black leading-snug text-ink" title={title}>{title}</div>
-      </div>
-      <div className="max-w-full break-words text-xs font-semibold leading-relaxed text-muted" title={description}>{description}</div>
-    </button>
-  );
-}
-
-const backupRows = [
-  {
-    time: "2026/07/03 15:42:58",
-    type: "Auto",
-    file: "backup_20260703_154258_before_import.db",
-    size: "68.3 GB",
-    events: "1,248,356",
-    by: "System",
-    status: <StatusBadge>Valid</StatusBadge>,
-    desc: "Auto backup before import preview"
-  },
-  {
-    time: "2026/07/02 22:15:30",
-    type: "Manual",
-    file: "backup_20260702_221530_manual_restore_candidate.db",
-    size: "67.9 GB",
-    events: "1,246,112",
-    by: "Admin",
-    status: <StatusBadge tone="amber">Missing</StatusBadge>,
-    desc: "Referenced file is missing from backup folder"
-  },
-  {
-    time: "2026/06/30 09:01:12",
-    type: "Scheduled",
-    file: "backup_20260630_090112_weekly_snapshot.db",
-    size: "66.1 GB",
-    events: "1,219,884",
-    by: "System",
-    status: <StatusBadge tone="red">Corrupted</StatusBadge>,
-    desc: "Checksum mismatch detected during mock verification"
-  }
+const categories = [
+  { id: "general" as const, label: "一般 / General", icon: Settings2 },
+  { id: "display" as const, label: "顯示 / Display", icon: Eye },
+  { id: "export" as const, label: "匯出 / Export", icon: Download },
+  { id: "logs" as const, label: "日誌與診斷 / Logs & Diagnostics", icon: FileText }
 ];
 
+function loadSettings() {
+  try {
+    return { ...defaults, ...JSON.parse(localStorage.getItem("jaa-ui-settings-v1") ?? "{}") } as AppSettings;
+  } catch {
+    return defaults;
+  }
+}
+
+function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return <label className="grid min-w-0 grid-cols-1 gap-2 border-b border-line py-4 last:border-0 md:grid-cols-[240px_minmax(0,1fr)]"><span><span className="block text-sm font-black">{label}</span>{hint ? <span className="mt-1 block text-xs font-semibold leading-relaxed text-muted">{hint}</span> : null}</span><span>{children}</span></label>;
+}
+
 export function SettingsPage() {
-  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [category, setCategory] = useState<Category>("general");
+  const [settings, setSettings] = useState(loadSettings);
+  const [notice, setNotice] = useState("");
+  const currentLabel = useMemo(() => categories.find((item) => item.id === category)?.label ?? "", [category]);
+
+  function update<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
+    setSettings((current) => ({ ...current, [key]: value }));
+    setNotice("");
+  }
+
+  function save() {
+    try {
+      localStorage.setItem("jaa-ui-settings-v1", JSON.stringify(settings));
+      setNotice("設定已儲存 / Settings saved");
+    } catch (reason) {
+      setNotice(`儲存失敗 / Save failed: ${reason instanceof Error ? reason.message : String(reason)}`);
+    }
+  }
+
+  function restoreCurrent() {
+    const keys: Record<Category, Array<keyof AppSettings>> = {
+      general: ["language", "timeZone"],
+      display: ["rowsPerPage", "density"],
+      export: ["exportFormat", "outputPath"],
+      logs: ["debugLevel", "retention", "performanceLog", "autoScroll"]
+    };
+    setSettings((current) => Object.assign({}, current, Object.fromEntries(keys[category].map((key) => [key, defaults[key]]))));
+    setNotice(`${currentLabel} 已還原預設值，按 Save 後生效。`);
+  }
 
   return (
     <div className="min-w-0">
-      <PageHeader title="設定" subtitle="Settings" />
-      <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-4">
-        <SectionCard title="一般設定" subtitle="General Settings">
-          <SettingRow label="Application Name"><input className="field" defaultValue="Jira Analyzer" /></SettingRow>
-          <SettingRow label="Time Zone"><select className="field"><option>(UTC+08:00) Taipei</option></select></SettingRow>
-          <SettingRow label="Items per page"><select className="field"><option>25</option><option>50</option></select></SettingRow>
-          <div className="flex items-center justify-between gap-3 font-bold">Enable tips & guidance <Toggle /></div>
-        </SectionCard>
-        <SectionCard title="資料庫設定" subtitle="Database Settings">
-          <SettingRow label="Database Type"><div className="space-y-2 text-sm font-bold"><label><input type="radio" defaultChecked /> SQLite（預設）</label><br /><label><input type="radio" /> PostgreSQL（進階）</label></div></SettingRow>
-          <SettingRow label="Database Path (SQLite)"><input className="field" defaultValue="data/jira_analyzer.db" /></SettingRow>
-          <div className="flex flex-wrap gap-3"><button className="btn">Test Connection</button><button className="btn btn-primary">Save Changes</button></div>
-        </SectionCard>
-        <SectionCard title="安全性與權杖儲存" subtitle="Security & Token Storage">
-          <SettingRow label="Token Encryption"><select className="field"><option>AES-256（預設）</option></select></SettingRow>
-          <SettingRow label="Master Key"><input className="field" defaultValue="••••••••••••••" /></SettingRow>
-          <SettingRow label="Token Storage Location"><select className="field"><option>Local Database (Encrypted)</option></select></SettingRow>
-          <div className="flex items-center justify-between gap-3 font-bold">Enable token usage audit <Toggle /></div>
-        </SectionCard>
-        <SectionCard title="預設匯入選項" subtitle="Import Defaults">
-          <SettingRow label="Default Event Lookback"><select className="field"><option>Last 30 days</option></select></SettingRow>
-          <SettingRow label="Import Page Size"><select className="field"><option>500</option></select></SettingRow>
-          <div className="flex items-center justify-between gap-3 font-bold">Show summary after import <Toggle /></div>
-        </SectionCard>
-        <SectionCard title="匯出與報表" subtitle="Export & Reports">
-          <SettingRow label="Default Export Format"><select className="field"><option>CSV（預設）</option></select></SettingRow>
-          <SettingRow label="Default Field Set"><select className="field"><option>Standard（標準欄位）</option></select></SettingRow>
-          <div className="space-y-3 font-bold"><div className="flex justify-between gap-3">Include attachment stats <Toggle /></div><div className="flex justify-between gap-3">Warn on long export <Toggle /></div></div>
-          <SettingRow label="Reports Output Path"><input className="field" defaultValue="exports/reports" /></SettingRow>
-        </SectionCard>
-        <SectionCard title="除錯紀錄設定" subtitle="Debug Log Settings">
-          <SettingRow label="Log Level"><select className="field" defaultValue="DEBUG"><option>DEBUG</option><option>INFO</option><option>WARN</option><option>ERROR</option></select></SettingRow>
-          <SettingRow label="Log Retention (days)"><input className="field" defaultValue="30" /></SettingRow>
-          <div className="space-y-3 font-bold"><div className="flex justify-between gap-3">Enable performance logs <Toggle /></div><div className="flex justify-between gap-3">Auto-scroll debug panel <Toggle /></div></div>
-          <SettingRow label="Log File Path"><input className="field" defaultValue="logs/debug.log" /></SettingRow>
+      <PageHeader title="設定" subtitle="Settings" connected={false} />
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
+        <nav className="space-y-1 border-r-0 border-line xl:border-r xl:pr-4">
+          {categories.map(({ id, label, icon: Icon }) => <button key={id} className={`flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-black ${category === id ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"}`} type="button" onClick={() => setCategory(id)}><Icon size={18} />{label}</button>)}
+        </nav>
+        <SectionCard title={currentLabel}>
+          {category === "general" ? <>
+            <Row label="語言 / Language"><select className="field" value={settings.language} onChange={(event) => update("language", event.target.value)}><option>zh-TW / English</option></select></Row>
+            <Row label="時區 / Time Zone" hint="影響 UI 顯示，不改寫資料庫原始時間。"><select className="field" value={settings.timeZone} onChange={(event) => update("timeZone", event.target.value)}><option>Asia/Taipei (UTC+08:00)</option><option>UTC</option></select></Row>
+          </> : null}
+          {category === "display" ? <>
+            <Row label="每頁筆數 / Rows per Page"><select className="field" value={settings.rowsPerPage} onChange={(event) => update("rowsPerPage", event.target.value)}><option>25</option><option>50</option><option>100</option></select></Row>
+            <Row label="顯示密度 / Display Density"><select className="field" value={settings.density} onChange={(event) => update("density", event.target.value)}><option>Comfortable</option><option>Compact</option></select></Row>
+          </> : null}
+          {category === "export" ? <>
+            <Row label="預設格式 / Default Format"><select className="field" value={settings.exportFormat} onChange={(event) => update("exportFormat", event.target.value)}><option>JSON</option><option>CSV</option></select></Row>
+            <Row label="輸出路徑 / Output Path" hint="相對路徑位於 APP_ROOT；實際匯出仍使用既有安全主程序。"><input className="field" value={settings.outputPath} onChange={(event) => update("outputPath", event.target.value)} /></Row>
+          </> : null}
+          {category === "logs" ? <>
+            <Row label="除錯等級 / Debug Level"><select className="field" value={settings.debugLevel} onChange={(event) => update("debugLevel", event.target.value)}><option>DEBUG</option><option>INFO</option><option>WARN</option><option>ERROR</option></select></Row>
+            <Row label="保留天數 / Retention"><input className="field" type="number" min="1" max="365" value={settings.retention} onChange={(event) => update("retention", event.target.value)} /></Row>
+            <Row label="效能日誌 / Performance Log"><input type="checkbox" checked={settings.performanceLog} onChange={(event) => update("performanceLog", event.target.checked)} /></Row>
+            <Row label="自動捲動 / Auto Scroll"><input type="checkbox" checked={settings.autoScroll} onChange={(event) => update("autoScroll", event.target.checked)} /></Row>
+          </> : null}
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button className="btn btn-primary" type="button" onClick={save}><Save size={16} />儲存 / Save</button>
+            <button className="btn" type="button" onClick={restoreCurrent}><RotateCcw size={16} />還原目前分類 / Restore Current Category</button>
+            {notice ? <span className="text-sm font-bold text-blue-700">{notice}</span> : null}
+          </div>
+          <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs font-semibold leading-relaxed text-amber-900">
+            Full Fetch 的 1 calendar month、3 rounds、5 seconds 與 Force All Rounds 為資料正確性規則，不在 Settings 開放修改。
+          </div>
         </SectionCard>
       </div>
-
-      <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 2xl:grid-cols-[2fr_1fr]">
-        <SectionCard title="資料管理" subtitle="Data Management">
-          <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[0.8fr_1.2fr]">
-            <div className="min-w-0 rounded-lg border border-line bg-slate-50 p-4 text-sm font-semibold leading-8">
-              <b>Current Database</b><br />
-              Database Type: SQLite<br />
-              Database Events: 1,248,356<br />
-              Database Size: {db.size}<br />
-              Attachment Metadata: 279,463<br />
-              Last Import Time: 2026/07/03 15:43:21<br />
-              Last Backup Time: {db.lastBackup}
-            </div>
-            <div>
-              <div className="mb-3 min-w-0 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-snug text-amber-800">
-                <div className="mb-1 flex min-w-0 items-center gap-2 font-black"><AlertTriangle className="shrink-0" size={17} /><span className="truncate">Load Database safety notice</span></div>
-                Before loading a backup, the system will automatically back up the current database first. After loading, the selected backup becomes the active database.
-              </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                <ActionCard icon={Download} title="備份資料庫 / Backup Database" description="建立目前資料庫的安全備份。" tone="primary" />
-                <ActionCard icon={Upload} title="載入資料庫 / Load Database" description="選擇備份並切換成作用中資料庫。" tone="warning" onClick={() => setShowLoadModal(true)} />
-                <ActionCard icon={FolderOpen} title="備份紀錄 / Backup History" description="檢視備份檔案與驗證狀態。" />
-                <ActionCard icon={Shield} title="驗證備份 / Verify Backup" description="檢查備份是否完整可用。" />
-                <ActionCard icon={FileArchive} title="匯出備份 / Export Backup" description="匯出可攜式備份檔案。" />
-                <ActionCard icon={Trash2} title="刪除備份 / Delete Backup" description="刪除選取備份，這是危險操作。" tone="danger" />
-                <ActionCard icon={RefreshCw} title="執行診斷 / Run Diagnostics" description="產生本機健康檢查摘要。" />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <div className="mb-3 text-sm font-black text-ink">備份紀錄 / Backup History</div>
-            <DataTable
-              headers={["Backup Time", "Type", "File", "Size", "Events", "Created By", "Verify Status", "Description", "Actions"]}
-              rows={backupRows.map((row) => [
-                row.time,
-                row.type,
-                <span className="inline-block max-w-[260px] truncate align-bottom" title={row.file}>{row.file}</span>,
-                row.size,
-                row.events,
-                row.by,
-                row.status,
-                <span className="inline-block max-w-[260px] truncate align-bottom" title={row.desc}>{row.desc}</span>,
-                <div className="flex min-w-max gap-2"><button className="btn px-3 py-2">Details</button><button className="btn px-3 py-2">Download</button></div>
-              ])}
-            />
-          </div>
-        </SectionCard>
-
-        <SectionCard title="系統狀態" subtitle="System Status">
-          <div className="divide-y divide-line rounded-lg border border-line text-sm font-semibold">
-            {["Jira Cloud Connection|Connected", "Database Connection|Connected", "Last Import Status|Success", "Pending Jobs|0", "System Uptime|2d 14h 23m", `Application Version|${buildInfo.version}`, `Build Time|${buildInfo.buildTime}`, `Git Commit|${buildInfo.gitCommit}`, `Git Branch|${buildInfo.gitBranch}`].map((row) => {
-              const [a, b] = row.split("|");
-              return <div key={a} className="flex min-w-0 justify-between gap-3 p-3"><span className="truncate" title={a}>{a}</span><span className="shrink-0 text-right font-black text-green-600" title={b}>{b}</span></div>;
-            })}
-          </div>
-          <button className="btn mx-auto mt-6"><RefreshCw size={16} />重新整理 / Refresh</button>
-        </SectionCard>
-      </div>
-
-      {showLoadModal ? (
-        <MockModal
-          title="載入資料庫 / Load Database"
-          onClose={() => setShowLoadModal(false)}
-          footer={
-            <>
-              <button className="btn" onClick={() => setShowLoadModal(false)}>Cancel / 取消</button>
-              <button className="btn btn-primary opacity-60" disabled>Confirm Load / 確認載入</button>
-            </>
-          }
-        >
-          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800">
-            Before loading a backup, the system will automatically back up the current database first. After loading, the selected backup becomes the active database.
-          </p>
-          <div className="space-y-2">
-            <div className="flex min-w-0 justify-between gap-3 rounded-md bg-slate-50 px-3 py-2"><span className="shrink-0">Selected Backup / 選取備份</span><b className="min-w-0 truncate text-right" title="backup_20260703_154258_before_import.db">backup_20260703_154258_before_import.db</b></div>
-            <div className="flex min-w-0 justify-between gap-3 rounded-md bg-slate-50 px-3 py-2"><span className="shrink-0">Current Database / 目前資料庫</span><b className="min-w-0 truncate text-right" title={`${db.name} / ${db.id}`}>{db.name} / {db.id}</b></div>
-            <div className="flex min-w-0 justify-between gap-3 rounded-md bg-slate-50 px-3 py-2"><span className="shrink-0">Auto Backup / 自動備份</span><b className="min-w-0 truncate text-right" title="backup_20260703_160544_before_restore.db">backup_20260703_160544_before_restore.db</b></div>
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700">載入後目前資料庫將改為選取備份。</div>
-            <div className="rounded-md bg-slate-100 px-3 py-2 font-black text-ink">Confirm Text: type LOAD BACKUP to enable confirm.</div>
-          </div>
-        </MockModal>
-      ) : null}
     </div>
   );
 }

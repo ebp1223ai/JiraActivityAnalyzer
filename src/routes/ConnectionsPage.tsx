@@ -130,7 +130,7 @@ export function ConnectionsPage() {
 
   return (
     <div className="min-w-0">
-      <PageHeader title="連線與資料來源" subtitle="Connections & Data Source" />
+      <PageHeader title="Jira 連線" subtitle="Jira Connection" />
 
       <SectionCard className="mb-4" title="Global Data Source Mode" subtitle="全域資料來源模式">
         <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2">

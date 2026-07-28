@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.2.42",
+  "version": "0.2.43",
   "description": "Static Electron desktop UI prototype for Jira Activity Analyzer.",
   "author": "COPGEN",
   "type": "module",
@@ -24,6 +24,7 @@
     "test:v0.2.40": "node scripts/test-v0240.cjs",
     "test:v0.2.41": "node scripts/test-v0241.cjs",
     "test:v0.2.42": "node scripts/test-v0242.cjs",
+    "test:v0.2.43": "node scripts/test-v0243.cjs",
     "test:integration": "node scripts/test-v0237-integration.cjs",
     "test:regression": "node scripts/test-full-fetch-correctness.cjs && node scripts/test-hotfix.cjs && node scripts/test-v0234.cjs",
     "test:v0.2.32": "node scripts/test-full-fetch-correctness.cjs && node scripts/test-jira-get-retry.cjs && node scripts/test-full-fetch-staging.cjs && node scripts/test-full-fetch-result.cjs && node scripts/test-debug-folder.cjs",

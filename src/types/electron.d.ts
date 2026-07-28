@@ -77,6 +77,14 @@ declare global {
         selectExisting: (payload?: { filePath?: string }) => Promise<{ canceled: boolean; saved: boolean; validation?: RuntimeState["database"]; state: RuntimeState; error?: string }>;
         createNew: (payload?: { filePath?: string }) => Promise<{ canceled: boolean; saved: boolean; created?: { databasePath: string; databaseId: string; validation: RuntimeState["database"] }; state: RuntimeState; error?: string }>;
       };
+      databaseViewer?: {
+        overview: () => Promise<Record<string, unknown>>;
+        healthCheck: () => Promise<Record<string, unknown>>;
+        listIssues: (payload?: { search?: string; project?: string; limit?: number; offset?: number }) => Promise<{ total: number; limit: number; offset: number; items: Array<Record<string, unknown>> }>;
+        getIssue: (payload: { issueKey: string }) => Promise<Record<string, unknown>>;
+        listUsers: (payload?: { search?: string; limit?: number; offset?: number }) => Promise<{ total: number; limit: number; offset: number; items: Array<Record<string, unknown>> }>;
+        getUser: (payload: { userId: string; limit?: number; offset?: number }) => Promise<Record<string, unknown>>;
+      };
       jiraAnalysis?: {
         load: (payload: { connection: JiraConnection; issueKey: string }) => Promise<Record<string, unknown>>;
         saveExport: (payload: { category: "jira-analysis" | "raw-data" | "debug-bundles"; defaultFileName: string; data: unknown }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;

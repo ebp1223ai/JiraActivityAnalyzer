@@ -1786,7 +1786,7 @@ export function AnalysisPage() {
 
   return (
     <div className="min-w-0" data-workflow-active-step={userAnalysis.activeTab === "timeline" ? "1" : userAnalysis.activeTab === "selectIssues" ? "2" : userAnalysis.activeTab === "queue" || userAnalysis.activeTab === "fetchReport" ? "3" : userAnalysis.activeTab === "relatedIssues" ? "4" : "5"}>
-      <PageHeader title="使用者分析" subtitle="User Analysis" />
+      <PageHeader title="資料擷取" subtitle="Data Collection · Stage 1–5" />
       {userAnalysis.largeQueueConfirmationOpen ? (
         <MockModal
           title="Full Fetch Confirmation / 完整抓取確認"

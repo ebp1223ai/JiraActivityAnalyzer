@@ -1,56 +1,64 @@
-import { Database, RefreshCw, Server } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, Bug, Database, Server } from "lucide-react";
+import { buildInfo } from "../buildInfo";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 
-function tone(status: string) {
-  if (["CONNECTED", "READY"].includes(status)) return "border-emerald-300 bg-emerald-50 text-emerald-950";
-  if (status === "CHECKING") return "border-blue-300 bg-blue-50 text-blue-950";
-  if (["READY_READ_ONLY", "NOT_CONFIGURED", "MIGRATION_REQUIRED"].includes(status)) return "border-amber-300 bg-amber-50 text-amber-950";
-  return "border-rose-300 bg-rose-50 text-rose-950";
+type Props = {
+  debugCount: number;
+  onOpenDebug: () => void;
+};
+
+function dot(status: string) {
+  if (["CONNECTED", "READY", "READY_READ_ONLY"].includes(status)) return "bg-emerald-500";
+  if (status === "CHECKING") return "bg-blue-500";
+  if (["NOT_CONFIGURED", "MIGRATION_REQUIRED"].includes(status)) return "bg-amber-500";
+  return "bg-rose-500";
 }
 
-function shortPath(value: string) {
-  if (!value) return "-";
-  return value.length > 54 ? `…${value.slice(-53)}` : value;
+function shortStatus(status: string) {
+  return status.toLowerCase().replace(/_/g, " ");
 }
 
-export function GlobalRuntimeStatusBar() {
-  const { state, retryJira, retryDatabase } = useRuntimeStatus();
-  const { jira, database, capabilities } = state;
+export function GlobalRuntimeStatusBar({ debugCount, onOpenDebug }: Props) {
+  const { state } = useRuntimeStatus();
+  const [lastWrite, setLastWrite] = useState("-");
+
+  useEffect(() => {
+    let active = true;
+    if (!state.database.canRead) {
+      setLastWrite("-");
+      return;
+    }
+    void window.desktopApp?.databaseViewer?.overview().then((result) => {
+      const latest = result.latestRun as Record<string, unknown> | undefined;
+      if (active) setLastWrite(String(latest?.last_completed_at ?? latest?.lastCompletedAt ?? "-"));
+    }).catch(() => {
+      if (active) setLastWrite("-");
+    });
+    return () => { active = false; };
+  }, [state.database.canRead, state.database.requestId]);
+
   return (
-    <section data-testid="global-runtime-status" className="mb-4 grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2">
-      <details className={`min-w-0 rounded-lg border p-3 ${tone(jira.status)}`}>
-        <summary className="flex cursor-pointer list-none items-center gap-2 font-black">
-          <Server size={17} aria-hidden="true" />
-          <span>Jira ● {jira.status}</span>
-          <span className="min-w-0 flex-1 truncate text-xs font-bold">{jira.accountDisplayName || jira.message}</span>
-          <button data-testid="retry-jira-status" className="btn px-2 py-1" type="button" disabled={jira.status === "CHECKING"} onClick={(event) => { event.preventDefault(); void retryJira(); }}><RefreshCw size={14} />重試</button>
-        </summary>
-        <dl className="mt-3 grid grid-cols-[150px_minmax(0,1fr)] gap-1 text-xs font-semibold">
-          <dt>Reason Code</dt><dd>{jira.reasonCode}</dd>
-          <dt>最後測試</dt><dd>{jira.checkedAt || "-"}</dd>
-          <dt>Base URL</dt><dd className="break-all">{jira.baseUrlNormalized || "-"}</dd>
-          <dt>Account</dt><dd>{jira.accountDisplayName || jira.username || "-"}</dd>
-          <dt>Server Identity</dt><dd className="break-all">{jira.serverIdentity || "-"}</dd>
-          <dt>Latency</dt><dd>{jira.latencyMs === null ? "-" : `${jira.latencyMs} ms`}</dd>
-        </dl>
-      </details>
-      <details className={`min-w-0 rounded-lg border p-3 ${tone(database.status)}`}>
-        <summary className="flex cursor-pointer list-none items-center gap-2 font-black">
-          <Database size={17} aria-hidden="true" />
-          <span>Database ● {database.status}</span>
-          <span className="min-w-0 flex-1 truncate text-xs font-bold" title={database.path}>{shortPath(database.path || database.message)}</span>
-          <button data-testid="retry-database-status" className="btn px-2 py-1" type="button" disabled={database.status === "CHECKING"} onClick={(event) => { event.preventDefault(); void retryDatabase(); }}><RefreshCw size={14} />重試</button>
-        </summary>
-        <dl className="mt-3 grid grid-cols-[150px_minmax(0,1fr)] gap-1 text-xs font-semibold">
-          <dt>Reason Code</dt><dd>{database.reasonCode}</dd>
-          <dt>最後測試</dt><dd>{database.checkedAt || "-"}</dd>
-          <dt>完整路徑</dt><dd className="break-all">{database.path || "-"}</dd>
-          <dt>Database ID</dt><dd className="break-all">{database.databaseId || "-"}</dd>
-          <dt>Schema</dt><dd>{database.schemaVersion ?? "-"}</dd>
-          <dt>Binding</dt><dd className="break-all">{database.sourceBinding || "Unbound"}</dd>
-          <dt>能力</dt><dd>讀取 {capabilities.databaseRead ? "可用" : "停用"}／寫入 {capabilities.databaseWrite ? "可用" : "停用"}／匯入 {capabilities.databaseImport ? "可用" : "停用"}</dd>
-        </dl>
-      </details>
-    </section>
+    <header className="sticky top-0 z-20 -mx-5 mb-5 border-b border-line bg-white/95 px-5 py-3 backdrop-blur" data-testid="global-runtime-status">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-slate-600">
+        <div className="flex items-center gap-2" title={state.jira.message}>
+          <Server size={15} /><span className={`h-2 w-2 rounded-full ${dot(state.jira.status)}`} />
+          <span>Jira: {shortStatus(state.jira.status)}</span>
+        </div>
+        <div className="flex items-center gap-2" title={state.database.path || state.database.message}>
+          <Database size={15} /><span className={`h-2 w-2 rounded-full ${dot(state.database.status)}`} />
+          <span>Local DB: {shortStatus(state.database.status)}</span>
+        </div>
+        <div className="min-w-0 truncate" title={lastWrite}>Last DB Write: {lastWrite}</div>
+        <div className="ml-auto flex items-center gap-3">
+          <span className="hidden xl:inline">Build {buildInfo.version} · {buildInfo.buildTime}</span>
+          <button className="btn relative px-3 py-2" type="button" onClick={onOpenDebug} data-testid="open-debug-log">
+            {debugCount ? <Bell size={15} /> : <Bug size={15} />}
+            <span>Debug Log</span>
+            {debugCount ? <span className="rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] text-white" data-testid="debug-warning-count">{debugCount}</span> : null}
+          </button>
+        </div>
+      </div>
+    </header>
   );
 }

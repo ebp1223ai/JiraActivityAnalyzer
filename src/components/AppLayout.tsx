@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { DebugLogPanel } from "./DebugLogPanel";
 import { Sidebar } from "./Sidebar";
@@ -8,11 +8,11 @@ import { GlobalRuntimeStatusBar } from "./GlobalRuntimeStatusBar";
 const pageByPath: Record<string, DebugPage> = {
   "/": "dashboard",
   "/connections": "connections",
-  "/import": "import",
-  "/timeline": "timeline",
-  "/analysis": "analysis",
-  "/precision-probe": "precision",
-  "/jira-analysis": "jira",
+  "/database": "dashboard",
+  "/collection": "analysis",
+  "/issues": "jira",
+  "/users": "timeline",
+  "/activity-stream-probe": "precision",
   "/jira-probe": "jiraProbe",
   "/settings": "settings"
 };
@@ -22,12 +22,18 @@ export type AppOutletContext = {
   getDebugLogs: (page: DebugPage) => string[];
 };
 
+function warningCount(logs: string[]) {
+  return logs.filter((line) => line.includes("[WARN]") || line.includes("[ERROR]")).length;
+}
+
 export function AppLayout() {
   const { pathname } = useLocation();
   const page = pageByPath[pathname] ?? "dashboard";
   const mainRef = useRef<HTMLElement>(null);
-  const [debugCollapsed, setDebugCollapsed] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
   const [logsByPage, setLogsByPage] = useState(createInitialDebugLogState);
+  const allLogs = useMemo(() => Object.entries(logsByPage).flatMap(([source, lines]) =>
+    lines.map((line) => `[${source}] ${line}`)), [logsByPage]);
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0 });
@@ -36,23 +42,21 @@ export function AppLayout() {
   return (
     <div className="flex h-screen w-screen max-w-full overflow-hidden bg-app">
       <Sidebar />
-      <main ref={mainRef} className="thin-scroll min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4">
-        <div className="mx-auto w-full max-w-[1480px] min-w-0">
-          <GlobalRuntimeStatusBar />
+      <main ref={mainRef} className="thin-scroll min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-5 pb-6">
+        <div className="mx-auto w-full max-w-[1680px] min-w-0">
+          <GlobalRuntimeStatusBar debugCount={warningCount(allLogs)} onOpenDebug={() => setDebugOpen(true)} />
           <Outlet context={{
-            appendDebugLog: (targetPage, lines) => {
-              setLogsByPage((current) => appendDebugLogLines(current, targetPage, lines));
-            },
+            appendDebugLog: (targetPage, lines) => setLogsByPage((current) => appendDebugLogLines(current, targetPage, lines)),
             getDebugLogs: (targetPage) => logsByPage[targetPage] ?? []
           } satisfies AppOutletContext} />
         </div>
       </main>
       <DebugLogPanel
+        open={debugOpen}
+        onClose={() => setDebugOpen(false)}
         currentPage={pathname}
-        collapsed={debugCollapsed}
-        onToggle={() => setDebugCollapsed((value) => !value)}
-        logs={logsByPage[page]}
-        onClear={() => setLogsByPage((current) => clearDebugLogPage(current, page))}
+        logs={allLogs}
+        onClear={() => setLogsByPage(createInitialDebugLogState())}
         onAppend={(lines) => setLogsByPage((current) => appendDebugLogLines(current, page, lines))}
         onUserAction={(message) => {
           setLogsByPage((current) => appendDebugLogLines(current, page, [`[USER_ACTION] ${message}`]));

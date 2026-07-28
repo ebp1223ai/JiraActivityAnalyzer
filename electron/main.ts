@@ -46,6 +46,14 @@ import {
 } from "./sourceArchiveDatabaseWrite.js";
 import { StartupCheckCoordinator, initialRuntimeState, type RuntimeState } from "./runtimeStatus.js";
 import { testAndSaveJiraSettings, validateAndSaveDatabaseSelection } from "./startupIntegration.js";
+import {
+  listDatabaseIssues,
+  listDatabaseUsers,
+  loadDatabaseIssue,
+  loadDatabaseOverview,
+  loadDatabaseUser,
+  runDatabaseHealthCheck
+} from "./databaseViewer.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -153,13 +161,12 @@ if (isUiSmoke) {
 }
 
 const uiRoutes = [
-  { name: "dashboard", hash: "#/", title: "Dashboard" },
-  { name: "connections", hash: "#/connections", title: "Connections" },
-  { name: "import", hash: "#/import", title: "Import" },
-  { name: "timeline", hash: "#/timeline", title: "Timeline" },
-  { name: "analysis", hash: "#/analysis", title: "Analysis" },
-  { name: "precision-probe", hash: "#/precision-probe", title: "Precision Probe" },
-  { name: "jira-analysis", hash: "#/jira-analysis", title: "Jira Analysis" },
+  { name: "connections", hash: "#/connections", title: "Jira Connection" },
+  { name: "database", hash: "#/database", title: "Database Overview" },
+  { name: "collection", hash: "#/collection", title: "Data Collection" },
+  { name: "issues", hash: "#/issues", title: "Issue Viewer" },
+  { name: "users", hash: "#/users", title: "User Viewer" },
+  { name: "activity-stream-probe", hash: "#/activity-stream-probe", title: "Activity Stream" },
   { name: "jira-probe", hash: "#/jira-probe", title: "Jira Probe" },
   { name: "settings", hash: "#/settings", title: "Settings" }
 ];
@@ -678,6 +685,23 @@ async function startBackgroundChecks() {
 ipcMain.handle("runtime:get-state", async () => getRuntimeCoordinator().snapshot());
 ipcMain.handle("runtime:retry-jira", async () => getRuntimeCoordinator().retryJira());
 ipcMain.handle("runtime:retry-database", async () => getRuntimeCoordinator().retryDatabase());
+
+function currentReadableDatabasePath() {
+  const database = getRuntimeCoordinator().snapshot().database;
+  if (!database.canRead || !database.path) throw new Error(`DATABASE_UNAVAILABLE:${database.reasonCode}`);
+  return database.path;
+}
+
+ipcMain.handle("database-viewer:overview", async () => loadDatabaseOverview(currentReadableDatabasePath()));
+ipcMain.handle("database-viewer:health-check", async () => runDatabaseHealthCheck(currentReadableDatabasePath()));
+ipcMain.handle("database-viewer:list-issues", async (_event, payload?: { search?: string; project?: string; limit?: number; offset?: number }) =>
+  listDatabaseIssues(currentReadableDatabasePath(), payload));
+ipcMain.handle("database-viewer:get-issue", async (_event, payload: { issueKey?: string }) =>
+  loadDatabaseIssue(currentReadableDatabasePath(), String(payload?.issueKey ?? "")));
+ipcMain.handle("database-viewer:list-users", async (_event, payload?: { search?: string; limit?: number; offset?: number }) =>
+  listDatabaseUsers(currentReadableDatabasePath(), payload));
+ipcMain.handle("database-viewer:get-user", async (_event, payload: { userId?: string; limit?: number; offset?: number }) =>
+  loadDatabaseUser(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload));
 
 ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
   if (!request || request.useMock) {

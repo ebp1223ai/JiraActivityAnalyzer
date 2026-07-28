@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Copy, Download, FolderOpen, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Copy, Download, Search, Trash2, X } from "lucide-react";
 
 type Props = {
-  collapsed: boolean;
-  onToggle: () => void;
+  open: boolean;
+  onClose: () => void;
   logs: string[];
   onClear: () => void;
   onAppend?: (lines: string[]) => void;
@@ -11,203 +11,102 @@ type Props = {
   currentPage: string;
 };
 
-const levelClass: Record<string, string> = {
-  ERROR: "bg-red-100 text-red-700",
-  WARN: "bg-amber-100 text-amber-700",
-  DEBUG: "bg-blue-100 text-blue-700",
-  INFO: "bg-green-100 text-green-700",
-  SUCCESS: "bg-emerald-100 text-emerald-700",
-  USER_ACTION: "bg-violet-100 text-violet-700",
-  GUARD: "bg-amber-100 text-amber-800",
-  UI_MODAL: "bg-cyan-100 text-cyan-800"
-};
+const levels = ["ALL", "ERROR", "WARN", "INFO", "DEBUG"] as const;
 
-function levelFor(line: string, index: number) {
-  if (line.includes("[USER_ACTION]")) return "USER_ACTION";
-  if (line.includes("[GUARD]")) return "GUARD";
-  if (line.includes("[UI_MODAL]")) return "UI_MODAL";
+function levelFor(line: string) {
   if (line.includes("[ERROR]")) return "ERROR";
   if (line.includes("[WARN]")) return "WARN";
   if (line.includes("[DEBUG]")) return "DEBUG";
-  if (line.includes("[SUCCESS]")) return "SUCCESS";
   return "INFO";
 }
 
-function displayParts(line: string) {
-  const match = /^(\d{4}\/\d{2}\/\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3}) (.*)$/.exec(line);
-  return match ? { date: match[1], time: match[2], message: match[3] } : { date: "", time: "", message: line };
-}
-
-export function DebugLogPanel({ collapsed, onToggle, logs, onClear, onAppend, onUserAction, currentPage }: Props) {
-  const [notice, setNotice] = useState("");
-  const [lastBundlePath, setLastBundlePath] = useState("");
-  const [lastBundleCounts, setLastBundleCounts] = useState({ successful: 0, unavailable: 0, failed: 0 });
+export function DebugLogPanel({ open, onClose, logs, onClear, onAppend, onUserAction, currentPage }: Props) {
+  const [level, setLevel] = useState<(typeof levels)[number]>("ALL");
+  const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
-  const logContainerRef = useRef<HTMLDivElement>(null);
-  const content = logs.join("\n");
+  const [notice, setNotice] = useState("");
+  const logRef = useRef<HTMLDivElement>(null);
+  const filtered = useMemo(() => logs.filter((line) =>
+    (level === "ALL" || levelFor(line) === level)
+    && (!search.trim() || line.toLowerCase().includes(search.trim().toLowerCase()))
+  ), [level, logs, search]);
 
   useEffect(() => {
-    if (!autoScroll) return;
-    const node = logContainerRef.current;
-    if (node) {
-      node.scrollTop = node.scrollHeight;
-    }
-  }, [autoScroll, logs]);
+    if (open && autoScroll && logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [autoScroll, filtered, open]);
 
-  async function handleCopy() {
-    if (!navigator.clipboard) {
-      setNotice("Clipboard is not available");
+  async function copy() {
+    await navigator.clipboard?.writeText(filtered.join("\n"));
+    setNotice("已複製目前篩選結果 / Filtered logs copied");
+    onUserAction?.("Debug Log copied / 除錯日誌已複製");
+  }
+
+  async function exportFolder() {
+    const result = await window.desktopApp?.appDebug?.saveBundle?.({ debugLog: logs.join("\n"), currentPage });
+    if (!result || result.canceled) {
+      setNotice("已取消 / Canceled");
       return;
     }
-    await navigator.clipboard.writeText(content);
-    onUserAction?.("Debug Log copied / 除錯紀錄已複製");
-    setNotice("Copied");
+    setNotice(result.status === "failed" ? `匯出失敗 / Export failed: ${result.errorCode ?? "unknown"}` : `已匯出 / Exported: ${result.folderPath ?? ""}`);
+    if (result.folderPath) onAppend?.([`[INFO] Debug Folder exported: ${result.folderPath}`]);
   }
 
-  async function handleDownload() {
-    onUserAction?.("Export Debug Folder requested / 要求匯出除錯資料夾");
-    try {
-      if (!window.desktopApp?.appDebug?.saveBundle) {
-        setNotice("Debug Folder is unavailable in this runtime.");
-        onUserAction?.("Debug Folder export unavailable / 除錯資料夾匯出不可用");
-        return;
-      }
-      const result = await window.desktopApp.appDebug.saveBundle({ debugLog: content, currentPage });
-      const failed = result.status === "failed";
-      const partial = result.status === "completed_with_errors" || Number(result.failedFileCount ?? 0) > 0;
-      setNotice(result.canceled ? "Export canceled" : failed ? `Debug Folder failed: ${String(result.errorCode ?? "unknown_error")}` : partial ? "Debug Folder completed with copy failures." : "Debug Folder completed successfully.");
-      onUserAction?.(result.canceled ? "Debug Folder export cancelled / 除錯資料夾匯出已取消" : failed ? "Debug Folder export failed / 除錯資料夾匯出失敗" : "Debug Folder exported / 除錯資料夾已匯出");
-      if (!result.canceled && result.folderPath) {
-        setLastBundlePath(result.folderPath);
-        setLastBundleCounts({
-          successful: Number(result.successfulFileCount ?? 0),
-          unavailable: Number(result.unavailableOrNotRunCount ?? 0),
-          failed: Number(result.failedFileCount ?? 0)
-        });
-        onAppend?.([`[INFO] Debug Folder exported: ${result.folderPath}`, `[INFO] Files collected: ${result.successfulFileCount ?? 0}; unavailable/not run: ${result.unavailableOrNotRunCount ?? 0}; copy failures: ${result.failedFileCount ?? 0}`]);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setNotice(`Debug Folder failed: ${message}`);
-      onUserAction?.("Debug Folder export failed / 除錯資料夾匯出失敗");
-      onAppend?.([`[ERROR] Debug Folder failed: ${message}`]);
-    }
-  }
-
-  function handleClear() {
-    onClear();
-    onUserAction?.("Debug Log cleared / 除錯紀錄已清除");
-    setNotice("Debug log cleared");
-  }
-
-  if (collapsed) {
-    return (
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-950/20" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
       <aside
-        className="flex h-screen w-[56px] min-w-[56px] max-w-[56px] shrink-0 flex-col items-center overflow-hidden border-l border-line bg-white p-2"
-        data-debug-panel-state="collapsed"
+        className="absolute inset-y-0 right-0 flex w-[min(440px,100vw)] min-w-0 flex-col border-l border-line bg-white shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Debug Log / 全域除錯日誌"
+        data-debug-panel-state="expanded"
       >
-        <button className="btn h-10 w-10 p-0" data-no-clip="true" onClick={() => { onUserAction?.("Debug Log expanded / 除錯紀錄已展開"); onToggle(); }} title="Expand Debug Log / 展開除錯紀錄">
-          <ChevronLeft size={18} />
-          <span className="sr-only">Expand Debug Log / 展開除錯紀錄</span>
-        </button>
-        <div className="mt-4 rotate-90 whitespace-nowrap text-xs font-black text-muted" data-no-clip="true">
-          Debug Log / 除錯紀錄
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <div>
+            <h2 className="font-black text-ink">全域除錯日誌 / Debug Log</h2>
+            <p className="text-xs font-semibold text-muted">{logs.length} retained entries · WARN + ERROR 不會因開啟而歸零</p>
+          </div>
+          <button className="btn h-9 w-9 p-0" type="button" onClick={onClose} title="Close"><X size={18} /></button>
+        </div>
+        <div className="space-y-3 border-b border-line p-4">
+          <div className="flex flex-wrap gap-2">
+            {levels.map((item) => (
+              <button key={item} className={`btn px-3 py-2 ${level === item ? "btn-primary" : ""}`} type="button" onClick={() => setLevel(item)}>
+                {item}
+              </button>
+            ))}
+          </div>
+          <label className="relative block">
+            <Search className="absolute left-3 top-3 text-muted" size={16} />
+            <input className="field pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜尋訊息、來源、Run ID、Issue Key..." />
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className="btn" type="button" onClick={copy}><Copy size={15} />複製 / Copy</button>
+            <button className="btn" type="button" onClick={exportFolder}><Download size={15} />匯出 / Export</button>
+            <button className="btn btn-danger" type="button" onClick={() => { onClear(); setNotice("已清除 / Cleared"); }}><Trash2 size={15} />清除 / Clear</button>
+            <label className="ml-auto flex items-center gap-2 text-xs font-bold text-muted">
+              <input type="checkbox" checked={autoScroll} onChange={(event) => setAutoScroll(event.target.checked)} />
+              自動捲動 / Auto Scroll
+            </label>
+          </div>
+          {notice ? <div className="rounded-md bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">{notice}</div> : null}
+        </div>
+        <div ref={logRef} className="thin-scroll min-h-0 flex-1 overflow-y-auto bg-slate-950 p-4 font-mono text-xs leading-relaxed text-slate-200">
+          {filtered.length ? filtered.map((line, index) => (
+            <div className="mb-2 break-words" key={`${index}-${line.slice(0, 20)}`}>
+              <span className={levelFor(line) === "ERROR" ? "text-rose-400" : levelFor(line) === "WARN" ? "text-amber-300" : levelFor(line) === "DEBUG" ? "text-blue-300" : "text-emerald-300"}>
+                [{levelFor(line)}]
+              </span>{" "}
+              {line}
+            </div>
+          )) : <div className="flex h-full items-center justify-center text-center text-slate-400">目前沒有除錯日誌<br />No debug logs</div>}
+        </div>
+        <div className="border-t border-line bg-amber-50 px-4 py-3 text-xs font-semibold leading-relaxed text-amber-900">
+          Token、Authorization、Password、Cookie 與 Secret 會在既有匯出管線中遮罩。分享 Debug Folder 前仍請先檢查內容。
         </div>
       </aside>
-    );
-  }
-
-  return (
-    <aside
-      className="flex h-screen w-[320px] min-w-[320px] max-w-[320px] shrink-0 flex-col overflow-hidden border-l border-line bg-white p-4"
-      data-debug-panel-state="expanded"
-    >
-      <div className="flex min-w-0 items-center justify-between gap-2">
-        <h2 className="text-lg font-black leading-snug text-ink" data-no-clip="true">
-          Debug Log / 除錯紀錄
-        </h2>
-        <button className="btn shrink-0 px-2 py-2" data-no-clip="true" onClick={() => { onUserAction?.("Debug Log collapsed / 除錯紀錄已收合"); onToggle(); }} title="Collapse Debug Log / 收合除錯紀錄">
-          <ChevronRight size={18} />
-          <span className="text-[10px] leading-tight">Collapse<br />收合</span>
-        </button>
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button className="btn min-w-[72px] flex-1 px-3" data-no-clip="true" title="Copy Debug Log / 複製除錯紀錄" onClick={handleCopy}>
-          <Copy size={16} />
-          <span>Copy<br />複製</span>
-        </button>
-        <button className="btn min-w-[72px] flex-1 px-3" data-no-clip="true" title="Export Debug Folder / 匯出除錯資料夾" onClick={handleDownload}>
-          <Download size={16} />
-          <span>Folder<br />資料夾</span>
-        </button>
-        <button className="btn btn-danger min-w-[72px] flex-1 px-3" data-no-clip="true" title="Clear Debug Log / 清除除錯紀錄" onClick={handleClear}>
-          <Trash2 size={16} />
-          <span>Clear<br />清除</span>
-        </button>
-      </div>
-      <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-bold leading-relaxed text-amber-950" data-testid="debug-bundle-content-warning">
-        Debug Folder copies existing diagnostic files without compression or content rewriting. It may contain company Jira content and personal data; review it before sharing.<br />
-        除錯資料夾會直接複製既有診斷檔，不壓縮也不改寫內容；其中可能包含公司 Jira 內容與個人資料，分享前請先檢查。
-      </div>
-
-      {notice ? <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700" data-no-clip="true">{notice}</div> : null}
-      {lastBundlePath ? <div className="mt-3 min-w-0 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-900" data-testid="debug-folder-completion"><div className="font-black">{lastBundleCounts.failed > 0 ? "Debug Folder completed with copy failures" : "Debug Folder created successfully"}</div><div className="mt-1">Files collected: {lastBundleCounts.successful}</div><div>Unavailable / not run: {lastBundleCounts.unavailable}</div><div>Copy failures: {lastBundleCounts.failed}</div><div className="mt-1 break-all" data-testid="last-debug-bundle-path">{lastBundlePath}</div><div className="mt-2 flex flex-wrap gap-2"><button data-testid="open-debug-bundle" className="btn px-2 py-1 text-xs" type="button" onClick={() => void window.desktopApp?.appDebug?.openFolder?.({ folderPath: lastBundlePath })}><FolderOpen size={14} />Open</button><button data-testid="copy-debug-bundle-path" className="btn px-2 py-1 text-xs" type="button" onClick={() => void navigator.clipboard?.writeText(lastBundlePath)}><Copy size={14} />Copy path</button><button data-testid="close-debug-bundle-result" className="btn px-2 py-1 text-xs" type="button" onClick={() => { setLastBundlePath(""); setNotice(""); }}><X size={14} />Close</button></div></div> : null}
-
-      <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-900">
-        Debug Log records the current operation flow, API calls, warnings, and errors.<br />
-        除錯紀錄會記錄目前操作流程、API 呼叫、警告與錯誤。Sensitive values are masked. / 敏感資訊會被遮蔽。
-      </div>
-
-      <div ref={logContainerRef} className="thin-scroll mt-4 min-h-0 flex-1 overflow-auto rounded-lg border border-line p-3">
-        {logs.map((log, index) => {
-          const level = levelFor(log, index);
-          const parts = displayParts(log);
-          return (
-            <div key={`${log}-${index}`} className="grid min-w-0 grid-cols-[86px_76px_minmax(0,1fr)] gap-2 py-2 text-xs" title={parts.date}>
-              <span className="font-mono text-slate-500" data-no-clip="true">{parts.time || "--:--:--.---"}</span>
-              <span
-                className={`h-fit rounded px-1.5 py-0.5 text-[9px] font-black ${levelClass[level]}`}
-                data-no-clip="true"
-              >
-                {level}
-              </span>
-              <span className="min-w-0 break-words font-mono leading-relaxed text-slate-700">{parts.message}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-4 rounded-lg border border-line p-4 text-xs">
-        <div className="mb-3 text-sm font-black text-ink" data-no-clip="true">Log Level 說明</div>
-        <div className="space-y-2 font-semibold leading-snug text-muted">
-          <div><span className="text-red-500" data-no-clip="true">ERROR</span> Requires immediate attention.</div>
-          <div><span className="text-amber-500" data-no-clip="true">WARN</span> Potential issue or recoverable warning.</div>
-          <div><span className="text-blue-600" data-no-clip="true">INFO</span> Normal application flow.</div>
-          <div><span className="text-slate-500" data-no-clip="true">DEBUG</span> Detailed diagnostic information.</div>
-        </div>
-      </div>
-
-      <label className="mt-4 text-sm font-black text-ink" data-no-clip="true">Log Level</label>
-      <select className="field mt-2" defaultValue="DEBUG">
-        <option>DEBUG</option>
-        <option>INFO</option>
-        <option>WARN</option>
-        <option>ERROR</option>
-      </select>
-
-      <div className="mt-5 flex min-w-0 items-center justify-between gap-3 text-sm font-black leading-snug text-ink">
-        <span data-no-clip="true">Auto Scroll<br /><span className="text-xs font-semibold text-muted">Scroll to latest logs</span></span>
-        <button
-          type="button"
-          className={`relative inline-flex h-6 w-11 shrink-0 rounded-full p-1 transition ${autoScroll ? "bg-blue-600" : "bg-slate-300"}`}
-          onClick={() => setAutoScroll((value) => !value)}
-          aria-label="Toggle debug log auto scroll"
-          data-allow-truncate="true"
-        >
-          <span className={`h-4 w-4 rounded-full bg-white shadow transition ${autoScroll ? "translate-x-5" : "translate-x-0"}`} />
-        </button>
-      </div>
-    </aside>
+    </div>
   );
 }

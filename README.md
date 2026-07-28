@@ -1,5 +1,18 @@
 # Jira Activity Analyzer
 
+> v0.2.43 reorganizes the Electron app into one App Shell with a global Debug Log drawer and local-only Database, Issue, and User viewers. It does not change the Current-State schema. See [the implementation report](reports/JiraActivityAnalyzer_v0.2.43_implementation_report.md).
+
+## v0.2.43 Application Structure
+
+- **Overview:** Jira Connection and Database Overview.
+- **Collection:** Data Collection reuses the existing staged User Analysis, selection, Full Fetch, related-issue, export, Source Archive, and database-write workflow.
+- **Viewers:** Issue Viewer and User Viewer read only the currently validated Local SQLite database through bounded main-process IPC. They do not call Jira.
+- **Advanced Tools:** Activity Stream Probe and Jira Probe remain read-only diagnostics.
+- **Settings:** General, Display, Export, and Logs & Diagnostics are shown one category at a time.
+- **Global Debug Log:** the overlay drawer persists while navigating, counts only retained WARN and ERROR entries, and keeps existing masked export handling.
+
+Legacy renderer links redirect to the new route that owns the same responsibility. No schema change, migration, database recreation, database merge, attachment download, or remote Jira mutation is introduced.
+
 > v0.2.42 adds Stable Hash V4, an exact Field ID volatile-metric registry, safe candidate diagnostics, and corrected build traceability. Earlier Stable Hash policy databases remain read-only. See [docs/v0.2.42-stable-hash-v4-build-traceability.md](docs/v0.2.42-stable-hash-v4-build-traceability.md).
 
 ## v0.2.42 Correctness Model
