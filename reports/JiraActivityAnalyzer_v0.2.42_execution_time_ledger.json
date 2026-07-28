@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "execution_time_ledger_v1",
+  "appVersion": "0.2.42",
+  "startedAt": "2026-07-28T13:09:33.0629372+08:00",
+  "finishedAt": "2026-07-28T13:30:05.5735233+08:00",
+  "wallClockSeconds": 1232.511,
+  "steps": [
+    {
+      "step": "Repository inspection",
+      "startedAt": "2026-07-28T13:09:33.0629372+08:00",
+      "finishedAt": "2026-07-28T13:14:00+08:00",
+      "durationSeconds": 266.937,
+      "command": "git status, repository rules, version and architecture inspection",
+      "result": "completed",
+      "notes": "Tracked worktree was clean. Existing untracked user files were preserved."
+    },
+    {
+      "step": "Implementation",
+      "startedAt": "2026-07-28T13:14:00+08:00",
+      "finishedAt": "2026-07-28T13:24:47+08:00",
+      "durationSeconds": 647,
+      "command": "Stable Hash V4, exact registry, diagnostics, version and packaging traceability",
+      "result": "completed",
+      "notes": "Implementation source commits: 7b2432bb29820fa665d09833870463667bcaf548 and 4a90f72547759bde95a41a99c13c0b83f926d06d."
+    },
+    {
+      "step": "Typecheck",
+      "startedAt": "2026-07-28T13:21:40+08:00",
+      "finishedAt": "2026-07-28T13:21:48.1+08:00",
+      "durationSeconds": 8.1,
+      "command": "npm.cmd run typecheck",
+      "result": "passed",
+      "notes": "Exit code 0."
+    },
+    {
+      "step": "Unit tests",
+      "startedAt": "2026-07-28T13:21:40+08:00",
+      "finishedAt": "2026-07-28T13:21:42+08:00",
+      "durationSeconds": 2,
+      "command": "npm.cmd run test:v0.2.41; npm.cmd run test:v0.2.42; node scripts/test-source-archive.cjs",
+      "result": "passed",
+      "notes": "Focused V3 history, V4 correctness/SQLite, and Source Archive tests passed."
+    },
+    {
+      "step": "Integration / DB harness",
+      "startedAt": "2026-07-28T13:22:05+08:00",
+      "finishedAt": "2026-07-28T13:22:06.5+08:00",
+      "durationSeconds": 1.5,
+      "command": "npm.cmd run test:integration",
+      "result": "passed",
+      "notes": "Exit code 0."
+    },
+    {
+      "step": "Build",
+      "startedAt": "2026-07-28T13:22:30+08:00",
+      "finishedAt": "2026-07-28T13:22:45.2+08:00",
+      "durationSeconds": 15.2,
+      "command": "npm.cmd run build",
+      "result": "passed",
+      "notes": "Version sources verified as 0.2.42."
+    },
+    {
+      "step": "Installer / Portable",
+      "startedAt": "2026-07-28T13:24:47+08:00",
+      "finishedAt": "2026-07-28T13:26:20.1+08:00",
+      "durationSeconds": 93.1,
+      "command": "npm.cmd run dist",
+      "result": "passed_after_retry",
+      "notes": "Initial 6.7-second attempt stopped before Electron Builder with spawnSync npm.cmd EINVAL. ComSpec fix was committed; 86.4-second retry produced both artifacts."
+    },
+    {
+      "step": "Artifact verification",
+      "startedAt": "2026-07-28T13:26:20.1+08:00",
+      "finishedAt": "2026-07-28T13:27:00+08:00",
+      "durationSeconds": 39.9,
+      "command": "SHA-256, release/build-info.json and ASAR metadata verification",
+      "result": "passed",
+      "notes": "Embedded version and packaged source commit matched 0.2.42 and 4a90f72547759bde95a41a99c13c0b83f926d06d."
+    },
+    {
+      "step": "Report generation",
+      "startedAt": "2026-07-28T13:27:00+08:00",
+      "finishedAt": "2026-07-28T13:29:45+08:00",
+      "durationSeconds": 165,
+      "command": "Generate Markdown/PDF, render seven PDF pages, inspect contact sheet and detailed page",
+      "result": "passed",
+      "notes": "Traditional Chinese PDF rendered without clipping, overlap, broken glyphs, or unreadable tables."
+    },
+    {
+      "step": "Final verification",
+      "startedAt": "2026-07-28T13:29:45+08:00",
+      "finishedAt": "2026-07-28T13:30:05.5735233+08:00",
+      "durationSeconds": 20.574,
+      "command": "Report presence, security scope, artifact metadata and tracked/untracked separation",
+      "result": "passed",
+      "notes": "Release manifest is generated only after finalReportCommit, as required by the commit sequence."
+    }
+  ],
+  "excludedLongRunningValidation": [
+    "44-Issue real Jira smoke",
+    "long packaged application smoke"
+  ]
+}
