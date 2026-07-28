@@ -19,15 +19,22 @@ import {
   type CoverageProfile
 } from "./coverageProfile.js";
 import {
-  buildStableIssueContentV3,
-  canonicalJsonV3,
+  buildStableIssueContentV4,
+  canonicalJsonV4,
   changedProjectionPaths,
   extractCurrentObservedMetrics,
-  resolveEffectiveStableHashPolicyV3,
+  normalizeVolatileDisplayName,
+  resolveEffectiveStableHashPolicyV4,
   stablePolicyFingerprint,
   STABLE_HASH_POLICY_VERSION,
-  type EffectiveStableHashPolicyV3
-} from "./stableIssueContentV3.js";
+  volatileFieldMetadataFingerprint,
+  type EffectiveStableHashPolicyV4
+} from "./stableIssueContentV4.js";
+import {
+  buildStableHashFieldDiff,
+  detectVolatileFieldCandidates,
+  type VolatileFieldCandidate
+} from "./stableHashDiagnostics.js";
 import type { DatabaseRuntimeState, DatabaseRuntimeStatus } from "./runtimeStatus.js";
 
 export const CURRENT_STATE_SCHEMA_VERSION = 2;
@@ -276,7 +283,7 @@ export function checkCurrentStateDatabaseCompatibility(databasePath: string, cur
       && metadata.database_type === CURRENT_STATE_DATABASE_TYPE
       && Number(metadata.stable_hash_policy_version) < STABLE_HASH_POLICY_VERSION) {
       return {
-        ...baseState("MIGRATION_REQUIRED", resolved, "v0.2.40 Current-State V2 database detected. It is read-only; create a new v0.2.41 V3 database."),
+        ...baseState("MIGRATION_REQUIRED", resolved, "An earlier Stable Hash policy database was detected. It is read-only; create a new v0.2.42 V4 database."),
         databaseId: text(metadata.database_id),
         schemaVersion: Number(metadata.schema_version),
         sourceBinding: text(metadata.jira_server_identity_hash),
@@ -306,7 +313,7 @@ export function checkCurrentStateDatabaseCompatibility(databasePath: string, cur
       return { ...baseState("SCHEMA_INCOMPLETE", resolved, "Current-State policy metadata is incompatible."), schemaVersion };
     }
     try {
-      const stablePolicy = JSON.parse(text(metadata.stable_hash_policy_json)) as EffectiveStableHashPolicyV3;
+      const stablePolicy = JSON.parse(text(metadata.stable_hash_policy_json)) as EffectiveStableHashPolicyV4;
       if (stablePolicyFingerprint(stablePolicy).fingerprint !== text(metadata.stable_hash_policy_fingerprint)) {
         return { ...baseState("SCHEMA_INCOMPLETE", resolved, "Stable Hash policy fingerprint is inconsistent."), schemaVersion };
       }
@@ -362,7 +369,7 @@ export function createCurrentStateDatabase(input: {
   const temporaryPath = path.join(path.dirname(targetPath), `.${path.basename(targetPath)}.${process.pid}.${Date.now()}.tmp`);
   const now = new Date(input.now ?? Date.now()).toISOString();
   const databaseId = input.databaseId ?? crypto.randomUUID();
-  const policy = resolveEffectiveStableHashPolicyV3({}, {});
+  const policy = resolveEffectiveStableHashPolicyV4({}, {});
   let db: DatabaseSync | undefined;
   try {
     db = new DatabaseSync(temporaryPath);
@@ -470,6 +477,8 @@ export type CurrentStateOutcome = {
   observedMetrics: { inserted: number; updated: number; unchanged: number; blocked: number };
   mappingWarnings: unknown[];
   eventWarnings: unknown[];
+  volatileFieldCandidates?: VolatileFieldCandidate[];
+  stableHashFieldDiff?: ReturnType<typeof buildStableHashFieldDiff>;
 };
 
 function emptySummary() {
@@ -494,7 +503,7 @@ function emptySummary() {
     observedMetricsInserted: 0,
     observedMetricsUpdated: 0,
     observedMetricsUnchanged: 0,
-    stableHashPolicy: "V3",
+    stableHashPolicy: "V4",
     eventIdentityPolicy: "V2"
   };
 }
@@ -513,7 +522,7 @@ function defaultCoverage(rawValue: unknown): CoverageProfile {
 }
 
 function payloadPrevalidation(rawValue: unknown) {
-  const canonical = canonicalJsonV3(rawValue);
+  const canonical = canonicalJsonV4(rawValue);
   const bytes = Buffer.from(canonical, "utf8");
   const archiveSha256 = crypto.createHash("sha256").update(bytes).digest("hex");
   const gzip = gzipSync(bytes, { level: 9 });
@@ -551,7 +560,7 @@ function snapshotJson(rawValue: unknown) {
     dueDate: fields.duedate ?? null,
     jiraUpdatedAt: fields.updated ?? null
   };
-  return { issue, fields, snapshot, json: canonicalJsonV3(snapshot) };
+  return { issue, fields, snapshot, json: canonicalJsonV4(snapshot) };
 }
 
 function insertEvents(db: DatabaseSync, sourceObjectId: string, raw: unknown, serverIdentity: string, issueKey: string, now: string, fail = false) {
@@ -606,22 +615,27 @@ function effectivePolicyForCandidate(db: DatabaseSync, rawValue: unknown) {
   const raw = record(rawValue);
   const issue = Object.keys(record(raw.issue)).length ? record(raw.issue) : raw;
   if (!Number(metadata.stable_hash_policy_initialized)) {
-    const resolved = resolveEffectiveStableHashPolicyV3(issue.names ?? raw.names, issue.schema ?? raw.schema);
+    const resolved = resolveEffectiveStableHashPolicyV4(issue.names ?? raw.names, issue.schema ?? raw.schema);
     db.prepare(`UPDATE database_metadata
       SET stable_hash_policy_json=?, stable_hash_policy_fingerprint=?, stable_hash_policy_initialized=1
       WHERE metadata_key='primary'`).run(resolved.canonicalJson, resolved.fingerprint);
     return { ...resolved, initializedNow: true };
   }
-  const policy = JSON.parse(text(metadata.stable_hash_policy_json)) as EffectiveStableHashPolicyV3;
+  const policy = JSON.parse(text(metadata.stable_hash_policy_json)) as EffectiveStableHashPolicyV4;
   const computed = stablePolicyFingerprint(policy);
   if (policy.policyVersion !== STABLE_HASH_POLICY_VERSION
     || computed.fingerprint !== text(metadata.stable_hash_policy_fingerprint)) {
     throw new Error("STABLE_HASH_POLICY_MISMATCH");
   }
   const currentNames = record(issue.names ?? raw.names);
+  const currentSchemas = record(issue.schema ?? raw.schema);
   for (const resolved of policy.resolvedVolatileFields) {
     if (currentNames[resolved.fieldId] !== undefined
-      && String(currentNames[resolved.fieldId]) !== resolved.jiraDisplayName) {
+      && normalizeVolatileDisplayName(String(currentNames[resolved.fieldId])) !== resolved.normalizedName) {
+      throw new Error("STABLE_HASH_POLICY_SERVER_METADATA_CONTRADICTION");
+    }
+    if (currentSchemas[resolved.fieldId] !== undefined
+      && volatileFieldMetadataFingerprint(resolved.fieldId, currentSchemas[resolved.fieldId]) !== resolved.metadataFingerprint) {
       throw new Error("STABLE_HASH_POLICY_SERVER_METADATA_CONTRADICTION");
     }
   }
@@ -703,14 +717,20 @@ function issueOutcome(db: DatabaseSync, candidate: CurrentStateCandidate, input:
   const projectKey = issueKey.slice(0, issueKey.lastIndexOf("-"));
   const prepared = payloadPrevalidation(raw);
   const effectivePolicy = effectivePolicyForCandidate(db, raw);
-  const stable = buildStableIssueContentV3(raw, coverage, effectivePolicy.policy, input.jira.serverIdentity);
-  const fetchProfileHash = crypto.createHash("sha256").update(canonicalJsonV3(coverage), "utf8").digest("hex");
+  const stable = buildStableIssueContentV4(raw, coverage, effectivePolicy.policy, input.jira.serverIdentity);
+  const fetchProfileHash = crypto.createHash("sha256").update(canonicalJsonV4(coverage), "utf8").digest("hex");
 
   const byId = db.prepare("SELECT id, issue_key FROM source_objects WHERE jira_issue_id=?").get(jiraIssueId) as { id: string; issue_key: string } | undefined;
   const byKey = db.prepare("SELECT id, jira_issue_id FROM source_objects WHERE issue_key=?").get(issueKey) as { id: string; jira_issue_id: string } | undefined;
   if ((byId && byKey && byId.id !== byKey.id) || (byKey && byKey.jira_issue_id !== jiraIssueId)) throw new Error("JIRA_ISSUE_ID_KEY_COLLISION");
   const sourceObjectId = byId?.id ?? byKey?.id ?? crypto.randomUUID();
   const sync = db.prepare("SELECT * FROM issue_sync_states WHERE source_object_id=?").get(sourceObjectId) as Record<string, unknown> | undefined;
+  const previousPayloadRow = sync
+    ? db.prepare("SELECT payload_gzip FROM current_full_fetch_payloads WHERE source_object_id=?").get(sourceObjectId) as { payload_gzip?: Uint8Array } | undefined
+    : undefined;
+  const previousRaw = previousPayloadRow?.payload_gzip
+    ? JSON.parse(gunzipSync(Buffer.from(previousPayloadRow.payload_gzip)).toString("utf8"))
+    : null;
   if (sync && (Number(sync.stable_hash_policy_version) !== STABLE_HASH_POLICY_VERSION
     || text(sync.stable_hash_policy_fingerprint) !== stable.policyFingerprint)) {
     throw new Error("STABLE_HASH_POLICY_MISMATCH");
@@ -754,6 +774,14 @@ function issueOutcome(db: DatabaseSync, candidate: CurrentStateCandidate, input:
   const coverageUpgradeOnly = stableEqual && coverageComparison === "Upgrade";
   const previousProjection = sync ? JSON.parse(text(sync.stable_projection_json)) : null;
   const changedPaths = isNew ? ["$"] : changedProjectionPaths(previousProjection, stable.projection);
+  const volatileFieldCandidates = previousRaw
+    ? detectVolatileFieldCandidates({
+      issueKey,
+      previousRaw,
+      candidateRaw: raw,
+      policy: effectivePolicy.policy
+    })
+    : [];
   const ignoredRawDifferencePaths = existingStable && text(sync.archive_sha256) !== prepared.archiveSha256
     ? ["raw_payload_diff_ignored_stable_equal"]
     : [];
@@ -785,9 +813,9 @@ function issueOutcome(db: DatabaseSync, candidate: CurrentStateCandidate, input:
       snapshot.snapshot.assignee,
       snapshot.snapshot.reporter,
       snapshot.snapshot.creator,
-      canonicalJsonV3(snapshot.snapshot.labels),
-      canonicalJsonV3(snapshot.snapshot.components),
-      canonicalJsonV3(snapshot.snapshot.versions),
+      canonicalJsonV4(snapshot.snapshot.labels),
+      canonicalJsonV4(snapshot.snapshot.components),
+      canonicalJsonV4(snapshot.snapshot.versions),
       text(snapshot.snapshot.startDate) || null,
       text(snapshot.snapshot.dueDate) || null,
       text(snapshot.snapshot.jiraUpdatedAt) || null,
@@ -823,6 +851,15 @@ function issueOutcome(db: DatabaseSync, candidate: CurrentStateCandidate, input:
       || Number(previous.is_present) !== Number(metric.isPresent);
   }).map((metric) => `issue.fields.${metric.fieldId}`);
   const observedMetrics = upsertObservedMetrics(db, sourceObjectId, metrics);
+  const stableHashFieldDiff = buildStableHashFieldDiff({
+    issueKey,
+    previousStableHash: text(sync?.stable_hash),
+    candidateStableHash: stable.stableHash,
+    previousProjection,
+    candidateProjection: stable.projection,
+    metricDiffs: volatileMetricDiffs,
+    candidates: volatileFieldCandidates
+  });
   const revision = isNew ? 1 : Number(sync.content_revision) + (existingStable || coverageUpgradeOnly ? 0 : 1);
   const successfulFetchCount = isNew ? 1 : Number(sync.successful_fetch_count) + 1;
   const firstSuccessfulFetchAt = isNew ? now : text(sync.first_successful_fetch_at);
@@ -849,7 +886,7 @@ function issueOutcome(db: DatabaseSync, candidate: CurrentStateCandidate, input:
     STABLE_HASH_POLICY_VERSION,
     stable.policyFingerprint,
     fetchProfileHash,
-    canonicalJsonV3(coverage),
+    canonicalJsonV4(coverage),
     stable.canonicalJson,
     revision,
     successfulFetchCount,
@@ -887,7 +924,9 @@ function issueOutcome(db: DatabaseSync, candidate: CurrentStateCandidate, input:
     activityEventsExistingByType: activity.existingByType,
     observedMetrics,
     mappingWarnings: effectivePolicy.warnings,
-    eventWarnings: activity.warnings
+    eventWarnings: activity.warnings,
+    volatileFieldCandidates,
+    stableHashFieldDiff
   };
 }
 
@@ -1072,7 +1111,7 @@ export function writeCurrentStateBatch(input: CurrentStateBatchInput) {
       preflightStatus: compatibility.status,
       schemaVersion: CURRENT_STATE_SCHEMA_VERSION,
       storageModel: "Current-State V1",
-      stableHashPolicy: "V3",
+      stableHashPolicy: "V4",
       eventIdentityPolicy: "V2",
       stablePolicyFingerprint: text((db.prepare("SELECT stable_hash_policy_fingerprint FROM database_metadata WHERE metadata_key='primary'").get() as Record<string, unknown>).stable_hash_policy_fingerprint),
       eventPolicyFingerprint: EVENT_IDENTITY_POLICY_FINGERPRINT,

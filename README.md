@@ -1,6 +1,15 @@
 # Jira Activity Analyzer
 
-> v0.2.41 adds Stable Hash V3, evidence-backed Coverage, Current Observed Metrics, and Jira-native Event Identity V2. It creates a new writable database generation and keeps v0.2.39/v0.2.40 databases read-only. See [docs/v0.2.41-stable-hash-coverage-events.md](docs/v0.2.41-stable-hash-coverage-events.md).
+> v0.2.42 adds Stable Hash V4, an exact Field ID volatile-metric registry, safe candidate diagnostics, and corrected build traceability. Earlier Stable Hash policy databases remain read-only. See [docs/v0.2.42-stable-hash-v4-build-traceability.md](docs/v0.2.42-stable-hash-v4-build-traceability.md).
+
+## v0.2.42 Correctness Model
+
+- Volatile metrics are excluded only after exact Jira `names` metadata resolution to a Field ID; broad `Time` or `Duration` matching is forbidden.
+- Confirmed mappings include `customfield_12201` (Actual Duration) and `customfield_12401` (Review Time).
+- Metric-only refetches update Current Observed Metrics but do not rewrite the stable Snapshot/Payload, increment `content_revision`, or create activity events.
+- Unknown changing fields are reported in `volatile-field-candidates.json` and `stable-hash-field-diff.json`; diagnostics never alter the frozen policy.
+- Event Identity remains V2 and Current-State schema remains v2. v0.2.41 Stable Hash V3 databases are read-only in v0.2.42.
+- Full Fetch artifacts receive version, packaged source commit, and build time from the same injected build identity used by the app.
 
 ## v0.2.41 Correctness Model
 

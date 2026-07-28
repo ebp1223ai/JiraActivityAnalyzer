@@ -17,7 +17,8 @@ const buildTimeParts = new Intl.DateTimeFormat("en-CA", {
   hour12: false
 }).formatToParts(new Date());
 const buildPart = (type) => buildTimeParts.find((part) => part.type === type)?.value ?? "00";
-const buildTime = `${buildPart("year")}/${buildPart("month")}/${buildPart("day")} ${buildPart("hour")}:${buildPart("minute")}:${buildPart("second")}`;
+const buildTime = process.env.JAA_BUILD_TIME
+  || `${buildPart("year")}/${buildPart("month")}/${buildPart("day")} ${buildPart("hour")}:${buildPart("minute")}:${buildPart("second")}`;
 const gitValue = (command) => {
   try {
     return execSync(command, { cwd: path.resolve(__dirname, ".."), stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
@@ -36,7 +37,7 @@ const common = {
   define: {
     __MAIN_APP_VERSION__: JSON.stringify(packageJson.version),
     __MAIN_BUILD_TIME__: JSON.stringify(buildTime),
-    __MAIN_GIT_COMMIT__: JSON.stringify(gitValue("git rev-parse HEAD")),
+    __MAIN_GIT_COMMIT__: JSON.stringify(process.env.JAA_PACKAGED_SOURCE_COMMIT || gitValue("git rev-parse HEAD")),
     __MAIN_GIT_BRANCH__: JSON.stringify(gitValue("git branch --show-current"))
   },
   logLevel: "info"

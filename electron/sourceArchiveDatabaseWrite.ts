@@ -12,7 +12,7 @@ import {
   type CurrentStateCandidate
 } from "./currentStateArchive.js";
 import type { StagingRun, StagingTarget } from "./fullFetchStaging.js";
-import { buildStableIssueContentV3, resolveEffectiveStableHashPolicyV3 } from "./stableIssueContentV3.js";
+import { buildStableIssueContentV4, resolveEffectiveStableHashPolicyV4 } from "./stableIssueContentV4.js";
 import type { CoverageEvidence, CoverageProfile, CoverageState } from "./coverageProfile.js";
 
 export type JiraSourceProvenance = {
@@ -213,8 +213,8 @@ export function buildSourceVersionProjectionDiagnostics(
     .map((target) => {
       const payload = loadIssuePayload(run, target);
       const issue = record(record(payload).issue);
-      const resolvedPolicy = resolveEffectiveStableHashPolicyV3(issue.names, issue.schema);
-      const projection = buildStableIssueContentV3(payload, targetCoverage(run, target), resolvedPolicy.policy, serverIdentity);
+      const resolvedPolicy = resolveEffectiveStableHashPolicyV4(issue.names, issue.schema);
+      const projection = buildStableIssueContentV4(payload, targetCoverage(run, target), resolvedPolicy.policy, serverIdentity);
       const outcome = outcomes.get(target.objectKey.toUpperCase()) ?? {};
       return {
         issueKey: target.objectKey,
@@ -353,7 +353,7 @@ export function writeFullFetchStagingToCurrentDatabase(input: DatabaseWriteInput
       reasonCode: result.reasonCode,
       databasePath: result.targetDatabase,
       storageModel: result.storageModel ?? "Current-State V1",
-      stableHashPolicy: result.stableHashPolicy ?? "V3",
+      stableHashPolicy: result.stableHashPolicy ?? "V4",
       stablePolicyFingerprint: result.stablePolicyFingerprint ?? "",
       eventIdentityPolicy: result.eventIdentityPolicy ?? "V2",
       eventPolicyFingerprint: result.eventPolicyFingerprint ?? "",

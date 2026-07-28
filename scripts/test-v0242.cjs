@@ -2,10 +2,10 @@ const path = require("node:path");
 const { build } = require("esbuild");
 
 const root = path.resolve(__dirname, "..");
-const outfile = path.join(root, "node_modules", ".cache", "v0241-legacy-stable-hash-v3-test.cjs");
+const outfile = path.join(root, "node_modules", ".cache", "v0242-stable-hash-v4-traceability-test.cjs");
 
 build({
-  entryPoints: [path.join(root, "electron", "v0241LegacyStableHashV3.test.ts")],
+  entryPoints: [path.join(root, "electron", "v0242StableHashV4Traceability.test.ts")],
   bundle: true,
   platform: "node",
   format: "cjs",

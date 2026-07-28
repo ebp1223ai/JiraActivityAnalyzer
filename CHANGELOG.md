@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.42 - Stable Hash V4 and Build Traceability Repair
+
+- Added Stable Hash V4 with an exact Jira Field ID volatile-metric registry, including confirmed Actual Duration and Review Time mappings.
+- Kept metric-only refetches as Existing while updating Current Observed Metrics without rewriting stable payloads, snapshots, revisions, or activity events.
+- Added safe volatile-field candidate and stable-hash field-diff diagnostics without allowing diagnostics to mutate policy.
+- Kept Event Identity V2 and schema v2; earlier Stable Hash policy databases remain read-only and are never migrated in place.
+- Removed hard-coded Full Fetch artifact versions and added packaged source commit/build identity propagation.
+
 ## 0.2.41 - Stable Hash V3, Coverage Correctness, and Event Identity V2
 
 - Added one frozen, canonical Stable Hash V3 policy per new database, including deterministic fingerprints and exact Jira Field ID resolution for volatile calculated fields.

@@ -15,7 +15,7 @@ import { classifyWindowStability, csvCell, finalizeAttemptDiffs, fingerprintSet,
 import { classifyActivityStreamResult, executeRoundFirstStability, type ActivityStreamProbeRunV2, type ActivityStreamRound, type ActivityStreamRoundWindowResult, type ActivityStreamStabilityConfigV2, type PhysicalHttpRequestDiagnostic, type RoundWindowFetchResult } from "./activityStreamRoundStability.js";
 import { benchmarkCsv, executeActivityStreamBenchmark, type ActivityStreamBenchmarkConfig, type ActivityStreamBenchmarkRun } from "./activityStreamBenchmark.js";
 import { buildSourceArchivePackage } from "./sourceArchiveExporter.js";
-import { appendStagingDiagnostic, cleanupExpiredStaging, completeTarget, createStagingRun, deleteFailedStaging, exportStaging, failStagingRun, finalizeStagingRun, listStagingRuns, loadStagingRun, previewStaging, readFullFetchResultIndex, recordStep5Action, recoverStaleStaging, setStagingStatus, stagingDebugIndex, stagingPaths, startTarget, updateStagingWorkflow, type OptionalEndpointStatus, type StagingRun } from "./fullFetchStaging.js";
+import { appendStagingDiagnostic, cleanupExpiredStaging, completeTarget, configureFullFetchBuildIdentity, createStagingRun, deleteFailedStaging, exportStaging, failStagingRun, finalizeStagingRun, listStagingRuns, loadStagingRun, previewStaging, readFullFetchResultIndex, recordStep5Action, recoverStaleStaging, setStagingStatus, stagingDebugIndex, stagingPaths, startTarget, updateStagingWorkflow, type OptionalEndpointStatus, type StagingRun } from "./fullFetchStaging.js";
 import { buildFullFetchResultDocument, saveFullFetchResult } from "./fullFetchResult.js";
 import { createJiraClient } from "./jira/jiraClient.js";
 import { jiraGetWithRetry } from "./jira/jiraGetRetry.js";
@@ -51,6 +51,12 @@ declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
 declare const __MAIN_GIT_COMMIT__: string;
 declare const __MAIN_GIT_BRANCH__: string;
+
+configureFullFetchBuildIdentity({
+  appVersion: __MAIN_APP_VERSION__,
+  packagedSourceCommit: __MAIN_GIT_COMMIT__,
+  buildTime: __MAIN_BUILD_TIME__
+});
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 const shouldOpenDevTools = process.env.OPEN_DEVTOOLS === "1";
@@ -2899,7 +2905,16 @@ function sourceArchivePayloads(rawData: unknown): unknown[] {
 }
 
 function prepareSourceArchive(payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string }) {
-  return buildSourceArchivePackage({ jiraPayloads: sourceArchivePayloads(payload.rawData), confluencePayloads: Array.isArray(payload.confluenceRawData) ? payload.confluenceRawData : [], selectedUser: payload.selectedUser });
+  return buildSourceArchivePackage({
+    jiraPayloads: sourceArchivePayloads(payload.rawData),
+    confluencePayloads: Array.isArray(payload.confluenceRawData) ? payload.confluenceRawData : [],
+    selectedUser: payload.selectedUser,
+    buildInfo: {
+      appVersion: __MAIN_APP_VERSION__,
+      packagedSourceCommit: __MAIN_GIT_COMMIT__,
+      buildTime: __MAIN_BUILD_TIME__
+    }
+  });
 }
 
 ipcMain.handle("user-analysis:preview-source-archive", async (_event, payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => {
@@ -2995,7 +3010,7 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
     timelineEventListUiState: path.join(outputDir, "timeline-event-list-ui-state.json"),
     selectIssuesUiState: path.join(outputDir, "select-issues-ui-state.json")
   };
-  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: "0.2.41", ...latestUserAnalysisWorkflow });
+  writeJsonAtomic(files.workflowSnapshot, { schemaVersion: "user_analysis_workflow_snapshot_v2", appVersion: __MAIN_APP_VERSION__, ...latestUserAnalysisWorkflow });
   writeJsonAtomic(files.timelineIssueGroups, timelineIssueGroups);
   writeJsonAtomic(files.timelineSelectedIssues, { selectedIssueKeys: timelineSelectedIssues, count: timelineSelectedIssues.length });
   writeJsonAtomic(files.fetchQueue, fetchQueue);
@@ -3770,6 +3785,25 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     reasonCode: "DATABASE_WRITE_NOT_RUN",
     message: "No Stage 5 database write was observed in this session."
   });
+  const databaseWriteOutcomes = Array.isArray(latestSourceArchiveDatabaseWrite?.outcomes)
+    ? latestSourceArchiveDatabaseWrite.outcomes.map(asRecord)
+    : [];
+  writeBundleJson(folderPath, "volatile-field-candidates.json", {
+    schemaVersion: "volatile_field_candidates_v1",
+    stableHashPolicyVersion: "V4",
+    generatedAt: createdAt,
+    policyMutationPerformed: false,
+    candidates: databaseWriteOutcomes.flatMap((outcome) =>
+      Array.isArray(outcome.volatileFieldCandidates) ? outcome.volatileFieldCandidates : [])
+  });
+  writeBundleJson(folderPath, "stable-hash-field-diff.json", {
+    schemaVersion: "stable_hash_field_diff_v1",
+    stableHashPolicyVersion: "V4",
+    generatedAt: createdAt,
+    issues: databaseWriteOutcomes
+      .map((outcome) => outcome.stableHashFieldDiff)
+      .filter((value) => value && typeof value === "object")
+  });
   writeBundleJson(folderPath, "source-archive-migration.json", latestSourceArchiveMigration ?? {
     status: "not_run",
     reasonCode: "MIGRATION_NOT_RUN",
@@ -3852,9 +3886,9 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const debugBundleSummaryBody = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
   writeBundleJson(folderPath, "debug-bundle-summary.json", { ...debugBundleSummaryBody, lastParsedResult: summarize(lastParsedResult), activityStreamStabilityProbe: latestActivityStreamStabilityProbeV2 ? { available: true, authoritativeVersion: "v2", probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, windowCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability } : latestActivityStreamStabilityProbe ? { available: true, authoritativeVersion: "legacy_v1", probeRunId: latestActivityStreamStabilityProbe.probeRunId } : { available: false, authoritativeVersion: "none", probeRunId: "" } });
   const summaryWithV1 = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: "0.2.41", packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithV1, stabilityProbeAvailable: Boolean(latestActivityStreamStabilityProbeV2), stabilitySetupIncluded: true, roundComparisonIncluded: true, windowDiagnosticsIncluded: true, rawDiagnosticsIncluded: true, sourceArchivePackageAvailable: Boolean(latestSourceArchiveExport), sourceArchivePackageIncluded: sourceArchiveIndex.includedInDebugBundle, activityStreamRoundStabilityV2: latestActivityStreamStabilityProbeV2 ? { available: true, schemaVersion: latestActivityStreamStabilityProbeV2.schemaVersion, executionOrder: latestActivityStreamStabilityProbeV2.executionOrder, probeRunId: latestActivityStreamStabilityProbeV2.probeRunId, roundCount: latestActivityStreamStabilityProbeV2.rounds.length, windowDiagnosticCount: latestActivityStreamStabilityProbeV2.windowDiagnostics.length, stability: latestActivityStreamStabilityProbeV2.comparison.stability, roundUnionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundUnionEventCount, roundIntersectionEventCount: latestActivityStreamStabilityProbeV2.comparison.roundIntersectionEventCount, variableEventCount: latestActivityStreamStabilityProbeV2.comparison.variableEventCount, consistencyRate: latestActivityStreamStabilityProbeV2.comparison.consistencyRate, recommendedRoundCount: latestActivityStreamStabilityProbeV2.recommendation.recommendedRoundCount } : { available: false }, activityStreamBenchmark: latestActivityStreamBenchmark ? { available: true, benchmarkRunId: latestActivityStreamBenchmark.benchmarkRunId, status: latestActivityStreamBenchmark.status, runCount: latestActivityStreamBenchmark.summary.runCount } : { available: false }, fullFetchCoverageDiagnostics: latestFullFetchCoverageDiagnostics ?? { status: "not_available" }, sourceArchiveExporter: { version: __MAIN_APP_VERSION__, packageIncludedInDebugBundle: sourceArchiveIndex.includedInDebugBundle, assessmentFile: "source-archive-file-assessment.json", indexFile: "source-archive-export-index.json" } });
   const summaryWithStaging = JSON.parse(fs.readFileSync(debugBundleSummaryPath, "utf8")) as Record<string, unknown>;
-  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: "0.2.41" } });
+  writeBundleJson(folderPath, "debug-bundle-summary.json", { ...summaryWithStaging, debugBundleStatus, fullFetchStaging: fullFetchStagingIndex, fullFetchResult: fullFetchResultMetadata, sourceArchiveExporter: { ...asRecord(summaryWithStaging.sourceArchiveExporter), version: __MAIN_APP_VERSION__ } });
   const bundleFiles: Partial<Record<AutoSaveResultType, string>> = { activity_stream_run: "latest-activity-stream-result.json", precision_probe_run: "latest-precision-probe-result.json", manual_url_replay_run: "latest-manual-url-replay-result.json", maxresults_cap_test: "latest-maxresults-cap-test.json" };
   for (const [resultType, fileName] of Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>) {
     const run = latestAutoSavedRuns.get(resultType);
@@ -5096,6 +5130,7 @@ async function runUiSmoke(window: BrowserWindow) {
   requiredBundleFiles.push("jira-evidence-events.json", "jira-evidence-summary.json", "jira-evidence-excluded-summary.json", "jira-evidence-schema.json", "analysis-roadmap.json");
   requiredBundleFiles.push("activity-stream-stability-probe.json", "activity-stream-attempts.json", "activity-stream-attempt-comparison.csv", "activity-stream-window-summary.csv", "activity-stream-stability-recommendation.json");
   requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-stability-setup.json", "activity-stream-rounds.json", "activity-stream-round-comparison.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.json", "activity-stream-window-diagnostics.csv", "activity-stream-raw-diagnostics.json", "activity-stream-stability-ui-state.json", "activity-stream-stability-recommendation-v2.json", "activity-stream-benchmark.json", "activity-stream-benchmark.csv", "activity-stream-benchmark-summary.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json", "source-archive-export-index.json", "source-archive-database-write.json", "source-archive-migration.json", "source-version-projection");
+  requiredBundleFiles.push("volatile-field-candidates.json", "stable-hash-field-diff.json");
   requiredBundleFiles.push("full-fetch-staging-index.json", "full-fetch-staging", "full-fetch-result", "logs", "staging-metadata", "source-archive-metadata", "export-history", "environment", "sessions", "path-audit.json", "manifest.json");
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));

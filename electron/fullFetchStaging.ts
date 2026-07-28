@@ -12,6 +12,26 @@ export const FULL_FETCH_COMPLETENESS_POLICY = "full_fetch_completeness_v5";
 export const RETENTION_DAYS = 7;
 export const CANCELLED_RETENTION_DAYS = 30;
 
+export type PackagedBuildIdentity = {
+  appVersion: string;
+  packagedSourceCommit: string;
+  buildTime: string;
+};
+
+let activeBuildIdentity: PackagedBuildIdentity = {
+  appVersion: "development",
+  packagedSourceCommit: "unknown",
+  buildTime: "Development Mode"
+};
+
+export function configureFullFetchBuildIdentity(identity: PackagedBuildIdentity) {
+  activeBuildIdentity = { ...identity };
+}
+
+function runBuildIdentity(run: StagingRun) {
+  return run.state.runContext.buildInfo ?? activeBuildIdentity;
+}
+
 export type StagingStatus = "created" | "running" | "completed" | "completed_with_partial" | "completed_with_errors" | "failed" | "cancelled" | "failed_final" | "aborted_on_restart" | "discarded" | "legacy_incomplete";
 export type TargetStatus = "pending" | "in_progress" | "eligible" | "partial" | "required_partial" | "failed_issue" | "failed_final" | "not_attempted_due_to_run_failure" | "excluded";
 type LegacyTargetStatus = "interrupted" | "partial" | "failed_retryable" | "failed_non_retryable" | "failed_after_resume_retry";
@@ -50,6 +70,7 @@ export type FullFetchRunContext = {
     connectionLabel?: string;
   };
   completenessPolicyVersion: string;
+  buildInfo?: PackagedBuildIdentity;
 };
 export type Step5ActionRecord = {
   action: "full_fetch_result_saved" | "source_archive_exported" | "debug_bundle_generated";
@@ -182,7 +203,7 @@ export function deriveState(state: StagingState, index: StagingIndex): StagingSt
 
 function resultDocument(run: StagingRun) {
   return {
-    schemaVersion: "full_fetch_result_index_v5", appVersion: "0.2.40", runId: run.state.fullFetchRunId, stagingId: run.state.stagingId,
+    schemaVersion: "full_fetch_result_index_v5", ...runBuildIdentity(run), runId: run.state.fullFetchRunId, stagingId: run.state.stagingId,
     status: run.state.status, createdAt: run.state.createdAt, startedAt: run.state.startedAt, finishedAt: run.state.finishedAt, failureTime: run.state.failureTime,
     lastCompletedIssue: run.state.lastCompletedObjectKey, faultingIssue: run.state.faultingObjectKey, runError: run.state.runError,
     counts: { total: run.state.total, completed: run.state.completed, eligible: run.state.eligible, partial: run.state.requiredPartial, failed: run.state.failed, notAttempted: run.state.notAttempted, excluded: run.state.excluded },
@@ -215,7 +236,7 @@ export function createStagingRun(rootDir: string, input: { runId: string; select
   const targets: StagingTarget[] = queue.map((candidate, index) => ({ index, objectKey: candidate.key, candidate, status: "pending", attemptCount: 0, lastError: "", errorType: "", classification: "", issueManifestRef: null, currentIssueSnapshotRef: null, snapshotFetchedAt: "", normalizedCurrentFieldsRef: null, normalizedCurrentFields: [], canonicalFiles: {}, coverage: [], optionalWarnings: [], optionalEndpointStatus: {}, partialReasons: [], sizeBytes: 0, updatedAt: createdAt }));
   if (new Set(targets.map((target) => target.objectKey)).size !== targets.length) throw new Error("Full Fetch queue contains duplicate issue keys.");
   const index: StagingIndex = { schemaVersion: FULL_FETCH_INDEX_SCHEMA, stagingId, originalQueueOrder: targets.map((target) => target.objectKey), targets, updatedAt: createdAt };
-  const context = { ...defaultRunContext(input.selectedUser, queue), ...input.runContext, fullFetchRunId: input.runId, stagingId, selectedUser: cleanText(input.runContext?.selectedUser ?? input.selectedUser, 240), fetchQueue: queue, selectedIssues: queue.map((item) => item.key), fetchRemoteLinks: input.runContext?.fetchRemoteLinks === true, completenessPolicyVersion: FULL_FETCH_COMPLETENESS_POLICY } as FullFetchRunContext;
+  const context = { ...defaultRunContext(input.selectedUser, queue), ...input.runContext, fullFetchRunId: input.runId, stagingId, selectedUser: cleanText(input.runContext?.selectedUser ?? input.selectedUser, 240), fetchQueue: queue, selectedIssues: queue.map((item) => item.key), fetchRemoteLinks: input.runContext?.fetchRemoteLinks === true, completenessPolicyVersion: FULL_FETCH_COMPLETENESS_POLICY, buildInfo: input.runContext?.buildInfo ?? activeBuildIdentity } as FullFetchRunContext;
   const initialReconciliation = reconcileFullFetchCounts({ queueTotal: context.queueSnapshot.queueTotal, eligible: context.queueSnapshot.eligibleCount, excluded: context.queueSnapshot.excludedCount, invalid: context.queueSnapshot.invalidCount, planned: targets.length, attempted: 0, completed: 0, partial: 0, failed: 0, notAttempted: targets.length });
   const state: StagingState = { schemaVersion: FULL_FETCH_STAGING_SCHEMA, stagingId, fullFetchRunId: input.runId, status: targets.length ? "created" : "completed", selectedUser: context.selectedUser, runContext: context, createdAt, startedAt: null, finishedAt: targets.length ? null : createdAt, failureTime: null, updatedAt: createdAt, total: targets.length, completed: 0, apiSuccess: 0, eligible: 0, archiveEligible: 0, partial: 0, requiredPartial: 0, optionalWarning: 0, failed: 0, failedFinal: 0, excluded: 0, notAttempted: 0, remaining: targets.length, lastCompletedObjectKey: "", faultingObjectKey: "", runError: null, stagingSizeBytes: 0, packagePath: null, packageSha256: null, exportVerification: null, safeToCleanup: false, cancelledAt: null, successfulExportAt: null, lastExportAttemptAt: null, exportError: null, legacyReadOnly: false, legacyMessage: "", countReconciliation: initialReconciliation, countReconciliationPassed: initialReconciliation.countReconciliationPassed, workflowState: { relatedDiscovery: "not_started", relatedReview: "not_started", relatedFullFetch: "not_started" }, step5History: [] };
   const run = { dir: runDir, state: { ...state, cancelledAt: state.cancelledAt ?? null, successfulExportAt: state.successfulExportAt ?? null, lastExportAttemptAt: state.lastExportAttemptAt ?? null, exportError: state.exportError ?? null }, index };
@@ -379,7 +400,7 @@ export function completeTarget(run: StagingRun, objectKey: string, outcome: Targ
     fileCoverage("issue_links", true, true, "complete", canonicalFiles.issueLinks, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("remote_links", remoteStatus?.enabled === true, remoteStatus?.status !== "not_attempted", remoteStatus?.status === "available" ? "complete" : "not_collected", canonicalFiles.remoteLinks, remoteStatus?.warning ?? "", { fetchedAt: remoteStatus?.fetchedAt ?? null, attemptCount: remoteStatus?.attemptCount ?? 0, httpStatus: remoteStatus?.httpStatus ?? null })
   ];
-  const issueManifest = { schemaVersion: "full_fetch_issue_manifest_v4", appVersion: "0.2.40", runId: run.state.fullFetchRunId, stagingId: run.state.stagingId, issueId: snapshot.id, issueKey: key, status: finalStatus, fetchedAt: snapshot.fetchedAt, committedAt: completedAt, currentIssueSnapshotRef: canonicalFiles.currentIssueSnapshot, normalizedCurrentFieldsRef: canonicalFiles.normalizedCurrentFields, canonicalFiles, coverage, coreValidation: { identityVerified: !validationFailures.includes("issue_identity_mismatch"), fullFieldsReturned: snapshot.sectionStatus.fields === "returned", changelogPaginationComplete, commentsPaginationComplete, canonicalHashSizeAndParseVerified: !validationFailures.some((item) => item.includes("canonical_")), failures: validationFailures }, missingSections: missing, partialReasons: target.partialReasons, failedEndpoints: outcome.failedEndpoints ?? [], optionalWarnings: target.optionalWarnings, classification: finalStatus === "eligible" ? outcome.classification ?? "complete" : "required_core_section_incomplete" };
+  const issueManifest = { schemaVersion: "full_fetch_issue_manifest_v4", ...runBuildIdentity(run), runId: run.state.fullFetchRunId, stagingId: run.state.stagingId, issueId: snapshot.id, issueKey: key, status: finalStatus, fetchedAt: snapshot.fetchedAt, committedAt: completedAt, currentIssueSnapshotRef: canonicalFiles.currentIssueSnapshot, normalizedCurrentFieldsRef: canonicalFiles.normalizedCurrentFields, canonicalFiles, coverage, coreValidation: { identityVerified: !validationFailures.includes("issue_identity_mismatch"), fullFieldsReturned: snapshot.sectionStatus.fields === "returned", changelogPaginationComplete, commentsPaginationComplete, canonicalHashSizeAndParseVerified: !validationFailures.some((item) => item.includes("canonical_")), failures: validationFailures }, missingSections: missing, partialReasons: target.partialReasons, failedEndpoints: outcome.failedEndpoints ?? [], optionalWarnings: target.optionalWarnings, classification: finalStatus === "eligible" ? outcome.classification ?? "complete" : "required_core_section_incomplete" };
   const manifestRef = atomicWriteJsonStream(path.join(issueDir, "issue-manifest.json"), issueManifest, reference("issue-manifest.json"));
   target.status = finalStatus; target.classification = cleanText(finalStatus === "eligible" ? outcome.classification || target.status : "required_core_section_incomplete"); target.errorType = cleanText(finalStatus === "eligible" ? outcome.errorType : "eligible_validation_failed"); target.lastError = cleanText(finalStatus === "eligible" ? outcome.errorMessage : missing.join(", ")); target.currentIssueSnapshotRef = canonicalFiles.currentIssueSnapshot; target.snapshotFetchedAt = snapshot.fetchedAt; target.normalizedCurrentFieldsRef = canonicalFiles.normalizedCurrentFields; target.normalizedCurrentFields = normalized.fields; target.issueManifestRef = manifestRef; target.canonicalFiles = canonicalFiles; target.coverage = coverage; target.sizeBytes = Object.values(canonicalFiles).reduce((sum, ref) => sum + ref.sizeBytes, 0) + manifestRef.sizeBytes; target.updatedAt = completedAt;
   if (finalStatus !== "eligible") appendNdjson(paths(run.dir).issueErrors, { time: completedAt, issueKey: key, status: finalStatus, errorCode: target.errorType, message: target.lastError, canonicalFiles });
@@ -516,9 +537,9 @@ export function exportStaging(run: StagingRun, outputDir: string, _partial = fal
       if (invalid) throw new Error(`Eligible canonical verification failed for ${target.objectKey}: ${invalid.verification.errorCode || "canonical_json_unreadable"}`);
     }
     const canonical = archiveEntries(run, prefix);
-  const objectIndex = { schemaVersion: "source_object_index_v3", appVersion: "0.2.40", stagingId: run.state.stagingId, fullFetchRunId: run.state.fullFetchRunId, countReconciliation: run.state.countReconciliation, objects: run.index.targets.filter((target) => target.status === "eligible").map((target) => ({ sourceSystem: "jira", objectType: "issue", objectKey: target.objectKey, issueManifestRef: target.issueManifestRef, currentIssueSnapshotRef: target.currentIssueSnapshotRef, normalizedCurrentFieldsRef: target.normalizedCurrentFieldsRef, canonicalFiles: target.canonicalFiles, sizeBytes: target.sizeBytes })) };
+  const objectIndex = { schemaVersion: "source_object_index_v3", ...runBuildIdentity(run), stagingId: run.state.stagingId, fullFetchRunId: run.state.fullFetchRunId, countReconciliation: run.state.countReconciliation, objects: run.index.targets.filter((target) => target.status === "eligible").map((target) => ({ sourceSystem: "jira", objectType: "issue", objectKey: target.objectKey, issueManifestRef: target.issueManifestRef, currentIssueSnapshotRef: target.currentIssueSnapshotRef, normalizedCurrentFieldsRef: target.normalizedCurrentFieldsRef, canonicalFiles: target.canonicalFiles, sizeBytes: target.sizeBytes })) };
     let verification: ArchiveVerification = { eligibleCount: run.state.eligible, entryCount: canonical.length + 2, expectedSizeBytes: canonical.reduce((sum, entry) => sum + fs.statSync(entry.filePath!).size, 0), verifiedSizeBytes: 0, hashMatchedCount: 0, zipReopenVerified: false, requiredEntriesReadable: false, manifestConsistent: false, safeForAutomaticImport: false };
-  const manifest = () => Buffer.from(`${JSON.stringify({ schemaVersion: "source_archive_import_package_v3", sectionMetadataVersion: "coverage_v2", appVersion: "0.2.40", exportedAt, packageStatus: "complete", stagingId: run.state.stagingId, fullFetchRunId: run.state.fullFetchRunId, eligible: run.state.eligible, countReconciliation: run.state.countReconciliation, verification, canonicalStorage: "per_issue_file_backed", futureImporterPolicy: "Import eligible records only and verify every canonical file reference before insertion." }, null, 2)}\n`, "utf8");
+  const manifest = () => Buffer.from(`${JSON.stringify({ schemaVersion: "source_archive_import_package_v3", sectionMetadataVersion: "coverage_v2", ...runBuildIdentity(run), exportedAt, packageStatus: "complete", stagingId: run.state.stagingId, fullFetchRunId: run.state.fullFetchRunId, eligible: run.state.eligible, countReconciliation: run.state.countReconciliation, verification, canonicalStorage: "per_issue_file_backed", futureImporterPolicy: "Import eligible records only and verify every canonical file reference before insertion." }, null, 2)}\n`, "utf8");
     const indexBytes = Buffer.from(`${JSON.stringify(objectIndex, null, 2)}\n`, "utf8");
     const makeEntries = () => [{ name: `${prefix}source-archive-import-manifest.json`, data: manifest() }, { name: `${prefix}source-object-index.json`, data: indexBytes }, ...canonical];
     packagePath = path.join(outputDir, `source-archive-import-package-${run.state.stagingId}-complete.zip`);
