@@ -63,6 +63,21 @@ Existing safeguards remain:
 - Issue raw evidence is bounded in the renderer preview; the authoritative compressed payload remains in SQLite.
 - Settings are UI preferences stored in renderer local storage. Existing `.env`, connection, database, and export security flows remain separate.
 - The authenticated reference UI could not be inspected past its sign-in page.
+- The long multi-viewport Electron UI smoke and capture suites were not run. Portable validation confirmed that the packaged process remained alive and responsive, but it did not claim a page-by-page visual pass.
+
+## Validation Summary
+
+- `npm.cmd run typecheck`: passed.
+- `npm.cmd run test:v0.2.42`: passed.
+- `npm.cmd run test:v0.2.43`: passed.
+- `npm.cmd run build`: passed with the existing Vite large-chunk advisory.
+- `npm.cmd run dist`: passed after the required clean-source commit.
+- Portable v0.2.43: launched, remained responsive for eight seconds, and the test process tree was closed.
+
+Artifacts:
+
+- `release/Jira Activity Analyzer Setup 0.2.43.exe`
+- `release/Jira Activity Analyzer Portable 0.2.43.exe`
 
 ## Database Impact
 

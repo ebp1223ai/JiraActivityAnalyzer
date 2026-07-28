@@ -2,18 +2,94 @@
   "schemaVersion": "execution_time_ledger_v1",
   "version": "0.2.43",
   "startedAt": "2026-07-28T18:39:53.1827169+08:00",
-  "finishedAt": null,
+  "finishedAt": "2026-07-28T18:56:54.3014713+08:00",
   "timezone": "Asia/Taipei",
   "phases": [
     {
       "name": "repository_inspection",
-      "startedAt": "2026-07-28T18:39:53.1827169+08:00",
-      "finishedAt": null,
+      "status": "completed",
       "durationMs": null,
-      "status": "in_progress",
-      "notes": "Inspecting routes, components, IPC, SQLite schema, tests, and v0.2.43 requirements."
+      "notes": "Routes, components, IPC, Current-State schema, existing tests, prompt, and reference-site availability inspected. This phase was not independently timed."
+    },
+    {
+      "name": "ui_architecture_and_app_shell",
+      "status": "completed",
+      "durationMs": null,
+      "notes": "Grouped navigation, global top status, legacy redirects, and overlay Debug Log implemented. This phase was not independently timed."
+    },
+    {
+      "name": "database_overview_and_local_viewers",
+      "status": "completed",
+      "durationMs": null,
+      "notes": "Bounded query-only IPC and Database, Issue, and stable-ID User views implemented without schema changes. This phase was not independently timed."
+    },
+    {
+      "name": "data_collection_advanced_tools_settings",
+      "status": "completed",
+      "durationMs": null,
+      "notes": "Existing collection and probe logic retained under the new information architecture; Settings categories redesigned. This phase was not independently timed."
+    },
+    {
+      "name": "documentation_and_final_verification",
+      "status": "completed",
+      "durationMs": null,
+      "notes": "README, CHANGELOG, implementation report, manual validation, version files, packaging, and minimal Portable process validation completed. This phase was not independently timed."
     }
   ],
-  "commands": [],
-  "totalElapsedMs": null
+  "commands": [
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 14400
+    },
+    {
+      "command": "npm.cmd run test:v0.2.42 && npm.cmd run test:v0.2.43 (with typecheck in the same measured command)",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 14000
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 36200,
+      "notes": "Vite emitted the existing large-chunk advisory."
+    },
+    {
+      "command": "npm.cmd run dist (pre-commit gate attempt)",
+      "result": "expected_block",
+      "exitCode": 1,
+      "durationMs": 8100,
+      "notes": "Packaging correctly required a clean tracked worktree."
+    },
+    {
+      "command": "npm.cmd run dist",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 112700
+    },
+    {
+      "command": "Portable process launch and responsiveness check",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 9200,
+      "notes": "The process remained alive and responsive for eight seconds, then the test process tree was terminated. No desktop screenshot was taken."
+    }
+  ],
+  "notRun": [
+    {
+      "command": "npm.cmd run test:ui",
+      "reason": "Long multi-viewport Electron smoke was explicitly excluded by the prompt and prior user instruction."
+    },
+    {
+      "command": "npm.cmd run capture:ui",
+      "reason": "Long multi-viewport capture was not required; no OS-level screenshot was used."
+    },
+    {
+      "command": "Real Jira or company-service validation",
+      "reason": "Automated validation must not use real credentials or production data."
+    }
+  ],
+  "totalElapsedMs": 1021118
 }
