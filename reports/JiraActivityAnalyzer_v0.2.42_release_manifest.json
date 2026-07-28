@@ -1,0 +1,35 @@
+{
+  "appVersion": "0.2.42",
+  "buildTime": "2026-07-28T05:24:54.853Z",
+  "implementationCommit": "4a90f72547759bde95a41a99c13c0b83f926d06d",
+  "packagedSourceCommit": "4a90f72547759bde95a41a99c13c0b83f926d06d",
+  "finalReportCommit": "a83872f0b6cc04a51d8edc191d79d36cdebbf8ba",
+  "artifacts": [
+    {
+      "type": "installer",
+      "path": "release/Jira Activity Analyzer Setup 0.2.42.exe",
+      "fileName": "Jira Activity Analyzer Setup 0.2.42.exe",
+      "sizeBytes": 106476865,
+      "sha256": "331AF937CA655E770980437393D89A180520508F0A6504095FB6226053143896"
+    },
+    {
+      "type": "portable",
+      "path": "release/Jira Activity Analyzer Portable 0.2.42.exe",
+      "fileName": "Jira Activity Analyzer Portable 0.2.42.exe",
+      "sizeBytes": 106246794,
+      "sha256": "22293A36FC3F10BA370BA3A3A07B49A56A5D44C7B5F15989A54EA2A7FF1256F8"
+    }
+  ],
+  "stableHashPolicyVersion": "V4",
+  "stablePolicyFingerprint": "cf261328015b20e61cfa75442e08344fedbc2414b6658c404c083e13f1ab1d15",
+  "stablePolicyFingerprintScope": "deterministic synthetic verification registry; each database freezes its Jira metadata-resolved V4 fingerprint",
+  "eventIdentityPolicyVersion": "V2",
+  "databaseSchemaVersion": 2,
+  "verification": {
+    "artifactHashesVerified": true,
+    "embeddedCommitVerified": true,
+    "embeddedVersionVerified": true,
+    "pdfRenderedAndInspected": true,
+    "trackedSensitiveDataScanPassed": true
+  }
+}
