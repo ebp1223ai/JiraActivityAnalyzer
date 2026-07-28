@@ -44,7 +44,7 @@ const buildEnvironment = {
   JAA_BUILD_TIME_ISO: buildInfo.buildTimeIso
 };
 
-execFileSync("npm.cmd", ["run", "build"], {
+execFileSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", "npm.cmd run build"], {
   cwd: projectRoot,
   env: buildEnvironment,
   stdio: "inherit"
