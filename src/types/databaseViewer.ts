@@ -17,6 +17,8 @@ export type IssueViewerDto = {
     status: ViewerSectionStatus;
     source: "rendered" | "plain" | "none";
     plainText: string;
+    content: string;
+    format: "html" | "wiki" | "plain";
     message: string;
   };
   changelog: ViewerSection<Record<string, unknown>>;

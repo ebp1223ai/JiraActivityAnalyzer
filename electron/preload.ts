@@ -44,11 +44,15 @@ contextBridge.exposeInMainWorld("desktopApp", {
   databaseViewer: {
     overview: () => ipcRenderer.invoke("database-viewer:overview"),
     healthCheck: () => ipcRenderer.invoke("database-viewer:health-check"),
-    openFolder: () => ipcRenderer.invoke("database-viewer:open-folder"),
     listIssues: (payload?: unknown) => ipcRenderer.invoke("database-viewer:list-issues", payload),
+    issueDistributions: () => ipcRenderer.invoke("database-viewer:issue-distributions"),
     getIssue: (payload: { issueKey: string }) => ipcRenderer.invoke("database-viewer:get-issue", payload),
     listUsers: (payload?: unknown) => ipcRenderer.invoke("database-viewer:list-users", payload),
     getUser: (payload: { userId: string; limit?: number; offset?: number }) => ipcRenderer.invoke("database-viewer:get-user", payload)
+  },
+  uiPreferences: {
+    get: () => ipcRenderer.invoke("ui-preferences:get"),
+    update: (payload: unknown) => ipcRenderer.invoke("ui-preferences:update", payload)
   },
   jiraAnalysis: {
     load: (payload: unknown) => ipcRenderer.invoke("jira-analysis:load", payload),

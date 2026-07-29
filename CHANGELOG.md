@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.45 - Table UX and Readable Viewer
+
+- Added strict typed Current-State database query pagination, sorting, and filters with stable Issue Key ordering and a 225-Issue synthetic fixture.
+- Added persistent Database Issue List and Timeline Event List UI preferences under `APP_ROOT/app-data/settings/ui-preferences.json`, including safe defaults and corrupt-file recovery.
+- Reworked Database Overview with Copy Path, full-database Type/Status/Priority distributions, column visibility/order/width controls, and table-local horizontal scrolling.
+- Made Data Collection dates editable while keeping one-month windows, three force-all rounds, 5-second delay, union merge, and Remote Links OFF explicit and shared.
+- Moved Timeline filters into the event table workflow and persisted timeline column visibility without changing completed run results.
+- Added a shared no-script Jira content renderer, readable Description and Comments, and structured Changelog before/after rows without rendering raw JSON.
+- Kept Current-State schema v2 unchanged. No migration, database recreation, Jira write, attachment body download, or new native SQLite dependency is introduced.
+
 ## 0.2.44 - UI Integration and Viewer Correctness
 
 - Limited Jira Connection to Jira API and masked `.env` settings, while centralizing database selection, creation, status, health, counts, recent writes, and folder access in Database Overview.

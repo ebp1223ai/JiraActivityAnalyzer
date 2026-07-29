@@ -99,6 +99,7 @@ export function ConnectionsPage() {
     <div className="min-w-0">
       <PageHeader title="Jira 連線" subtitle="Jira Connection" connected={connected} />
 
+      <div className="max-w-[1080px]">
       <SectionCard title="Jira API 連線設定" subtitle="Jira API Connection Settings">
         <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
           <h2 className="flex min-w-0 items-center gap-3 text-xl font-black">
@@ -169,6 +170,7 @@ export function ConnectionsPage() {
           <b>Remote Links：</b>預設關閉，於每次 Data Collection 執行時明確選擇。 / Default OFF; selected per collection run.
         </div>
       </SectionCard>
+      </div>
     </div>
   );
 }

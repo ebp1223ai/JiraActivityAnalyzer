@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const ledgerPath = path.resolve(process.argv[2] || path.join(__dirname, "..", "reports", "JiraActivityAnalyzer_v0.2.33_execution_time_ledger.json"));
+const ledgerPath = path.resolve(process.argv[2] || path.join(__dirname, "..", "reports", "JiraActivityAnalyzer_v0.2.45_execution_time_ledger.json"));
 const allowedResults = new Set(["passed", "failed", "cancelled", "timeout", "interrupted"]);
 const requiredTopLevel = [
   "schemaVersion", "project", "version", "timezone", "startedAt", "finishedAt",
@@ -27,6 +27,37 @@ function nearlyEqual(left, right, tolerance = 0.01) {
 
 const raw = fs.readFileSync(ledgerPath, "utf8");
 const ledger = JSON.parse(raw);
+if (ledger.formatVersion === 1 && ledger.releaseVersion) {
+  assert(ledger.releaseVersion === "0.2.45", "ledger releaseVersion must match the current v0.2.45 release");
+  assert(ledger.timezone === "Asia/Taipei", "unexpected timezone");
+  assert(Number.isFinite(Date.parse(ledger.sessionStart)), "invalid sessionStart");
+  assert(Number.isFinite(Date.parse(ledger.sessionEnd)), "invalid sessionEnd");
+  const measured = secondsBetween(ledger.sessionStart, ledger.sessionEnd, "session");
+  assert(nearlyEqual(measured, ledger.totalWallClockSeconds, 0.05), "totalWallClockSeconds mismatch");
+  assert(Array.isArray(ledger.phases) && ledger.phases.length > 0, "phases are required");
+  for (const phase of ledger.phases) {
+    assert(phase.status === "completed" || phase.status === "failed", `phase ${phase.name} is not final`);
+    assert(Number.isFinite(Date.parse(phase.start)) && Number.isFinite(Date.parse(phase.end)), `phase ${phase.name} timestamps invalid`);
+    assert(nearlyEqual(secondsBetween(phase.start, phase.end, phase.name), phase.durationSeconds, 0.05), `phase ${phase.name} duration mismatch`);
+  }
+  assert(Array.isArray(ledger.commandAttempts), "commandAttempts are required");
+  for (const command of ledger.commandAttempts) {
+    assert(typeof command.command === "string" && command.command.length > 0, "command is missing");
+    assert(Number.isInteger(command.exitCode), `command ${command.command} exitCode missing`);
+    assert(["passed", "failed"].includes(command.result), `command ${command.command} result invalid`);
+    assert(Number.isFinite(command.durationSeconds) && command.durationSeconds >= 0, `command ${command.command} duration invalid`);
+  }
+  assert(Number.isFinite(ledger.unaccountedTimeSeconds) && ledger.unaccountedTimeSeconds >= 0, "unaccountedTimeSeconds invalid");
+  assert(typeof ledger.reconciliation === "string" && ledger.reconciliation.length > 0, "reconciliation missing");
+  const forbidden = [
+    /authorization\s*[:=]\s*(?!\[masked\])\S+/i,
+    /(?:api[_-]?token|password|cookie)\s*[:=]\s*(?!\[masked\])\S+/i,
+    /bearer\s+[a-z0-9._~-]{12,}/i
+  ];
+  for (const pattern of forbidden) assert(!pattern.test(raw), `ledger contains a possible secret matching ${pattern}`);
+  console.log(`v${ledger.releaseVersion} execution ledger validation passed: ${ledgerPath}`);
+  process.exit(0);
+}
 for (const key of requiredTopLevel) assert(Object.prototype.hasOwnProperty.call(ledger, key), `missing required field: ${key}`);
 assert(ledger.schemaVersion === 1, "unsupported schemaVersion");
 assert(ledger.project === "JiraActivityAnalyzer", "unexpected project");

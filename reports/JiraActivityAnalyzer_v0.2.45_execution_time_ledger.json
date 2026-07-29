@@ -1,0 +1,58 @@
+{
+  "formatVersion": 1,
+  "releaseVersion": "0.2.45",
+  "timezone": "Asia/Taipei",
+  "sessionStart": "2026-07-29T15:14:10.8457283+08:00",
+  "sessionEnd": "2026-07-29T15:55:31.2742141+08:00",
+  "totalWallClockSeconds": 2480.428,
+  "phases": [
+    {
+      "name": "repository_inspection",
+      "status": "completed",
+      "start": "2026-07-29T15:14:10.8457283+08:00",
+      "end": "2026-07-29T15:20:00.0000000+08:00",
+      "durationSeconds": 349.154
+    },
+    {
+      "name": "implementation_and_focused_tests",
+      "status": "completed",
+      "start": "2026-07-29T15:20:00.0000000+08:00",
+      "end": "2026-07-29T15:51:08.1020984+08:00",
+      "durationSeconds": 1868.102
+    },
+    {
+      "name": "packaging_and_delivery",
+      "status": "completed",
+      "start": "2026-07-29T15:51:08.1020984+08:00",
+      "end": "2026-07-29T15:55:31.2742141+08:00",
+      "durationSeconds": 263.172
+    }
+  ],
+  "commandAttempts": [
+    { "command": "npm.cmd run typecheck", "attempt": 1, "result": "failed", "exitCode": 2, "durationSeconds": 15.154, "detail": "Legacy v0.2.43 test expected the former total-only result shape." },
+    { "command": "npm.cmd run typecheck", "attempt": 2, "result": "passed", "exitCode": 0, "durationSeconds": 8.025, "detail": "Passed after retaining the compatibility alias." },
+    { "command": "npm.cmd run test:v0.2.45", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 1.62, "detail": "225-Issue fixture, query safety, preferences, Step 1, and readable Viewer passed." },
+    { "command": "npm.cmd run test:v0.2.43", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 1.067, "detail": "Unified shell and local Viewer regression passed." },
+    { "command": "npm.cmd run test:v0.2.44", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 2.036, "detail": "UI integration and Viewer correctness regression passed." },
+    { "command": "npm.cmd run typecheck", "attempt": 3, "result": "passed", "exitCode": 0, "durationSeconds": 7.89, "detail": "Final pre-build standalone typecheck passed." },
+    { "command": "npm.cmd run test:v0.2.45", "attempt": 2, "result": "passed", "exitCode": 0, "durationSeconds": 0.985, "detail": "Focused suite passed after Timeline sort and empty-result polish." },
+    { "command": "git diff --check", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 0.118, "detail": "No whitespace errors." },
+    { "command": "npm.cmd run build", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 23.198, "detail": "Version, typecheck, Vite renderer, main, and preload builds passed." },
+    { "command": "npm.cmd run dist", "attempt": 1, "result": "failed", "exitCode": 1, "durationSeconds": 7.455, "detail": "Expected clean-worktree guard blocked packaging before commit; no package was produced." },
+    { "command": "npm.cmd run dist", "attempt": 2, "result": "passed", "exitCode": 0, "durationSeconds": 81.498, "detail": "Installer and Portable 0.2.45 were packaged from a clean tracked commit." },
+    { "command": "Portable executable short startup smoke", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 8.432, "detail": "Portable remained alive for 8 seconds and was then closed by the validation command." }
+  ],
+  "manualVerification": {
+    "status": "partial_pass",
+    "durationSeconds": 8.432,
+    "notes": "PASS — short Portable startup. NOT RUN — real COPGEN database, Jira access, and extended visual interaction."
+  },
+  "gitDelivery": {
+    "branch": "feat/v0.2.45-table-ux-readable-viewer",
+    "commit": "SELF (resolve with git rev-parse HEAD after final amend)",
+    "pushStatus": "performed after immutable ledger finalization",
+    "durationSeconds": 0
+  },
+  "unaccountedTimeSeconds": 0,
+  "reconciliation": "349.154 + 1868.102 + 263.172 = 2480.428 seconds; equals measured session wall-clock within 0.001 second."
+}

@@ -2,6 +2,8 @@ import type { JiraProbeRequest, JiraProbeResult } from "./jiraProbe";
 import type { ConnectionStatePayload, JiraConnection } from "./connection";
 import type { RuntimeState } from "./runtime";
 import type { IssueViewerDto } from "./databaseViewer";
+import type { DatabaseIssueDistributions, DatabaseIssueQuery, DatabaseIssueQueryResult } from "./databaseQuery";
+import type { UiPreferencesLoadResult, UiPreferencesUpdate } from "./uiPreferences";
 
 declare global {
   interface Window {
@@ -81,11 +83,15 @@ declare global {
       databaseViewer?: {
         overview: () => Promise<Record<string, unknown>>;
         healthCheck: () => Promise<Record<string, unknown>>;
-        openFolder: () => Promise<{ ok: boolean; folderPath: string; error?: string }>;
-        listIssues: (payload?: { search?: string; project?: string; limit?: number; offset?: number }) => Promise<{ total: number; limit: number; offset: number; items: Array<Record<string, unknown>> }>;
+        listIssues: (payload?: DatabaseIssueQuery) => Promise<DatabaseIssueQueryResult>;
+        issueDistributions: () => Promise<DatabaseIssueDistributions>;
         getIssue: (payload: { issueKey: string }) => Promise<IssueViewerDto>;
         listUsers: (payload?: { search?: string; limit?: number; offset?: number }) => Promise<{ total: number; limit: number; offset: number; items: Array<Record<string, unknown>> }>;
         getUser: (payload: { userId: string; limit?: number; offset?: number }) => Promise<Record<string, unknown>>;
+      };
+      uiPreferences?: {
+        get: () => Promise<UiPreferencesLoadResult>;
+        update: (payload: UiPreferencesUpdate) => Promise<UiPreferencesLoadResult>;
       };
       jiraAnalysis?: {
         load: (payload: { connection: JiraConnection; issueKey: string }) => Promise<Record<string, unknown>>;

@@ -1,11 +1,21 @@
 # Jira Activity Analyzer
 
-> v0.2.44 integrates the local Viewers with Current Snapshot, compressed Full Fetch Payload, and Activity Events; separates Jira Connection from Database Overview; and streamlines Data Collection into five accessible workflow tabs. Current-State schema remains v2 with no migration or recreation. See [the implementation report](reports/JiraActivityAnalyzer_v0.2.44_implementation_report.md).
+> v0.2.45 adds database-backed table pagination/filtering, persistent table preferences, compact connection layout, editable Data Collection dates, and safe readable Jira content. Current-State schema remains v2 with no migration or recreation.
+
+## v0.2.45 Table UX and Readable Viewer
+
+- **Database Issue List:** queries SQLite by page (25/50/100/200), uses strict field allowlists, parameterized values, stable Issue Key ordering, integrated filters, configurable columns, and table-local horizontal scrolling.
+- **UI preferences:** stores only display settings at `APP_ROOT/app-data/settings/ui-preferences.json`. Writes are atomic, corrupt JSON falls back to defaults with a warning, and credentials or Jira payloads are never stored.
+- **Database distributions:** Type, Status, and Priority counts cover the full current snapshot and include an explicit unset bucket. Selecting a value applies the corresponding Issue List filter.
+- **Data Collection:** Start Date defaults to 2026-01-01 and End Date to the current Taipei date, both remain editable and are used by the run. Remote Links is visibly locked OFF for this release.
+- **Timeline:** filters live with the Timeline Event List, column visibility persists, and completed timeline results remain session-backed.
+- **Issue Viewer:** Description and Comments share a safe structural renderer. Changelog shows field-level before/after values. Rendering does not execute scripts or load remote images and never calls Jira.
+- **Compatibility:** no schema change, migration, database recreation, Jira write, attachment body download, or external SQLite native dependency.
 
 ## v0.2.44 Viewer and Workflow Correctness
 
 - **Jira Connection:** owns only Jira URL, identity, authentication, masked token state, `.env`, test result, and per-run Remote Links guidance.
-- **Database Overview:** is the single UI for database selection/creation, path, compatibility, refresh, full health check, counts, recent writes, and opening the database folder.
+- **Database Overview:** is the single UI for database selection/creation, path, compatibility, refresh, full health check, counts, and recent writes.
 - **Issue Viewer:** reads the current Snapshot, validates and safely decodes the current gzip Full Fetch Payload in the main process, and reads Activity Events through bounded IPC. It never calls Jira.
 - **User Viewer:** reads stable user IDs and activities from the local database. Issue and User Viewer state remain independent while the app stays open.
 - **Data Collection:** uses five short tabs: Build Activity Stream, Select Issues, Full Fetch, Validate History, and Save & Export. Step 1 executes a locked one-month, force-all, three-round run with a 5-second delay from 2026-01-01 through the run date.

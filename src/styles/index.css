@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+.jira-content p { margin: 0 0 0.65rem; }
+.jira-content p:last-child { margin-bottom: 0; }
+.jira-content ul, .jira-content ol { margin: 0.5rem 0 0.75rem 1.25rem; }
+.jira-content ul { list-style: disc; }
+.jira-content ol { list-style: decimal; }
+.jira-content h3, .jira-content h4 { margin: 0.8rem 0 0.35rem; font-weight: 800; color: #0f1f3d; }
+.jira-content code { border-radius: 3px; background: #e8edf5; padding: 0.1rem 0.25rem; font-size: 0.85em; }
+.jira-content pre { max-width: 100%; overflow-x: auto; border-radius: 4px; background: #111827; padding: 0.75rem; color: #f8fafc; white-space: pre-wrap; }
+.jira-content blockquote { margin: 0.5rem 0; border-left: 3px solid #94a3b8; padding-left: 0.75rem; color: #475569; }
+.jira-content a { color: #1d4ed8; text-decoration: underline; }
+.jira-wiki-bullet { padding-left: 0.5rem; }
+
 :root {
   color: #0f1f3d;
   background: #f6f9fd;

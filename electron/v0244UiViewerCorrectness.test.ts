@@ -20,7 +20,7 @@ assert.doesNotMatch(connectionsSource, /selectExistingDatabase|createNewDatabase
 assert.match(connectionsSource, /Jira API 連線設定/);
 assert.match(dashboardSource, /selectExistingDatabase/);
 assert.match(dashboardSource, /createNewDatabase/);
-assert.match(dashboardSource, /databaseViewer\?\.openFolder/);
+assert.doesNotMatch(dashboardSource, /databaseViewer\?\.openFolder/);
 assert.match(dashboardSource, /totalPayloads/);
 
 for (const title of ["Build Activity Stream", "Select Issues", "Full Fetch", "Validate History", "Save & Export"]) {

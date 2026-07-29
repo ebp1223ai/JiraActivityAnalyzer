@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { Activity, Database, FileClock, FileInput, FileText, FolderOpen, HeartPulse, MessageSquare, Plus, RefreshCw, Search, Wrench } from "lucide-react";
-import { DataTable } from "../components/DataTable";
+import { Activity, Copy, Database, FileClock, FileInput, FileText, HeartPulse, MessageSquare, Plus, RefreshCw, Wrench } from "lucide-react";
+import { DatabaseIssueTable, DEFAULT_DATABASE_COLUMNS } from "../components/DatabaseIssueTable";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
+import type { DatabaseIssueDistributions, DatabaseIssueQuery, DatabaseIssueQueryResult } from "../types/databaseQuery";
+import type { DatabaseIssueListPreferences } from "../types/uiPreferences";
 
 type Overview = {
   status?: string;
@@ -14,10 +16,14 @@ type Overview = {
   latestRun?: Record<string, unknown>;
 };
 
-type IssueList = {
-  total: number;
-  items: Array<Record<string, unknown>>;
+const defaultQuery: DatabaseIssueQuery = { page: 1, pageSize: 50, sort: { field: "jiraUpdatedAt", direction: "desc" }, filters: {} };
+const defaultPreferences: DatabaseIssueListPreferences = {
+  visibleColumns: [...DEFAULT_DATABASE_COLUMNS],
+  columnOrder: [...DEFAULT_DATABASE_COLUMNS],
+  columnWidths: {},
+  pageSize: 50
 };
+const emptyIssues: DatabaseIssueQueryResult = { databaseTotal: 0, filteredTotal: 0, page: 1, pageSize: 50, pageCount: 1, items: [] };
 
 function value(record: Record<string, unknown> | undefined, key: string, fallback = "-") {
   const result = record?.[key];
@@ -40,10 +46,12 @@ function formatSize(bytes: unknown) {
 export function DashboardPage() {
   const { state, retryDatabase, selectExistingDatabase, createNewDatabase } = useRuntimeStatus();
   const [overview, setOverview] = useState<Overview | null>(null);
-  const [issues, setIssues] = useState<IssueList>({ total: 0, items: [] });
+  const [issues, setIssues] = useState<DatabaseIssueQueryResult>(emptyIssues);
+  const [distributions, setDistributions] = useState<DatabaseIssueDistributions | null>(null);
+  const [query, setQuery] = useState<DatabaseIssueQuery>(defaultQuery);
+  const [preferences, setPreferences] = useState<DatabaseIssueListPreferences>(defaultPreferences);
   const [status, setStatus] = useState<"initial" | "loading" | "ready" | "error">("initial");
   const [notice, setNotice] = useState("");
-  const [search, setSearch] = useState("");
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [healthRunning, setHealthRunning] = useState(false);
 
@@ -52,20 +60,32 @@ export function DashboardPage() {
     setStatus("loading");
     setNotice("");
     try {
-      const [summary, issueList] = await Promise.all([
+      const [summary, issueList, distributionList] = await Promise.all([
         window.desktopApp?.databaseViewer?.overview(),
-        window.desktopApp?.databaseViewer?.listIssues({ search, limit: 25, offset: 0 })
+        window.desktopApp?.databaseViewer?.listIssues(query),
+        window.desktopApp?.databaseViewer?.issueDistributions()
       ]);
       setOverview(summary ?? null);
-      setIssues(issueList ?? { total: 0, items: [] });
+      setIssues(issueList ?? emptyIssues);
+      setDistributions(distributionList ?? null);
       setStatus("ready");
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : String(reason));
       setStatus("error");
     }
-  }, [search, state.database.canRead]);
+  }, [query, state.database.canRead]);
 
   useEffect(() => { void refresh(); }, [refresh, state.database.requestId]);
+  useEffect(() => {
+    void window.desktopApp?.uiPreferences?.get().then((loaded) => {
+      const next = loaded?.preferences.databaseIssueList as DatabaseIssueListPreferences | undefined;
+      if (next) {
+        setPreferences(next);
+        setQuery((current) => ({ ...current, pageSize: next.pageSize }));
+      }
+      if (loaded?.warning) setNotice(loaded.warning);
+    });
+  }, []);
 
   async function selectDatabase() {
     const result = await selectExistingDatabase();
@@ -89,11 +109,18 @@ export function DashboardPage() {
       : `資料庫未建立：${result.error ?? "validation failed"}`);
   }
 
-  async function openFolder() {
-    const result = await window.desktopApp?.databaseViewer?.openFolder();
-    setNotice(result?.ok
-      ? `已開啟資料夾：${result.folderPath}`
-      : `無法開啟資料夾：${result?.error ?? "database unavailable"}`);
+  async function copyDatabasePath() {
+    const databasePath = state.database.path || "";
+    if (!databasePath) return;
+    await navigator.clipboard.writeText(databasePath);
+    setNotice("資料庫路徑已複製 / Database path copied.");
+  }
+
+  function savePreferences(next: DatabaseIssueListPreferences) {
+    setPreferences(next);
+    void window.desktopApp?.uiPreferences?.update({ section: "databaseIssueList", value: next }).then((loaded) => {
+      if (loaded.warning) setNotice(loaded.warning);
+    });
   }
 
   async function fullHealthCheck() {
@@ -121,7 +148,7 @@ export function DashboardPage() {
         <button className="btn" type="button" onClick={() => void retryDatabase()}><RefreshCw size={16} />重新驗證 / Recheck</button>
         <button className="btn" type="button" disabled={!state.database.canRead || status === "loading"} onClick={() => void refresh()}><RefreshCw size={16} />快速重新整理 / Refresh</button>
         <button className="btn" type="button" disabled={!state.database.canRead || healthRunning} onClick={() => void fullHealthCheck()}><Wrench size={16} />{healthRunning ? "檢查中..." : "完整健康檢查 / Health"}</button>
-        <button className="btn" type="button" disabled={!state.database.canRead} onClick={() => void openFolder()}><FolderOpen size={16} />開啟資料夾 / Open Folder</button>
+        <button className="btn" type="button" disabled={!state.database.path} onClick={() => void copyDatabasePath()}><Copy size={16} />複製路徑 / Copy Path</button>
       </div>
 
       {notice ? <div className={`mb-4 rounded-md border p-4 text-sm font-bold ${status === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-blue-200 bg-blue-50 text-blue-800"}`}>{notice}</div> : null}
@@ -181,32 +208,22 @@ export function DashboardPage() {
             </SectionCard>
           </div>
 
-          <SectionCard className="mt-4" title="Issue 清單" subtitle="Issue List" action={
-            <label className="relative block w-[min(320px,100%)]">
-              <Search className="absolute left-3 top-3 text-muted" size={16} />
-              <input className="field pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Issue Key 或 Summary" />
-            </label>
-          }>
-            {status === "loading" ? <div className="py-10 text-center font-bold text-muted">Loading...</div> : issues.items.length ? (
-              <>
-                <DataTable
-                  headers={["Key", "Summary", "Project", "Type", "Status", "Updated", "Snapshot", "Save Outcome", "Events", "Action"]}
-                  rows={issues.items.map((item) => [
-                    <span className="font-black text-blue-700">{value(item, "issueKey")}</span>,
-                    <span title={value(item, "summary")} data-allow-truncate="true" className="inline-block max-w-[340px] truncate align-bottom">{value(item, "summary")}</span>,
-                    value(item, "projectKey"),
-                    value(item, "issueType"),
-                    value(item, "status"),
-                    value(item, "jiraUpdatedAt"),
-                    value(item, "snapshotTime"),
-                    value(item, "saveOutcome", "Unavailable"),
-                    value(item, "eventCount", "0"),
-                    <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(value(item, "issueKey"))}`}>Open</a>
-                  ])}
-                />
-                <div className="mt-3 text-xs font-bold text-muted">{issues.total} total issues</div>
-              </>
-            ) : <div className="py-10 text-center font-bold text-muted">找不到符合條件的 Issue / No issues found</div>}
+          {distributions ? <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3">
+            {(["issueType", "status", "priority"] as const).map((field) => <SectionCard key={field} title={field === "issueType" ? "類型分布" : field === "status" ? "狀態分布" : "優先級分布"} subtitle={`${field} · ${distributions.total} issues`}>
+              <div className="space-y-2">
+                {distributions[field].slice(0, 8).map((item) => <button key={item.value} className="flex w-full items-center gap-3 text-left text-xs font-bold" type="button" onClick={() => setQuery((current) => ({ ...current, page: 1, filters: { ...current.filters, [field]: { values: [item.value === "未設定" ? "__UNSET__" : item.value] } } }))}>
+                  <span className="min-w-0 flex-1 truncate" title={item.value}>{item.value}</span>
+                  <span>{item.count.toLocaleString()}</span>
+                  <span className="h-2 w-24 overflow-hidden rounded bg-slate-100"><span className="block h-full bg-blue-500" style={{ width: `${distributions.total ? Math.max(2, item.count / distributions.total * 100) : 0}%` }} /></span>
+                </button>)}
+              </div>
+            </SectionCard>)}
+          </div> : null}
+
+          <SectionCard className="mt-4" title="Issue 清單" subtitle="Issue List">
+            {status === "loading" ? <div className="py-10 text-center font-bold text-muted">Loading...</div> : (
+              <DatabaseIssueTable result={issues} query={query} preferences={preferences} onQueryChange={setQuery} onPreferencesChange={savePreferences} />
+            )}
           </SectionCard>
         </>
       ) : null}

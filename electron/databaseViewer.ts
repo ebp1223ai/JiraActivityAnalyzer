@@ -23,6 +23,8 @@ interface IssueViewerDto {
     status: ViewerSectionStatus;
     source: "rendered" | "plain" | "none";
     plainText: string;
+    content: string;
+    format: "html" | "wiki" | "plain";
     message: string;
   };
   changelog: ViewerSection<Record<string, unknown>>;
@@ -44,6 +46,32 @@ interface IssueViewerDto {
 type Row = Record<string, unknown>;
 const MAX_VIEWER_PAYLOAD_BYTES = 64 * 1024 * 1024;
 const MAX_RAW_PREVIEW_CHARS = 24000;
+const ISSUE_PAGE_SIZES = new Set([25, 50, 100, 200]);
+const ISSUE_COLUMN_SQL = {
+  issueKey: "o.issue_key",
+  summary: "s.summary",
+  projectKey: "o.project_key",
+  issueType: "s.issue_type",
+  status: "s.status",
+  priority: "s.priority",
+  assignee: "s.assignee",
+  reporter: "s.reporter",
+  creator: "s.creator",
+  createdAt: "json_extract(s.snapshot_json, '$.fields.created')",
+  jiraUpdatedAt: "s.jira_updated_at",
+  snapshotTime: "s.snapshot_updated_at",
+  saveOutcome: "y.last_outcome",
+  eventCount: "COALESCE(ec.event_count, 0)",
+  commentCount: "COALESCE(ec.comment_count, 0)",
+  attachmentCount: "COALESCE(ec.attachment_count, 0)"
+} as const;
+type IssueColumn = keyof typeof ISSUE_COLUMN_SQL;
+type IssueQuery = {
+  page?: unknown;
+  pageSize?: unknown;
+  sort?: unknown;
+  filters?: unknown;
+};
 
 function openReadOnly(databasePath: string) {
   const resolved = path.resolve(databasePath);
@@ -127,6 +155,54 @@ function unavailableSection(message: string): ViewerSection<Row> {
   return section([], "unavailable", message);
 }
 
+function displayName(value: unknown) {
+  const actor = record(value);
+  return String(actor.displayName ?? actor.name ?? actor.emailAddress ?? actor.accountId ?? "");
+}
+
+function normalizeChangelogRecords(value: Row[]) {
+  return value.flatMap((history, historyIndex) => {
+    const historyId = String(history.id ?? `history-${historyIndex + 1}`);
+    const created = String(history.created ?? history.time ?? "");
+    const author = displayName(history.author);
+    const items = Array.isArray(history.items) ? history.items.map(record) : [history];
+    return items.map((item, itemIndex) => {
+      const before = plainText(item.fromString ?? item.from ?? "");
+      const after = plainText(item.toString ?? item.to ?? "");
+      return {
+        historyId,
+        itemId: `${historyId}-${itemIndex + 1}`,
+        created,
+        author,
+        field: String(item.field ?? item.fieldId ?? "Unknown field"),
+        before,
+        after,
+        changeKind: before && after ? "changed" : after ? "added" : before ? "removed" : "recorded"
+      };
+    });
+  });
+}
+
+function normalizeCommentRecords(value: Row[]) {
+  return value.map((comment, index) => {
+    const bodyValue = comment.renderedBody ?? comment.body ?? "";
+    const body = typeof bodyValue === "string" ? bodyValue : plainText(bodyValue);
+    const format = typeof comment.renderedBody === "string" && /<\/?[a-z][\s\S]*>/i.test(comment.renderedBody)
+      ? "html" : typeof bodyValue === "string" ? "wiki" : "plain";
+    const created = String(comment.created ?? "");
+    const updated = String(comment.updated ?? "");
+    return {
+      id: String(comment.id ?? `comment-${index + 1}`),
+      author: displayName(comment.author),
+      created,
+      updated,
+      edited: Boolean(updated && created && updated !== created),
+      body,
+      bodyFormat: format
+    };
+  });
+}
+
 export function normalizeIssueViewerPayload(
   rawValue: unknown,
   metadata: { payloadFormatVersion: number; payloadSavedAt: string; coverageProfile?: unknown },
@@ -136,7 +212,8 @@ export function normalizeIssueViewerPayload(
   const issue = record(raw.issue);
   const fields = record(issue.fields);
   const renderedFields = record(issue.renderedFields);
-  const renderedDescription = plainText(renderedFields.description);
+  const renderedDescriptionValue = typeof renderedFields.description === "string" ? renderedFields.description : "";
+  const renderedDescription = plainText(renderedDescriptionValue);
   const fallbackDescription = plainText(fields.description);
   const changelog = list(raw.changelog ?? record(issue.changelog).histories);
   const comments = list(raw.comments ?? record(fields.comment).comments);
@@ -154,12 +231,12 @@ export function normalizeIssueViewerPayload(
   const rawSerialized = JSON.stringify(raw);
   return {
     description: renderedDescription
-      ? { status: "ready", source: "rendered", plainText: renderedDescription, message: "" }
+      ? { status: "ready", source: "rendered", plainText: renderedDescription, content: renderedDescriptionValue, format: "html" as const, message: "" }
       : fallbackDescription
-        ? { status: "ready", source: "plain", plainText: fallbackDescription, message: "" }
-        : { status: "no_records", source: "none", plainText: "", message: "No description / 無 Description" },
-    changelog: section(changelog),
-    comments: section(comments),
+        ? { status: "ready", source: "plain", plainText: fallbackDescription, content: fallbackDescription, format: "plain" as const, message: "" }
+        : { status: "no_records", source: "none", plainText: "", content: "", format: "plain" as const, message: "No description / 無 Description" },
+    changelog: section(normalizeChangelogRecords(changelog)),
+    comments: section(normalizeCommentRecords(comments)),
     attachments: section(attachments),
     issueLinks: section(issueLinks),
     remoteLinks: remoteDisabled
@@ -185,7 +262,7 @@ export function issueViewerFailure(issueKey: string, status: IssueViewerDto["sta
     issueKey,
     message,
     overview,
-    description: { status: "unavailable", source: "none", plainText: "", message },
+    description: { status: "unavailable", source: "none", plainText: "", content: "", format: "plain", message },
     changelog: unavailable,
     comments: unavailable,
     attachments: unavailable,
@@ -253,44 +330,169 @@ export function runDatabaseHealthCheck(databasePath: string) {
   }
 }
 
-export function listDatabaseIssues(databasePath: string, input: { search?: string; project?: string; limit?: number; offset?: number } = {}) {
+function plainRecord(value: unknown): Row {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_QUERY_OBJECT");
+  return value as Row;
+}
+
+function assertOnlyKeys(value: Row, allowed: readonly string[], label: string) {
+  const invalid = Object.keys(value).filter((key) => !allowed.includes(key));
+  if (invalid.length) throw new Error(`${label}_UNSUPPORTED_FIELDS:${invalid.join(",")}`);
+}
+
+function queryDate(value: unknown, label: string) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || Number.isNaN(Date.parse(`${text}T00:00:00Z`))) throw new Error(`${label}_INVALID_DATE`);
+  return text;
+}
+
+function queryNumber(value: unknown, label: string) {
+  if (value === undefined || value === null || value === "") return null;
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 0) throw new Error(`${label}_INVALID_NUMBER`);
+  return number;
+}
+
+function normalizeIssueQuery(input: IssueQuery = {}) {
+  const page = Number(input.page ?? 1);
+  const pageSize = Number(input.pageSize ?? 50);
+  if (!Number.isSafeInteger(page) || page < 1) throw new Error("INVALID_PAGE");
+  if (!ISSUE_PAGE_SIZES.has(pageSize)) throw new Error("INVALID_PAGE_SIZE");
+  const sort = input.sort === undefined ? {} : plainRecord(input.sort);
+  assertOnlyKeys(sort, ["field", "direction"], "SORT");
+  const sortField = String(sort.field ?? "jiraUpdatedAt") as IssueColumn;
+  const sortDirection = String(sort.direction ?? "desc").toLowerCase();
+  if (!(sortField in ISSUE_COLUMN_SQL)) throw new Error("INVALID_SORT_FIELD");
+  if (sortDirection !== "asc" && sortDirection !== "desc") throw new Error("INVALID_SORT_DIRECTION");
+  const filters = input.filters === undefined ? {} : plainRecord(input.filters);
+  assertOnlyKeys(filters, Object.keys(ISSUE_COLUMN_SQL), "FILTER");
+  return { page, pageSize, sortField, sortDirection, filters };
+}
+
+function issueFilterSql(filters: Row) {
+  const where: string[] = [];
+  const parameters: Array<string | number> = [];
+  const textColumns = new Set<IssueColumn>(["issueKey", "summary"]);
+  const multiColumns = new Set<IssueColumn>(["projectKey", "issueType", "status", "priority", "assignee", "reporter", "creator", "saveOutcome"]);
+  const dateColumns = new Set<IssueColumn>(["createdAt", "jiraUpdatedAt", "snapshotTime"]);
+  const numberColumns = new Set<IssueColumn>(["eventCount", "commentCount", "attachmentCount"]);
+  for (const [fieldValue, rawFilter] of Object.entries(filters)) {
+    const field = fieldValue as IssueColumn;
+    const expression = ISSUE_COLUMN_SQL[field];
+    const filter = plainRecord(rawFilter);
+    if (textColumns.has(field)) {
+      assertOnlyKeys(filter, ["value"], `FILTER_${field}`);
+      const value = String(filter.value ?? "").trim();
+      if (value) {
+        where.push(`LOWER(COALESCE(${expression}, '')) LIKE LOWER(?) ESCAPE '\\'`);
+        parameters.push(`%${value.replace(/[\\%_]/g, "\\$&")}%`);
+      }
+    } else if (multiColumns.has(field)) {
+      assertOnlyKeys(filter, ["values"], `FILTER_${field}`);
+      if (!Array.isArray(filter.values) || filter.values.some((item) => typeof item !== "string")) throw new Error(`FILTER_${field}_INVALID_VALUES`);
+      const values = Array.from(new Set(filter.values.map((item) => String(item).trim()).filter(Boolean))).slice(0, 100);
+      if (values.length) {
+        const includesUnset = values.includes("__UNSET__");
+        const actual = values.filter((item) => item !== "__UNSET__");
+        const parts: string[] = [];
+        if (actual.length) {
+          parts.push(`${expression} IN (${actual.map(() => "?").join(",")})`);
+          parameters.push(...actual);
+        }
+        if (includesUnset) parts.push(`COALESCE(TRIM(${expression}), '') = ''`);
+        where.push(`(${parts.join(" OR ")})`);
+      }
+    } else if (dateColumns.has(field)) {
+      assertOnlyKeys(filter, ["from", "to"], `FILTER_${field}`);
+      const from = queryDate(filter.from, `${field}_FROM`);
+      const to = queryDate(filter.to, `${field}_TO`);
+      if (from && to && from > to) throw new Error(`FILTER_${field}_RANGE`);
+      if (from) { where.push(`date(${expression}) >= date(?)`); parameters.push(from); }
+      if (to) { where.push(`date(${expression}) <= date(?)`); parameters.push(to); }
+    } else if (numberColumns.has(field)) {
+      assertOnlyKeys(filter, ["min", "max"], `FILTER_${field}`);
+      const min = queryNumber(filter.min, `${field}_MIN`);
+      const max = queryNumber(filter.max, `${field}_MAX`);
+      if (min !== null && max !== null && min > max) throw new Error(`FILTER_${field}_RANGE`);
+      if (min !== null) { where.push(`${expression} >= ?`); parameters.push(min); }
+      if (max !== null) { where.push(`${expression} <= ?`); parameters.push(max); }
+    }
+  }
+  return { clause: where.length ? `WHERE ${where.join(" AND ")}` : "", parameters };
+}
+
+const ISSUE_QUERY_FROM = `
+  FROM source_objects o
+  LEFT JOIN current_issue_snapshots s ON s.source_object_id = o.id
+  LEFT JOIN issue_sync_states y ON y.source_object_id = o.id
+  LEFT JOIN (
+    SELECT source_object_id,
+      COUNT(*) AS event_count,
+      SUM(CASE WHEN event_type IN ('comment_created', 'comment_updated') THEN 1 ELSE 0 END) AS comment_count,
+      SUM(CASE WHEN event_type = 'attachment_added' THEN 1 ELSE 0 END) AS attachment_count
+    FROM activity_events GROUP BY source_object_id
+  ) ec ON ec.source_object_id = o.id
+`;
+
+export function listDatabaseIssues(databasePath: string, input: IssueQuery = {}) {
   const { db } = openReadOnly(databasePath);
   try {
-    const limit = boundedLimit(input.limit);
-    const offset = boundedOffset(input.offset);
-    const search = String(input.search ?? "").trim();
-    const project = String(input.project ?? "").trim().toUpperCase();
-    const where: string[] = [];
-    const parameters: Array<string | number> = [];
-    if (search) {
-      where.push("(o.issue_key LIKE ? OR s.summary LIKE ?)");
-      parameters.push(`%${search.toUpperCase()}%`, `%${search}%`);
-    }
-    if (project) {
-      where.push("o.project_key = ?");
-      parameters.push(project);
-    }
-    const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
-    const total = Number(row(db.prepare(`
-      SELECT COUNT(*) AS count
-      FROM source_objects o
-      LEFT JOIN current_issue_snapshots s ON s.source_object_id = o.id
-      ${clause}
-    `).get(...parameters)).count ?? 0);
+    const query = normalizeIssueQuery(input);
+    const { clause, parameters } = issueFilterSql(query.filters);
+    const databaseTotal = Number(row(db.prepare("SELECT COUNT(*) AS count FROM source_objects").get()).count ?? 0);
+    const filteredTotal = Number(row(db.prepare(`SELECT COUNT(*) AS count ${ISSUE_QUERY_FROM} ${clause}`).get(...parameters)).count ?? 0);
+    const pageCount = Math.max(1, Math.ceil(filteredTotal / query.pageSize));
+    const page = Math.min(query.page, pageCount);
+    const offset = (page - 1) * query.pageSize;
+    const orderExpression = ISSUE_COLUMN_SQL[query.sortField];
     const items = rows(db.prepare(`
       SELECT o.issue_key AS issueKey, o.project_key AS projectKey, s.summary, s.issue_type AS issueType,
-             s.status, s.jira_updated_at AS jiraUpdatedAt, s.snapshot_updated_at AS snapshotTime,
+             s.status, s.priority, s.assignee, s.reporter, s.creator,
+             json_extract(s.snapshot_json, '$.fields.created') AS createdAt,
+             s.jira_updated_at AS jiraUpdatedAt, s.snapshot_updated_at AS snapshotTime,
              y.last_outcome AS saveOutcome, y.last_update_reason AS updateReason,
              y.last_successful_run_id AS runId,
-             (SELECT COUNT(*) FROM activity_events e WHERE e.source_object_id = o.id) AS eventCount
-      FROM source_objects o
-      LEFT JOIN current_issue_snapshots s ON s.source_object_id = o.id
-      LEFT JOIN issue_sync_states y ON y.source_object_id = o.id
+             COALESCE(ec.event_count, 0) AS eventCount,
+             COALESCE(ec.comment_count, 0) AS commentCount,
+             COALESCE(ec.attachment_count, 0) AS attachmentCount
+      ${ISSUE_QUERY_FROM}
       ${clause}
-      ORDER BY COALESCE(s.jira_updated_at, s.snapshot_updated_at, o.first_saved_at) DESC, o.issue_key
+      ORDER BY ${orderExpression} ${query.sortDirection.toUpperCase()}, o.issue_key ASC
       LIMIT ? OFFSET ?
-    `).all(...parameters, limit, offset));
-    return { total, limit, offset, items };
+    `).all(...parameters, query.pageSize, offset));
+    return {
+      databaseTotal,
+      filteredTotal,
+      page,
+      pageSize: query.pageSize,
+      pageCount,
+      items,
+      // Retained for v0.2.43 callers; new UI uses the explicit filteredTotal field.
+      total: filteredTotal,
+      limit: query.pageSize,
+      offset
+    };
+  } finally {
+    db.close();
+  }
+}
+
+export function loadDatabaseIssueDistributions(databasePath: string) {
+  const { db } = openReadOnly(databasePath);
+  try {
+    const distribution = (expression: string) => rows(db.prepare(`
+      SELECT COALESCE(NULLIF(TRIM(${expression}), ''), '未設定') AS value, COUNT(*) AS count
+      FROM source_objects o LEFT JOIN current_issue_snapshots s ON s.source_object_id = o.id
+      GROUP BY COALESCE(NULLIF(TRIM(${expression}), ''), '未設定')
+      ORDER BY count DESC, value ASC
+    `).all()).map((item) => ({ value: String(item.value), count: Number(item.count) }));
+    return {
+      total: Number(row(db.prepare("SELECT COUNT(*) AS count FROM source_objects").get()).count ?? 0),
+      issueType: distribution("s.issue_type"),
+      status: distribution("s.status"),
+      priority: distribution("s.priority")
+    };
   } finally {
     db.close();
   }

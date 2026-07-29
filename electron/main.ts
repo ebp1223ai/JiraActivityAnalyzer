@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { assertAppPath, ensureDir, getActivityStreamBaselinesDir, getAppDataDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getCacheDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashDumpsDir, getCrashLogsDir, getDatabaseDir, getDebugFoldersDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getFullFetchResultsDir, getFullFetchStagingDir, getLegacyFullFetchStagingDir, getLogsDir, getProbeResultsDir, getRawDataDir, getSessionDataDir, getSourceArchivesDir, getTempDir, initializeAppRoot } from "./appPaths.js";
-import { createCollisionSafeDirectory, isPathInsideRoot, resolveCanonicalAppRoot } from "./appRoot.js";
+import { createCollisionSafeDirectory, getConfiguredAppRoot, isPathInsideRoot, resolveCanonicalAppRoot } from "./appRoot.js";
 import { applyPortableElectronPaths } from "./electronPortablePaths.js";
 import { baselineFileName, compareBaselineObservation, entryFingerprint as createEntryFingerprint, loadBaselineSnapshot, saveBaselineSnapshot, selectBaselineGuardOutcome, sha256, type ActivityStreamBaselineComparison, type ActivityStreamBaselineSnapshot, type BaselineObservation } from "./activityStreamBaseline.js";
 import { buildUserActivityTimeline, classifyJiraRelation, classifyTimelineSource, timelineCsv, timelineEventSchema, type UserActivityTimelineBuild } from "./userActivityTimeline.js";
@@ -49,12 +49,14 @@ import { testAndSaveJiraSettings, validateAndSaveDatabaseSelection } from "./sta
 import {
   listDatabaseIssues,
   listDatabaseUsers,
+  loadDatabaseIssueDistributions,
   loadDatabaseIssue,
   loadDatabaseOverview,
   loadDatabaseUser,
   issueViewerFailure,
   runDatabaseHealthCheck
 } from "./databaseViewer.js";
+import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -695,8 +697,10 @@ function currentReadableDatabasePath() {
 
 ipcMain.handle("database-viewer:overview", async () => loadDatabaseOverview(currentReadableDatabasePath()));
 ipcMain.handle("database-viewer:health-check", async () => runDatabaseHealthCheck(currentReadableDatabasePath()));
-ipcMain.handle("database-viewer:list-issues", async (_event, payload?: { search?: string; project?: string; limit?: number; offset?: number }) =>
+ipcMain.handle("database-viewer:list-issues", async (_event, payload?: Record<string, unknown>) =>
   listDatabaseIssues(currentReadableDatabasePath(), payload));
+ipcMain.handle("database-viewer:issue-distributions", async () =>
+  loadDatabaseIssueDistributions(currentReadableDatabasePath()));
 ipcMain.handle("database-viewer:get-issue", async (_event, payload: { issueKey?: string }) => {
   const issueKey = String(payload?.issueKey ?? "").trim().toUpperCase();
   try {
@@ -705,15 +709,16 @@ ipcMain.handle("database-viewer:get-issue", async (_event, payload: { issueKey?:
     return issueViewerFailure(issueKey, "query_failed", error instanceof Error ? error.message : "Issue Viewer query failed.");
   }
 });
-ipcMain.handle("database-viewer:open-folder", async () => {
-  const folderPath = path.dirname(currentReadableDatabasePath());
-  const error = await shell.openPath(folderPath);
-  return error ? { ok: false, folderPath, error } : { ok: true, folderPath };
-});
 ipcMain.handle("database-viewer:list-users", async (_event, payload?: { search?: string; limit?: number; offset?: number }) =>
   listDatabaseUsers(currentReadableDatabasePath(), payload));
 ipcMain.handle("database-viewer:get-user", async (_event, payload: { userId?: string; limit?: number; offset?: number }) =>
   loadDatabaseUser(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload));
+ipcMain.handle("ui-preferences:get", async () => loadUiPreferences(getConfiguredAppRoot()));
+ipcMain.handle("ui-preferences:update", async (_event, payload: { section?: unknown; value?: unknown }) => {
+  const section = String(payload?.section ?? "");
+  if (section !== "databaseIssueList" && section !== "timelineEventList") throw new Error("INVALID_UI_PREFERENCE_SECTION");
+  return updateUiPreferences(getConfiguredAppRoot(), section, payload?.value);
+});
 
 ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
   if (!request || request.useMock) {

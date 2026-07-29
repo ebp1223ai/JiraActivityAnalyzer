@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { AlertTriangle, Database, Search } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { DataTable } from "../components/DataTable";
+import { JiraContent } from "../components/JiraContent";
 import { PageHeader } from "../components/PageHeader";
 import { SectionCard } from "../components/SectionCard";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
@@ -118,11 +119,11 @@ export function IssueViewerPage() {
           <div role="tabpanel" aria-label={issueViewer.activeTab}>
             {issueViewer.activeTab === "Overview" ? <DataTable headers={["Field", "Value"]} rows={overviewRows} /> : null}
             {issueViewer.activeTab === "Description" ? result.description.status === "ready"
-              ? <div className="whitespace-pre-wrap break-words rounded-md bg-slate-50 p-4 text-sm leading-relaxed">{result.description.plainText}</div>
+              ? <JiraContent className="rounded-md bg-slate-50 p-4" content={result.description.content || result.description.plainText} format={result.description.format} />
               : <div className="rounded-md border border-slate-300 bg-slate-50 p-6 text-center font-bold text-muted">{result.description.message}</div> : null}
             {section ? sectionState(section, issueViewer.activeTab) : null}
-            {section?.status === "ready" && issueViewer.activeTab === "Changelog" ? <DataTable headers={["Created", "Author", "Items"]} rows={section.records.map((item) => [text(item.created), text((item.author as Record<string, unknown> | undefined)?.displayName), text(JSON.stringify(item.items ?? item))])} /> : null}
-            {section?.status === "ready" && issueViewer.activeTab === "Comments" ? <DataTable headers={["Created", "Author", "Body"]} rows={section.records.map((item) => [text(item.created), text((item.author as Record<string, unknown> | undefined)?.displayName), text(typeof item.body === "string" ? item.body : JSON.stringify(item.body))])} /> : null}
+            {section?.status === "ready" && issueViewer.activeTab === "Changelog" ? <DataTable headers={["Created", "Author", "Field", "Before", "After", "Change"]} rows={section.records.map((item) => [text(item.created), text(item.author), text(item.field), <span className="block max-w-[260px] break-words text-rose-700">{text(item.before, "—")}</span>, <span className="block max-w-[260px] break-words text-emerald-700">{text(item.after, "—")}</span>, text(item.changeKind)])} /> : null}
+            {section?.status === "ready" && issueViewer.activeTab === "Comments" ? <div className="space-y-3">{section.records.map((item) => <article key={text(item.id)} className="rounded-md border border-line bg-white p-4"><header className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"><b>{text(item.author)}</b><span className="text-muted">{text(item.created)}</span>{item.edited ? <span className="rounded bg-amber-100 px-2 py-0.5 font-bold text-amber-800">Edited · {text(item.updated)}</span> : null}</header><JiraContent content={text(item.body, "")} format={(item.bodyFormat === "html" || item.bodyFormat === "wiki") ? item.bodyFormat : "plain"} /></article>)}</div> : null}
             {section?.status === "ready" && issueViewer.activeTab === "Attachments Metadata" ? <DataTable headers={["Filename", "Size", "Mime Type", "Created", "Author"]} rows={section.records.map((item) => [text(item.filename), text(item.size), text(item.mimeType), text(item.created), text((item.author as Record<string, unknown> | undefined)?.displayName)])} /> : null}
             {section?.status === "ready" && ["Issue Links", "Remote Links"].includes(issueViewer.activeTab) ? <DataTable headers={["Type", "Direction / Object", "Issue / URL"]} rows={section.records.map((item) => [text((item.type as Record<string, unknown> | undefined)?.name ?? item.relationship), text(item.inwardIssue ? "Inward" : item.outwardIssue ? "Outward" : item.title), text((item.inwardIssue as Record<string, unknown> | undefined)?.key ?? (item.outwardIssue as Record<string, unknown> | undefined)?.key ?? item.url)])} /> : null}
             {section?.status === "ready" && issueViewer.activeTab === "Activity Events" ? <DataTable headers={["Time", "Type", "Actor ID", "Actor", "Field", "From", "To"]} rows={section.records.map((item) => [text(item.eventTime), text(item.eventType), text(item.actorAccountId), text(item.actorDisplayName), text(item.fieldName), text(item.fromValueJson), text(item.toValueJson)])} /> : null}
