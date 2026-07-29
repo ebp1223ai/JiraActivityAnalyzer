@@ -1,0 +1,79 @@
+{
+  "version": "0.2.46",
+  "startedAt": "2026-07-29T17:30:24.2261440+08:00",
+  "finishedAt": "2026-07-29T18:05:39.8288898+08:00",
+  "totalElapsedSeconds": 2115.603,
+  "phases": [
+    {
+      "name": "repository_and_requirement_inspection",
+      "startedAt": "2026-07-29T17:30:24.2261440+08:00",
+      "finishedAt": "2026-07-29T17:36:00+08:00",
+      "elapsedSeconds": 335.774,
+      "commands": [
+        "read v0.2.46 prompt and repository status",
+        "inspect instructions, architecture, provenance, session, debug, build and test locations"
+      ],
+      "result": "passed",
+      "notes": "Created the requirement matrix. Existing unrelated untracked files were preserved and excluded."
+    },
+    {
+      "name": "implementation",
+      "startedAt": "2026-07-29T17:36:00+08:00",
+      "finishedAt": "2026-07-29T17:58:00+08:00",
+      "elapsedSeconds": 1320,
+      "commands": [
+        "implemented frozen Activity Timeline Run Context",
+        "implemented read-only SQLite Viewer query contracts and shared table",
+        "implemented User and Issue Activity Stream views",
+        "made Connections renderer capability read-only",
+        "extended Jira readable content and UI preferences"
+      ],
+      "result": "partial",
+      "notes": "Core acceptance paths were implemented. Timeline remains session-backed; Debug Folder current/historical/stale artifact classification and full navigation scroll restoration remain follow-up work."
+    },
+    {
+      "name": "focused_verification",
+      "startedAt": "2026-07-29T17:58:00+08:00",
+      "finishedAt": "2026-07-29T18:03:30+08:00",
+      "elapsedSeconds": 330,
+      "commands": [
+        "npm.cmd run typecheck",
+        "npm.cmd run test:v0.2.45",
+        "npm.cmd run test:v0.2.46",
+        "npm.cmd run test:integration",
+        "npm.cmd run build",
+        "git diff --check",
+        "focused secret-pattern scan"
+      ],
+      "result": "passed",
+      "notes": "Synthetic SQLite fixtures only. No real Jira, real company SQLite, or long multi-size UI smoke was run."
+    },
+    {
+      "name": "installer_portable_build",
+      "startedAt": "2026-07-29T18:03:30+08:00",
+      "finishedAt": "2026-07-29T18:05:39.8288898+08:00",
+      "elapsedSeconds": 129.829,
+      "commands": [
+        "npm.cmd run dist (expected pre-commit clean-worktree rejection, exit 1, 7.0 seconds)",
+        "git commit source implementation",
+        "npm.cmd run dist (exit 0, 81.7 seconds)"
+      ],
+      "result": "passed",
+      "notes": "Setup and Portable were generated with packagedSourceCommit 68f987f4aa72efd242e0560fc3da015f13513107. GUI launch/manual acceptance was not run."
+    }
+  ],
+  "verification": {
+    "typecheckSeconds": 11.7,
+    "unitTestSeconds": 3.1,
+    "integrationTestSeconds": 3.3,
+    "buildSeconds": 15.1,
+    "installerPortableBuildSeconds": 81.7
+  },
+  "environment": {
+    "os": "Microsoft Windows NT 10.0.26100.0",
+    "node": "v24.18.0",
+    "packageManager": "npm 11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3"
+  }
+}
