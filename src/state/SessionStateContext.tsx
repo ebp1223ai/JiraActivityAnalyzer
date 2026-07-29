@@ -4,6 +4,7 @@ import { defaultWorkflowSteps, type FetchQueueMetadata, type IssueKeySetReconcil
 import type { ActivityStreamProbeRunV2 } from "../../electron/activityStreamRoundStability";
 import type { ActivityStreamBenchmarkRun } from "../../electron/activityStreamBenchmark";
 import { USER_ANALYSIS_DEFAULTS, userAnalysisInitialDates } from "../../electron/analysisDefaults";
+import type { ActivityTimelineRunContext } from "../../electron/activityTimelineRunContext";
 import type { IssueViewerSessionState, UserViewerSessionState } from "../types/databaseViewer";
 
 export type SessionTableState = {
@@ -551,6 +552,7 @@ export type UserAnalysisSessionState = {
   activeTab: "timeline" | "selectIssues" | "queue" | "fetchReport" | "relatedIssues" | "exports" | "candidates";
   workflowSteps: WorkflowStepStatus;
   timelineStatus: "idle" | "running" | "completed" | "failed";
+  timelineRunContext: ActivityTimelineRunContext | null;
   timelineEvents: UserActivityTimelineEvent[];
   timelineSummary: UserActivityTimelineSummary | null;
   timelineIssueGroups: TimelineIssueGroup[];
@@ -731,7 +733,11 @@ const initialIssueViewer: IssueViewerSessionState = {
   result: null,
   status: "initial",
   message: "",
-  activeTab: "Overview"
+  activeTab: "Overview",
+  activityStreamQuery: { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {} },
+  activityStreamResult: null,
+  activityStreamStatus: "idle",
+  activityStreamMessage: ""
 };
 
 const initialUserViewer: UserViewerSessionState = {
@@ -741,12 +747,17 @@ const initialUserViewer: UserViewerSessionState = {
   detail: null,
   status: "initial",
   message: "",
-  activeTab: "Summary",
+  activeTab: "Related Issues",
   startDate: "",
   endDate: "",
   eventType: "all",
   project: "all",
-  sort: "newest"
+  sort: "newest",
+  relatedQuery: { page: 1, pageSize: 50, sort: { field: "lastActivity", direction: "desc" }, filters: {} },
+  eventQuery: { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {} },
+  relatedResult: null,
+  activityStreamResult: null,
+  allEventsResult: null
 };
 
 const initialUserAnalysis: UserAnalysisSessionState = {
@@ -769,6 +780,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   activeTab: "timeline",
   workflowSteps: defaultWorkflowSteps(),
   timelineStatus: "idle",
+  timelineRunContext: null,
   timelineEvents: [],
   timelineSummary: null,
   timelineIssueGroups: [],

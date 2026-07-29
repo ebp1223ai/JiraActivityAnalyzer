@@ -1,40 +1,79 @@
-import { useEffect, useMemo } from "react";
-import { Database, Search, UserRound } from "lucide-react";
-import { DataTable } from "../components/DataTable";
+import { useEffect, useRef, useState } from "react";
+import { Activity, Database, MessageSquare, Search, UserRound, Wrench } from "lucide-react";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
+import { SqliteDataTable, type SqliteTableColumn } from "../components/SqliteDataTable";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import { useSessionState } from "../state/SessionStateContext";
+import type { ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
+import type { TablePreferences, UiPreferences, UiPreferencesUpdate } from "../types/uiPreferences";
 
-function text(value: unknown, fallback = "-") {
+function text(value: unknown, fallback = "—") {
   return value === undefined || value === null || value === "" ? fallback : String(value);
 }
+
+const emptyResult: ViewerTableResult = { rows: [], filteredCount: 0, totalCount: 0, page: 1, pageSize: 50, pageCount: 1 };
+const issueColumns: SqliteTableColumn[] = [
+  { id: "issueKey", label: "Key", kind: "text", width: 130, render: (row) => <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(text(row.issueKey, ""))}&sourcePage=users&sourceTab=Related%20Issues`}>{text(row.issueKey)}</a> },
+  { id: "summary", label: "Summary", kind: "text", width: 300 },
+  { id: "projectKey", label: "Project", kind: "multi", width: 120 },
+  { id: "issueType", label: "Type", kind: "multi", width: 120 },
+  { id: "status", label: "Status", kind: "multi", width: 130 },
+  { id: "priority", label: "Priority", kind: "multi", width: 110 },
+  { id: "userActivityCount", label: "User Activities", kind: "number", width: 120 },
+  { id: "commentCount", label: "Comments", kind: "number", width: 100 },
+  { id: "fieldChangeCount", label: "Field Changes", kind: "number", width: 110 },
+  { id: "firstActivity", label: "First Activity", kind: "date", width: 180 },
+  { id: "lastActivity", label: "Last Activity", kind: "date", width: 180 }
+];
+const eventColumns: SqliteTableColumn[] = [
+  { id: "eventTime", label: "Time", kind: "date", width: 180 },
+  { id: "issueKey", label: "Issue Key", kind: "text", width: 130, render: (row) => <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(text(row.issueKey, ""))}&sourcePage=users`}>{text(row.issueKey)}</a> },
+  { id: "eventType", label: "Activity Type", kind: "multi", width: 150 },
+  { id: "fieldName", label: "Field", kind: "multi", width: 140 },
+  { id: "before", label: "Before", kind: "text", width: 220 },
+  { id: "after", label: "After", kind: "text", width: 220 },
+  { id: "summary", label: "Title / Summary", kind: "text", width: 300 },
+  { id: "sourceProvenance", label: "Source", kind: "multi", width: 170 }
+];
 
 export function UserViewerPage() {
   const { state } = useRuntimeStatus();
   const { userViewer, setUserViewer } = useSessionState();
+  const requestSequence = useRef(0);
+  const [preferences, setPreferences] = useState<UiPreferences | null>(null);
   const patch = (value: Partial<typeof userViewer>) => setUserViewer((current) => ({ ...current, ...value }));
 
   async function loadUsers() {
     if (!state.database.canRead) return;
+    const requestId = ++requestSequence.current;
     patch({ status: "loading", message: "" });
     try {
       const result = await window.desktopApp?.databaseViewer?.listUsers({ search: userViewer.search, limit: 100, offset: 0 });
+      if (requestId !== requestSequence.current) return;
       patch({ users: result?.items ?? [], status: "ready" });
     } catch (reason) {
-      patch({ message: reason instanceof Error ? reason.message : String(reason), status: "error" });
+      if (requestId === requestSequence.current) patch({ message: reason instanceof Error ? reason.message : String(reason), status: "error" });
     }
   }
 
-  async function loadUser(userId: string) {
-    patch({ selectedUserId: userId, status: "loading", message: "" });
+  async function queryTab(userId: string, tab = userViewer.activeTab, queryOverride?: ViewerTableQuery) {
+    const requestId = ++requestSequence.current;
+    patch({ selectedUserId: userId, activeTab: tab, status: "loading", message: "" });
     try {
-      const detail = await window.desktopApp?.databaseViewer?.getUser({ userId, limit: 200, offset: 0 }) ?? null;
-      patch({ detail, status: "ready" });
+      const detailPromise = window.desktopApp?.databaseViewer?.getUser({ userId, limit: 1, offset: 0 });
+      const query = queryOverride ?? (tab === "Related Issues" ? userViewer.relatedQuery : userViewer.eventQuery);
+      const resultPromise = tab === "Related Issues"
+        ? window.desktopApp?.databaseViewer?.userRelatedIssues({ userId, query })
+        : window.desktopApp?.databaseViewer?.userEvents({ userId, scope: tab === "Activity Stream" ? "activity_stream" : "all", query });
+      const [detail, result] = await Promise.all([detailPromise, resultPromise]);
+      if (requestId !== requestSequence.current) return;
+      const resultKey = tab === "Related Issues" ? "relatedResult" : tab === "Activity Stream" ? "activityStreamResult" : "allEventsResult";
+      patch({ detail: detail ?? null, [resultKey]: result ?? emptyResult, status: "ready" });
     } catch (reason) {
-      patch({ message: reason instanceof Error ? reason.message : String(reason), status: "error" });
+      if (requestId === requestSequence.current) patch({ message: reason instanceof Error ? reason.message : String(reason), status: "error" });
     }
   }
 
@@ -42,56 +81,87 @@ export function UserViewerPage() {
     if (state.database.canRead && userViewer.status === "initial") void loadUsers();
   }, [state.database.canRead, state.database.requestId]);
 
+  useEffect(() => {
+    void window.desktopApp?.uiPreferences?.get().then((response) => {
+      if (response) setPreferences(response.preferences);
+    });
+  }, []);
+
   if (!state.database.canRead) {
     return <div><PageHeader title="使用者檢視" subtitle="User Viewer" connected={false} /><SectionCard><div className="py-14 text-center"><Database className="mx-auto mb-4 text-slate-300" size={42} /><b>Local database unavailable</b><p className="mt-2 text-sm text-muted">{state.database.message}</p></div></SectionCard></div>;
   }
 
   const summary = (userViewer.detail?.summary ?? {}) as Record<string, unknown>;
-  const rawEvents = Array.isArray(userViewer.detail?.events) ? userViewer.detail.events as Array<Record<string, unknown>> : [];
-  const projects = Array.isArray(userViewer.detail?.projects) ? userViewer.detail.projects as Array<Record<string, unknown>> : [];
-  const eventTypes = Array.isArray(userViewer.detail?.eventTypes) ? userViewer.detail.eventTypes as Array<Record<string, unknown>> : [];
-  const events = useMemo(() => rawEvents
-    .filter((event) => userViewer.startDate === "" || text(event.eventTime) >= userViewer.startDate)
-    .filter((event) => userViewer.endDate === "" || text(event.eventTime) <= `${userViewer.endDate}T23:59:59.999Z`)
-    .filter((event) => userViewer.eventType === "all" || event.eventType === userViewer.eventType)
-    .filter((event) => userViewer.project === "all" || event.projectKey === userViewer.project)
-    .sort((a, b) => userViewer.sort === "newest" ? text(b.eventTime).localeCompare(text(a.eventTime)) : text(a.eventTime).localeCompare(text(b.eventTime))),
-  [rawEvents, userViewer.endDate, userViewer.eventType, userViewer.project, userViewer.sort, userViewer.startDate]);
+  const activeResult = userViewer.activeTab === "Related Issues" ? userViewer.relatedResult : userViewer.activeTab === "Activity Stream" ? userViewer.activityStreamResult : userViewer.allEventsResult;
+  const activeQuery = userViewer.activeTab === "Related Issues" ? userViewer.relatedQuery : userViewer.eventQuery;
+
+  function updateQuery(query: ViewerTableQuery) {
+    if (!userViewer.selectedUserId) return;
+    patch(userViewer.activeTab === "Related Issues" ? { relatedQuery: query } : { eventQuery: query });
+    void queryTab(userViewer.selectedUserId, userViewer.activeTab, query);
+  }
+
+  async function saveTablePreferences(section: UiPreferencesUpdate["section"], value: TablePreferences) {
+    const response = await window.desktopApp?.uiPreferences?.update({ section, value });
+    if (response) setPreferences(response.preferences);
+  }
+
+  const preferenceSection = userViewer.activeTab === "Related Issues"
+    ? "userRelatedIssues"
+    : userViewer.activeTab === "Activity Stream"
+      ? "userActivityStream"
+      : "userAllActivityEvents";
 
   return (
     <div className="min-w-0">
-      <PageHeader title="使用者檢視" subtitle="User Viewer · Local Database Only" connected={false} />
+      <PageHeader title="使用者檢視" subtitle="User Viewer · Local Database / Read Only" connected={false} />
       <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-900">
-        以 stable Account ID／Username 區分使用者；Display Name 不作唯一識別。此頁不呼叫 Jira API。
+        Stable User ID 是活動關聯主鍵；Display Name 只用於搜尋與顯示，不會合併同名使用者。Viewer 不呼叫 Jira API。
       </div>
-      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <SectionCard title="本機使用者" subtitle="Local Users">
-          <label className="relative mb-3 block">
-            <Search className="absolute left-3 top-3 text-muted" size={16} />
-            <input className="field pl-9" value={userViewer.search} onChange={(event) => patch({ search: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") void loadUsers(); }} placeholder="Stable ID 或 Display Name" />
-          </label>
-          <div className="thin-scroll max-h-[640px] space-y-2 overflow-y-auto">
-            {userViewer.status === "loading" ? <div className="py-8 text-center text-sm font-bold text-muted">Loading...</div> : null}
-            {userViewer.status === "error" ? <div className="rounded-md bg-rose-50 p-3 text-sm font-bold text-rose-700">{userViewer.message}</div> : null}
-            {userViewer.status === "ready" && !userViewer.users.length ? <div className="py-8 text-center text-sm font-bold text-muted">沒有具 stable ID 的活動使用者 / No stable users</div> : null}
-            {userViewer.users.map((user) => <button key={text(user.userId)} className={`w-full rounded-md border p-3 text-left ${userViewer.selectedUserId === user.userId ? "border-blue-400 bg-blue-50" : "border-line bg-white"}`} type="button" onClick={() => void loadUser(text(user.userId))}><div className="font-black">{text(user.displayName, "Unknown display name")}</div><div className="mt-1 break-all text-xs font-semibold text-muted">{text(user.userId)}</div><div className="mt-2 text-xs font-bold text-blue-700">{text(user.totalEvents, "0")} events · {text(user.totalIssues, "0")} issues</div></button>)}
-          </div>
+      <SectionCard title="選擇使用者" subtitle="Select User">
+        <div className="flex flex-wrap gap-2"><label className="relative min-w-[260px] flex-1"><Search className="absolute left-3 top-3 text-muted" size={16} /><input className="field pl-9" value={userViewer.search} onChange={(event) => patch({ search: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") void loadUsers(); }} placeholder="Display Name / Username / Stable User ID" /></label><button className="btn" type="button" onClick={() => void loadUsers()}><Search size={15} />搜尋</button></div>
+        <div className="thin-scroll mt-3 flex max-w-full gap-2 overflow-x-auto pb-1">{userViewer.users.map((user) => <button key={text(user.userId)} className={`min-w-[250px] rounded-md border p-3 text-left ${userViewer.selectedUserId === user.userId ? "border-blue-400 bg-blue-50" : "border-line bg-white"}`} type="button" onClick={() => void queryTab(text(user.userId))}><div className="font-black">{text(user.displayName, "Unknown display name")}</div><div className="truncate text-xs font-semibold text-muted" title={text(user.userId)}>{text(user.userId)}</div><div className="mt-2 text-xs font-bold text-blue-700">{text(user.totalIssues, "0")} issues · {text(user.activityStreamCount, "0")} stream · {text(user.totalEvents, "0")} all</div></button>)}</div>
+      </SectionCard>
+
+      {!userViewer.selectedUserId ? <SectionCard className="mt-4"><div className="py-16 text-center"><UserRound className="mx-auto mb-3 text-slate-300" size={42} /><b>選擇一位使用者 / Select a user</b></div></SectionCard> : <>
+        <SectionCard className="mt-4" title={text(summary.displayName, "Unknown user")} subtitle={`Stable User ID · ${text(summary.userId)}`}>
+          <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3"><div><b>Earliest：</b>{text(summary.earliestEvent)}</div><div><b>Latest：</b>{text(summary.latestEvent)}</div><div className="break-all"><b>Database：</b>{state.database.sourceBinding || "Unavailable"}</div></div>
         </SectionCard>
-        <div className="min-w-0">
-          {!userViewer.detail ? <SectionCard><div className="py-20 text-center"><UserRound className="mx-auto mb-4 text-slate-300" size={42} /><b>選擇一位使用者 / Select a user</b></div></SectionCard> : null}
-          {userViewer.detail?.found ? <>
-            <SectionCard title={text(summary.displayName, "Unknown user")} subtitle={text(summary.userId)}>
-              <div className="mb-4 flex border-b border-line" role="tablist" aria-label="User Viewer sections">
-                {["Summary", "Activity"].map((tab) => <button key={tab} role="tab" aria-selected={userViewer.activeTab === tab} className={`border-b-2 px-4 py-3 text-sm font-black ${userViewer.activeTab === tab ? "border-blue-600 bg-blue-50 text-blue-700" : "border-transparent text-muted"}`} onClick={() => patch({ activeTab: tab })}>{tab}</button>)}
-              </div>
-              {userViewer.activeTab === "Summary" ? <dl className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2"><div><dt className="font-bold text-muted">Stable User ID</dt><dd className="break-all font-black">{text(summary.userId)}</dd></div><div><dt className="font-bold text-muted">Jira Server</dt><dd className="break-all font-semibold">{state.database.sourceBinding || "Unavailable"}</dd></div><div><dt className="font-bold text-muted">Earliest Event</dt><dd>{text(summary.earliestEvent)}</dd></div><div><dt className="font-bold text-muted">Latest Event</dt><dd>{text(summary.latestEvent)}</dd></div></dl> : null}
-              {userViewer.activeTab === "Activity" ? <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5"><input className="field" type="date" value={userViewer.startDate} onChange={(event) => patch({ startDate: event.target.value })} /><input className="field" type="date" value={userViewer.endDate} onChange={(event) => patch({ endDate: event.target.value })} /><select className="field" value={userViewer.eventType} onChange={(event) => patch({ eventType: event.target.value })}><option value="all">All Event Types</option>{eventTypes.map((item) => <option key={text(item.eventType)} value={text(item.eventType)}>{text(item.eventType)}</option>)}</select><select className="field" value={userViewer.project} onChange={(event) => patch({ project: event.target.value })}><option value="all">All Projects</option>{projects.map((item) => <option key={text(item.projectKey)} value={text(item.projectKey)}>{text(item.projectKey)}</option>)}</select><select className="field" value={userViewer.sort} onChange={(event) => patch({ sort: event.target.value as "newest" | "oldest" })}><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></div> : null}
-            </SectionCard>
-            {userViewer.activeTab === "Summary" ? <><ResponsiveMetricGrid min={170} className="mt-4"><MetricCard label="Issue" sub="Total Issues" value={text(summary.totalIssues, "0")} icon={Database} /><MetricCard label="事件" sub="Total Events" value={text(summary.totalEvents, "0")} icon={UserRound} /><MetricCard label="留言" sub="Comments" value={text(summary.comments, "0")} icon={UserRound} /><MetricCard label="欄位變更" sub="Field Changes" value={text(summary.fieldChanges, "0")} icon={UserRound} /><MetricCard label="附件中繼資料" sub="Attachment Metadata" value={text(summary.attachments, "0")} icon={UserRound} /></ResponsiveMetricGrid><div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2"><SectionCard title="Project 分布" subtitle="Project Distribution"><DataTable headers={["Project", "Events"]} rows={projects.map((item) => [text(item.projectKey), text(item.count)])} /></SectionCard><SectionCard title="事件類型分布" subtitle="Event Type Distribution"><DataTable headers={["Event Type", "Count"]} rows={eventTypes.map((item) => [text(item.eventType), text(item.count)])} /></SectionCard></div></> : null}
-            {userViewer.activeTab === "Activity" ? <SectionCard className="mt-4" title="活動紀錄" subtitle={`Activity Records · ${events.length}`}><DataTable headers={["Time", "Issue", "Project", "Event Type", "Field", "From", "To"]} rows={events.map((item) => [text(item.eventTime), text(item.issueKey), text(item.projectKey), text(item.eventType), text(item.fieldName), text(item.fromValueJson), text(item.toValueJson)])} /></SectionCard> : null}
-          </> : null}
-        </div>
-      </div>
+        <ResponsiveMetricGrid min={170} className="mt-4">
+          <MetricCard label="相關 Issue" sub="Related Issues" value={text(summary.totalIssues, "0")} icon={Database} />
+          <MetricCard label="活動串流" sub="Confirmed Activity Stream" value={text(summary.activityStreamCount, "0")} icon={Activity} />
+          <MetricCard label="全部事件" sub="All Activity Events" value={text(summary.totalEvents, "0")} icon={UserRound} />
+          <MetricCard label="留言" sub="Comments" value={text(summary.comments, "0")} icon={MessageSquare} />
+          <MetricCard label="欄位變更" sub="Field Changes" value={text(summary.fieldChanges, "0")} icon={Wrench} />
+        </ResponsiveMetricGrid>
+        <SectionCard className="mt-4">
+          <div className="mb-4 flex max-w-full overflow-x-auto border-b border-line" role="tablist">
+            {(["Related Issues", "Activity Stream", "All Activity Events"] as const).map((tab) => <button key={tab} className={`shrink-0 border-b-2 px-4 py-3 text-sm font-black ${userViewer.activeTab === tab ? "border-blue-600 bg-blue-50 text-blue-700" : "border-transparent text-muted"}`} type="button" onClick={() => void queryTab(userViewer.selectedUserId, tab)}>{tab}</button>)}
+          </div>
+          {userViewer.activeTab === "Activity Stream" ? <div className={`mb-3 rounded-md border p-3 text-sm font-semibold ${activeResult?.sourceStatus === "source_unidentifiable" ? "border-amber-300 bg-amber-50 text-amber-900" : "border-blue-200 bg-blue-50 text-blue-900"}`}>
+            Local Database / Read Only · Activity Stream Records: {activeResult?.totalCount ?? 0}<br />
+            {activeResult?.sourceStatus === "source_unidentifiable" ? `來源無法識別 / Source cannot be identified (${activeResult.unidentifiableSourceCount ?? 0} local events).` : "僅顯示本機已保存且來源可確認的 Jira Activity Stream，不代表 Jira 即時或完整歷史。"}
+          </div> : null}
+          {userViewer.activeTab === "All Activity Events" ? <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-semibold">包含此 Stable User ID 的所有本機正規化事件；範圍可能大於 Activity Stream。</div> : null}
+          <SqliteDataTable
+            columns={userViewer.activeTab === "Related Issues" ? issueColumns : eventColumns}
+            result={activeResult ?? emptyResult}
+            query={activeQuery}
+            loading={userViewer.status === "loading"}
+            error={userViewer.status === "error" ? userViewer.message : ""}
+            preferences={preferences?.[preferenceSection]}
+            onPreferencesChange={(value) => void saveTablePreferences(preferenceSection, value)}
+            onQueryChange={updateQuery}
+            loadDistinct={(field, search) => window.desktopApp!.databaseViewer!.distinctValues({
+              source: userViewer.activeTab === "Related Issues" ? "userRelatedIssues" : userViewer.activeTab === "Activity Stream" ? "userActivityStream" : "userEvents",
+              subjectId: userViewer.selectedUserId,
+              field,
+              search,
+              limit: 200
+            })}
+          />
+        </SectionCard>
+      </>}
     </div>
   );
 }

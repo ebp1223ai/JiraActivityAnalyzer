@@ -13,6 +13,10 @@ export type UiPreferences = {
   formatVersion: 1;
   databaseIssueList: TablePreferences;
   timelineEventList: TablePreferences;
+  userRelatedIssues: TablePreferences;
+  userActivityStream: TablePreferences;
+  userAllActivityEvents: TablePreferences;
+  issueActivityStream: TablePreferences;
   [key: string]: unknown;
 };
 
@@ -28,6 +32,16 @@ export const TIMELINE_EVENT_COLUMNS = [
   "jiraRelationReason", "rawTitle", "sourceVariant", "baselineStatus"
 ] as const;
 
+export const USER_RELATED_ISSUE_COLUMNS = [
+  "issueKey", "summary", "projectKey", "issueType", "status", "priority",
+  "userActivities", "comments", "fieldChanges", "firstActivity", "lastActivity"
+] as const;
+
+export const ACTIVITY_VIEWER_COLUMNS = [
+  "eventTime", "userId", "displayName", "issueKey", "eventType", "fieldName",
+  "before", "after", "summary", "sourceProvenance"
+] as const;
+
 const PAGE_SIZES = new Set([25, 50, 100, 200]);
 
 function defaultTable(columns: readonly string[], pageSize = 50): TablePreferences {
@@ -37,8 +51,12 @@ function defaultTable(columns: readonly string[], pageSize = 50): TablePreferenc
 export function defaultUiPreferences(): UiPreferences {
   return {
     formatVersion: 1,
-    databaseIssueList: defaultTable(DATABASE_ISSUE_COLUMNS),
-    timelineEventList: defaultTable(TIMELINE_EVENT_COLUMNS)
+    databaseIssueList: defaultTable(DATABASE_ISSUE_COLUMNS, 200),
+    timelineEventList: defaultTable(TIMELINE_EVENT_COLUMNS),
+    userRelatedIssues: defaultTable(USER_RELATED_ISSUE_COLUMNS),
+    userActivityStream: defaultTable(ACTIVITY_VIEWER_COLUMNS),
+    userAllActivityEvents: defaultTable(ACTIVITY_VIEWER_COLUMNS),
+    issueActivityStream: defaultTable(ACTIVITY_VIEWER_COLUMNS)
   };
 }
 
@@ -72,7 +90,11 @@ export function normalizeUiPreferences(value: unknown): UiPreferences {
     ...source,
     formatVersion: 1,
     databaseIssueList: normalizeTable(source.databaseIssueList, DATABASE_ISSUE_COLUMNS, defaults.databaseIssueList),
-    timelineEventList: normalizeTable(source.timelineEventList, TIMELINE_EVENT_COLUMNS, defaults.timelineEventList)
+    timelineEventList: normalizeTable(source.timelineEventList, TIMELINE_EVENT_COLUMNS, defaults.timelineEventList),
+    userRelatedIssues: normalizeTable(source.userRelatedIssues, USER_RELATED_ISSUE_COLUMNS, defaults.userRelatedIssues),
+    userActivityStream: normalizeTable(source.userActivityStream, ACTIVITY_VIEWER_COLUMNS, defaults.userActivityStream),
+    userAllActivityEvents: normalizeTable(source.userAllActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.userAllActivityEvents),
+    issueActivityStream: normalizeTable(source.issueActivityStream, ACTIVITY_VIEWER_COLUMNS, defaults.issueActivityStream)
   };
 }
 
@@ -106,7 +128,10 @@ export function loadUiPreferences(appRoot: string) {
   }
 }
 
-export function updateUiPreferences(appRoot: string, section: "databaseIssueList" | "timelineEventList", value: unknown) {
+export type UiPreferenceSection = "databaseIssueList" | "timelineEventList" | "userRelatedIssues"
+  | "userActivityStream" | "userAllActivityEvents" | "issueActivityStream";
+
+export function updateUiPreferences(appRoot: string, section: UiPreferenceSection, value: unknown) {
   const loaded = loadUiPreferences(appRoot);
   const merged = normalizeUiPreferences({ ...loaded.preferences, [section]: value });
   writeJsonAtomic(loaded.filePath, merged);

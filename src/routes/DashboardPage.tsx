@@ -16,14 +16,14 @@ type Overview = {
   latestRun?: Record<string, unknown>;
 };
 
-const defaultQuery: DatabaseIssueQuery = { page: 1, pageSize: 50, sort: { field: "jiraUpdatedAt", direction: "desc" }, filters: {} };
+const defaultQuery: DatabaseIssueQuery = { page: 1, pageSize: 200, sort: { field: "jiraUpdatedAt", direction: "desc" }, filters: {} };
 const defaultPreferences: DatabaseIssueListPreferences = {
   visibleColumns: [...DEFAULT_DATABASE_COLUMNS],
   columnOrder: [...DEFAULT_DATABASE_COLUMNS],
   columnWidths: {},
-  pageSize: 50
+  pageSize: 200
 };
-const emptyIssues: DatabaseIssueQueryResult = { databaseTotal: 0, filteredTotal: 0, page: 1, pageSize: 50, pageCount: 1, items: [] };
+const emptyIssues: DatabaseIssueQueryResult = { databaseTotal: 0, filteredTotal: 0, page: 1, pageSize: 200, pageCount: 1, items: [] };
 
 function value(record: Record<string, unknown> | undefined, key: string, fallback = "-") {
   const result = record?.[key];
@@ -208,8 +208,8 @@ export function DashboardPage() {
             </SectionCard>
           </div>
 
-          {distributions ? <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3">
-            {(["issueType", "status", "priority"] as const).map((field) => <SectionCard key={field} title={field === "issueType" ? "類型分布" : field === "status" ? "狀態分布" : "優先級分布"} subtitle={`${field} · ${distributions.total} issues`}>
+          {distributions ? <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-4">
+            {(["projectKey", "issueType", "status", "priority"] as const).map((field) => <SectionCard key={field} title={field === "projectKey" ? "Project 分布" : field === "issueType" ? "類型分布" : field === "status" ? "狀態分布" : "優先級分布"} subtitle={`${field} · ${distributions.total} issues`}>
               <div className="space-y-2">
                 {distributions[field].slice(0, 8).map((item) => <button key={item.value} className="flex w-full items-center gap-3 text-left text-xs font-bold" type="button" onClick={() => setQuery((current) => ({ ...current, page: 1, filters: { ...current.filters, [field]: { values: [item.value === "未設定" ? "__UNSET__" : item.value] } } }))}>
                   <span className="min-w-0 flex-1 truncate" title={item.value}>{item.value}</span>
@@ -222,7 +222,14 @@ export function DashboardPage() {
 
           <SectionCard className="mt-4" title="Issue 清單" subtitle="Issue List">
             {status === "loading" ? <div className="py-10 text-center font-bold text-muted">Loading...</div> : (
-              <DatabaseIssueTable result={issues} query={query} preferences={preferences} onQueryChange={setQuery} onPreferencesChange={savePreferences} />
+              <DatabaseIssueTable
+                result={issues}
+                query={query}
+                preferences={preferences}
+                distinctOptions={distributions ?? undefined}
+                onQueryChange={setQuery}
+                onPreferencesChange={savePreferences}
+              />
             )}
           </SectionCard>
         </>

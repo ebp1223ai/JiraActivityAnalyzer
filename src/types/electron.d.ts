@@ -4,6 +4,8 @@ import type { RuntimeState } from "./runtime";
 import type { IssueViewerDto } from "./databaseViewer";
 import type { DatabaseIssueDistributions, DatabaseIssueQuery, DatabaseIssueQueryResult } from "./databaseQuery";
 import type { UiPreferencesLoadResult, UiPreferencesUpdate } from "./uiPreferences";
+import type { ActivityTimelineRunContext } from "../../electron/activityTimelineRunContext";
+import type { ViewerDistinctResult, ViewerTableQuery, ViewerTableResult } from "./activityViewerQuery";
 
 declare global {
   interface Window {
@@ -65,9 +67,6 @@ declare global {
         chooseEnv: () => Promise<{ canceled: boolean; state: ConnectionStatePayload }>;
         list: () => Promise<ConnectionStatePayload>;
         test: (connection: JiraConnection) => Promise<{ connection: JiraConnection; logs: string[]; result: unknown }>;
-        testAndSave: (connection: JiraConnection) => Promise<{ saved: boolean; connection: JiraConnection; runtime: RuntimeState["jira"]; logs: string[]; state: ConnectionStatePayload }>;
-        save: (connection: JiraConnection) => Promise<ConnectionStatePayload>;
-        setActive: (id: string) => Promise<ConnectionStatePayload>;
       };
       runtime?: {
         getState: () => Promise<RuntimeState>;
@@ -88,6 +87,10 @@ declare global {
         getIssue: (payload: { issueKey: string }) => Promise<IssueViewerDto>;
         listUsers: (payload?: { search?: string; limit?: number; offset?: number }) => Promise<{ total: number; limit: number; offset: number; items: Array<Record<string, unknown>> }>;
         getUser: (payload: { userId: string; limit?: number; offset?: number }) => Promise<Record<string, unknown>>;
+        userRelatedIssues: (payload: { userId: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
+        userEvents: (payload: { userId: string; scope: "activity_stream" | "all"; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
+        issueActivityStream: (payload: { issueKey: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
+        distinctValues: (payload: { source: "databaseIssues" | "userRelatedIssues" | "userEvents" | "userActivityStream" | "issueActivityStream"; subjectId?: string; field: string; search?: string; limit?: number }) => Promise<ViewerDistinctResult>;
       };
       uiPreferences?: {
         get: () => Promise<UiPreferencesLoadResult>;
@@ -107,7 +110,7 @@ declare global {
         activityStreamBenchmark: (payload: { connection: JiraConnection; config: Record<string, unknown> }) => Promise<Record<string, unknown>>;
         cancelActivityStreamBenchmark: () => Promise<{ ok: boolean; benchmarkRunId?: string; message?: string }>;
         onActivityStreamBenchmarkProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
-        buildActivityTimeline: (payload: { connection: JiraConnection; selectedUser: string; startDate: string; endDate: string; requestWindow: { type: "1_day" | "7_days" | "14_days" | "calendar_month" | "custom_days"; customDays: number | null }; fullScanRoundCount: number; delayBetweenRoundsMs: number; roundExecutionMode: "stop_when_stable" | "force_all_rounds"; mergeStrategy: "union" | "last_stable" }) => Promise<Record<string, unknown>>;
+        buildActivityTimeline: (payload: { connection: JiraConnection; runContext: ActivityTimelineRunContext }) => Promise<Record<string, unknown>>;
         cancelActivityTimeline: () => Promise<{ ok: boolean; runId?: string; message?: string }>;
         onActivityTimelineProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
         activityStreamManualReplay: (payload: { connection: JiraConnection; manualUrl: string; runId: string }) => Promise<Record<string, unknown>>;

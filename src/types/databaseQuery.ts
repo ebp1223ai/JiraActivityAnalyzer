@@ -50,8 +50,8 @@ export type DatabaseIssueQueryResult = {
 export type DatabaseDistributionItem = { value: string; count: number };
 export type DatabaseIssueDistributions = {
   total: number;
+  projectKey: DatabaseDistributionItem[];
   issueType: DatabaseDistributionItem[];
   status: DatabaseDistributionItem[];
   priority: DatabaseDistributionItem[];
 };
-

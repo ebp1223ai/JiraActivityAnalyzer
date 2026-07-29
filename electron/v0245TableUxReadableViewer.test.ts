@@ -23,7 +23,7 @@ assert.match(analysisSource, /analysis-setup-start-v245/);
 assert.match(analysisSource, /analysis-setup-end-v245/);
 assert.match(analysisSource, /Remote Links \(Locked\)/);
 assert.doesNotMatch(analysisSource, /title="Timeline Event Filters"/);
-assert.match(analysisSource, /timeline-header-filters/);
+assert.doesNotMatch(analysisSource, /timeline-header-filters/);
 assert.doesNotMatch(viewerSource, /JSON\.stringify\(item\.items|JSON\.stringify\(item\.body/);
 assert.doesNotMatch(contentSource, /dangerouslySetInnerHTML/);
 assert.match(contentSource, /case "script"/);
@@ -102,7 +102,7 @@ try {
   fs.writeFileSync(persisted.filePath, "{invalid", "utf8");
   const recovered = loadUiPreferences(tempRoot);
   assert.match(recovered.warning, /corrupt|損毀/i);
-  assert.equal(recovered.preferences.databaseIssueList.pageSize, 50);
+  assert.equal(recovered.preferences.databaseIssueList.pageSize, 200);
 
   const normalized = normalizeIssueViewerPayload({
     issue: {
@@ -120,4 +120,3 @@ try {
 }
 
 console.log("v0.2.45 table UX, query safety, preferences, Step 1, and readable Viewer tests passed.");
-

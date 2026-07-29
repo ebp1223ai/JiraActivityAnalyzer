@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, ArrowDown, ArrowUp, Bug, ChevronDown, ChevronUp, Clock3, Columns3, Copy, DatabaseZap, Download, Eye, FolderOpen, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Bug, ChevronDown, ChevronUp, Clock3, Columns3, Copy, DatabaseZap, Download, Eye, Filter, FolderOpen, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel, MockModal } from "../components/FormControls";
@@ -13,6 +13,7 @@ import { useConnectionContext } from "../state/ConnectionContext";
 import { useSessionState, type JiraEvidenceSummary, type UserActivityTimelineEvent, type UserActivityTimelineSummary, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
 import { buildTimelineIssueGroups, buildTimelineQueueTransition, defaultWorkflowSteps, isRecommendedRelationType, mergeQueueMetadata, normalizeFetchQueueMetadata, normalizeIssueKey, type FetchQueueMetadata, type FetchQueueSource } from "../../electron/userAnalysisWorkflow";
 import { preflightFullFetchQueue } from "../../electron/fullFetchPreflight";
+import { createActivityTimelineRunContext } from "../../electron/activityTimelineRunContext";
 
 const pageSizeOptions = [10, 20, 40, 80, 160];
 const timelineRequiredColumns = [{ value: "time", label: "Time" }, { value: "user", label: "User" }, { value: "issueKey", label: "Issue Key" }, { value: "activityType", label: "Activity Type" }, { value: "sourceApplication", label: "Source Application" }];
@@ -218,6 +219,7 @@ export function AnalysisPage() {
   const [workflowSnapshotReady, setWorkflowSnapshotReady] = useState(false);
   const [timelinePreferencesReady, setTimelinePreferencesReady] = useState(false);
   const [timelineSort, setTimelineSort] = useState<{ field: "time" | "user" | "issueKey" | "activityType" | "sourceApplication"; direction: "asc" | "desc" }>({ field: "time", direction: "desc" });
+  const [timelineFilterColumn, setTimelineFilterColumn] = useState("");
 
   const selectedUsers = useMemo(() => parseUsers(userAnalysis.selectedUsersText), [userAnalysis.selectedUsersText]);
   const currentJqlDateRange = useMemo(
@@ -702,8 +704,25 @@ export function AnalysisPage() {
       patchState({ errors: ["No active Jira connection. Reload .env in Connections first."], notice: "" });
       return;
     }
+    let runContext;
+    try {
+      const nonce = `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+      runContext = createActivityTimelineRunContext({
+        sessionId: `timeline-session-${nonce}`,
+        runId: `timeline-run-${nonce}`,
+        selectedUser: selectedUsers[0],
+        selectedStartDate: userAnalysis.startDate,
+        selectedEndDate: userAnalysis.endDate
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "RUN_CONTEXT_VALIDATION_FAILED";
+      patchState({ errors: [message], notice: "" });
+      appendDebugLog("analysis", [`[ERROR] Timeline Run Context validation failed: ${message}`]);
+      return;
+    }
     setTimelineRoundProgress({ stage: "starting" });
     patchState({
+      timelineRunContext: runContext,
       timelineStatus: "running",
       timelineEvents: [],
       timelineSummary: null,
@@ -721,14 +740,7 @@ export function AnalysisPage() {
     try {
       const response = await window.desktopApp?.userAnalysis?.buildActivityTimeline({
         connection: activeConnection,
-        selectedUser: selectedUsers[0],
-        startDate: "2026-01-01",
-        endDate: currentTaipeiDate(),
-        requestWindow: { type: "calendar_month", customDays: null },
-        fullScanRoundCount: 3,
-        delayBetweenRoundsMs: 5000,
-        roundExecutionMode: "force_all_rounds",
-        mergeStrategy: "union"
+        runContext
       });
       if (!response) throw new Error("Timeline builder is unavailable.");
       const events = Array.isArray(response.events) ? response.events as UserActivityTimelineEvent[] : [];
@@ -755,13 +767,13 @@ export function AnalysisPage() {
         appendDebugLog("analysis", [`[WARN] ${message}`]);
         return;
       }
-      const steps = { ...userAnalysis.workflowSteps, activityTimeline: "completed" as const, timelineIssueSelection: "not_run" as const };
+      const steps = { ...defaultWorkflowSteps(), activityTimeline: "completed" as const, timelineIssueSelection: "not_run" as const };
       patchState({ timelineStatus: "completed", timelineEvents: events, timelineSummary: summary, timelineIssueGroups: groups, selectedTimelineIssueKeys: [], timelineIssueFilters: { ...userAnalysis.timelineIssueFilters, projectKeys: [] }, workflowSteps: steps, timelineExportPaths: exportedFiles, expandedTimelineEvents: [], notice: `Activity Timeline built across all projects: ${events.length} events; ${groups.length} issue groups.`, errors: [] });
       void persistWorkflowSnapshot({ steps, timelineIssueGroups: groups });
       appendDebugLog("analysis", Array.isArray(response.logs) ? response.logs.map(String) : [`[INFO] Activity Timeline built: ${events.length} events`]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Activity Timeline build failed.";
-      patchState({ timelineStatus: "failed", workflowSteps: { ...userAnalysis.workflowSteps, activityTimeline: "failed" }, errors: [message], notice: "" });
+      patchState({ timelineStatus: "failed", workflowSteps: { ...defaultWorkflowSteps(), activityTimeline: "failed" }, errors: [message], notice: "" });
       appendDebugLog("analysis", [`[ERROR] Activity Timeline build failed: ${message}`, "[INFO] No database write performed", "[INFO] No Jira write performed"]);
     }
   }
@@ -2597,24 +2609,17 @@ export function AnalysisPage() {
         <SectionCard title="Timeline Event List" subtitle={`Showing ${filteredTimelineEvents.length} of ${userAnalysis.timelineEvents.length} events`}>
           <div className="flex flex-wrap items-center justify-between gap-3"><div className="text-sm font-semibold text-muted">Required columns stay visible; long evidence is available in Details.</div><button data-testid="timeline-column-settings-toggle" className="btn" type="button" onClick={() => patchState({ timelineColumnSettingsOpen: !userAnalysis.timelineColumnSettingsOpen })}><Columns3 size={16} />Column Settings / 欄位設定</button></div>
           {userAnalysis.timelineColumnSettingsOpen ? <ColumnSettings testId="timeline-column-settings" required={timelineRequiredColumns} optional={timelineOptionalColumns} visible={userAnalysis.timelineVisibleColumns} onToggle={(value) => toggleVisibleColumn("timeline", value)} /> : null}
-          <div className="my-3 rounded-lg border border-line bg-slate-50 p-3" data-testid="timeline-header-filters">
-            <div className="mb-2 text-xs font-black uppercase text-muted">Table filters / 表頭篩選</div>
-            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <MultiSelectFilter testId="timeline-filter-activity-types" label="Activity Type" options={timelineFilterOptions.activityTypes.map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.activityTypes} onToggle={(value) => toggleTimelineFilter("activityTypes", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, activityTypes: [] } })} />
-              <MultiSelectFilter testId="timeline-filter-source-applications" label="Source Application" options={["jira", "confluence", "other", "unknown"].map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.sourceApplications} onToggle={(value) => toggleTimelineFilter("sourceApplications", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, sourceApplications: [] } })} />
-              <MultiSelectFilter testId="timeline-filter-jira-relations" label="Jira Relation" options={["jira_related", "has_jira_issue_key", "non_jira", "unknown_relation"].map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.jiraRelations} onToggle={(value) => toggleTimelineFilter("jiraRelations", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, jiraRelations: [] } })} />
-              <MultiSelectFilter testId="timeline-filter-confidences" label="Confidence" options={["high", "medium", "low"].map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.confidences} onToggle={(value) => toggleTimelineFilter("confidences", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, confidences: [] } })} />
-              <MultiSelectFilter testId="timeline-filter-issue-keys" label="Issue Key" options={timelineFilterOptions.issueKeys.map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.issueKeys} onToggle={(value) => toggleTimelineFilter("issueKeys", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, issueKeys: [] } })} />
-              <MultiSelectFilter testId="timeline-filter-users" label="User" options={timelineFilterOptions.users.map((value) => ({ value, label: value }))} selected={userAnalysis.timelineFilters.users} onToggle={(value) => toggleTimelineFilter("users", value)} onClear={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, users: [] } })} />
-            </div>
-            <div data-testid="timeline-event-filter-summary" className="mt-3 text-sm font-semibold text-muted">Showing {filteredTimelineEvents.length} of {userAnalysis.timelineEvents.length}. Empty filters mean All.</div>
-            <div className="mt-2 flex flex-wrap gap-2"><button data-testid="clear-all-timeline-filters" className="btn" type="button" onClick={() => patchState({ timelineFilters: { activityTypes: [], sourceApplications: [], jiraRelations: [], confidences: [], issueKeys: [], projectKeys: [], users: [] } })}>Clear all filters / 清除全部篩選</button><button data-testid="reset-timeline-filters" className="btn" type="button" onClick={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, sourceApplications: ["jira", "confluence"], jiraRelations: ["jira_related"] } })}>Reset default / 重設預設</button></div>
-          </div>
+          <div className="my-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-muted"><span data-testid="timeline-event-filter-summary">Showing {filteredTimelineEvents.length} of {userAnalysis.timelineEvents.length}</span>{Object.values(userAnalysis.timelineFilters).some((values) => values.length) ? <button data-testid="clear-all-timeline-filters" className="btn" type="button" onClick={() => patchState({ timelineFilters: { activityTypes: [], sourceApplications: [], jiraRelations: [], confidences: [], issueKeys: [], projectKeys: [], users: [] } })}>Clear all filters / 清除全部篩選</button> : null}</div>
           {userAnalysis.timelineEvents.length === 0 ? <div className="rounded-lg border border-dashed border-line p-8 text-center text-sm font-semibold text-muted">Build an Activity Timeline to view events. / 建立活動時間線後即可檢視事件。</div> : (
             <ResponsiveTableContainer data-testid="timeline-events-table">
-              <table className="data-table min-w-[980px]"><thead><tr>{timelineRequiredColumns.map((column) => <th key={column.value}><button className="flex items-center gap-1 font-black" type="button" onClick={() => sortTimeline(column.value as typeof timelineSort.field)}>{column.label}{timelineSort.field === column.value ? timelineSort.direction === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : null}</button></th>)}{timelineOptionalColumns.filter((column) => userAnalysis.timelineVisibleColumns.includes(column.value)).map((column) => <th key={column.value}>{column.label}</th>)}<th>Details</th></tr></thead><tbody>
+              <table className="data-table min-w-[980px]"><thead><tr>{timelineRequiredColumns.map((column) => {
+                const filterKey = column.value === "activityType" ? "activityTypes" : column.value === "sourceApplication" ? "sourceApplications" : column.value === "issueKey" ? "issueKeys" : column.value === "user" ? "users" : "";
+                const options = column.value === "activityType" ? timelineFilterOptions.activityTypes : column.value === "sourceApplication" ? ["jira", "confluence", "other", "unknown"] : column.value === "issueKey" ? timelineFilterOptions.issueKeys : column.value === "user" ? timelineFilterOptions.users : [];
+                const selected = filterKey ? userAnalysis.timelineFilters[filterKey as keyof typeof userAnalysis.timelineFilters] : [];
+                return <th key={column.value} className="relative"><div className="flex items-center gap-1"><button className="flex items-center gap-1 font-black" type="button" onClick={() => sortTimeline(column.value as typeof timelineSort.field)}>{column.label}{timelineSort.field === column.value ? timelineSort.direction === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : null}</button>{filterKey ? <button className="icon-btn" type="button" onClick={() => setTimelineFilterColumn(timelineFilterColumn === column.value ? "" : column.value)}><Filter size={13} /></button> : null}</div>{timelineFilterColumn === column.value && filterKey ? <div className="absolute left-1 top-full z-30 mt-1 w-64 rounded-md border border-line bg-white p-3 shadow-xl"><div className="thin-scroll max-h-52 space-y-1 overflow-y-auto">{options.map((value) => <label key={value} className="flex items-center gap-2 py-1 text-xs"><input type="checkbox" checked={selected.includes(value)} onChange={() => toggleTimelineFilter(filterKey as keyof typeof userAnalysis.timelineFilters, value)} /><span className="min-w-0 truncate">{value}</span></label>)}</div><div className="mt-2 flex justify-between"><button className="text-xs font-bold text-rose-700" type="button" onClick={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, [filterKey]: [] } })}>Clear</button><button className="btn" type="button" onClick={() => setTimelineFilterColumn("")}>Done</button></div></div> : null}</th>;
+              })}{timelineOptionalColumns.filter((column) => userAnalysis.timelineVisibleColumns.includes(column.value)).map((column) => <th key={column.value}>{column.label}</th>)}<th>Details</th></tr></thead><tbody>
                 {filteredTimelineEvents.map((event) => <Fragment key={event.eventId}>
-                  <tr><td className="whitespace-nowrap">{event.eventTime || "-"}</td><td title={`${event.displayName} (${event.userKey})`}>{event.displayName}</td><td>{event.issueKey || "-"}</td><td><StatusBadge tone={event.eventType === "unknown" ? "amber" : "blue"}>{event.eventType}</StatusBadge></td><td><StatusBadge tone={event.sourceApplication === "jira" ? "blue" : event.sourceApplication === "confluence" ? "green" : "amber"}>{event.sourceApplication}</StatusBadge></td>
+                  <tr><td className="whitespace-nowrap">{event.eventTime || "-"}</td><td title={`${event.displayName} (${event.userKey})`}>{event.displayName}</td><td>{event.issueKey ? <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(event.issueKey)}`}>{event.issueKey}</a> : "-"}</td><td><StatusBadge tone={event.eventType === "unknown" ? "amber" : "blue"}>{event.eventType}</StatusBadge></td><td><StatusBadge tone={event.sourceApplication === "jira" ? "blue" : event.sourceApplication === "confluence" ? "green" : "amber"}>{event.sourceApplication}</StatusBadge></td>
                     {userAnalysis.timelineVisibleColumns.includes("title") ? <td className="max-w-[320px]"><div className="truncate" data-allow-truncate="true" title={event.eventTitle}>{event.eventTitle}</div></td> : null}
                     {userAnalysis.timelineVisibleColumns.includes("allIssueKeys") ? <td>{event.allIssueKeys.join(", ") || "-"}</td> : null}
                     {userAnalysis.timelineVisibleColumns.includes("sourceDetail") ? <td>{event.sourceDetail}</td> : null}

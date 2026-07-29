@@ -11,6 +11,10 @@ export type UiPreferences = {
   formatVersion: 1;
   databaseIssueList: TablePreferences<DatabaseIssueColumn>;
   timelineEventList: TablePreferences;
+  userRelatedIssues: TablePreferences;
+  userActivityStream: TablePreferences;
+  userAllActivityEvents: TablePreferences;
+  issueActivityStream: TablePreferences;
 };
 
 export type UiPreferencesLoadResult = {
@@ -20,11 +24,11 @@ export type UiPreferencesLoadResult = {
 };
 
 export type UiPreferencesUpdate = {
-  section: "databaseIssueList" | "timelineEventList";
+  section: "databaseIssueList" | "timelineEventList" | "userRelatedIssues"
+    | "userActivityStream" | "userAllActivityEvents" | "issueActivityStream";
   value: TablePreferences<DatabaseIssueColumn> | TablePreferences;
 };
 
 export type DatabaseIssueListPreferences = TablePreferences<DatabaseIssueColumn> & {
   pageSize: DatabaseIssuePageSize;
 };
-

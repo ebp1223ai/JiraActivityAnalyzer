@@ -1,6 +1,17 @@
 # Jira Activity Analyzer
 
-> v0.2.45 adds database-backed table pagination/filtering, persistent table preferences, compact connection layout, editable Data Collection dates, and safe readable Jira content. Current-State schema remains v2 with no migration or recreation.
+> v0.2.46 adds frozen Data Collection run context, shared SQLite table queries, stable-user and issue Activity Stream views, a read-only Connections page, and safer Jira wiki rendering. Current-State schema remains v2 with no migration or recreation.
+
+## v0.2.46 Table UX, Activity Stream Views and Readable Viewer
+
+- **Frozen Step 1 context:** the selected date range, effective request range, calendar-month windows, run IDs, three force-all rounds, 5-second delay, and union merge are created and validated once before requests begin.
+- **Shared SQLite tables:** local Viewer queries use parameter binding, field allowlists, server-side paging/filtering/sorting, distinct values, deterministic secondary ordering, total/filtered counts, and table-local horizontal scrolling.
+- **User Viewer:** Related Issues are derived only from the selected Stable User ID's activity events. Activity Stream includes only confirmed provenance; All Activity Events remains a clearly separate superset.
+- **Issue Viewer:** Activity Stream reads only the selected Issue Key from the active local SQLite database. Unknown provenance is reported instead of reclassifying general activity events.
+- **Connections:** Jira values are read-only. Reload Env, Choose Env, Copy Path, and Test Jira Connection are available; the page does not save or update `.env`.
+- **Readable content:** Description and Comments safely render Jira wiki line breaks, bold text, mentions, attachment/image placeholders, links, and code blocks without `dangerouslySetInnerHTML` or remote image loading.
+- **Preferences:** table display settings for Database Issues, Timeline, User Related Issues, User Activity Stream, User All Activity Events, and Issue Activity Stream are stored atomically in `APP_ROOT/app-data/settings/ui-preferences.json`.
+- **Compatibility:** no schema change, migration, database recreation, SQLite business write, Viewer Jira call, attachment download, or external SQLite native dependency.
 
 ## v0.2.45 Table UX and Readable Viewer
 

@@ -9,9 +9,6 @@ type ConnectionContextValue = {
   reloadEnv: () => Promise<ConnectionStatePayload | null>;
   chooseEnv: () => Promise<{ canceled: boolean; state: ConnectionStatePayload } | null>;
   testConnection: (connection: JiraConnection) => Promise<{ connection: JiraConnection; logs: string[]; result: unknown } | null>;
-  testAndSaveConnection: (connection: JiraConnection) => Promise<{ saved: boolean; connection: JiraConnection; runtime: RuntimeState["jira"]; logs: string[]; state: ConnectionStatePayload } | null>;
-  saveConnection: (connection: JiraConnection) => Promise<ConnectionStatePayload | null>;
-  setActiveConnection: (id: string) => Promise<ConnectionStatePayload | null>;
 };
 
 const ConnectionContext = createContext<ConnectionContextValue | null>(null);
@@ -53,24 +50,6 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     return result;
   }
 
-  async function testAndSaveConnection(connection: JiraConnection) {
-    const result = await window.desktopApp?.connections?.testAndSave?.(connection);
-    if (!result) return null;
-    applyState(result.state);
-    setActiveConnectionState(result.connection);
-    return result;
-  }
-
-  async function saveConnection(connection: JiraConnection) {
-    const payload = await window.desktopApp?.connections?.save?.(connection);
-    return payload ? applyState(payload) : null;
-  }
-
-  async function setActiveConnection(id: string) {
-    const payload = await window.desktopApp?.connections?.setActive?.(id);
-    return payload ? applyState(payload) : null;
-  }
-
   useEffect(() => {
     void refreshList();
   }, []);
@@ -81,10 +60,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     envStatus,
     reloadEnv,
     chooseEnv,
-    testConnection,
-    testAndSaveConnection,
-    saveConnection,
-    setActiveConnection
+    testConnection
   }), [activeConnection, envStatus, savedConnections]);
 
   return <ConnectionContext.Provider value={value}>{children}</ConnectionContext.Provider>;

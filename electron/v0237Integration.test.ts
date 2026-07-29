@@ -82,19 +82,21 @@ async function main() {
     const layoutSource = fs.readFileSync(path.join(process.cwd(), "src", "components", "AppLayout.tsx"), "utf8");
     const statusSource = fs.readFileSync(path.join(process.cwd(), "src", "components", "GlobalRuntimeStatusBar.tsx"), "utf8");
     const connectionsSource = fs.readFileSync(path.join(process.cwd(), "src", "routes", "ConnectionsPage.tsx"), "utf8");
+    const dashboardSource = fs.readFileSync(path.join(process.cwd(), "src", "routes", "DashboardPage.tsx"), "utf8");
     assert.match(mainSource, /startBackgroundChecks/);
     assert.match(mainSource, /Promise\.allSettled|startParallel/);
-    assert.match(mainSource, /connection:test-and-save/);
+    assert.doesNotMatch(mainSource, /connection:test-and-save/);
     assert.match(mainSource, /database:select-existing/);
     assert.match(mainSource, /database:create-new/);
     assert.match(mainSource, /setTimeout\(\(\) => \{[\s\S]*startBackgroundChecks/);
     assert.match(preloadSource, /runtime-state:changed/);
-    assert.match(preloadSource, /testAndSave/);
+    assert.doesNotMatch(preloadSource, /testAndSave|connection:save|connection:set-active/);
     assert.match(appSource, /RuntimeStatusProvider/);
     assert.match(layoutSource, /GlobalRuntimeStatusBar/);
     assert.match(statusSource, /data-testid="global-runtime-status"/);
-    assert.match(connectionsSource, /data-testid="select-existing-database"/);
-    assert.match(connectionsSource, /data-testid="create-new-database"/);
+    assert.match(dashboardSource, /data-testid="select-existing-database"/);
+    assert.match(dashboardSource, /data-testid="create-new-database"/);
+    assert.doesNotMatch(connectionsSource, /data-testid="select-existing-database"|data-testid="create-new-database"/);
     assert.doesNotMatch(mainSource, /connection-settings\.json|database-registry\.json/);
 
     console.log("v0.2.37 Electron IPC, runtime state, safe save, database selection and shared UI integration tests passed.");

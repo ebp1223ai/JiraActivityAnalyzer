@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, RotateCcw, Settings2, X } from "lucide-react";
-import type { DatabaseIssueColumn, DatabaseIssueFilters, DatabaseIssueQuery, DatabaseIssueQueryResult } from "../types/databaseQuery";
+import type { DatabaseDistributionItem, DatabaseIssueColumn, DatabaseIssueFilters, DatabaseIssueQuery, DatabaseIssueQueryResult } from "../types/databaseQuery";
 import { DATABASE_ISSUE_PAGE_SIZES } from "../types/databaseQuery";
 import type { DatabaseIssueListPreferences } from "../types/uiPreferences";
 
@@ -32,9 +32,10 @@ type Props = {
   preferences: DatabaseIssueListPreferences;
   onQueryChange: (query: DatabaseIssueQuery) => void;
   onPreferencesChange: (preferences: DatabaseIssueListPreferences) => void;
+  distinctOptions?: Partial<Record<DatabaseIssueColumn, DatabaseDistributionItem[]>>;
 };
 
-export function DatabaseIssueTable({ result, query, preferences, onQueryChange, onPreferencesChange }: Props) {
+export function DatabaseIssueTable({ result, query, preferences, onQueryChange, onPreferencesChange, distinctOptions = {} }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const columns = useMemo(() => preferences.columnOrder.filter((column) => preferences.visibleColumns.includes(column)), [preferences]);
 
@@ -79,7 +80,7 @@ export function DatabaseIssueTable({ result, query, preferences, onQueryChange, 
               visibleColumns: [...DEFAULT_DATABASE_COLUMNS],
               columnOrder: [...DEFAULT_DATABASE_COLUMNS],
               columnWidths: {},
-              pageSize: 50
+              pageSize: 200
             })}><RotateCcw size={15} />Reset</button>
           </div>
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
@@ -113,12 +114,26 @@ export function DatabaseIssueTable({ result, query, preferences, onQueryChange, 
                     {textFields.has(column) ? <input aria-label={`Filter ${column}`} className="field !px-2 !py-1 text-xs" value={String((query.filters[column] as { value?: string } | undefined)?.value ?? "")} placeholder="Filter..." onChange={(event) => setFilter(column, { value: event.target.value })} /> : null}
                     {dateFields.has(column) ? <div className="grid gap-1"><input aria-label={`Filter ${column} from`} className="field !px-1 !py-1 text-[11px]" type="date" value={String((query.filters[column] as { from?: string } | undefined)?.from ?? "")} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), from: event.target.value })} /><input aria-label={`Filter ${column} to`} className="field !px-1 !py-1 text-[11px]" type="date" value={String((query.filters[column] as { to?: string } | undefined)?.to ?? "")} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), to: event.target.value })} /></div> : null}
                     {numberFields.has(column) ? <div className="grid grid-cols-2 gap-1"><input aria-label={`Filter ${column} min`} className="field !px-1 !py-1" type="number" min={0} placeholder="Min" value={(query.filters[column] as { min?: number } | undefined)?.min ?? ""} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), min: event.target.value === "" ? undefined : Number(event.target.value) })} /><input aria-label={`Filter ${column} max`} className="field !px-1 !py-1" type="number" min={0} placeholder="Max" value={(query.filters[column] as { max?: number } | undefined)?.max ?? ""} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), max: event.target.value === "" ? undefined : Number(event.target.value) })} /></div> : null}
-                    {!textFields.has(column) && !dateFields.has(column) && !numberFields.has(column) ? <input aria-label={`Filter ${column}`} className="field !px-2 !py-1 text-xs" value={String(((query.filters[column] as { values?: string[] } | undefined)?.values ?? [])[0] ?? "")} placeholder="Exact value..." onChange={(event) => setFilter(column, { values: event.target.value ? [event.target.value] : [] })} /> : null}
+                    {!textFields.has(column) && !dateFields.has(column) && !numberFields.has(column) ? (
+                      <div className="thin-scroll max-h-32 space-y-1 overflow-y-auto rounded border border-line bg-white p-1 text-left">
+                        {(distinctOptions[column] ?? []).length ? (distinctOptions[column] ?? []).map((item) => {
+                          const optionValue = item.value === "未設定" ? "__UNSET__" : item.value;
+                          const selected = ((query.filters[column] as { values?: string[] } | undefined)?.values ?? []).includes(optionValue);
+                          return <label key={optionValue} className="flex items-center gap-2 rounded px-1 py-1 font-semibold hover:bg-slate-50">
+                            <input type="checkbox" checked={selected} onChange={(event) => {
+                              const current = (query.filters[column] as { values?: string[] } | undefined)?.values ?? [];
+                              setFilter(column, { values: event.target.checked ? [...current, optionValue] : current.filter((value) => value !== optionValue) });
+                            }} />
+                            <span className="min-w-0 flex-1 truncate" title={item.value}>{item.value}</span>
+                            <span className="text-muted">{item.count}</span>
+                          </label>;
+                        }) : <span className="block p-2 text-[11px] text-muted">No distinct values</span>}
+                      </div>
+                    ) : null}
                   </div>
                   {hasFilter(query.filters, column) ? <span className="mt-1 block text-[10px] font-black text-blue-700">Filtered</span> : null}
                 </th>
               ))}
-              <th className="sticky right-0 w-20 border-b border-line bg-slate-50 px-3 py-2 font-black">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -126,13 +141,12 @@ export function DatabaseIssueTable({ result, query, preferences, onQueryChange, 
               <tr key={display(item.issueKey)} className="border-b border-line last:border-b-0 hover:bg-blue-50/40">
                 {columns.map((column) => <td key={column} className="max-w-0 px-3 py-2">
                   {column === "issueKey"
-                    ? <span className="font-black text-blue-700">{display(item[column])}</span>
+                    ? <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(display(item.issueKey))}`}>{display(item[column])}</a>
                     : <span className="block truncate" title={display(item[column])}>{display(item[column])}</span>}
                 </td>)}
-                <td className="sticky right-0 bg-white px-3 py-2"><a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(display(item.issueKey))}`}>Open</a></td>
               </tr>
             ))}
-            {!result.items.length ? <tr><td colSpan={columns.length + 1} className="px-4 py-10 text-center font-bold text-muted">找不到符合條件的 Issue / No issues found</td></tr> : null}
+            {!result.items.length ? <tr><td colSpan={columns.length} className="px-4 py-10 text-center font-bold text-muted">找不到符合條件的 Issue / No issues found</td></tr> : null}
           </tbody>
         </table>
       </div>

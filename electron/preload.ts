@@ -21,10 +21,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
     loadEnv: () => ipcRenderer.invoke("connection:load-env"),
     chooseEnv: () => ipcRenderer.invoke("connection:choose-env"),
     list: () => ipcRenderer.invoke("connection:list"),
-    test: (connection: unknown) => ipcRenderer.invoke("connection:test", connection),
-    testAndSave: (connection: unknown) => ipcRenderer.invoke("connection:test-and-save", connection),
-    save: (connection: unknown) => ipcRenderer.invoke("connection:save", connection),
-    setActive: (id: string) => ipcRenderer.invoke("connection:set-active", id)
+    test: (connection: unknown) => ipcRenderer.invoke("connection:test", connection)
   },
   runtime: {
     getState: () => ipcRenderer.invoke("runtime:get-state"),
@@ -48,7 +45,11 @@ contextBridge.exposeInMainWorld("desktopApp", {
     issueDistributions: () => ipcRenderer.invoke("database-viewer:issue-distributions"),
     getIssue: (payload: { issueKey: string }) => ipcRenderer.invoke("database-viewer:get-issue", payload),
     listUsers: (payload?: unknown) => ipcRenderer.invoke("database-viewer:list-users", payload),
-    getUser: (payload: { userId: string; limit?: number; offset?: number }) => ipcRenderer.invoke("database-viewer:get-user", payload)
+    getUser: (payload: { userId: string; limit?: number; offset?: number }) => ipcRenderer.invoke("database-viewer:get-user", payload),
+    userRelatedIssues: (payload: unknown) => ipcRenderer.invoke("database-viewer:user-related-issues", payload),
+    userEvents: (payload: unknown) => ipcRenderer.invoke("database-viewer:user-events", payload),
+    issueActivityStream: (payload: unknown) => ipcRenderer.invoke("database-viewer:issue-activity-stream", payload),
+    distinctValues: (payload: unknown) => ipcRenderer.invoke("database-viewer:distinct-values", payload)
   },
   uiPreferences: {
     get: () => ipcRenderer.invoke("ui-preferences:get"),

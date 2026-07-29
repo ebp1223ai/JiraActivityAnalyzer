@@ -108,7 +108,7 @@ export const jiraLifecycle = [
 ];
 
 export const debugLogs: Record<string, string[]> = {
-  dashboard: ["Global Data Source Mode: Live Jira API", "Local Database mode disabled / coming later", "Querying dashboard summary...", "Querying activity trend data...", "Querying event type breakdown...", "Querying project activity...", "Dashboard loaded successfully"],
+  dashboard: ["Global Data Source Mode: Live Jira API", "Querying dashboard summary...", "Querying activity trend data...", "Querying event type breakdown...", "Querying project activity...", "Dashboard loaded successfully"],
   connections: ["Starting Jira Cloud connection test...", "Resolving base URL...", "Authentication successful", "Token scope valid", "Fetching projects...", "Connection test completed successfully"],
   import: ["Connected to Jira Cloud", "Resolving target users...", "Building JQL...", "Fetched issues: 2,184", "Estimating events...", "Preview completed"],
   timeline: ["sessionStorage enabled", "Query activity_events from local database", "Apply filters", "Execute SQL query", "Returned rows: 1,248", "Timeline ready"],

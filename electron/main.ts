@@ -45,11 +45,15 @@ import {
   writeFullFetchStagingToCurrentDatabase
 } from "./sourceArchiveDatabaseWrite.js";
 import { StartupCheckCoordinator, initialRuntimeState, type RuntimeState } from "./runtimeStatus.js";
-import { testAndSaveJiraSettings, validateAndSaveDatabaseSelection } from "./startupIntegration.js";
+import { validateAndSaveDatabaseSelection } from "./startupIntegration.js";
 import {
   listDatabaseIssues,
   listDatabaseUsers,
   loadDatabaseIssueDistributions,
+  queryDatabaseDistinctValues,
+  queryDatabaseIssueActivityStream,
+  queryDatabaseUserEvents,
+  queryDatabaseUserRelatedIssues,
   loadDatabaseIssue,
   loadDatabaseOverview,
   loadDatabaseUser,
@@ -57,6 +61,7 @@ import {
   runDatabaseHealthCheck
 } from "./databaseViewer.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
+import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -713,11 +718,23 @@ ipcMain.handle("database-viewer:list-users", async (_event, payload?: { search?:
   listDatabaseUsers(currentReadableDatabasePath(), payload));
 ipcMain.handle("database-viewer:get-user", async (_event, payload: { userId?: string; limit?: number; offset?: number }) =>
   loadDatabaseUser(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload));
+ipcMain.handle("database-viewer:user-related-issues", async (_event, payload: { userId?: string; query?: Record<string, unknown> }) =>
+  queryDatabaseUserRelatedIssues(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload?.query));
+ipcMain.handle("database-viewer:user-events", async (_event, payload: { userId?: string; scope?: "activity_stream" | "all"; query?: Record<string, unknown> }) =>
+  queryDatabaseUserEvents(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload?.scope === "activity_stream" ? "activity_stream" : "all", payload?.query));
+ipcMain.handle("database-viewer:issue-activity-stream", async (_event, payload: { issueKey?: string; query?: Record<string, unknown> }) =>
+  queryDatabaseIssueActivityStream(currentReadableDatabasePath(), String(payload?.issueKey ?? ""), payload?.query));
+ipcMain.handle("database-viewer:distinct-values", async (_event, payload: Record<string, unknown>) =>
+  queryDatabaseDistinctValues(currentReadableDatabasePath(), payload));
 ipcMain.handle("ui-preferences:get", async () => loadUiPreferences(getConfiguredAppRoot()));
 ipcMain.handle("ui-preferences:update", async (_event, payload: { section?: unknown; value?: unknown }) => {
   const section = String(payload?.section ?? "");
-  if (section !== "databaseIssueList" && section !== "timelineEventList") throw new Error("INVALID_UI_PREFERENCE_SECTION");
-  return updateUiPreferences(getConfiguredAppRoot(), section, payload?.value);
+  const allowedSections = new Set([
+    "databaseIssueList", "timelineEventList", "userRelatedIssues",
+    "userActivityStream", "userAllActivityEvents", "issueActivityStream"
+  ]);
+  if (!allowedSections.has(section)) throw new Error("INVALID_UI_PREFERENCE_SECTION");
+  return updateUiPreferences(getConfiguredAppRoot(), section as Parameters<typeof updateUiPreferences>[1], payload?.value);
 });
 
 ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
@@ -750,76 +767,6 @@ ipcMain.handle("connection:choose-env", async () => {
   }
   setCurrentEnvPath(envPath);
   return { canceled: false, state: loadConnectionState() };
-});
-
-ipcMain.handle("connection:save", async (_event, connection: AppConnection) => {
-  void connection;
-  return loadConnectionState();
-});
-
-ipcMain.handle("connection:set-active", async (_event, id: string) => {
-  void id;
-  return loadConnectionState();
-});
-
-ipcMain.handle("connection:test-and-save", async (_event, connection: AppConnection) => {
-  const checkedAndSaved = await testAndSaveJiraSettings({
-    envPath: resolveCurrentEnvPath(),
-    settings: {
-        baseUrl: connection.baseUrl,
-        username: connection.username,
-        email: connection.email,
-        apiToken: connection.apiToken ?? "",
-        authMode: connection.authType,
-        apiVersion: connection.apiVersion
-    },
-    check: isUiSmoke
-      ? async () => ({
-          ...runtimeStateWithoutRequestId(initialRuntimeState().jira),
-          status: "CONNECTED" as const,
-          reasonCode: "CONNECTED" as const,
-          message: "Offline UI smoke connection accepted.",
-          checkedAt: new Date().toISOString(),
-          lastSuccessAt: new Date().toISOString(),
-          latencyMs: 1,
-          baseUrlNormalized: connection.baseUrl.trim().replace(/\/+$/, ""),
-          accountDisplayName: "UI Smoke User",
-          username: connection.username || "ui-smoke",
-          serverIdentity: "jira:ui-smoke",
-          serverTitle: "UI Smoke Jira",
-          serverTitleStatus: "verified" as const
-        })
-      : checkJiraConnection
-  });
-  const checked = checkedAndSaved.checked;
-  const updatedConnection: AppConnection = {
-    ...connection,
-    baseUrl: checked.baseUrlNormalized || connection.baseUrl,
-    status: checked.status === "CONNECTED" ? "connected" : "failed",
-    lastTestedAt: checked.checkedAt,
-    authenticatedUser: checked.accountDisplayName,
-    tokenMasked: maskToken(connection.apiToken ?? "")
-  };
-  const logs = [
-    `[INFO] Jira connection test result: ${checked.reasonCode}`,
-    `[INFO] Base URL: ${checked.baseUrlNormalized || connection.baseUrl}`,
-    `[INFO] Account: ${checked.accountDisplayName || checked.username || "-"}`,
-    `[INFO] Latency: ${checked.latencyMs ?? "-"} ms`,
-    "[INFO] Authorization: [masked]"
-  ];
-  if (checked.status !== "CONNECTED") {
-    logs.push("[WARN] .env was not modified because the connection test did not succeed.");
-    return { saved: false, connection: updatedConnection, runtime: checked, logs, state: loadConnectionState() };
-  }
-  logs.push(`[INFO] Runtime .env updated atomically: ${resolveCurrentEnvPath()}`);
-  const runtimeState = await getRuntimeCoordinator().retryJira();
-  if (runtimeState.database.path) {
-    const afterDatabase = await getRuntimeCoordinator().retryDatabase();
-    if (afterDatabase.jira.status === "CONNECTED" && afterDatabase.database.status === "READY") {
-      await getRuntimeCoordinator().retryDatabase();
-    }
-  }
-  return { saved: true, connection: updatedConnection, runtime: checked, logs, state: loadConnectionState() };
 });
 
 ipcMain.handle("database:check-path", async (_event, payload?: { filePath?: string }) => {
@@ -2282,18 +2229,23 @@ ipcMain.handle("user-analysis:cancel-activity-timeline", async () => {
   return { ok: true, runId: activeTimelineBuild.runId };
 });
 
-ipcMain.handle("user-analysis:build-activity-timeline", async (ipcEvent, payload: { connection: AppConnection; selectedUser: string; startDate: string; endDate: string; projectScope?: string; requestWindow?: ActivityStreamStabilityConfigV2["requestWindow"]; fullScanRoundCount?: number; forcedRetryCount?: number; delayBetweenRoundsMs?: number; roundExecutionMode?: ActivityStreamStabilityConfigV2["roundExecutionMode"]; mergeStrategy?: ActivityStreamStabilityConfigV2["mergeStrategy"] }) => {
-  const selectedUser = String(payload.selectedUser || "").trim();
-  if (!selectedUser || !payload.startDate || !payload.endDate) throw new Error("Please select a user and date range first. / 請先選擇使用者與日期範圍。");
-  const timelineRunId = `tlrun-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-  const sourceRunId = `asrun-${Date.now()}-timeline`;
-  const requestWindow = payload.requestWindow ?? { type: "calendar_month", customDays: null };
-  const fullScanRoundCount = Math.max(1, Math.min(32, Math.trunc(Number(payload.fullScanRoundCount ?? payload.forcedRetryCount ?? 3))));
-  const delayBetweenRoundsMs = isUiSmoke ? 0 : Number(payload.delayBetweenRoundsMs ?? 1000);
-  const roundExecutionMode = payload.roundExecutionMode ?? "force_all_rounds";
-  const mergeStrategy = payload.mergeStrategy ?? "union";
-  const config: ActivityStreamStabilityConfigV2 = { selectedUser, dateRange: { start: payload.startDate, end: payload.endDate }, projectScope: "", requestWindow, fullScanRoundCount, delayBetweenRoundsMs, mergeStrategy, roundExecutionMode };
-  const runLogs: string[] = [`[INFO] Timeline round settings: requestWindow=${requestWindow.type} fullScanRoundCount=${fullScanRoundCount} roundExecutionMode=${roundExecutionMode} mergeStrategy=${mergeStrategy}`, "[INFO] Round-first execution; concurrency=1"];
+ipcMain.handle("user-analysis:build-activity-timeline", async (ipcEvent, payload: { connection: AppConnection; runContext: ActivityTimelineRunContext }) => {
+  const runContext = validateActivityTimelineRunContext(payload.runContext);
+  const selectedUser = runContext.selectedUser;
+  const timelineRunId = runContext.runId;
+  const sourceRunId = `${runContext.runId}-activity-stream`;
+  const requestWindow = runContext.requestWindow;
+  const fullScanRoundCount = runContext.fullScanRounds;
+  const delayBetweenRoundsMs = isUiSmoke ? 0 : runContext.delayBetweenRounds;
+  const roundExecutionMode = runContext.roundExecutionMode;
+  const mergeStrategy = runContext.mergeStrategy;
+  const config: ActivityStreamStabilityConfigV2 = { selectedUser, dateRange: { start: runContext.effectiveStartDate, end: runContext.effectiveEndDate }, projectScope: "", requestWindow, fullScanRoundCount, delayBetweenRoundsMs, mergeStrategy, roundExecutionMode };
+  const runLogs: string[] = [
+    `[INFO] Timeline Run Context: sessionId=${runContext.sessionId} runId=${runContext.runId} selected=${runContext.selectedStartDate}..${runContext.selectedEndDate} effective=${runContext.effectiveStartDate}..${runContext.effectiveEndDate}`,
+    `[INFO] Timeline request windows: ${runContext.requestWindows.map((window) => `${window.start}..${window.end}`).join(",")}`,
+    `[INFO] Timeline round settings: requestWindow=${requestWindow.type} fullScanRoundCount=${fullScanRoundCount} roundExecutionMode=${roundExecutionMode} mergeStrategy=${mergeStrategy}`,
+    "[INFO] Round-first execution; concurrency=1"
+  ];
   let lastRun: Awaited<ReturnType<typeof runActivityStreamProbe>> | null = null;
   activeTimelineBuild = { runId: timelineRunId, cancelled: false };
   const jiraConnectionSessionId = `jira-session:${sha256(String(payload.connection.baseUrl || "")).slice(0, 16)}`;
@@ -2324,7 +2276,7 @@ ipcMain.handle("user-analysis:build-activity-timeline", async (ipcEvent, payload
     timelineRunId,
     builtAt,
     selectedUser,
-    dateRange: { start: payload.startDate, end: payload.endDate },
+    dateRange: { start: runContext.effectiveStartDate, end: runContext.effectiveEndDate },
     projectScope: "",
     sourceRunId: run.runId,
     sourceParsedActivityCount: run.activityStream.parsedActivityCount,
@@ -2350,7 +2302,7 @@ ipcMain.handle("user-analysis:build-activity-timeline", async (ipcEvent, payload
   fs.writeFileSync(summaryPath, `${JSON.stringify(sanitizeExportData(timeline.summary), null, 2)}\n`, "utf8");
   latestUserActivityTimeline = { ...timeline, exportedFiles: { jsonPath, csvPath, summaryPath } };
   const integrityLogs = timeline.summary.integrity.warnings.map((warning) => `[WARN] ${warning}`);
-  return { ...timeline, exportedFiles: { jsonPath, csvPath, summaryPath }, roundStability: roundRun, activityStream: run.activityStream, standardActivityStreamFlow: run.standardActivityStreamFlow, logs: [...run.logs, ...runLogs, `[INFO] User Activity Timeline built: timelineRunId=${timelineRunId} totalEvents=${timeline.summary.totalEvents}`, `[INFO] Timeline integrity: source=${timeline.summary.integrity.sourceParsedActivityCount} events=${timeline.summary.integrity.timelineEventCount} dedup=${timeline.summary.integrity.deduplicatedEntryCount} skipped=${timeline.summary.integrity.skippedEntryCount} unexplained=${timeline.summary.eventCountReconciliation.unexplainedDifferenceCount}`, ...integrityLogs, `[INFO] Timeline JSON auto-saved: ${jsonPath}`, `[INFO] Timeline CSV auto-saved: ${csvPath}`, "[INFO] No database write performed", "[INFO] No Jira write performed"] };
+  return { ...timeline, runContext, exportedFiles: { jsonPath, csvPath, summaryPath }, roundStability: roundRun, activityStream: run.activityStream, standardActivityStreamFlow: run.standardActivityStreamFlow, logs: [...run.logs, ...runLogs, `[INFO] User Activity Timeline built: timelineRunId=${timelineRunId} totalEvents=${timeline.summary.totalEvents}`, `[INFO] Timeline integrity: source=${timeline.summary.integrity.sourceParsedActivityCount} events=${timeline.summary.integrity.timelineEventCount} dedup=${timeline.summary.integrity.deduplicatedEntryCount} skipped=${timeline.summary.integrity.skippedEntryCount} unexplained=${timeline.summary.eventCountReconciliation.unexplainedDifferenceCount}`, ...integrityLogs, `[INFO] Timeline JSON auto-saved: ${jsonPath}`, `[INFO] Timeline CSV auto-saved: ${csvPath}`, "[INFO] No database write performed", "[INFO] No Jira write performed"] };
 });
 
 const sensitiveReplayQueryKey = /token|password|passwd|secret|session|cookie|authorization|auth_token/i;

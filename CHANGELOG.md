@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.46 - Table UX, Activity Stream Views and Readable Viewer
+
+- Froze Data Collection Step 1 dates, request windows, run IDs, and fixed round settings in one validated Run Context before any Jira request.
+- Added shared SQLite viewer query contracts with server-side paging, sorting, filtering, distinct values, total/filtered counts, deterministic ordering, and stale-response protection.
+- Removed the Database Issues Action column and replaced exact-value category inputs with full-database Project, Type, Status, and Priority selections.
+- Added stable-user Related Issues, confirmed-provenance Activity Stream, All Activity Events, and Issue Activity Stream read-only views without changing Current-State schema v2.
+- Extended Jira content rendering for wiki line breaks, bold text, mentions, attachment placeholders, inline image markup, code blocks, and safe links without remote image loading.
+- Made Connections fully read-only; Reload, Choose Env, and Test Jira Connection do not save or edit credentials.
+- Expanded atomic UI preferences for User and Issue viewer tables under `APP_ROOT/app-data/settings/ui-preferences.json`.
+- Reset new Data Collection runs from clean workflow state and removed stale Local Database disabled wording.
+- No migration, database recreation, SQLite business write, Viewer Jira call, attachment download, or new native SQLite dependency is introduced.
+
 ## 0.2.45 - Table UX and Readable Viewer
 
 - Added strict typed Current-State database query pagination, sorting, and filters with stable Issue Key ordering and a 225-Issue synthetic fixture.
