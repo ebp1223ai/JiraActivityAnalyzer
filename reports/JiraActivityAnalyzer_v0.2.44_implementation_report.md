@@ -52,6 +52,23 @@ Renderer 只傳 Issue Key。Main process 使用目前已驗證的 read-only Data
 
 本次執行環境未提供真實 COPGEN1-138930 Database，因此沒有宣稱真實資料庫驗證；測試只使用匿名 fixture。長時間多尺寸 UI smoke 依任務要求未執行。
 
+| Command | Result | Duration |
+|---|---|---:|
+| `npm.cmd run typecheck` | Passed | 9.7 s |
+| `npm.cmd run test:v0.2.43` | Passed | 1.4 s |
+| `npm.cmd run test:v0.2.44` | Passed | 3.1 s |
+| `npm.cmd run build` | Passed | 24.7 s |
+| `npm.cmd run dist` | Passed | 109.2 s |
+| Portable process check | Alive and responding after 6 seconds | 6.6 s |
+
+Build Version 為 `v0.2.44`，正式封裝 Build Time 為 `2026/07/29 10:51:35`（Asia/Taipei），packaged source commit 為 `cb122eb8c8ee35f34f0caae1a0ef8e3640632cde`。
+
+產物：
+
+- `release/Jira Activity Analyzer Setup 0.2.44.exe`
+- `release/Jira Activity Analyzer Portable 0.2.44.exe`
+- `release/build-info.json`
+
 ## 已知限制
 
 - Viewer session state 僅在 App 本次執行期間保存，關閉 App 後不保存。
