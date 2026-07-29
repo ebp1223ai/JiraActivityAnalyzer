@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { AlertTriangle, Bug, ChevronDown, ChevronUp, Clock3, Columns3, Copy, DatabaseZap, Download, Eye, FolderOpen, HelpCircle, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Bug, ChevronDown, ChevronUp, Clock3, Columns3, Copy, DatabaseZap, Download, Eye, FolderOpen, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
 import type { AppOutletContext } from "../components/AppLayout";
 import { FieldLabel, MockModal } from "../components/FormControls";
@@ -29,6 +29,24 @@ const workflowStateStyles: Record<WorkflowVisualState, string> = {
   failed: "border-red-300 border-l-red-600 bg-red-50",
   advanced: "border-violet-300 border-l-violet-600 bg-violet-50"
 };
+const workflowTabs = [
+  { step: "timeline", number: "1", title: "Build Activity Stream", color: "#F5D1D3" },
+  { step: "selectIssues", number: "2", title: "Select Issues", color: "#F6D9BF" },
+  { step: "queue", number: "3", title: "Full Fetch", color: "#F9E9A5" },
+  { step: "relatedIssues", number: "4", title: "Validate History", color: "#DDD2E8" },
+  { step: "exports", number: "5", title: "Save & Export", color: "#C9E5F4" }
+] as const;
+
+function currentTaipeiDate() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
 const workflowStateTones: Record<WorkflowVisualState, "green" | "blue" | "amber" | "red" | "gray"> = { current: "blue", completed: "green", ready: "gray", blocked: "gray", warning: "amber", failed: "red", advanced: "blue" };
 
 function parseUsers(input: string) {
@@ -647,14 +665,58 @@ export function AnalysisPage() {
       return;
     }
     setTimelineRoundProgress({ stage: "starting" });
-    patchState({ timelineStatus: "running", errors: [], notice: "Building Activity Timeline... / 正在建立活動時間線..." });
+    patchState({
+      timelineStatus: "running",
+      timelineEvents: [],
+      timelineSummary: null,
+      timelineIssueGroups: [],
+      selectedTimelineIssueKeys: [],
+      candidateIssues: [],
+      selectedForFetch: [],
+      relatedCandidateIssues: [],
+      selectedRelatedIssueKeys: [],
+      fullFetchStatus: "idle",
+      workflowSteps: defaultWorkflowSteps(),
+      errors: [],
+      notice: "Building Activity Timeline... / 正在建立活動時間線..."
+    });
     try {
-      const response = await window.desktopApp?.userAnalysis?.buildActivityTimeline({ connection: activeConnection, selectedUser: selectedUsers[0], startDate: userAnalysis.startDate, endDate: userAnalysis.endDate, requestWindow: { type: userAnalysis.activityStreamRequestWindow, customDays: userAnalysis.activityStreamRequestWindow === "custom_days" ? userAnalysis.activityStreamCustomWindowDays : null }, fullScanRoundCount: userAnalysis.activityStreamFullScanRoundCount, delayBetweenRoundsMs: userAnalysis.activityStreamDelayBetweenRoundsMs, roundExecutionMode: userAnalysis.activityStreamRoundExecutionMode, mergeStrategy: userAnalysis.activityStreamMergeStrategy });
+      const response = await window.desktopApp?.userAnalysis?.buildActivityTimeline({
+        connection: activeConnection,
+        selectedUser: selectedUsers[0],
+        startDate: "2026-01-01",
+        endDate: currentTaipeiDate(),
+        requestWindow: { type: "calendar_month", customDays: null },
+        fullScanRoundCount: 3,
+        delayBetweenRoundsMs: 5000,
+        roundExecutionMode: "force_all_rounds",
+        mergeStrategy: "union"
+      });
       if (!response) throw new Error("Timeline builder is unavailable.");
       const events = Array.isArray(response.events) ? response.events as UserActivityTimelineEvent[] : [];
       const summary = response.summary as UserActivityTimelineSummary;
       const exportedFiles = response.exportedFiles as { jsonPath: string; csvPath: string; summaryPath: string };
       const groups = buildTimelineIssueGroups(events);
+      const baselineClassification = String(summary?.baselineGuard?.classification ?? "").toLowerCase();
+      const baselineReady = events.length > 0
+        && !["", "not_run", "no_baseline", "baseline_missing", "unavailable"].includes(baselineClassification);
+      if (!baselineReady) {
+        const message = events.length === 0
+          ? "Activity Stream returned no events. Downstream steps remain not started. / 活動串流沒有事件，下游步驟維持未開始。"
+          : "No usable baseline was produced. Downstream steps remain not started. / 未產生可用 Baseline，下游步驟維持未開始。";
+        patchState({
+          timelineStatus: "failed",
+          timelineEvents: events,
+          timelineSummary: summary,
+          timelineIssueGroups: groups,
+          workflowSteps: { ...defaultWorkflowSteps(), activityTimeline: "failed" },
+          timelineExportPaths: exportedFiles,
+          errors: [message],
+          notice: ""
+        });
+        appendDebugLog("analysis", [`[WARN] ${message}`]);
+        return;
+      }
       const steps = { ...userAnalysis.workflowSteps, activityTimeline: "completed" as const, timelineIssueSelection: "not_run" as const };
       patchState({ timelineStatus: "completed", timelineEvents: events, timelineSummary: summary, timelineIssueGroups: groups, selectedTimelineIssueKeys: [], timelineIssueFilters: { ...userAnalysis.timelineIssueFilters, projectKeys: [] }, workflowSteps: steps, timelineExportPaths: exportedFiles, expandedTimelineEvents: [], notice: `Activity Timeline built across all projects: ${events.length} events; ${groups.length} issue groups.`, errors: [] });
       void persistWorkflowSnapshot({ steps, timelineIssueGroups: groups });
@@ -1787,6 +1849,77 @@ export function AnalysisPage() {
   return (
     <div className="min-w-0" data-workflow-active-step={userAnalysis.activeTab === "timeline" ? "1" : userAnalysis.activeTab === "selectIssues" ? "2" : userAnalysis.activeTab === "queue" || userAnalysis.activeTab === "fetchReport" ? "3" : userAnalysis.activeTab === "relatedIssues" ? "4" : "5"}>
       <PageHeader title="資料擷取" subtitle="Data Collection · Stage 1–5" />
+      <SectionCard className="mb-4" title="資料收集工作流" subtitle="Data Collection Workflow">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5" role="tablist" aria-label="Data Collection workflow">
+          {workflowTabs.map((tab, index) => {
+            const visual = workflowStepState(tab.step);
+            const selected = tab.step === "queue"
+              ? ["queue", "fetchReport"].includes(userAnalysis.activeTab)
+              : userAnalysis.activeTab === tab.step;
+            return (
+              <button
+                key={tab.step}
+                id={`workflow-tab-${tab.step}`}
+                data-testid={`workflow-tab-${tab.step}`}
+                role="tab"
+                aria-selected={selected}
+                aria-controls={tab.step === "queue" ? "stage-results" : `workflow-panel-${tab.step}`}
+                tabIndex={selected ? 0 : -1}
+                type="button"
+                className="min-w-0 rounded-md border border-slate-300 p-3 text-left text-sm font-black leading-snug text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ backgroundColor: tab.color }}
+                onClick={() => showStep(tab.step)}
+                onKeyDown={(event) => {
+                  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                  event.preventDefault();
+                  const nextIndex = event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                      ? workflowTabs.length - 1
+                      : (index + (event.key === "ArrowRight" ? 1 : -1) + workflowTabs.length) % workflowTabs.length;
+                  const next = workflowTabs[nextIndex];
+                  showStep(next.step);
+                  window.setTimeout(() => document.getElementById(`workflow-tab-${next.step}`)?.focus(), 0);
+                }}
+              >
+                <span className="block text-xs font-bold text-slate-600">Step {tab.number}</span>
+                <span data-no-clip="true">{tab.title}</span>
+                <span className="mt-2 block"><StatusBadge tone={workflowStateTones[visual.state]}>{visual.state}</StatusBadge></span>
+              </button>
+            );
+          })}
+        </div>
+      </SectionCard>
+
+      {userAnalysis.activeTab === "timeline" ? (
+        <SectionCard className="mb-4 workflow-current-panel" title="Step 1. Build Activity Stream" subtitle="建立活動串流">
+          <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <FieldLabel label="Selected User" sub="選定使用者" />
+              <input data-testid="analysis-setup-user-v244" className="field" value={userAnalysis.selectedUsersText} onChange={(event) => patchState({ selectedUsersText: event.target.value.replace(/[\n,;].*$/, "") })} placeholder="sample.user" />
+            </div>
+            {[
+              ["Request Window / 請求視窗", "1 Calendar Month"],
+              ["Round Mode / 輪次模式", "Force All Rounds"],
+              ["Rounds / 輪次", "3"],
+              ["Delay / 間隔", "5000 ms"],
+              ["Start Date / 開始日期", "2026-01-01"],
+              ["End Date / 結束日期", currentTaipeiDate()],
+              ["Merge Strategy / 合併策略", "Union"]
+            ].map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <div className="text-xs font-bold text-muted">{label}</div>
+                <div className="field mt-1 bg-slate-100 font-black text-slate-700" data-no-clip="true">{value}</div>
+              </div>
+            ))}
+            <label className="flex min-w-0 items-start gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold">
+              <input data-testid="analysis-fetch-remote-links-v244" className="mt-1 h-4 w-4 shrink-0" type="checkbox" checked={userAnalysis.fetchRemoteLinks} onChange={(event) => patchState({ fetchRemoteLinks: event.target.checked })} />
+              <span className="min-w-0"><b>Remote Links (Optional)</b><span className="mt-1 block text-xs text-muted">Default OFF. Optional failures do not reduce Archive Eligible.</span></span>
+            </label>
+          </div>
+        </SectionCard>
+      ) : null}
+
       {userAnalysis.largeQueueConfirmationOpen ? (
         <MockModal
           title="Full Fetch Confirmation / 完整抓取確認"
@@ -1816,22 +1949,12 @@ export function AnalysisPage() {
           </div>
         </MockModal>
       ) : null}
-      <div className="mb-4 flex min-w-0 flex-wrap gap-2">
-        <label className="btn cursor-pointer" title="Show or hide contextual guidance">
-          <input className="h-4 w-4" type="checkbox" checked={userAnalysis.showHelpTips} onChange={(event) => { logAnalysisAction("USER_ACTION", event.target.checked ? "Show Help Tips clicked / 顯示操作說明" : "Hide Help Tips clicked / 隱藏操作說明"); patchState({ showHelpTips: event.target.checked }); }} />
-          {userAnalysis.showHelpTips ? "Hide Help Tips / 隱藏操作說明" : "Show Help Tips / 顯示操作說明"}
-        </label>
-        <button className="btn" type="button" onClick={() => { logAnalysisAction("USER_ACTION", userAnalysis.helpOpen ? "Help panel closed / 使用說明已關閉" : "Help panel opened / 使用說明已開啟"); patchState({ helpOpen: !userAnalysis.helpOpen }); }}>
-          <HelpCircle size={16} />Help / 使用說明
-        </button>
-      </div>
-      {userAnalysis.showHelpTips ? <p className="mb-4 text-xs font-semibold leading-relaxed text-muted">Turn on contextual help for each User Analysis step.<br />開啟每個使用者分析步驟的操作說明。</p> : null}
       <p className="mb-4 max-w-3xl text-sm font-semibold leading-relaxed text-muted">
         Follow the guided workflow from Timeline evidence to Full Fetch and scoped Related Issues.<br />
         依引導式流程，從活動時間線證據逐步完成 Jira 完整抓取與關聯範圍檢視。
       </p>
 
-      {userAnalysis.activeTab === "timeline" ? <SectionCard id="analysis-setup" title="Step 1. Setup & Build Timeline" subtitle="設定並建立活動時間線" className="mb-4">
+      {false && userAnalysis.activeTab === "timeline" ? <SectionCard id="analysis-setup" title="Step 1. Setup & Build Timeline" subtitle="設定並建立活動時間線" className="mb-4">
         <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div><FieldLabel label="Activity Stream Request Window" sub="Activity Stream 請求視窗" /><select data-testid="analysis-request-window" className="field" value={userAnalysis.activityStreamRequestWindow} onChange={(event) => patchState({ activityStreamRequestWindow: event.target.value as typeof userAnalysis.activityStreamRequestWindow })}><option value="1_day">1 Day</option><option value="7_days">7 Days</option><option value="14_days">14 Days</option><option value="calendar_month">1 Calendar Month</option><option value="custom_days">Custom</option></select>{userAnalysis.activityStreamRequestWindow === "custom_days" ? <input data-testid="analysis-custom-window-days" className="field mt-2" type="number" min={1} max={31} value={userAnalysis.activityStreamCustomWindowDays} onChange={(event) => patchState({ activityStreamCustomWindowDays: Math.max(1, Math.min(31, Math.trunc(Number(event.target.value)))) })} /> : null}</div>
           <div><FieldLabel label="Full Scan Round Count" sub="完整掃描輪數（1-32）" /><input data-testid="analysis-full-scan-round-count" className="field" type="number" min={1} max={32} value={userAnalysis.activityStreamFullScanRoundCount} onChange={(event) => patchState({ activityStreamFullScanRoundCount: Math.max(1, Math.min(32, Math.trunc(Number(event.target.value)))) })} /></div>
@@ -1945,27 +2068,6 @@ export function AnalysisPage() {
               <button className="btn border-red-300 text-red-700" type="button" onClick={() => void handleCancelFullFetch()}><Trash2 size={16} />Stop After Current Issue / 完成目前 Jira 後停止</button>
             </div>
           ) : null}
-        </SectionCard>
-      ) : null}
-
-      {userAnalysis.helpOpen ? (
-        <SectionCard title="User Analysis workflow" subtitle="使用者分析流程" className="mb-4">
-          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-lg bg-blue-50 p-3 text-sm leading-relaxed"><b>1. Setup & Build Timeline</b><br />Set one user and date range, then build and inspect Timeline events.</div>
-            <div className="rounded-lg bg-violet-50 p-3 text-sm leading-relaxed"><b>2. Select Issues</b><br />Filter and select issue groups derived from Timeline evidence.</div>
-            <div className="rounded-lg bg-emerald-50 p-3 text-sm leading-relaxed"><b>3. Full Fetch</b><br />Fetch selected issues sequentially with read-only Jira GET requests.</div>
-            <div className="rounded-lg bg-amber-50 p-3 text-sm leading-relaxed"><b>4. Related Issues</b><br />Review recommended and explicitly selected optional relations.</div>
-            <div className="rounded-lg bg-slate-100 p-3 text-sm leading-relaxed"><b>5. Export</b><br />Save completed analysis evidence and diagnostics.</div>
-          </div>
-          <div className="mt-3 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-muted">
-            Stage 1 Candidate Result / 第一階段候選結果:<br />exports/user-analysis/user-analysis-candidates-YYYYMMDD_HHmmss.json<br /><br />
-            Stage 1 Candidate Raw Data / 第一階段候選 Raw Data:<br />exports/raw-data/user-analysis-candidates-raw-YYYYMMDD_HHmmss.json<br /><br />
-            Stage 2 Full Fetch Result / 第二階段完整抓取結果:<br />exports/user-analysis/user-analysis-full-fetch-YYYYMMDD_HHmmss.json<br /><br />
-            Full Fetch Raw is persisted automatically in main-process Staging and has no manual Save action.<br />Full Fetch Raw 由 main process 自動寫入 Staging，不提供人工儲存操作。
-          </div>
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold leading-relaxed text-emerald-900">
-            <b>Safety / 安全性</b><br />The guided workflow uses read-only Jira GET requests. / 引導流程只使用唯讀 Jira GET 請求。<br />It does not write to Jira or the local database. / 不會寫入 Jira 或本地資料庫。<br />It does not download attachment file bodies. / 不會下載附件本體。<br />Tokens and Authorization values are masked in debug logs and exports. / Debug Log 與匯出檔會遮蔽 token 與 Authorization。
-          </div>
         </SectionCard>
       ) : null}
 
@@ -2185,6 +2287,7 @@ export function AnalysisPage() {
 
       {(userAnalysis.activeTab === "queue" || userAnalysis.activeTab === "fetchReport") ? <SectionCard
         id="stage-results"
+        className="workflow-panel-step-3"
         title={userAnalysis.activeTab === "queue" ? "Selected Issues for Full Fetch" : "Full Fetch Report"}
         subtitle={userAnalysis.activeTab === "queue" ? "準備完整抓取的 Jira" : "完整抓取報告"}
       >
@@ -2347,7 +2450,7 @@ export function AnalysisPage() {
         )}
       </SectionCard> : null}
 
-      {userAnalysis.activeTab === "selectIssues" ? <SectionCard title="Issue Groups from Timeline" subtitle="來自活動時間線的 Jira 群組">
+      {userAnalysis.activeTab === "selectIssues" ? <SectionCard id="workflow-panel-selectIssues" className="workflow-panel-step-2" title="Issue Groups from Timeline" subtitle="來自活動時間線的 Jira 群組">
         <SetupSummary />
         {userAnalysis.timelineStatus !== "completed" ? <div data-testid="select-issues-blocked" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm font-bold text-amber-900">Build Activity Timeline first.<br />請先建立活動時間線。</div> : null}
         <div data-testid="jira-default-filter-note" className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-900">Default view: Jira-related activities. Project Key only filters visible rows; selections remain global across projects.<br />預設顯示 Jira 相關活動。Project Key 僅篩選畫面列，跨專案選取會持續保留。<div className="mt-1 text-xs font-semibold">Includes Jira events and Confluence events that reference Jira issues.<br />包含 Jira 事件，以及有引用 Jira issue 的 Confluence 事件。</div></div>
@@ -2382,7 +2485,7 @@ export function AnalysisPage() {
         <button className="btn btn-primary mt-4" type="button" disabled={userAnalysis.selectedTimelineIssueKeys.length === 0} onClick={addTimelineIssuesToQueue}>Add Selected Issues, then go to Step 3: Full Fetch / 加入選取 Jira，然後前往 Step 3：完整抓取</button>
       </SectionCard> : null}
 
-      {userAnalysis.activeTab === "relatedIssues" ? <SectionCard title="Review Related Issues" subtitle="檢視關聯 Jira 範圍">
+      {userAnalysis.activeTab === "relatedIssues" ? <SectionCard id="workflow-panel-relatedIssues" className="workflow-panel-step-4" title="Review Related Issues" subtitle="檢視關聯 Jira 範圍">
         <SetupSummary />
         {!hasFullFetchResult ? <div data-testid="related-issues-blocked" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm font-bold text-amber-900">Run Full Fetch first to discover related issues.<br />請先執行完整抓取以探索關聯 Jira。</div> : null}
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-950">Related candidates are derived from read-only Full Fetch metadata. Recommended hierarchy relations are separated from optional links and mentions. No Jira write, database write, or attachment download is performed.</div>
@@ -2408,7 +2511,7 @@ export function AnalysisPage() {
         <div className="mt-4 flex flex-wrap justify-end gap-2"><button data-testid="skip-related-full-fetch" className="btn" type="button" disabled={!hasFullFetchResult || relatedReviewDone} onClick={skipRelatedFullFetch}>Skip Related Full Fetch / 略過關聯完整抓取</button><button data-testid="related-to-export" className="btn btn-primary" type="button" disabled={!exportReady} onClick={() => showStep("exports")}>Go to Step 5: Export / 前往 Step 5：匯出</button></div>
       </SectionCard> : null}
 
-      {userAnalysis.activeTab === "timeline" ? <div className="space-y-4" data-testid="activity-timeline-panel">
+      {userAnalysis.activeTab === "timeline" ? <div className="workflow-panel-step-1 space-y-4 rounded-lg p-3" data-testid="activity-timeline-panel" role="tabpanel" id="workflow-panel-timeline" aria-labelledby="workflow-tab-timeline">
         {userAnalysis.errors.length > 0 ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold leading-relaxed text-red-800" role="alert">{userAnalysis.errors.map((error) => <div key={error}>{error}</div>)}</div> : null}
         <SetupSummary />
         <SectionCard title="Activity Timeline" subtitle="活動時間線">
@@ -2495,7 +2598,7 @@ export function AnalysisPage() {
         </SectionCard> : null}
       </div> : null}
 
-      {userAnalysis.activeTab === "exports" ? <div id="analysis-exports" className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+      {userAnalysis.activeTab === "exports" ? <div id="workflow-panel-exports" role="tabpanel" aria-labelledby="workflow-tab-exports" className="workflow-panel-step-5 grid min-w-0 grid-cols-1 gap-4 rounded-lg p-3 xl:grid-cols-2">
         <div className="min-w-0 xl:col-span-2">
           <SetupSummary />
           {!exportReady ? <div data-testid="export-blocked" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm font-bold text-amber-900">No exportable User Analysis results yet.<br />目前尚無可匯出的使用者分析結果。</div> : null}

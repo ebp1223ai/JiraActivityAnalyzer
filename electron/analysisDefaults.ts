@@ -4,6 +4,7 @@ export const USER_ANALYSIS_DEFAULTS = {
   requestWindow: "calendar_month" as const,
   roundExecutionMode: "force_all_rounds" as const,
   fullScanRoundCount: 3,
+  delayBetweenRoundsMs: 5000,
   fetchRemoteLinks: false
 };
 

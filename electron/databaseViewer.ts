@@ -1,10 +1,49 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import { DatabaseSync } from "node:sqlite";
 import { normalizeSourceObjectKey } from "./sourceArchiveDatabase.js";
+type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
+
+interface ViewerSection<T = unknown> {
+  status: ViewerSectionStatus;
+  records: T[];
+  message: string;
+  total: number;
+}
+
+interface IssueViewerDto {
+  found: boolean;
+  status: "ready" | "not_found" | "payload_unavailable" | "payload_decode_failed" | "payload_invalid" | "payload_unsupported" | "query_failed";
+  issueKey: string;
+  message: string;
+  overview: Record<string, unknown> | null;
+  description: {
+    status: ViewerSectionStatus;
+    source: "rendered" | "plain" | "none";
+    plainText: string;
+    message: string;
+  };
+  changelog: ViewerSection<Record<string, unknown>>;
+  comments: ViewerSection<Record<string, unknown>>;
+  attachments: ViewerSection<Record<string, unknown>>;
+  issueLinks: ViewerSection<Record<string, unknown>>;
+  remoteLinks: ViewerSection<Record<string, unknown>>;
+  activityEvents: ViewerSection<Record<string, unknown>>;
+  rawEvidence: {
+    status: ViewerSectionStatus;
+    schemaVersion: string;
+    payloadFormatVersion: number | null;
+    payloadSavedAt: string;
+    preview: string;
+    message: string;
+  };
+}
 
 type Row = Record<string, unknown>;
+const MAX_VIEWER_PAYLOAD_BYTES = 64 * 1024 * 1024;
+const MAX_RAW_PREVIEW_CHARS = 24000;
 
 function openReadOnly(databasePath: string) {
   const resolved = path.resolve(databasePath);
@@ -49,6 +88,114 @@ function databaseSize(databasePath: string) {
   }
 }
 
+function record(value: unknown): Row {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Row : {};
+}
+
+function list(value: unknown) {
+  return Array.isArray(value) ? value.map(record) : [];
+}
+
+function plainText(value: unknown): string {
+  if (typeof value === "string") {
+    return value
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, "\"")
+      .replace(/&#39;/gi, "'")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  if (Array.isArray(value)) return value.map(plainText).filter(Boolean).join("\n");
+  const valueRecord = record(value);
+  if (!Object.keys(valueRecord).length) return "";
+  if (typeof valueRecord.text === "string") return valueRecord.text;
+  return Object.values(valueRecord).map(plainText).filter(Boolean).join("\n");
+}
+
+function section(records: Row[], status: ViewerSection<Row>["status"] = records.length ? "ready" : "no_records", message = ""): ViewerSection<Row> {
+  return { status, records, total: records.length, message: message || (records.length ? "" : "No records / 無資料") };
+}
+
+function unavailableSection(message: string): ViewerSection<Row> {
+  return section([], "unavailable", message);
+}
+
+export function normalizeIssueViewerPayload(
+  rawValue: unknown,
+  metadata: { payloadFormatVersion: number; payloadSavedAt: string; coverageProfile?: unknown },
+  activityEvents: Row[]
+): Omit<IssueViewerDto, "found" | "status" | "issueKey" | "message" | "overview"> {
+  const raw = record(rawValue);
+  const issue = record(raw.issue);
+  const fields = record(issue.fields);
+  const renderedFields = record(issue.renderedFields);
+  const renderedDescription = plainText(renderedFields.description);
+  const fallbackDescription = plainText(fields.description);
+  const changelog = list(raw.changelog ?? record(issue.changelog).histories);
+  const comments = list(raw.comments ?? record(fields.comment).comments);
+  const attachments = list(raw.attachments ?? fields.attachment);
+  const issueLinks = list(raw.issueLinks ?? fields.issuelinks);
+  const remoteValue = raw.remoteLinks;
+  const remoteRecord = record(remoteValue);
+  const remoteStatus = record(remoteRecord.sectionStatus);
+  const remoteRecords = Array.isArray(remoteValue) ? list(remoteValue) : list(remoteRecord.records);
+  const coverageProfile = record(metadata.coverageProfile);
+  const remoteDisabled = remoteStatus.enabled === false
+    || String(remoteStatus.status ?? "").toLowerCase() === "not_attempted"
+    || record(raw.coverage).remoteLinks === "Disabled"
+    || coverageProfile.remoteLinks === "Disabled";
+  const rawSerialized = JSON.stringify(raw);
+  return {
+    description: renderedDescription
+      ? { status: "ready", source: "rendered", plainText: renderedDescription, message: "" }
+      : fallbackDescription
+        ? { status: "ready", source: "plain", plainText: fallbackDescription, message: "" }
+        : { status: "no_records", source: "none", plainText: "", message: "No description / 無 Description" },
+    changelog: section(changelog),
+    comments: section(comments),
+    attachments: section(attachments),
+    issueLinks: section(issueLinks),
+    remoteLinks: remoteDisabled
+      ? section([], "not_collected", "Not collected because Remote Links is disabled.")
+      : section(remoteRecords),
+    activityEvents: section(activityEvents),
+    rawEvidence: {
+      status: "ready",
+      schemaVersion: String(raw.schemaVersion ?? "unknown"),
+      payloadFormatVersion: metadata.payloadFormatVersion,
+      payloadSavedAt: metadata.payloadSavedAt,
+      preview: rawSerialized.length > MAX_RAW_PREVIEW_CHARS ? `${rawSerialized.slice(0, MAX_RAW_PREVIEW_CHARS)}\n… preview truncated` : rawSerialized,
+      message: rawSerialized.length > MAX_RAW_PREVIEW_CHARS ? "Preview truncated; authoritative payload remains in SQLite." : ""
+    }
+  };
+}
+
+export function issueViewerFailure(issueKey: string, status: IssueViewerDto["status"], message: string, overview: Row | null = null): IssueViewerDto {
+  const unavailable = unavailableSection(message);
+  return {
+    found: status !== "not_found",
+    status,
+    issueKey,
+    message,
+    overview,
+    description: { status: "unavailable", source: "none", plainText: "", message },
+    changelog: unavailable,
+    comments: unavailable,
+    attachments: unavailable,
+    issueLinks: unavailable,
+    remoteLinks: unavailable,
+    activityEvents: unavailable,
+    rawEvidence: { status: "unavailable", schemaVersion: "", payloadFormatVersion: null, payloadSavedAt: "", preview: "", message }
+  };
+}
+
 export function loadDatabaseOverview(databasePath: string) {
   const { db, resolved } = openReadOnly(databasePath);
   const startedAt = new Date().toISOString();
@@ -62,6 +209,7 @@ export function loadDatabaseOverview(databasePath: string) {
       SELECT
         (SELECT COUNT(*) FROM source_objects) AS totalIssues,
         (SELECT COUNT(*) FROM current_issue_snapshots) AS totalSnapshots,
+        (SELECT COUNT(*) FROM current_full_fetch_payloads) AS totalPayloads,
         (SELECT COUNT(*) FROM activity_events) AS totalEvents,
         (SELECT COUNT(*) FROM activity_events WHERE event_type IN ('comment_created', 'comment_updated')) AS comments,
         (SELECT COUNT(*) FROM activity_events WHERE event_type IN ('field_changed', 'status_changed', 'assignee_changed')) AS fieldChanges,
@@ -157,32 +305,67 @@ export function loadDatabaseIssue(databasePath: string, issueKeyInput: string) {
              o.first_saved_at AS firstSavedAt, s.*, y.coverage_profile_json AS coverageProfileJson,
              y.last_outcome AS saveOutcome, y.last_update_reason AS updateReason,
              y.last_successful_run_id AS runId, y.last_checked_at AS lastCheckedAt,
-             p.payload_gzip AS payloadGzip, p.payload_saved_at AS payloadSavedAt
+             p.payload_gzip AS payloadGzip, p.payload_saved_at AS payloadSavedAt,
+             p.archive_sha256 AS archiveSha256, p.uncompressed_bytes AS uncompressedBytes,
+             p.compressed_bytes AS compressedBytes, p.payload_format_version AS payloadFormatVersion
       FROM source_objects o
       LEFT JOIN current_issue_snapshots s ON s.source_object_id = o.id
       LEFT JOIN issue_sync_states y ON y.source_object_id = o.id
       LEFT JOIN current_full_fetch_payloads p ON p.source_object_id = o.id
       WHERE o.issue_key = ?
     `).get(issueKey));
-    if (!issue.sourceObjectId) return { found: false, issueKey };
-    const payloadBuffer = Buffer.isBuffer(issue.payloadGzip) ? issue.payloadGzip : null;
-    let rawEvidence: unknown = null;
-    if (payloadBuffer) {
-      rawEvidence = parseJson(gunzipSync(payloadBuffer).toString("utf8"), null);
-    }
+    if (!issue.sourceObjectId) return issueViewerFailure(issueKey, "not_found", "Issue not found in local database.");
+    issue.labels = parseJson(issue.labels_json, []);
+    issue.components = parseJson(issue.components_json, []);
+    issue.versions = parseJson(issue.versions_json, []);
+    issue.snapshot = parseJson(issue.snapshot_json, {});
+    issue.coverage = parseJson(issue.coverageProfileJson, {});
+    const overview = { ...issue };
+    delete overview.payloadGzip;
+    const payloadBuffer = Buffer.isBuffer(issue.payloadGzip)
+      ? issue.payloadGzip
+      : issue.payloadGzip instanceof Uint8Array
+        ? Buffer.from(issue.payloadGzip)
+        : null;
     const events = rows(db.prepare(`
       SELECT event_type AS eventType, event_time AS eventTime, actor_account_id AS actorAccountId,
              actor_display_name AS actorDisplayName, field_id AS fieldId, field_name AS fieldName,
              from_value_json AS fromValueJson, to_value_json AS toValueJson, source_provenance AS sourceProvenance
       FROM activity_events WHERE source_object_id = ? ORDER BY event_time DESC, id DESC LIMIT 500
     `).all(String(issue.sourceObjectId)));
-    delete issue.payloadGzip;
-    issue.labels = parseJson(issue.labels_json, []);
-    issue.components = parseJson(issue.components_json, []);
-    issue.versions = parseJson(issue.versions_json, []);
-    issue.snapshot = parseJson(issue.snapshot_json, {});
-    issue.coverage = parseJson(issue.coverageProfileJson, {});
-    return { found: true, issueKey, issue, events, rawEvidence };
+    if (!payloadBuffer) return issueViewerFailure(issueKey, "payload_unavailable", "Full Fetch payload is unavailable.", overview);
+    const compressedBytes = Number(issue.compressedBytes);
+    const uncompressedBytes = Number(issue.uncompressedBytes);
+    const payloadFormatVersion = Number(issue.payloadFormatVersion);
+    if (payloadFormatVersion !== 1) return issueViewerFailure(issueKey, "payload_unsupported", `Unsupported payload format version: ${payloadFormatVersion}.`, overview);
+    if (!Number.isSafeInteger(compressedBytes) || !Number.isSafeInteger(uncompressedBytes)
+      || compressedBytes < 0 || uncompressedBytes < 0
+      || compressedBytes > MAX_VIEWER_PAYLOAD_BYTES || uncompressedBytes > MAX_VIEWER_PAYLOAD_BYTES
+      || payloadBuffer.byteLength !== compressedBytes) {
+      return issueViewerFailure(issueKey, "payload_decode_failed", "Payload size validation failed.", overview);
+    }
+    let decoded: Buffer;
+    try {
+      decoded = gunzipSync(payloadBuffer, { maxOutputLength: MAX_VIEWER_PAYLOAD_BYTES });
+    } catch {
+      return issueViewerFailure(issueKey, "payload_decode_failed", "Payload decode failed.", overview);
+    }
+    if (decoded.byteLength !== uncompressedBytes
+      || crypto.createHash("sha256").update(decoded).digest("hex") !== String(issue.archiveSha256 ?? "")) {
+      return issueViewerFailure(issueKey, "payload_decode_failed", "Payload integrity validation failed.", overview);
+    }
+    let rawPayload: unknown;
+    try {
+      rawPayload = JSON.parse(decoded.toString("utf8")) as unknown;
+    } catch {
+      return issueViewerFailure(issueKey, "payload_invalid", "Payload JSON is malformed.", overview);
+    }
+    const normalized = normalizeIssueViewerPayload(rawPayload, {
+      payloadFormatVersion,
+      payloadSavedAt: String(issue.payloadSavedAt ?? ""),
+      coverageProfile: issue.coverage
+    }, events);
+    return { found: true, status: "ready", issueKey, message: "", overview, ...normalized } satisfies IssueViewerDto;
   } finally {
     db.close();
   }

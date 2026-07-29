@@ -52,6 +52,7 @@ import {
   loadDatabaseIssue,
   loadDatabaseOverview,
   loadDatabaseUser,
+  issueViewerFailure,
   runDatabaseHealthCheck
 } from "./databaseViewer.js";
 
@@ -696,8 +697,19 @@ ipcMain.handle("database-viewer:overview", async () => loadDatabaseOverview(curr
 ipcMain.handle("database-viewer:health-check", async () => runDatabaseHealthCheck(currentReadableDatabasePath()));
 ipcMain.handle("database-viewer:list-issues", async (_event, payload?: { search?: string; project?: string; limit?: number; offset?: number }) =>
   listDatabaseIssues(currentReadableDatabasePath(), payload));
-ipcMain.handle("database-viewer:get-issue", async (_event, payload: { issueKey?: string }) =>
-  loadDatabaseIssue(currentReadableDatabasePath(), String(payload?.issueKey ?? "")));
+ipcMain.handle("database-viewer:get-issue", async (_event, payload: { issueKey?: string }) => {
+  const issueKey = String(payload?.issueKey ?? "").trim().toUpperCase();
+  try {
+    return loadDatabaseIssue(currentReadableDatabasePath(), issueKey);
+  } catch (error) {
+    return issueViewerFailure(issueKey, "query_failed", error instanceof Error ? error.message : "Issue Viewer query failed.");
+  }
+});
+ipcMain.handle("database-viewer:open-folder", async () => {
+  const folderPath = path.dirname(currentReadableDatabasePath());
+  const error = await shell.openPath(folderPath);
+  return error ? { ok: false, folderPath, error } : { ok: true, folderPath };
+});
 ipcMain.handle("database-viewer:list-users", async (_event, payload?: { search?: string; limit?: number; offset?: number }) =>
   listDatabaseUsers(currentReadableDatabasePath(), payload));
 ipcMain.handle("database-viewer:get-user", async (_event, payload: { userId?: string; limit?: number; offset?: number }) =>

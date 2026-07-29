@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.44 - UI Integration and Viewer Correctness
+
+- Limited Jira Connection to Jira API and masked `.env` settings, while centralizing database selection, creation, status, health, counts, recent writes, and folder access in Database Overview.
+- Added bounded main-process gzip decoding, payload-format and SHA-256 validation, typed Viewer DTOs, safe Description plain-text normalization, and distinct unavailable/decode/JSON error states.
+- Corrected Issue Links, Remote Links, Activity Events, and `node:sqlite` `Uint8Array` BLOB handling without changing Current-State schema v2.
+- Preserved independent Issue Viewer and User Viewer route state for the current app session.
+- Reworked Data Collection into five compact pastel workflow tabs with keyboard navigation, locked one-month/force-all/5-second settings, and clean new-run state reset.
+- Added an anonymized 140/48/142/2/453 Viewer fixture test. No real Jira credentials or production database are used.
+
 ## 0.2.43 - Unified App Shell and Local Database Viewers
 
 - Reorganized the Electron renderer into one grouped navigation model for Jira Connection, Database Overview, Data Collection, Issue Viewer, User Viewer, Advanced Tools, and Settings while preserving legacy route redirects.

@@ -60,7 +60,10 @@ try {
   assert.equal(overview.counts.totalIssues, 0);
   assert.equal(listDatabaseIssues(databasePath).total, 0);
   assert.equal(listDatabaseUsers(databasePath).total, 0);
-  assert.deepEqual(loadDatabaseIssue(databasePath, " demo-42 "), { found: false, issueKey: "DEMO-42" });
+  const missingIssue = loadDatabaseIssue(databasePath, " demo-42 ");
+  assert.equal(missingIssue.found, false);
+  assert.equal(missingIssue.status, "not_found");
+  assert.equal(missingIssue.issueKey, "DEMO-42");
   assert.throws(() => loadDatabaseIssue(databasePath, "invalid"), /INVALID_JIRA_ISSUE_KEY/);
   assert.throws(() => loadDatabaseUser(databasePath, " "), /STABLE_USER_ID_REQUIRED/);
   assert.equal(runDatabaseHealthCheck(databasePath).status, "healthy");

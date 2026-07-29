@@ -4,6 +4,7 @@ import { defaultWorkflowSteps, type FetchQueueMetadata, type IssueKeySetReconcil
 import type { ActivityStreamProbeRunV2 } from "../../electron/activityStreamRoundStability";
 import type { ActivityStreamBenchmarkRun } from "../../electron/activityStreamBenchmark";
 import { USER_ANALYSIS_DEFAULTS, userAnalysisInitialDates } from "../../electron/analysisDefaults";
+import type { IssueViewerSessionState, UserViewerSessionState } from "../types/databaseViewer";
 
 export type SessionTableState = {
   page: number;
@@ -690,10 +691,14 @@ type SessionStateContextValue = {
   setJiraProbe: Dispatch<SetStateAction<JiraProbeSessionState>>;
   userAnalysis: UserAnalysisSessionState;
   setUserAnalysis: Dispatch<SetStateAction<UserAnalysisSessionState>>;
+  issueViewer: IssueViewerSessionState;
+  setIssueViewer: Dispatch<SetStateAction<IssueViewerSessionState>>;
+  userViewer: UserViewerSessionState;
+  setUserViewer: Dispatch<SetStateAction<UserViewerSessionState>>;
 };
 
 const initialJiraAnalysis: JiraAnalysisSessionState = {
-  issueKey: "COPGEN1-138930",
+  issueKey: "",
   result: null,
   loading: false,
   error: "",
@@ -720,6 +725,29 @@ const initialJiraProbe: JiraProbeSessionState = {
 };
 
 const initialAnalysisDates = userAnalysisInitialDates();
+
+const initialIssueViewer: IssueViewerSessionState = {
+  issueKey: "",
+  result: null,
+  status: "initial",
+  message: "",
+  activeTab: "Overview"
+};
+
+const initialUserViewer: UserViewerSessionState = {
+  search: "",
+  selectedUserId: "",
+  users: [],
+  detail: null,
+  status: "initial",
+  message: "",
+  activeTab: "Summary",
+  startDate: "",
+  endDate: "",
+  eventType: "all",
+  project: "all",
+  sort: "newest"
+};
 
 const initialUserAnalysis: UserAnalysisSessionState = {
   selectedUsersText: "roger_hsieh",
@@ -768,7 +796,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   activityStreamCustomWindowDays: 7,
   activityStreamForcedRetryCount: 5,
   activityStreamFullScanRoundCount: USER_ANALYSIS_DEFAULTS.fullScanRoundCount,
-  activityStreamDelayBetweenRoundsMs: 1000,
+  activityStreamDelayBetweenRoundsMs: USER_ANALYSIS_DEFAULTS.delayBetweenRoundsMs,
   activityStreamRoundExecutionMode: USER_ANALYSIS_DEFAULTS.roundExecutionMode,
   activityStreamMergeStrategy: "union",
   stabilityActiveTab: "precision",
@@ -880,7 +908,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   precisionProbeErrors: [],
   precisionProbeLastRunAt: "",
   lastSavedPrecisionProbePath: "",
-  showHelpTips: true,
+  showHelpTips: false,
   helpOpen: false,
   page: 1,
   pageSize: 40,
@@ -971,9 +999,14 @@ export function SessionStateProvider({ children }: { children: ReactNode }) {
   const [jiraAnalysis, setJiraAnalysis] = useState(initialJiraAnalysis);
   const [jiraProbe, setJiraProbe] = useState(initialJiraProbe);
   const [userAnalysis, setUserAnalysis] = useState(initialUserAnalysis);
+  const [issueViewer, setIssueViewer] = useState(initialIssueViewer);
+  const [userViewer, setUserViewer] = useState(initialUserViewer);
 
   return (
-    <SessionStateContext.Provider value={{ jiraAnalysis, setJiraAnalysis, jiraProbe, setJiraProbe, userAnalysis, setUserAnalysis }}>
+    <SessionStateContext.Provider value={{
+      jiraAnalysis, setJiraAnalysis, jiraProbe, setJiraProbe, userAnalysis, setUserAnalysis,
+      issueViewer, setIssueViewer, userViewer, setUserViewer
+    }}>
       {children}
     </SessionStateContext.Provider>
   );

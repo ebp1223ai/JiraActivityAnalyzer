@@ -165,3 +165,15 @@ canvas {
 .table tr:last-child td {
   border-bottom: 0;
 }
+/* v0.2.44 compact workflow replaces the legacy setup and verbose step cards. */
+#analysis-setup,
+.card:has([data-step-reason]) {
+  display: none;
+}
+
+.workflow-current-panel,
+.workflow-panel-step-1 { background: #f5d1d3; }
+.workflow-panel-step-2 { background: #f6d9bf; }
+.workflow-panel-step-3 { background: #f9e9a5; }
+.workflow-panel-step-4 { background: #ddd2e8; }
+.workflow-panel-step-5 { background: #c9e5f4; }

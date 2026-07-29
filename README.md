@@ -1,6 +1,15 @@
 # Jira Activity Analyzer
 
-> v0.2.43 reorganizes the Electron app into one App Shell with a global Debug Log drawer and local-only Database, Issue, and User viewers. It does not change the Current-State schema. See [the implementation report](reports/JiraActivityAnalyzer_v0.2.43_implementation_report.md).
+> v0.2.44 integrates the local Viewers with Current Snapshot, compressed Full Fetch Payload, and Activity Events; separates Jira Connection from Database Overview; and streamlines Data Collection into five accessible workflow tabs. Current-State schema remains v2 with no migration or recreation. See [the implementation report](reports/JiraActivityAnalyzer_v0.2.44_implementation_report.md).
+
+## v0.2.44 Viewer and Workflow Correctness
+
+- **Jira Connection:** owns only Jira URL, identity, authentication, masked token state, `.env`, test result, and per-run Remote Links guidance.
+- **Database Overview:** is the single UI for database selection/creation, path, compatibility, refresh, full health check, counts, recent writes, and opening the database folder.
+- **Issue Viewer:** reads the current Snapshot, validates and safely decodes the current gzip Full Fetch Payload in the main process, and reads Activity Events through bounded IPC. It never calls Jira.
+- **User Viewer:** reads stable user IDs and activities from the local database. Issue and User Viewer state remain independent while the app stays open.
+- **Data Collection:** uses five short tabs: Build Activity Stream, Select Issues, Full Fetch, Validate History, and Save & Export. Step 1 executes a locked one-month, force-all, three-round run with a 5-second delay from 2026-01-01 through the run date.
+- **Compatibility:** no schema change, migration, database recreation, payload conversion, Jira write, or new native SQLite dependency.
 
 ## v0.2.43 Application Structure
 

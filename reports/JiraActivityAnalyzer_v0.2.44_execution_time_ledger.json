@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "execution_time_ledger_v1",
+  "version": "0.2.44",
+  "task_start": "2026-07-29T10:27:03.6521255+08:00",
+  "task_end": null,
+  "timezone": "Asia/Taipei",
+  "phases": [
+    {
+      "name": "repository_inspection",
+      "status": "completed",
+      "durationMs": null,
+      "notes": "Repository, prompt, routes, IPC, Current-State schema, Viewer payload writer, tests, version files, and tracked/untracked state inspected. Phase boundary was not independently timed."
+    },
+    {
+      "name": "implementation",
+      "status": "completed",
+      "durationMs": null,
+      "notes": "Connections/Database responsibility split, typed Viewer DTO and bounded payload decoding, independent Viewer session state, and five-step Data Collection tabs implemented. Phase boundary was not independently timed."
+    },
+    {
+      "name": "tests",
+      "status": "completed",
+      "durationMs": null,
+      "notes": "Focused v0.2.43 regression and anonymized v0.2.44 140/48/142/2/453 SQLite fixture passed. Exact command durations are recorded below."
+    },
+    {
+      "name": "typecheck",
+      "status": "completed",
+      "durationMs": 9700,
+      "notes": "Final standalone typecheck before packaging."
+    },
+    {
+      "name": "lint",
+      "status": "not_run",
+      "durationMs": null,
+      "notes": "No lint script exists in package.json."
+    },
+    {
+      "name": "build",
+      "status": "completed",
+      "durationMs": 24700,
+      "notes": "Production renderer and Electron build passed. Vite emitted the existing large-chunk advisory."
+    },
+    {
+      "name": "packaging",
+      "status": "pending",
+      "durationMs": null
+    },
+    {
+      "name": "documentation",
+      "status": "completed",
+      "durationMs": null,
+      "notes": "README, CHANGELOG, implementation report, manual validation, and ledger updated. Phase boundary was not independently timed."
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "failed",
+      "exitCode": 1,
+      "durationMs": 15700,
+      "notes": "Initial cross-root DTO import exposed tsconfig.electron rootDir boundary."
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "failed",
+      "exitCode": 1,
+      "durationMs": 8600,
+      "notes": "Local Electron DTO declaration initially did not match renderer DTO."
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 7200
+    },
+    {
+      "command": "npm.cmd run test:v0.2.44",
+      "result": "failed",
+      "exitCode": 1,
+      "durationMs": 2200,
+      "notes": "Test source redeclared one local database variable; corrected without changing production behavior."
+    },
+    {
+      "command": "npm.cmd run test:v0.2.44",
+      "result": "failed",
+      "exitCode": 1,
+      "durationMs": 2700,
+      "notes": "Fixture exposed node:sqlite Uint8Array BLOB handling defect; production decoder corrected."
+    },
+    {
+      "command": "npm.cmd run test:v0.2.44",
+      "result": "failed",
+      "exitCode": 1,
+      "durationMs": 2700,
+      "notes": "Sanitization assertion matched the word description; assertion narrowed to active HTML markers."
+    },
+    {
+      "command": "npm.cmd run test:v0.2.44",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 2800
+    },
+    {
+      "command": "npm.cmd run test:v0.2.43",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 1400
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 8700
+    },
+    {
+      "command": "npm.cmd run test:v0.2.44",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 2800
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 900,
+      "notes": "Only Windows LF-to-CRLF notices were emitted."
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 24700
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 9700,
+      "notes": "Final standalone typecheck after help UI cleanup."
+    },
+    {
+      "command": "npm.cmd run test:v0.2.44",
+      "result": "passed",
+      "exitCode": 0,
+      "durationMs": 3100,
+      "notes": "Final focused fixture test before packaging."
+    }
+  ],
+  "notRun": [
+    {
+      "command": "npm.cmd run test:ui / capture:ui",
+      "reason": "Long multi-viewport smoke and capture were excluded by the prompt and prior user instruction."
+    },
+    {
+      "command": "Real COPGEN1-138930 database verification",
+      "reason": "No real compatible database was provided to this execution environment; only anonymized fixture verification was performed."
+    },
+    {
+      "command": "Real Jira connection",
+      "reason": "No credentials or production services are used by automated validation."
+    }
+  ],
+  "referenceUi": {
+    "url": "https://jira-activity-analyzer-ui.ebp1223ai.chatgpt.site/",
+    "status": "unavailable",
+    "notes": "The supplied reference URL could not be loaded by the available web/browser surfaces during this run; implementation followed the authoritative v0.2.44 prompt and existing design system."
+  },
+  "total_elapsed": null
+}
