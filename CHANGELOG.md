@@ -5,6 +5,7 @@
 - Persisted independent table page, page size, sort and bounded filter state with Windows-safe atomic preference replacement.
 - Added safe Issue/User Viewer request lifecycle diagnostics and fixed unsupported filters to `FILTER_UNSUPPORTED_FIELD:<field>`.
 - Added the table verification matrix, manual validation procedure, Windows delivery report and execution ledger.
+- Excluded third-party dependency documentation, tests, examples and Markdown from Windows ASAR artifacts.
 - Kept Current-State schema v2 with no migration, adjacent-event inference or real Jira write.
 - Real company data, XML/large SQLite and full human GUI acceptance remain Not Run.
 
