@@ -730,21 +730,32 @@ const initialAnalysisDates = userAnalysisInitialDates();
 
 const initialIssueViewer: IssueViewerSessionState = {
   issueKey: "",
+  loadedIssueKey: "",
+  databaseIdentity: "",
   result: null,
   status: "initial",
   message: "",
   activeTab: "Overview",
+  payloadFilter: "",
+  payloadPage: 1,
   activityEventsQuery: { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {} },
   activityEventsResult: null,
   activityEventsStatus: "idle",
-  activityEventsMessage: ""
+  activityEventsMessage: "",
+  activityEventsCacheKey: "",
+  pendingSnapshotRequestId: 0,
+  pendingActivityRequestId: 0,
+  tableStates: {}
 };
 
 const initialUserViewer: UserViewerSessionState = {
   search: "",
   selectedUserId: "",
+  loadedUserId: "",
+  databaseIdentity: "",
   users: [],
   detail: null,
+  distributions: null,
   status: "initial",
   message: "",
   activeTab: "Related Issues",
@@ -756,7 +767,11 @@ const initialUserViewer: UserViewerSessionState = {
   relatedQuery: { page: 1, pageSize: 50, sort: { field: "lastActivity", direction: "desc" }, filters: {} },
   eventQuery: { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {} },
   relatedResult: null,
-  allEventsResult: null
+  allEventsResult: null,
+  relatedCacheKey: "",
+  eventCacheKey: "",
+  pendingRequestId: 0,
+  tableStates: {}
 };
 
 const initialUserAnalysis: UserAnalysisSessionState = {

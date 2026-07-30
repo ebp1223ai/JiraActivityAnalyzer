@@ -1,4 +1,4 @@
-import { readableContentText } from "./richContent";
+import { canonicalizeRichContent, readableContentText } from "./richContent";
 
 export type NormalizedChange = {
   fieldId?: string;
@@ -7,6 +7,8 @@ export type NormalizedChange = {
   afterRaw?: unknown;
   beforeText?: string;
   afterText?: string;
+  beforeDisplayText?: string;
+  afterDisplayText?: string;
   diffKind: "text" | "scalar" | "set" | "none";
   provenance: {
     issueKey: string;
@@ -41,15 +43,18 @@ function stringSet(value: unknown) {
 export function normalizeActivityChange(row: Record<string, unknown>): NormalizedChange {
   const beforeRaw = parseStoredValue(row.before ?? row.fromValueJson);
   const afterRaw = parseStoredValue(row.after ?? row.toValueJson);
-  const beforeText = readableContentText(beforeRaw);
-  const afterText = readableContentText(afterRaw);
+  const beforeContent = canonicalizeRichContent(beforeRaw);
+  const afterContent = canonicalizeRichContent(afterRaw);
+  const beforeText = beforeContent.canonicalVisibleText;
+  const afterText = afterContent.canonicalVisibleText;
   const beforeSet = stringSet(beforeRaw);
   const afterSet = stringSet(afterRaw);
-  const diffKind = !beforeText && !afterText
+  const richTextField = /comment|description/i.test(String(row.fieldName ?? row.field ?? ""));
+  const diffKind = beforeText === afterText
     ? "none"
     : beforeSet && afterSet
       ? "set"
-      : isScalar(beforeRaw) && isScalar(afterRaw) && !beforeText.includes("\n") && !afterText.includes("\n")
+      : isScalar(beforeRaw) && isScalar(afterRaw) && !richTextField
         ? "scalar"
         : "text";
   return {
@@ -59,6 +64,8 @@ export function normalizeActivityChange(row: Record<string, unknown>): Normalize
     afterRaw,
     beforeText: beforeText || undefined,
     afterText: afterText || undefined,
+    beforeDisplayText: beforeContent.displayText || undefined,
+    afterDisplayText: afterContent.displayText || undefined,
     diffKind,
     provenance: {
       issueKey: String(row.issueKey ?? ""),
@@ -69,11 +76,32 @@ export function normalizeActivityChange(row: Record<string, unknown>): Normalize
   };
 }
 
+function compactSingleLineDiff(before: string, after: string): DiffSegment[] {
+  let prefix = 0;
+  while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) prefix += 1;
+  let suffix = 0;
+  while (
+    suffix < before.length - prefix
+    && suffix < after.length - prefix
+    && before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+  ) suffix += 1;
+  const context = 48;
+  const segments: DiffSegment[] = [];
+  const prefixText = before.slice(Math.max(0, prefix - context), prefix);
+  const removed = before.slice(prefix, before.length - suffix);
+  const added = after.slice(prefix, after.length - suffix);
+  const suffixText = after.slice(after.length - suffix, Math.min(after.length, after.length - suffix + context));
+  if (prefixText) segments.push({ kind: "same", text: prefixText });
+  if (removed) segments.push({ kind: "removed", text: removed });
+  if (added) segments.push({ kind: "added", text: added });
+  if (suffixText) segments.push({ kind: "same", text: suffixText });
+  return segments;
+}
+
 export function compactDiff(change: NormalizedChange): DiffSegment[] {
   const before = change.beforeText ?? "";
   const after = change.afterText ?? "";
-  if (!before && !after) return [];
-  if (before === after) return [{ kind: "same", text: before }];
+  if ((!before && !after) || before === after || change.diffKind === "none") return [];
   if (change.diffKind === "set") {
     const beforeSet = new Set(stringSet(change.beforeRaw) ?? []);
     const afterSet = new Set(stringSet(change.afterRaw) ?? []);
@@ -82,14 +110,15 @@ export function compactDiff(change: NormalizedChange): DiffSegment[] {
       ...Array.from(afterSet).filter((item) => !beforeSet.has(item)).map((text) => ({ kind: "added" as const, text }))
     ];
   }
+  if (!before) return [{ kind: "added", text: after }];
+  if (!after) return [{ kind: "removed", text: before }];
   if (change.diffKind === "scalar") {
-    return [
-      ...(before ? [{ kind: "removed" as const, text: before }] : []),
-      ...(after ? [{ kind: "added" as const, text: after }] : [])
-    ];
+    return [{ kind: "removed", text: before }, { kind: "added", text: after }];
   }
-  const beforeLines = before.split(/\r?\n/);
-  const afterLines = after.split(/\r?\n/);
+  if (!before.includes("\n") && !after.includes("\n")) return compactSingleLineDiff(before, after);
+
+  const beforeLines = before.split("\n");
+  const afterLines = after.split("\n");
   let prefix = 0;
   while (prefix < beforeLines.length && prefix < afterLines.length && beforeLines[prefix] === afterLines[prefix]) prefix += 1;
   let suffix = 0;

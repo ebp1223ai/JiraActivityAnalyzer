@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Database, Search } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { DataTable } from "../components/DataTable";
@@ -18,7 +18,12 @@ import type { UiPreferences } from "../types/uiPreferences";
 import { activityEventAfter, activityEventBefore, formatActivityActor, formatActivityEventType, formatActivityEventValue, formatActivitySource } from "../utils/activityEventDisplay";
 import { formatDisplayTime } from "../utils/displayTime";
 import { queryFromTablePreferences } from "../utils/preferenceQuery";
+import { normalizeViewerTableSession, setViewerRowExpanded, stableViewerRowId, viewerQueryCacheKey } from "../utils/viewerSessionState";
 import { recordTableRequest } from "../diagnostics/tableDiagnostics";
+
+let issueViewerRequestSequence = 0;
+let latestIssueSnapshotRequest = 0;
+let latestIssueActivityRequest = 0;
 
 const tabs = ["Overview", "Description", "Changelog", "Comments", "Attachments Metadata", "Issue Links", "Remote Links", "Activity Events", "Raw Evidence"] as const;
 
@@ -29,7 +34,7 @@ const activityEventColumns: SqliteTableColumn[] = [
   { id: "fieldName", queryField: "field", label: "Field", kind: "multi", width: 180, render: (row) => formatActivityEventValue(row.fieldName, "Not applicable") },
   { id: "before", label: "Before", kind: "text", width: 320, render: (row) => <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
   { id: "after", label: "After", kind: "text", width: 320, render: (row) => <ReadableContentCell value={row.commentBody ?? activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
-  { id: "diff", label: "Diff", kind: "text", width: 400, render: (row) => <DiffCell row={row} /> },
+  { id: "diff", label: "Diff", kind: "text", width: 400, render: (row, context) => <DiffCell row={row} expanded={context.expanded} onExpandedChange={context.setExpanded} /> },
   { id: "sourceProvenance", queryField: "source", label: "Source", kind: "multi", width: 140, render: (row) => formatActivitySource(row.sourceProvenance) }
 ];
 
@@ -54,14 +59,18 @@ export function IssueViewerPage() {
   const { issueViewer, setIssueViewer } = useSessionState();
   const [searchParams, setSearchParams] = useSearchParams();
   const [preferences, setPreferences] = useState<UiPreferences | null>(null);
-  const [payloadFilter, setPayloadFilter] = useState("");
-  const [payloadPage, setPayloadPage] = useState(1);
-  const loadRequest = useRef(0);
   const result = issueViewer.result;
   const overview = result?.overview ?? {};
 
+  const databaseIdentity = state.database.sourceBinding || `database-request:${state.database.requestId}`;
+  const routeKey = searchParams.get("key")?.trim().toUpperCase() ?? "";
+
   function patch(patchValue: Partial<typeof issueViewer>) {
     setIssueViewer((current) => ({ ...current, ...patchValue }));
+  }
+
+  function setTableState(tableId: string, value: ReturnType<typeof normalizeViewerTableSession>) {
+    setIssueViewer((current) => ({ ...current, tableStates: { ...current.tableStates, [tableId]: value } }));
   }
 
   async function load(keyInput = issueViewer.issueKey) {
@@ -70,86 +79,121 @@ export function IssueViewerPage() {
       patch({ issueKey, status: "error", message: "Issue Key 格式無效 / Invalid issue key" });
       return;
     }
-    const requestId = ++loadRequest.current;
+    const requestId = ++issueViewerRequestSequence;
+    latestIssueSnapshotRequest = requestId;
+    latestIssueActivityRequest = ++issueViewerRequestSequence;
     const startedAt = performance.now();
     const query = { issueKey: "[masked-key]" };
     recordTableRequest("started", { requestId, tableId: "issueViewerSnapshot", query, startedAt });
-    patch({ issueKey, status: "loading", message: "" });
+    setIssueViewer((current) => {
+      const changingIssue = current.loadedIssueKey !== issueKey;
+      return {
+        ...current,
+        issueKey,
+        databaseIdentity,
+        status: "loading",
+        message: "",
+        pendingSnapshotRequestId: requestId,
+        ...(changingIssue ? {
+          loadedIssueKey: "",
+          result: null,
+          activeTab: "Overview",
+          payloadFilter: "",
+          payloadPage: 1,
+          activityEventsResult: null,
+          activityEventsStatus: "idle" as const,
+          activityEventsMessage: "",
+          activityEventsCacheKey: "",
+          tableStates: {}
+        } : {})
+      };
+    });
     try {
       const next = await window.desktopApp?.databaseViewer?.getIssue({ issueKey });
-      if (requestId !== loadRequest.current) {
+      if (requestId !== latestIssueSnapshotRequest) {
         recordTableRequest("stale", { requestId, tableId: "issueViewerSnapshot", query, startedAt });
         return;
       }
       if (!next) {
         recordTableRequest("failed", { requestId, tableId: "issueViewerSnapshot", query, startedAt, error: "IPC unavailable" });
-        patch({ status: "error", message: "Issue Viewer IPC unavailable." });
+        setIssueViewer((current) => current.pendingSnapshotRequestId === requestId ? { ...current, status: "error", message: "Issue Viewer IPC unavailable." } : current);
         return;
       }
       recordTableRequest("completed", { requestId, tableId: "issueViewerSnapshot", query, startedAt, resultCount: next.status === "ready" ? 1 : 0 });
-      patch({
+      setIssueViewer((current) => current.pendingSnapshotRequestId !== requestId ? current : {
+        ...current,
         result: next,
+        loadedIssueKey: issueKey,
         status: next.status === "ready" ? "ready" : next.status === "not_found" ? "not-found" : next.status === "query_failed" ? "error" : "unavailable",
         message: next.message
       });
       setSearchParams({ key: issueKey });
     } catch (error) {
       recordTableRequest("failed", { requestId, tableId: "issueViewerSnapshot", query, startedAt, error });
-      if (requestId === loadRequest.current) patch({ status: "error", message: error instanceof Error ? error.message : "Issue Viewer query failed." });
+      if (requestId === latestIssueSnapshotRequest) setIssueViewer((current) => current.pendingSnapshotRequestId === requestId ? { ...current, status: "error", message: error instanceof Error ? error.message : "Issue Viewer query failed." } : current);
     }
   }
 
   useEffect(() => {
-    const routeKey = searchParams.get("key")?.trim().toUpperCase();
-    loadRequest.current += 1;
-    patch({ result: null, status: "initial", activityEventsResult: null, activityEventsStatus: "idle" });
-    if (state.database.canRead && routeKey) void load(routeKey);
-  }, [state.database.canRead, state.database.requestId]);
+    if (!state.database.canRead) return;
+    if (issueViewer.databaseIdentity && issueViewer.databaseIdentity !== databaseIdentity) {
+      latestIssueSnapshotRequest = ++issueViewerRequestSequence;
+      latestIssueActivityRequest = ++issueViewerRequestSequence;
+      setIssueViewer((current) => ({
+        ...current,
+        databaseIdentity,
+        loadedIssueKey: "",
+        result: null,
+        status: "initial",
+        message: "",
+        activityEventsResult: null,
+        activityEventsStatus: "idle",
+        activityEventsMessage: "",
+        activityEventsCacheKey: "",
+        tableStates: {}
+      }));
+      if (routeKey) void load(routeKey);
+      return;
+    }
+    if (!issueViewer.databaseIdentity) patch({ databaseIdentity });
+    if (routeKey && (issueViewer.loadedIssueKey !== routeKey || !issueViewer.result) && issueViewer.status !== "loading") void load(routeKey);
+  }, [state.database.canRead, databaseIdentity, routeKey]);
 
   useEffect(() => {
     void window.desktopApp?.uiPreferences?.get().then((response) => {
       if (!response) return;
       setPreferences(response.preferences);
-      patch({ activityEventsQuery: queryFromTablePreferences(issueViewer.activityEventsQuery, response.preferences.issueActivityEvents) });
+      setIssueViewer((current) => ({ ...current, activityEventsQuery: current.activityEventsResult ? current.activityEventsQuery : queryFromTablePreferences(current.activityEventsQuery, response.preferences.issueActivityEvents) }));
     });
   }, []);
 
   useEffect(() => {
-    if (issueViewer.activeTab !== "Activity Events" || issueViewer.status !== "ready" || !issueViewer.issueKey) return;
-    let current = true;
-    let settled = false;
-    const requestId = ++loadRequest.current;
-    const startedAt = performance.now();
+    if (issueViewer.activeTab !== "Activity Events" || issueViewer.status !== "ready" || !issueViewer.loadedIssueKey) return;
     const query = issueViewer.activityEventsQuery;
+    const cacheKey = viewerQueryCacheKey(databaseIdentity, issueViewer.loadedIssueKey, "issueActivityEvents", query);
+    if (issueViewer.activityEventsResult && issueViewer.activityEventsCacheKey === cacheKey) return;
+    const requestId = ++issueViewerRequestSequence;
+    latestIssueActivityRequest = requestId;
+    const startedAt = performance.now();
     recordTableRequest("started", { requestId, tableId: "issueActivityEvents", query, startedAt });
-    patch({ activityEventsStatus: "loading", activityEventsMessage: "" });
-    void window.desktopApp?.databaseViewer?.issueEvents({ issueKey: issueViewer.issueKey, query }).then((next) => {
-      settled = true;
-      if (!current || requestId !== loadRequest.current) {
+    patch({ pendingActivityRequestId: requestId, activityEventsStatus: "loading", activityEventsMessage: "" });
+    void window.desktopApp?.databaseViewer?.issueEvents({ issueKey: issueViewer.loadedIssueKey, query }).then((next) => {
+      if (requestId !== latestIssueActivityRequest) {
         recordTableRequest("stale", { requestId, tableId: "issueActivityEvents", query, startedAt });
         return;
       }
       if (!next) {
         recordTableRequest("failed", { requestId, tableId: "issueActivityEvents", query, startedAt, error: "IPC unavailable" });
-        patch({ activityEventsStatus: "error", activityEventsMessage: "Issue Activity Events IPC unavailable." });
+        setIssueViewer((current) => current.pendingActivityRequestId === requestId ? { ...current, activityEventsStatus: "error", activityEventsMessage: "Issue Activity Events IPC unavailable." } : current);
         return;
       }
       recordTableRequest("completed", { requestId, tableId: "issueActivityEvents", query, startedAt, resultCount: next.rows.length });
-      patch({ activityEventsResult: next, activityEventsStatus: "ready", activityEventsMessage: "" });
+      setIssueViewer((current) => current.pendingActivityRequestId !== requestId ? current : { ...current, activityEventsResult: next, activityEventsStatus: "ready", activityEventsMessage: "", activityEventsCacheKey: cacheKey });
     }).catch((error: unknown) => {
-      settled = true;
       recordTableRequest("failed", { requestId, tableId: "issueActivityEvents", query, startedAt, error });
-      if (current && requestId === loadRequest.current) patch({
-        activityEventsStatus: "error",
-        activityEventsMessage: error instanceof Error ? error.message : "Issue Activity Events query failed."
-      });
+      if (requestId === latestIssueActivityRequest) setIssueViewer((current) => current.pendingActivityRequestId === requestId ? { ...current, activityEventsStatus: "error", activityEventsMessage: error instanceof Error ? error.message : "Issue Activity Events query failed." } : current);
     });
-    return () => {
-      current = false;
-      if (!settled) recordTableRequest("aborted", { requestId, tableId: "issueActivityEvents", query, startedAt });
-    };
-  }, [issueViewer.activeTab, issueViewer.status, issueViewer.issueKey, issueViewer.activityEventsQuery, state.database.requestId]);
-
+  }, [issueViewer.activeTab, issueViewer.status, issueViewer.loadedIssueKey, issueViewer.activityEventsQuery, databaseIdentity]);
   const overviewRows = useMemo(() => [
     ["Issue Key", text(overview.issueKey)],
     ["Summary", text(overview.summary)],
@@ -182,12 +226,12 @@ export function IssueViewerPage() {
             : null;
 
   const payloadRecords = section?.status === "ready" ? section.records : [];
-  const normalizedPayloadFilter = payloadFilter.trim().toLowerCase();
+  const normalizedPayloadFilter = issueViewer.payloadFilter.trim().toLowerCase();
   const filteredPayloadRecords = normalizedPayloadFilter
     ? payloadRecords.filter((item) => JSON.stringify(item).toLowerCase().includes(normalizedPayloadFilter))
     : payloadRecords;
   const payloadPageCount = Math.max(1, Math.ceil(filteredPayloadRecords.length / 50));
-  const visiblePayloadRecords = filteredPayloadRecords.slice((Math.min(payloadPage, payloadPageCount) - 1) * 50, Math.min(payloadPage, payloadPageCount) * 50);
+  const visiblePayloadRecords = filteredPayloadRecords.slice((Math.min(issueViewer.payloadPage, payloadPageCount) - 1) * 50, Math.min(issueViewer.payloadPage, payloadPageCount) * 50);
   return (
     <div className="min-w-0">
       <PageHeader title="Issue 檢視" subtitle="Issue Viewer · Local Database Only" connected={false} />
@@ -217,11 +261,11 @@ export function IssueViewerPage() {
               ? <JiraContent className="rounded-md bg-slate-50 p-4" content={result.description.content || result.description.plainText} format={result.description.format} />
               : <div className="rounded-md border border-slate-300 bg-slate-50 p-6 text-center font-bold text-muted">{result.description.message}</div> : null}
             {section ? sectionState(section, issueViewer.activeTab) : null}
-            {section?.status === "ready" && ["Changelog", "Comments"].includes(issueViewer.activeTab) ? <div className="mb-3 flex flex-wrap items-end justify-between gap-3 rounded-md border border-line bg-slate-50 p-3"><label className="min-w-[240px] flex-1"><span className="mb-1 block text-xs font-black text-muted">Filter current payload section</span><input className="field" value={payloadFilter} onChange={(event) => { setPayloadFilter(event.target.value); setPayloadPage(1); }} placeholder="Author, field, value, or comment text" /></label><div className="text-xs font-bold text-muted">Filtered {filteredPayloadRecords.length.toLocaleString()} / Total {payloadRecords.length.toLocaleString()} / 50 per page</div></div> : null}            {section?.status === "ready" && issueViewer.activeTab === "Changelog" ? <DataTable headers={["Time", "Actor", "Field", "Before / After", "Source"]} rows={visiblePayloadRecords.map((item) => [formatDisplayTime(item.created), text(item.author), text(item.field), <BeforeAfterDiff before={item.before} after={item.after} />, "jira payload"])} /> : null}
+            {section?.status === "ready" && ["Changelog", "Comments"].includes(issueViewer.activeTab) ? <div className="mb-3 flex flex-wrap items-end justify-between gap-3 rounded-md border border-line bg-slate-50 p-3"><label className="min-w-[240px] flex-1"><span className="mb-1 block text-xs font-black text-muted">Filter current payload section</span><input className="field" value={issueViewer.payloadFilter} onChange={(event) => patch({ payloadFilter: event.currentTarget.value, payloadPage: 1 })} placeholder="Author, field, value, or comment text" /></label><div className="text-xs font-bold text-muted">Filtered {filteredPayloadRecords.length.toLocaleString()} / Total {payloadRecords.length.toLocaleString()} / 50 per page</div></div> : null}            {section?.status === "ready" && issueViewer.activeTab === "Changelog" ? <DataTable headers={["Time", "Actor", "Field", "Before / After", "Source"]} rows={visiblePayloadRecords.map((item) => [formatDisplayTime(item.created), text(item.author), text(item.field), <BeforeAfterDiff before={item.before} after={item.after} expanded={normalizeViewerTableSession(issueViewer.tableStates.issueChangelog).expandedRowIds.includes(stableViewerRowId(item))} onExpandedChange={(expanded) => setTableState("issueChangelog", setViewerRowExpanded(issueViewer.tableStates.issueChangelog, stableViewerRowId(item), expanded))} />, "jira payload"])} /> : null}
             {section?.status === "ready" && issueViewer.activeTab === "Comments" ? <div className="space-y-3">{visiblePayloadRecords.map((item) => <CommentCard key={text(item.id)} comment={item} />)}</div> : null}
-            {section?.status === "ready" && ["Changelog", "Comments"].includes(issueViewer.activeTab) && payloadPageCount > 1 ? <div className="my-3 flex items-center justify-end gap-2"><button className="btn" type="button" disabled={payloadPage <= 1} onClick={() => setPayloadPage((page) => Math.max(1, page - 1))}>Previous</button><span className="text-xs font-bold">Page {Math.min(payloadPage, payloadPageCount)} / {payloadPageCount}</span><button className="btn" type="button" disabled={payloadPage >= payloadPageCount} onClick={() => setPayloadPage((page) => Math.min(payloadPageCount, page + 1))}>Next</button></div> : null}            {section?.status === "ready" && issueViewer.activeTab === "Attachments Metadata" ? <DataTable headers={["Filename", "Size", "Mime Type", "Created", "Author"]} rows={section.records.map((item) => [text(item.filename), text(item.size), text(item.mimeType), text(item.created), text((item.author as Record<string, unknown> | undefined)?.displayName)])} /> : null}
+            {section?.status === "ready" && ["Changelog", "Comments"].includes(issueViewer.activeTab) && payloadPageCount > 1 ? <div className="my-3 flex items-center justify-end gap-2"><button className="btn" type="button" disabled={issueViewer.payloadPage <= 1} onClick={() => patch({ payloadPage: Math.max(1, issueViewer.payloadPage - 1) })}>Previous</button><span className="text-xs font-bold">Page {Math.min(issueViewer.payloadPage, payloadPageCount)} / {payloadPageCount}</span><button className="btn" type="button" disabled={issueViewer.payloadPage >= payloadPageCount} onClick={() => patch({ payloadPage: Math.min(payloadPageCount, issueViewer.payloadPage + 1) })}>Next</button></div> : null}            {section?.status === "ready" && issueViewer.activeTab === "Attachments Metadata" ? <DataTable headers={["Filename", "Size", "Mime Type", "Created", "Author"]} rows={section.records.map((item) => [text(item.filename), text(item.size), text(item.mimeType), text(item.created), text((item.author as Record<string, unknown> | undefined)?.displayName)])} /> : null}
             {section?.status === "ready" && ["Issue Links", "Remote Links"].includes(issueViewer.activeTab) ? <DataTable headers={["Type", "Direction / Object", "Issue / URL"]} rows={section.records.map((item) => [text((item.type as Record<string, unknown> | undefined)?.name ?? item.relationship), text(item.inwardIssue ? "Inward" : item.outwardIssue ? "Outward" : item.title), text((item.inwardIssue as Record<string, unknown> | undefined)?.key ?? (item.outwardIssue as Record<string, unknown> | undefined)?.key ?? item.url)])} /> : null}
-            {issueViewer.activeTab === "Activity Events" ? <div className="space-y-3"><div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-900">All local SQLite activity events for this Issue Key. No Jira request is sent.</div><SqliteDataTable tableId="issueActivityEvents" columns={activityEventColumns} result={issueViewer.activityEventsResult ?? { rows: [], filteredCount: 0, totalCount: 0, page: 1, pageSize: 50, pageCount: 1 }} query={issueViewer.activityEventsQuery} loading={issueViewer.activityEventsStatus === "loading"} error={issueViewer.activityEventsMessage} preferences={preferences?.issueActivityEvents} onPreferencesChange={(value) => void window.desktopApp?.uiPreferences?.update({ section: "issueActivityEvents", value }).then((response) => { if (response) setPreferences(response.preferences); })} onQueryChange={(activityEventsQuery) => patch({ activityEventsQuery })} loadDistinct={async (field, search) => (await window.desktopApp?.databaseViewer?.distinctValues({ source: "issueEvents", subjectId: issueViewer.issueKey, field, search, limit: 100 })) ?? { field, values: [], truncated: false }} /></div> : null}
+            {issueViewer.activeTab === "Activity Events" ? <div className="space-y-3"><div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-900">All local SQLite activity events for this Issue Key. No Jira request is sent.</div><SqliteDataTable tableId="issueActivityEvents" columns={activityEventColumns} result={issueViewer.activityEventsResult ?? { rows: [], filteredCount: 0, totalCount: 0, page: 1, pageSize: 50, pageCount: 1 }} query={issueViewer.activityEventsQuery} loading={issueViewer.activityEventsStatus === "loading"} error={issueViewer.activityEventsMessage} preferences={preferences?.issueActivityEvents} onPreferencesChange={(value) => void window.desktopApp?.uiPreferences?.update({ section: "issueActivityEvents", value }).then((response) => { if (response) setPreferences(response.preferences); })} onQueryChange={(activityEventsQuery) => patch({ activityEventsQuery })} sessionState={issueViewer.tableStates.issueActivityEvents} onSessionStateChange={(value) => setTableState("issueActivityEvents", value)} loadDistinct={async (field, search) => (await window.desktopApp?.databaseViewer?.distinctValues({ source: "issueEvents", subjectId: issueViewer.loadedIssueKey, field, search, limit: 100 })) ?? { field, values: [], truncated: false }} /></div> : null}
             {issueViewer.activeTab === "Raw Evidence" ? <div><div className="mb-3 text-xs font-bold text-muted">Schema: {result.rawEvidence.schemaVersion} · Payload Format: {text(result.rawEvidence.payloadFormatVersion)} · Saved: {text(result.rawEvidence.payloadSavedAt)}</div><pre className="thin-scroll max-h-[560px] overflow-auto whitespace-pre-wrap break-all rounded-md bg-slate-950 p-4 text-xs text-slate-100">{result.rawEvidence.preview}</pre>{result.rawEvidence.message ? <p className="mt-2 text-xs font-bold text-amber-700">{result.rawEvidence.message}</p> : null}</div> : null}
           </div>
           </SectionErrorBoundary>

@@ -20,7 +20,7 @@ const backendSource = fs.readFileSync(path.join(root, "electron", "databaseViewe
 const mainSource = fs.readFileSync(path.join(root, "electron", "main.ts"), "utf8");
 
 assert.equal(CURRENT_STATE_SCHEMA_VERSION, 2, "activity_events already persists reliable before/after in schema v2");
-assert.match(databaseTableSource, /updateDraftText\(column as "issueKey" \| "summary", event\.currentTarget\.value\)/);
+assert.match(databaseTableSource, /TextColumnFilter/);
 assert.doesNotMatch(databaseTableSource, /setDraftText\(\(current\)[\s\S]{0,120}event\.(?:currentTarget|target)\.value/);
 assert.match(sqliteTableSource, /TextColumnFilter/);
 assert.match(sqliteTableSource, /queryField/);

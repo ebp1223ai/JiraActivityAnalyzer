@@ -37,23 +37,49 @@ export type IssueViewerDto = {
   };
 };
 
+export type ViewerTableSessionState = {
+  expandedRowIds: string[];
+  scrollLeft: number;
+  scrollTop: number;
+};
+
+export type UserViewerDistributionItem = { value: string; count: number };
+export type UserViewerDistributions = {
+  totalRelatedIssues: number;
+  projectKey: UserViewerDistributionItem[];
+  issueType: UserViewerDistributionItem[];
+  status: UserViewerDistributionItem[];
+  priority: UserViewerDistributionItem[];
+};
+
 export type IssueViewerSessionState = {
   issueKey: string;
+  loadedIssueKey: string;
+  databaseIdentity: string;
   result: IssueViewerDto | null;
   status: "initial" | "loading" | "ready" | "not-found" | "unavailable" | "error";
   message: string;
   activeTab: string;
+  payloadFilter: string;
+  payloadPage: number;
   activityEventsQuery: ViewerTableQuery;
   activityEventsResult: ViewerTableResult | null;
   activityEventsStatus: "idle" | "loading" | "ready" | "error";
   activityEventsMessage: string;
+  activityEventsCacheKey: string;
+  pendingSnapshotRequestId: number;
+  pendingActivityRequestId: number;
+  tableStates: Record<string, ViewerTableSessionState>;
 };
 
 export type UserViewerSessionState = {
   search: string;
   selectedUserId: string;
+  loadedUserId: string;
+  databaseIdentity: string;
   users: Array<Record<string, unknown>>;
   detail: Record<string, unknown> | null;
+  distributions: UserViewerDistributions | null;
   status: "initial" | "loading" | "ready" | "error";
   message: string;
   activeTab: "Related Issues" | "All Activity Events";
@@ -66,5 +92,9 @@ export type UserViewerSessionState = {
   eventQuery: ViewerTableQuery;
   relatedResult: ViewerTableResult | null;
   allEventsResult: ViewerTableResult | null;
+  relatedCacheKey: string;
+  eventCacheKey: string;
+  pendingRequestId: number;
+  tableStates: Record<string, ViewerTableSessionState>;
 };
 import type { ViewerTableQuery, ViewerTableResult } from "./activityViewerQuery";

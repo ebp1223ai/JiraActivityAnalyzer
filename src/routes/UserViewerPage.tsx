@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Activity, Database, MessageSquare, Search, UserRound, Wrench } from "lucide-react";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
@@ -12,10 +12,12 @@ import { SqliteDataTable, type SqliteTableColumn } from "../components/SqliteDat
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import { useSessionState } from "../state/SessionStateContext";
 import type { ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
+import type { UserViewerDistributions } from "../types/databaseViewer";
 import type { TablePreferences, UiPreferences, UiPreferencesUpdate } from "../types/uiPreferences";
 import { activityEventAfter, activityEventBefore, formatActivityActor, formatActivityEventType, formatActivityEventValue, formatActivitySource } from "../utils/activityEventDisplay";
 import { formatDisplayTime } from "../utils/displayTime";
 import { queryFromTablePreferences } from "../utils/preferenceQuery";
+import { viewerQueryCacheKey } from "../utils/viewerSessionState";
 import { recordTableRequest } from "../diagnostics/tableDiagnostics";
 
 function text(value: unknown, fallback = "—") {
@@ -44,95 +46,140 @@ const eventColumns: SqliteTableColumn[] = [
   { id: "fieldName", queryField: "field", label: "Field", kind: "multi", width: 180, render: (row) => formatActivityEventValue(row.fieldName, "Not applicable") },
   { id: "before", label: "Before", kind: "text", defaultVisible: false, width: 320, render: (row) => <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
   { id: "after", label: "After", kind: "text", defaultVisible: false, width: 320, render: (row) => <ReadableContentCell value={row.commentBody ?? activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
-  { id: "diff", label: "Diff", kind: "text", width: 400, render: (row) => <DiffCell row={row} /> },
+  { id: "diff", label: "Diff", kind: "text", width: 400, render: (row, context) => <DiffCell row={row} expanded={context.expanded} onExpandedChange={context.setExpanded} /> },
   { id: "sourceProvenance", queryField: "source", label: "Source", kind: "multi", width: 140, render: (row) => formatActivitySource(row.sourceProvenance) }
 ];
 
-type DistributionItem = { value: string; count: number };
-type UserDistributions = {
-  totalRelatedIssues: number;
-  projectKey: DistributionItem[];
-  issueType: DistributionItem[];
-  status: DistributionItem[];
-  priority: DistributionItem[];
-};
+let userViewerRequestSequence = 0;
+let latestUserViewerRequest = 0;
 export function UserViewerPage() {
   const { state } = useRuntimeStatus();
   const { userViewer, setUserViewer } = useSessionState();
-  const requestSequence = useRef(0);
   const [preferences, setPreferences] = useState<UiPreferences | null>(null);
-  const [distributions, setDistributions] = useState<UserDistributions | null>(null);
+  const databaseIdentity = state.database.sourceBinding || `database-request:${state.database.requestId}`;
   const patch = (value: Partial<typeof userViewer>) => setUserViewer((current) => ({ ...current, ...value }));
 
-  async function loadUsers() {
+  async function loadUsers(searchOverride = userViewer.search) {
     if (!state.database.canRead) return;
-    const requestId = ++requestSequence.current;
+    const requestId = ++userViewerRequestSequence;
+    latestUserViewerRequest = requestId;
     const startedAt = performance.now();
-    const query = { page: 1, pageSize: 100, filters: userViewer.search ? { userSearch: { present: true, length: userViewer.search.length } } : {} };
+    const query = { page: 1, pageSize: 100, filters: searchOverride ? { userSearch: { present: true, length: searchOverride.length } } : {} };
     recordTableRequest("started", { requestId, tableId: "userList", query, startedAt });
-    patch({ status: "loading", message: "" });
+    patch({ databaseIdentity, pendingRequestId: requestId, status: "loading", message: "" });
     try {
-      const result = await window.desktopApp?.databaseViewer?.listUsers({ search: userViewer.search, limit: 100, offset: 0 });
-      if (requestId !== requestSequence.current) {
+      const result = await window.desktopApp?.databaseViewer?.listUsers({ search: searchOverride, limit: 100, offset: 0 });
+      if (requestId !== latestUserViewerRequest) {
         recordTableRequest("stale", { requestId, tableId: "userList", query, startedAt });
         return;
       }
       recordTableRequest("completed", { requestId, tableId: "userList", query, startedAt, resultCount: result?.items.length ?? 0 });
-      patch({ users: result?.items ?? [], status: "ready" });
+      setUserViewer((current) => current.pendingRequestId === requestId ? { ...current, users: result?.items ?? [], status: "ready" } : current);
     } catch (reason) {
       recordTableRequest("failed", { requestId, tableId: "userList", query, startedAt, error: reason });
-      if (requestId === requestSequence.current) patch({ message: reason instanceof Error ? reason.message : String(reason), status: "error" });
+      if (requestId === latestUserViewerRequest) setUserViewer((current) => current.pendingRequestId === requestId ? { ...current, message: reason instanceof Error ? reason.message : String(reason), status: "error" } : current);
     }
   }
 
   async function queryTab(userId: string, tab = userViewer.activeTab, queryOverride?: ViewerTableQuery) {
-    const requestId = ++requestSequence.current;
-    const startedAt = performance.now();
     const query = queryOverride ?? (tab === "Related Issues" ? userViewer.relatedQuery : userViewer.eventQuery);
     const tableId = tab === "Related Issues" ? "userRelatedIssues" : "userAllActivityEvents";
+    const cacheKey = viewerQueryCacheKey(databaseIdentity, userId, tableId, query);
+    const cachedResult = tab === "Related Issues" ? userViewer.relatedResult : userViewer.allEventsResult;
+    const cachedKey = tab === "Related Issues" ? userViewer.relatedCacheKey : userViewer.eventCacheKey;
+    if (userViewer.loadedUserId === userId && cachedResult && cachedKey === cacheKey) {
+      patch({ selectedUserId: userId, activeTab: tab, status: "ready", message: "" });
+      return;
+    }
+
+    const requestId = ++userViewerRequestSequence;
+    latestUserViewerRequest = requestId;
+    const startedAt = performance.now();
     recordTableRequest("started", { requestId, tableId, query, startedAt });
-    patch({ selectedUserId: userId, activeTab: tab, status: "loading", message: "" });
+    setUserViewer((current) => {
+      const changingUser = current.loadedUserId !== userId;
+      return {
+        ...current,
+        selectedUserId: userId,
+        databaseIdentity,
+        activeTab: tab,
+        status: "loading",
+        message: "",
+        pendingRequestId: requestId,
+        ...(changingUser ? {
+          loadedUserId: "",
+          detail: null,
+          distributions: null,
+          relatedResult: null,
+          allEventsResult: null,
+          relatedCacheKey: "",
+          eventCacheKey: "",
+          tableStates: {}
+        } : {})
+      };
+    });
     try {
       const detailPromise = window.desktopApp?.databaseViewer?.getUser({ userId, limit: 1, offset: 0 });
-      const resultPromise = tab === "Related Issues"
-        ? window.desktopApp?.databaseViewer?.userRelatedIssues({ userId, query })
-        : window.desktopApp?.databaseViewer?.userEvents({ userId, query });
+      const resultPromise = tab === "Related Issues" ? window.desktopApp?.databaseViewer?.userRelatedIssues({ userId, query }) : window.desktopApp?.databaseViewer?.userEvents({ userId, query });
       const distributionPromise = window.desktopApp?.databaseViewer?.userDistributions({ userId });
-      const [detail, result] = await Promise.all([detailPromise, resultPromise]);
-      if (requestId !== requestSequence.current) {
+      const [detail, result, distributions] = await Promise.all([detailPromise, resultPromise, distributionPromise]);
+      if (requestId !== latestUserViewerRequest) {
         recordTableRequest("stale", { requestId, tableId, query, startedAt });
         return;
       }
       recordTableRequest("completed", { requestId, tableId, query, startedAt, resultCount: result?.rows.length ?? 0 });
-      const resultKey = tab === "Related Issues" ? "relatedResult" : "allEventsResult";
-      patch({ detail: detail ?? null, [resultKey]: result ?? emptyResult, status: "ready" });
-      void distributionPromise?.then((nextDistributions) => {
-        if (requestId === requestSequence.current && nextDistributions) setDistributions(nextDistributions);
-      }).catch(() => undefined);
+      setUserViewer((current) => current.pendingRequestId !== requestId ? current : {
+        ...current,
+        detail: detail ?? null,
+        distributions: (distributions ?? current.distributions) as UserViewerDistributions | null,
+        loadedUserId: userId,
+        ...(tab === "Related Issues" ? { relatedResult: result ?? emptyResult, relatedCacheKey: cacheKey } : { allEventsResult: result ?? emptyResult, eventCacheKey: cacheKey }),
+        status: "ready"
+      });
     } catch (reason) {
       recordTableRequest("failed", { requestId, tableId, query, startedAt, error: reason });
-      if (requestId === requestSequence.current) patch({ message: reason instanceof Error ? reason.message : String(reason), status: "error" });
+      if (requestId === latestUserViewerRequest) setUserViewer((current) => current.pendingRequestId === requestId ? { ...current, message: reason instanceof Error ? reason.message : String(reason), status: "error" } : current);
     }
   }
 
   useEffect(() => {
-    requestSequence.current += 1;
-    setDistributions(null);
-    patch({ detail: null, relatedResult: null, allEventsResult: null, status: "initial", message: "" });
-    if (state.database.canRead) void loadUsers();
-  }, [state.database.canRead, state.database.requestId]);
+    if (!state.database.canRead) return;
+    if (userViewer.databaseIdentity && userViewer.databaseIdentity !== databaseIdentity) {
+      latestUserViewerRequest = ++userViewerRequestSequence;
+      setUserViewer((current) => ({
+        ...current,
+        databaseIdentity,
+        selectedUserId: "",
+        loadedUserId: "",
+        users: [],
+        detail: null,
+        distributions: null,
+        relatedResult: null,
+        allEventsResult: null,
+        relatedCacheKey: "",
+        eventCacheKey: "",
+        tableStates: {},
+        status: "initial",
+        message: ""
+      }));
+      void loadUsers();
+      return;
+    }
+    if (!userViewer.databaseIdentity) patch({ databaseIdentity });
+    if (!userViewer.users.length && userViewer.status !== "loading") void loadUsers();
+  }, [state.database.canRead, databaseIdentity]);
 
   useEffect(() => {
     void window.desktopApp?.uiPreferences?.get().then((response) => {
       if (!response) return;
       setPreferences(response.preferences);
-      patch({
-        relatedQuery: queryFromTablePreferences(userViewer.relatedQuery, response.preferences.userRelatedIssues),
-        eventQuery: queryFromTablePreferences(userViewer.eventQuery, response.preferences.userAllActivityEvents)
-      });
+      setUserViewer((current) => ({
+        ...current,
+        relatedQuery: current.relatedResult ? current.relatedQuery : queryFromTablePreferences(current.relatedQuery, response.preferences.userRelatedIssues),
+        eventQuery: current.allEventsResult ? current.eventQuery : queryFromTablePreferences(current.eventQuery, response.preferences.userAllActivityEvents)
+      }));
     });
   }, []);
-
   if (!state.database.canRead) {
     return <div><PageHeader title="使用者檢視" subtitle="User Viewer" connected={false} /><SectionCard><div className="py-14 text-center"><Database className="mx-auto mb-4 text-slate-300" size={42} /><b>Local database unavailable</b><p className="mt-2 text-sm text-muted">{state.database.message}</p></div></SectionCard></div>;
   }
@@ -140,6 +187,7 @@ export function UserViewerPage() {
   const summary = (userViewer.detail?.summary ?? {}) as Record<string, unknown>;
   const activeResult = userViewer.activeTab === "Related Issues" ? userViewer.relatedResult : userViewer.allEventsResult;
   const activeQuery = userViewer.activeTab === "Related Issues" ? userViewer.relatedQuery : userViewer.eventQuery;
+  const distributions = userViewer.distributions;
 
   function updateQuery(query: ViewerTableQuery) {
     if (!userViewer.selectedUserId) return;
@@ -205,6 +253,8 @@ export function UserViewerPage() {
             preferences={preferences?.[preferenceSection]}
             onPreferencesChange={(value) => void saveTablePreferences(preferenceSection, value)}
             onQueryChange={updateQuery}
+            sessionState={userViewer.tableStates[preferenceSection]}
+            onSessionStateChange={(value) => setUserViewer((current) => ({ ...current, tableStates: { ...current.tableStates, [preferenceSection]: value } }))}
             loadDistinct={(field, search) => window.desktopApp!.databaseViewer!.distinctValues({
               source: userViewer.activeTab === "Related Issues" ? "userRelatedIssues" : "userEvents",
               subjectId: userViewer.selectedUserId,

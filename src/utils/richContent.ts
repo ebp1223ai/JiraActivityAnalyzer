@@ -1,9 +1,15 @@
 export type ReadableContentFormat = "html" | "wiki" | "adf" | "plain";
+export type CanonicalRichContent = {
+  rawValue: unknown;
+  displayText: string;
+  canonicalVisibleText: string;
+};
 
 const MAX_CANONICAL_CHARS = 200_000;
-const MAX_ADF_DEPTH = 64;
-const MAX_ADF_NODES = 20_000;
+const MAX_CONTENT_DEPTH = 64;
+const MAX_CONTENT_NODES = 20_000;
 const TRUNCATED_MARKER = "\n[Content truncated by safety limit]";
+const INVISIBLE_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200d\u2060\ufeff]/g;
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -15,33 +21,57 @@ function bounded(value: string, limit = MAX_CANONICAL_CHARS) {
 }
 
 function decodeEntities(value: string) {
-  const named: Record<string, string> = {
-    amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: " "
-  };
+  const named: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: " " };
   return value.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (match, entity: string) => {
     if (entity.startsWith("#x") || entity.startsWith("#")) {
       const radix = entity.startsWith("#x") ? 16 : 10;
       const offset = entity.startsWith("#x") ? 2 : 1;
       const codePoint = Number.parseInt(entity.slice(offset), radix);
-      return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
-        ? String.fromCodePoint(codePoint)
-        : match;
+      return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : match;
     }
     return named[entity.toLowerCase()] ?? match;
   });
 }
 
-function adfText(value: unknown, state = { nodes: 0 }, depth = 0): string {
-  if (depth > MAX_ADF_DEPTH || state.nodes >= MAX_ADF_NODES) return TRUNCATED_MARKER.trim();
+function structuredText(value: unknown, state = { nodes: 0 }, depth = 0): string {
+  if (depth > MAX_CONTENT_DEPTH || state.nodes >= MAX_CONTENT_NODES) return TRUNCATED_MARKER.trim();
   state.nodes += 1;
   if (value === undefined || value === null) return "";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return bounded(String(value));
-  if (Array.isArray(value)) return bounded(value.map((item) => adfText(item, state, depth + 1)).filter(Boolean).join(" "));
+  if (Array.isArray(value)) return bounded(value.map((item) => structuredText(item, state, depth + 1)).filter(Boolean).join("\n"));
+
   const source = record(value);
+  const type = String(source.type ?? "");
+  const attrs = record(source.attrs);
+  if (["image", "media", "attachment", "mediaSingle"].includes(type)) {
+    const label = attrs.alt ?? attrs.title ?? attrs.filename ?? source.filename ?? source.name ?? "attachment";
+    return `[Attachment: ${structuredText(label, state, depth + 1) || "attachment"}]`;
+  }
+
   const ownText = typeof source.text === "string" ? source.text : "";
-  const children = adfText(source.content, state, depth + 1);
-  const separator = ["paragraph", "heading", "listItem", "tableRow"].includes(String(source.type)) ? "\n" : "";
-  return bounded([ownText, children].filter(Boolean).join(separator));
+  const children = source.content !== undefined ? structuredText(source.content, state, depth + 1) : "";
+  if (ownText || children) {
+    const blockTypes = new Set(["doc", "paragraph", "heading", "listItem", "bulletList", "orderedList", "table", "tableRow", "tableCell", "blockquote", "codeBlock"]);
+    return bounded([ownText, children].filter(Boolean).join(blockTypes.has(type) ? "\n" : ""));
+  }
+
+  const preferredKeys = ["body", "value", "description", "comment", "title", "name", "displayName", "label", "items", "children"];
+  const visible = preferredKeys
+    .filter((key) => source[key] !== undefined)
+    .map((key) => structuredText(source[key], state, depth + 1))
+    .filter(Boolean);
+  return bounded(visible.join("\n"));
+}
+
+function normalizeVisibleText(value: string) {
+  return bounded(decodeEntities(value)
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .replace(INVISIBLE_CONTROLS, "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/^[ \t]+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim());
 }
 
 export function detectReadableContentFormat(value: unknown, hint?: string): ReadableContentFormat {
@@ -61,12 +91,13 @@ export function readableContentText(value: unknown, hint?: string): string {
     try {
       const serialized = typeof value === "string" ? bounded(value) : value;
       const parsed = typeof serialized === "string" ? JSON.parse(serialized) : serialized;
-      return bounded(adfText(parsed).replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim());
+      return normalizeVisibleText(structuredText(parsed));
     } catch {
-      return bounded(decodeEntities(String(value)).trim());
+      return normalizeVisibleText(typeof value === "string" ? value : structuredText(value));
     }
   }
-  let text = bounded(String(value));
+
+  let text = typeof value === "object" ? structuredText(value) : bounded(String(value));
   if (format === "html") {
     text = text
       .replace(/<(script|style|iframe|object|embed)[^>]*>[\s\S]*?<\/\1>/gi, " ")
@@ -86,12 +117,12 @@ export function readableContentText(value: unknown, hint?: string): string {
       .replace(/\{\{([^}]+)\}\}/g, "$1")
       .replace(/(^|[\s])\*([^*\n]+)\*/g, "$1$2");
   }
-  return bounded(decodeEntities(text)
-    .replace(/\r/g, "")
-    .replace(/[ \t]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim());
+  return normalizeVisibleText(text.replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n"));
+}
+
+export function canonicalizeRichContent(value: unknown, hint?: string): CanonicalRichContent {
+  const displayText = readableContentText(value, hint);
+  return { rawValue: value, displayText, canonicalVisibleText: normalizeVisibleText(displayText) };
 }
 
 export function readableContentSummary(value: unknown, hint?: string, limit = 240) {
