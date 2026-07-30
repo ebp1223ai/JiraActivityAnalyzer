@@ -54,9 +54,18 @@ function maskCommonSecrets(value: string) {
 }
 
 function atomicJson(filePath: string, value: unknown) {
-  const temporary = `${filePath}.${process.pid}.tmp`;
+  const temporary = `${filePath}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(temporary, JSON.stringify(value, null, 2), "utf8");
-  fs.renameSync(temporary, filePath);
+  try {
+    fs.renameSync(temporary, filePath);
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+    if (!["EEXIST", "EPERM", "EACCES"].includes(code)) throw error;
+    fs.copyFileSync(temporary, filePath);
+    fs.unlinkSync(temporary);
+  } finally {
+    try { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); } catch { /* best effort */ }
+  }
 }
 
 export function createPersistentDiagnostics(options: DiagnosticOptions) {
@@ -170,7 +179,8 @@ export function createPersistentDiagnostics(options: DiagnosticOptions) {
       sessionDir,
       summaryPath,
       latestPath,
-      eventCounts: { ...counts }
+      eventCounts: { ...counts },
+      writerFailed
     })
   };
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ViewerDistinctResult } from "../types/activityViewerQuery";
 
 type Props = {
@@ -19,6 +19,7 @@ function normalizedValue(value: string) {
 export function ExcelFilterPopover({ label, selected, search, result, loading, onSearchChange, onApply, onCancel }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState(selected);
+  const [offsetX, setOffsetX] = useState(0);
 
   useEffect(() => setDraft(selected), [selected]);
   useEffect(() => {
@@ -36,9 +37,26 @@ export function ExcelFilterPopover({ label, selected, search, result, loading, o
     };
   }, [onCancel]);
 
+  useLayoutEffect(() => {
+    const reposition = () => {
+      const rect = root.current?.getBoundingClientRect();
+      if (!rect) return;
+      const margin = 8;
+      const rightOverflow = Math.max(0, rect.right - (window.innerWidth - margin));
+      const leftOverflow = Math.max(0, margin - rect.left);
+      setOffsetX(leftOverflow - rightOverflow);
+    };
+    reposition();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [label, result?.values.length]);
   const visibleValues = result?.values.map((item) => normalizedValue(item.value)) ?? [];
   return (
-    <div ref={root} className="absolute right-0 top-full z-40 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-line bg-white p-3 text-left shadow-xl">
+    <div ref={root} style={{ transform: `translateX(${offsetX}px)` }} className="absolute right-0 top-full z-40 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-line bg-white p-3 text-left shadow-xl">
       <label className="mb-2 block text-xs font-black">{label}</label>
       <input autoFocus className="field mb-2 !py-1" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="搜尋候選值..." />
       <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">

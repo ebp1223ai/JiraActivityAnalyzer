@@ -7,6 +7,7 @@ import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { DistributionPanel } from "../components/DistributionPanel";
 import { SectionErrorBoundary } from "../components/SectionErrorBoundary";
+import { recordTableRequest } from "../diagnostics/tableDiagnostics";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import type { DatabaseIssueDistributions, DatabaseIssueQuery, DatabaseIssueQueryResult } from "../types/databaseQuery";
 import type { DatabaseIssueListPreferences } from "../types/uiPreferences";
@@ -101,14 +102,24 @@ export function DashboardPage() {
   useEffect(() => {
     if (!state.database.canRead || overviewStatus !== "ready") return;
     const requestId = ++issueRequest.current;
+    const startedAt = performance.now();
+    recordTableRequest("started", { requestId, tableId: "databaseIssueList", query, startedAt });
     setIssueStatus("loading");
     void window.desktopApp?.databaseViewer?.listIssues(query).then((issueList) => {
-      if (requestId !== issueRequest.current) return;
+      if (requestId !== issueRequest.current) {
+        recordTableRequest("stale", { requestId, tableId: "databaseIssueList", query, startedAt });
+        return;
+      }
       setIssues(issueList ?? emptyIssues);
+      recordTableRequest("completed", { requestId, tableId: "databaseIssueList", query, startedAt, resultCount: issueList?.items.length ?? 0 });
       setIssueStatus("ready");
       setIssueInteractionReady(true);
     }).catch((reason) => {
-      if (requestId !== issueRequest.current) return;
+      if (requestId !== issueRequest.current) {
+        recordTableRequest("stale", { requestId, tableId: "databaseIssueList", query, startedAt });
+        return;
+      }
+      recordTableRequest("failed", { requestId, tableId: "databaseIssueList", query, startedAt, error: reason });
       setNotice(reason instanceof Error ? reason.message : String(reason));
       setIssueStatus("error");
     });

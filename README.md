@@ -3,6 +3,16 @@
 > v0.2.46 adds frozen Data Collection run context, shared SQLite table queries, stable-user and issue Activity Stream views, a read-only Connections page, and safer Jira wiki rendering. Current-State schema remains v2 with no migration or recreation.
 > v0.2.47 keeps Step 3 Full Fetch owned by Electron main across route changes, replaces Viewer Activity Stream tabs with complete local SQLite Activity Events, and stabilizes Database Issue filters. Current-State schema remains v2 with no migration or recreation.
 > v0.2.48 separates the renderer shell from database bootstrap, adds phased readiness and stale-query protection, and unifies readable Viewer content. Current-State schema remains v2; payload-backed Changelog and Comments remain documented partial limitations.
+> v0.2.49 fixes IME/filter/diagnostic failures and adds mapped Activity Event filters, required columns, resizable shared Viewer tables, and compact Before/After Diff. Current-State schema remains v2; the version is Partial pending full manual acceptance.
+
+## v0.2.49 Unified Data Table UX, Activity Diff and Runtime Stability
+
+- **IME correctness:** text filters capture primitive values and wait for composition end before debounce/query work.
+- **Filter contract:** presentation columns map explicitly to backend Actor, Action, Field, and Source allowlist fields.
+- **Shared Viewer table:** operational SQLite Viewer tables enforce required columns, draggable widths, table-local overflow, candidate filters, and normalized UI-only preferences.
+- **Activity Diff:** persisted schema-v2 old/new values produce scalar, set, or compact text differences after safe readable-content conversion.
+- **Diagnostics:** Windows-safe session summary replacement keeps `writerFailed` accurate; Debug Folder result follows actual copy failures.
+- **Status:** Partial until XML, real large SQLite, all inventory tables, Windows GUI, error-free gate, and containment acceptance are completed.
 
 ## v0.2.48 Database Loading and Readable Viewer Correctness
 

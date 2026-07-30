@@ -8,7 +8,7 @@ export type TablePreferences<TColumn extends string = string> = {
 };
 
 export type UiPreferences = {
-  formatVersion: 1;
+  formatVersion: 2;
   databaseIssueList: TablePreferences<DatabaseIssueColumn>;
   timelineEventList: TablePreferences;
   userRelatedIssues: TablePreferences;

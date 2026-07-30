@@ -1,4 +1,12 @@
 # Changelog
+## 0.2.49 - Unified Data Table UX, Activity Diff and Runtime Stability
+
+- Fixed Chinese IME `null.value` failures by capturing primitive input values before React state/debounce work.
+- Added explicit Activity Event UI-to-IPC filter mapping for Actor, Action, Field, Source, Before, After, and Diff with backend allowlist coverage.
+- Added shared required-column enforcement, draggable/clamped widths, viewport-aware filters, UI preference v2 normalization, and safe table action diagnostics.
+- Added schema-v2 normalized Before/After and compact scalar, set, and text Diff without adjacent-event inference or database migration.
+- Fixed Windows persistent diagnostic summary replacement and made Debug Folder status follow actual copy failure count.
+- Status remains Partial pending XML, real large SQLite, complete table inventory migration, Windows GUI, error-free gate, and containment acceptance.
 
 ## 0.2.48 - Database Loading and Readable Viewer Correctness
 

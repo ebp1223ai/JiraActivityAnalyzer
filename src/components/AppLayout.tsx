@@ -37,6 +37,7 @@ export function AppLayout() {
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0 });
+    void window.desktopApp?.userAnalysis?.logAction?.({ category: "USER_ACTION", message: `page_changed path=${pathname}` });
   }, [pathname]);
 
   return (

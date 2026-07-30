@@ -10,7 +10,7 @@ export type TablePreferences = {
 };
 
 export type UiPreferences = {
-  formatVersion: 1;
+  formatVersion: 2;
   databaseIssueList: TablePreferences;
   timelineEventList: TablePreferences;
   userRelatedIssues: TablePreferences;
@@ -40,7 +40,7 @@ export const USER_RELATED_ISSUE_COLUMNS = [
 
 export const ACTIVITY_VIEWER_COLUMNS = [
   "eventTime", "userId", "displayName", "issueKey", "eventType", "fieldName",
-  "before", "after", "summary", "sourceProvenance"
+  "before", "after", "diff", "summary", "sourceProvenance"
 ] as const;
 
 export const ISSUE_CHANGELOG_COLUMNS = [
@@ -49,7 +49,7 @@ export const ISSUE_CHANGELOG_COLUMNS = [
 
 export const ISSUE_COMMENT_COLUMNS = ["author", "created", "updated", "body"] as const;
 
-const PAGE_SIZES = new Set([25, 50, 100, 200]);
+const PAGE_SIZES = new Set([25, 50, 100]);
 
 function defaultTable(columns: readonly string[], pageSize = 50): TablePreferences {
   return { visibleColumns: [...columns], columnOrder: [...columns], columnWidths: {}, pageSize };
@@ -57,11 +57,11 @@ function defaultTable(columns: readonly string[], pageSize = 50): TablePreferenc
 
 export function defaultUiPreferences(): UiPreferences {
   return {
-    formatVersion: 1,
+    formatVersion: 2,
     databaseIssueList: defaultTable(DATABASE_ISSUE_COLUMNS, 50),
     timelineEventList: defaultTable(TIMELINE_EVENT_COLUMNS),
     userRelatedIssues: defaultTable(USER_RELATED_ISSUE_COLUMNS),
-    userAllActivityEvents: defaultTable(ACTIVITY_VIEWER_COLUMNS),
+    userAllActivityEvents: { ...defaultTable(ACTIVITY_VIEWER_COLUMNS), visibleColumns: ACTIVITY_VIEWER_COLUMNS.filter((column) => !["before", "after"].includes(column)) },
     issueActivityEvents: defaultTable(ACTIVITY_VIEWER_COLUMNS),
     issueChangelog: defaultTable(ISSUE_CHANGELOG_COLUMNS),
     issueComments: defaultTable(ISSUE_COMMENT_COLUMNS)
@@ -75,11 +75,12 @@ function uniqueAllowed(value: unknown, allowed: readonly string[], fallback: str
   return result.length ? result : fallback;
 }
 
-function normalizeTable(value: unknown, columns: readonly string[], fallback: TablePreferences): TablePreferences {
+function normalizeTable(value: unknown, columns: readonly string[], fallback: TablePreferences, required: readonly string[] = []): TablePreferences {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
   const columnOrder = uniqueAllowed(source.columnOrder, columns, fallback.columnOrder);
   for (const column of columns) if (!columnOrder.includes(column)) columnOrder.push(column);
   const visibleColumns = uniqueAllowed(source.visibleColumns, columns, fallback.visibleColumns);
+  for (const column of required) if (columns.includes(column) && !visibleColumns.includes(column)) visibleColumns.push(column);
   const widthsSource = source.columnWidths && typeof source.columnWidths === "object" && !Array.isArray(source.columnWidths)
     ? source.columnWidths as Record<string, unknown> : {};
   const columnWidths: Record<string, number> = {};
@@ -99,14 +100,14 @@ export function normalizeUiPreferences(value: unknown): UiPreferences {
   delete retained.issueActivityStream;
   return {
     ...retained,
-    formatVersion: 1,
-    databaseIssueList: normalizeTable(source.databaseIssueList, DATABASE_ISSUE_COLUMNS, defaults.databaseIssueList),
+    formatVersion: 2,
+    databaseIssueList: normalizeTable(source.databaseIssueList, DATABASE_ISSUE_COLUMNS, defaults.databaseIssueList, ["issueKey"]),
     timelineEventList: normalizeTable(source.timelineEventList, TIMELINE_EVENT_COLUMNS, defaults.timelineEventList),
-    userRelatedIssues: normalizeTable(source.userRelatedIssues, USER_RELATED_ISSUE_COLUMNS, defaults.userRelatedIssues),
-    userAllActivityEvents: normalizeTable(source.userAllActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.userAllActivityEvents),
-    issueActivityEvents: normalizeTable(source.issueActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.issueActivityEvents),
-    issueChangelog: normalizeTable(source.issueChangelog, ISSUE_CHANGELOG_COLUMNS, defaults.issueChangelog),
-    issueComments: normalizeTable(source.issueComments, ISSUE_COMMENT_COLUMNS, defaults.issueComments)
+    userRelatedIssues: normalizeTable(source.userRelatedIssues, USER_RELATED_ISSUE_COLUMNS, defaults.userRelatedIssues, ["issueKey"]),
+    userAllActivityEvents: normalizeTable(source.userAllActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.userAllActivityEvents, ["eventTime", "issueKey", "eventType"]),
+    issueActivityEvents: normalizeTable(source.issueActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.issueActivityEvents, ["eventTime", "eventType"]),
+    issueChangelog: normalizeTable(source.issueChangelog, ISSUE_CHANGELOG_COLUMNS, defaults.issueChangelog, ["created", "field"]),
+    issueComments: normalizeTable(source.issueComments, ISSUE_COMMENT_COLUMNS, defaults.issueComments, ["created", "author"])
   };
 }
 

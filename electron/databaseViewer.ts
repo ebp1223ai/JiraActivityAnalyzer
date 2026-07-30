@@ -666,10 +666,15 @@ function enrichCommentEventRows(db: DatabaseSync, eventRows: Row[]) {
 const USER_EVENT_COLUMNS = {
   eventTime: { expression: "e.event_time", kind: "date" },
   issueKey: { expression: "o.issue_key", kind: "text" },
+  actor: { expression: "e.actor_display_name", kind: "multi" },
+  action: { expression: "e.event_type", kind: "multi" },
+  field: { expression: "e.field_name", kind: "multi" },
+  source: { expression: "e.source_provenance", kind: "multi" },
   eventType: { expression: "e.event_type", kind: "multi" },
   fieldName: { expression: "e.field_name", kind: "multi" },
   before: { expression: "e.from_value_json", kind: "text" },
   after: { expression: "e.to_value_json", kind: "text" },
+  diff: { expression: "COALESCE(e.from_value_json, '') || ' ' || COALESCE(e.to_value_json, '')", kind: "text" },
   summary: { expression: "s.summary", kind: "text" },
   sourceProvenance: { expression: "e.source_provenance", kind: "multi" }
 } as const;
@@ -709,7 +714,7 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
     const rowsResult = rows(db.prepare(`
       SELECT e.id AS eventId, e.source_object_id AS sourceObjectId, e.event_time AS eventTime, e.actor_account_id AS userId,
         e.actor_display_name AS displayName, o.issue_key AS issueKey, e.event_type AS eventType,
-        e.field_name AS fieldName, e.from_value_json AS before, e.to_value_json AS after,
+        e.field_id AS fieldId, e.field_name AS fieldName, e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
         e.jira_native_source_id AS commentId, s.summary, e.source_provenance AS sourceProvenance
       FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
       LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
@@ -920,12 +925,12 @@ export function queryDatabaseDistinctValues(
       subject: "e.actor_account_id = ?"
     },
     userEvents: {
-      fields: { eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", issueKey: "o.issue_key" },
+      fields: { actor: "e.actor_display_name", action: "e.event_type", field: "e.field_name", source: "e.source_provenance", eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", issueKey: "o.issue_key" },
       from: "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id",
       subject: "e.actor_account_id = ?"
     },
     issueEvents: {
-      fields: { eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", userId: "e.actor_account_id", displayName: "e.actor_display_name" },
+      fields: { actor: "e.actor_display_name", action: "e.event_type", field: "e.field_name", source: "e.source_provenance", eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", userId: "e.actor_account_id", displayName: "e.actor_display_name" },
       from: "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id",
       subject: "o.issue_key = ?"
     }

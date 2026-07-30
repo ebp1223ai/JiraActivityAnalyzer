@@ -95,6 +95,10 @@ export function DatabaseIssueTable({ result, query, preferences, onQueryChange, 
     return () => window.clearTimeout(timer);
   }, [filterColumn, candidateSearch, loadDistinct, disabled]);
 
+  function updateDraftText(column: "issueKey" | "summary", value: string) {
+    setDraftText((current) => ({ ...current, [column]: value }));
+  }
+
   function setFilter(column: DatabaseIssueColumn, filter: Record<string, unknown> | undefined) {
     if (disabled) return;
     const filters = { ...query.filters };
@@ -169,7 +173,7 @@ export function DatabaseIssueTable({ result, query, preferences, onQueryChange, 
                   {discreteFields.has(column) ? <button className={`icon-btn ${hasFilter(query.filters, column) ? "!text-blue-700" : ""}`} disabled={disabled} type="button" title={`Filter ${DATABASE_ISSUE_COLUMN_LABELS[column]}`} onClick={() => { setFilterColumn(column); setCandidateSearch(""); setCandidateResult(null); }}><Filter size={13} /></button> : null}
                 </div>
                 <div className="mt-2">
-                  {textFields.has(column) ? <input aria-label={`Filter ${column}`} disabled={disabled} className="field !px-2 !py-1 text-xs" value={draftText[column as "issueKey" | "summary"]} placeholder="Filter..." onCompositionStart={() => setComposingColumn(column)} onCompositionEnd={(event) => { setDraftText((current) => ({ ...current, [column]: event.currentTarget.value })); setComposingColumn(null); }} onChange={(event) => setDraftText((current) => ({ ...current, [column]: event.target.value }))} /> : null}
+                  {textFields.has(column) ? <input aria-label={`Filter ${column}`} disabled={disabled} className="field !px-2 !py-1 text-xs" value={draftText[column as "issueKey" | "summary"]} placeholder="Filter..." onCompositionStart={() => setComposingColumn(column)} onCompositionUpdate={(event) => updateDraftText(column as "issueKey" | "summary", event.currentTarget.value)} onCompositionEnd={(event) => { const value = event.currentTarget.value; updateDraftText(column as "issueKey" | "summary", value); setComposingColumn(null); }} onChange={(event) => updateDraftText(column as "issueKey" | "summary", event.currentTarget.value)} /> : null}
                   {dateFields.has(column) ? <div className="grid gap-1"><input disabled={disabled} aria-label={`Filter ${column} from`} className="field !px-1 !py-1 text-[11px]" type="date" value={String((query.filters[column] as { from?: string } | undefined)?.from ?? "")} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), from: event.target.value })} /><input disabled={disabled} aria-label={`Filter ${column} to`} className="field !px-1 !py-1 text-[11px]" type="date" value={String((query.filters[column] as { to?: string } | undefined)?.to ?? "")} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), to: event.target.value })} /></div> : null}
                   {numberFields.has(column) ? <div className="grid grid-cols-2 gap-1"><input disabled={disabled} aria-label={`Filter ${column} min`} className="field !px-1 !py-1" type="number" min={0} placeholder="Min" value={(query.filters[column] as { min?: number } | undefined)?.min ?? ""} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), min: event.target.value === "" ? undefined : Number(event.target.value) })} /><input disabled={disabled} aria-label={`Filter ${column} max`} className="field !px-1 !py-1" type="number" min={0} placeholder="Max" value={(query.filters[column] as { max?: number } | undefined)?.max ?? ""} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), max: event.target.value === "" ? undefined : Number(event.target.value) })} /></div> : null}
                 </div>

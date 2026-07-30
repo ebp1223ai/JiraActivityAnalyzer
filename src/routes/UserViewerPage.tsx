@@ -5,6 +5,7 @@ import { PageHeader } from "../components/PageHeader";
 import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { DistributionPanel } from "../components/DistributionPanel";
+import { DiffCell } from "../components/DiffCell";
 import { ReadableContentCell } from "../components/ReadableContentCell";
 import { SectionErrorBoundary } from "../components/SectionErrorBoundary";
 import { SqliteDataTable, type SqliteTableColumn } from "../components/SqliteDataTable";
@@ -21,7 +22,7 @@ function text(value: unknown, fallback = "—") {
 
 const emptyResult: ViewerTableResult = { rows: [], filteredCount: 0, totalCount: 0, page: 1, pageSize: 50, pageCount: 1 };
 const issueColumns: SqliteTableColumn[] = [
-  { id: "issueKey", label: "Key", kind: "text", width: 130, render: (row) => <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(text(row.issueKey, ""))}&sourcePage=users&sourceTab=Related%20Issues`}>{text(row.issueKey)}</a> },
+  { id: "issueKey", label: "Key", kind: "text", required: true, width: 150, render: (row) => <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(text(row.issueKey, ""))}&sourcePage=users&sourceTab=Related%20Issues`}>{text(row.issueKey)}</a> },
   { id: "summary", label: "Summary", kind: "text", width: 300 },
   { id: "projectKey", label: "Project", kind: "multi", width: 120 },
   { id: "issueType", label: "Type", kind: "multi", width: 120 },
@@ -34,14 +35,15 @@ const issueColumns: SqliteTableColumn[] = [
   { id: "lastActivity", label: "Last Activity", kind: "date", width: 180, render: (row) => formatDisplayTime(row.lastActivity) }
 ];
 const eventColumns: SqliteTableColumn[] = [
-  { id: "eventTime", label: "Time", kind: "date", width: 180, render: (row) => <span className="whitespace-nowrap">{formatDisplayTime(row.eventTime)}</span> },
-  { id: "issueKey", label: "Issue Key", kind: "text", width: 130, render: (row) => <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(text(row.issueKey, ""))}&sourcePage=users`}>{text(row.issueKey)}</a> },
-  { id: "eventType", label: "Action", kind: "multi", width: 160, render: (row) => formatActivityEventType(row.eventType) },
-  { id: "displayName", label: "Actor", kind: "text", width: 180, render: (row) => formatActivityActor(row) },
-  { id: "fieldName", label: "Field", kind: "multi", width: 140, render: (row) => formatActivityEventValue(row.fieldName, "Not applicable") },
-  { id: "before", label: "Before", kind: "text", width: 240, render: (row) => <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
-  { id: "after", label: "After", kind: "text", width: 280, render: (row) => <ReadableContentCell value={row.commentBody ?? activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
-  { id: "sourceProvenance", label: "Source", kind: "multi", width: 170, render: (row) => formatActivitySource(row.sourceProvenance) }
+  { id: "eventTime", label: "Time", kind: "date", required: true, width: 170, minWidth: 150, maxWidth: 240, render: (row) => <span className="whitespace-nowrap">{formatDisplayTime(row.eventTime)}</span> },
+  { id: "issueKey", label: "Issue Key", kind: "text", required: true, width: 150, render: (row) => <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(text(row.issueKey, ""))}&sourcePage=users`}>{text(row.issueKey)}</a> },
+  { id: "eventType", queryField: "action", label: "Action", kind: "multi", required: true, width: 140, render: (row) => formatActivityEventType(row.eventType) },
+  { id: "displayName", queryField: "actor", label: "Actor", kind: "multi", width: 180, render: (row) => formatActivityActor(row) },
+  { id: "fieldName", queryField: "field", label: "Field", kind: "multi", width: 180, render: (row) => formatActivityEventValue(row.fieldName, "Not applicable") },
+  { id: "before", label: "Before", kind: "text", defaultVisible: false, width: 320, render: (row) => <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
+  { id: "after", label: "After", kind: "text", defaultVisible: false, width: 320, render: (row) => <ReadableContentCell value={row.commentBody ?? activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
+  { id: "diff", label: "Diff", kind: "text", width: 400, render: (row) => <DiffCell row={row} /> },
+  { id: "sourceProvenance", queryField: "source", label: "Source", kind: "multi", width: 140, render: (row) => formatActivitySource(row.sourceProvenance) }
 ];
 
 type DistributionItem = { value: string; count: number };
@@ -171,6 +173,7 @@ export function UserViewerPage() {
           {userViewer.activeTab === "All Activity Events" ? <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-semibold">All local SQLite activity events for this Stable User ID. Includes Issue Key, readable event details, and source.</div> : null}
           <SectionErrorBoundary context={`user-viewer:${userViewer.activeTab}`} resetKey={`${state.database.requestId}:${userViewer.selectedUserId}:${userViewer.activeTab}`}>
           <SqliteDataTable
+            tableId={userViewer.activeTab === "Related Issues" ? "userRelatedIssues" : "userAllActivityEvents"}
             columns={userViewer.activeTab === "Related Issues" ? issueColumns : eventColumns}
             result={activeResult ?? emptyResult}
             query={activeQuery}
