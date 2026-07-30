@@ -3,8 +3,8 @@
     "releaseVersion":  "0.2.50",
     "timezone":  "Asia/Taipei",
     "sessionStart":  "2026-07-30T16:13:03.7720598+08:00",
-    "sessionEnd":  "2026-07-30T16:31:29.0742077+08:00",
-    "totalWallClockSeconds":  1105.302,
+    "sessionEnd":  "2026-07-30T16:48:46.3271255+08:00",
+    "totalWallClockSeconds":  2142.555,
     "phases":  [
                    {
                        "name":  "baseline_implementation_and_prepackage_verification",
@@ -12,6 +12,13 @@
                        "start":  "2026-07-30T16:13:03.7720598+08:00",
                        "end":  "2026-07-30T16:31:29.0742077+08:00",
                        "durationSeconds":  1105.302
+                   },
+                   {
+                       "name":  "clean_commit_packaging_artifact_audit_and_short_smoke",
+                       "status":  "completed",
+                       "start":  "2026-07-30T16:31:29.0742077+08:00",
+                       "end":  "2026-07-30T16:48:46.3271255+08:00",
+                       "durationSeconds":  1037.253
                    }
                ],
     "commandAttempts":  [
@@ -102,19 +109,183 @@
                                 "exitCode":  0,
                                 "durationSeconds":  17.4,
                                 "detail":  "Version verification, typecheck, Vite renderer, Electron main and preload passed."
+                            },
+                            {
+                                "command":  "git diff --check and staged sensitive-data scan",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.9,
+                                "detail":  "Scoped v0.2.50 staged content passed whitespace and credential/payload checks before the first commit."
+                            },
+                            {
+                                "command":  "npm.cmd run dist",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  95.3,
+                                "detail":  "Clean detached packaging worktree produced Windows artifacts from 63d20aa; size audit then found 86 third-party documentation entries."
+                            },
+                            {
+                                "command":  "package size audit",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  0,
+                                "durationSeconds":  1.9,
+                                "detail":  "Packaging itself passed, but the delivery audit found dependency docs requiring an electron-builder exclusion."
+                            },
+                            {
+                                "command":  "npm.cmd run dist",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  73.2,
+                                "detail":  "Rebuilt from packaged source 180fe906 after excluding dependency docs/test/example/Markdown."
+                            },
+                            {
+                                "command":  "package size audit",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  1.8,
+                                "detail":  "Unexpected dependency documentation count 0; final artifact sizes recorded."
+                            },
+                            {
+                                "command":  "Portable CDP packaged smoke",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  1,
+                                "durationSeconds":  8.4,
+                                "detail":  "Harness consumed a CDP event before the response ID and raised PACKAGED_SMOKE_ASSERTION_FAILED; the package process was subsequently cleared."
+                            },
+                            {
+                                "command":  "Clear residual package-only smoke process",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.4,
+                                "detail":  "Stopped only the process whose executable path was under the detached v0.2.50 package release root."
+                            },
+                            {
+                                "command":  "Portable CDP packaged smoke",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  17.3,
+                                "detail":  "Renderer root, Sidebar, 9 navigation items, Debug Log, version and Build Time passed; app-only PNG captured."
+                            },
+                            {
+                                "command":  "Final artifact hash and ASAR scan",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  1,
+                                "durationSeconds":  0.3,
+                                "detail":  "PowerShell parser rejected an empty pipeline after foreach; no artifact was modified."
+                            },
+                            {
+                                "command":  "Final artifact hash and ASAR scan",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  1.5,
+                                "detail":  "Final SHA-256 recorded; 4681 ASAR entries and zero exact sensitive payload filename matches."
+                            },
+                            {
+                                "command":  "Packaged session diagnostics scan",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.8,
+                                "detail":  "Two sessions reported writerFailed false; no renderer fatal, did-fail-load or render-process-gone evidence."
+                            },
+                            {
+                                "command":  "Copy verified Installer Portable metadata and app-only screenshot",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.4,
+                                "detail":  "Copied only ignored delivery artifacts; runtime .env/log/cache/data directories were excluded."
+                            },
+                            {
+                                "command":  "Copy versioned win-unpacked delivery",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.3,
+                                "detail":  "LiteralPath wildcard did not expand and created only an empty destination; detected by missing EXE/ASAR assertions."
+                            },
+                            {
+                                "command":  "Copy versioned win-unpacked delivery",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  5.1,
+                                "detail":  "Verified empty destination, copied exact source children, then confirmed EXE, ASAR and 398395005 bytes."
+                            },
+                            {
+                                "command":  "Final package top-file/top-directory audit",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  2.3,
+                                "detail":  "Recorded unpacked/resources sizes, top 50 files, top 20 directories and unpacked EXE version/hash."
+                            },
+                            {
+                                "command":  "Windows executable version and hash query",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  1,
+                                "durationSeconds":  0.3,
+                                "detail":  "PowerShell parser rejected an empty pipeline after foreach; no artifact was modified."
+                            },
+                            {
+                                "command":  "Windows executable version and hash query",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  2,
+                                "detail":  "Installer, Portable and unpacked EXE report File/Product Version 0.2.50 and final hashes."
+                            },
+                            {
+                                "command":  "npm.cmd run test:ledger -- reports/JiraActivityAnalyzer_v0.2.50_execution_time_ledger.json",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  1,
+                                "durationSeconds":  0.8,
+                                "detail":  "Validator rejected custom result values passed_with_followup and failed_gate; schema permits only passed or failed."
+                            },
+                            {
+                                "command":  "npm.cmd run test:ledger -- reports/JiraActivityAnalyzer_v0.2.50_execution_time_ledger.json",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.45,
+                                "detail":  "Final v0.2.50 legacy-format ledger schema, timestamps, phase durations and sensitive-value checks passed."
                             }
                         ],
     "manualVerification":  {
                                "status":  "not_run",
                                "durationSeconds":  0,
-                               "notes":  "Pending."
+                               "notes":  "Full Windows GUI, approved real XML/large SQLite, Installer wizard, Chinese/space path and three cold starts were not run. Short offline Portable DOM smoke passed."
                            },
     "gitDelivery":  {
                         "branch":  "feat/v0.2.50-verification-completeness-windows-delivery",
-                        "commit":  "pending",
-                        "pushStatus":  "pending",
+                        "commit":  "180fe906de551773f980a32e01b4f65ba0ba2b78 (packaged source); final report commit follows",
+                        "pushStatus":  "pending final gate",
                         "durationSeconds":  0
                     },
-    "unaccountedTimeSeconds":  1059,
-    "reconciliation":  "One contiguous measured phase equals totalWallClockSeconds; command time is a subset and unaccounted time includes inspection, edits and reporting."
+    "unaccountedTimeSeconds":  1883.005,
+    "reconciliation":  "Two contiguous measured phases equal totalWallClockSeconds. Command durations are a subset; unaccounted time includes source inspection, implementation, report authoring and user-facing updates.",
+    "timeSummary":  {
+                        "activeSeconds":  1905.355,
+                        "waitingForCommandsSeconds":  237.2,
+                        "definition":  "Waiting is measured test/build/dist/smoke/copy runtime; active includes inspection, edits, evidence analysis and reporting.",
+                        "topFive":  [
+                                        "npm.cmd run dist attempt 1: 95.3s",
+                                        "npm.cmd run dist attempt 2: 73.2s",
+                                        "npm.cmd run build: 17.4s",
+                                        "Portable CDP packaged smoke attempt 2: 17.3s",
+                                        "npm.cmd run typecheck: 10.4s"
+                                    ]
+                    }
 }
