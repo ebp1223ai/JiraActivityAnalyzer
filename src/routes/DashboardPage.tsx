@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, Copy, Database, FileClock, FileInput, FileText, HeartPulse, MessageSquare, Plus, RefreshCw, Wrench } from "lucide-react";
 import { DatabaseIssueTable, DEFAULT_DATABASE_COLUMNS } from "../components/DatabaseIssueTable";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
+import { DistributionPanel } from "../components/DistributionPanel";
+import { SectionErrorBoundary } from "../components/SectionErrorBoundary";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import type { DatabaseIssueDistributions, DatabaseIssueQuery, DatabaseIssueQueryResult } from "../types/databaseQuery";
 import type { DatabaseIssueListPreferences } from "../types/uiPreferences";
@@ -16,14 +18,14 @@ type Overview = {
   latestRun?: Record<string, unknown>;
 };
 
-const defaultQuery: DatabaseIssueQuery = { page: 1, pageSize: 200, sort: { field: "jiraUpdatedAt", direction: "desc" }, filters: {} };
+const defaultQuery: DatabaseIssueQuery = { page: 1, pageSize: 50, sort: { field: "jiraUpdatedAt", direction: "desc" }, filters: {} };
 const defaultPreferences: DatabaseIssueListPreferences = {
   visibleColumns: [...DEFAULT_DATABASE_COLUMNS],
   columnOrder: [...DEFAULT_DATABASE_COLUMNS],
   columnWidths: {},
-  pageSize: 200
+  pageSize: 50
 };
-const emptyIssues: DatabaseIssueQueryResult = { databaseTotal: 0, filteredTotal: 0, page: 1, pageSize: 200, pageCount: 1, items: [] };
+const emptyIssues: DatabaseIssueQueryResult = { databaseTotal: 0, filteredTotal: 0, page: 1, pageSize: 50, pageCount: 1, items: [] };
 
 function value(record: Record<string, unknown> | undefined, key: string, fallback = "-") {
   const result = record?.[key];
@@ -44,37 +46,90 @@ function formatSize(bytes: unknown) {
 }
 
 export function DashboardPage() {
-  const { state, retryDatabase, selectExistingDatabase, createNewDatabase } = useRuntimeStatus();
+  const { state, setDatabaseLoadStatus, retryDatabase, selectExistingDatabase, createNewDatabase } = useRuntimeStatus();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [issues, setIssues] = useState<DatabaseIssueQueryResult>(emptyIssues);
   const [distributions, setDistributions] = useState<DatabaseIssueDistributions | null>(null);
   const [query, setQuery] = useState<DatabaseIssueQuery>(defaultQuery);
   const [preferences, setPreferences] = useState<DatabaseIssueListPreferences>(defaultPreferences);
-  const [status, setStatus] = useState<"initial" | "loading" | "ready" | "error">("initial");
+  const [overviewStatus, setOverviewStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [issueStatus, setIssueStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [distributionStatus, setDistributionStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [issueInteractionReady, setIssueInteractionReady] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
   const [notice, setNotice] = useState("");
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [healthRunning, setHealthRunning] = useState(false);
+  const overviewRequest = useRef(0);
+  const issueRequest = useRef(0);
+  const distributionRequest = useRef(0);
+  const databaseIdentity = `${state.database.requestId}:${state.database.path}:${state.database.databaseId}:${refreshToken}`;
 
   const refresh = useCallback(async () => {
     if (!state.database.canRead) return;
-    setStatus("loading");
-    setNotice("");
-    try {
-      const [summary, issueList, distributionList] = await Promise.all([
-        window.desktopApp?.databaseViewer?.overview(),
-        window.desktopApp?.databaseViewer?.listIssues(query),
-        window.desktopApp?.databaseViewer?.issueDistributions()
-      ]);
-      setOverview(summary ?? null);
-      setIssues(issueList ?? emptyIssues);
-      setDistributions(distributionList ?? null);
-      setStatus("ready");
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : String(reason));
-      setStatus("error");
-    }
-  }, [query, state.database.canRead]);
+    setRefreshToken((value) => value + 1);
+  }, [state.database.canRead]);
 
+  useEffect(() => {
+    const requestId = ++overviewRequest.current;
+    issueRequest.current += 1;
+    distributionRequest.current += 1;
+    setIssueInteractionReady(false);
+    setOverview(null);
+    setIssues(emptyIssues);
+    setDistributions(null);
+    setDistributionStatus("idle");
+    setNotice("");
+    if (!state.database.canRead) {
+      setOverviewStatus("idle");
+      setIssueStatus("idle");
+      return;
+    }
+    setDatabaseLoadStatus("loading");
+    setOverviewStatus("loading");
+    void window.desktopApp?.databaseViewer?.overview().then((summary) => {
+      if (requestId !== overviewRequest.current) return;
+      setOverview(summary ?? null);
+      setOverviewStatus("ready");
+    }).catch((reason) => {
+      if (requestId !== overviewRequest.current) return;
+      setNotice(reason instanceof Error ? reason.message : String(reason));
+      setOverviewStatus("error");
+    });
+  }, [databaseIdentity, state.database.canRead]);
+
+  useEffect(() => {
+    if (!state.database.canRead || overviewStatus !== "ready") return;
+    const requestId = ++issueRequest.current;
+    setIssueStatus("loading");
+    void window.desktopApp?.databaseViewer?.listIssues(query).then((issueList) => {
+      if (requestId !== issueRequest.current) return;
+      setIssues(issueList ?? emptyIssues);
+      setIssueStatus("ready");
+      setIssueInteractionReady(true);
+    }).catch((reason) => {
+      if (requestId !== issueRequest.current) return;
+      setNotice(reason instanceof Error ? reason.message : String(reason));
+      setIssueStatus("error");
+    });
+  }, [query, overviewStatus, state.database.canRead, databaseIdentity]);
+
+  useEffect(() => {
+    if (!state.database.canRead || !issueInteractionReady || distributionStatus !== "idle") return;
+    const requestId = ++distributionRequest.current;
+    setDistributionStatus("loading");
+    void window.desktopApp?.databaseViewer?.issueDistributions().then((result) => {
+      if (requestId !== distributionRequest.current) return;
+      setDistributions(result ?? null);
+      setDistributionStatus("ready");
+      setDatabaseLoadStatus("ready");
+    }).catch((reason) => {
+      if (requestId !== distributionRequest.current) return;
+      setNotice(reason instanceof Error ? reason.message : String(reason));
+      setDistributionStatus("error");
+      setDatabaseLoadStatus("error");
+    });
+  }, [databaseIdentity, distributionStatus, issueInteractionReady, state.database.canRead]);
   useEffect(() => { void refresh(); }, [refresh, state.database.requestId]);
   useEffect(() => {
     void window.desktopApp?.uiPreferences?.get().then((loaded) => {
@@ -146,16 +201,16 @@ export function DashboardPage() {
         <button data-testid="select-existing-database" className="btn" type="button" onClick={() => void selectDatabase()}><FileInput size={16} />選擇既有 / Select</button>
         <button data-testid="create-new-database" className="btn btn-primary" type="button" onClick={() => void createDatabase()}><Plus size={16} />建立資料庫 / Create</button>
         <button className="btn" type="button" onClick={() => void retryDatabase()}><RefreshCw size={16} />重新驗證 / Recheck</button>
-        <button className="btn" type="button" disabled={!state.database.canRead || status === "loading"} onClick={() => void refresh()}><RefreshCw size={16} />快速重新整理 / Refresh</button>
+        <button className="btn" type="button" disabled={!state.database.canRead || issueStatus === "loading"} onClick={() => void refresh()}><RefreshCw size={16} />快速重新整理 / Refresh</button>
         <button className="btn" type="button" disabled={!state.database.canRead || healthRunning} onClick={() => void fullHealthCheck()}><Wrench size={16} />{healthRunning ? "檢查中..." : "完整健康檢查 / Health"}</button>
         <button className="btn" type="button" disabled={!state.database.path} onClick={() => void copyDatabasePath()}><Copy size={16} />複製路徑 / Copy Path</button>
       </div>
 
-      {notice ? <div className={`mb-4 rounded-md border p-4 text-sm font-bold ${status === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-blue-200 bg-blue-50 text-blue-800"}`}>{notice}</div> : null}
+      {notice ? <div className={`mb-4 rounded-md border p-4 text-sm font-bold ${overviewStatus === "error" || issueStatus === "error" || distributionStatus === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-blue-200 bg-blue-50 text-blue-800"}`}>{notice}</div> : null}
 
       <SectionCard title="目前資料庫" subtitle="Current Database">
         <div className="grid min-w-0 grid-cols-1 gap-3 text-sm font-semibold md:grid-cols-2 xl:grid-cols-4">
-          <div><b>Status：</b>{state.database.status}</div>
+          <div><b>Status：</b>{state.database.status === "CHECKING" ? "Connecting" : !state.database.canRead ? (state.database.status === "NOT_CONFIGURED" ? "Not configured" : "Error") : issueInteractionReady && distributionStatus === "ready" ? "Ready" : "Loading"}</div>
           <div><b>Compatibility：</b>{state.database.reasonCode}</div>
           <div><b>Read：</b>{state.database.canRead ? "Available" : "Unavailable"}</div>
           <div><b>Write：</b>{state.database.canWrite ? "Available" : "Unavailable"}</div>
@@ -209,27 +264,22 @@ export function DashboardPage() {
           </div>
 
           {distributions ? <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-4">
-            {(["projectKey", "issueType", "status", "priority"] as const).map((field) => <SectionCard key={field} title={field === "projectKey" ? "Project 分布" : field === "issueType" ? "類型分布" : field === "status" ? "狀態分布" : "優先級分布"} subtitle={`${field} · ${distributions.total} issues`}>
-              <div className="space-y-2">
-                {distributions[field].slice(0, 8).map((item) => <button key={item.value} className="flex w-full items-center gap-3 text-left text-xs font-bold" type="button" onClick={() => setQuery((current) => ({ ...current, page: 1, filters: { ...current.filters, [field]: { values: [item.value === "未設定" ? "__UNSET__" : item.value] } } }))}>
-                  <span className="min-w-0 flex-1 truncate" title={item.value}>{item.value}</span>
-                  <span>{item.count.toLocaleString()}</span>
-                  <span className="h-2 w-24 overflow-hidden rounded bg-slate-100"><span className="block h-full bg-blue-500" style={{ width: `${distributions.total ? Math.max(2, item.count / distributions.total * 100) : 0}%` }} /></span>
-                </button>)}
-              </div>
-            </SectionCard>)}
-          </div> : null}
+            {(["projectKey", "issueType", "status", "priority"] as const).map((field) => <DistributionPanel key={field} title={field === "projectKey" ? "Project 分布" : field === "issueType" ? "類型分布" : field === "status" ? "狀態分布" : "優先級分布"} subtitle={`${field} · ${distributions.total} issues`} total={distributions.total} items={distributions[field]} onSelect={(value) => setQuery((current) => ({ ...current, page: 1, filters: { ...current.filters, [field]: { values: [value === "未設定" ? "__UNSET__" : value] } } }))} />)}
+          </div> : distributionStatus === "loading" ? <div className="mt-4 rounded-md border border-line bg-white p-5 text-sm font-bold text-muted">Loading distributions...</div> : null}
 
           <SectionCard className="mt-4" title="Issue 清單" subtitle="Issue List">
+            <SectionErrorBoundary context="database-overview-issue-list" resetKey={databaseIdentity}>
             <DatabaseIssueTable
               result={issues}
               query={query}
               preferences={preferences}
-              distinctOptions={distributions ?? undefined}
-              loading={status === "loading"}
+              loading={issueStatus === "loading"}
+              disabled={!issueInteractionReady}
               onQueryChange={setQuery}
               onPreferencesChange={savePreferences}
+              loadDistinct={async (field, search) => (await window.desktopApp?.databaseViewer?.distinctValues({ source: "databaseIssues", subjectId: "", field, search, limit: 100 })) ?? { field, values: [], truncated: false }}
             />
+            </SectionErrorBoundary>
           </SectionCard>
         </>
       ) : null}

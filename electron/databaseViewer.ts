@@ -599,6 +599,70 @@ export function queryDatabaseUserDistributions(databasePath: string, userIdInput
     db.close();
   }
 }
+type StoredPayloadRow = {
+  sourceObjectId: string;
+  payloadGzip: Uint8Array | Buffer;
+  compressedBytes: number;
+  uncompressedBytes: number;
+  archiveSha256: string;
+  payloadFormatVersion: number;
+};
+
+function decodeStoredPayload(payload: StoredPayloadRow): unknown | null {
+  const buffer = Buffer.isBuffer(payload.payloadGzip) ? payload.payloadGzip : Buffer.from(payload.payloadGzip);
+  if (payload.payloadFormatVersion !== 1
+    || payload.compressedBytes !== buffer.byteLength
+    || payload.compressedBytes < 0 || payload.uncompressedBytes < 0
+    || payload.compressedBytes > MAX_VIEWER_PAYLOAD_BYTES || payload.uncompressedBytes > MAX_VIEWER_PAYLOAD_BYTES) return null;
+  try {
+    const decoded = gunzipSync(buffer, { maxOutputLength: MAX_VIEWER_PAYLOAD_BYTES });
+    if (decoded.byteLength !== payload.uncompressedBytes
+      || crypto.createHash("sha256").update(decoded).digest("hex") !== payload.archiveSha256) return null;
+    return JSON.parse(decoded.toString("utf8")) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function commentIndexFromPayload(value: unknown) {
+  const raw = record(value);
+  const issue = record(raw.issue);
+  const fields = record(issue.fields);
+  const comments = list(raw.comments ?? record(fields.comment).comments);
+  return new Map(normalizeCommentRecords(comments).map((comment) => [String(comment.id), comment]));
+}
+
+function enrichCommentEventRows(db: DatabaseSync, eventRows: Row[]) {
+  const relevant = eventRows.filter((event) => ["comment_created", "comment_updated"].includes(String(event.eventType)));
+  const sourceObjectIds = Array.from(new Set(relevant.map((event) => String(event.sourceObjectId ?? "")).filter(Boolean)));
+  if (!sourceObjectIds.length) return eventRows;
+  const placeholders = sourceObjectIds.map(() => "?").join(",");
+  const payloads = rows(db.prepare(`
+    SELECT source_object_id AS sourceObjectId, payload_gzip AS payloadGzip,
+      compressed_bytes AS compressedBytes, uncompressed_bytes AS uncompressedBytes,
+      archive_sha256 AS archiveSha256, payload_format_version AS payloadFormatVersion
+    FROM current_full_fetch_payloads WHERE source_object_id IN (${placeholders})
+  `).all(...sourceObjectIds)) as unknown as StoredPayloadRow[];
+  const indexes = new Map<string, Map<string, Row>>();
+  for (const payload of payloads) {
+    const decoded = decodeStoredPayload(payload);
+    if (decoded) indexes.set(String(payload.sourceObjectId), commentIndexFromPayload(decoded));
+  }
+  return eventRows.map((event) => {
+    if (!["comment_created", "comment_updated"].includes(String(event.eventType))) return event;
+    const comment = indexes.get(String(event.sourceObjectId))?.get(String(event.commentId));
+    if (!comment) return { ...event, commentContentStatus: indexes.has(String(event.sourceObjectId)) ? "not_available_in_source_data" : "not_persisted_by_current_data_model" };
+    return {
+      ...event,
+      commentId: comment.id,
+      commentBody: comment.body,
+      commentBodyFormat: comment.bodyFormat,
+      commentCreated: comment.created,
+      commentUpdated: comment.updated,
+      commentContentStatus: comment.body ? "available" : "not_available_in_source_data"
+    };
+  });
+}
 const USER_EVENT_COLUMNS = {
   eventTime: { expression: "e.event_time", kind: "date" },
   issueKey: { expression: "o.issue_key", kind: "text" },
@@ -643,17 +707,17 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
     const pageCount = Math.max(1, Math.ceil(filteredCount / query.pageSize));
     const page = Math.min(query.page, pageCount);
     const rowsResult = rows(db.prepare(`
-      SELECT e.id AS eventId, e.event_time AS eventTime, e.actor_account_id AS userId,
+      SELECT e.id AS eventId, e.source_object_id AS sourceObjectId, e.event_time AS eventTime, e.actor_account_id AS userId,
         e.actor_display_name AS displayName, o.issue_key AS issueKey, e.event_type AS eventType,
         e.field_name AS fieldName, e.from_value_json AS before, e.to_value_json AS after,
-        s.summary, e.source_provenance AS sourceProvenance
+        e.jira_native_source_id AS commentId, s.summary, e.source_provenance AS sourceProvenance
       FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
       LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
       WHERE ${where}
       ORDER BY ${sortColumns[query.sortField]} ${query.sortDirection.toUpperCase()}, e.id ASC
       LIMIT ? OFFSET ?
     `).all(...parameters, query.pageSize, (page - 1) * query.pageSize));
-    return { rows: rowsResult, filteredCount, totalCount, page, pageSize: query.pageSize, pageCount };
+    return { rows: enrichCommentEventRows(db, rowsResult), filteredCount, totalCount, page, pageSize: query.pageSize, pageCount };
   } finally {
     db.close();
   }

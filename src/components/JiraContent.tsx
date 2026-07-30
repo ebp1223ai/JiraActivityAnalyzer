@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode, useMemo } from "react";
+import { detectReadableContentFormat, readableContentText, type ReadableContentFormat } from "../utils/richContent";
 
-type JiraContentFormat = "html" | "wiki" | "plain";
+type JiraContentFormat = ReadableContentFormat;
 
 export function safeJiraContentUrl(value: string) {
   try {
@@ -97,16 +98,17 @@ function wikiBlocks(content: string) {
   );
 }
 
-export function JiraContent({ content, format, className = "" }: { content: string; format: JiraContentFormat; className?: string }) {
+export function JiraContent({ content, format, formatHint, className = "" }: { content: unknown; format?: JiraContentFormat; formatHint?: string; className?: string }) {
   const rendered = useMemo(() => {
     if (!content) return null;
-    if (format !== "html") {
-      return format === "wiki"
-        ? wikiBlocks(content)
-        : content.split(/\r?\n/).map((line, index) => <p key={index}>{line || "\u00a0"}</p>);
+    const detected = detectReadableContentFormat(content, format ?? formatHint);
+    const source = typeof content === "string" ? content : JSON.stringify(content);
+    if (detected !== "html") {
+      if (detected === "wiki") return wikiBlocks(source);
+      return readableContentText(content, detected).split(/\r?\n/).map((line, index) => <p key={index}>{line || "\u00a0"}</p>);
     }
-    const documentValue = new DOMParser().parseFromString(content, "text/html");
+    const documentValue = new DOMParser().parseFromString(source, "text/html");
     return Array.from(documentValue.body.childNodes).map((node, index) => htmlNode(node, String(index)));
-  }, [content, format]);
+  }, [content, format, formatHint]);
   return <div className={`jira-content break-words text-sm leading-relaxed ${className}`}>{rendered}</div>;
 }

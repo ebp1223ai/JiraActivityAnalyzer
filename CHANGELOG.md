@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.48 - Database Loading and Readable Viewer Correctness
+
+- Deferred database recovery and background checks until after the renderer shell loads, and removed synchronous startup `quick_check` from compatibility validation.
+- Added phased Database Overview loading, shared Local DB load states, initialization guards, stale-response suppression, IME-safe debounce, and 25/50/100 server-side paging with a 50-row default.
+- Added shared Excel-style filters, readable rich-content summaries, comment cards, before/after comparison, distribution panels, unified display-time formatting, and section-level error boundaries.
+- Persisted available Comment bodies and precise content-status metadata in new Activity Events, with page-scoped enrichment for existing provenance-only comment events.
+- Kept Current-State schema v2 unchanged. Payload-backed Changelog and Comments remain a documented partial limitation rather than claiming relational SQLite paging.
+
 
 ## 0.2.47 - Background Fetch and Activity Events UX
 

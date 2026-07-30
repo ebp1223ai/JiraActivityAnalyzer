@@ -4,12 +4,16 @@ import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
+import { DistributionPanel } from "../components/DistributionPanel";
+import { ReadableContentCell } from "../components/ReadableContentCell";
+import { SectionErrorBoundary } from "../components/SectionErrorBoundary";
 import { SqliteDataTable, type SqliteTableColumn } from "../components/SqliteDataTable";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import { useSessionState } from "../state/SessionStateContext";
 import type { ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
 import type { TablePreferences, UiPreferences, UiPreferencesUpdate } from "../types/uiPreferences";
-import { formatActivityActor, formatActivityEventType, formatActivityEventValue, formatActivitySource } from "../utils/activityEventDisplay";
+import { activityEventAfter, activityEventBefore, formatActivityActor, formatActivityEventType, formatActivityEventValue, formatActivitySource } from "../utils/activityEventDisplay";
+import { formatDisplayTime } from "../utils/displayTime";
 
 function text(value: unknown, fallback = "—") {
   return value === undefined || value === null || value === "" ? fallback : String(value);
@@ -26,17 +30,17 @@ const issueColumns: SqliteTableColumn[] = [
   { id: "userActivityCount", label: "User Activities", kind: "number", width: 120 },
   { id: "commentCount", label: "Comments", kind: "number", width: 100 },
   { id: "fieldChangeCount", label: "Field Changes", kind: "number", width: 110 },
-  { id: "firstActivity", label: "First Activity", kind: "date", width: 180 },
-  { id: "lastActivity", label: "Last Activity", kind: "date", width: 180 }
+  { id: "firstActivity", label: "First Activity", kind: "date", width: 180, render: (row) => formatDisplayTime(row.firstActivity) },
+  { id: "lastActivity", label: "Last Activity", kind: "date", width: 180, render: (row) => formatDisplayTime(row.lastActivity) }
 ];
 const eventColumns: SqliteTableColumn[] = [
-  { id: "eventTime", label: "Time", kind: "date", width: 180 },
+  { id: "eventTime", label: "Time", kind: "date", width: 180, render: (row) => <span className="whitespace-nowrap">{formatDisplayTime(row.eventTime)}</span> },
   { id: "issueKey", label: "Issue Key", kind: "text", width: 130, render: (row) => <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(text(row.issueKey, ""))}&sourcePage=users`}>{text(row.issueKey)}</a> },
-  { id: "eventType", label: "Type", kind: "multi", width: 160, render: (row) => formatActivityEventType(row.eventType) },
+  { id: "eventType", label: "Action", kind: "multi", width: 160, render: (row) => formatActivityEventType(row.eventType) },
   { id: "displayName", label: "Actor", kind: "text", width: 180, render: (row) => formatActivityActor(row) },
-  { id: "fieldName", label: "Field", kind: "multi", width: 140, render: (row) => formatActivityEventValue(row.fieldName) },
-  { id: "before", label: "Before", kind: "text", width: 220, render: (row) => formatActivityEventValue(row.before) },
-  { id: "after", label: "After", kind: "text", width: 220, render: (row) => formatActivityEventValue(row.after) },
+  { id: "fieldName", label: "Field", kind: "multi", width: 140, render: (row) => formatActivityEventValue(row.fieldName, "Not applicable") },
+  { id: "before", label: "Before", kind: "text", width: 240, render: (row) => <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
+  { id: "after", label: "After", kind: "text", width: 280, render: (row) => <ReadableContentCell value={row.commentBody ?? activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
   { id: "sourceProvenance", label: "Source", kind: "multi", width: 170, render: (row) => formatActivitySource(row.sourceProvenance) }
 ];
 
@@ -79,18 +83,23 @@ export function UserViewerPage() {
         ? window.desktopApp?.databaseViewer?.userRelatedIssues({ userId, query })
         : window.desktopApp?.databaseViewer?.userEvents({ userId, query });
       const distributionPromise = window.desktopApp?.databaseViewer?.userDistributions({ userId });
-      const [detail, result, nextDistributions] = await Promise.all([detailPromise, resultPromise, distributionPromise]);
+      const [detail, result] = await Promise.all([detailPromise, resultPromise]);
       if (requestId !== requestSequence.current) return;
       const resultKey = tab === "Related Issues" ? "relatedResult" : "allEventsResult";
       patch({ detail: detail ?? null, [resultKey]: result ?? emptyResult, status: "ready" });
-      if (nextDistributions) setDistributions(nextDistributions);
+      void distributionPromise?.then((nextDistributions) => {
+        if (requestId === requestSequence.current && nextDistributions) setDistributions(nextDistributions);
+      }).catch(() => undefined);
     } catch (reason) {
       if (requestId === requestSequence.current) patch({ message: reason instanceof Error ? reason.message : String(reason), status: "error" });
     }
   }
 
   useEffect(() => {
-    if (state.database.canRead && userViewer.status === "initial") void loadUsers();
+    requestSequence.current += 1;
+    setDistributions(null);
+    patch({ detail: null, relatedResult: null, allEventsResult: null, status: "initial", message: "" });
+    if (state.database.canRead) void loadUsers();
   }, [state.database.canRead, state.database.requestId]);
 
   useEffect(() => {
@@ -143,7 +152,7 @@ export function UserViewerPage() {
 
       {!userViewer.selectedUserId ? <SectionCard className="mt-4"><div className="py-16 text-center"><UserRound className="mx-auto mb-3 text-slate-300" size={42} /><b>選擇一位使用者 / Select a user</b></div></SectionCard> : <>
         <SectionCard className="mt-4" title={text(summary.displayName, "Unknown user")} subtitle={`Stable User ID · ${text(summary.userId)}`}>
-          <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3"><div><b>Earliest：</b>{text(summary.earliestEvent)}</div><div><b>Latest：</b>{text(summary.latestEvent)}</div><div className="break-all"><b>Database：</b>{state.database.sourceBinding || "Unavailable"}</div></div>
+          <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3"><div><b>Earliest：</b>{formatDisplayTime(summary.earliestEvent)}</div><div><b>Latest：</b>{formatDisplayTime(summary.latestEvent)}</div><div className="break-all"><b>Database：</b>{state.database.sourceBinding || "Unavailable"}</div></div>
         </SectionCard>
         <ResponsiveMetricGrid min={170} className="mt-4">
           <MetricCard label="相關 Issue" sub="Related Issues" value={text(summary.totalIssues, "0")} icon={Database} />
@@ -153,13 +162,14 @@ export function UserViewerPage() {
         </ResponsiveMetricGrid>
         <SectionCard className="mt-4" title="Related Issue Distributions" subtitle={`${distributions?.totalRelatedIssues ?? 0} distinct issues / Unknown values are explicit`}>
           <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {([["Project", "projectKey", distributions?.projectKey ?? []], ["Issue Type", "issueType", distributions?.issueType ?? []], ["Status", "status", distributions?.status ?? []], ["Priority", "priority", distributions?.priority ?? []]] as const).map(([label, field, items]) => <div key={field} className="min-w-0"><h3 className="mb-2 text-sm font-black">{label}</h3><div className="flex flex-wrap gap-2">{items.map((item) => <button key={item.value} className="btn max-w-full" type="button" title={`Filter Related Issues by ${label}: ${item.value}`} onClick={() => applyDistributionFilter(field, item.value)}><span className="truncate">{item.value}</span><b>{item.count}</b></button>)}</div></div>)}
+            {([["Project", "projectKey", distributions?.projectKey ?? []], ["Issue Type", "issueType", distributions?.issueType ?? []], ["Status", "status", distributions?.status ?? []], ["Priority", "priority", distributions?.priority ?? []]] as const).map(([label, field, items]) => <DistributionPanel key={field} title={label} subtitle={`${distributions?.totalRelatedIssues ?? 0} related issues`} total={distributions?.totalRelatedIssues ?? 0} items={items} onSelect={(value) => applyDistributionFilter(field, value)} />)}
           </div>
         </SectionCard>        <SectionCard className="mt-4">
           <div className="mb-4 flex max-w-full overflow-x-auto border-b border-line" role="tablist">
             {(["Related Issues", "All Activity Events"] as const).map((tab) => <button key={tab} className={`shrink-0 border-b-2 px-4 py-3 text-sm font-black ${userViewer.activeTab === tab ? "border-blue-600 bg-blue-50 text-blue-700" : "border-transparent text-muted"}`} type="button" onClick={() => void queryTab(userViewer.selectedUserId, tab)}>{tab}</button>)}
           </div>
           {userViewer.activeTab === "All Activity Events" ? <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-semibold">All local SQLite activity events for this Stable User ID. Includes Issue Key, readable event details, and source.</div> : null}
+          <SectionErrorBoundary context={`user-viewer:${userViewer.activeTab}`} resetKey={`${state.database.requestId}:${userViewer.selectedUserId}:${userViewer.activeTab}`}>
           <SqliteDataTable
             columns={userViewer.activeTab === "Related Issues" ? issueColumns : eventColumns}
             result={activeResult ?? emptyResult}
@@ -177,6 +187,7 @@ export function UserViewerPage() {
               limit: 200
             })}
           />
+          </SectionErrorBoundary>
         </SectionCard>
       </>}
     </div>

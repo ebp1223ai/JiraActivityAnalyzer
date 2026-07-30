@@ -290,8 +290,6 @@ export function checkDatabaseCompatibility(databasePath: string, currentJiraIden
   try {
     db = new DatabaseSync(resolved, { readOnly: true });
     db.exec("PRAGMA foreign_keys = ON; PRAGMA query_only = ON;");
-    const quick = db.prepare("PRAGMA quick_check").get() as { quick_check?: string };
-    if (quick?.quick_check !== "ok") return baseDatabaseState("CORRUPTED", resolved, "PRAGMA quick_check failed.");
     const metadataTable = db.prepare("SELECT 1 AS present FROM sqlite_master WHERE type='table' AND name='database_metadata'").get();
     if (!metadataTable) {
       return baseDatabaseState("SCHEMA_INCOMPLETE", resolved, "Required schema object is missing: database_metadata.");

@@ -179,6 +179,11 @@ export function extractActivityEventsV2(rawJson: unknown, serverIdentity: string
     const createdAt = normalizedTimestamp(comment.created);
     const updatedAt = normalizedTimestamp(comment.updated);
     const commentAuthor = actor(comment.author ?? comment.updateAuthor);
+    const body = comment.renderedBody ?? comment.body ?? null;
+    const serializedBody = body === null ? "" : canonicalJsonV3(body);
+    const bodyValue = serializedBody.length > 256 * 1024
+      ? { contentStatus: "omitted_by_size_policy", commentId }
+      : { contentStatus: body === null ? "not_available_in_source_data" : "available", commentId, body };
     if (createdAt) {
       events.push(event(serverIdentity, issueKey, `comment_created:${commentId}`, {
         eventType: "comment_created",
@@ -188,7 +193,7 @@ export function extractActivityEventsV2(rawJson: unknown, serverIdentity: string
         fieldId: null,
         fieldName: null,
         fromValueJson: null,
-        toValueJson: canonicalJsonV3({ provenance: "current_at_first_observation" }),
+        toValueJson: canonicalJsonV3({ provenance: "current_at_first_observation", ...bodyValue }),
         sourceRecordId: commentId,
         identityKeyType: "jira_comment_id",
         jiraNativeSourceId: commentId,
@@ -204,7 +209,7 @@ export function extractActivityEventsV2(rawJson: unknown, serverIdentity: string
         fieldId: null,
         fieldName: null,
         fromValueJson: null,
-        toValueJson: canonicalJsonV3({ provenance: "current_at_observation" }),
+        toValueJson: canonicalJsonV3({ provenance: "current_at_observation", ...bodyValue }),
         sourceRecordId: `${commentId}:${updatedAt}`,
         identityKeyType: "jira_comment_id_updated_timestamp",
         jiraNativeSourceId: commentId,

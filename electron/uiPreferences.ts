@@ -58,7 +58,7 @@ function defaultTable(columns: readonly string[], pageSize = 50): TablePreferenc
 export function defaultUiPreferences(): UiPreferences {
   return {
     formatVersion: 1,
-    databaseIssueList: defaultTable(DATABASE_ISSUE_COLUMNS, 200),
+    databaseIssueList: defaultTable(DATABASE_ISSUE_COLUMNS, 50),
     timelineEventList: defaultTable(TIMELINE_EVENT_COLUMNS),
     userRelatedIssues: defaultTable(USER_RELATED_ISSUE_COLUMNS),
     userAllActivityEvents: defaultTable(ACTIVITY_VIEWER_COLUMNS),

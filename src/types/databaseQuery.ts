@@ -1,4 +1,4 @@
-export const DATABASE_ISSUE_PAGE_SIZES = [25, 50, 100, 200] as const;
+export const DATABASE_ISSUE_PAGE_SIZES = [25, 50, 100] as const;
 
 export type DatabaseIssuePageSize = typeof DATABASE_ISSUE_PAGE_SIZES[number];
 export type DatabaseIssueSortDirection = "asc" | "desc";

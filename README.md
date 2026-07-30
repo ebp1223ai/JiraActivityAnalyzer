@@ -2,6 +2,16 @@
 
 > v0.2.46 adds frozen Data Collection run context, shared SQLite table queries, stable-user and issue Activity Stream views, a read-only Connections page, and safer Jira wiki rendering. Current-State schema remains v2 with no migration or recreation.
 > v0.2.47 keeps Step 3 Full Fetch owned by Electron main across route changes, replaces Viewer Activity Stream tabs with complete local SQLite Activity Events, and stabilizes Database Issue filters. Current-State schema remains v2 with no migration or recreation.
+> v0.2.48 separates the renderer shell from database bootstrap, adds phased readiness and stale-query protection, and unifies readable Viewer content. Current-State schema remains v2; payload-backed Changelog and Comments remain documented partial limitations.
+
+## v0.2.48 Database Loading and Readable Viewer Correctness
+
+- **Responsive startup:** the renderer shell loads before database recovery and background checks; compatibility no longer performs a synchronous startup `quick_check`.
+- **Phased database loading:** Overview, first Issue page, and distributions load independently with explicit Local DB status and local error handling.
+- **Safe table interaction:** Database Issues use server paging, 50-row defaults, IME-safe debounce, stale-request rejection, retained results, and Excel-style candidate filters.
+- **Readable Viewers:** time, Rich Content, Comments, Before/After values, and distributions use shared components with section-level Error Boundaries.
+- **Comment correctness:** newly extracted Comment events persist available bodies and precise availability states; old provenance-only events can be enriched from the current payload by Comment ID.
+- **Compatibility:** Current-State schema remains v2. Changelog and Comments are payload-backed, so relational SQLite paging for those two sections is explicitly Partial.
 
 ## v0.2.47 Background Fetch and Activity Events UX
 

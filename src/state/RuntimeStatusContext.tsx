@@ -23,6 +23,8 @@ const initialState: RuntimeState = {
 
 type RuntimeStatusContextValue = {
   state: RuntimeState;
+  databaseLoadStatus: "not-configured" | "connecting" | "loading" | "ready" | "error";
+  setDatabaseLoadStatus: React.Dispatch<React.SetStateAction<"not-configured" | "connecting" | "loading" | "ready" | "error">>;
   retryJira: () => Promise<RuntimeState | null>;
   retryDatabase: () => Promise<RuntimeState | null>;
   selectExistingDatabase: () => Promise<{ canceled: boolean; saved: boolean; validation?: RuntimeState["database"]; state: RuntimeState; error?: string } | null>;
@@ -33,6 +35,7 @@ const RuntimeStatusContext = createContext<RuntimeStatusContextValue | null>(nul
 
 export function RuntimeStatusProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<RuntimeState>(initialState);
+  const [databaseLoadStatus, setDatabaseLoadStatus] = useState<"not-configured" | "connecting" | "loading" | "ready" | "error">("connecting");
 
   useEffect(() => {
     let active = true;
@@ -48,6 +51,12 @@ export function RuntimeStatusProvider({ children }: { children: React.ReactNode 
     };
   }, []);
 
+  useEffect(() => {
+    if (state.database.status === "CHECKING") setDatabaseLoadStatus("connecting");
+    else if (state.database.status === "NOT_CONFIGURED") setDatabaseLoadStatus("not-configured");
+    else if (state.database.canRead) setDatabaseLoadStatus("loading");
+    else setDatabaseLoadStatus("error");
+  }, [state.database.requestId, state.database.status, state.database.canRead]);
   async function retryJira() {
     const next = await window.desktopApp?.runtime?.retryJira?.();
     if (next) setState(next);
@@ -73,8 +82,8 @@ export function RuntimeStatusProvider({ children }: { children: React.ReactNode 
   }
 
   const value = useMemo(() => ({
-    state, retryJira, retryDatabase, selectExistingDatabase, createNewDatabase
-  }), [state]);
+    state, databaseLoadStatus, setDatabaseLoadStatus, retryJira, retryDatabase, selectExistingDatabase, createNewDatabase
+  }), [state, databaseLoadStatus]);
 
   return <RuntimeStatusContext.Provider value={value}>{children}</RuntimeStatusContext.Provider>;
 }

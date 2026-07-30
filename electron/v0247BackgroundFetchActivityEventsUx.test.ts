@@ -140,7 +140,7 @@ try {
   assert.equal(distinct.values.length, 1);
 
   const defaults = defaultUiPreferences();
-  assert.equal(defaults.databaseIssueList.pageSize, 200);
+  assert.equal(defaults.databaseIssueList.pageSize, 50);
   assert.equal(defaults.issueActivityEvents.pageSize, 50);
   assert.equal("issueActivityStream" in defaults, false);
   assert.equal("userActivityStream" in defaults, false);

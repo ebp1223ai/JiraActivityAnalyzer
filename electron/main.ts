@@ -5465,6 +5465,30 @@ async function runUiSmoke(window: BrowserWindow) {
 }
 
 let persistedRendererConsoleMessages = 0;
+let postRendererStartupStarted = false;
+
+function startPostRendererStartup() {
+  if (postRendererStartupStarted) return;
+  postRendererStartupStarted = true;
+  setImmediate(() => {
+    try {
+      const cleanup = cleanupExpiredStaging(ensureDir(getFullFetchStagingDir()));
+      console.log("[full-fetch-staging cleanup]", cleanup);
+      const stagingRoot = ensureDir(getFullFetchStagingDir());
+      recoverStaleStaging(stagingRoot);
+      latestFullFetchStaging = listStagingRuns(stagingRoot, getLegacyFullFetchStagingDir()).find((run) => !run.state.legacyReadOnly) ?? null;
+    } catch (error) {
+      console.error("[full-fetch-staging startup scan failed]", error);
+    }
+    const envState = ensureProbeEnv();
+    console.log(envState.status === "created" ? "[env] Default env file created" : "[env] Env file loaded", envState.envPath);
+    void startBackgroundChecks().catch((error) => {
+      persistentDiagnostics.write("main", "startup-background-check-failed", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    });
+  });
+}
 
 function createMainWindow() {
   const window = new BrowserWindow({
@@ -5523,6 +5547,7 @@ function createMainWindow() {
   window.webContents.on("did-finish-load", () => {
     console.log("[renderer did-finish-load]", window.webContents.getURL());
     persistentDiagnostics.write("main", "did-finish-load", { currentRoute: window.webContents.getURL() });
+    startPostRendererStartup();
     if (isUiSmoke) {
       void runUiSmoke(window).catch((error) => {
         console.error("[electron ui smoke error]", error);
@@ -5597,22 +5622,6 @@ app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
   }
 
-  try {
-    const cleanup = cleanupExpiredStaging(ensureDir(getFullFetchStagingDir()));
-    console.log("[full-fetch-staging cleanup]", cleanup);
-    const stagingRoot = ensureDir(getFullFetchStagingDir());
-    recoverStaleStaging(stagingRoot);
-    latestFullFetchStaging = listStagingRuns(stagingRoot, getLegacyFullFetchStagingDir()).find((run) => !run.state.legacyReadOnly) ?? null;
-  } catch (error) {
-    console.error("[full-fetch-staging startup scan failed]", error);
-  }
-
-  const envState = ensureProbeEnv();
-  if (envState.status === "created") {
-    console.log("[env] Default env file created", envState.envPath);
-  } else {
-    console.log("[env] Env file loaded", envState.envPath);
-  }
 
   if (shouldSimulateCrashDiagnostic) {
     setTimeout(() => {
@@ -5622,14 +5631,9 @@ app.whenReady().then(() => {
     return;
   }
 
+
   createMainWindow();
-  setTimeout(() => {
-    void startBackgroundChecks().catch((error) => {
-      persistentDiagnostics.write("main", "startup-background-check-failed", {
-        error: error instanceof Error ? error.message : String(error)
-      });
-    });
-  }, 0);
+
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
