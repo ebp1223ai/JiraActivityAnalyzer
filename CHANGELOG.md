@@ -1,4 +1,12 @@
 # Changelog
+## 0.2.51 - GUI Interaction Correctness, Rich Content Diff and Viewer State Persistence
+
+- Replaced overlay table filters with layout-participating filter rows across Database and shared SQLite tables.
+- Added one-commit Windows IME composition state with stale external-value protection for shared text filters.
+- Unified bounded Comment/Description rich-content canonicalization and prevented `[object Object]` display.
+- Compared canonical visible text for created, edited, deleted and no-op Diff, including compact rich-text edits.
+- Preserved Issue/User Viewer subject, tab, query/result cache, expanded stable row IDs and scroll state across sidebar navigation.
+- Kept Current-State schema v2 unchanged; Windows human IME, real-data and complete packaged GUI gates remain Not Run.
 ## 0.2.50 - Verification, Completeness and Windows Delivery
 
 - Added production-path verification for IME, preference persistence, bounded rich-content canonicalization, normalized Diff, temporary SQLite filtering/paging, diagnostics and Debug Folder status.
