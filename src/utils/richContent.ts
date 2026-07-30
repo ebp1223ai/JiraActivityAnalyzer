@@ -1,7 +1,17 @@
 export type ReadableContentFormat = "html" | "wiki" | "adf" | "plain";
 
+const MAX_CANONICAL_CHARS = 200_000;
+const MAX_ADF_DEPTH = 64;
+const MAX_ADF_NODES = 20_000;
+const TRUNCATED_MARKER = "\n[Content truncated by safety limit]";
+
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function bounded(value: string, limit = MAX_CANONICAL_CHARS) {
+  if (value.length <= limit) return value;
+  return `${value.slice(0, Math.max(0, limit - TRUNCATED_MARKER.length)).trimEnd()}${TRUNCATED_MARKER}`;
 }
 
 function decodeEntities(value: string) {
@@ -21,15 +31,17 @@ function decodeEntities(value: string) {
   });
 }
 
-function adfText(value: unknown): string {
+function adfText(value: unknown, state = { nodes: 0 }, depth = 0): string {
+  if (depth > MAX_ADF_DEPTH || state.nodes >= MAX_ADF_NODES) return TRUNCATED_MARKER.trim();
+  state.nodes += 1;
   if (value === undefined || value === null) return "";
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
-  if (Array.isArray(value)) return value.map(adfText).filter(Boolean).join(" ");
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return bounded(String(value));
+  if (Array.isArray(value)) return bounded(value.map((item) => adfText(item, state, depth + 1)).filter(Boolean).join(" "));
   const source = record(value);
   const ownText = typeof source.text === "string" ? source.text : "";
-  const children = adfText(source.content);
+  const children = adfText(source.content, state, depth + 1);
   const separator = ["paragraph", "heading", "listItem", "tableRow"].includes(String(source.type)) ? "\n" : "";
-  return [ownText, children].filter(Boolean).join(separator);
+  return bounded([ownText, children].filter(Boolean).join(separator));
 }
 
 export function detectReadableContentFormat(value: unknown, hint?: string): ReadableContentFormat {
@@ -47,13 +59,14 @@ export function readableContentText(value: unknown, hint?: string): string {
   const format = detectReadableContentFormat(value, hint);
   if (format === "adf") {
     try {
-      const parsed = typeof value === "string" ? JSON.parse(value) : value;
-      return adfText(parsed).replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+      const serialized = typeof value === "string" ? bounded(value) : value;
+      const parsed = typeof serialized === "string" ? JSON.parse(serialized) : serialized;
+      return bounded(adfText(parsed).replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim());
     } catch {
-      return decodeEntities(String(value)).trim();
+      return bounded(decodeEntities(String(value)).trim());
     }
   }
-  let text = String(value);
+  let text = bounded(String(value));
   if (format === "html") {
     text = text
       .replace(/<(script|style|iframe|object|embed)[^>]*>[\s\S]*?<\/\1>/gi, " ")
@@ -73,12 +86,12 @@ export function readableContentText(value: unknown, hint?: string): string {
       .replace(/\{\{([^}]+)\}\}/g, "$1")
       .replace(/(^|[\s])\*([^*\n]+)\*/g, "$1$2");
   }
-  return decodeEntities(text)
+  return bounded(decodeEntities(text)
     .replace(/\r/g, "")
     .replace(/[ \t]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
-    .trim();
+    .trim());
 }
 
 export function readableContentSummary(value: unknown, hint?: string, limit = 240) {

@@ -39,7 +39,7 @@ function text(value: unknown) {
 
 export function SqliteDataTable({ tableId = "sqlite-table", columns, result, query, loading, error, onQueryChange, loadDistinct, preferences, onPreferencesChange }: Props) {
   const normalized = useMemo(() => normalizeTablePreferences(preferences, columns.map((column) => ({
-    id: column.id, required: column.required, defaultVisible: column.defaultVisible,
+    id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible,
     defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth
   }))), [columns, preferences]);
   const [filterColumn, setFilterColumn] = useState("");
@@ -61,6 +61,13 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
 
   function changeQuery(next: ViewerTableQuery, action: string) {
     log(action, `page=${next.page} pageSize=${next.pageSize} sort=${next.sort?.field ?? "none"}`);
+    onPreferencesChange?.({
+      ...normalized,
+      pageSize: next.pageSize,
+      pageIndex: next.page,
+      sort: next.sort,
+      filters: next.filters
+    });
     onQueryChange(next);
   }
 
@@ -82,7 +89,7 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
   function savePreferences(next: TablePreferences, action: string) {
     log(action);
     onPreferencesChange?.(normalizeTablePreferences(next, columns.map((column) => ({
-      id: column.id, required: column.required, defaultVisible: column.defaultVisible,
+      id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible,
       defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth
     }))));
   }
@@ -152,7 +159,7 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
         </div>
       </div>
       {settingsOpen ? <div className="mb-3 rounded-md border border-line bg-slate-50 p-3">
-        <div className="mb-2 flex items-center justify-between"><b className="text-xs">Columns / 欄位</b><button className="btn" type="button" onClick={() => savePreferences(normalizeTablePreferences(null, columns.map((column) => ({ id: column.id, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))), "table_settings_reset")}><RotateCcw size={14} />Reset</button></div>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><b className="text-xs">Columns / 欄位</b><div className="flex flex-wrap gap-2"><button className="btn" type="button" onClick={() => savePreferences({ ...normalized, columnWidths: {} }, "column_widths_reset")}><RotateCcw size={14} />Reset widths</button><button className="btn" type="button" onClick={() => { const defaults = normalizeTablePreferences(null, columns.map((column) => ({ id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))); savePreferences(defaults, "table_settings_reset"); changeQuery({ page: 1, pageSize: defaults.pageSize as 25 | 50 | 100, sort: defaults.sort ?? null, filters: defaults.filters ?? {} }, "table_query_reset"); }}><RotateCcw size={14} />Reset table</button></div></div>
         <div className="flex flex-wrap gap-3">{columns.map((column) => <label key={column.id} className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={normalized.visibleColumns.includes(column.id)} disabled={column.required} onChange={(event) => setColumnVisible(column, event.currentTarget.checked)} />{column.label}{column.required ? <span className="text-[10px] text-blue-700">Required／必要</span> : null}</label>)}</div>
       </div> : null}
       {error ? <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{error}</div> : null}

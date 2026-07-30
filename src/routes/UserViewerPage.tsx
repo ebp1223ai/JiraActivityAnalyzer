@@ -15,6 +15,8 @@ import type { ViewerTableQuery, ViewerTableResult } from "../types/activityViewe
 import type { TablePreferences, UiPreferences, UiPreferencesUpdate } from "../types/uiPreferences";
 import { activityEventAfter, activityEventBefore, formatActivityActor, formatActivityEventType, formatActivityEventValue, formatActivitySource } from "../utils/activityEventDisplay";
 import { formatDisplayTime } from "../utils/displayTime";
+import { queryFromTablePreferences } from "../utils/preferenceQuery";
+import { recordTableRequest } from "../diagnostics/tableDiagnostics";
 
 function text(value: unknown, fallback = "—") {
   return value === undefined || value === null || value === "" ? fallback : String(value);
@@ -65,34 +67,50 @@ export function UserViewerPage() {
   async function loadUsers() {
     if (!state.database.canRead) return;
     const requestId = ++requestSequence.current;
+    const startedAt = performance.now();
+    const query = { page: 1, pageSize: 100, filters: userViewer.search ? { userSearch: { present: true, length: userViewer.search.length } } : {} };
+    recordTableRequest("started", { requestId, tableId: "userList", query, startedAt });
     patch({ status: "loading", message: "" });
     try {
       const result = await window.desktopApp?.databaseViewer?.listUsers({ search: userViewer.search, limit: 100, offset: 0 });
-      if (requestId !== requestSequence.current) return;
+      if (requestId !== requestSequence.current) {
+        recordTableRequest("stale", { requestId, tableId: "userList", query, startedAt });
+        return;
+      }
+      recordTableRequest("completed", { requestId, tableId: "userList", query, startedAt, resultCount: result?.items.length ?? 0 });
       patch({ users: result?.items ?? [], status: "ready" });
     } catch (reason) {
+      recordTableRequest("failed", { requestId, tableId: "userList", query, startedAt, error: reason });
       if (requestId === requestSequence.current) patch({ message: reason instanceof Error ? reason.message : String(reason), status: "error" });
     }
   }
 
   async function queryTab(userId: string, tab = userViewer.activeTab, queryOverride?: ViewerTableQuery) {
     const requestId = ++requestSequence.current;
+    const startedAt = performance.now();
+    const query = queryOverride ?? (tab === "Related Issues" ? userViewer.relatedQuery : userViewer.eventQuery);
+    const tableId = tab === "Related Issues" ? "userRelatedIssues" : "userAllActivityEvents";
+    recordTableRequest("started", { requestId, tableId, query, startedAt });
     patch({ selectedUserId: userId, activeTab: tab, status: "loading", message: "" });
     try {
       const detailPromise = window.desktopApp?.databaseViewer?.getUser({ userId, limit: 1, offset: 0 });
-      const query = queryOverride ?? (tab === "Related Issues" ? userViewer.relatedQuery : userViewer.eventQuery);
       const resultPromise = tab === "Related Issues"
         ? window.desktopApp?.databaseViewer?.userRelatedIssues({ userId, query })
         : window.desktopApp?.databaseViewer?.userEvents({ userId, query });
       const distributionPromise = window.desktopApp?.databaseViewer?.userDistributions({ userId });
       const [detail, result] = await Promise.all([detailPromise, resultPromise]);
-      if (requestId !== requestSequence.current) return;
+      if (requestId !== requestSequence.current) {
+        recordTableRequest("stale", { requestId, tableId, query, startedAt });
+        return;
+      }
+      recordTableRequest("completed", { requestId, tableId, query, startedAt, resultCount: result?.rows.length ?? 0 });
       const resultKey = tab === "Related Issues" ? "relatedResult" : "allEventsResult";
       patch({ detail: detail ?? null, [resultKey]: result ?? emptyResult, status: "ready" });
       void distributionPromise?.then((nextDistributions) => {
         if (requestId === requestSequence.current && nextDistributions) setDistributions(nextDistributions);
       }).catch(() => undefined);
     } catch (reason) {
+      recordTableRequest("failed", { requestId, tableId, query, startedAt, error: reason });
       if (requestId === requestSequence.current) patch({ message: reason instanceof Error ? reason.message : String(reason), status: "error" });
     }
   }
@@ -106,7 +124,12 @@ export function UserViewerPage() {
 
   useEffect(() => {
     void window.desktopApp?.uiPreferences?.get().then((response) => {
-      if (response) setPreferences(response.preferences);
+      if (!response) return;
+      setPreferences(response.preferences);
+      patch({
+        relatedQuery: queryFromTablePreferences(userViewer.relatedQuery, response.preferences.userRelatedIssues),
+        eventQuery: queryFromTablePreferences(userViewer.eventQuery, response.preferences.userAllActivityEvents)
+      });
     });
   }, []);
 

@@ -454,7 +454,8 @@ function normalizeViewerQuery(input: ViewerQueryInput, sortColumns: Record<strin
   if (!Number.isSafeInteger(page) || page < 1) throw new Error("INVALID_PAGE");
   if (!ISSUE_PAGE_SIZES.has(pageSize)) throw new Error("INVALID_PAGE_SIZE");
   const filters = input.filters === undefined ? {} : plainRecord(input.filters);
-  assertOnlyKeys(filters, Object.keys(sortColumns), "FILTER");
+  const unsupportedFilter = Object.keys(filters).find((field) => !(field in sortColumns));
+  if (unsupportedFilter) throw new Error(`FILTER_UNSUPPORTED_FIELD:${unsupportedFilter}`);
   const sort = input.sort === null || input.sort === undefined ? { field: defaultSort, direction: "desc" } : plainRecord(input.sort);
   assertOnlyKeys(sort, ["field", "direction"], "SORT");
   const field = String(sort.field ?? defaultSort);
@@ -469,7 +470,7 @@ function viewerFilterSql(filters: Row, columns: Record<string, { expression: str
   const parameters: Array<string | number> = [];
   for (const [field, raw] of Object.entries(filters)) {
     const column = columns[field];
-    if (!column) throw new Error(`INVALID_FILTER_FIELD:${field}`);
+    if (!column) throw new Error(`FILTER_UNSUPPORTED_FIELD:${field}`);
     const filter = plainRecord(raw);
     assertOnlyKeys(filter, ["text", "values", "from", "to", "min", "max"], `FILTER_${field}`);
     if (column.kind === "text") {

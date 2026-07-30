@@ -1,4 +1,13 @@
 # Changelog
+## 0.2.50 - Verification, Completeness and Windows Delivery
+
+- Added production-path verification for IME, preference persistence, bounded rich-content canonicalization, normalized Diff, temporary SQLite filtering/paging, diagnostics and Debug Folder status.
+- Persisted independent table page, page size, sort and bounded filter state with Windows-safe atomic preference replacement.
+- Added safe Issue/User Viewer request lifecycle diagnostics and fixed unsupported filters to `FILTER_UNSUPPORTED_FIELD:<field>`.
+- Added the table verification matrix, manual validation procedure, Windows delivery report and execution ledger.
+- Kept Current-State schema v2 with no migration, adjacent-event inference or real Jira write.
+- Real company data, XML/large SQLite and full human GUI acceptance remain Not Run.
+
 ## 0.2.49 - Unified Data Table UX, Activity Diff and Runtime Stability
 
 - Fixed Chinese IME `null.value` failures by capturing primitive input values before React state/debounce work.

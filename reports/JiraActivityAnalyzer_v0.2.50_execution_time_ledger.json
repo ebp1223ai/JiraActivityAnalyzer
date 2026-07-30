@@ -1,0 +1,120 @@
+{
+    "formatVersion":  1,
+    "releaseVersion":  "0.2.50",
+    "timezone":  "Asia/Taipei",
+    "sessionStart":  "2026-07-30T16:13:03.7720598+08:00",
+    "sessionEnd":  "2026-07-30T16:31:29.0742077+08:00",
+    "totalWallClockSeconds":  1105.302,
+    "phases":  [
+                   {
+                       "name":  "baseline_implementation_and_prepackage_verification",
+                       "status":  "completed",
+                       "start":  "2026-07-30T16:13:03.7720598+08:00",
+                       "end":  "2026-07-30T16:31:29.0742077+08:00",
+                       "durationSeconds":  1105.302
+                   }
+               ],
+    "commandAttempts":  [
+                            {
+                                "command":  "Read v0.2.50 prompt and initial Git state",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.5,
+                                "detail":  "Pre-ledger discovery action; the prompt\u0027s ledger requirement was not known until this read completed."
+                            },
+                            {
+                                "command":  "Re-read v0.2.50 prompt as UTF-8 and inspect package scripts",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  7.4,
+                                "detail":  "Recovered the readable specification and confirmed repository scripts."
+                            },
+                            {
+                                "command":  "Locate execution ledger schema",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.3,
+                                "detail":  "Established the first measured ledger timestamp."
+                            },
+                            {
+                                "command":  "npm.cmd run typecheck",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  10.4,
+                                "detail":  "Renderer and Electron TypeScript passed after v0.2.50 changes."
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.50",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  1,
+                                "durationSeconds":  1.8,
+                                "detail":  "The first test exposed the pre-normalization FILTER_UNSUPPORTED_FIELDS error shape."
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.50",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  1.6,
+                                "detail":  "Production utilities, preferences, diagnostics and temporary SQLite contracts passed."
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.49",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  2.5,
+                                "detail":  "Previous-version regression passed."
+                            },
+                            {
+                                "command":  "npm.cmd run test:integration",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  1,
+                                "durationSeconds":  1.2,
+                                "detail":  "Legacy source-shape assertion expected setTimeout around startup checks."
+                            },
+                            {
+                                "command":  "npm.cmd run test:integration",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  1.1,
+                                "detail":  "Updated assertion verifies did-finish-load to post-renderer background checks."
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.48",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  1.9,
+                                "detail":  "Database loading and readable Viewer regression passed."
+                            },
+                            {
+                                "command":  "npm.cmd run build",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  17.4,
+                                "detail":  "Version verification, typecheck, Vite renderer, Electron main and preload passed."
+                            }
+                        ],
+    "manualVerification":  {
+                               "status":  "not_run",
+                               "durationSeconds":  0,
+                               "notes":  "Pending."
+                           },
+    "gitDelivery":  {
+                        "branch":  "feat/v0.2.50-verification-completeness-windows-delivery",
+                        "commit":  "pending",
+                        "pushStatus":  "pending",
+                        "durationSeconds":  0
+                    },
+    "unaccountedTimeSeconds":  1059,
+    "reconciliation":  "One contiguous measured phase equals totalWallClockSeconds; command time is a subset and unaccounted time includes inspection, edits and reporting."
+}

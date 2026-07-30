@@ -88,7 +88,8 @@ async function main() {
     assert.doesNotMatch(mainSource, /connection:test-and-save/);
     assert.match(mainSource, /database:select-existing/);
     assert.match(mainSource, /database:create-new/);
-    assert.match(mainSource, /setTimeout\(\(\) => \{[\s\S]*startBackgroundChecks/);
+    assert.match(mainSource, /webContents\.on\("did-finish-load"[\s\S]*startPostRendererStartup/);
+    assert.match(mainSource, /startPostRendererStartup[\s\S]*startBackgroundChecks/);
     assert.match(preloadSource, /runtime-state:changed/);
     assert.doesNotMatch(preloadSource, /testAndSave|connection:save|connection:set-active/);
     assert.match(appSource, /RuntimeStatusProvider/);

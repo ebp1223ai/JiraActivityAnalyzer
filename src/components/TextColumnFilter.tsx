@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useReducer } from "react";
+import { createImeFilterState, reduceImeFilterState } from "../utils/imeFilterState";
 
 type Props = {
   value: string;
@@ -8,36 +9,31 @@ type Props = {
 };
 
 export function TextColumnFilter({ value, onApply, placeholder = "關鍵字...", debounceMs = 300 }: Props) {
-  const [draft, setDraft] = useState(() => String(value ?? ""));
-  const [composing, setComposing] = useState(false);
+  const [state, dispatch] = useReducer(reduceImeFilterState, value, createImeFilterState);
 
   useEffect(() => {
-    if (!composing) setDraft(String(value ?? ""));
-  }, [value, composing]);
+    dispatch({ type: "external", value });
+  }, [value]);
 
   useEffect(() => {
-    if (composing || draft === String(value ?? "")) return;
-    const timer = window.setTimeout(() => onApply(draft), debounceMs);
+    if (state.composing || state.draft === String(value ?? "")) return;
+    const primitiveValue = state.draft;
+    const timer = window.setTimeout(() => onApply(primitiveValue), debounceMs);
     return () => window.clearTimeout(timer);
-  }, [draft, composing, value, onApply, debounceMs]);
-
-  function update(nextValue: string) {
-    setDraft(nextValue);
-  }
+  }, [state.draft, state.composing, state.revision, value, onApply, debounceMs]);
 
   return (
     <input
       autoFocus
       className="field"
-      value={draft}
-      onCompositionStart={() => setComposing(true)}
-      onCompositionUpdate={(event) => update(event.currentTarget.value)}
+      value={state.draft}
+      onCompositionStart={() => dispatch({ type: "composition-start" })}
+      onCompositionUpdate={(event) => dispatch({ type: "composition-update", value: event.currentTarget.value })}
       onCompositionEnd={(event) => {
         const nextValue = event.currentTarget.value;
-        update(nextValue);
-        setComposing(false);
+        dispatch({ type: "composition-end", value: nextValue });
       }}
-      onChange={(event) => update(event.currentTarget.value)}
+      onChange={(event) => dispatch({ type: "input", value: event.currentTarget.value })}
       placeholder={placeholder}
     />
   );

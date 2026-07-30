@@ -1,10 +1,22 @@
 import type { DatabaseIssueColumn, DatabaseIssuePageSize } from "./databaseQuery";
 
+export type TableFilterPreference = {
+  text?: string;
+  values?: string[];
+  from?: string;
+  to?: string;
+  min?: number;
+  max?: number;
+};
+
 export type TablePreferences<TColumn extends string = string> = {
   visibleColumns: TColumn[];
   columnOrder: TColumn[];
   columnWidths: Partial<Record<TColumn, number>>;
   pageSize: number;
+  pageIndex?: number;
+  sort?: { field: string; direction: "asc" | "desc" } | null;
+  filters?: Record<string, TableFilterPreference>;
 };
 
 export type UiPreferences = {

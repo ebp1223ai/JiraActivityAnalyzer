@@ -28,7 +28,9 @@ function nearlyEqual(left, right, tolerance = 0.01) {
 const raw = fs.readFileSync(ledgerPath, "utf8");
 const ledger = JSON.parse(raw);
 if (ledger.formatVersion === 1 && ledger.releaseVersion) {
-  assert(ledger.releaseVersion === "0.2.45", "ledger releaseVersion must match the current v0.2.45 release");
+  const expectedReleaseVersion = process.argv[3] || ledger.releaseVersion;
+  assert(/^0\.2\.\d+$/.test(ledger.releaseVersion), "ledger releaseVersion must be a semantic 0.2.x version");
+  assert(ledger.releaseVersion === expectedReleaseVersion, `ledger releaseVersion must match ${expectedReleaseVersion}`);
   assert(ledger.timezone === "Asia/Taipei", "unexpected timezone");
   assert(Number.isFinite(Date.parse(ledger.sessionStart)), "invalid sessionStart");
   assert(Number.isFinite(Date.parse(ledger.sessionEnd)), "invalid sessionEnd");

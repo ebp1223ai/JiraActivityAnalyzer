@@ -17,6 +17,8 @@ import type { ViewerSection } from "../types/databaseViewer";
 import type { UiPreferences } from "../types/uiPreferences";
 import { activityEventAfter, activityEventBefore, formatActivityActor, formatActivityEventType, formatActivityEventValue, formatActivitySource } from "../utils/activityEventDisplay";
 import { formatDisplayTime } from "../utils/displayTime";
+import { queryFromTablePreferences } from "../utils/preferenceQuery";
+import { recordTableRequest } from "../diagnostics/tableDiagnostics";
 
 const tabs = ["Overview", "Description", "Changelog", "Comments", "Attachments Metadata", "Issue Links", "Remote Links", "Activity Events", "Raw Evidence"] as const;
 
@@ -69,19 +71,32 @@ export function IssueViewerPage() {
       return;
     }
     const requestId = ++loadRequest.current;
+    const startedAt = performance.now();
+    const query = { issueKey: "[masked-key]" };
+    recordTableRequest("started", { requestId, tableId: "issueViewerSnapshot", query, startedAt });
     patch({ issueKey, status: "loading", message: "" });
-    const next = await window.desktopApp?.databaseViewer?.getIssue({ issueKey });
-    if (requestId !== loadRequest.current) return;
-    if (!next) {
-      patch({ status: "error", message: "Issue Viewer IPC unavailable." });
-      return;
+    try {
+      const next = await window.desktopApp?.databaseViewer?.getIssue({ issueKey });
+      if (requestId !== loadRequest.current) {
+        recordTableRequest("stale", { requestId, tableId: "issueViewerSnapshot", query, startedAt });
+        return;
+      }
+      if (!next) {
+        recordTableRequest("failed", { requestId, tableId: "issueViewerSnapshot", query, startedAt, error: "IPC unavailable" });
+        patch({ status: "error", message: "Issue Viewer IPC unavailable." });
+        return;
+      }
+      recordTableRequest("completed", { requestId, tableId: "issueViewerSnapshot", query, startedAt, resultCount: next.status === "ready" ? 1 : 0 });
+      patch({
+        result: next,
+        status: next.status === "ready" ? "ready" : next.status === "not_found" ? "not-found" : next.status === "query_failed" ? "error" : "unavailable",
+        message: next.message
+      });
+      setSearchParams({ key: issueKey });
+    } catch (error) {
+      recordTableRequest("failed", { requestId, tableId: "issueViewerSnapshot", query, startedAt, error });
+      if (requestId === loadRequest.current) patch({ status: "error", message: error instanceof Error ? error.message : "Issue Viewer query failed." });
     }
-    patch({
-      result: next,
-      status: next.status === "ready" ? "ready" : next.status === "not_found" ? "not-found" : next.status === "query_failed" ? "error" : "unavailable",
-      message: next.message
-    });
-    setSearchParams({ key: issueKey });
   }
 
   useEffect(() => {
@@ -93,31 +108,46 @@ export function IssueViewerPage() {
 
   useEffect(() => {
     void window.desktopApp?.uiPreferences?.get().then((response) => {
-      if (response) setPreferences(response.preferences);
+      if (!response) return;
+      setPreferences(response.preferences);
+      patch({ activityEventsQuery: queryFromTablePreferences(issueViewer.activityEventsQuery, response.preferences.issueActivityEvents) });
     });
   }, []);
 
   useEffect(() => {
     if (issueViewer.activeTab !== "Activity Events" || issueViewer.status !== "ready" || !issueViewer.issueKey) return;
     let current = true;
+    let settled = false;
+    const requestId = ++loadRequest.current;
+    const startedAt = performance.now();
+    const query = issueViewer.activityEventsQuery;
+    recordTableRequest("started", { requestId, tableId: "issueActivityEvents", query, startedAt });
     patch({ activityEventsStatus: "loading", activityEventsMessage: "" });
-    void window.desktopApp?.databaseViewer?.issueEvents({
-      issueKey: issueViewer.issueKey,
-      query: issueViewer.activityEventsQuery
-    }).then((next) => {
-      if (!current) return;
+    void window.desktopApp?.databaseViewer?.issueEvents({ issueKey: issueViewer.issueKey, query }).then((next) => {
+      settled = true;
+      if (!current || requestId !== loadRequest.current) {
+        recordTableRequest("stale", { requestId, tableId: "issueActivityEvents", query, startedAt });
+        return;
+      }
       if (!next) {
+        recordTableRequest("failed", { requestId, tableId: "issueActivityEvents", query, startedAt, error: "IPC unavailable" });
         patch({ activityEventsStatus: "error", activityEventsMessage: "Issue Activity Events IPC unavailable." });
         return;
       }
+      recordTableRequest("completed", { requestId, tableId: "issueActivityEvents", query, startedAt, resultCount: next.rows.length });
       patch({ activityEventsResult: next, activityEventsStatus: "ready", activityEventsMessage: "" });
     }).catch((error: unknown) => {
-      if (current) patch({
+      settled = true;
+      recordTableRequest("failed", { requestId, tableId: "issueActivityEvents", query, startedAt, error });
+      if (current && requestId === loadRequest.current) patch({
         activityEventsStatus: "error",
         activityEventsMessage: error instanceof Error ? error.message : "Issue Activity Events query failed."
       });
     });
-    return () => { current = false; };
+    return () => {
+      current = false;
+      if (!settled) recordTableRequest("aborted", { requestId, tableId: "issueActivityEvents", query, startedAt });
+    };
   }, [issueViewer.activeTab, issueViewer.status, issueViewer.issueKey, issueViewer.activityEventsQuery, state.database.requestId]);
 
   const overviewRows = useMemo(() => [

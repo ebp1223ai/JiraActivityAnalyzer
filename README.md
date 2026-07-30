@@ -4,7 +4,15 @@
 > v0.2.47 keeps Step 3 Full Fetch owned by Electron main across route changes, replaces Viewer Activity Stream tabs with complete local SQLite Activity Events, and stabilizes Database Issue filters. Current-State schema remains v2 with no migration or recreation.
 > v0.2.48 separates the renderer shell from database bootstrap, adds phased readiness and stale-query protection, and unifies readable Viewer content. Current-State schema remains v2; payload-backed Changelog and Comments remain documented partial limitations.
 > v0.2.49 fixes IME/filter/diagnostic failures and adds mapped Activity Event filters, required columns, resizable shared Viewer tables, and compact Before/After Diff. Current-State schema remains v2; the version is Partial pending full manual acceptance.
+> v0.2.50 adds production-path verification, bounded rich-content canonicalization, persisted table query state, complete Viewer request diagnostics, Windows delivery evidence, and an explicit table verification matrix. Schema remains v2.
 
+## v0.2.50 Verification, Completeness and Windows Delivery
+
+- **Production contracts:** temporary SQLite tests exercise full-result Actor/Action/Before/After/Diff filtering, multi-select semantics, stable paging, unsupported-field failures and diagnostics.
+- **IME and rich content:** the renderer uses a primitive-only IME state machine; HTML, ADF and Jira Wiki text are canonicalized with depth, node and length limits before Diff.
+- **Preference v2:** table page, page size, sort and bounded filters now persist independently with Windows-safe atomic replacement.
+- **Diagnostics:** Issue/User Viewer requests record safe started/completed/stale/aborted/failed events without query values or credentials.
+- **Delivery status:** automated, packaging and app-only evidence is recorded in the v0.2.50 report. Real company data and full human GUI acceptance remain explicitly Not Run.
 ## v0.2.49 Unified Data Table UX, Activity Diff and Runtime Stability
 
 - **IME correctness:** text filters capture primitive values and wait for composition end before debounce/query work.
