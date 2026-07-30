@@ -326,7 +326,8 @@ export function AnalysisPage() {
     for (const source of sources) counts[source] = (counts[source] ?? 0) + 1;
     return counts;
   }, {} as Record<FetchQueueSource, number>);
-  const hasFullFetchResult = ["completed", "completed_with_partial", "completed_with_errors", "failed", "failed_final", "aborted_on_restart"].includes(userAnalysis.fullFetchStatus);
+  const isFullFetchActive = ["running", "cancel_requested"].includes(userAnalysis.fullFetchStatus);
+  const hasFullFetchResult = ["completed", "completed_with_partial", "completed_with_errors", "cancelled", "failed", "failed_final", "aborted_on_restart"].includes(userAnalysis.fullFetchStatus);
   const fullFetchDurationMs = userAnalysis.fullFetchStartedAt && userAnalysis.fullFetchFinishedAt
     ? Math.max(0, Date.parse(userAnalysis.fullFetchFinishedAt) - Date.parse(userAnalysis.fullFetchStartedAt))
     : 0;
@@ -343,13 +344,13 @@ export function AnalysisPage() {
   const connectionReady = Boolean(window.desktopApp?.uiSmoke || (activeConnection?.baseUrl && activeConnection?.apiToken));
   const fullFetchDisabledReason = fetchQueue.length === 0
     ? "Fetch Queue is empty / 抓取佇列是空的"
-    : userAnalysis.fullFetchStatus === "running"
+    : isFullFetchActive
       ? "Full Fetch is already running / 完整抓取正在執行中"
       : !connectionReady
         ? "Connection is not ready / Jira 連線尚未就緒"
         : "";
   const candidateSaveDisabledReason = userAnalysis.candidateIssues.length === 0 ? "No candidate result yet / 尚無候選結果" : "";
-  const fullFetchSaveDisabledReason = userAnalysis.fullFetchStatus === "running"
+  const fullFetchSaveDisabledReason = isFullFetchActive
     ? "Full Fetch is running / 完整抓取正在執行中"
     : !hasFullFetchResult
       ? "No Full Fetch result yet / 尚無完整抓取結果"
@@ -521,29 +522,36 @@ export function AnalysisPage() {
 
   useEffect(() => {
     const subscribe = window.desktopApp?.userAnalysis?.onFullFetchProgress;
-    if (!subscribe) return;
-    return subscribe((payload) => {
+    const applyProgress = (payload: Record<string, unknown>) => {
       const progress = payload as unknown as UserAnalysisFullFetchProgress;
       setUserAnalysis((current) => ({
         ...current,
-        fullFetchStatus: progress.status === "completed"
-          ? "completed"
-          : progress.status === "completed_with_errors"
-            ? "completed_with_errors"
-            : progress.status === "failed_final"
-              ? "failed_final"
-              : progress.status === "aborted_on_restart"
-                ? "aborted_on_restart"
-                : "running",
+        fullFetchStatus: progress.status === "completed" ? "completed"
+          : progress.status === "completed_with_errors" ? "completed_with_errors"
+            : progress.status === "failed_final" ? "failed_final"
+              : progress.status === "aborted_on_restart" ? "aborted_on_restart"
+                : progress.status === "cancel_requested" ? "cancel_requested"
+                  : progress.status === "cancelled" ? "cancelled"
+                    : progress.status === "failed" ? "failed"
+                      : "running",
         fullFetchRunId: progress.runId || current.fullFetchRunId,
         fullFetchProgress: progress,
         fullFetchMemory: progress.memory ?? current.fullFetchMemory,
         autoLogPath: progress.autoLogPath || current.autoLogPath,
         runManifestPath: progress.runManifestPath || current.runManifestPath,
-        fullFetchStaging: ((payload as Record<string, unknown>).staging as Record<string, unknown> | undefined) ?? current.fullFetchStaging
+        fullFetchStaging: (payload.staging as Record<string, unknown> | undefined) ?? current.fullFetchStaging
       }));
-    });
-  }, [setUserAnalysis]);
+    };
+    let active = true;
+    void window.desktopApp?.userAnalysis?.getActiveFullFetchRun?.().then((payload) => {
+      if (active && payload) applyProgress(payload);
+    }).catch((error) => console.error("Active Full Fetch hydration failed", error));
+    const unsubscribe = subscribe?.(userAnalysis.fullFetchRunId, applyProgress);
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [setUserAnalysis, userAnalysis.fullFetchRunId]);
 
   useEffect(() => {
     if (!window.desktopApp?.uiSmoke) return;
@@ -654,8 +662,8 @@ export function AnalysisPage() {
   useEffect(() => {
     const subscribe = window.desktopApp?.userAnalysis?.onFullFetchLog;
     if (!subscribe) return;
-    return subscribe((line) => appendDebugLog("analysis", [line]));
-  }, [appendDebugLog]);
+    return subscribe(userAnalysis.fullFetchRunId, (line) => appendDebugLog("analysis", [line]));
+  }, [appendDebugLog, userAnalysis.fullFetchRunId]);
 
   useEffect(() => window.desktopApp?.userAnalysis?.onActivityTimelineProgress?.((progress) => {
     setTimelineRoundProgress(progress);
@@ -1673,7 +1681,7 @@ export function AnalysisPage() {
   async function handleCancelFullFetch() {
     logAnalysisAction("USER_ACTION", "Button clicked: Cancel Full Fetch / 取消完整抓取");
     patchState({ notice: "Cancel requested. The active issue will finish safely; remaining issues will be marked not attempted. / 已要求取消；目前 Jira 將安全完成，其餘標記為未嘗試。" });
-    const result = await window.desktopApp?.userAnalysis?.cancelFullFetch?.();
+    const result = await window.desktopApp?.userAnalysis?.cancelFullFetch?.(userAnalysis.fullFetchRunId || undefined);
     if (!result?.ok) {
       patchState({ errors: [result?.message ?? "Cancel request failed. / 取消要求失敗。"] });
       return;
@@ -2079,7 +2087,7 @@ export function AnalysisPage() {
         </div>
       </SectionCard>
 
-      {(userAnalysis.activeTab === "queue" || userAnalysis.activeTab === "fetchReport") && (userAnalysis.fullFetchStatus === "running" || userAnalysis.autoLogPath) ? (
+      {(userAnalysis.activeTab === "queue" || userAnalysis.activeTab === "fetchReport") && (isFullFetchActive || userAnalysis.autoLogPath) ? (
         <SectionCard id="full-fetch-progress" title="Full Fetch Progress" subtitle="完整抓取進度" className="mb-4">
           <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
             <MiniStat label="Total Issues / 總數" value={userAnalysis.fullFetchProgress.total} />
@@ -2431,7 +2439,7 @@ export function AnalysisPage() {
               </div>
             ) : null}
             <div className="mb-3 flex flex-wrap justify-end gap-2">
-              <button className="btn" type="button" disabled={fetchQueue.length === 0 || userAnalysis.fullFetchStatus === "running"} onClick={clearFetchQueue}><Trash2 size={15} />Clear Fetch Queue / 清除抓取佇列</button>
+              <button className="btn" type="button" disabled={fetchQueue.length === 0 || isFullFetchActive} onClick={clearFetchQueue}><Trash2 size={15} />Clear Fetch Queue / 清除抓取佇列</button>
             </div>
             <ResponsiveTableContainer>
               <table className="table min-w-[1540px]" data-testid="fetch-queue-table">
@@ -2465,7 +2473,7 @@ export function AnalysisPage() {
               {userAnalysis.showHelpTips ? <><b>Run Full Fetch / 執行完整抓取</b><br />Run Full Fetch reads issue fields, changelog, comments, attachments metadata, issue links, and parsed users.<br />完整抓取會讀取 issue 欄位、changelog、comments、attachments metadata、issue links 與使用者資訊。<br /><br /><b>Safety / 安全性：</b> Read-only Jira API only. No database write, no Jira write, and no attachment body download.<br />只使用唯讀 Jira API，不寫入資料庫、不寫入 Jira，也不下載附件本體。</> : <>This will fetch full read-only data for all issues currently in the Fetch Queue. / 這會依目前抓取佇列執行唯讀完整抓取。</>}
             </div>
             <button data-testid="run-full-fetch" className="btn btn-primary mt-3" type="button" onClick={() => void handleRunFullFetchClick()} disabled={Boolean(fullFetchDisabledReason)} title={fullFetchDisabledReason || "Run a sequential read-only fetch for the current queue"}>
-              <Play size={16} />{userAnalysis.fullFetchStatus === "running" ? "Running Full Fetch / 完整抓取中..." : "Start New Full Fetch / 開始新的完整抓取"}
+              <Play size={16} />{isFullFetchActive ? (userAnalysis.fullFetchStatus === "cancel_requested" ? "Cancel requested / 已要求取消" : "Running Full Fetch / 完整抓取中...") : "Start New Full Fetch / 開始新的完整抓取"}
             </button>
             {fullFetchDisabledReason ? <div className="mt-2 text-sm font-bold text-amber-800">Disabled reason / 無法執行原因：{fullFetchDisabledReason}</div> : null}
             {hasFullFetchResult ? <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800"><span>Full Fetch completed. Review the Step 3 report.<br />完整抓取已完成，請檢視 Step 3 報告。</span><button className="btn" type="button" onClick={() => showStep("fetchReport")}>Go to Step 3: Full Fetch Report / 前往 Step 3：完整抓取報告</button></div> : null}
@@ -2735,7 +2743,7 @@ export function AnalysisPage() {
             <div className="grid min-w-0 grid-cols-2 gap-3">
               <MiniStat label="Total Issues" value={userAnalysis.fullFetchSummary.totalIssues || fetchQueue.length} />
               <MiniStat label="Pending" value={userAnalysis.fullFetchSummary.pending} />
-              <MiniStat label="Running" value={userAnalysis.fullFetchStatus === "running" ? 1 : userAnalysis.fullFetchSummary.running} />
+              <MiniStat label="Running" value={isFullFetchActive ? 1 : userAnalysis.fullFetchSummary.running} />
               <MiniStat label="Success" value={userAnalysis.fullFetchSummary.success} />
               <MiniStat label="Failed" value={userAnalysis.fullFetchSummary.failed} />
               <MiniStat label="Skipped" value={userAnalysis.fullFetchSummary.skipped} />

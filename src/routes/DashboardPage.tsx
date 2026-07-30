@@ -221,16 +221,15 @@ export function DashboardPage() {
           </div> : null}
 
           <SectionCard className="mt-4" title="Issue 清單" subtitle="Issue List">
-            {status === "loading" ? <div className="py-10 text-center font-bold text-muted">Loading...</div> : (
-              <DatabaseIssueTable
-                result={issues}
-                query={query}
-                preferences={preferences}
-                distinctOptions={distributions ?? undefined}
-                onQueryChange={setQuery}
-                onPreferencesChange={savePreferences}
-              />
-            )}
+            <DatabaseIssueTable
+              result={issues}
+              query={query}
+              preferences={preferences}
+              distinctOptions={distributions ?? undefined}
+              loading={status === "loading"}
+              onQueryChange={setQuery}
+              onPreferencesChange={savePreferences}
+            />
           </SectionCard>
         </>
       ) : null}

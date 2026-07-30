@@ -51,7 +51,8 @@ import {
   listDatabaseUsers,
   loadDatabaseIssueDistributions,
   queryDatabaseDistinctValues,
-  queryDatabaseIssueActivityStream,
+  queryDatabaseUserDistributions,
+  queryDatabaseIssueEvents,
   queryDatabaseUserEvents,
   queryDatabaseUserRelatedIssues,
   loadDatabaseIssue,
@@ -218,6 +219,7 @@ type FullFetchMemory = {
 };
 
 type ActiveFullFetchDiagnostics = {
+  sessionId: string;
   runId: string;
   status: string;
   queueCount: number;
@@ -230,6 +232,9 @@ type ActiveFullFetchDiagnostics = {
   failed: number;
   skipped: number;
   startedAtMs: number;
+  startedAt: string;
+  updatedAt: string;
+  finishedAt: string;
   autoLogPath: string;
   runManifestPath: string;
   lastLogs: string[];
@@ -239,6 +244,7 @@ type ActiveFullFetchDiagnostics = {
 };
 
 let activeFullFetch: ActiveFullFetchDiagnostics | null = null;
+let latestFullFetchRunSnapshot: Record<string, unknown> | null = null;
 let latestFullFetchStaging: StagingRun | null = null;
 let latestFullFetchResult: { runId: string; document: Record<string, unknown>; savedPath: string; generatedAutomatically: boolean } | null = null;
 
@@ -718,20 +724,22 @@ ipcMain.handle("database-viewer:list-users", async (_event, payload?: { search?:
   listDatabaseUsers(currentReadableDatabasePath(), payload));
 ipcMain.handle("database-viewer:get-user", async (_event, payload: { userId?: string; limit?: number; offset?: number }) =>
   loadDatabaseUser(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload));
+ipcMain.handle("database-viewer:user-distributions", async (_event, payload: { userId?: string }) =>
+  queryDatabaseUserDistributions(currentReadableDatabasePath(), String(payload?.userId ?? "")));
 ipcMain.handle("database-viewer:user-related-issues", async (_event, payload: { userId?: string; query?: Record<string, unknown> }) =>
   queryDatabaseUserRelatedIssues(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload?.query));
-ipcMain.handle("database-viewer:user-events", async (_event, payload: { userId?: string; scope?: "activity_stream" | "all"; query?: Record<string, unknown> }) =>
-  queryDatabaseUserEvents(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload?.scope === "activity_stream" ? "activity_stream" : "all", payload?.query));
-ipcMain.handle("database-viewer:issue-activity-stream", async (_event, payload: { issueKey?: string; query?: Record<string, unknown> }) =>
-  queryDatabaseIssueActivityStream(currentReadableDatabasePath(), String(payload?.issueKey ?? ""), payload?.query));
+ipcMain.handle("database-viewer:user-events", async (_event, payload: { userId?: string; query?: Record<string, unknown> }) =>
+  queryDatabaseUserEvents(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload?.query));
+ipcMain.handle("database-viewer:issue-events", async (_event, payload: { issueKey?: string; query?: Record<string, unknown> }) =>
+  queryDatabaseIssueEvents(currentReadableDatabasePath(), String(payload?.issueKey ?? ""), payload?.query));
 ipcMain.handle("database-viewer:distinct-values", async (_event, payload: Record<string, unknown>) =>
   queryDatabaseDistinctValues(currentReadableDatabasePath(), payload));
 ipcMain.handle("ui-preferences:get", async () => loadUiPreferences(getConfiguredAppRoot()));
 ipcMain.handle("ui-preferences:update", async (_event, payload: { section?: unknown; value?: unknown }) => {
   const section = String(payload?.section ?? "");
   const allowedSections = new Set([
-    "databaseIssueList", "timelineEventList", "userRelatedIssues",
-    "userActivityStream", "userAllActivityEvents", "issueActivityStream"
+    "databaseIssueList", "timelineEventList", "userRelatedIssues", "userAllActivityEvents",
+    "issueActivityEvents", "issueChangelog", "issueComments"
   ]);
   if (!allowedSections.has(section)) throw new Error("INVALID_UI_PREFERENCE_SECTION");
   return updateUiPreferences(getConfiguredAppRoot(), section as Parameters<typeof updateUiPreferences>[1], payload?.value);
@@ -2605,7 +2613,7 @@ function fullFetchFailureSummary(items: FullFetchFailedIssue[]) {
   return { failedCount: items.length, byHttpStatus: count(items.map((item) => item.httpStatus)), byErrorCode: count(items.map((item) => item.errorCode)), byStage: count(items.map((item) => item.stage)), bySource: count(items.map((item) => item.source)) };
 }
 
-ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
+ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
   connection: AppConnection; fetchQueue: Record<string, unknown>[];
   rawDataMode?: "auto_save_raw_per_issue"; selectedUser?: string; startDate?: string; endDate?: string;
   projectScope?: string; jql?: string; candidateIssues?: Record<string, unknown>[]; selectedIssues?: string[]; relatedIssuesStatus?: string;
@@ -2681,12 +2689,15 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
   let directEvidenceCount = 0; let contextEvidenceCount = 0; let relatedContextEvidenceCount = 0;
   let peakRssMB = 0; let peakHeapUsedMB = 0; let peakRawDataEstimateMB = 0;
   let aggregate = { totalChangelogHistories: 0, totalChangelogItems: 0, totalComments: 0, totalAttachmentsMetadata: 0, totalIssueLinks: 0, totalParsedUsers: 0, totalEstimatedEvents: 0 };
-  activeFullFetch = { runId, status: "running", queueCount: fetchQueue.length, currentIndex: 0, currentIssueKey: "", lastCompletedIndex: 0, lastCompletedIssueKey: "", success: 0, partial: 0, failed: 0, skipped: 0, startedAtMs: runStartedMs, autoLogPath, runManifestPath, lastLogs: [], memory: memorySnapshot(), cancelRequested: false, stagingDir: stagingRun.dir };
+  activeFullFetch = { sessionId: appSessionId, runId, status: "running", queueCount: fetchQueue.length, currentIndex: 0, currentIssueKey: "", lastCompletedIndex: 0, lastCompletedIssueKey: "", success: 0, partial: 0, failed: 0, skipped: 0, startedAtMs: runStartedMs, startedAt, updatedAt: startedAt, finishedAt: "", autoLogPath, runManifestPath, lastLogs: [], memory: memorySnapshot(), cancelRequested: false, stagingDir: stagingRun.dir };
   const log = (level: string, message: string) => {
     const rendererLine = `[${level}] ${maskDiagnosticText(message)}`;
     logs.push(rendererLine); if (logs.length > 500) logs.shift();
     if (activeFullFetch) activeFullFetch.lastLogs = logs.slice(-100);
-    appendRuntimeLog(autoLogPath, level, message); event.sender.send("user-analysis:full-fetch-log", rendererLine);
+    appendRuntimeLog(autoLogPath, level, message);
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send("user-analysis:full-fetch-log", { runId, line: rendererLine });
+    }
   };
   const updateMemory = (context: string) => {
     const stagingBytes = previewStaging(stagingRun).stagingSizeBytes;
@@ -2697,9 +2708,19 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
   };
   const progressPayload = () => {
     const active = activeFullFetch!; const elapsedMs = Date.now() - active.startedAtMs; const completed = active.success + active.partial + active.failed + active.skipped; const averageMsPerIssue = completed ? Math.round(elapsedMs / completed) : 0;
-    return { runId, status: active.status, queueTotal: preflight.queueTotal, total: active.queueCount, planned: preflight.plannedCount, excluded: preflight.excludedCount, invalid: preflight.invalidCount, currentIndex: active.currentIndex, currentIssueKey: active.currentIssueKey, lastCompletedIndex: active.lastCompletedIndex, lastCompletedIssueKey: active.lastCompletedIssueKey, success: active.success, eligible: preflight.eligibleCount, partial: active.partial, failed: active.failed, skipped: active.skipped, notAttempted: active.skipped, elapsedMs, averageMsPerIssue, estimatedRemainingMs: averageMsPerIssue * Math.max(0, active.queueCount - completed), rawDataMode, memory: active.memory, autoLogPath, runManifestPath, issueStatus: issueStatus.map((item) => ({ ...item })), staging: previewStaging(stagingRun) };
+    return { sessionId: active.sessionId, runId, status: active.status, queueTotal: preflight.queueTotal, total: active.queueCount, planned: preflight.plannedCount, excluded: preflight.excludedCount, invalid: preflight.invalidCount, currentIndex: active.currentIndex, currentIssueKey: active.currentIssueKey, lastCompletedIndex: active.lastCompletedIndex, lastCompletedIssueKey: active.lastCompletedIssueKey, success: active.success, eligible: preflight.eligibleCount, partial: active.partial, failed: active.failed, skipped: active.skipped, notAttempted: active.skipped, elapsedMs, averageMsPerIssue, estimatedRemainingMs: averageMsPerIssue * Math.max(0, active.queueCount - completed), rawDataMode, memory: active.memory, autoLogPath, runManifestPath, issueStatus: issueStatus.map((item) => ({ ...item })), staging: previewStaging(stagingRun), cancelRequested: active.cancelRequested, startedAt: active.startedAt, updatedAt: active.updatedAt, finishedAt: active.finishedAt };
   };
-  const sendProgress = (status = activeFullFetch?.status ?? "running") => { if (!activeFullFetch) return; activeFullFetch.status = status; event.sender.send("user-analysis:full-fetch-progress", progressPayload()); };
+  const sendProgress = (status = activeFullFetch?.status ?? "running") => {
+    if (!activeFullFetch) return;
+    activeFullFetch.status = status;
+    activeFullFetch.updatedAt = new Date().toISOString();
+    if (["completed", "completed_with_errors", "cancelled", "failed"].includes(status)) activeFullFetch.finishedAt = activeFullFetch.updatedAt;
+    const payload = progressPayload();
+    latestFullFetchRunSnapshot = payload;
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send("user-analysis:full-fetch-progress", payload);
+    }
+  };
   const client = createJiraClient({ baseUrl: connection.baseUrl, email: connection.email || connection.username, apiToken: connection.apiToken ?? "", authType: connection.authType });
   const getWithRetry = async (urlPath: string, issueKey: string, stage: string) => jiraGetWithRetry(() => client.get(urlPath), { onAttempt: ({ attempt, status, errorCode, waitMs }) => log(waitMs ? "WARN" : "DEBUG", `GET attempt=${attempt} issue=${issueKey} stage=${stage} status=${status} error=${errorCode} waitMs=${waitMs}`) });
   try {
@@ -2808,7 +2829,13 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
     const fullFetchResultDocument = buildFullFetchResultDocument({ app: { name: "Jira Activity Analyzer", version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__ }, run: response.run, requestContext: { selectedUser, projectScope, dateRange: { start: startDate, end: endDate, endInclusive: true }, jql: generatedJql, selectedIssues, fetchQueue: state.runContext.fetchQueue, directIssueKeys: Array.from(directIssueKeys), fetchRemoteLinks, relatedIssuesStatus }, stagingReference: { stagingId: state.stagingId, fullFetchRunId: runId, stagingDir: stagingRun.dir, resultIndex: stagingPaths(stagingRun).result }, summary: { ...summary, stagingSizeBytes: state.stagingSizeBytes, archiveEligible: state.archiveEligible }, fetchReport: report, issueResults: Array.isArray(indexDocument.issues) ? indexDocument.issues : issueResults, directJiraEvidence: { summary: evidenceSummary, excludedSummary: evidenceExcluded, files: evidenceFiles }, relatedCandidateIssues, warnings, errors, diagnostics, debugLogSanitized: logs });
     latestFullFetchResult = { runId, document: fullFetchResultDocument, savedPath: "", generatedAutomatically: false };
     log(issueKeyReconciliation.status === "MATCH" ? "SUCCESS" : "ERROR", `Issue Key reconciliation=${issueKeyReconciliation.status} selected=${issueKeyReconciliation.sets.selected.count} queue=${issueKeyReconciliation.sets.fetchQueue.count} attempted=${issueKeyReconciliation.sets.attempted.count} outcomes=${issueKeyReconciliation.sets.completed.count + issueKeyReconciliation.sets.partial.count + issueKeyReconciliation.sets.failed.count}`);
-    log(state.countReconciliationPassed ? "SUCCESS" : "ERROR", `Full Fetch terminal status=${state.status} queueTotal=${preflight.queueTotal} planned=${preflight.plannedCount} attempted=${attempted} completed=${success} partial=${partial} failed=${failed} notAttempted=${state.notAttempted} reconciliation=${state.countReconciliationPassed}`); return response;
+    if (activeFullFetch) {
+      activeFullFetch.skipped = state.notAttempted;
+      activeFullFetch.currentIssueKey = "";
+    }
+    log(state.countReconciliationPassed ? "SUCCESS" : "ERROR", `Full Fetch terminal status=${state.status} queueTotal=${preflight.queueTotal} planned=${preflight.plannedCount} attempted=${attempted} completed=${success} partial=${partial} failed=${failed} notAttempted=${state.notAttempted} reconciliation=${state.countReconciliationPassed}`);
+    sendProgress(state.status);
+    return response;
   } catch (error) {
     const faultingIssue = activeFullFetch?.currentIssueKey ?? ""; const state = failStagingRun(stagingRun, faultingIssue, error, "full_fetch_pipeline");
     log("ERROR", `Full Fetch failed code=${state.runError?.code} stage=${state.runError?.stage} issue=${faultingIssue} message=${state.runError?.message}`);
@@ -2825,13 +2852,28 @@ ipcMain.handle("user-analysis:full-fetch", async (event, payload: {
     const diagnostics = { autoLogPath, runManifestPath, issueKeyReconciliation, staging: previewStaging(stagingRun), finalMemory: memorySnapshot(state.stagingSizeBytes) };
     return { ok: false, preflight, logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: "failed", diagnostics, error: state.runError }, summary: { queueTotal: preflight.queueTotal, totalIssues: state.total, total: state.total, planned: preflight.plannedCount, eligible: preflight.eligibleCount, excluded: preflight.excludedCount, invalid: preflight.invalidCount, attempted: state.eligible + state.partial + state.failed, completed: state.eligible, pending: state.notAttempted, running: 0, success: state.eligible, partial: state.partial, failed: state.failed, skipped: state.notAttempted, notAttempted: state.notAttempted, countReconciliationPassed: state.countReconciliationPassed, countReconciliation: state.countReconciliation, issueKeyReconciliation, archiveEligible: false, archiveBlockedReasons: [state.runError?.message ?? "Full Fetch failed."], ...aggregate }, stagingSummary: state, fetchReport: [], issueResults: [], relatedCandidateIssues, jiraEvidenceEvents: [], diagnostics, warnings, errors: [...errors, state.runError?.message ?? "Full Fetch failed."] };
   } finally {
+    if (activeFullFetch && !latestFullFetchRunSnapshot) latestFullFetchRunSnapshot = progressPayload();
     activeFullFetch = null;
   }
 });
 
-ipcMain.handle("user-analysis:cancel-full-fetch", async () => {
+ipcMain.handle("user-analysis:get-active-full-fetch-run", async () => activeFullFetch ? latestFullFetchRunSnapshot : null);
+
+ipcMain.handle("user-analysis:get-full-fetch-run-status", async (_event, payload: { runId?: string }) => {
+  const runId = text(payload?.runId);
+  return latestFullFetchRunSnapshot?.runId === runId ? latestFullFetchRunSnapshot : null;
+});
+
+ipcMain.handle("user-analysis:cancel-full-fetch", async (_event, payload?: { runId?: string }) => {
+  if (payload?.runId && activeFullFetch && payload.runId !== activeFullFetch.runId) return { ok: false, message: "The requested Full Fetch run is no longer active." };
   if (!activeFullFetch || activeFullFetch.status !== "running") return { ok: false, message: "No Full Fetch is currently running. / 目前沒有執行中的 Full Fetch。" };
   activeFullFetch.cancelRequested = true;
+  activeFullFetch.status = "cancel_requested";
+  activeFullFetch.updatedAt = new Date().toISOString();
+  latestFullFetchRunSnapshot = { ...(latestFullFetchRunSnapshot ?? {}), runId: activeFullFetch.runId, status: activeFullFetch.status, cancelRequested: true, updatedAt: activeFullFetch.updatedAt };
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send("user-analysis:full-fetch-progress", latestFullFetchRunSnapshot);
+  }
   const run = loadStagingRun(activeFullFetch.stagingDir);
   appendStagingDiagnostic(run.dir, "cancel_requested", { stagingId: run.state.stagingId, runId: run.state.fullFetchRunId });
   appendRuntimeLog(activeFullFetch.autoLogPath, "INFO", "Cancel requested. No new target will be scheduled; the active target will finish safely.");

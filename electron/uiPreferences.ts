@@ -14,9 +14,10 @@ export type UiPreferences = {
   databaseIssueList: TablePreferences;
   timelineEventList: TablePreferences;
   userRelatedIssues: TablePreferences;
-  userActivityStream: TablePreferences;
   userAllActivityEvents: TablePreferences;
-  issueActivityStream: TablePreferences;
+  issueActivityEvents: TablePreferences;
+  issueChangelog: TablePreferences;
+  issueComments: TablePreferences;
   [key: string]: unknown;
 };
 
@@ -42,6 +43,12 @@ export const ACTIVITY_VIEWER_COLUMNS = [
   "before", "after", "summary", "sourceProvenance"
 ] as const;
 
+export const ISSUE_CHANGELOG_COLUMNS = [
+  "created", "author", "field", "before", "after", "added", "removed"
+] as const;
+
+export const ISSUE_COMMENT_COLUMNS = ["author", "created", "updated", "body"] as const;
+
 const PAGE_SIZES = new Set([25, 50, 100, 200]);
 
 function defaultTable(columns: readonly string[], pageSize = 50): TablePreferences {
@@ -54,9 +61,10 @@ export function defaultUiPreferences(): UiPreferences {
     databaseIssueList: defaultTable(DATABASE_ISSUE_COLUMNS, 200),
     timelineEventList: defaultTable(TIMELINE_EVENT_COLUMNS),
     userRelatedIssues: defaultTable(USER_RELATED_ISSUE_COLUMNS),
-    userActivityStream: defaultTable(ACTIVITY_VIEWER_COLUMNS),
     userAllActivityEvents: defaultTable(ACTIVITY_VIEWER_COLUMNS),
-    issueActivityStream: defaultTable(ACTIVITY_VIEWER_COLUMNS)
+    issueActivityEvents: defaultTable(ACTIVITY_VIEWER_COLUMNS),
+    issueChangelog: defaultTable(ISSUE_CHANGELOG_COLUMNS),
+    issueComments: defaultTable(ISSUE_COMMENT_COLUMNS)
   };
 }
 
@@ -86,15 +94,19 @@ function normalizeTable(value: unknown, columns: readonly string[], fallback: Ta
 export function normalizeUiPreferences(value: unknown): UiPreferences {
   const defaults = defaultUiPreferences();
   const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const retained = { ...source };
+  delete retained.userActivityStream;
+  delete retained.issueActivityStream;
   return {
-    ...source,
+    ...retained,
     formatVersion: 1,
     databaseIssueList: normalizeTable(source.databaseIssueList, DATABASE_ISSUE_COLUMNS, defaults.databaseIssueList),
     timelineEventList: normalizeTable(source.timelineEventList, TIMELINE_EVENT_COLUMNS, defaults.timelineEventList),
     userRelatedIssues: normalizeTable(source.userRelatedIssues, USER_RELATED_ISSUE_COLUMNS, defaults.userRelatedIssues),
-    userActivityStream: normalizeTable(source.userActivityStream, ACTIVITY_VIEWER_COLUMNS, defaults.userActivityStream),
     userAllActivityEvents: normalizeTable(source.userAllActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.userAllActivityEvents),
-    issueActivityStream: normalizeTable(source.issueActivityStream, ACTIVITY_VIEWER_COLUMNS, defaults.issueActivityStream)
+    issueActivityEvents: normalizeTable(source.issueActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.issueActivityEvents),
+    issueChangelog: normalizeTable(source.issueChangelog, ISSUE_CHANGELOG_COLUMNS, defaults.issueChangelog),
+    issueComments: normalizeTable(source.issueComments, ISSUE_COMMENT_COLUMNS, defaults.issueComments)
   };
 }
 
@@ -128,8 +140,8 @@ export function loadUiPreferences(appRoot: string) {
   }
 }
 
-export type UiPreferenceSection = "databaseIssueList" | "timelineEventList" | "userRelatedIssues"
-  | "userActivityStream" | "userAllActivityEvents" | "issueActivityStream";
+export type UiPreferenceSection = "databaseIssueList" | "timelineEventList" | "userRelatedIssues" | "userAllActivityEvents"
+  | "issueActivityEvents" | "issueChangelog" | "issueComments";
 
 export function updateUiPreferences(appRoot: string, section: UiPreferenceSection, value: unknown) {
   const loaded = loadUiPreferences(appRoot);

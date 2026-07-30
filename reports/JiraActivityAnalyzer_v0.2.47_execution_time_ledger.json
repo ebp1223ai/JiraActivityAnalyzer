@@ -1,0 +1,74 @@
+{
+    "version":  "0.2.47",
+    "startedAt":  "2026-07-30T10:44:48.2834586+08:00",
+    "finishedAt":  "2026-07-30T11:36:13.3367001+08:00",
+    "totalElapsedSeconds":  3085.053,
+    "phases":  [
+                   {
+                       "name":  "baseline_and_requirement_inspection",
+                       "result":  "passed",
+                       "notes":  "Verified v0.2.46 baseline, created feature branch and requirement matrix; unrelated untracked files excluded.",
+                       "startedAt":  null,
+                       "finishedAt":  null,
+                       "elapsedSeconds":  null,
+                       "commands":  [
+
+                                    ]
+                   },
+                   {
+                       "name":  "implementation",
+                       "result":  "passed",
+                       "notes":  "Implemented main-owned Full Fetch hydration/subscriptions, stable database filters, Viewer Activity Events, readable event formatting, payload section paging, user distributions and UI preferences without schema changes.",
+                       "startedAt":  null,
+                       "finishedAt":  null,
+                       "elapsedSeconds":  null,
+                       "commands":  [
+
+                                    ]
+                   },
+                   {
+                       "name":  "focused_verification",
+                       "result":  "passed",
+                       "commands":  [
+                                        "npm.cmd run typecheck",
+                                        "npm.cmd run test:v0.2.47",
+                                        "npm.cmd run build",
+                                        "git diff --check"
+                                    ],
+                       "notes":  "Deterministic synthetic SQLite and source contract checks passed.",
+                       "startedAt":  null,
+                       "finishedAt":  null,
+                       "elapsedSeconds":  null
+                   },
+                   {
+                       "name":  "packaging_precommit_attempt",
+                       "result":  "expected_guard",
+                       "commands":  [
+                                        "npm.cmd run dist"
+                                    ],
+                       "notes":  "Packaging did not start because tracked worktree was intentionally dirty. Dist must run after the implementation commit so packagedSourceCommit is exact.",
+                       "startedAt":  null,
+                       "finishedAt":  null,
+                       "elapsedSeconds":  null
+                   }
+               ],
+    "verification":  {
+                         "typecheck":  "passed",
+                         "focusedTest":  "passed",
+                         "build":  "passed",
+                         "dist":  "pending_post_commit",
+                         "realSQLiteAcceptance":  "not_run",
+                         "windowsGuiAcceptance":  "not_run",
+                         "longRunningSmoke":  "not_run",
+                         "typecheckSeconds":  null,
+                         "unitTestSeconds":  null,
+                         "integrationTestSeconds":  null,
+                         "buildSeconds":  null,
+                         "installerPortableBuildSeconds":  null
+                     },
+    "environment":  {
+                        "os":  "Microsoft Windows NT 10.0.26100.0",
+                        "node":  "v24.18.0",
+                        "packageManager":  "npm 11.16.0"
+                    }
+}

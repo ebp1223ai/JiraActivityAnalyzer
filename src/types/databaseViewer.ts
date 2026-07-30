@@ -43,10 +43,10 @@ export type IssueViewerSessionState = {
   status: "initial" | "loading" | "ready" | "not-found" | "unavailable" | "error";
   message: string;
   activeTab: string;
-  activityStreamQuery: ViewerTableQuery;
-  activityStreamResult: ViewerTableResult | null;
-  activityStreamStatus: "idle" | "loading" | "ready" | "error";
-  activityStreamMessage: string;
+  activityEventsQuery: ViewerTableQuery;
+  activityEventsResult: ViewerTableResult | null;
+  activityEventsStatus: "idle" | "loading" | "ready" | "error";
+  activityEventsMessage: string;
 };
 
 export type UserViewerSessionState = {
@@ -56,7 +56,7 @@ export type UserViewerSessionState = {
   detail: Record<string, unknown> | null;
   status: "initial" | "loading" | "ready" | "error";
   message: string;
-  activeTab: "Related Issues" | "Activity Stream" | "All Activity Events";
+  activeTab: "Related Issues" | "All Activity Events";
   startDate: string;
   endDate: string;
   eventType: string;
@@ -65,7 +65,6 @@ export type UserViewerSessionState = {
   relatedQuery: ViewerTableQuery;
   eventQuery: ViewerTableQuery;
   relatedResult: ViewerTableResult | null;
-  activityStreamResult: ViewerTableResult | null;
   allEventsResult: ViewerTableResult | null;
 };
 import type { ViewerTableQuery, ViewerTableResult } from "./activityViewerQuery";

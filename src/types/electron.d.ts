@@ -87,10 +87,11 @@ declare global {
         getIssue: (payload: { issueKey: string }) => Promise<IssueViewerDto>;
         listUsers: (payload?: { search?: string; limit?: number; offset?: number }) => Promise<{ total: number; limit: number; offset: number; items: Array<Record<string, unknown>> }>;
         getUser: (payload: { userId: string; limit?: number; offset?: number }) => Promise<Record<string, unknown>>;
+        userDistributions: (payload: { userId: string }) => Promise<{ totalRelatedIssues: number; projectKey: Array<{ value: string; count: number }>; issueType: Array<{ value: string; count: number }>; status: Array<{ value: string; count: number }>; priority: Array<{ value: string; count: number }> }>;
         userRelatedIssues: (payload: { userId: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
-        userEvents: (payload: { userId: string; scope: "activity_stream" | "all"; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
-        issueActivityStream: (payload: { issueKey: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
-        distinctValues: (payload: { source: "databaseIssues" | "userRelatedIssues" | "userEvents" | "userActivityStream" | "issueActivityStream"; subjectId?: string; field: string; search?: string; limit?: number }) => Promise<ViewerDistinctResult>;
+        userEvents: (payload: { userId: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
+        issueEvents: (payload: { issueKey: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
+        distinctValues: (payload: { source: "databaseIssues" | "userRelatedIssues" | "userEvents" | "issueEvents"; subjectId?: string; field: string; search?: string; limit?: number }) => Promise<ViewerDistinctResult>;
       };
       uiPreferences?: {
         get: () => Promise<UiPreferencesLoadResult>;
@@ -116,9 +117,11 @@ declare global {
         activityStreamManualReplay: (payload: { connection: JiraConnection; manualUrl: string; runId: string }) => Promise<Record<string, unknown>>;
         precisionProbe: (payload: { connection: JiraConnection; selectedUsers: string[]; startInclusive: string; endExclusive: string; activityStreamEndInclusive: string; projectScope: string; activityStreamUser: string; activityStreamQueryMode: "auto" | "username" | "escaped_username" | "email" | "custom"; activityStreamRelativeLinks: boolean; activityStreamRunId: string; activityStreamDateQueryMode: "none" | "startDate_endDate" | "update_date_after_before" | "both"; activityStreamChunkingMode?: "off" | "auto" | "monthly" | "weekly" | "custom_days"; activityStreamCustomChunkDays?: number; maxResults: number; maxResultsSource: "custom" | "quick"; largeMaxResultsConfirmed: boolean; standardFlow?: boolean; advancedOverrideUsed?: boolean; broadJql: string }) => Promise<Record<string, unknown>>;
       fullFetch: (payload: { connection: JiraConnection; fetchQueue: unknown[]; rawDataMode: "auto_save_raw_per_issue"; selectedUser: string; startDate: string; endDate: string; jql: string; candidateIssues: unknown[]; selectedIssues: string[]; relatedIssuesStatus: string; fetchRemoteLinks: boolean; directIssueKeys: string[] }) => Promise<Record<string, unknown>>;
+        getActiveFullFetchRun: () => Promise<Record<string, unknown> | null>;
+        getFullFetchRunStatus: (runId: string) => Promise<Record<string, unknown> | null>;
         previewSourceArchive: (payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => Promise<Record<string, unknown>>;
         exportSourceArchive: (payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => Promise<Record<string, unknown>>;
-        cancelFullFetch: () => Promise<{ ok: boolean; runId?: string; stagingId?: string; message?: string }>;
+        cancelFullFetch: (runId?: string) => Promise<{ ok: boolean; runId?: string; stagingId?: string; message?: string }>;
       scanFullFetchStaging: () => Promise<{ found: boolean; runs?: Array<{ state: Record<string, unknown>; preview: Record<string, unknown> }>; latest?: { state: Record<string, unknown>; preview: Record<string, unknown> } | null }>;
       fullFetchStagingAction: (payload: { stagingId: string; action: "open_folder" | "export_completed" | "delete_failed" }) => Promise<Record<string, unknown>>;
         logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO"; message: string }) => Promise<{ ok: boolean; appLogPath?: string; actionLogPath?: string; actionLogAvailable?: boolean; fullFetchLogPath?: string; error?: string }>;
@@ -126,8 +129,8 @@ declare global {
         loadWorkflowSnapshot: () => Promise<{ found: boolean; filePath: string; snapshot?: Record<string, unknown>; error?: string }>;
         actionLogDiagnostics: () => Promise<{ actionLogPath: string; actionLogAvailable: boolean; actionLogNote: string }>;
         openDiagnosticsFolder: (payload?: { filePath?: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;
-        onFullFetchProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
-        onFullFetchLog: (callback: (line: string) => void) => () => void;
+        onFullFetchProgress: (runId: string, callback: (progress: Record<string, unknown>) => void) => () => void;
+        onFullFetchLog: (runId: string, callback: (line: string) => void) => () => void;
         saveExport: (payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
         saveFullFetchResult: (payload: { runId: string }) => Promise<{ canceled: boolean; operationId?: string; filePath?: string; folderPath?: string; fileSize?: number; sha256?: string; staging?: Record<string, unknown>; fileSave?: Record<string, unknown>; databaseWrite?: Record<string, unknown>; logs?: string[] }>;
         openExportFolder: (payload?: { folderPath?: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;

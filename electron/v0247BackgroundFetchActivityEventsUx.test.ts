@@ -8,7 +8,8 @@ import { createActivityTimelineRunContext, validateActivityTimelineRunContext } 
 import { createCurrentStateDatabase, CURRENT_STATE_SCHEMA_VERSION } from "./currentStateArchive.js";
 import {
   queryDatabaseDistinctValues,
-  queryDatabaseIssueActivityStream,
+  queryDatabaseIssueEvents,
+  queryDatabaseUserDistributions,
   queryDatabaseUserEvents,
   queryDatabaseUserRelatedIssues
 } from "./databaseViewer.js";
@@ -17,18 +18,35 @@ import { defaultUiPreferences, loadUiPreferences, updateUiPreferences } from "./
 const root = process.cwd();
 const analysisSource = fs.readFileSync(path.join(root, "src", "routes", "AnalysisPage.tsx"), "utf8");
 const connectionSource = fs.readFileSync(path.join(root, "src", "routes", "ConnectionsPage.tsx"), "utf8");
+const userViewerSource = fs.readFileSync(path.join(root, "src", "routes", "UserViewerPage.tsx"), "utf8");
+const mainSource = fs.readFileSync(path.join(root, "electron", "main.ts"), "utf8");
+const preloadSource = fs.readFileSync(path.join(root, "electron", "preload.ts"), "utf8");
 const issueViewerSource = fs.readFileSync(path.join(root, "src", "routes", "IssueViewerPage.tsx"), "utf8");
 const contentSource = fs.readFileSync(path.join(root, "src", "components", "JiraContent.tsx"), "utf8");
 const databaseTableSource = fs.readFileSync(path.join(root, "src", "components", "DatabaseIssueTable.tsx"), "utf8");
 
-assert.equal(CURRENT_STATE_SCHEMA_VERSION, 2, "v0.2.46 must not change Current-State schema v2");
+assert.equal(CURRENT_STATE_SCHEMA_VERSION, 2, "v0.2.47 must not change Current-State schema v2");
 assert.doesNotMatch(analysisSource, /startDate:\s*"2026-01-01"/);
 assert.match(analysisSource, /createActivityTimelineRunContext/);
 assert.doesNotMatch(connectionSource, /testAndSaveConnection|Save Jira Settings|Update Jira Settings/);
 assert.doesNotMatch(connectionSource, /<input|<select/);
 assert.match(connectionSource, /testConnection\(activeConnection\)/);
-assert.match(issueViewerSource, /"Activity Stream"/);
-assert.match(issueViewerSource, /issueActivityStream/);
+assert.doesNotMatch(issueViewerSource, /"Activity Stream"/);
+assert.doesNotMatch(issueViewerSource, /issueActivityStream/);
+assert.match(issueViewerSource, /issueEvents/);
+assert.doesNotMatch(userViewerSource, /"Activity Stream"/);
+assert.match(userViewerSource, /Related Issue Distributions/);
+assert.match(mainSource, /user-analysis:get-active-full-fetch-run/);
+assert.match(mainSource, /user-analysis:get-full-fetch-run-status/);
+assert.match(mainSource, /BrowserWindow\.getAllWindows\(\)/);
+assert.match(preloadSource, /getActiveFullFetchRun/);
+assert.match(preloadSource, /onFullFetchProgress: \(runId:/);
+assert.match(analysisSource, /getActiveFullFetchRun/);
+assert.match(analysisSource, /isFullFetchActive/);
+assert.match(databaseTableSource, /draftText/);
+assert.match(databaseTableSource, /onCompositionStart/);
+assert.match(databaseTableSource, /Loading database issues/);
+assert.doesNotMatch(issueViewerSource, /source: "issueActivityStream"/);
 assert.doesNotMatch(contentSource, /dangerouslySetInnerHTML/);
 assert.match(contentSource, /Attachment image:/);
 assert.doesNotMatch(databaseTableSource, /Exact value\.\.\./);
@@ -52,14 +70,14 @@ assert.deepEqual(context.requestWindows.map((window) => [window.start, window.en
 assert.equal(validateActivityTimelineRunContext(context).runId, context.runId);
 assert.throws(() => validateActivityTimelineRunContext({ ...context, effectiveEndDate: "2026-03-02" }), /RUN_CONTEXT/);
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0246-"));
+const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0247-"));
 const databasePath = path.join(tempRoot, "viewer.sqlite");
 try {
   createCurrentStateDatabase({
     targetPath: databasePath,
-    appVersion: "0.2.46-test",
+    appVersion: "0.2.47-test",
     binding: { serverIdentity: "synthetic-server", baseUrlNormalized: "https://jira.example.invalid" },
-    databaseId: "synthetic-v0246-db",
+    databaseId: "synthetic-v0247-db",
     now: "2026-07-29T00:00:00.000Z"
   });
   const db = new DatabaseSync(databasePath);
@@ -100,38 +118,38 @@ try {
   assert.equal(related.totalCount, 2);
   assert.deepEqual(related.rows.map((row) => row.issueKey), ["SYNTH-1", "SYNTH-2"]);
 
-  const allEvents = queryDatabaseUserEvents(databasePath, "synthetic-account", "all", {
+  const allEvents = queryDatabaseUserEvents(databasePath, "synthetic-account", {
     page: 1, pageSize: 50, sort: { field: "eventTime", direction: "asc" }, filters: {}
   });
   assert.equal(allEvents.totalCount, 2);
-  const stream = queryDatabaseUserEvents(databasePath, "synthetic-account", "activity_stream", {
-    page: 1, pageSize: 50, sort: { field: "eventTime", direction: "asc" }, filters: {}
-  });
-  assert.equal(stream.totalCount, 1);
-  assert.equal(stream.rows[0].issueKey, "SYNTH-2");
-  assert.equal(stream.sourceStatus, "confirmed");
+  assert.deepEqual(allEvents.rows.map((row) => row.issueKey), ["SYNTH-1", "SYNTH-2"]);
 
-  const unidentifiable = queryDatabaseIssueActivityStream(databasePath, "SYNTH-1", {
+  const issueEvents = queryDatabaseIssueEvents(databasePath, "SYNTH-1", {
     page: 1, pageSize: 50, sort: { field: "eventTime", direction: "asc" }, filters: {}
   });
-  assert.equal(unidentifiable.totalCount, 0);
-  assert.equal(unidentifiable.sourceStatus, "source_unidentifiable");
-  assert.equal(unidentifiable.unidentifiableSourceCount, 1);
+  assert.equal(issueEvents.totalCount, 1);
+  assert.equal(issueEvents.rows[0].sourceProvenance, "jira_changelog");
+
+  const distributions = queryDatabaseUserDistributions(databasePath, "synthetic-account");
+  assert.equal(distributions.totalRelatedIssues, 2);
+  assert.deepEqual(distributions.projectKey.map((item) => [item.value, item.count]), [["SYNTH", 2]]);
 
   const distinct = queryDatabaseDistinctValues(databasePath, {
-    source: "userEvents", subjectId: "synthetic-account", field: "sourceProvenance", search: "jira", limit: 100
+    source: "issueEvents", subjectId: "SYNTH-1", field: "sourceProvenance", search: "jira", limit: 100
   });
-  assert.equal(distinct.values.length, 2);
+  assert.equal(distinct.values.length, 1);
 
   const defaults = defaultUiPreferences();
   assert.equal(defaults.databaseIssueList.pageSize, 200);
-  assert.equal(defaults.issueActivityStream.pageSize, 50);
-  updateUiPreferences(tempRoot, "issueActivityStream", { ...defaults.issueActivityStream, visibleColumns: ["eventTime", "eventType"], pageSize: 100 });
+  assert.equal(defaults.issueActivityEvents.pageSize, 50);
+  assert.equal("issueActivityStream" in defaults, false);
+  assert.equal("userActivityStream" in defaults, false);
+  updateUiPreferences(tempRoot, "issueActivityEvents", { ...defaults.issueActivityEvents, visibleColumns: ["eventTime", "eventType"], pageSize: 100 });
   const persisted = loadUiPreferences(tempRoot);
-  assert.equal(persisted.preferences.issueActivityStream.pageSize, 100);
-  assert.deepEqual(persisted.preferences.issueActivityStream.visibleColumns, ["eventTime", "eventType"]);
+  assert.equal(persisted.preferences.issueActivityEvents.pageSize, 100);
+  assert.deepEqual(persisted.preferences.issueActivityEvents.visibleColumns, ["eventTime", "eventType"]);
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true });
 }
 
-console.log("v0.2.46 frozen run context, SQLite viewers, provenance, read-only connection, and preferences tests passed.");
+console.log("v0.2.47 background run context, SQLite Activity Events, distributions, and preferences tests passed.");

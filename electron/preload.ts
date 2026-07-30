@@ -46,9 +46,10 @@ contextBridge.exposeInMainWorld("desktopApp", {
     getIssue: (payload: { issueKey: string }) => ipcRenderer.invoke("database-viewer:get-issue", payload),
     listUsers: (payload?: unknown) => ipcRenderer.invoke("database-viewer:list-users", payload),
     getUser: (payload: { userId: string; limit?: number; offset?: number }) => ipcRenderer.invoke("database-viewer:get-user", payload),
+    userDistributions: (payload: { userId: string }) => ipcRenderer.invoke("database-viewer:user-distributions", payload),
     userRelatedIssues: (payload: unknown) => ipcRenderer.invoke("database-viewer:user-related-issues", payload),
     userEvents: (payload: unknown) => ipcRenderer.invoke("database-viewer:user-events", payload),
-    issueActivityStream: (payload: unknown) => ipcRenderer.invoke("database-viewer:issue-activity-stream", payload),
+    issueEvents: (payload: unknown) => ipcRenderer.invoke("database-viewer:issue-events", payload),
     distinctValues: (payload: unknown) => ipcRenderer.invoke("database-viewer:distinct-values", payload)
   },
   uiPreferences: {
@@ -87,9 +88,11 @@ contextBridge.exposeInMainWorld("desktopApp", {
     activityStreamManualReplay: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-manual-replay", payload),
     precisionProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:precision-probe", payload),
     fullFetch: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch", payload),
+    getActiveFullFetchRun: () => ipcRenderer.invoke("user-analysis:get-active-full-fetch-run"),
+    getFullFetchRunStatus: (runId: string) => ipcRenderer.invoke("user-analysis:get-full-fetch-run-status", { runId }),
     previewSourceArchive: (payload: unknown) => ipcRenderer.invoke("user-analysis:preview-source-archive", payload),
     exportSourceArchive: (payload: unknown) => ipcRenderer.invoke("user-analysis:export-source-archive", payload),
-    cancelFullFetch: () => ipcRenderer.invoke("user-analysis:cancel-full-fetch"),
+    cancelFullFetch: (runId?: string) => ipcRenderer.invoke("user-analysis:cancel-full-fetch", { runId }),
     scanFullFetchStaging: () => ipcRenderer.invoke("user-analysis:scan-full-fetch-staging"),
     fullFetchStagingAction: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch-staging-action", payload),
     logAction: (payload: { category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO"; message: string }) => ipcRenderer.invoke("user-analysis:log-action", payload),
@@ -97,13 +100,19 @@ contextBridge.exposeInMainWorld("desktopApp", {
     loadWorkflowSnapshot: () => ipcRenderer.invoke("user-analysis:load-workflow-snapshot"),
     actionLogDiagnostics: () => ipcRenderer.invoke("user-analysis:action-log-diagnostics"),
     openDiagnosticsFolder: (payload?: { filePath?: string }) => ipcRenderer.invoke("user-analysis:open-diagnostics-folder", payload),
-    onFullFetchProgress: (callback: (progress: unknown) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => callback(progress);
+    onFullFetchProgress: (runId: string, callback: (progress: unknown) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => {
+        const payload = progress as { runId?: string };
+        if (!runId || payload?.runId === runId) callback(progress);
+      };
       ipcRenderer.on("user-analysis:full-fetch-progress", listener);
       return () => ipcRenderer.removeListener("user-analysis:full-fetch-progress", listener);
     },
-    onFullFetchLog: (callback: (line: string) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, line: string) => callback(line);
+    onFullFetchLog: (runId: string, callback: (line: string) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, value: { runId?: string; line?: string } | string) => {
+        const payload = typeof value === "string" ? { runId: "", line: value } : value;
+        if ((!runId || payload.runId === runId) && payload.line) callback(payload.line);
+      };
       ipcRenderer.on("user-analysis:full-fetch-log", listener);
       return () => ipcRenderer.removeListener("user-analysis:full-fetch-log", listener);
     },

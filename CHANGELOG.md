@@ -1,5 +1,16 @@
 # Changelog
 
+
+## 0.2.47 - Background Fetch and Activity Events UX
+
+- Kept Step 3 Full Fetch in Electron main across route/tab/viewer navigation with retained run snapshots, run-scoped subscriptions, hydration, cancellation, and terminal progress.
+- Stabilized Database Issue List filters by preserving the mounted table shell, input identity, focus, caret, IME composition, and table-local loading state.
+- Removed Issue/User Viewer Activity Stream tabs and their dedicated IPC, session, distinct-query, and preference surfaces.
+- Added complete Issue/User local SQLite Activity Events tables with 50-row paging, filtering, sorting, and readable shared event semantics.
+- Added distinct Related Issue distributions for Project, Issue Type, Status, and Priority with explicit Unknown buckets and filter actions.
+- Added 50-row filtering/paging to payload-backed Changelog and Comments while documenting the schema-v2 server-side query limitation.
+- Replaced legacy Viewer stream preference keys with Issue Activity Events, Changelog, and Comments keys.
+- Kept Current-State schema v2 unchanged with no migration, database recreation, SQLite business write, Viewer Jira call, or attachment download.
 ## 0.2.46 - Table UX, Activity Stream Views and Readable Viewer
 
 - Froze Data Collection Step 1 dates, request windows, run IDs, and fixed round settings in one validated Run Context before any Jira request.

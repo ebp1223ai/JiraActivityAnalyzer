@@ -1,6 +1,19 @@
 # Jira Activity Analyzer
 
 > v0.2.46 adds frozen Data Collection run context, shared SQLite table queries, stable-user and issue Activity Stream views, a read-only Connections page, and safer Jira wiki rendering. Current-State schema remains v2 with no migration or recreation.
+> v0.2.47 keeps Step 3 Full Fetch owned by Electron main across route changes, replaces Viewer Activity Stream tabs with complete local SQLite Activity Events, and stabilizes Database Issue filters. Current-State schema remains v2 with no migration or recreation.
+
+## v0.2.47 Background Fetch and Activity Events UX
+
+- **Navigation-safe Full Fetch:** Electron main retains the active run snapshot, broadcasts run-scoped progress/log events, supports status hydration after route remount, and cancels only the requested run.
+- **Stable Database filters:** Issue List keeps the table shell and filter inputs mounted during refresh, debounces text queries, and preserves IME composition and input focus.
+- **Issue Activity Events:** the Issue Viewer queries all local SQLite `activity_events` for the selected Issue Key with server-side paging, filtering, sorting, and distinct values.
+- **User Activity Events:** the User Viewer retains Related Issues and All Activity Events, removes its Activity Stream tab, and shares readable event type/actor/before/after/source formatting.
+- **User distributions:** Project, Issue Type, Status, and Priority counts use distinct Related Issue keys; missing snapshot values are shown as `Unknown` and each value filters Related Issues.
+- **Payload sections:** Changelog and Comments provide 50-row client paging and filtering over the decoded Issue payload. Schema v2 has no relational changelog/comment tables, so these two sections do not claim SQLite server-side paging.
+- **Preferences:** legacy Viewer stream keys are removed while Issue Activity Events, Changelog, Comments, User Related Issues, and User All Activity Events settings remain in the UI-only JSON preference file.
+- **Compatibility:** no schema change, migration, database recreation, SQLite business write, Viewer Jira call, attachment download, or new native dependency is introduced.
+
 
 ## v0.2.46 Table UX, Activity Stream Views and Readable Viewer
 

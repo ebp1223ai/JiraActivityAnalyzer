@@ -657,7 +657,7 @@ export type UserAnalysisSessionState = {
   fullFetchRunId: string;
   fullFetchStartedAt: string;
   fullFetchFinishedAt: string;
-  fullFetchStatus: "idle" | "running" | "completed" | "completed_with_partial" | "completed_with_errors" | "failed" | "failed_final" | "aborted_on_restart" | "discarded";
+  fullFetchStatus: "idle" | "running" | "cancel_requested" | "cancelled" | "completed" | "completed_with_partial" | "completed_with_errors" | "failed" | "failed_final" | "aborted_on_restart" | "discarded";
   fullFetchSummary: UserAnalysisFullFetchSummary;
   jiraEvidenceSummary: JiraEvidenceSummary | null;
   fullFetchWarnings: string[];
@@ -734,10 +734,10 @@ const initialIssueViewer: IssueViewerSessionState = {
   status: "initial",
   message: "",
   activeTab: "Overview",
-  activityStreamQuery: { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {} },
-  activityStreamResult: null,
-  activityStreamStatus: "idle",
-  activityStreamMessage: ""
+  activityEventsQuery: { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {} },
+  activityEventsResult: null,
+  activityEventsStatus: "idle",
+  activityEventsMessage: ""
 };
 
 const initialUserViewer: UserViewerSessionState = {
@@ -756,7 +756,6 @@ const initialUserViewer: UserViewerSessionState = {
   relatedQuery: { page: 1, pageSize: 50, sort: { field: "lastActivity", direction: "desc" }, filters: {} },
   eventQuery: { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {} },
   relatedResult: null,
-  activityStreamResult: null,
   allEventsResult: null
 };
 

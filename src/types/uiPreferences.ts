@@ -12,9 +12,10 @@ export type UiPreferences = {
   databaseIssueList: TablePreferences<DatabaseIssueColumn>;
   timelineEventList: TablePreferences;
   userRelatedIssues: TablePreferences;
-  userActivityStream: TablePreferences;
   userAllActivityEvents: TablePreferences;
-  issueActivityStream: TablePreferences;
+  issueActivityEvents: TablePreferences;
+  issueChangelog: TablePreferences;
+  issueComments: TablePreferences;
 };
 
 export type UiPreferencesLoadResult = {
@@ -25,7 +26,7 @@ export type UiPreferencesLoadResult = {
 
 export type UiPreferencesUpdate = {
   section: "databaseIssueList" | "timelineEventList" | "userRelatedIssues"
-    | "userActivityStream" | "userAllActivityEvents" | "issueActivityStream";
+    | "userAllActivityEvents" | "issueActivityEvents" | "issueChangelog" | "issueComments";
   value: TablePreferences<DatabaseIssueColumn> | TablePreferences;
 };
 

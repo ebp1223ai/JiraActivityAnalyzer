@@ -10,18 +10,18 @@ import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import { useSessionState } from "../state/SessionStateContext";
 import type { ViewerSection } from "../types/databaseViewer";
 import type { UiPreferences } from "../types/uiPreferences";
+import { formatActivityActor, formatActivityEventType, formatActivityEventValue, formatActivitySource } from "../utils/activityEventDisplay";
 
-const tabs = ["Overview", "Description", "Changelog", "Comments", "Attachments Metadata", "Issue Links", "Remote Links", "Activity Stream", "Activity Events", "Raw Evidence"] as const;
+const tabs = ["Overview", "Description", "Changelog", "Comments", "Attachments Metadata", "Issue Links", "Remote Links", "Activity Events", "Raw Evidence"] as const;
 
-const activityStreamColumns: SqliteTableColumn[] = [
-  { id: "eventTime", label: "Time / 時間", kind: "date", width: 176 },
-  { id: "displayName", label: "User / 使用者", kind: "text", width: 150 },
-  { id: "eventType", label: "Activity Type / 活動類型", kind: "multi", width: 170 },
-  { id: "fieldName", label: "Field / 欄位", kind: "multi", width: 140 },
-  { id: "before", label: "Before / 變更前", kind: "text", width: 200 },
-  { id: "after", label: "After / 變更後", kind: "text", width: 200 },
-  { id: "summary", label: "Title / Summary", kind: "text", width: 240 },
-  { id: "sourceProvenance", label: "Source / 來源", kind: "multi", width: 180 }
+const activityEventColumns: SqliteTableColumn[] = [
+  { id: "eventTime", label: "Time", kind: "date", width: 176 },
+  { id: "displayName", label: "Actor", kind: "text", width: 180, render: (row) => formatActivityActor(row) },
+  { id: "eventType", label: "Type", kind: "multi", width: 170, render: (row) => formatActivityEventType(row.eventType) },
+  { id: "fieldName", label: "Field", kind: "multi", width: 140, render: (row) => formatActivityEventValue(row.fieldName) },
+  { id: "before", label: "Before", kind: "text", width: 220, render: (row) => formatActivityEventValue(row.before) },
+  { id: "after", label: "After", kind: "text", width: 220, render: (row) => formatActivityEventValue(row.after) },
+  { id: "sourceProvenance", label: "Source", kind: "multi", width: 180, render: (row) => formatActivitySource(row.sourceProvenance) }
 ];
 
 function text(value: unknown, fallback = "Unavailable") {
@@ -45,6 +45,8 @@ export function IssueViewerPage() {
   const { issueViewer, setIssueViewer } = useSessionState();
   const [searchParams, setSearchParams] = useSearchParams();
   const [preferences, setPreferences] = useState<UiPreferences | null>(null);
+  const [payloadFilter, setPayloadFilter] = useState("");
+  const [payloadPage, setPayloadPage] = useState(1);
   const result = issueViewer.result;
   const overview = result?.overview ?? {};
 
@@ -84,27 +86,27 @@ export function IssueViewerPage() {
   }, []);
 
   useEffect(() => {
-    if (issueViewer.activeTab !== "Activity Stream" || issueViewer.status !== "ready" || !issueViewer.issueKey) return;
+    if (issueViewer.activeTab !== "Activity Events" || issueViewer.status !== "ready" || !issueViewer.issueKey) return;
     let current = true;
-    patch({ activityStreamStatus: "loading", activityStreamMessage: "" });
-    void window.desktopApp?.databaseViewer?.issueActivityStream({
+    patch({ activityEventsStatus: "loading", activityEventsMessage: "" });
+    void window.desktopApp?.databaseViewer?.issueEvents({
       issueKey: issueViewer.issueKey,
-      query: issueViewer.activityStreamQuery
+      query: issueViewer.activityEventsQuery
     }).then((next) => {
       if (!current) return;
       if (!next) {
-        patch({ activityStreamStatus: "error", activityStreamMessage: "Issue Activity Stream IPC unavailable." });
+        patch({ activityEventsStatus: "error", activityEventsMessage: "Issue Activity Events IPC unavailable." });
         return;
       }
-      patch({ activityStreamResult: next, activityStreamStatus: "ready", activityStreamMessage: "" });
+      patch({ activityEventsResult: next, activityEventsStatus: "ready", activityEventsMessage: "" });
     }).catch((error: unknown) => {
       if (current) patch({
-        activityStreamStatus: "error",
-        activityStreamMessage: error instanceof Error ? error.message : "Issue Activity Stream query failed."
+        activityEventsStatus: "error",
+        activityEventsMessage: error instanceof Error ? error.message : "Issue Activity Events query failed."
       });
     });
     return () => { current = false; };
-  }, [issueViewer.activeTab, issueViewer.status, issueViewer.issueKey, issueViewer.activityStreamQuery, state.database.requestId]);
+  }, [issueViewer.activeTab, issueViewer.status, issueViewer.issueKey, issueViewer.activityEventsQuery, state.database.requestId]);
 
   const overviewRows = useMemo(() => [
     ["Issue Key", text(overview.issueKey)],
@@ -135,8 +137,15 @@ export function IssueViewerPage() {
       : result && issueViewer.activeTab === "Attachments Metadata" ? result.attachments
         : result && issueViewer.activeTab === "Issue Links" ? result.issueLinks
           : result && issueViewer.activeTab === "Remote Links" ? result.remoteLinks
-            : result && issueViewer.activeTab === "Activity Events" ? result.activityEvents : null;
+            : null;
 
+  const payloadRecords = section?.status === "ready" ? section.records : [];
+  const normalizedPayloadFilter = payloadFilter.trim().toLowerCase();
+  const filteredPayloadRecords = normalizedPayloadFilter
+    ? payloadRecords.filter((item) => JSON.stringify(item).toLowerCase().includes(normalizedPayloadFilter))
+    : payloadRecords;
+  const payloadPageCount = Math.max(1, Math.ceil(filteredPayloadRecords.length / 50));
+  const visiblePayloadRecords = filteredPayloadRecords.slice((Math.min(payloadPage, payloadPageCount) - 1) * 50, Math.min(payloadPage, payloadPageCount) * 50);
   return (
     <div className="min-w-0">
       <PageHeader title="Issue 檢視" subtitle="Issue Viewer · Local Database Only" connected={false} />
@@ -164,50 +173,12 @@ export function IssueViewerPage() {
             {issueViewer.activeTab === "Description" ? result.description.status === "ready"
               ? <JiraContent className="rounded-md bg-slate-50 p-4" content={result.description.content || result.description.plainText} format={result.description.format} />
               : <div className="rounded-md border border-slate-300 bg-slate-50 p-6 text-center font-bold text-muted">{result.description.message}</div> : null}
-            {issueViewer.activeTab === "Activity Stream" ? (
-              <div className="space-y-3">
-                <div className={`rounded-md border p-3 text-sm font-semibold ${
-                  issueViewer.activityStreamResult?.sourceStatus === "source_unidentifiable"
-                    ? "border-amber-300 bg-amber-50 text-amber-900"
-                    : "border-blue-200 bg-blue-50 text-blue-900"
-                }`}>
-                  {issueViewer.activityStreamResult?.sourceStatus === "source_unidentifiable"
-                    ? "無法從本機資料辨識可靠的 Jira Activity Stream 來源。其他 activity events 不會被誤列為 Activity Stream。"
-                    : "此分頁只讀取本機 SQLite 中具有可靠 Activity Stream provenance 的紀錄，不會呼叫 Jira API。"}
-                </div>
-                {issueViewer.activityStreamResult ? <SqliteDataTable
-                  columns={activityStreamColumns}
-                  result={issueViewer.activityStreamResult}
-                  query={issueViewer.activityStreamQuery}
-                  loading={issueViewer.activityStreamStatus === "loading"}
-                  error={issueViewer.activityStreamMessage}
-                  preferences={preferences?.issueActivityStream}
-                  onPreferencesChange={(value) => void window.desktopApp?.uiPreferences?.update({
-                    section: "issueActivityStream",
-                    value
-                  }).then((response) => {
-                    if (response) setPreferences(response.preferences);
-                  })}
-                  onQueryChange={(activityStreamQuery) => patch({ activityStreamQuery })}
-                  loadDistinct={async (field, search) => {
-                    const response = await window.desktopApp?.databaseViewer?.distinctValues({
-                      source: "issueActivityStream",
-                      subjectId: issueViewer.issueKey,
-                      field,
-                      search,
-                      limit: 100
-                    });
-                    return response ?? { field, values: [], truncated: false };
-                  }}
-                /> : <div className="p-10 text-center font-bold text-muted">Loading local Activity Stream...</div>}
-              </div>
-            ) : null}
             {section ? sectionState(section, issueViewer.activeTab) : null}
-            {section?.status === "ready" && issueViewer.activeTab === "Changelog" ? <DataTable headers={["Created", "Author", "Field", "Before", "After", "Change"]} rows={section.records.map((item) => [text(item.created), text(item.author), text(item.field), <span className="block max-w-[260px] break-words text-rose-700">{text(item.before, "—")}</span>, <span className="block max-w-[260px] break-words text-emerald-700">{text(item.after, "—")}</span>, text(item.changeKind)])} /> : null}
-            {section?.status === "ready" && issueViewer.activeTab === "Comments" ? <div className="space-y-3">{section.records.map((item) => <article key={text(item.id)} className="rounded-md border border-line bg-white p-4"><header className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"><b>{text(item.author)}</b><span className="text-muted">{text(item.created)}</span>{item.edited ? <span className="rounded bg-amber-100 px-2 py-0.5 font-bold text-amber-800">Edited · {text(item.updated)}</span> : null}</header><JiraContent content={text(item.body, "")} format={(item.bodyFormat === "html" || item.bodyFormat === "wiki") ? item.bodyFormat : "plain"} /></article>)}</div> : null}
-            {section?.status === "ready" && issueViewer.activeTab === "Attachments Metadata" ? <DataTable headers={["Filename", "Size", "Mime Type", "Created", "Author"]} rows={section.records.map((item) => [text(item.filename), text(item.size), text(item.mimeType), text(item.created), text((item.author as Record<string, unknown> | undefined)?.displayName)])} /> : null}
+            {section?.status === "ready" && ["Changelog", "Comments"].includes(issueViewer.activeTab) ? <div className="mb-3 flex flex-wrap items-end justify-between gap-3 rounded-md border border-line bg-slate-50 p-3"><label className="min-w-[240px] flex-1"><span className="mb-1 block text-xs font-black text-muted">Filter current payload section</span><input className="field" value={payloadFilter} onChange={(event) => { setPayloadFilter(event.target.value); setPayloadPage(1); }} placeholder="Author, field, value, or comment text" /></label><div className="text-xs font-bold text-muted">Filtered {filteredPayloadRecords.length.toLocaleString()} / Total {payloadRecords.length.toLocaleString()} / 50 per page</div></div> : null}            {section?.status === "ready" && issueViewer.activeTab === "Changelog" ? <DataTable headers={["Created", "Author", "Field", "Before", "After", "Change"]} rows={visiblePayloadRecords.map((item) => [text(item.created), text(item.author), text(item.field), <span className="block max-w-[260px] break-words text-rose-700">{text(item.before, "—")}</span>, <span className="block max-w-[260px] break-words text-emerald-700">{text(item.after, "—")}</span>, text(item.changeKind)])} /> : null}
+            {section?.status === "ready" && issueViewer.activeTab === "Comments" ? <div className="space-y-3">{visiblePayloadRecords.map((item) => <article key={text(item.id)} className="rounded-md border border-line bg-white p-4"><header className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"><b>{text(item.author)}</b><span className="text-muted">{text(item.created)}</span>{item.edited ? <span className="rounded bg-amber-100 px-2 py-0.5 font-bold text-amber-800">Edited · {text(item.updated)}</span> : null}</header><JiraContent content={text(item.body, "")} format={(item.bodyFormat === "html" || item.bodyFormat === "wiki") ? item.bodyFormat : "plain"} /></article>)}</div> : null}
+            {section?.status === "ready" && ["Changelog", "Comments"].includes(issueViewer.activeTab) && payloadPageCount > 1 ? <div className="my-3 flex items-center justify-end gap-2"><button className="btn" type="button" disabled={payloadPage <= 1} onClick={() => setPayloadPage((page) => Math.max(1, page - 1))}>Previous</button><span className="text-xs font-bold">Page {Math.min(payloadPage, payloadPageCount)} / {payloadPageCount}</span><button className="btn" type="button" disabled={payloadPage >= payloadPageCount} onClick={() => setPayloadPage((page) => Math.min(payloadPageCount, page + 1))}>Next</button></div> : null}            {section?.status === "ready" && issueViewer.activeTab === "Attachments Metadata" ? <DataTable headers={["Filename", "Size", "Mime Type", "Created", "Author"]} rows={section.records.map((item) => [text(item.filename), text(item.size), text(item.mimeType), text(item.created), text((item.author as Record<string, unknown> | undefined)?.displayName)])} /> : null}
             {section?.status === "ready" && ["Issue Links", "Remote Links"].includes(issueViewer.activeTab) ? <DataTable headers={["Type", "Direction / Object", "Issue / URL"]} rows={section.records.map((item) => [text((item.type as Record<string, unknown> | undefined)?.name ?? item.relationship), text(item.inwardIssue ? "Inward" : item.outwardIssue ? "Outward" : item.title), text((item.inwardIssue as Record<string, unknown> | undefined)?.key ?? (item.outwardIssue as Record<string, unknown> | undefined)?.key ?? item.url)])} /> : null}
-            {section?.status === "ready" && issueViewer.activeTab === "Activity Events" ? <DataTable headers={["Time", "Type", "Actor ID", "Actor", "Field", "From", "To"]} rows={section.records.map((item) => [text(item.eventTime), text(item.eventType), text(item.actorAccountId), text(item.actorDisplayName), text(item.fieldName), text(item.fromValueJson), text(item.toValueJson)])} /> : null}
+            {issueViewer.activeTab === "Activity Events" ? <div className="space-y-3"><div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-900">All local SQLite activity events for this Issue Key. No Jira request is sent.</div><SqliteDataTable columns={activityEventColumns} result={issueViewer.activityEventsResult ?? { rows: [], filteredCount: 0, totalCount: 0, page: 1, pageSize: 50, pageCount: 1 }} query={issueViewer.activityEventsQuery} loading={issueViewer.activityEventsStatus === "loading"} error={issueViewer.activityEventsMessage} preferences={preferences?.issueActivityEvents} onPreferencesChange={(value) => void window.desktopApp?.uiPreferences?.update({ section: "issueActivityEvents", value }).then((response) => { if (response) setPreferences(response.preferences); })} onQueryChange={(activityEventsQuery) => patch({ activityEventsQuery })} loadDistinct={async (field, search) => (await window.desktopApp?.databaseViewer?.distinctValues({ source: "issueEvents", subjectId: issueViewer.issueKey, field, search, limit: 100 })) ?? { field, values: [], truncated: false }} /></div> : null}
             {issueViewer.activeTab === "Raw Evidence" ? <div><div className="mb-3 text-xs font-bold text-muted">Schema: {result.rawEvidence.schemaVersion} · Payload Format: {text(result.rawEvidence.payloadFormatVersion)} · Saved: {text(result.rawEvidence.payloadSavedAt)}</div><pre className="thin-scroll max-h-[560px] overflow-auto whitespace-pre-wrap break-all rounded-md bg-slate-950 p-4 text-xs text-slate-100">{result.rawEvidence.preview}</pre>{result.rawEvidence.message ? <p className="mt-2 text-xs font-bold text-amber-700">{result.rawEvidence.message}</p> : null}</div> : null}
           </div>
         </SectionCard>

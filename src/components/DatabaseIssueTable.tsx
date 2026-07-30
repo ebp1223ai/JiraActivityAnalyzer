@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, RotateCcw, Settings2, X } from "lucide-react";
 import type { DatabaseDistributionItem, DatabaseIssueColumn, DatabaseIssueFilters, DatabaseIssueQuery, DatabaseIssueQueryResult } from "../types/databaseQuery";
 import { DATABASE_ISSUE_PAGE_SIZES } from "../types/databaseQuery";
@@ -33,11 +33,43 @@ type Props = {
   onQueryChange: (query: DatabaseIssueQuery) => void;
   onPreferencesChange: (preferences: DatabaseIssueListPreferences) => void;
   distinctOptions?: Partial<Record<DatabaseIssueColumn, DatabaseDistributionItem[]>>;
+  loading?: boolean;
 };
 
-export function DatabaseIssueTable({ result, query, preferences, onQueryChange, onPreferencesChange, distinctOptions = {} }: Props) {
+export function DatabaseIssueTable({ result, query, preferences, onQueryChange, onPreferencesChange, distinctOptions = {}, loading = false }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [composingColumn, setComposingColumn] = useState<DatabaseIssueColumn | null>(null);
+  const [draftText, setDraftText] = useState<Record<"issueKey" | "summary", string>>({
+    issueKey: String(query.filters.issueKey?.value ?? ""),
+    summary: String(query.filters.summary?.value ?? "")
+  });
   const columns = useMemo(() => preferences.columnOrder.filter((column) => preferences.visibleColumns.includes(column)), [preferences]);
+
+  useEffect(() => {
+    if (composingColumn) return;
+    setDraftText({
+      issueKey: String(query.filters.issueKey?.value ?? ""),
+      summary: String(query.filters.summary?.value ?? "")
+    });
+  }, [query.filters.issueKey?.value, query.filters.summary?.value, composingColumn]);
+
+  useEffect(() => {
+    if (composingColumn) return;
+    const timer = window.setTimeout(() => {
+      const nextFilters = { ...query.filters };
+      for (const column of ["issueKey", "summary"] as const) {
+        const value = draftText[column];
+        if (value) nextFilters[column] = { value };
+        else delete nextFilters[column];
+      }
+      const currentIssueKey = String(query.filters.issueKey?.value ?? "");
+      const currentSummary = String(query.filters.summary?.value ?? "");
+      if (currentIssueKey !== draftText.issueKey || currentSummary !== draftText.summary) {
+        onQueryChange({ ...query, page: 1, filters: nextFilters });
+      }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [draftText.issueKey, draftText.summary, composingColumn]);
 
   function setFilter(column: DatabaseIssueColumn, filter: Record<string, unknown> | undefined) {
     const filters = { ...query.filters };
@@ -60,14 +92,19 @@ export function DatabaseIssueTable({ result, query, preferences, onQueryChange, 
     onPreferencesChange({ ...preferences, columnOrder: order });
   }
 
+  function clearFilters() {
+    setDraftText({ issueKey: "", summary: "" });
+    onQueryChange({ ...query, page: 1, filters: {} });
+  }
+
   return (
     <div className="min-w-0">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-line bg-white py-2">
         <div className="text-xs font-bold text-muted">
           Filtered {result.filteredTotal.toLocaleString()} / Database {result.databaseTotal.toLocaleString()}
         </div>
         <div className="flex flex-wrap gap-2">
-          {Object.keys(query.filters).length ? <button className="btn" type="button" onClick={() => onQueryChange({ ...query, page: 1, filters: {} })}><X size={15} />Clear Filters</button> : null}
+          {Object.keys(query.filters).length || draftText.issueKey || draftText.summary ? <button className="btn" type="button" onClick={clearFilters}><X size={15} />Clear Filters</button> : null}
           <button className="btn" type="button" onClick={() => setSettingsOpen((value) => !value)}><Settings2 size={15} />Columns</button>
         </div>
       </div>
@@ -102,7 +139,7 @@ export function DatabaseIssueTable({ result, query, preferences, onQueryChange, 
 
       <div className="thin-scroll max-w-full min-w-0 overflow-x-auto rounded-md border border-line" data-table-scroll-container="true">
         <table className="w-max min-w-full table-fixed text-left text-xs">
-          <thead className="bg-slate-50">
+          <thead className="sticky top-0 z-10 bg-slate-50">
             <tr>
               {columns.map((column) => (
                 <th key={column} style={{ width: preferences.columnWidths[column] ?? (column === "summary" ? 300 : 150) }} className="border-b border-line px-3 py-2 align-top">
@@ -111,7 +148,18 @@ export function DatabaseIssueTable({ result, query, preferences, onQueryChange, 
                     {query.sort.field === column ? query.sort.direction === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : null}
                   </button>
                   <div className="mt-2">
-                    {textFields.has(column) ? <input aria-label={`Filter ${column}`} className="field !px-2 !py-1 text-xs" value={String((query.filters[column] as { value?: string } | undefined)?.value ?? "")} placeholder="Filter..." onChange={(event) => setFilter(column, { value: event.target.value })} /> : null}
+                    {textFields.has(column) ? <input
+                      aria-label={`Filter ${column}`}
+                      className="field !px-2 !py-1 text-xs"
+                      value={draftText[column as "issueKey" | "summary"]}
+                      placeholder="Filter..."
+                      onCompositionStart={() => setComposingColumn(column)}
+                      onCompositionEnd={(event) => {
+                        setDraftText((current) => ({ ...current, [column]: event.currentTarget.value }));
+                        setComposingColumn(null);
+                      }}
+                      onChange={(event) => setDraftText((current) => ({ ...current, [column]: event.target.value }))}
+                    /> : null}
                     {dateFields.has(column) ? <div className="grid gap-1"><input aria-label={`Filter ${column} from`} className="field !px-1 !py-1 text-[11px]" type="date" value={String((query.filters[column] as { from?: string } | undefined)?.from ?? "")} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), from: event.target.value })} /><input aria-label={`Filter ${column} to`} className="field !px-1 !py-1 text-[11px]" type="date" value={String((query.filters[column] as { to?: string } | undefined)?.to ?? "")} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), to: event.target.value })} /></div> : null}
                     {numberFields.has(column) ? <div className="grid grid-cols-2 gap-1"><input aria-label={`Filter ${column} min`} className="field !px-1 !py-1" type="number" min={0} placeholder="Min" value={(query.filters[column] as { min?: number } | undefined)?.min ?? ""} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), min: event.target.value === "" ? undefined : Number(event.target.value) })} /><input aria-label={`Filter ${column} max`} className="field !px-1 !py-1" type="number" min={0} placeholder="Max" value={(query.filters[column] as { max?: number } | undefined)?.max ?? ""} onChange={(event) => setFilter(column, { ...(query.filters[column] as object), max: event.target.value === "" ? undefined : Number(event.target.value) })} /></div> : null}
                     {!textFields.has(column) && !dateFields.has(column) && !numberFields.has(column) ? (
@@ -137,6 +185,7 @@ export function DatabaseIssueTable({ result, query, preferences, onQueryChange, 
             </tr>
           </thead>
           <tbody>
+            {loading ? <tr><td colSpan={columns.length} className="h-1 bg-blue-500 p-0" aria-label="Loading database issues" /></tr> : null}
             {result.items.map((item) => (
               <tr key={display(item.issueKey)} className="border-b border-line last:border-b-0 hover:bg-blue-50/40">
                 {columns.map((column) => <td key={column} className="max-w-0 px-3 py-2">

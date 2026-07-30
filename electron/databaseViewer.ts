@@ -562,6 +562,43 @@ export function queryDatabaseUserRelatedIssues(databasePath: string, userIdInput
   }
 }
 
+
+export function queryDatabaseUserDistributions(databasePath: string, userIdInput: string) {
+  const userId = String(userIdInput ?? "").trim();
+  if (!userId) throw new Error("STABLE_USER_ID_REQUIRED");
+  const dimensions = {
+    projectKey: "o.project_key",
+    issueType: "s.issue_type",
+    status: "s.status",
+    priority: "s.priority"
+  } as const;
+  const { db } = openReadOnly(databasePath);
+  try {
+    const totalRelatedIssues = Number(row(db.prepare("SELECT COUNT(DISTINCT source_object_id) AS count FROM activity_events WHERE actor_account_id = ?").get(userId)).count ?? 0);
+    const result: Record<string, Array<{ value: string; count: number }>> = {};
+    for (const [key, expression] of Object.entries(dimensions)) {
+      result[key] = rows(db.prepare(`
+        SELECT COALESCE(NULLIF(TRIM(${expression}), ''), 'Unknown') AS value,
+          COUNT(DISTINCT o.id) AS count
+        FROM activity_events e
+        JOIN source_objects o ON o.id=e.source_object_id
+        LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
+        WHERE e.actor_account_id = ?
+        GROUP BY COALESCE(NULLIF(TRIM(${expression}), ''), 'Unknown')
+        ORDER BY count DESC, value ASC
+      `).all(userId)) as Array<{ value: string; count: number }>;
+    }
+    return {
+      totalRelatedIssues,
+      projectKey: result.projectKey ?? [],
+      issueType: result.issueType ?? [],
+      status: result.status ?? [],
+      priority: result.priority ?? []
+    };
+  } finally {
+    db.close();
+  }
+}
 const USER_EVENT_COLUMNS = {
   eventTime: { expression: "e.event_time", kind: "date" },
   issueKey: { expression: "o.issue_key", kind: "text" },
@@ -573,38 +610,31 @@ const USER_EVENT_COLUMNS = {
   sourceProvenance: { expression: "e.source_provenance", kind: "multi" }
 } as const;
 
-export function queryDatabaseUserEvents(databasePath: string, userIdInput: string, scope: "activity_stream" | "all", input: ViewerQueryInput = {}) {
+export function queryDatabaseUserEvents(databasePath: string, userIdInput: string, input: ViewerQueryInput = {}) {
   const userId = String(userIdInput ?? "").trim();
   if (!userId) throw new Error("STABLE_USER_ID_REQUIRED");
-  return queryDatabaseEvents(databasePath, { userId, issueKey: "", scope }, input);
+  return queryDatabaseEvents(databasePath, { userId, issueKey: "" }, input);
 }
 
-export function queryDatabaseIssueActivityStream(databasePath: string, issueKeyInput: string, input: ViewerQueryInput = {}) {
+export function queryDatabaseIssueEvents(databasePath: string, issueKeyInput: string, input: ViewerQueryInput = {}) {
   const issueKey = normalizeSourceObjectKey("jira", "issue", issueKeyInput);
-  return queryDatabaseEvents(databasePath, { userId: "", issueKey, scope: "activity_stream" }, input);
+  return queryDatabaseEvents(databasePath, { userId: "", issueKey }, input);
 }
 
-function queryDatabaseEvents(databasePath: string, subject: { userId: string; issueKey: string; scope: "activity_stream" | "all" }, input: ViewerQueryInput) {
+function queryDatabaseEvents(databasePath: string, subject: { userId: string; issueKey: string }, input: ViewerQueryInput) {
   const sortColumns = Object.fromEntries(Object.entries(USER_EVENT_COLUMNS).map(([key, value]) => [key, value.expression]));
   const query = normalizeViewerQuery(input, sortColumns, "eventTime");
   const filter = viewerFilterSql(query.filters, USER_EVENT_COLUMNS);
   const subjectWhere = subject.userId ? "e.actor_account_id = ?" : "o.issue_key = ?";
   const subjectValue = subject.userId || subject.issueKey;
-  const streamPlaceholders = CONFIRMED_ACTIVITY_STREAM_PROVENANCE.map(() => "?").join(",");
-  const scopeWhere = subject.scope === "activity_stream" ? `AND LOWER(e.source_provenance) IN (${streamPlaceholders})` : "";
-  const where = `${subjectWhere} ${scopeWhere} ${filter.where.length ? `AND ${filter.where.join(" AND ")}` : ""}`;
-  const parameters: Array<string | number> = [subjectValue, ...(subject.scope === "activity_stream" ? CONFIRMED_ACTIVITY_STREAM_PROVENANCE : []), ...filter.parameters];
+  const where = `${subjectWhere} ${filter.where.length ? `AND ${filter.where.join(" AND ")}` : ""}`;
+  const parameters: Array<string | number> = [subjectValue, ...filter.parameters];
   const { db } = openReadOnly(databasePath);
   try {
-    const subjectTotal = Number(row(db.prepare(`
+    const totalCount = Number(row(db.prepare(`
       SELECT COUNT(*) AS count FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
       WHERE ${subjectWhere}
     `).get(subjectValue)).count ?? 0);
-    const confirmedTotal = Number(row(db.prepare(`
-      SELECT COUNT(*) AS count FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
-      WHERE ${subjectWhere} AND LOWER(e.source_provenance) IN (${streamPlaceholders})
-    `).get(subjectValue, ...CONFIRMED_ACTIVITY_STREAM_PROVENANCE)).count ?? 0);
-    const totalCount = subject.scope === "activity_stream" ? confirmedTotal : subjectTotal;
     const filteredCount = Number(row(db.prepare(`
       SELECT COUNT(*) AS count FROM activity_events e
       JOIN source_objects o ON o.id=e.source_object_id
@@ -623,16 +653,7 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
       ORDER BY ${sortColumns[query.sortField]} ${query.sortDirection.toUpperCase()}, e.id ASC
       LIMIT ? OFFSET ?
     `).all(...parameters, query.pageSize, (page - 1) * query.pageSize));
-    return {
-      rows: rowsResult,
-      filteredCount,
-      totalCount,
-      page,
-      pageSize: query.pageSize,
-      pageCount,
-      sourceStatus: subject.scope !== "activity_stream" ? "confirmed" : confirmedTotal ? "confirmed" : subjectTotal ? "source_unidentifiable" : "no_records",
-      unidentifiableSourceCount: Math.max(0, subjectTotal - confirmedTotal)
-    };
+    return { rows: rowsResult, filteredCount, totalCount, page, pageSize: query.pageSize, pageCount };
   } finally {
     db.close();
   }
@@ -839,15 +860,10 @@ export function queryDatabaseDistinctValues(
       from: "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id",
       subject: "e.actor_account_id = ?"
     },
-    userActivityStream: {
-      fields: { eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", issueKey: "o.issue_key" },
+    issueEvents: {
+      fields: { eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", userId: "e.actor_account_id", displayName: "e.actor_display_name" },
       from: "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id",
-      subject: "e.actor_account_id = ? AND LOWER(e.source_provenance) IN ('jira_activity_stream','activity_stream','jira:activity_stream')"
-    },
-    issueActivityStream: {
-      fields: { eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", userId: "e.actor_account_id" },
-      from: "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id",
-      subject: "o.issue_key = ? AND LOWER(e.source_provenance) IN ('jira_activity_stream','activity_stream','jira:activity_stream')"
+      subject: "o.issue_key = ?"
     }
   };
   const definition = definitions[source];
