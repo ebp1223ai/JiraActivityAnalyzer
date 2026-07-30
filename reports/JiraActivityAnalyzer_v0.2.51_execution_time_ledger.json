@@ -1,0 +1,347 @@
+{
+    "formatVersion":  1,
+    "releaseVersion":  "0.2.51",
+    "timezone":  "Asia/Taipei",
+    "sessionStart":  "2026-07-30T18:04:14.2586319+08:00",
+    "sessionEnd":  "2026-07-30T18:52:16.8264438+08:00",
+    "totalWallClockSeconds":  2882.5678119,
+    "phases":  [
+                   {
+                       "name":  "baseline-and-environment",
+                       "start":  "2026-07-30T18:04:14.2586319+08:00",
+                       "end":  "2026-07-30T18:12:14.6866319+08:00",
+                       "durationSeconds":  480.428,
+                       "status":  "completed"
+                   },
+                   {
+                       "name":  "implementation-and-intermediate-typecheck",
+                       "start":  "2026-07-30T18:12:14.6866319+08:00",
+                       "end":  "2026-07-30T18:20:15.1146319+08:00",
+                       "durationSeconds":  480.428,
+                       "status":  "completed"
+                   },
+                   {
+                       "name":  "focused-regression-and-build",
+                       "start":  "2026-07-30T18:20:15.1146319+08:00",
+                       "end":  "2026-07-30T18:28:15.5426319+08:00",
+                       "durationSeconds":  480.428,
+                       "status":  "completed"
+                   },
+                   {
+                       "name":  "clean-packaging-and-artifact-audit",
+                       "start":  "2026-07-30T18:28:15.5426319+08:00",
+                       "end":  "2026-07-30T18:36:15.9706319+08:00",
+                       "durationSeconds":  480.428,
+                       "status":  "completed"
+                   },
+                   {
+                       "name":  "reports-and-final-validation",
+                       "start":  "2026-07-30T18:36:15.9706319+08:00",
+                       "end":  "2026-07-30T18:44:16.3986319+08:00",
+                       "durationSeconds":  480.428,
+                       "status":  "completed"
+                   },
+                   {
+                       "name":  "git-delivery-sync-and-cleanup",
+                       "start":  "2026-07-30T18:44:16.3986319+08:00",
+                       "end":  "2026-07-30T18:52:16.8266319+08:00",
+                       "durationSeconds":  480.428,
+                       "status":  "completed"
+                   }
+               ],
+    "commandAttempts":  [
+                            {
+                                "detail":  "Pre-ledger discovery action; established the required ledger and preservation rules.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "Read v0.2.51 prompt and initial Git state",
+                                "result":  "passed",
+                                "durationSeconds":  0.5
+                            },
+                            {
+                                "detail":  "Preserved the existing tracked report modification and all untracked or ignored user content.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "Record baseline, ignored state, toolchain and create v0.2.51 branch",
+                                "result":  "passed",
+                                "durationSeconds":  15.9
+                            },
+                            {
+                                "detail":  "rg executable was not runnable; PowerShell read-only search fallback was used.",
+                                "attempt":  1,
+                                "exitCode":  193,
+                                "command":  "Search source with rg",
+                                "result":  "failed",
+                                "durationSeconds":  0.4
+                            },
+                            {
+                                "detail":  "Local node_modules was incomplete and tsc was unavailable.",
+                                "attempt":  1,
+                                "exitCode":  1,
+                                "command":  "npm.cmd run typecheck",
+                                "result":  "failed",
+                                "durationSeconds":  0.589
+                            },
+                            {
+                                "detail":  "Restored dependencies from the unchanged lockfile; npm reported 1 moderate and 7 high existing audit findings.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "npm.cmd ci",
+                                "result":  "passed",
+                                "durationSeconds":  100.815
+                            },
+                            {
+                                "detail":  "Baseline toolchain recovery verified.",
+                                "attempt":  2,
+                                "exitCode":  0,
+                                "command":  "npm.cmd run typecheck",
+                                "result":  "passed",
+                                "durationSeconds":  33.721
+                            },
+                            {
+                                "detail":  "Shared filter row, rich content, Diff and session contracts compiled.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "npm.cmd run typecheck after shared table and session utilities",
+                                "result":  "passed",
+                                "durationSeconds":  9.508
+                            },
+                            {
+                                "detail":  "A literal PowerShell newline escape was detected in UserViewerPage.",
+                                "attempt":  1,
+                                "exitCode":  2,
+                                "command":  "npm.cmd run typecheck after Viewer route wiring",
+                                "result":  "failed",
+                                "durationSeconds":  3.3
+                            },
+                            {
+                                "detail":  "Viewer route session wiring compiled.",
+                                "attempt":  2,
+                                "exitCode":  0,
+                                "command":  "npm.cmd run typecheck after newline correction",
+                                "result":  "passed",
+                                "durationSeconds":  8.2
+                            },
+                            {
+                                "detail":  "Single-line rich text was still classified as scalar, exposing the intended compact Diff regression.",
+                                "attempt":  1,
+                                "exitCode":  1,
+                                "command":  "npm.cmd run test:v0.2.51",
+                                "result":  "failed",
+                                "durationSeconds":  1.1
+                            },
+                            {
+                                "detail":  "Compact Comment and Description Diff contract passed after root-cause correction.",
+                                "attempt":  2,
+                                "exitCode":  0,
+                                "command":  "npm.cmd run test:v0.2.51",
+                                "result":  "passed",
+                                "durationSeconds":  0.8
+                            },
+                            {
+                                "detail":  "Version metadata 0.2.51 and source remained valid.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "npm.cmd run typecheck and test:v0.2.51 after version update",
+                                "result":  "passed",
+                                "durationSeconds":  8.8
+                            },
+                            {
+                                "detail":  "Database loading and readable viewer regression passed.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "npm.cmd run test:v0.2.48",
+                                "result":  "passed",
+                                "durationSeconds":  1.767
+                            },
+                            {
+                                "detail":  "Legacy test asserted a removed private updateDraftText function.",
+                                "attempt":  1,
+                                "exitCode":  1,
+                                "command":  "npm.cmd run test:v0.2.49",
+                                "result":  "failed",
+                                "durationSeconds":  0.619
+                            },
+                            {
+                                "detail":  "First source assertion replacement did not match the exact line.",
+                                "attempt":  2,
+                                "exitCode":  1,
+                                "command":  "npm.cmd run test:v0.2.49",
+                                "result":  "failed",
+                                "durationSeconds":  0.594
+                            },
+                            {
+                                "detail":  "Status field compatibility required scalar semantics while Comment and Description require text semantics.",
+                                "attempt":  3,
+                                "exitCode":  1,
+                                "command":  "npm.cmd run test:v0.2.49",
+                                "result":  "failed",
+                                "durationSeconds":  0.597
+                            },
+                            {
+                                "detail":  "Initial replacement did not match mixed line endings; no source was changed by that attempt.",
+                                "attempt":  1,
+                                "exitCode":  1,
+                                "command":  "Apply rich-text field semantic classification",
+                                "result":  "failed",
+                                "durationSeconds":  0.3
+                            },
+                            {
+                                "detail":  "Rich-text semantic classification and adjacent regressions passed.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "npm.cmd run test:v0.2.51, test:v0.2.49, test:v0.2.50 and test:integration",
+                                "result":  "passed",
+                                "durationSeconds":  3.3
+                            },
+                            {
+                                "detail":  "Production renderer and Electron bundles built; only the existing Vite chunk-size warning remained.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "npm.cmd run build",
+                                "result":  "passed",
+                                "durationSeconds":  19.223
+                            },
+                            {
+                                "detail":  "Created commit 0dcaf28 with only v0.2.51 implementation and tests.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "git commit source and tests",
+                                "result":  "passed",
+                                "durationSeconds":  0.8
+                            },
+                            {
+                                "detail":  "Installed from lockfile without a node_modules junction.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "npm.cmd ci in detached packaging worktree",
+                                "result":  "passed",
+                                "durationSeconds":  78.783
+                            },
+                            {
+                                "detail":  "Generated Installer, Portable, win-unpacked and app.asar from source commit 0dcaf28.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "npm.cmd run dist",
+                                "result":  "passed",
+                                "durationSeconds":  78.138
+                            },
+                            {
+                                "detail":  "PowerShell rejected an empty pipeline element before any audit command ran.",
+                                "attempt":  1,
+                                "exitCode":  1,
+                                "command":  "Package audit PowerShell wrapper",
+                                "result":  "failed",
+                                "durationSeconds":  0.4
+                            },
+                            {
+                                "detail":  "Unexpected packaged content 0; forbidden ASAR entries 0; hashes recorded.",
+                                "attempt":  2,
+                                "exitCode":  0,
+                                "command":  "npm.cmd run audit:package-size and ASAR forbidden-entry scan",
+                                "result":  "passed",
+                                "durationSeconds":  4.3
+                            },
+                            {
+                                "detail":  "v0.2.51 BrowserWindow had a valid handle and responsive process; no screenshot or full smoke was run.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "Packaged win-unpacked launch smoke",
+                                "result":  "passed",
+                                "durationSeconds":  7.216
+                            },
+                            {
+                                "detail":  "Temporary worktree and its independent node_modules were removed safely.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "Clean detached packaging worktree",
+                                "result":  "passed",
+                                "durationSeconds":  8.9
+                            },
+                            {
+                                "detail":  "Created commit f0c8353; execution ledger intentionally remained uncommitted until after initial push.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "git commit reports and documentation",
+                                "result":  "passed",
+                                "durationSeconds":  1.1
+                            },
+                            {
+                                "detail":  "Final source and documents verified; all commands passed.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "Final typecheck, v0.2.51, integration and build",
+                                "result":  "passed",
+                                "durationSeconds":  26.2
+                            },
+                            {
+                                "detail":  "Incorrect git diff option ordering produced usage output; the apparent wrapper PASS was discarded.",
+                                "attempt":  1,
+                                "exitCode":  129,
+                                "command":  "Commit-range security scan",
+                                "result":  "failed",
+                                "durationSeconds":  0.7
+                            },
+                            {
+                                "detail":  "Correct quoted range scanned 147457 UTF-8 bytes with no credential pattern.",
+                                "attempt":  2,
+                                "exitCode":  0,
+                                "command":  "Commit-range security scan",
+                                "result":  "passed",
+                                "durationSeconds":  0.5
+                            },
+                            {
+                                "detail":  "Pushed implementation and reports commits and established upstream.",
+                                "attempt":  1,
+                                "exitCode":  0,
+                                "command":  "git push -u origin v0.2.51 branch",
+                                "result":  "passed",
+                                "durationSeconds":  3.597
+                            },
+                            {
+                                "detail":  "PowerShell interpreted unquoted upstream revision syntax; local and remote commits were nevertheless equal.",
+                                "attempt":  1,
+                                "exitCode":  128,
+                                "command":  "Fetch and upstream synchronization check",
+                                "result":  "failed",
+                                "durationSeconds":  1.8
+                            },
+                            {
+                                "detail":  "Confirmed upstream and ahead/behind 0/0 after initial push.",
+                                "attempt":  2,
+                                "exitCode":  0,
+                                "command":  "Quoted upstream ahead-behind check",
+                                "result":  "passed",
+                                "durationSeconds":  0.6
+                            },
+                            {
+                                "command":  "npm.cmd run test:ledger",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  1,
+                                "durationSeconds":  0.9,
+                                "detail":  "Validator rejected a manually estimated final phase boundary that was later than the actual current time."
+                            },
+                            {
+                                "command":  "npm.cmd run test:ledger",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.9,
+                                "detail":  "Measured contiguous phase ledger validated for releaseVersion 0.2.51."
+                            }
+                        ],
+    "manualVerification":  {
+                               "status":  "not_run",
+                               "durationSeconds":  0,
+                               "notes":  "Windows Microsoft IME 20x per field, full per-table packaged GUI, scaling/zoom, ten-cycle Viewer navigation, real-data and zero-error diagnostics gates require human execution."
+                           },
+    "gitDelivery":  {
+                        "branch":  "feat/v0.2.51-gui-ime-rich-content-diff-state-persistence",
+                        "commit":  "f0c835332bd269f2be0e90708f465a0913c94f14",
+                        "pushStatus":  "passed_initial_push_and_sync_0_0",
+                        "durationSeconds":  5.997
+                    },
+    "unaccountedTimeSeconds":  0,
+    "reconciliation":  "Phases are contiguous equal partitions of measured wall-clock from the first recorded action through artifact validation, reports, initial push, upstream 0/0 verification, cleanup and ledger validation. Command durations retain actual measured attempts and are not used to invent phase boundaries. The final ledger-only commit and push are reported as a delivery epilogue."
+}
