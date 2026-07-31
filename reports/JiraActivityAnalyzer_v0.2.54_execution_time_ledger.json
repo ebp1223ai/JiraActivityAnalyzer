@@ -1,0 +1,158 @@
+{
+  "formatVersion": 1,
+  "releaseVersion": "0.2.54",
+  "candidate": "Development Manual Verification Candidate",
+  "timezone": "Asia/Taipei",
+  "sessionStart": "2026-07-31T18:08:35.9214636+08:00",
+  "sessionEnd": "2026-07-31T18:19:05.9214636+08:00",
+  "totalDurationSeconds": 630,
+  "allocatedDurationSeconds": 630,
+  "unallocatedDurationSeconds": 0,
+  "phases": [
+    {
+      "name": "preflight-and-preservation",
+      "start": "2026-07-31T18:08:35.9214636+08:00",
+      "end": "2026-07-31T18:10:15.9214636+08:00",
+      "durationSeconds": 100,
+      "result": "completed"
+    },
+    {
+      "name": "development-mode-impact-analysis",
+      "start": "2026-07-31T18:10:15.9214636+08:00",
+      "end": "2026-07-31T18:13:45.9214636+08:00",
+      "durationSeconds": 210,
+      "result": "completed_no_blocker"
+    },
+    {
+      "name": "version-test-checklist-editing",
+      "start": "2026-07-31T18:13:45.9214636+08:00",
+      "end": "2026-07-31T18:16:45.9214636+08:00",
+      "durationSeconds": 180,
+      "result": "completed"
+    },
+    {
+      "name": "automated-verification",
+      "start": "2026-07-31T18:16:45.9214636+08:00",
+      "end": "2026-07-31T18:18:08.9214636+08:00",
+      "durationSeconds": 83,
+      "result": "passed"
+    },
+    {
+      "name": "security-git-and-ledger-delivery",
+      "start": "2026-07-31T18:18:08.9214636+08:00",
+      "end": "2026-07-31T18:19:05.9214636+08:00",
+      "durationSeconds": 57,
+      "result": "completed"
+    }
+  ],
+  "commands": [
+    {
+      "command": "Preflight: Git, Node, npm, Electron, version sources and dev script",
+      "start": "2026-07-31T18:08:35.9214636+08:00",
+      "end": "2026-07-31T18:08:40.0214636+08:00",
+      "durationSeconds": 4.1,
+      "result": "partial_failure",
+      "exitCode": 1,
+      "notes": "Core preflight data was collected. PowerShell could not parse package-lock.json and an assumed scripts/dev-electron.cjs did not exist; both checks were corrected without repository changes."
+    },
+    {
+      "command": "Node lockfile parse and tracked version/dev-path inspection",
+      "durationSeconds": 1.3,
+      "result": "passed",
+      "exitCode": 0,
+      "notes": "Confirmed package-lock 0.2.53 baseline, Vite plus Electron dev flow, renderer loadURL, and package-version injection."
+    },
+    {
+      "command": "npm.cmd version 0.2.54 --no-git-tag-version",
+      "durationSeconds": 0.6,
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "command": "npm.cmd run test:v0.2.54",
+      "start": "2026-07-31T18:16:57.2776723+08:00",
+      "end": "2026-07-31T18:16:57.7222585+08:00",
+      "durationSeconds": 0.445,
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "command": "npm.cmd run test:v0.2.53",
+      "start": "2026-07-31T18:17:05.9695875+08:00",
+      "end": "2026-07-31T18:17:07.2649898+08:00",
+      "durationSeconds": 1.295,
+      "result": "passed",
+      "exitCode": 0,
+      "notes": "Covered content decisions, Worklog pagination/identity, SQLite dedupe, provenance, schema migration, event identity policy v3 and Partial save gate."
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "start": "2026-07-31T18:17:15.1702834+08:00",
+      "end": "2026-07-31T18:17:25.2247125+08:00",
+      "durationSeconds": 10.054,
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "command": "npm.cmd run build",
+      "start": "2026-07-31T18:17:37.3499679+08:00",
+      "end": "2026-07-31T18:17:54.1720818+08:00",
+      "durationSeconds": 16.822,
+      "result": "passed",
+      "exitCode": 0,
+      "notes": "Verified version 0.2.54, Vite renderer build, Electron main and preload. No packaging was invoked."
+    },
+    {
+      "command": "git diff --check",
+      "start": "2026-07-31T18:18:07.6158448+08:00",
+      "end": "2026-07-31T18:18:07.6902094+08:00",
+      "durationSeconds": 0.074,
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "command": "Credential scan and exact staging of v0.2.54 files",
+      "durationSeconds": 0.7,
+      "result": "passed",
+      "exitCode": 0,
+      "notes": "No credential literal found. Existing user-owned tracked and untracked content was excluded."
+    },
+    {
+      "command": "git commit -m chore: prepare v0.2.54 development validation",
+      "start": "2026-07-31T18:18:39.8525155+08:00",
+      "end": "2026-07-31T18:18:40.1016411+08:00",
+      "durationSeconds": 0.249,
+      "result": "passed",
+      "exitCode": 0,
+      "commit": "0b15bfcda209290112f01052cf875676ad546fa9"
+    },
+    {
+      "command": "git push",
+      "start": "2026-07-31T18:18:48.2869549+08:00",
+      "end": "2026-07-31T18:18:51.2249896+08:00",
+      "durationSeconds": 2.938,
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "command": "Post-push HEAD/upstream audit",
+      "durationSeconds": 0.4,
+      "result": "passed",
+      "exitCode": 0,
+      "notes": "HEAD and upstream matched; ahead/behind was 0/0."
+    },
+    {
+      "command": "npm.cmd run dist",
+      "durationSeconds": 0,
+      "result": "not_run",
+      "exitCode": null,
+      "notes": "NOT RUN — prohibited by prompt."
+    }
+  ],
+  "manualVerification": {
+    "developmentMode": "pending_user",
+    "trueJira": "not_run",
+    "trueSqlite": "not_run",
+    "windowsPackaging": "not_run"
+  }
+}
