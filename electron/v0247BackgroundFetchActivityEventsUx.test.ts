@@ -25,7 +25,7 @@ const issueViewerSource = fs.readFileSync(path.join(root, "src", "routes", "Issu
 const contentSource = fs.readFileSync(path.join(root, "src", "components", "JiraContent.tsx"), "utf8");
 const databaseTableSource = fs.readFileSync(path.join(root, "src", "components", "DatabaseIssueTable.tsx"), "utf8");
 
-assert.equal(CURRENT_STATE_SCHEMA_VERSION, 2, "v0.2.47 must not change Current-State schema v2");
+assert.equal(CURRENT_STATE_SCHEMA_VERSION, 3, "v0.2.53 requires Current-State schema v3 for Worklogs");
 assert.doesNotMatch(analysisSource, /startDate:\s*"2026-01-01"/);
 assert.match(analysisSource, /createActivityTimelineRunContext/);
 assert.doesNotMatch(connectionSource, /testAndSaveConnection|Save Jira Settings|Update Jira Settings/);
@@ -43,8 +43,8 @@ assert.match(preloadSource, /getActiveFullFetchRun/);
 assert.match(preloadSource, /onFullFetchProgress: \(runId:/);
 assert.match(analysisSource, /getActiveFullFetchRun/);
 assert.match(analysisSource, /isFullFetchActive/);
-assert.match(databaseTableSource, /draftText/);
-assert.match(databaseTableSource, /onCompositionStart/);
+assert.match(databaseTableSource, /TextColumnFilter/);
+assert.doesNotMatch(databaseTableSource, /setDraftText\(\(current\)/);
 assert.match(databaseTableSource, /Loading database issues/);
 assert.doesNotMatch(issueViewerSource, /source: "issueActivityStream"/);
 assert.doesNotMatch(contentSource, /dangerouslySetInnerHTML/);

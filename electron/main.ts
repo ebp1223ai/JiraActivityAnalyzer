@@ -21,6 +21,7 @@ import { createJiraClient } from "./jira/jiraClient.js";
 import { jiraGetWithRetry } from "./jira/jiraGetRetry.js";
 import { fetchJiraPages } from "./jira/jiraPagination.js";
 import { jiraFailureCode } from "./jira/jiraErrorCode.js";
+import { classifyWorklogCompleteness, normalizeWorklogs } from "./worklogCompleteness.js";
 import { assertReadOnlyRequest, ReadOnlyViolationError } from "./jira/jiraReadOnlyGuard.js";
 import { createCanonicalQueueSnapshot, preflightFullFetchQueue } from "./fullFetchPreflight.js";
 import { evaluateEmbeddedChangelog } from "./changelogCompatibility.js";
@@ -247,6 +248,7 @@ type ActiveFullFetchDiagnostics = {
   queueCount: number;
   currentIndex: number;
   currentIssueKey: string;
+  currentStage: string;
   lastCompletedIndex: number;
   lastCompletedIssueKey: string;
   success: number;
@@ -2758,8 +2760,8 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
   const issueEvidenceCounts: Record<string, { directEvidenceCount: number; contextEvidenceCount: number; activityTypes: string[] }> = {};
   let directEvidenceCount = 0; let contextEvidenceCount = 0; let relatedContextEvidenceCount = 0;
   let peakRssMB = 0; let peakHeapUsedMB = 0; let peakRawDataEstimateMB = 0;
-  let aggregate = { totalChangelogHistories: 0, totalChangelogItems: 0, totalComments: 0, totalAttachmentsMetadata: 0, totalIssueLinks: 0, totalParsedUsers: 0, totalEstimatedEvents: 0 };
-  activeFullFetch = { sessionId: appSessionId, runId, status: "running", queueCount: fetchQueue.length, currentIndex: 0, currentIssueKey: "", lastCompletedIndex: 0, lastCompletedIssueKey: "", success: 0, partial: 0, failed: 0, skipped: 0, startedAtMs: runStartedMs, startedAt, updatedAt: startedAt, finishedAt: "", autoLogPath, runManifestPath, lastLogs: [], memory: memorySnapshot(), cancelRequested: false, stagingDir: stagingRun.dir };
+  let aggregate = { totalChangelogHistories: 0, totalChangelogItems: 0, totalComments: 0, totalWorklogs: 0, worklogsComplete: 0, worklogsIncomplete: 0, worklogsPermissionRestricted: 0, worklogsUnsupported: 0, totalAttachmentsMetadata: 0, totalIssueLinks: 0, totalParsedUsers: 0, totalEstimatedEvents: 0 };
+  activeFullFetch = { sessionId: appSessionId, runId, status: "running", queueCount: fetchQueue.length, currentIndex: 0, currentIssueKey: "", currentStage: "Issue Snapshot", lastCompletedIndex: 0, lastCompletedIssueKey: "", success: 0, partial: 0, failed: 0, skipped: 0, startedAtMs: runStartedMs, startedAt, updatedAt: startedAt, finishedAt: "", autoLogPath, runManifestPath, lastLogs: [], memory: memorySnapshot(), cancelRequested: false, stagingDir: stagingRun.dir };
   const log = (level: string, message: string) => {
     const rendererLine = `[${level}] ${maskDiagnosticText(message)}`;
     logs.push(rendererLine); if (logs.length > 500) logs.shift();
@@ -2778,7 +2780,7 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
   };
   const progressPayload = () => {
     const active = activeFullFetch!; const elapsedMs = Date.now() - active.startedAtMs; const completed = active.success + active.partial + active.failed + active.skipped; const averageMsPerIssue = completed ? Math.round(elapsedMs / completed) : 0;
-    return { sessionId: active.sessionId, runId, status: active.status, queueTotal: preflight.queueTotal, total: active.queueCount, planned: preflight.plannedCount, excluded: preflight.excludedCount, invalid: preflight.invalidCount, currentIndex: active.currentIndex, currentIssueKey: active.currentIssueKey, lastCompletedIndex: active.lastCompletedIndex, lastCompletedIssueKey: active.lastCompletedIssueKey, success: active.success, eligible: preflight.eligibleCount, partial: active.partial, failed: active.failed, skipped: active.skipped, notAttempted: active.skipped, elapsedMs, averageMsPerIssue, estimatedRemainingMs: averageMsPerIssue * Math.max(0, active.queueCount - completed), rawDataMode, memory: active.memory, autoLogPath, runManifestPath, issueStatus: issueStatus.map((item) => ({ ...item })), staging: previewStaging(stagingRun), cancelRequested: active.cancelRequested, startedAt: active.startedAt, updatedAt: active.updatedAt, finishedAt: active.finishedAt };
+    return { sessionId: active.sessionId, runId, status: active.status, queueTotal: preflight.queueTotal, total: active.queueCount, planned: preflight.plannedCount, excluded: preflight.excludedCount, invalid: preflight.invalidCount, currentIndex: active.currentIndex, currentIssueKey: active.currentIssueKey, currentStage: active.currentStage, lastCompletedIndex: active.lastCompletedIndex, lastCompletedIssueKey: active.lastCompletedIssueKey, success: active.success, eligible: preflight.eligibleCount, partial: active.partial, failed: active.failed, skipped: active.skipped, notAttempted: active.skipped, elapsedMs, averageMsPerIssue, estimatedRemainingMs: averageMsPerIssue * Math.max(0, active.queueCount - completed), rawDataMode, memory: active.memory, autoLogPath, runManifestPath, issueStatus: issueStatus.map((item) => ({ ...item })), staging: previewStaging(stagingRun), cancelRequested: active.cancelRequested, startedAt: active.startedAt, updatedAt: active.updatedAt, finishedAt: active.finishedAt };
   };
   const sendProgress = (status = activeFullFetch?.status ?? "running") => {
     if (!activeFullFetch) return;
@@ -2803,7 +2805,7 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
       const candidate = fetchQueue[queueIndex]; const issueKey = text(candidate.key).toUpperCase(); const issueStarted = Date.now();
       attemptedIssueKeys.push(issueKey);
       startTarget(stagingRun, issueKey);
-      if (activeFullFetch) { activeFullFetch.currentIndex = queueIndex + 1; activeFullFetch.currentIssueKey = issueKey; }
+      if (activeFullFetch) { activeFullFetch.currentIndex = queueIndex + 1; activeFullFetch.currentIssueKey = issueKey; activeFullFetch.currentStage = "Issue Snapshot"; }
       issueStatus.push({ index: queueIndex + 1, issueKey, status: "running", startedAt: new Date().toISOString() }); sendProgress();
       const targetEndpointMetadata: Record<string, unknown>[] = [];
       const issuePath = `${apiPrefix}/issue/${encodeURIComponent(issueKey)}?fields=*all&expand=names,schema,renderedFields,changelog`;
@@ -2828,7 +2830,17 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
         fetchPage: async (startAt, maxResults) => getWithRetry(`${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?startAt=${startAt}&maxResults=${maxResults}`, issueKey, "comments")
       });
       const comments = commentPageResult.items;
+      if (activeFullFetch) { activeFullFetch.currentStage = "Worklogs"; sendProgress(); }
+      const worklogPageResult = await fetchJiraPages<Record<string, unknown>>({
+        itemFields: ["worklogs"],
+        pageSize: 100,
+        fetchPage: async (startAt, maxResults) => getWithRetry(`/rest/api/2/issue/${encodeURIComponent(issueKey)}/worklog?startAt=${startAt}&maxResults=${maxResults}`, issueKey, "worklogs")
+      });
+      const normalizedWorklogs = normalizeWorklogs({ worklogs: worklogPageResult.items, issueId: text(issueJson.id), issueKey, sourceRunId: runId });
+      const worklogs = normalizedWorklogs.records;
+      const worklogCompleteness = classifyWorklogCompleteness(worklogPageResult.metadata, worklogPageResult.metadata.pages.map((page) => page.status), normalizedWorklogs.parseErrorCount);
       for (const page of commentPageResult.metadata.pages) targetEndpointMetadata.push({ endpoint: `${apiPrefix}/issue/${encodeURIComponent(issueKey)}/comment?startAt=${page.startAt}&maxResults=${page.requestedMaxResults}`, method: "GET", status: page.status, contentType: page.contentType, attempts: page.attempts, required: true, fetchedAt: page.fetchedAt, pageNumber: page.pageNumber, returnedCount: page.returnedCount, reportedTotal: page.reportedTotal, errorCode: page.errorCode });
+for (const page of worklogPageResult.metadata.pages) targetEndpointMetadata.push({ endpoint: `/rest/api/2/issue/${encodeURIComponent(issueKey)}/worklog?startAt=${page.startAt}&maxResults=${page.requestedMaxResults}`, method: "GET", status: page.status, contentType: page.contentType, attempts: page.attempts, required: true, fetchedAt: page.fetchedAt, pageNumber: page.pageNumber, returnedCount: page.returnedCount, reportedTotal: page.reportedTotal, errorCode: page.errorCode });
       const attachments = Array.isArray(fields.attachment) ? fields.attachment as Record<string, unknown>[] : [];
       const links = Array.isArray(fields.issuelinks) ? fields.issuelinks as Record<string, unknown>[] : [];
       let remoteLinks: unknown[] | null = null; let remoteLinkStatus: OptionalEndpointStatus = { enabled: fetchRemoteLinks, status: "not_attempted", archiveBlocking: false, retryable: false, warning: null, httpStatus: null, errorCode: "", attemptCount: 0, fetchedAt: null };
@@ -2838,8 +2850,8 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
         if (response.ok && Array.isArray(response.json)) { remoteLinks = response.json; remoteLinkStatus = { enabled: true, status: "available", archiveBlocking: false, retryable: false, warning: null, httpStatus: response.status, errorCode: "", attemptCount: remoteAttempt.attempts, fetchedAt }; }
         else { const warning = `Remote Links optional request failed for ${issueKey}: HTTP ${response.status}.`; warnings.push(warning); const numericStatus = typeof response.status === "number" ? response.status : null; const status = numericStatus === 401 || numericStatus === 403 ? "permission_denied" : numericStatus === 400 || numericStatus === 404 ? "unsupported" : "temporarily_unavailable"; remoteLinkStatus = { enabled: true, status, archiveBlocking: false, retryable: false, warning, httpStatus: response.status, errorCode: jiraFailureCode(response), attemptCount: remoteAttempt.attempts, fetchedAt }; }
       }
-      const parsedUsers = uniqueUserNames([fields.assignee, fields.reporter, fields.creator, ...changelogHistories.map((history) => asRecord(history).author), ...comments.map((comment) => asRecord(comment).author), ...attachments.map((attachment) => asRecord(attachment).author)]);
-      const changeItems = countChangeItems(changelogHistories); const estimatedEvents = 1 + changeItems + comments.length + attachments.length + links.length;
+      const parsedUsers = uniqueUserNames([fields.assignee, fields.reporter, fields.creator, ...changelogHistories.map((history) => asRecord(history).author), ...comments.map((comment) => asRecord(comment).author), ...worklogs.flatMap((worklog) => [asRecord(worklog).authorDisplayName, asRecord(worklog).updateAuthorDisplayName]), ...attachments.map((attachment) => asRecord(attachment).author)]);
+      const changeItems = countChangeItems(changelogHistories); const estimatedEvents = 1 + changeItems + comments.length + worklogs.length + attachments.length + links.length;
       const queueMetadata = asRecord(candidate.queueMetadata); const queueSources = Array.isArray(queueMetadata.sources) ? queueMetadata.sources.map(text) : [];
       const directActivityIssue = directIssueKeys.has(issueKey) || queueSources.includes("activity_timeline"); if (directActivityIssue) directIssueKeys.add(issueKey);
       const relatedTimelineEventIds = Array.isArray(queueMetadata.timelineEventIds) ? queueMetadata.timelineEventIds.map(text).filter(Boolean) : [];
@@ -2848,23 +2860,25 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
       for (const [reason, count] of Object.entries(extractedEvidence.excluded.byReason)) evidenceExcludedByReason[reason] = (evidenceExcludedByReason[reason] ?? 0) + count;
       fullFetchedIssueKeys.push(issueKey);
       const failedEndpoints = targetEndpointMetadata.filter((item) => item.required !== false && !(Number(item.status) >= 200 && Number(item.status) < 300)).map((item) => text(item.endpoint));
-      const missingSections = Array.from(new Set([...failedEndpoints.map((endpoint) => endpoint.includes("comment") ? "comments" : "issue"), ...(!embeddedChangelog.metadata.paginationComplete ? ["changelog"] : []), ...(!commentPageResult.metadata.paginationComplete ? ["comments"] : [])]));
+      const missingSections = Array.from(new Set([...failedEndpoints.map((endpoint) => endpoint.includes("comment") ? "comments" : "issue"), ...(!embeddedChangelog.metadata.paginationComplete ? ["changelog"] : []), ...(!commentPageResult.metadata.paginationComplete ? ["comments"] : []), ...(worklogCompleteness.status !== "complete" ? ["worklogs"] : [])]));
       const commentPartialReasons = commentPageResult.metadata.paginationComplete ? [] : [{ component: "comments", code: commentPageResult.metadata.errorCode || "COMMENTS_INCOMPLETE", fetchedCount: commentPageResult.metadata.fetchedCount, expectedTotal: commentPageResult.metadata.reportedTotal, message: `Observed ${commentPageResult.metadata.fetchedCount} of ${commentPageResult.metadata.reportedTotal} comments.` }];
-      const partialReasons = [...embeddedChangelog.partialReasons, ...commentPartialReasons];
-      const stagedTarget = completeTarget(stagingRun, issueKey, { status: missingSections.length ? "partial" : "eligible", rawEnvelope: { issue: issueJson, changelogHistories, comments, attachments, parsedUsers, evidenceEvents: extractedEvidence.events, issueLinks: links, remoteLinks, endpointMetadata: targetEndpointMetadata, requestMetadata: { apiVersion: connection.apiVersion, executionMode: "sequential_read_only", fetchedAt: new Date().toISOString(), fetchRemoteLinks, expandedChangelogObservedCount: embeddedChangelog.metadata.fetchedCount, embeddedChangelogAuthoritative: true, changelogStatusCode: embeddedChangelog.metadata.statusCode }, paginationMetadata: { comments: { ...commentPageResult.metadata, complete: commentPageResult.metadata.paginationComplete }, changelog: embeddedChangelog.metadata }, completenessMetadata: { requiredMissingSections: missingSections, partialReasons, optionalWarningCount: remoteLinkStatus.warning ? 1 : 0 } }, missingSections, partialReasons, failedEndpoints, optionalEndpointStatus: { remoteLinks: remoteLinkStatus }, optionalWarnings: remoteLinkStatus.warning ? [remoteLinkStatus.warning] : [], classification: missingSections.length ? "partial" : remoteLinkStatus.warning ? "eligible_optional_warning" : "complete", errorType: missingSections.length ? "REQUIRED_DATA_INCOMPLETE" : "", errorMessage: missingSections.length ? partialReasons.map((item) => `${item.component}:${item.code}`).join(", ") || `Required sections incomplete: ${missingSections.join(", ")}` : "" });
-      const resultForReport = { issue: issueJson, httpStatus: issue.status, changelogHistories, changelogMetadata: embeddedChangelog.metadata, comments, commentsMetadata: commentPageResult.metadata, attachments, links, parsedUsers, estimatedEvents, partialReasons };
+      const worklogPartialReasons = worklogCompleteness.status === "complete" ? [] : [{ component: "worklogs", code: `WORKLOGS_${worklogCompleteness.status.toUpperCase()}`, fetchedCount: worklogCompleteness.uniqueWorklogCount, expectedTotal: worklogCompleteness.reportedTotal, message: `Worklogs ${worklogCompleteness.status}: ${worklogCompleteness.uniqueWorklogCount} of ${worklogCompleteness.reportedTotal ?? "unknown"}.` }];
+      const partialReasons = [...embeddedChangelog.partialReasons, ...commentPartialReasons, ...worklogPartialReasons];
+      const stagedTarget = completeTarget(stagingRun, issueKey, { status: missingSections.length ? "partial" : "eligible", rawEnvelope: { issue: issueJson, changelogHistories, comments, worklogs, worklogCompleteness, attachments, parsedUsers, evidenceEvents: extractedEvidence.events, issueLinks: links, remoteLinks, endpointMetadata: targetEndpointMetadata, requestMetadata: { apiVersion: connection.apiVersion, executionMode: "sequential_read_only", fetchedAt: new Date().toISOString(), fetchRemoteLinks, expandedChangelogObservedCount: embeddedChangelog.metadata.fetchedCount, embeddedChangelogAuthoritative: true, changelogStatusCode: embeddedChangelog.metadata.statusCode }, paginationMetadata: { comments: { ...commentPageResult.metadata, complete: commentPageResult.metadata.paginationComplete }, worklogs: { ...worklogPageResult.metadata, complete: worklogPageResult.metadata.paginationComplete }, changelog: embeddedChangelog.metadata }, completenessMetadata: { requiredMissingSections: missingSections, partialReasons, optionalWarningCount: remoteLinkStatus.warning ? 1 : 0 } }, missingSections, partialReasons, failedEndpoints, optionalEndpointStatus: { remoteLinks: remoteLinkStatus }, optionalWarnings: remoteLinkStatus.warning ? [remoteLinkStatus.warning] : [], classification: missingSections.length ? "partial" : remoteLinkStatus.warning ? "eligible_optional_warning" : "complete", errorType: missingSections.length ? "REQUIRED_DATA_INCOMPLETE" : "", errorMessage: missingSections.length ? partialReasons.map((item) => `${item.component}:${item.code}`).join(", ") || `Required sections incomplete: ${missingSections.join(", ")}` : "" });
+      const resultForReport = { issue: issueJson, httpStatus: issue.status, changelogHistories, changelogMetadata: embeddedChangelog.metadata, comments, commentsMetadata: commentPageResult.metadata, worklogs, worklogsMetadata: worklogCompleteness, attachments, links, parsedUsers, estimatedEvents, partialReasons };
       const eligible = stagedTarget.status === "eligible";
       const reportError = eligible ? "" : stagedTarget.lastError || `Required sections incomplete: ${missingSections.join(", ")}`;
       const reportRow = buildFullFetchReport(issueKey, candidate, resultForReport, issueStarted, eligible ? "success" : "partial", reportError); report.push(reportRow);
-      issueResults.push({ issueKey, fetchStatus: stagedTarget.status === "eligible" ? "success" : "partial", status: stagedTarget.status, partialReasons: stagedTarget.partialReasons, changelog: embeddedChangelog.metadata, comments: { fetchedCount: commentPageResult.metadata.fetchedCount, total: commentPageResult.metadata.reportedTotal, paginationComplete: commentPageResult.metadata.paginationComplete }, sizeBytes: stagedTarget.sizeBytes, snapshotFetchedAt: stagedTarget.snapshotFetchedAt, currentIssueSnapshotRef: stagedTarget.currentIssueSnapshotRef, normalizedCurrentFieldsRef: stagedTarget.normalizedCurrentFieldsRef, issueManifestRef: stagedTarget.issueManifestRef, canonicalFiles: stagedTarget.canonicalFiles, coverage: stagedTarget.coverage });
+      issueResults.push({ issueKey, fetchStatus: stagedTarget.status === "eligible" ? "success" : "partial", status: stagedTarget.status, partialReasons: stagedTarget.partialReasons, changelog: embeddedChangelog.metadata, comments: { fetchedCount: commentPageResult.metadata.fetchedCount, total: commentPageResult.metadata.reportedTotal, paginationComplete: commentPageResult.metadata.paginationComplete }, worklogs: worklogCompleteness, sizeBytes: stagedTarget.sizeBytes, snapshotFetchedAt: stagedTarget.snapshotFetchedAt, currentIssueSnapshotRef: stagedTarget.currentIssueSnapshotRef, normalizedCurrentFieldsRef: stagedTarget.normalizedCurrentFieldsRef, issueManifestRef: stagedTarget.issueManifestRef, canonicalFiles: stagedTarget.canonicalFiles, coverage: stagedTarget.coverage });
       relatedCandidateIssues.push(...extractRelatedIssues({ issueKey, issue: issueJson, changelogHistories, links, remoteLinks: remoteLinks ?? [], observedAt: new Date().toISOString() }));
-      aggregate = { totalChangelogHistories: aggregate.totalChangelogHistories + changelogHistories.length, totalChangelogItems: aggregate.totalChangelogItems + changeItems, totalComments: aggregate.totalComments + comments.length, totalAttachmentsMetadata: aggregate.totalAttachmentsMetadata + attachments.length, totalIssueLinks: aggregate.totalIssueLinks + links.length, totalParsedUsers: aggregate.totalParsedUsers + parsedUsers.length, totalEstimatedEvents: aggregate.totalEstimatedEvents + estimatedEvents };
+      aggregate = { totalChangelogHistories: aggregate.totalChangelogHistories + changelogHistories.length, totalChangelogItems: aggregate.totalChangelogItems + changeItems, totalComments: aggregate.totalComments + comments.length, totalWorklogs: aggregate.totalWorklogs + worklogs.length, worklogsComplete: aggregate.worklogsComplete + (worklogCompleteness.status === "complete" ? 1 : 0), worklogsIncomplete: aggregate.worklogsIncomplete + (["incomplete", "failed"].includes(worklogCompleteness.status) ? 1 : 0), worklogsPermissionRestricted: aggregate.worklogsPermissionRestricted + (worklogCompleteness.status === "permission_restricted" ? 1 : 0), worklogsUnsupported: aggregate.worklogsUnsupported + (worklogCompleteness.status === "unsupported" ? 1 : 0), totalAttachmentsMetadata: aggregate.totalAttachmentsMetadata + attachments.length, totalIssueLinks: aggregate.totalIssueLinks + links.length, totalParsedUsers: aggregate.totalParsedUsers + parsedUsers.length, totalEstimatedEvents: aggregate.totalEstimatedEvents + estimatedEvents };
       if (activeFullFetch) { if (eligible) activeFullFetch.success += 1; else activeFullFetch.partial += 1; activeFullFetch.lastCompletedIndex = queueIndex + 1; activeFullFetch.lastCompletedIssueKey = issueKey; }
       issueStatus[issueStatus.length - 1] = { index: queueIndex + 1, issueKey, status: eligible ? "success" : "partial", durationMs: Date.now() - issueStarted, sizeBytes: stagedTarget.sizeBytes };
       log("SUCCESS", `Issue committed: ${issueKey} durationMs=${Date.now() - issueStarted} issueBytes=${stagedTarget.sizeBytes} stagingBytes=${previewStaging(stagingRun).stagingSizeBytes}`); updateMemory(`after issue ${issueKey}`); sendProgress();
       if (activeFullFetch?.cancelRequested) break;
     }
     const cancelled = activeFullFetch?.cancelRequested === true;
+    if (activeFullFetch) { activeFullFetch.currentStage = "Staging Finalization"; sendProgress(); }
     const state = finalizeStagingRun(stagingRun, cancelled); updateStagingWorkflow(stagingRun, { relatedDiscovery: "completed" });
     const success = state.eligible; const partial = state.partial; const failed = state.failed; const skipped = state.notAttempted;
     const attempted = success + partial + failed;
@@ -3955,6 +3969,19 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const exportHistoryDir = ensureDir(path.join(folderPath, "export-history"));
   writeBundleJson(exportHistoryDir, "step-5-history.json", { fullFetchRunId: expectedFullFetchRunId, actions: stagingForBundle?.state.step5History ?? [], note: "Source payloads and attachment files are omitted by policy." });
   writeBundleJson(folderPath, "full-fetch-coverage-diagnostics.json", latestFullFetchCoverageDiagnostics ?? { status: "not_available", jira: {}, confluence: {} });
+  const worklogCompletenessReport = stagingForBundle ? stagingForBundle.index.targets.map((target) => ({
+    issueKey: target.objectKey,
+    targetStatus: target.status,
+    worklogs: target.coverage.find((entry) => entry.category === "worklogs") ?? { status: "not_collected", recordCount: 0 },
+    blockingReasons: target.partialReasons.filter((reason) => String(reason.component ?? "") === "worklogs")
+  })) : [];
+  writeBundleJson(folderPath, "worklog-completeness-report.json", { schemaVersion: "worklog_completeness_report_v1", runId: expectedFullFetchRunId, issues: worklogCompletenessReport });
+  const contentDisplayDecisions = databaseWriteOutcomes.flatMap((outcome) => Array.isArray(outcome.contentDisplayDecisions) ? outcome.contentDisplayDecisions.map(asRecord) : []);
+  writeBundleJson(folderPath, "content-display-decision-report.json", { schemaVersion: "content_display_decision_report_v1", runId: expectedFullFetchRunId, decisions: contentDisplayDecisions });
+  const contentDecisionColumns = ["Display Mode", "Display Content", "Content Source", "Before Complete", "After Complete", "Parse Status", "Comment ID", "Worklog ID"];
+  const contentDecisionRows = contentDisplayDecisions.map((decision) => [decision.displayMode, decision.displayText, decision.contentSource, decision.beforeComplete, decision.afterComplete, decision.parseStatus, decision.commentId, decision.worklogId].map(csvCell).join(","));
+  fs.writeFileSync(path.join(folderPath, "content-display-decisions.csv"), `\uFEFF${contentDecisionColumns.join(",")}\r\n${contentDecisionRows.join("\r\n")}\r\n`, "utf8");
+  writeBundleJson(folderPath, "content-parse-failure-evidence.json", { schemaVersion: "content_parse_failure_evidence_v1", failures: contentDisplayDecisions.filter((decision) => decision.parseStatus === "failed") });
   writeBundleJson(folderPath, "source-archive-file-assessment.json", {
     schemaVersion: "source_archive_file_assessment_v1",
     generatedAt: createdAt,
@@ -5276,6 +5303,7 @@ async function runUiSmoke(window: BrowserWindow) {
   requiredBundleFiles.push("activity-stream-stability-probe.json", "activity-stream-attempts.json", "activity-stream-attempt-comparison.csv", "activity-stream-window-summary.csv", "activity-stream-stability-recommendation.json");
   requiredBundleFiles.push("activity-stream-stability-probe-v2.json", "activity-stream-stability-setup.json", "activity-stream-rounds.json", "activity-stream-round-comparison.json", "activity-stream-round-comparison.csv", "activity-stream-window-diagnostics.json", "activity-stream-window-diagnostics.csv", "activity-stream-raw-diagnostics.json", "activity-stream-stability-ui-state.json", "activity-stream-stability-recommendation-v2.json", "activity-stream-benchmark.json", "activity-stream-benchmark.csv", "activity-stream-benchmark-summary.json", "full-fetch-coverage-diagnostics.json", "source-archive-file-assessment.json", "source-archive-export-index.json", "source-archive-database-write.json", "source-archive-migration.json", "source-version-projection");
   requiredBundleFiles.push("volatile-field-candidates.json", "stable-hash-field-diff.json");
+  requiredBundleFiles.push("worklog-completeness-report.json", "content-display-decision-report.json", "content-display-decisions.csv", "content-parse-failure-evidence.json");
   requiredBundleFiles.push("full-fetch-staging-index.json", "full-fetch-staging", "full-fetch-result", "logs", "staging-metadata", "source-archive-metadata", "export-history", "environment", "sessions", "path-audit.json", "manifest.json");
   const actualBundleFiles = debugBundlePath ? fs.readdirSync(debugBundlePath) : [];
   const missingBundleFiles = requiredBundleFiles.filter((name) => !actualBundleFiles.includes(name));

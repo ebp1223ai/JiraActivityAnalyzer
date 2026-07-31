@@ -25,14 +25,14 @@ assert.equal(fallback.diffBasis, "after_only");
 assert.equal(fallback.displayContent, "Full after");
 const unchanged = normalizeActivityChange({ fieldName: "Comment", eventType: "comment_updated", before: "same", after: "same" });
 assert.equal(unchanged.diffStatus, "unchanged");
-assert.equal(unchanged.diffBasis, "after_full_display");
-assert.equal(unchanged.displayContent, "same");
+assert.equal(unchanged.diffBasis, "before_after");
+assert.equal(unchanged.displayContent, null);
 const descriptionUnavailable = normalizeActivityChange({ fieldName: "Description", eventType: "field_changed", after: "new" });
-assert.equal(descriptionUnavailable.diffStatus, "unavailable");
-assert.equal(descriptionUnavailable.diffBasis, "not_available");
+assert.equal(descriptionUnavailable.diffStatus, "fallback_full_after");
+assert.equal(descriptionUnavailable.diffBasis, "after_only");
 const created = normalizeActivityChange({ fieldName: "Comment", eventType: "comment_created", before: null, after: "created" });
 assert.equal(created.beforeAvailability, "not_applicable");
-assert.equal(created.diffStatus, "changed");
+assert.equal(created.diffStatus, "fallback_full_after");
 const empty = normalizeActivityChange({ fieldName: "Status", before: "Open", after: "" });
 assert.equal(empty.afterAvailability, "empty");
 const malformed = normalizeActivityChange({ fieldName: "Description", before: '{"type":"doc"', after: "new" });
@@ -57,7 +57,7 @@ const settingsChanged = coordinator.markJiraSettingsChanged({ settingsFingerprin
 assert.equal(settingsChanged.jira.status, "SETTINGS_CHANGED");
 assert.equal(settingsChanged.jira.connectionStatus, "settings_changed");
 
-assert.equal(CURRENT_STATE_SCHEMA_VERSION, 2, "v0.2.52 must not change SQLite schema");
+assert.equal(CURRENT_STATE_SCHEMA_VERSION, 3, "v0.2.53 adds the required Worklog schema migration");
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0252-"));
 const databasePath = path.join(tempRoot, "benchmark.sqlite");
 try {

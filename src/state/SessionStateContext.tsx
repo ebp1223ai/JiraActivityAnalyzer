@@ -470,6 +470,11 @@ export type UserAnalysisFullFetchSummary = {
   totalChangelogHistories: number;
   totalChangelogItems: number;
   totalComments: number;
+  totalWorklogs: number;
+  worklogsComplete: number;
+  worklogsIncomplete: number;
+  worklogsPermissionRestricted: number;
+  worklogsUnsupported: number;
   totalAttachmentsMetadata: number;
   totalIssueLinks: number;
   totalParsedUsers: number;
@@ -513,6 +518,7 @@ export type UserAnalysisFullFetchProgress = {
   invalid?: number;
   currentIndex: number;
   currentIssueKey: string;
+  currentStage: string;
   lastCompletedIndex: number;
   lastCompletedIssueKey: string;
   success: number;
@@ -967,6 +973,11 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     totalChangelogHistories: 0,
     totalChangelogItems: 0,
     totalComments: 0,
+    totalWorklogs: 0,
+    worklogsComplete: 0,
+    worklogsIncomplete: 0,
+    worklogsPermissionRestricted: 0,
+    worklogsUnsupported: 0,
     totalAttachmentsMetadata: 0,
     totalIssueLinks: 0,
     totalParsedUsers: 0,
@@ -981,6 +992,7 @@ const initialUserAnalysis: UserAnalysisSessionState = {
     total: 0,
     currentIndex: 0,
     currentIssueKey: "",
+    currentStage: "",
     lastCompletedIndex: 0,
     lastCompletedIssueKey: "",
     success: 0,

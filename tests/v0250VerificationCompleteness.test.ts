@@ -17,7 +17,7 @@ import { normalizeTablePreferences } from "../src/utils/tablePreferences.js";
 const root = process.cwd();
 const source = (relative: string) => fs.readFileSync(path.join(root, relative), "utf8");
 
-assert.equal(CURRENT_STATE_SCHEMA_VERSION, 2);
+assert.equal(CURRENT_STATE_SCHEMA_VERSION, 3, "v0.2.53 requires Current-State schema v3 for Worklogs");
 assert.match(source("src/components/TextColumnFilter.tsx"), /reduceImeFilterState/);
 assert.match(source("src/routes/IssueViewerPage.tsx"), /recordTableRequest\("completed"[\s\S]+tableId: "issueActivityEvents"/);
 assert.match(source("src/routes/UserViewerPage.tsx"), /tableId = tab === "Related Issues"/);

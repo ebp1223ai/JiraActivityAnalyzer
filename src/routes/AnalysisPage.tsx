@@ -1399,6 +1399,11 @@ export function AnalysisPage() {
         totalChangelogHistories: 0,
         totalChangelogItems: 0,
         totalComments: 0,
+        totalWorklogs: 0,
+        worklogsComplete: 0,
+        worklogsIncomplete: 0,
+        worklogsPermissionRestricted: 0,
+        worklogsUnsupported: 0,
         totalAttachmentsMetadata: 0,
         totalIssueLinks: 0,
         totalParsedUsers: 0,
@@ -1413,6 +1418,7 @@ export function AnalysisPage() {
         total: 0,
         currentIndex: 0,
         currentIssueKey: "",
+        currentStage: "",
         lastCompletedIndex: 0,
         lastCompletedIssueKey: "",
         success: 0,
@@ -1582,6 +1588,7 @@ export function AnalysisPage() {
         total: fetchQueue.length,
         currentIndex: 0,
         currentIssueKey: "",
+        currentStage: "",
         lastCompletedIndex: 0,
         lastCompletedIssueKey: "",
         success: 0,
@@ -2729,6 +2736,11 @@ export function AnalysisPage() {
               <MiniStat label="Failed" value={userAnalysis.fullFetchSummary.failed} />
               <MiniStat label="Skipped" value={userAnalysis.fullFetchSummary.skipped} />
               <MiniStat label="Comments" value={userAnalysis.fullFetchSummary.totalComments} />
+              <MiniStat label="Worklogs" value={userAnalysis.fullFetchSummary.totalWorklogs} />
+              <MiniStat label="Worklogs Complete" value={userAnalysis.fullFetchSummary.worklogsComplete} />
+              <MiniStat label="Worklogs Incomplete" value={userAnalysis.fullFetchSummary.worklogsIncomplete} />
+              <MiniStat label="Worklogs Restricted" value={userAnalysis.fullFetchSummary.worklogsPermissionRestricted} />
+              <MiniStat label="Worklogs Unsupported" value={userAnalysis.fullFetchSummary.worklogsUnsupported} />
               <MiniStat label="Attachments" value={userAnalysis.fullFetchSummary.totalAttachmentsMetadata} />
               <MiniStat label="Changelog" value={userAnalysis.fullFetchSummary.totalChangelogHistories} />
               <MiniStat label="Events" value={userAnalysis.fullFetchSummary.totalEstimatedEvents} />

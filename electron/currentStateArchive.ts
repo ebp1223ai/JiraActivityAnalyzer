@@ -37,7 +37,7 @@ import {
 } from "./stableHashDiagnostics.js";
 import type { DatabaseRuntimeState, DatabaseRuntimeStatus } from "./runtimeStatus.js";
 
-export const CURRENT_STATE_SCHEMA_VERSION = 2;
+export const CURRENT_STATE_SCHEMA_VERSION = 3;
 export const CURRENT_STATE_STORAGE_MODEL = "current_state";
 export const CURRENT_STATE_STORAGE_MODEL_VERSION = 1;
 export const CURRENT_STATE_DATABASE_TYPE = "current_state_archive_db";
@@ -49,6 +49,7 @@ export const CURRENT_STATE_TABLES = [
   "current_full_fetch_payloads",
   "issue_sync_states",
   "current_observed_metrics",
+  "worklogs",
   "activity_events",
   "database_run_state"
 ] as const;
@@ -156,6 +157,33 @@ CREATE TABLE current_observed_metrics (
   FOREIGN KEY (source_object_id) REFERENCES source_objects(id) ON DELETE CASCADE
 );
 
+CREATE TABLE worklogs (
+  jira_server_id TEXT NOT NULL,
+  source_object_id TEXT NOT NULL,
+  issue_id TEXT NOT NULL,
+  issue_key TEXT NOT NULL,
+  worklog_id TEXT NOT NULL,
+  author_account_id TEXT,
+  author_display_name TEXT,
+  update_author_account_id TEXT,
+  update_author_display_name TEXT,
+  comment_raw_json TEXT,
+  comment_text TEXT NOT NULL,
+  started_at TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  time_spent TEXT,
+  time_spent_seconds INTEGER,
+  visibility_json TEXT,
+  self_url TEXT,
+  source_run_id TEXT NOT NULL,
+  content_hash TEXT NOT NULL CHECK (length(content_hash) = 64),
+  raw_json TEXT NOT NULL,
+  fetch_status TEXT NOT NULL,
+  parse_status TEXT NOT NULL,
+  PRIMARY KEY (jira_server_id, issue_id, worklog_id),
+  FOREIGN KEY (source_object_id) REFERENCES source_objects(id) ON DELETE CASCADE
+);
 CREATE TABLE activity_events (
   id TEXT PRIMARY KEY,
   source_object_id TEXT NOT NULL,
@@ -173,6 +201,14 @@ CREATE TABLE activity_events (
   identity_key_type TEXT NOT NULL,
   jira_native_source_id TEXT NOT NULL,
   source_provenance TEXT NOT NULL,
+  content_display_mode TEXT NOT NULL DEFAULT 'not_applicable',
+  content_source TEXT NOT NULL DEFAULT 'none',
+  before_complete INTEGER NOT NULL DEFAULT 0 CHECK (before_complete IN (0, 1)),
+  after_complete INTEGER NOT NULL DEFAULT 0 CHECK (after_complete IN (0, 1)),
+  display_text TEXT,
+  parse_status TEXT NOT NULL DEFAULT 'success',
+  source_comment_id TEXT,
+  source_worklog_id TEXT,
   created_at TEXT NOT NULL,
   FOREIGN KEY (source_object_id) REFERENCES source_objects(id) ON DELETE CASCADE,
   UNIQUE (source_object_id, event_identity_hash)
@@ -197,6 +233,10 @@ CREATE TABLE database_run_state (
 );
 
 CREATE INDEX idx_source_objects_project_key ON source_objects(project_key, issue_key);
+CREATE INDEX idx_worklogs_issue ON worklogs(issue_key, worklog_id);
+CREATE INDEX idx_worklogs_started ON worklogs(issue_key, started_at);
+CREATE INDEX idx_worklogs_author_started ON worklogs(author_account_id, started_at);
+CREATE INDEX idx_worklogs_run ON worklogs(source_run_id);
 CREATE INDEX idx_activity_events_object_time ON activity_events(source_object_id, event_time, id);
 CREATE INDEX idx_activity_events_type_time ON activity_events(event_type, event_time);
 `;
@@ -294,7 +334,18 @@ export function checkCurrentStateDatabaseCompatibility(databasePath: string, cur
         stableHashPolicyVersion: Number(metadata.stable_hash_policy_version)
       };
     }
-    if (!CURRENT_STATE_TABLES.every((table) => tableNames.has(table))) {
+    if (metadata && Number(metadata.schema_version) === 2 && !tableNames.has("worklogs")) {
+      return {
+        ...baseState("MIGRATION_REQUIRED", resolved, "Current-State schema v2 requires the non-destructive v3 worklog migration."),
+        databaseId: text(metadata.database_id),
+        schemaVersion: 2,
+        sourceBinding: text(metadata.jira_server_identity_hash),
+        canRead: true,
+        canWrite: false,
+        storageModel: text(metadata.storage_model),
+        stableHashPolicyVersion: Number(metadata.stable_hash_policy_version)
+      };
+    }    if (!CURRENT_STATE_TABLES.every((table) => tableNames.has(table))) {
       return baseState("SCHEMA_INCOMPLETE", resolved, "Current-State schema is incomplete.");
     }
     if (!metadata || metadata.product_id !== CURRENT_STATE_PRODUCT_ID || metadata.database_type !== CURRENT_STATE_DATABASE_TYPE) {
@@ -355,6 +406,56 @@ export function checkCurrentStateDatabaseCompatibility(databasePath: string, cur
   }
 }
 
+export function migrateCurrentStateDatabaseToV3(databasePath: string) {
+  const resolved = path.resolve(databasePath);
+  const db = new DatabaseSync(resolved);
+  try {
+    db.exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 3000; BEGIN IMMEDIATE;");
+    const metadata = db.prepare("SELECT schema_version FROM database_metadata WHERE metadata_key='primary'").get() as { schema_version?: number } | undefined;
+    const version = Number(metadata?.schema_version);
+    if (version === CURRENT_STATE_SCHEMA_VERSION) { db.exec("COMMIT;"); return { migrated: false, schemaVersion: version }; }
+    if (version !== 2) throw new Error(`UNSUPPORTED_SCHEMA_MIGRATION:${version}`);
+    db.exec(`CREATE TABLE IF NOT EXISTS worklogs (
+      jira_server_id TEXT NOT NULL, source_object_id TEXT NOT NULL, issue_id TEXT NOT NULL, issue_key TEXT NOT NULL,
+      worklog_id TEXT NOT NULL, author_account_id TEXT, author_display_name TEXT, update_author_account_id TEXT,
+      update_author_display_name TEXT, comment_raw_json TEXT, comment_text TEXT NOT NULL, started_at TEXT, created_at TEXT,
+      updated_at TEXT, time_spent TEXT, time_spent_seconds INTEGER, visibility_json TEXT, self_url TEXT,
+      source_run_id TEXT NOT NULL, content_hash TEXT NOT NULL CHECK (length(content_hash) = 64), raw_json TEXT NOT NULL,
+      fetch_status TEXT NOT NULL, parse_status TEXT NOT NULL,
+      PRIMARY KEY (jira_server_id, issue_id, worklog_id),
+      FOREIGN KEY (source_object_id) REFERENCES source_objects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_worklogs_issue ON worklogs(issue_key, worklog_id);
+    CREATE INDEX IF NOT EXISTS idx_worklogs_started ON worklogs(issue_key, started_at);
+    CREATE INDEX IF NOT EXISTS idx_worklogs_author_started ON worklogs(author_account_id, started_at);
+    CREATE INDEX IF NOT EXISTS idx_worklogs_run ON worklogs(source_run_id);`);
+    const columns = new Set((db.prepare("PRAGMA table_info(activity_events)").all() as Array<{ name: string }>).map((item) => item.name));
+    const additions = [
+      ["content_display_mode", "TEXT NOT NULL DEFAULT 'not_applicable'"], ["content_source", "TEXT NOT NULL DEFAULT 'none'"],
+      ["before_complete", "INTEGER NOT NULL DEFAULT 0 CHECK (before_complete IN (0, 1))"], ["after_complete", "INTEGER NOT NULL DEFAULT 0 CHECK (after_complete IN (0, 1))"],
+      ["display_text", "TEXT"], ["parse_status", "TEXT NOT NULL DEFAULT 'success'"], ["source_comment_id", "TEXT"], ["source_worklog_id", "TEXT"]
+    ] as const;
+    for (const [name, definition] of additions) if (!columns.has(name)) db.exec(`ALTER TABLE activity_events ADD COLUMN ${name} ${definition};`);
+    db.prepare(`UPDATE database_metadata
+      SET schema_version=?, event_identity_policy_version=?,
+          event_identity_policy_fingerprint=?, event_identity_policy_json=?
+      WHERE metadata_key='primary'`).run(
+      CURRENT_STATE_SCHEMA_VERSION,
+      EVENT_IDENTITY_POLICY_VERSION,
+      EVENT_IDENTITY_POLICY_FINGERPRINT,
+      EVENT_IDENTITY_POLICY_JSON
+    );
+    const check = db.prepare("PRAGMA quick_check").get() as { quick_check?: string };
+    if (check.quick_check !== "ok") throw new Error("DATABASE_INTEGRITY_FAILED_AFTER_MIGRATION");
+    db.exec("COMMIT;");
+    return { migrated: true, schemaVersion: CURRENT_STATE_SCHEMA_VERSION };
+  } catch (error) {
+    try { db.exec("ROLLBACK;"); } catch { /* transaction may not have started */ }
+    throw error;
+  } finally {
+    db.close();
+  }
+}
 export function createCurrentStateDatabase(input: {
   targetPath: string;
   appVersion: string;
@@ -477,6 +578,7 @@ export type CurrentStateOutcome = {
   observedMetrics: { inserted: number; updated: number; unchanged: number; blocked: number };
   mappingWarnings: unknown[];
   eventWarnings: unknown[];
+  contentDisplayDecisions?: Array<Record<string, unknown>>;
   volatileFieldCandidates?: VolatileFieldCandidate[];
   stableHashFieldDiff?: ReturnType<typeof buildStableHashFieldDiff>;
 };
@@ -563,19 +665,59 @@ function snapshotJson(rawValue: unknown) {
   return { issue, fields, snapshot, json: canonicalJsonV4(snapshot) };
 }
 
+function upsertWorklogs(db: DatabaseSync, sourceObjectId: string, rawValue: unknown, serverIdentity: string, issueId: string, issueKey: string, runId: string) {
+  const raw = record(rawValue);
+  const worklogs = Array.isArray(raw.worklogs) ? raw.worklogs.map(record) : [];
+  let inserted = 0;
+  let updated = 0;
+  const statement = db.prepare(`INSERT INTO worklogs
+    (jira_server_id, source_object_id, issue_id, issue_key, worklog_id, author_account_id, author_display_name,
+     update_author_account_id, update_author_display_name, comment_raw_json, comment_text, started_at, created_at,
+     updated_at, time_spent, time_spent_seconds, visibility_json, self_url, source_run_id, content_hash, raw_json,
+     fetch_status, parse_status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(jira_server_id, issue_id, worklog_id) DO UPDATE SET
+      source_object_id=excluded.source_object_id, issue_key=excluded.issue_key, author_account_id=excluded.author_account_id,
+      author_display_name=excluded.author_display_name, update_author_account_id=excluded.update_author_account_id,
+      update_author_display_name=excluded.update_author_display_name, comment_raw_json=excluded.comment_raw_json,
+      comment_text=excluded.comment_text, started_at=excluded.started_at, created_at=excluded.created_at,
+      updated_at=excluded.updated_at, time_spent=excluded.time_spent, time_spent_seconds=excluded.time_spent_seconds,
+      visibility_json=excluded.visibility_json, self_url=excluded.self_url, source_run_id=excluded.source_run_id,
+      content_hash=excluded.content_hash, raw_json=excluded.raw_json, fetch_status=excluded.fetch_status,
+      parse_status=excluded.parse_status`);
+  for (const worklog of worklogs) {
+    const worklogId = text(worklog.worklogId ?? worklog.id).trim();
+    const contentHash = text(worklog.contentHash);
+    if (!worklogId || !/^[a-f0-9]{64}$/i.test(contentHash)) throw new Error("WORKLOG_ID_OR_HASH_INVALID");
+    const existed = db.prepare("SELECT 1 AS found FROM worklogs WHERE jira_server_id=? AND issue_id=? AND worklog_id=?").get(serverIdentity, issueId, worklogId);
+    statement.run(serverIdentity, sourceObjectId, issueId, issueKey, worklogId,
+      text(worklog.authorAccountId) || null, text(worklog.authorDisplayName) || null,
+      text(worklog.updateAuthorAccountId) || null, text(worklog.updateAuthorDisplayName) || null,
+      canonicalJsonV4(worklog.commentRaw ?? null), text(worklog.commentText), text(worklog.startedAt) || null,
+      text(worklog.createdAt) || null, text(worklog.updatedAt) || null, text(worklog.timeSpent) || null,
+      Number.isFinite(Number(worklog.timeSpentSeconds)) ? Number(worklog.timeSpentSeconds) : null,
+      canonicalJsonV4(worklog.visibility ?? null), text(worklog.selfUrl) || null, text(worklog.sourceRunId) || runId,
+      contentHash, canonicalJsonV4(worklog.rawJson ?? worklog), text(worklog.fetchStatus) || "complete", text(worklog.parseStatus) || "success");
+    if (existed) updated += 1; else inserted += 1;
+  }
+  return { inserted, updated };
+}
 function insertEvents(db: DatabaseSync, sourceObjectId: string, raw: unknown, serverIdentity: string, issueKey: string, now: string, fail = false) {
   let inserted = 0;
   let existing = 0;
   const insertedByType: Record<string, number> = {};
   const existingByType: Record<string, number> = {};
+  const contentDisplayDecisions: Array<Record<string, unknown>> = [];
   const extraction = extractActivityEventsV2(raw, serverIdentity, issueKey);
   for (const event of extraction.events) {
+    contentDisplayDecisions.push({ eventType: event.eventType, eventTime: event.eventTime, sourceRecordId: event.sourceRecordId, displayMode: event.contentDisplayMode, contentSource: event.contentSource, beforeComplete: event.beforeComplete, afterComplete: event.afterComplete, displayText: event.displayText, parseStatus: event.parseStatus, commentId: event.sourceCommentId, worklogId: event.sourceWorklogId });
     if (fail) throw new Error("SIMULATED_FAILURE_DURING_EVENTS");
     const result = db.prepare(`INSERT OR IGNORE INTO activity_events
       (id, source_object_id, event_type, event_time, actor_account_id, actor_display_name, field_id, field_name,
        from_value_json, to_value_json, source_record_id, event_identity_hash, event_identity_policy_version,
-       identity_key_type, jira_native_source_id, source_provenance, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+       identity_key_type, jira_native_source_id, source_provenance, content_display_mode, content_source,
+       before_complete, after_complete, display_text, parse_status, source_comment_id, source_worklog_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
       crypto.randomUUID(),
       sourceObjectId,
       event.eventType,
@@ -592,6 +734,14 @@ function insertEvents(db: DatabaseSync, sourceObjectId: string, raw: unknown, se
       event.identityKeyType,
       event.jiraNativeSourceId,
       event.sourceProvenance,
+      event.contentDisplayMode,
+      event.contentSource,
+      event.beforeComplete ? 1 : 0,
+      event.afterComplete ? 1 : 0,
+      event.displayText,
+      event.parseStatus,
+      event.sourceCommentId,
+      event.sourceWorklogId,
       now
     );
     if (Number(result.changes) > 0) {
@@ -602,7 +752,7 @@ function insertEvents(db: DatabaseSync, sourceObjectId: string, raw: unknown, se
       existingByType[event.eventType] = (existingByType[event.eventType] ?? 0) + 1;
     }
   }
-  return { inserted, existing, insertedByType, existingByType, warnings: extraction.warnings };
+  return { inserted, existing, insertedByType, existingByType, warnings: extraction.warnings, contentDisplayDecisions };
 }
 
 function effectivePolicyForCandidate(db: DatabaseSync, rawValue: unknown) {
@@ -838,6 +988,7 @@ function issueOutcome(db: DatabaseSync, candidate: CurrentStateCandidate, input:
     );
   }
 
+  upsertWorklogs(db, sourceObjectId, raw, input.jira.serverIdentity, jiraIssueId, issueKey, input.runId);
   const activity = insertEvents(db, sourceObjectId, raw, input.jira.serverIdentity, issueKey, now, candidate.simulateFailureAt === "during_events");
   const metrics = extractCurrentObservedMetrics(raw, effectivePolicy.policy, now, input.runId);
   const previousMetrics = new Map((db.prepare(`SELECT field_id, value_type, value_json, is_present
@@ -925,6 +1076,7 @@ function issueOutcome(db: DatabaseSync, candidate: CurrentStateCandidate, input:
     observedMetrics,
     mappingWarnings: effectivePolicy.warnings,
     eventWarnings: activity.warnings,
+    contentDisplayDecisions: activity.contentDisplayDecisions,
     volatileFieldCandidates,
     stableHashFieldDiff
   };
@@ -944,7 +1096,11 @@ export function writeCurrentStateBatch(input: CurrentStateBatchInput) {
   const startedAt = new Date().toISOString();
   const startedMs = Date.now();
   const databasePath = path.resolve(input.databasePath);
-  const compatibility = checkCurrentStateDatabaseCompatibility(databasePath, input.jira.serverIdentity);
+  let compatibility = checkCurrentStateDatabaseCompatibility(databasePath, input.jira.serverIdentity);
+  if (compatibility.status === "MIGRATION_REQUIRED" && compatibility.schemaVersion === 2) {
+    migrateCurrentStateDatabaseToV3(databasePath);
+    compatibility = checkCurrentStateDatabaseCompatibility(databasePath, input.jira.serverIdentity);
+  }
   const summary = emptySummary();
   const outcomes: CurrentStateOutcome[] = [];
   if (compatibility.status !== "READY") {

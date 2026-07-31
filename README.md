@@ -1,5 +1,16 @@
 # Jira Activity Analyzer
 
+> v0.2.53 implements Single Full Fetch Completeness & Content/Diff Viewer. Worklogs are fetched independently through the read-only Jira API, validated as a required source, stored in Current-State schema v3, and surfaced with precise content provenance.
+
+## v0.2.53 Single Full Fetch Completeness & Content/Diff Viewer
+
+- **Single-fetch rule:** each Issue is decided from one Full Fetch. No comment or description snapshot/version tables were added.
+- **Content display:** a real Diff is produced only for a complete Before/After pair. Otherwise the Diff column shows trusted latest content without green/addition styling, or an em dash when no trustworthy content exists.
+- **Exact correlation:** Comments and Worklogs use Jira-native IDs only. Author, nearby timestamps, text summaries, and array order are never used as identity guesses.
+- **Required Worklogs:** `GET /rest/api/2/issue/{issueKey}/worklog` uses the existing read-only retry/pagination pipeline. Count conservation, duplicate IDs, permissions, unsupported responses, parse failures, and pagination completion are recorded per Issue.
+- **SQLite:** Current-State schema v3 adds `worklogs`, source-aware unique keys, indexes, and Activity Event content provenance. The v2-to-v3 migration is transactional and preserves existing rows.
+- **Evidence:** Full Fetch result/staging, JSON diagnostics, plain-text CSV, and Debug Folder reports distinguish `diff`, `latest_content`, `empty`, and `parse_failed` without storing Diff HTML.
+- **Safety:** only eligible Full Fetch targets can reach formal SQLite writes. Worklog incomplete, failed, permission-restricted, or unsupported results remain Partial and are blocked.
 > v0.2.52 adds explicit rich-content availability/diff semantics, main-owned Jira connection status, Activity Stream Stability Gates, run reconciliation, startup/query diagnostics, and a simplified Data Collection setup. Current-State schema remains v2; acceptance is Partial pending real Jira and Windows packaged human gates.
 
 ## v0.2.52 Data Trustworthiness and Runtime Stability

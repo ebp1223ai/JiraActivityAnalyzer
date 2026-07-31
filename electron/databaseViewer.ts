@@ -29,6 +29,7 @@ interface IssueViewerDto {
   };
   changelog: ViewerSection<Record<string, unknown>>;
   comments: ViewerSection<Record<string, unknown>>;
+  worklogs: ViewerSection<Record<string, unknown>>;
   attachments: ViewerSection<Record<string, unknown>>;
   issueLinks: ViewerSection<Record<string, unknown>>;
   remoteLinks: ViewerSection<Record<string, unknown>>;
@@ -217,6 +218,7 @@ export function normalizeIssueViewerPayload(
   const fallbackDescription = plainText(fields.description);
   const changelog = list(raw.changelog ?? record(issue.changelog).histories);
   const comments = list(raw.comments ?? record(fields.comment).comments);
+  const worklogs = list(raw.worklogs ?? fields.worklog);
   const attachments = list(raw.attachments ?? fields.attachment);
   const issueLinks = list(raw.issueLinks ?? fields.issuelinks);
   const remoteValue = raw.remoteLinks;
@@ -237,6 +239,7 @@ export function normalizeIssueViewerPayload(
         : { status: "no_records", source: "none", plainText: "", content: "", format: "plain" as const, message: "No description / 無 Description" },
     changelog: section(normalizeChangelogRecords(changelog)),
     comments: section(normalizeCommentRecords(comments)),
+    worklogs: section(worklogs),
     attachments: section(attachments),
     issueLinks: section(issueLinks),
     remoteLinks: remoteDisabled
@@ -265,6 +268,7 @@ export function issueViewerFailure(issueKey: string, status: IssueViewerDto["sta
     description: { status: "unavailable", source: "none", plainText: "", content: "", format: "plain", message },
     changelog: unavailable,
     comments: unavailable,
+    worklogs: unavailable,
     attachments: unavailable,
     issueLinks: unavailable,
     remoteLinks: unavailable,
@@ -630,6 +634,7 @@ function commentIndexFromPayload(value: unknown) {
   const issue = record(raw.issue);
   const fields = record(issue.fields);
   const comments = list(raw.comments ?? record(fields.comment).comments);
+  const worklogs = list(raw.worklogs ?? fields.worklog);
   return new Map(normalizeCommentRecords(comments).map((comment) => [String(comment.id), comment]));
 }
 

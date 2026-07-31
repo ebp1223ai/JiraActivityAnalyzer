@@ -364,6 +364,7 @@ export function completeTarget(run: StagingRun, objectKey: string, outcome: Targ
   canonicalFiles.normalizedCurrentFields = atomicWriteJsonStream(path.join(issueDir, "normalized-current-fields.json"), normalized, reference("normalized-current-fields.json"));
   canonicalFiles.changelog = atomicWriteNdjsonStream(path.join(issueDir, "changelog.ndjson"), Array.isArray(envelope.changelogHistories) ? envelope.changelogHistories : [], reference("changelog.ndjson"));
   canonicalFiles.comments = atomicWriteNdjsonStream(path.join(issueDir, "comments.ndjson"), Array.isArray(envelope.comments) ? envelope.comments : [], reference("comments.ndjson"));
+  canonicalFiles.worklogs = atomicWriteNdjsonStream(path.join(issueDir, "worklogs.ndjson"), Array.isArray(envelope.worklogs) ? envelope.worklogs : [], reference("worklogs.ndjson"));
   canonicalFiles.attachments = atomicWriteJsonStream(path.join(issueDir, "attachments.json"), Array.isArray(envelope.attachments) ? envelope.attachments : [], reference("attachments.json"), Array.isArray(envelope.attachments) ? envelope.attachments.length : 0);
   canonicalFiles.users = atomicWriteJsonStream(path.join(issueDir, "users.json"), Array.isArray(envelope.parsedUsers) ? envelope.parsedUsers : [], reference("users.json"), Array.isArray(envelope.parsedUsers) ? envelope.parsedUsers.length : 0);
   canonicalFiles.evidence = atomicWriteNdjsonStream(path.join(issueDir, "evidence.ndjson"), Array.isArray(envelope.evidenceEvents) ? envelope.evidenceEvents : [], reference("evidence.ndjson"));
@@ -375,32 +376,38 @@ export function completeTarget(run: StagingRun, objectKey: string, outcome: Targ
   const pagination = record(envelope.paginationMetadata);
   const changelogPagination = record(pagination.changelog);
   const commentsPagination = record(pagination.comments);
+  const worklogsPagination = record(pagination.worklogs);
+  const worklogCompleteness = record(envelope.worklogCompleteness);
   const changelogPaginationComplete = paginationVerified(changelogPagination);
   const commentsPaginationComplete = paginationVerified(commentsPagination);
+  const worklogsPaginationComplete = paginationVerified(worklogsPagination) && worklogCompleteness.status === "complete" && Number(worklogCompleteness.parseErrorCount ?? 0) === 0;
   const validationFailures: string[] = [];
   if (!snapshot.id || String(snapshot.key).toUpperCase() !== key) validationFailures.push("issue_identity_mismatch");
   if (snapshot.sectionStatus.fields !== "returned") validationFailures.push("full_fields_not_returned");
   if (!changelogPaginationComplete) validationFailures.push("changelog_pagination_incomplete");
   if (!commentsPaginationComplete) validationFailures.push("comments_pagination_incomplete");
+  if (!worklogsPaginationComplete) validationFailures.push(`worklogs_${String(worklogCompleteness.status ?? "incomplete")}`);
   validationFailures.push(...verifyCanonicalFiles(run, canonicalFiles));
   const missing = Array.from(new Set([...(outcome.missingSections ?? []), ...validationFailures]));
   const finalStatus: TargetStatus = outcome.status === "partial" || outcome.status === "required_partial" || missing.length > 0 ? "partial" : "eligible";
   const issueEndpoint = endpointInfo(envelope, `/issue/${key}`);
   const changelogEndpoint = issueEndpoint;
   const commentsEndpoint = endpointInfo(envelope, "/comment");
+  const worklogsEndpoint = endpointInfo(envelope, "/worklog");
   const fetchedAt = String(record(envelope.requestMetadata).fetchedAt ?? completedAt);
   const coverage = [
     fileCoverage("current_issue_snapshot", true, true, validationFailures.some((item) => item.includes("identity") || item.includes("fields") || item.startsWith("currentIssueSnapshot:")) ? "failed" : "complete", canonicalFiles.currentIssueSnapshot, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("normalized_current_fields", true, true, "complete", canonicalFiles.normalizedCurrentFields, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("changelog", true, true, changelogPaginationComplete ? "complete" : "partial", canonicalFiles.changelog, changelogPaginationComplete ? "" : "Changelog pagination incomplete", { ...changelogEndpoint, fetchedAt, pageCount: Number(changelogPagination.pageCount ?? 0) }),
     fileCoverage("comments", true, true, commentsPaginationComplete ? "complete" : "partial", canonicalFiles.comments, commentsPaginationComplete ? "" : "Comments pagination incomplete", { ...commentsEndpoint, fetchedAt, pageCount: Number(commentsPagination.pageCount ?? 0) }),
+    fileCoverage("worklogs", true, true, worklogsPaginationComplete ? "complete" : worklogCompleteness.status === "permission_restricted" ? "permission_limited" : worklogCompleteness.status === "unsupported" ? "unsupported" : "partial", canonicalFiles.worklogs, worklogsPaginationComplete ? "" : String(worklogCompleteness.fetchError ?? worklogCompleteness.status ?? "Worklogs incomplete"), { ...worklogsEndpoint, fetchedAt, pageCount: Number(worklogsPagination.pageCount ?? 0) }),
     fileCoverage("attachments", true, true, "metadata_only", canonicalFiles.attachments, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("users", true, true, "complete", canonicalFiles.users, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("evidence", true, true, "complete", canonicalFiles.evidence, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("issue_links", true, true, "complete", canonicalFiles.issueLinks, "", { ...issueEndpoint, fetchedAt }),
     fileCoverage("remote_links", remoteStatus?.enabled === true, remoteStatus?.status !== "not_attempted", remoteStatus?.status === "available" ? "complete" : "not_collected", canonicalFiles.remoteLinks, remoteStatus?.warning ?? "", { fetchedAt: remoteStatus?.fetchedAt ?? null, attemptCount: remoteStatus?.attemptCount ?? 0, httpStatus: remoteStatus?.httpStatus ?? null })
   ];
-  const issueManifest = { schemaVersion: "full_fetch_issue_manifest_v4", ...runBuildIdentity(run), runId: run.state.fullFetchRunId, stagingId: run.state.stagingId, issueId: snapshot.id, issueKey: key, status: finalStatus, fetchedAt: snapshot.fetchedAt, committedAt: completedAt, currentIssueSnapshotRef: canonicalFiles.currentIssueSnapshot, normalizedCurrentFieldsRef: canonicalFiles.normalizedCurrentFields, canonicalFiles, coverage, coreValidation: { identityVerified: !validationFailures.includes("issue_identity_mismatch"), fullFieldsReturned: snapshot.sectionStatus.fields === "returned", changelogPaginationComplete, commentsPaginationComplete, canonicalHashSizeAndParseVerified: !validationFailures.some((item) => item.includes("canonical_")), failures: validationFailures }, missingSections: missing, partialReasons: target.partialReasons, failedEndpoints: outcome.failedEndpoints ?? [], optionalWarnings: target.optionalWarnings, classification: finalStatus === "eligible" ? outcome.classification ?? "complete" : "required_core_section_incomplete" };
+  const issueManifest = { schemaVersion: "full_fetch_issue_manifest_v4", ...runBuildIdentity(run), runId: run.state.fullFetchRunId, stagingId: run.state.stagingId, issueId: snapshot.id, issueKey: key, status: finalStatus, fetchedAt: snapshot.fetchedAt, committedAt: completedAt, currentIssueSnapshotRef: canonicalFiles.currentIssueSnapshot, normalizedCurrentFieldsRef: canonicalFiles.normalizedCurrentFields, canonicalFiles, coverage, coreValidation: { identityVerified: !validationFailures.includes("issue_identity_mismatch"), fullFieldsReturned: snapshot.sectionStatus.fields === "returned", changelogPaginationComplete, commentsPaginationComplete, worklogsPaginationComplete, worklogCompleteness, canonicalHashSizeAndParseVerified: !validationFailures.some((item) => item.includes("canonical_")), failures: validationFailures }, missingSections: missing, partialReasons: target.partialReasons, failedEndpoints: outcome.failedEndpoints ?? [], optionalWarnings: target.optionalWarnings, classification: finalStatus === "eligible" ? outcome.classification ?? "complete" : "required_core_section_incomplete" };
   const manifestRef = atomicWriteJsonStream(path.join(issueDir, "issue-manifest.json"), issueManifest, reference("issue-manifest.json"));
   target.status = finalStatus; target.classification = cleanText(finalStatus === "eligible" ? outcome.classification || target.status : "required_core_section_incomplete"); target.errorType = cleanText(finalStatus === "eligible" ? outcome.errorType : "eligible_validation_failed"); target.lastError = cleanText(finalStatus === "eligible" ? outcome.errorMessage : missing.join(", ")); target.currentIssueSnapshotRef = canonicalFiles.currentIssueSnapshot; target.snapshotFetchedAt = snapshot.fetchedAt; target.normalizedCurrentFieldsRef = canonicalFiles.normalizedCurrentFields; target.normalizedCurrentFields = normalized.fields; target.issueManifestRef = manifestRef; target.canonicalFiles = canonicalFiles; target.coverage = coverage; target.sizeBytes = Object.values(canonicalFiles).reduce((sum, ref) => sum + ref.sizeBytes, 0) + manifestRef.sizeBytes; target.updatedAt = completedAt;
   if (finalStatus !== "eligible") appendNdjson(paths(run.dir).issueErrors, { time: completedAt, issueKey: key, status: finalStatus, errorCode: target.errorType, message: target.lastError, canonicalFiles });

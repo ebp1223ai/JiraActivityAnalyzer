@@ -38,7 +38,7 @@ assert.match(mainSource, /database-viewer:overview/);
 assert.match(mainSource, /database-viewer:get-issue/);
 assert.match(mainSource, /database-viewer:get-user/);
 
-assert.equal(CURRENT_STATE_SCHEMA_VERSION, 2, "v0.2.43 must not change the schema version");
+assert.equal(CURRENT_STATE_SCHEMA_VERSION, 3, "v0.2.53 requires Current-State schema v3 for Worklogs");
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0243-"));
 const databasePath = path.join(tempRoot, "viewer.sqlite");

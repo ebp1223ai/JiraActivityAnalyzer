@@ -22,7 +22,7 @@ const dashboardSource = fs.readFileSync(path.join(root, "src", "routes", "Dashbo
 const issueViewerSource = fs.readFileSync(path.join(root, "src", "routes", "IssueViewerPage.tsx"), "utf8");
 const userViewerSource = fs.readFileSync(path.join(root, "src", "routes", "UserViewerPage.tsx"), "utf8");
 
-assert.equal(CURRENT_STATE_SCHEMA_VERSION, 2, "v0.2.48 must keep Current-State schema v2");
+assert.equal(CURRENT_STATE_SCHEMA_VERSION, 3, "v0.2.53 requires Current-State schema v3 for Worklogs");
 assert.match(mainSource, /did-finish-load[\s\S]*startPostRendererStartup/);
 assert.doesNotMatch(databaseSource, /function checkDatabaseCompatibility[\s\S]{0,1400}quick_check/);
 assert.match(dashboardSource, /issueInteractionReady/);

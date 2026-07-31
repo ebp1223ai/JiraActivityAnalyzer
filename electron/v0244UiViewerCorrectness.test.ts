@@ -45,7 +45,7 @@ assert.doesNotMatch(issueViewerSource, /dangerouslySetInnerHTML/);
 assert.equal(USER_ANALYSIS_DEFAULTS.delayBetweenRoundsMs, 5000);
 assert.equal(USER_ANALYSIS_DEFAULTS.requestWindow, "calendar_month");
 assert.equal(USER_ANALYSIS_DEFAULTS.roundExecutionMode, "force_all_rounds");
-assert.equal(CURRENT_STATE_SCHEMA_VERSION, 2, "v0.2.44 must not change the database schema");
+assert.equal(CURRENT_STATE_SCHEMA_VERSION, 3, "v0.2.53 requires Current-State schema v3 for Worklogs");
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0244-"));
 const databasePath = path.join(tempRoot, "synthetic-viewer.sqlite");

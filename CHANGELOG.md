@@ -1,3 +1,10 @@
+## 0.2.53 - Single Full Fetch Completeness & Content/Diff Viewer
+
+- Added independent read-only Jira worklog pagination, count conservation, parse diagnostics, required-source staging, progress, summary, and file-backed evidence.
+- Added `ContentDisplayResult` decisions for true Diff, neutral latest content, empty, parse-failed, and not-applicable states with exact Comment/Worklog ID correlation.
+- Added Current-State schema v3, transactional v2-to-v3 migration, source-aware Worklog uniqueness/indexes, and Activity Event content provenance columns.
+- Added Issue Viewer Worklogs, expandable inline/side-by-side content viewer, Debug Folder JSON/CSV evidence, focused regression tests, and manual verification checklist.
+- Kept Jira operations read-only and did not add comment/description snapshots, cross-run Diff caches, Remote Links, attachment downloads, AI Diff, or DB Merge.
 # Changelog
 ## 0.2.52 - Data Trustworthiness, Runtime Consistency and Stability Gate
 

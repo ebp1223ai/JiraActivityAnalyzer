@@ -14,7 +14,7 @@ const analysisSource = fs.readFileSync(path.join(root, "src", "routes", "Analysi
 const viewerSource = fs.readFileSync(path.join(root, "src", "routes", "IssueViewerPage.tsx"), "utf8");
 const contentSource = fs.readFileSync(path.join(root, "src", "components", "JiraContent.tsx"), "utf8");
 
-assert.equal(CURRENT_STATE_SCHEMA_VERSION, 2, "v0.2.45 must not change Current-State schema v2");
+assert.equal(CURRENT_STATE_SCHEMA_VERSION, 3, "v0.2.53 requires Current-State schema v3 for Worklogs");
 assert.doesNotMatch(dashboardSource, /Open Folder|databaseViewer\?\.openFolder/);
 assert.match(dashboardSource, /Copy Path|複製路徑/);
 assert.match(tableSource, /DATABASE_ISSUE_PAGE_SIZES/);

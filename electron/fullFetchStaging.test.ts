@@ -51,6 +51,8 @@ function envelope(issueKey: string, description = "safe fixture") {
     },
     changelogHistories: [{ id: "1", items: [{ field: "status", fromString: "Open", toString: "In Progress" }] }],
     comments: [{ id: "1", body: description }],
+    worklogs: [],
+    worklogCompleteness: { status: "complete", reportedTotal: 0, fetchedCount: 0, uniqueWorklogCount: 0, duplicateCount: 0, paginationComplete: true, permissionRestricted: false, unsupported: false, fetchError: "", parseErrorCount: 0 },
     attachments: [{ id: "1", filename: "fixture.txt", size: 42 }],
     parsedUsers: ["fixture.user"],
     evidenceEvents: [{ evidenceId: "fixture", issueKey }],
@@ -59,11 +61,13 @@ function envelope(issueKey: string, description = "safe fixture") {
     endpointMetadata: [
       { method: "GET", endpoint: `/issue/${issueKey}`, status: 200, attempts: 1, fetchedAt: "2026-07-22T00:00:00.000Z" },
       { method: "GET", endpoint: `/issue/${issueKey}/changelog`, status: 200, attempts: 1, fetchedAt: "2026-07-22T00:00:00.000Z" },
-      { method: "GET", endpoint: `/issue/${issueKey}/comment`, status: 200, attempts: 1, fetchedAt: "2026-07-22T00:00:00.000Z" }
+      { method: "GET", endpoint: `/issue/${issueKey}/comment`, status: 200, attempts: 1, fetchedAt: "2026-07-22T00:00:00.000Z" },
+      { method: "GET", endpoint: `/issue/${issueKey}/worklog`, status: 200, attempts: 1, fetchedAt: "2026-07-22T00:00:00.000Z" }
     ],
     requestMetadata: { apiVersion: "v2", fetchedAt: "2026-07-22T00:00:00.000Z", fetchRemoteLinks: false },
     paginationMetadata: {
       comments: { reportedTotal: 1, fetchedCount: 1, rawFetchedCount: 1, pageCount: 1, duplicateCount: 0, paginationComplete: true, complete: true },
+      worklogs: { reportedTotal: 0, fetchedCount: 0, rawFetchedCount: 0, pageCount: 1, duplicateCount: 0, paginationComplete: true, complete: true },
       changelog: { reportedTotal: 1, fetchedCount: 1, rawFetchedCount: 1, pageCount: 1, duplicateCount: 0, paginationComplete: true, complete: true }
     },
     completenessMetadata: { requiredMissingSections: [] }

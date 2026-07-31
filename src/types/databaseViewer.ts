@@ -23,6 +23,7 @@ export type IssueViewerDto = {
   };
   changelog: ViewerSection<Record<string, unknown>>;
   comments: ViewerSection<Record<string, unknown>>;
+  worklogs: ViewerSection<Record<string, unknown>>;
   attachments: ViewerSection<Record<string, unknown>>;
   issueLinks: ViewerSection<Record<string, unknown>>;
   remoteLinks: ViewerSection<Record<string, unknown>>;

@@ -1,4 +1,5 @@
 import { canonicalizeRichContent, readableContentText } from "./richContent";
+import { contentDisplayFromActivityRow, type ContentDisplayResult } from "./contentDisplay";
 
 export type ValueAvailability = "available" | "empty" | "unavailable" | "not_applicable" | "parse_failed";
 export type DiffStatus = "changed" | "unchanged" | "unavailable" | "fallback_full_after";
@@ -25,6 +26,7 @@ export type NormalizedChange = {
   availabilityReason?: string;
   normalizationWarnings: string[];
   diffKind: "text" | "scalar" | "set" | "none";
+  contentDisplay: ContentDisplayResult;
   provenance: {
     issueKey: string;
     changelogId?: string;
@@ -99,31 +101,15 @@ export function normalizeActivityChange(row: Record<string, unknown>): Normalize
         ? "scalar"
         : "text";
 
-  let diffStatus: DiffStatus = "changed";
-  let diffBasis: DiffBasis = "before_after";
-  let displayContent: string | null = afterContent.displayText || null;
-  let availabilityReason: string | undefined;
-  const unavailableBefore = beforeAvailability === "unavailable" || beforeAvailability === "parse_failed";
-  const unavailableAfter = afterAvailability === "unavailable" || afterAvailability === "parse_failed";
-
-  if (unavailableAfter) {
-    diffStatus = "unavailable";
-    diffBasis = "not_available";
-    displayContent = null;
-    availabilityReason = afterAvailability === "parse_failed" ? "After value could not be parsed safely." : "After value is not available in source data.";
-  } else if (isComment && !isCreated && !isDeleted && unavailableBefore) {
-    diffStatus = "fallback_full_after";
-    diffBasis = "after_only";
-    availabilityReason = beforeAvailability === "parse_failed" ? "Previous comment could not be parsed. Full After content is shown." : "Previous comment is unavailable. Full After content is shown.";
-  } else if (isDescription && !isCreated && !isDeleted && unavailableBefore) {
-    diffStatus = "unavailable";
-    diffBasis = "not_available";
-    availabilityReason = beforeAvailability === "parse_failed" ? "Previous description could not be parsed; a semantic diff is unavailable." : "Previous description is unavailable in source data; a semantic diff is unavailable.";
-  } else if (beforeText === afterText && !isCreated && !isDeleted) {
-    diffStatus = "unchanged";
-    diffBasis = "after_full_display";
-    availabilityReason = "Canonical Before and After content are identical. Full After content is shown.";
-  }
+  const contentDisplay = contentDisplayFromActivityRow(row);
+  const diffStatus: DiffStatus = contentDisplay.mode === "diff"
+    ? beforeText === afterText ? "unchanged" : "changed"
+    : contentDisplay.mode === "latest_content" ? "fallback_full_after" : "unavailable";
+  const diffBasis: DiffBasis = contentDisplay.mode === "diff"
+    ? "before_after"
+    : contentDisplay.mode === "latest_content" ? "after_only" : "not_available";
+  const displayContent = contentDisplay.displayText;
+  const availabilityReason = contentDisplay.completenessReason ?? undefined;
 
   const normalized: NormalizedChange = {
     fieldId: String(row.fieldId ?? "") || undefined,
@@ -145,6 +131,7 @@ export function normalizeActivityChange(row: Record<string, unknown>): Normalize
     availabilityReason,
     normalizationWarnings: [...beforeContent.warnings, ...afterContent.warnings],
     diffKind,
+    contentDisplay,
     provenance: {
       issueKey: String(row.issueKey ?? ""),
       changelogId: String(row.changelogId ?? row.commentId ?? "") || undefined,
@@ -152,7 +139,7 @@ export function normalizeActivityChange(row: Record<string, unknown>): Normalize
       source: String(row.sourceProvenance ?? row.source ?? "unknown")
     }
   };
-  normalized.diff = diffStatus === "changed" ? compactDiff(normalized) : null;
+  normalized.diff = contentDisplay.mode === "diff" ? compactDiff(normalized) : null;
   return normalized;
 }
 
