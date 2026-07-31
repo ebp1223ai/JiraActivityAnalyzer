@@ -1,3 +1,10 @@
+## 0.2.54 - Development Manual Verification Candidate
+
+- Promoted the v0.2.53 Worklog, content display, Diff Viewer, schema-v3 migration, event-identity-v3, deduplication, and Complete/Partial save-gate baseline for Electron Development Mode manual verification.
+- Added a focused version and Development Mode contract test plus an unchecked manual verification checklist.
+- Updated application and build metadata sources to 0.2.54 without changing product behavior or dependencies.
+- Did not run Windows packaging and did not produce 0.2.54 Installer or Portable artifacts.
+
 ## 0.2.53 - Single Full Fetch Completeness & Content/Diff Viewer
 
 - Added independent read-only Jira worklog pagination, count conservation, parse diagnostics, required-source staging, progress, summary, and file-backed evidence.
