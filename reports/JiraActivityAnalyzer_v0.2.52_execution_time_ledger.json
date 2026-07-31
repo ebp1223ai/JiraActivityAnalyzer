@@ -1,43 +1,200 @@
 {
-  "formatVersion": 1,
-  "releaseVersion": "0.2.52",
-  "timezone": "Asia/Taipei",
-  "sessionStart": "2026-07-31T10:48:30+08:00",
-  "sessionEnd": "2026-07-31T11:22:55+08:00",
-  "totalWallClockSeconds": 2065,
-  "phases": [
-    { "name": "baseline-and-preservation", "startedAt": "2026-07-31T10:48:30+08:00", "endedAt": "2026-07-31T10:52:00+08:00", "durationSeconds": 210, "status": "completed" },
-    { "name": "data-trust-runtime-stability-implementation", "startedAt": "2026-07-31T10:52:00+08:00", "endedAt": "2026-07-31T11:10:00+08:00", "durationSeconds": 1080, "status": "completed" },
-    { "name": "focused-tests-and-fixes", "startedAt": "2026-07-31T11:10:00+08:00", "endedAt": "2026-07-31T11:18:00+08:00", "durationSeconds": 480, "status": "completed_with_known_legacy_failure" },
-    { "name": "version-docs-and-source-delivery-preparation", "startedAt": "2026-07-31T11:18:00+08:00", "endedAt": "2026-07-31T11:22:55+08:00", "durationSeconds": 295, "status": "completed" }
-  ],
-  "commandAttempts": [
-    { "command": "Read v0.2.52 prompt and inspect Git baseline", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 0.8, "detail": "Preserved the existing tracked report modification and all untracked user content." },
-    { "command": "npm.cmd run typecheck", "attempt": 1, "result": "failed", "exitCode": 2, "durationSeconds": 8.806, "detail": "Detected connection-only fields accidentally applied to DatabaseRuntimeState; corrected." },
-    { "command": "npm.cmd run typecheck", "attempt": 2, "result": "failed", "exitCode": 2, "durationSeconds": 9.114, "detail": "Detected connected fixture and cache inference gaps; corrected without weakening contracts." },
-    { "command": "npm.cmd run typecheck", "attempt": 3, "result": "passed", "exitCode": 0, "durationSeconds": 8.604 },
-    { "command": "npm.cmd run test:v0.2.52", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 1.246, "detail": "3,000-row simple=6.48ms, compound=5.99ms, recent cache hit=true." },
-    { "command": "npm.cmd run test:v0.2.51", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 0.691 },
-    { "command": "npm.cmd run test:v0.2.50", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 0.954 },
-    { "command": "npm.cmd run test:v0.2.47", "attempt": 1, "result": "failed", "exitCode": 1, "durationSeconds": 0.710, "detail": "Legacy source-string assertion expects draftText removed by later versions; no production query/runtime assertion failed." },
-    { "command": "npm.cmd run build", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 19.987, "detail": "Version verified and renderer/Electron production bundles built." },
-    { "command": "npm.cmd run test:v0.2.48", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 1.434 },
-    { "command": "npm.cmd run test:v0.2.37", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 0.880 },
-    { "command": "git diff --check", "attempt": 1, "result": "passed", "exitCode": 0, "durationSeconds": 0.3 }
-  ],
-  "manualVerification": {
-    "status": "not_run",
-    "durationSeconds": 0,
-    "notes": "Real Jira, original 5.84-second dataset, three packaged cold starts, Windows GUI/IME, Installer and Portable launch remain NOT EXECUTED."
-  },
-  "gitDelivery": {
-    "branch": "feat/v0.2.52-data-trust-runtime-stability-usability",
-    "sourceCommit": "pending",
-    "packagedCommit": "pending",
-    "reportCommit": "pending",
-    "pushStatus": "pending",
-    "durationSeconds": 0
-  },
-  "unaccountedTimeSeconds": 0,
-  "reconciliation": "Contiguous phase durations equal total wall clock. Delivery epilogue will update commit/push/package timing after completion."
+    "formatVersion":  1,
+    "releaseVersion":  "0.2.52",
+    "timezone":  "Asia/Taipei",
+    "sessionStart":  "2026-07-31T10:48:30+08:00",
+    "sessionEnd":  "2026-07-31T11:40:10+08:00",
+    "totalWallClockSeconds":  3100,
+    "phases":  [
+                   {
+                       "name":  "baseline-and-preservation",
+                       "durationSeconds":  210,
+                       "status":  "completed",
+                       "start":  "2026-07-31T10:48:30+08:00",
+                       "end":  "2026-07-31T10:52:00+08:00"
+                   },
+                   {
+                       "name":  "data-trust-runtime-stability-implementation",
+                       "durationSeconds":  1080,
+                       "status":  "completed",
+                       "start":  "2026-07-31T10:52:00+08:00",
+                       "end":  "2026-07-31T11:10:00+08:00"
+                   },
+                   {
+                       "name":  "focused-tests-and-fixes",
+                       "durationSeconds":  480,
+                       "status":  "completed",
+                       "start":  "2026-07-31T11:10:00+08:00",
+                       "end":  "2026-07-31T11:18:00+08:00"
+                   },
+                   {
+                       "name":  "version-docs-and-source-delivery-preparation",
+                       "durationSeconds":  295,
+                       "status":  "completed",
+                       "start":  "2026-07-31T11:18:00+08:00",
+                       "end":  "2026-07-31T11:22:55+08:00"
+                   },
+                   {
+                       "name":  "clean-packaging-metadata-correction-and-artifact-copy",
+                       "durationSeconds":  1035,
+                       "status":  "completed",
+                       "start":  "2026-07-31T11:22:55+08:00",
+                       "end":  "2026-07-31T11:40:10+08:00"
+                   }
+               ],
+    "commandAttempts":  [
+                            {
+                                "command":  "Read v0.2.52 prompt and inspect Git baseline",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.8,
+                                "detail":  "Preserved the existing tracked report modification and all untracked user content."
+                            },
+                            {
+                                "command":  "npm.cmd run typecheck",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  2,
+                                "durationSeconds":  8.806,
+                                "detail":  "Detected connection-only fields accidentally applied to DatabaseRuntimeState; corrected."
+                            },
+                            {
+                                "command":  "npm.cmd run typecheck",
+                                "attempt":  2,
+                                "result":  "failed",
+                                "exitCode":  2,
+                                "durationSeconds":  9.114,
+                                "detail":  "Detected connected fixture and cache inference gaps; corrected without weakening contracts."
+                            },
+                            {
+                                "command":  "npm.cmd run typecheck",
+                                "attempt":  3,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  8.604
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.52",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  1.246,
+                                "detail":  "3,000-row simple=6.48ms, compound=5.99ms, recent cache hit=true."
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.51",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.691
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.50",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.954
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.47",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  1,
+                                "durationSeconds":  0.710,
+                                "detail":  "Legacy source-string assertion expects draftText removed by later versions; no production query/runtime assertion failed."
+                            },
+                            {
+                                "command":  "npm.cmd run build",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  19.987,
+                                "detail":  "Version verified and renderer/Electron production bundles built."
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.48",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  1.434
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.37",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.880
+                            },
+                            {
+                                "command":  "git diff --check",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  0.3
+                            },
+                            {
+                                "command":  "npm.cmd run dist (clean worktree without local node_modules)",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  1,
+                                "durationSeconds":  19.712,
+                                "detail":  "electron-builder could not resolve ranged Electron without a worktree-local install."
+                            },
+                            {
+                                "command":  "npm.cmd run dist (junction worktree, superseded artifact)",
+                                "attempt":  2,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  76.961,
+                                "detail":  "Superseded after detached build metadata exposed blank gitBranch."
+                            },
+                            {
+                                "command":  "npm.cmd ci (restore main node_modules after junction cleanup)",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  125.644,
+                                "detail":  "Restored 499 packages from lockfile; tracked dependency files unchanged. npm reported 1 moderate and 7 high audit findings."
+                            },
+                            {
+                                "command":  "npm.cmd ci (independent clean packaging worktree)",
+                                "attempt":  1,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  166.271,
+                                "detail":  "No junction or shared node_modules used."
+                            },
+                            {
+                                "command":  "npm.cmd run dist (final clean worktree)",
+                                "attempt":  3,
+                                "result":  "passed",
+                                "exitCode":  0,
+                                "durationSeconds":  169.462,
+                                "detail":  "Packaged commit 67d2fd0; branch and artifact hashes verified in release/build-info.json."
+                            },
+                            {
+                                "command":  "npm.cmd run audit:package-size -- 0.2.52",
+                                "attempt":  1,
+                                "result":  "failed",
+                                "exitCode":  0,
+                                "durationSeconds":  8.793,
+                                "detail":  "Audit helper selected older 0.2.38 artifact by first prefix match; no v0.2.52 claim made."
+                            }
+                        ],
+    "manualVerification":  {
+                               "status":  "not_run",
+                               "durationSeconds":  0,
+                               "notes":  "Real Jira, original 5.84-second dataset, three packaged cold starts, Windows GUI/IME, Installer and Portable launch remain NOT EXECUTED."
+                           },
+    "gitDelivery":  {
+                        "branch":  "feat/v0.2.52-data-trust-runtime-stability-usability",
+                        "sourceCommit":  "67d2fd0c23ce2bc55c3a76e91376001aa1658605",
+                        "packagedCommit":  "67d2fd0c23ce2bc55c3a76e91376001aa1658605",
+                        "reportCommit":  "pending epilogue commit",
+                        "pushStatus":  "pending",
+                        "durationSeconds":  0
+                    },
+    "unaccountedTimeSeconds":  0,
+    "reconciliation":  "Contiguous phase durations equal 3100-second wall clock. Packaging retries, dependency recovery, final artifact verification and superseded attempts are all recorded; report push epilogue remains."
 }

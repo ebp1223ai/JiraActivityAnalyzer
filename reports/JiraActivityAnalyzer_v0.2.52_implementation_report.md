@@ -32,6 +32,7 @@ v0.2.52 implements Data Trustworthiness, Runtime Consistency, Stability Gate and
 | `npm.cmd run test:v0.2.48` | Passed | 0 | 1.434 s |
 | `npm.cmd run test:v0.2.37` | Passed | 0 | 0.880 s |
 | `npm.cmd run build` | Passed | 0 | 19.987 s |
+| `npm.cmd run dist` (final clean worktree) | Passed | 0 | 169.462 s |
 | `npm.cmd run test:v0.2.47` | Failed on obsolete source-string `draftText` assertion; no runtime/query failure | 1 | 0.710 s |
 
 ## 5. UI and workflow verification
@@ -52,7 +53,7 @@ Activity Events queries record SQL execution, row mapping/payload normalization,
 
 ## 9. Packaging and artifact traceability
 
-Version sources are 0.2.52. Renderer About includes branch/commit/build time/build host/OS. `release/build-info.json` is designed to record packaged source commit and SHA-256 for generated `.exe` artifacts. Final artifact values are populated only after a clean committed `npm run dist`.
+Version sources are 0.2.52. Renderer About includes branch/commit/build time/build host/OS. `release/build-info.json` is designed to record packaged source commit and SHA-256 for generated `.exe` artifacts. Final clean packaging used commit `67d2fd0c23ce2bc55c3a76e91376001aa1658605` and branch `feat/v0.2.52-data-trust-runtime-stability-usability`. Portable SHA-256: `8f1b84c45af3c58b91d945e0fc0d50fc61bf49aed2b9523c77b094d390e1cb5e`; Setup SHA-256: `9b030bce2961e5b67af11ea5415b8110dee5da65609453a79c8f433299aa6966`. The generic package-size audit selected an older 0.2.38 filename due its first-prefix-match behavior, so its artifact size result is not accepted as v0.2.52 evidence; `build-info.json` is authoritative for the 0.2.52 files.
 
 ## 10. Security and containment
 
@@ -72,9 +73,9 @@ Ledger: `reports/JiraActivityAnalyzer_v0.2.52_execution_time_ledger.json`. Final
 
 ## 13. Commit, push and tag
 
-- Source commit: pending
-- Packaged commit: pending clean source commit
-- Report commit: pending
+- Source commit: `67d2fd0c23ce2bc55c3a76e91376001aa1658605`
+- Packaged commit: `67d2fd0c23ce2bc55c3a76e91376001aa1658605`
+- Report commit: pending epilogue commit
 - Push: pending
 - Tag: not created; acceptance is Partial
 - Final tracked clean-tree audit: pending delivery
