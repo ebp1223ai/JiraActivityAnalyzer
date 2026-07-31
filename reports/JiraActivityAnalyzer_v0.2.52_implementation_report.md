@@ -75,7 +75,7 @@ Ledger: `reports/JiraActivityAnalyzer_v0.2.52_execution_time_ledger.json`. Final
 
 - Source commit: `67d2fd0c23ce2bc55c3a76e91376001aa1658605`
 - Packaged commit: `67d2fd0c23ce2bc55c3a76e91376001aa1658605`
-- Report commit: pending epilogue commit
-- Push: pending
+- Report commit: `c37c8fc5dfd8168777554e863a22a15e6a091a8c`
+- Push: succeeded to `origin/feat/v0.2.52-data-trust-runtime-stability-usability`
 - Tag: not created; acceptance is Partial
-- Final tracked clean-tree audit: pending delivery
+- Final tracked audit: v0.2.52 files are committed; only the pre-existing user-owned v0.2.47 report modification remains unstaged, with all pre-existing untracked content preserved

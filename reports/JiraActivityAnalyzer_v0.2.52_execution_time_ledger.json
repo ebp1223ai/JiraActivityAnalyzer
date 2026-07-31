@@ -191,10 +191,16 @@
                         "branch":  "feat/v0.2.52-data-trust-runtime-stability-usability",
                         "sourceCommit":  "67d2fd0c23ce2bc55c3a76e91376001aa1658605",
                         "packagedCommit":  "67d2fd0c23ce2bc55c3a76e91376001aa1658605",
-                        "reportCommit":  "pending epilogue commit",
-                        "pushStatus":  "pending",
-                        "durationSeconds":  0
+                        "reportCommit":  "c37c8fc5dfd8168777554e863a22a15e6a091a8c",
+                        "pushStatus":  "passed_to_origin",
+                        "durationSeconds":  3.4
                     },
     "unaccountedTimeSeconds":  0,
-    "reconciliation":  "Contiguous phase durations equal 3100-second wall clock. Packaging retries, dependency recovery, final artifact verification and superseded attempts are all recorded; report push epilogue remains."
+    "reconciliation":  "Contiguous phase durations equal 3100-second wall clock. Packaging retries, dependency recovery, final artifact verification and superseded attempts are all recorded; report push epilogue remains.",
+    "postInterruptionClosure":  {
+                                    "resumedAt":  "2026-07-31T14:15:27+08:00",
+                                    "status":  "completed",
+                                    "note":  "The inactive user-interruption interval is intentionally excluded from the 3100-second implementation wall clock. This closure only records remote reconciliation and delivery metadata.",
+                                    "completedAt":  "2026-07-31T14:15:55.5503364+08:00"
+                                }
 }
