@@ -27,6 +27,10 @@ const gitValue = (command) => {
   }
 };
 
+const sourceBranch = process.env.JAA_BUILD_BRANCH
+  || gitValue("git branch --show-current")
+  || gitValue("git name-rev --name-only HEAD").replace(/^remotes\//, "").replace(/~\d+$/, "")
+  || "detached";
 const common = {
   bundle: true,
   platform: "node",
@@ -38,7 +42,7 @@ const common = {
     __MAIN_APP_VERSION__: JSON.stringify(packageJson.version),
     __MAIN_BUILD_TIME__: JSON.stringify(buildTime),
     __MAIN_GIT_COMMIT__: JSON.stringify(process.env.JAA_PACKAGED_SOURCE_COMMIT || gitValue("git rev-parse HEAD")),
-    __MAIN_GIT_BRANCH__: JSON.stringify(gitValue("git branch --show-current"))
+    __MAIN_GIT_BRANCH__: JSON.stringify(sourceBranch)
   },
   logLevel: "info"
 };

@@ -33,21 +33,25 @@ const buildTimeParts = new Intl.DateTimeFormat("en-CA", {
 }).formatToParts(buildDate);
 const buildPart = (type) => buildTimeParts.find((part) => part.type === type)?.value ?? "00";
 const buildTime = `${buildPart("year")}/${buildPart("month")}/${buildPart("day")} ${buildPart("hour")}:${buildPart("minute")}:${buildPart("second")}`;
-const buildInfo = {
+const sourceBranch = process.env.JAA_BUILD_BRANCH
+  || execSync("git branch --show-current", { cwd: projectRoot, stdio: ["ignore", "pipe", "inherit"] }).toString().trim()
+  || execSync("git name-rev --name-only HEAD", { cwd: projectRoot, stdio: ["ignore", "pipe", "inherit"] }).toString().trim().replace(/^remotes\//, "").replace(/~\d+$/, "")
+  || "detached";const buildInfo = {
   appVersion: packageJson.version,
   packagedSourceCommit,
   buildTime,
   buildTimeIso: buildDate.toISOString(),
   buildMachine: os.hostname(),
   buildOs: `${os.type()} ${os.release()} ${os.arch()}`,
-  gitBranch: execSync("git branch --show-current", { cwd: projectRoot, stdio: ["ignore", "pipe", "inherit"] }).toString().trim(),
+  gitBranch: sourceBranch,
   dirtyState: false
 };
 const buildEnvironment = {
   ...process.env,
   JAA_PACKAGED_SOURCE_COMMIT: packagedSourceCommit,
   JAA_BUILD_TIME: buildTime,
-  JAA_BUILD_TIME_ISO: buildInfo.buildTimeIso
+  JAA_BUILD_TIME_ISO: buildInfo.buildTimeIso,
+  JAA_BUILD_BRANCH: sourceBranch
 };
 
 execFileSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", "npm.cmd run build"], {

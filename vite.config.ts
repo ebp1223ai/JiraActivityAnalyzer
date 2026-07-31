@@ -34,6 +34,12 @@ function gitValue(command: string) {
   }
 }
 
+function gitBranchValue() {
+  const direct = process.env.JAA_BUILD_BRANCH ?? gitValue("git branch --show-current");
+  if (direct && direct !== "unknown") return direct;
+  const named = gitValue("git name-rev --name-only HEAD").replace(/^remotes\//, "").replace(/~\d+$/, "");
+  return named || "detached";
+}
 export default defineConfig({
   base: "./",
   plugins: [react()],
@@ -41,7 +47,7 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(buildTime),
     __APP_VERSION__: JSON.stringify(packageJson.version),
     __GIT_COMMIT__: JSON.stringify(process.env.JAA_PACKAGED_SOURCE_COMMIT ?? gitValue("git rev-parse HEAD")),
-    __GIT_BRANCH__: JSON.stringify(gitValue("git branch --show-current")),
+    __GIT_BRANCH__: JSON.stringify(gitBranchValue()),
     __BUILD_MACHINE__: JSON.stringify(os.hostname()),
     __BUILD_OS__: JSON.stringify(`${os.type()} ${os.release()} ${os.arch()}`)
   }
