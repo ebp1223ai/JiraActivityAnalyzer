@@ -1950,10 +1950,10 @@ export function AnalysisPage() {
       </SectionCard>
 
       {userAnalysis.activeTab === "timeline" ? (
-        <SectionCard className="mb-4 workflow-current-panel" title="Step 1. Build Activity Stream" subtitle="建立活動串流">
-          <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SectionCard className="mb-4 workflow-current-panel" title="Step 1. Build Activity Stream" subtitle="Data Collection">
+          <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-              <FieldLabel label="Selected User" sub="選定使用者" />
+              <FieldLabel label="Selected User" sub="分析對象" />
               <input data-testid="analysis-setup-user-v244" className="field" value={userAnalysis.selectedUsersText} onChange={(event) => patchState({ selectedUsersText: event.target.value.replace(/[\n,;].*$/, "") })} placeholder="sample.user" />
             </div>
             <div>
@@ -1964,23 +1964,21 @@ export function AnalysisPage() {
               <FieldLabel label="End Date" sub="結束日期" />
               <input data-testid="analysis-setup-end-v245" className="field" type="date" value={userAnalysis.endDate} onChange={(event) => patchState({ endDate: event.target.value })} />
             </div>
-            {[
-              ["Request Window / 請求視窗", "1 Calendar Month"],
-              ["Round Mode / 輪次模式", "Force All Rounds"],
-              ["Rounds / 輪次", "3"],
-              ["Delay / 間隔", "5000 ms"],
-              ["Merge Strategy / 合併策略", "Union"]
-            ].map(([label, value]) => (
-              <div key={label} className="min-w-0">
-                <div className="text-xs font-bold text-muted">{label}</div>
-                <div className="field mt-1 bg-slate-100 font-black text-slate-700" data-no-clip="true">{value}</div>
-              </div>
-            ))}
-            <div data-testid="analysis-fetch-remote-links-v245" className="flex min-w-0 items-start gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold">
-              <StatusBadge tone="gray">OFF</StatusBadge>
-              <span className="min-w-0"><b>Remote Links (Locked)</b><span className="mt-1 block text-xs text-muted">This release keeps Remote Links OFF. No control is disabled or misleading.</span></span>
-            </div>
           </div>
+          <details data-testid="analysis-advanced-details-v252" className="mt-4 rounded-md border border-line bg-slate-50">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-black text-slate-800">Advanced Details / 執行設定摘要</summary>
+            <dl className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-3 border-t border-line px-4 py-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+              {[
+                ["Request Window / 請求區間", "1 Calendar Month"],
+                ["Round Mode / 執行模式", "Force All Rounds"],
+                ["Rounds / 輪數", "3"],
+                ["Delay / 間隔", "5000 ms"],
+                ["Merge Strategy / 合併策略", "Union"],
+                ["Remote Links", "OFF"]
+              ].map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-xs font-bold text-muted">{label}</dt><dd className="mt-1 break-words font-black text-slate-800" data-no-clip="true">{value}</dd></div>)}
+            </dl>
+            <p className="border-t border-line px-4 py-3 text-xs font-semibold leading-relaxed text-muted">These values are fixed for this release and are recorded in the Run Manifest and Debug Folder. / 本版採固定執行參數，並寫入 Run Manifest 與 Debug Folder。</p>
+          </details>
         </SectionCard>
       ) : null}
 
@@ -2017,23 +2015,6 @@ export function AnalysisPage() {
         Follow the guided workflow from Timeline evidence to Full Fetch and scoped Related Issues.<br />
         依引導式流程，從活動時間線證據逐步完成 Jira 完整抓取與關聯範圍檢視。
       </p>
-
-      {false && userAnalysis.activeTab === "timeline" ? <SectionCard id="analysis-setup" title="Step 1. Setup & Build Timeline" subtitle="設定並建立活動時間線" className="mb-4">
-        <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div><FieldLabel label="Activity Stream Request Window" sub="Activity Stream 請求視窗" /><select data-testid="analysis-request-window" className="field" value={userAnalysis.activityStreamRequestWindow} onChange={(event) => patchState({ activityStreamRequestWindow: event.target.value as typeof userAnalysis.activityStreamRequestWindow })}><option value="1_day">1 Day</option><option value="7_days">7 Days</option><option value="14_days">14 Days</option><option value="calendar_month">1 Calendar Month</option><option value="custom_days">Custom</option></select>{userAnalysis.activityStreamRequestWindow === "custom_days" ? <input data-testid="analysis-custom-window-days" className="field mt-2" type="number" min={1} max={31} value={userAnalysis.activityStreamCustomWindowDays} onChange={(event) => patchState({ activityStreamCustomWindowDays: Math.max(1, Math.min(31, Math.trunc(Number(event.target.value)))) })} /> : null}</div>
-          <div><FieldLabel label="Full Scan Round Count" sub="完整掃描輪數（1-32）" /><input data-testid="analysis-full-scan-round-count" className="field" type="number" min={1} max={32} value={userAnalysis.activityStreamFullScanRoundCount} onChange={(event) => patchState({ activityStreamFullScanRoundCount: Math.max(1, Math.min(32, Math.trunc(Number(event.target.value)))) })} /></div>
-          <div><FieldLabel label="Delay Between Rounds" sub="輪次間隔" /><select data-testid="analysis-round-delay" className="field" value={userAnalysis.activityStreamDelayBetweenRoundsMs} onChange={(event) => patchState({ activityStreamDelayBetweenRoundsMs: Number(event.target.value) })}>{[0,1000,2000,3000,5000].map((value) => <option key={value} value={value}>{value} ms</option>)}</select></div>
-          <div><FieldLabel label="Round Execution Mode" sub="輪次執行模式" /><select data-testid="analysis-round-mode" className="field" value={userAnalysis.activityStreamRoundExecutionMode} onChange={(event) => patchState({ activityStreamRoundExecutionMode: event.target.value as typeof userAnalysis.activityStreamRoundExecutionMode })}><option value="force_all_rounds">Force All Rounds / 執行全部輪次</option><option value="stop_when_stable">Stop When Stable / 穩定後停止</option></select></div>
-          <div><FieldLabel label="Merge Strategy" sub="合併策略" /><select data-testid="analysis-merge-strategy" className="field" value={userAnalysis.activityStreamMergeStrategy} onChange={(event) => patchState({ activityStreamMergeStrategy: event.target.value as typeof userAnalysis.activityStreamMergeStrategy })}><option value="union">Union</option><option value="last_stable">Last Stable</option></select></div>
-          <div className="flex items-end"><a data-testid="open-stability-probe" className="btn w-full justify-center" href="#/precision-probe?mode=stability">Open Stability Probe / 開啟穩定性測試</a></div>
-          <div><FieldLabel label="Selected User" sub="選擇使用者" /><input data-testid="analysis-setup-user" className="field" value={userAnalysis.selectedUsersText} onChange={(event) => patchState({ selectedUsersText: event.target.value.replace(/[\n,;].*$/, "") })} placeholder="roger_hsieh" /></div>
-          <div><FieldLabel label="Date Range Start" sub="開始日期" /><input data-testid="analysis-setup-start" className="field" type="date" value={userAnalysis.startDate} onChange={(event) => patchState({ startDate: event.target.value })} /></div>
-          <div><FieldLabel label="Date Range End" sub="結束日期" /><input data-testid="analysis-setup-end" className="field" type="date" value={userAnalysis.endDate} onChange={(event) => patchState({ endDate: event.target.value })} /></div>
-          <div><FieldLabel label="Data Source Mode" sub="資料來源模式" /><div className="field bg-slate-50 font-bold">Live Jira API</div><div className="mt-1 text-xs font-semibold text-muted">Local Database: coming later</div></div>
-          <label className="flex min-w-0 items-start gap-3 rounded-lg border border-line bg-slate-50 p-3 text-sm font-semibold"><input data-testid="analysis-fetch-remote-links" className="mt-1 h-4 w-4 shrink-0" type="checkbox" checked={userAnalysis.fetchRemoteLinks} onChange={(event) => patchState({ fetchRemoteLinks: event.target.checked })} /><span className="min-w-0"><b>Fetch Remote Links (Optional) / 抓取 Remote Links（選配）</b><span className="mt-1 block text-xs leading-snug text-muted">Default OFF. Failures create an Optional Warning and never reduce Archive Eligible.</span></span></label>
-        </div>
-        {!setupReady ? <div data-testid="analysis-setup-blocked" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">Please set Selected User and Date Range before building timeline.<br />請先設定使用者與日期範圍，再建立活動時間線。</div> : <div data-testid="analysis-setup-status" className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-900">{userAnalysis.timelineStatus === "completed" ? <><span>Timeline is ready. Continue to Step 2: Select Issues.</span><br /><span>活動時間線已完成，可繼續進入 Step 2。</span></> : <><span>Setup is ready. Build Activity Timeline to continue to Step 2.</span><br /><span>設定完成。請建立活動時間線以繼續進入 Step 2。</span></>}</div>}
-      </SectionCard> : null}
 
       {userAnalysis.failedFullFetchRun && !userAnalysis.failedFullFetchRunDismissed && (userAnalysis.activeTab === "queue" || userAnalysis.activeTab === "fetchReport") ? (
         <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4 text-sm leading-relaxed text-red-950" data-testid="failed-full-fetch-run">

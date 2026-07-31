@@ -1,7 +1,7 @@
 export type JiraRuntimeStatus =
   | "CHECKING" | "CONNECTED" | "NOT_CONFIGURED" | "INVALID_URL" | "DNS_ERROR"
   | "NETWORK_ERROR" | "TIMEOUT" | "TLS_ERROR" | "AUTH_FAILED" | "PERMISSION_DENIED"
-  | "SERVER_ERROR" | "UNSUPPORTED_RESPONSE" | "UNKNOWN_ERROR";
+  | "SERVER_ERROR" | "UNSUPPORTED_RESPONSE" | "SETTINGS_CHANGED" | "UNKNOWN_ERROR";
 
 export type DatabaseRuntimeStatus =
   | "CHECKING" | "READY" | "READY_READ_ONLY" | "NOT_CONFIGURED" | "MISSING"
@@ -24,6 +24,12 @@ export type RuntimeState = {
     serverIdentity: string;
     serverTitle: string;
     serverTitleStatus: "verified" | "unverified";
+    connectionStatus: "not_tested" | "testing" | "connected" | "failed" | "offline" | "settings_changed";
+    authType: "basic" | "bearer" | "";
+    testedAt: string;
+    errorCode: string;
+    errorMessage: string;
+    settingsFingerprint: string;
     requestId: number;
   };
   database: {

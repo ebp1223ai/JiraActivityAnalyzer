@@ -1,5 +1,10 @@
 import { canonicalizeRichContent, readableContentText } from "./richContent";
 
+export type ValueAvailability = "available" | "empty" | "unavailable" | "not_applicable" | "parse_failed";
+export type DiffStatus = "changed" | "unchanged" | "unavailable" | "fallback_full_after";
+export type DiffBasis = "before_after" | "after_only" | "after_full_display" | "not_available";
+export type DiffSegment = { kind: "same" | "added" | "removed"; text: string };
+
 export type NormalizedChange = {
   fieldId?: string;
   fieldName: string;
@@ -9,6 +14,16 @@ export type NormalizedChange = {
   afterText?: string;
   beforeDisplayText?: string;
   afterDisplayText?: string;
+  beforeCanonical: string | null;
+  afterCanonical: string | null;
+  beforeAvailability: ValueAvailability;
+  afterAvailability: ValueAvailability;
+  diffStatus: DiffStatus;
+  diffBasis: DiffBasis;
+  diff: DiffSegment[] | null;
+  displayContent: string | null;
+  availabilityReason?: string;
+  normalizationWarnings: string[];
   diffKind: "text" | "scalar" | "set" | "none";
   provenance: {
     issueKey: string;
@@ -17,8 +32,6 @@ export type NormalizedChange = {
     source: string;
   };
 };
-
-export type DiffSegment = { kind: "same" | "added" | "removed"; text: string };
 
 function parseStoredValue(value: unknown) {
   if (typeof value !== "string") return value;
@@ -40,16 +53,44 @@ function stringSet(value: unknown) {
   return value.map((item) => readableContentText(item)).filter(Boolean);
 }
 
+function hasOwn(source: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(source, key);
+}
+
+function sourceValue(row: Record<string, unknown>, primary: string, fallback: string) {
+  if (hasOwn(row, primary)) return { present: true, value: row[primary] };
+  if (hasOwn(row, fallback)) return { present: true, value: row[fallback] };
+  return { present: false, value: undefined };
+}
+
+function classifyAvailability(present: boolean, value: unknown, canonical: ReturnType<typeof canonicalizeRichContent>, notApplicable: boolean): ValueAvailability {
+  if (notApplicable) return "not_applicable";
+  if (!present || value === undefined || value === null) return "unavailable";
+  if (canonical.parseFailed) return "parse_failed";
+  if (canonical.canonicalVisibleText === "") return "empty";
+  return "available";
+}
+
 export function normalizeActivityChange(row: Record<string, unknown>): NormalizedChange {
-  const beforeRaw = parseStoredValue(row.before ?? row.fromValueJson);
-  const afterRaw = parseStoredValue(row.after ?? row.toValueJson);
+  const beforeSource = sourceValue(row, "before", "fromValueJson");
+  const afterSource = sourceValue(row, "after", "toValueJson");
+  const beforeRaw = parseStoredValue(beforeSource.value);
+  const afterRaw = parseStoredValue(afterSource.value);
   const beforeContent = canonicalizeRichContent(beforeRaw);
   const afterContent = canonicalizeRichContent(afterRaw);
   const beforeText = beforeContent.canonicalVisibleText;
   const afterText = afterContent.canonicalVisibleText;
   const beforeSet = stringSet(beforeRaw);
   const afterSet = stringSet(afterRaw);
-  const richTextField = /comment|description/i.test(String(row.fieldName ?? row.field ?? ""));
+  const fieldName = String(row.fieldName ?? row.field ?? "Not applicable");
+  const eventName = String(row.eventType ?? row.activityType ?? row.action ?? row.type ?? "").toLowerCase();
+  const isComment = /comment/i.test(fieldName) || /comment/.test(eventName);
+  const isDescription = /description/i.test(fieldName);
+  const isCreated = /created|added/.test(eventName);
+  const isDeleted = /deleted|removed/.test(eventName);
+  const richTextField = isComment || isDescription;
+  const beforeAvailability = classifyAvailability(beforeSource.present, beforeRaw, beforeContent, isCreated);
+  const afterAvailability = classifyAvailability(afterSource.present, afterRaw, afterContent, isDeleted);
   const diffKind = beforeText === afterText
     ? "none"
     : beforeSet && afterSet
@@ -57,15 +98,52 @@ export function normalizeActivityChange(row: Record<string, unknown>): Normalize
       : isScalar(beforeRaw) && isScalar(afterRaw) && !richTextField
         ? "scalar"
         : "text";
-  return {
+
+  let diffStatus: DiffStatus = "changed";
+  let diffBasis: DiffBasis = "before_after";
+  let displayContent: string | null = afterContent.displayText || null;
+  let availabilityReason: string | undefined;
+  const unavailableBefore = beforeAvailability === "unavailable" || beforeAvailability === "parse_failed";
+  const unavailableAfter = afterAvailability === "unavailable" || afterAvailability === "parse_failed";
+
+  if (unavailableAfter) {
+    diffStatus = "unavailable";
+    diffBasis = "not_available";
+    displayContent = null;
+    availabilityReason = afterAvailability === "parse_failed" ? "After value could not be parsed safely." : "After value is not available in source data.";
+  } else if (isComment && !isCreated && !isDeleted && unavailableBefore) {
+    diffStatus = "fallback_full_after";
+    diffBasis = "after_only";
+    availabilityReason = beforeAvailability === "parse_failed" ? "Previous comment could not be parsed. Full After content is shown." : "Previous comment is unavailable. Full After content is shown.";
+  } else if (isDescription && !isCreated && !isDeleted && unavailableBefore) {
+    diffStatus = "unavailable";
+    diffBasis = "not_available";
+    availabilityReason = beforeAvailability === "parse_failed" ? "Previous description could not be parsed; a semantic diff is unavailable." : "Previous description is unavailable in source data; a semantic diff is unavailable.";
+  } else if (beforeText === afterText && !isCreated && !isDeleted) {
+    diffStatus = "unchanged";
+    diffBasis = "after_full_display";
+    availabilityReason = "Canonical Before and After content are identical. Full After content is shown.";
+  }
+
+  const normalized: NormalizedChange = {
     fieldId: String(row.fieldId ?? "") || undefined,
-    fieldName: String(row.fieldName ?? row.field ?? "Not applicable"),
+    fieldName,
     beforeRaw,
     afterRaw,
     beforeText: beforeText || undefined,
     afterText: afterText || undefined,
     beforeDisplayText: beforeContent.displayText || undefined,
     afterDisplayText: afterContent.displayText || undefined,
+    beforeCanonical: beforeText || null,
+    afterCanonical: afterText || null,
+    beforeAvailability,
+    afterAvailability,
+    diffStatus,
+    diffBasis,
+    diff: null,
+    displayContent,
+    availabilityReason,
+    normalizationWarnings: [...beforeContent.warnings, ...afterContent.warnings],
     diffKind,
     provenance: {
       issueKey: String(row.issueKey ?? ""),
@@ -74,17 +152,15 @@ export function normalizeActivityChange(row: Record<string, unknown>): Normalize
       source: String(row.sourceProvenance ?? row.source ?? "unknown")
     }
   };
+  normalized.diff = diffStatus === "changed" ? compactDiff(normalized) : null;
+  return normalized;
 }
 
 function compactSingleLineDiff(before: string, after: string): DiffSegment[] {
   let prefix = 0;
   while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) prefix += 1;
   let suffix = 0;
-  while (
-    suffix < before.length - prefix
-    && suffix < after.length - prefix
-    && before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
-  ) suffix += 1;
+  while (suffix < before.length - prefix && suffix < after.length - prefix && before[before.length - 1 - suffix] === after[after.length - 1 - suffix]) suffix += 1;
   const context = 48;
   const segments: DiffSegment[] = [];
   const prefixText = before.slice(Math.max(0, prefix - context), prefix);
@@ -112,9 +188,7 @@ export function compactDiff(change: NormalizedChange): DiffSegment[] {
   }
   if (!before) return [{ kind: "added", text: after }];
   if (!after) return [{ kind: "removed", text: before }];
-  if (change.diffKind === "scalar") {
-    return [{ kind: "removed", text: before }, { kind: "added", text: after }];
-  }
+  if (change.diffKind === "scalar") return [{ kind: "removed", text: before }, { kind: "added", text: after }];
   if (!before.includes("\n") && !after.includes("\n")) return compactSingleLineDiff(before, after);
 
   const beforeLines = before.split("\n");
@@ -122,11 +196,7 @@ export function compactDiff(change: NormalizedChange): DiffSegment[] {
   let prefix = 0;
   while (prefix < beforeLines.length && prefix < afterLines.length && beforeLines[prefix] === afterLines[prefix]) prefix += 1;
   let suffix = 0;
-  while (
-    suffix < beforeLines.length - prefix
-    && suffix < afterLines.length - prefix
-    && beforeLines[beforeLines.length - 1 - suffix] === afterLines[afterLines.length - 1 - suffix]
-  ) suffix += 1;
+  while (suffix < beforeLines.length - prefix && suffix < afterLines.length - prefix && beforeLines[beforeLines.length - 1 - suffix] === afterLines[afterLines.length - 1 - suffix]) suffix += 1;
   const segments: DiffSegment[] = [];
   if (prefix) segments.push({ kind: "same", text: beforeLines.slice(Math.max(0, prefix - 2), prefix).join("\n") });
   const removed = beforeLines.slice(prefix, beforeLines.length - suffix).join("\n");

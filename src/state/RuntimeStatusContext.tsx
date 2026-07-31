@@ -6,7 +6,8 @@ const initialState: RuntimeState = {
     status: "CHECKING", reasonCode: "CHECKING", message: "Checking Jira connection.",
     checkedAt: "", lastSuccessAt: "", latencyMs: null, baseUrlNormalized: "",
     accountDisplayName: "", username: "", serverIdentity: "", serverTitle: "",
-    serverTitleStatus: "unverified", requestId: 0
+    serverTitleStatus: "unverified", connectionStatus: "testing", authType: "", testedAt: "",
+    errorCode: "", errorMessage: "", settingsFingerprint: "", requestId: 0
   },
   database: {
     status: "CHECKING", reasonCode: "CHECKING", message: "Checking current local database.",

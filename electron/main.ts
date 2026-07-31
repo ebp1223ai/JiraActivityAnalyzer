@@ -45,6 +45,9 @@ import {
   writeFullFetchStagingToCurrentDatabase
 } from "./sourceArchiveDatabaseWrite.js";
 import { StartupCheckCoordinator, initialRuntimeState, type RuntimeState } from "./runtimeStatus.js";
+import { assertFormalDatabaseWriteAllowed, evaluateStabilityGate, type StabilityGateDecision } from "./stabilityGate.js";
+import { reconcileRunChain } from "./runReconciliation.js";
+import { StartupMilestoneRecorder, type StartupMilestoneName } from "./startupMilestones.js";
 import { validateAndSaveDatabaseSelection } from "./startupIntegration.js";
 import {
   listDatabaseIssues,
@@ -124,11 +127,30 @@ type AutoSavedRun = { runId: string; resultType: AutoSaveResultType; status: str
 const latestAutoSavedRuns = new Map<AutoSaveResultType, AutoSavedRun>();
 const autoSavedRunHistory: AutoSavedRun[] = [];
 const sessionStartTime = new Date().toISOString();
+const startupMilestones = new StartupMilestoneRecorder();
 const sessionUserActions: Array<{ time: string; level: string; message: string; raw: string }> = [];
 type BaselineGuardRetrySummary = { triggered: boolean; maxRetries: number; attempts: Array<{ attempt: number; runId: string; classification: string; parsedActivityCount: number; issueKeyCount: number; missingIssueKeyCount: number; missingEntryFingerprintCount: number }>; finalAcceptedRunId: string; finalClassification: string; baselineUpdated: boolean; retryRecovered: boolean };
 type BaselineGuardSessionRecord = { time: string; runId: string; comparison: ActivityStreamBaselineComparison; retry: BaselineGuardRetrySummary; snapshot: ActivityStreamBaselineSnapshot };
 const activityStreamBaselineGuardHistory: BaselineGuardSessionRecord[] = [];
 let latestActivityStreamBaselineGuardRecord: BaselineGuardSessionRecord | null = null;
+let latestStabilityGateDecision: StabilityGateDecision = evaluateStabilityGate({ evaluationCompleted: false });
+
+function refreshStabilityGateDecision() {
+  const record = latestActivityStreamBaselineGuardRecord;
+  const workflowState = latestUserAnalysisWorkflow?.uiState ?? {};
+  const accepted = workflowState.stabilityContinueAccepted === true;
+  latestStabilityGateDecision = evaluateStabilityGate({
+    comparison: record?.comparison ?? null,
+    retryRecovered: record?.retry.retryRecovered ?? false,
+    evaluationCompleted: Boolean(record),
+    allRoundsCompleted: Boolean(record),
+    requestFailureCount: 0,
+    reconciliationPassed: Boolean(record?.snapshot.snapshotKey),
+    fingerprintConsistent: Boolean(record?.snapshot.requestSignatureHash),
+    userContinueDecision: accepted ? { accepted: true, decidedAt: String(workflowState.stabilityContinueDecidedAt ?? new Date().toISOString()) } : null
+  });
+  return latestStabilityGateDecision;
+}
 let latestUserActivityTimeline: (UserActivityTimelineBuild & { exportedFiles: { jsonPath: string; csvPath: string; summaryPath: string } }) | null = null;
 let latestUserAnalysisWorkflow: { steps: WorkflowStepStatus; timelineIssueGroups: unknown[]; timelineSelectedIssues: string[]; fetchQueue: unknown[]; relatedCandidateIssues: RelatedCandidateIssue[]; addedTimelineIssuesToFetchQueueCount: number; addedRelatedIssuesToFetchQueueCount: number; addedRecommendedRelatedIssuesToFetchQueueCount: number; addedOptionalRelatedIssuesToFetchQueueCount: number; uiState: Record<string, unknown>; updatedAt: string } | null = null;
 type FullFetchFailedIssue = { issueKey: string; errorCode: string; httpStatus: number | null; message: string; stage: "issue_full_fetch"; retryCount: number; source: string; matchedReason: string; occurredAt: string };
@@ -627,6 +649,24 @@ function broadcastRuntimeState(state: RuntimeState) {
   }
 }
 
+function currentJiraSettingsIdentity() {
+  const config = loadRuntimeConfig(resolveCurrentEnvPath());
+  let baseUrlNormalized = config.jiraBaseUrl.trim().replace(/\/+$/, "");
+  try { baseUrlNormalized = new URL(config.jiraBaseUrl.trim()).toString().replace(/\/$/, ""); } catch { /* Classified by the connection check. */ }
+  const settingsFingerprint = crypto.createHash("sha256").update(JSON.stringify({
+    baseUrlNormalized,
+    username: (config.jiraEmail || config.jiraUsername).trim().toLowerCase(),
+    authType: config.jiraAuthMode,
+    apiVersion: config.jiraApiVersion,
+    credentialFingerprint: crypto.createHash("sha256").update(config.jiraApiToken, "utf8").digest("hex")
+  }), "utf8").digest("hex");
+  return { config, baseUrlNormalized, settingsFingerprint };
+}
+
+function markRuntimeJiraSettingsChanged() {
+  const { config, baseUrlNormalized, settingsFingerprint } = currentJiraSettingsIdentity();
+  return getRuntimeCoordinator().markJiraSettingsChanged({ settingsFingerprint, baseUrlNormalized, username: config.jiraEmail || config.jiraUsername, authType: config.jiraAuthMode });
+}
 async function runJiraStartupCheck() {
   if (isUiSmoke) {
     return {
@@ -638,8 +678,8 @@ async function runJiraStartupCheck() {
     };
   }
   try {
-    const config = loadRuntimeConfig(resolveCurrentEnvPath());
-    return await checkJiraConnection({
+    const { config, settingsFingerprint } = currentJiraSettingsIdentity();
+    const checked = await checkJiraConnection({
       baseUrl: config.jiraBaseUrl,
       username: config.jiraUsername,
       email: config.jiraEmail,
@@ -647,6 +687,15 @@ async function runJiraStartupCheck() {
       authMode: config.jiraAuthMode,
       apiVersion: config.jiraApiVersion
     });
+    return {
+      ...checked,
+      connectionStatus: checked.status === "CONNECTED" ? "connected" : checked.connectionStatus,
+      authType: config.jiraAuthMode,
+      testedAt: checked.checkedAt,
+      errorCode: checked.status === "CONNECTED" ? "" : checked.reasonCode,
+      errorMessage: checked.status === "CONNECTED" ? "" : checked.message,
+      settingsFingerprint
+    };
   } catch {
     return {
       ...runtimeStateWithoutRequestId(initialRuntimeState().jira),
@@ -694,9 +743,12 @@ async function startBackgroundChecks() {
   await coordinator.startParallel();
   const state = coordinator.snapshot();
   if (state.jira.status === "CONNECTED" && state.database.path) await coordinator.retryDatabase();
+  startupMilestones.mark("Database Ready", coordinator.snapshot().database.status);
+  startupMilestones.mark("App Interactive");
 }
 
 ipcMain.handle("runtime:get-state", async () => getRuntimeCoordinator().snapshot());
+ipcMain.handle("runtime:get-startup-milestones", async () => startupMilestones.snapshot());
 ipcMain.handle("runtime:retry-jira", async () => getRuntimeCoordinator().retryJira());
 ipcMain.handle("runtime:retry-database", async () => getRuntimeCoordinator().retryDatabase());
 
@@ -752,7 +804,11 @@ ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
   return runApiProbe(request);
 });
 
-ipcMain.handle("connection:load-env", async () => loadConnectionState());
+ipcMain.handle("connection:load-env", async () => {
+  const state = loadConnectionState();
+  const runtime = markRuntimeJiraSettingsChanged();
+  return { ...state, runtime };
+});
 
 ipcMain.handle("connection:list", async () => loadConnectionState());
 
@@ -774,7 +830,9 @@ ipcMain.handle("connection:choose-env", async () => {
     return { canceled: true, error: ".env.Version is a template and cannot be used as runtime configuration.", state: loadConnectionState() };
   }
   setCurrentEnvPath(envPath);
-  return { canceled: false, state: loadConnectionState() };
+  const state = loadConnectionState();
+  const runtime = markRuntimeJiraSettingsChanged();
+  return { canceled: false, state, runtime };
 });
 
 ipcMain.handle("database:check-path", async (_event, payload?: { filePath?: string }) => {
@@ -898,7 +956,9 @@ ipcMain.handle("connection:test", async (_event, connection: AppConnection) => {
   if (!myself.ok) {
     logs.push(`[ERROR] Connection test failed: ${myself.message ?? myself.status}`);
     logs.push("[INFO] No database write performed");
+    const runtime = await getRuntimeCoordinator().retryJira();
     return {
+      runtime,
       connection: { ...connection, status: "failed", lastTestedAt: now, tokenMasked: maskToken(connection.apiToken ?? "") },
       logs,
       result: myself
@@ -913,7 +973,9 @@ ipcMain.handle("connection:test", async (_event, connection: AppConnection) => {
   if (!projects.ok) logs.push("[WARN] Project list endpoint failed; connection auth still succeeded");
   logs.push("[INFO] Connection test successful");
   logs.push("[INFO] No database write performed");
+  const runtime = await getRuntimeCoordinator().retryJira();
   return {
+    runtime,
     connection: {
       ...connection,
       status: "connected",
@@ -1947,6 +2009,7 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   };
   for (const item of evaluated) activityStreamBaselineGuardHistory.push({ time: item.run.completedAt, runId: item.run.runId, comparison: item.comparison, retry, snapshot: item.snapshot });
   latestActivityStreamBaselineGuardRecord = { time: selected.run.completedAt, runId: selected.run.runId, comparison: selected.comparison, retry, snapshot: selected.snapshot };
+  refreshStabilityGateDecision();
   if (activityStreamBaselineGuardHistory.length > 100) activityStreamBaselineGuardHistory.splice(0, activityStreamBaselineGuardHistory.length - 100);
   selected.run.logs.push(recovered ? "[INFO] Retry recovered a better result. / 重試後取得較完整結果。" : stillIncomplete ? "[WARN] Result is still below baseline after retries. Baseline was not overwritten. / 重試後仍低於基準，本次結果未覆蓋 baseline。" : `[INFO] Baseline Guard accepted: ${finalComparison.classification}`);
   const normalizeRunId = <T extends { runId: string }>(value: T) => ({ ...value, runId: originalRunId });
@@ -2620,6 +2683,13 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
   fetchRemoteLinks?: boolean; directIssueKeys?: string[];
 }) => {
   if (activeFullFetch) throw new Error("A Full Fetch staging mutation is already active. / 已有 Full Fetch 暫存作業進行中。");
+  const stabilityGate = refreshStabilityGateDecision();
+  if (!stabilityGate.fetchQueueAllowed) {
+    const error = new Error(`Full Fetch blocked by Activity Stream Stability Gate: ${stabilityGate.outcome}`) as Error & { code?: string; stabilityGate?: StabilityGateDecision };
+    error.code = "STABILITY_GATE_FETCH_QUEUE_BLOCKED";
+    error.stabilityGate = stabilityGate;
+    throw error;
+  }
   const connection = payload.connection;
   const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
   const selectedUser = text(payload.selectedUser) === "-" ? "" : text(payload.selectedUser);
@@ -2974,6 +3044,7 @@ ipcMain.handle("user-analysis:export-source-archive", async (_event, payload: { 
 
 ipcMain.handle("diagnostics:renderer-event", async (_event, payload: Record<string, unknown>) => {
   const event = text(payload?.event) || "renderer_event";
+  if (event === "startup_milestone") startupMilestones.mark(String(payload?.milestone ?? "") as StartupMilestoneName);
   const incidentId = text(payload?.incidentId);
   const resolvedIncidentId = persistentDiagnostics.write("renderer", event, payload, incidentId);
   return { ok: true, incidentId: resolvedIncidentId };
@@ -3120,20 +3191,44 @@ ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: {
     const config = loadRuntimeConfig(resolveCurrentEnvPath());
     const databasePath = resolveLocalDatabasePath(getAppRuntimeDir(), config.localDatabasePath);
     const currentJira = getRuntimeCoordinator().snapshot().jira;
-    const databaseWrite = writeFullFetchStagingToCurrentDatabase({
-      operationId,
-      databasePath,
-      run: latestFullFetchStaging,
-      diagnosticsDir: getFullFetchResultsDir(),
-      currentJira: {
-        sourceSystem: "jira",
-        serverIdentity: currentJira.status === "CONNECTED" ? currentJira.serverIdentity : "",
-        baseUrlNormalized: currentJira.status === "CONNECTED" ? currentJira.baseUrlNormalized : "",
-        serverTitle: currentJira.status === "CONNECTED" ? currentJira.serverTitle : "",
-        serverTitleStatus: currentJira.status === "CONNECTED" ? currentJira.serverTitleStatus : "unverified",
-        connectionLabel: loadConnectionState().activeConnection.name
-      }
-    });
+    const stabilityGate = refreshStabilityGateDecision();
+    let formalDatabaseWriteAllowed = true;
+    try {
+      assertFormalDatabaseWriteAllowed(stabilityGate);
+    } catch {
+      formalDatabaseWriteAllowed = false;
+    }
+    const databaseWrite = formalDatabaseWriteAllowed
+      ? writeFullFetchStagingToCurrentDatabase({
+        operationId,
+        databasePath,
+        run: latestFullFetchStaging,
+        diagnosticsDir: getFullFetchResultsDir(),
+        currentJira: {
+          sourceSystem: "jira",
+          serverIdentity: currentJira.status === "CONNECTED" ? currentJira.serverIdentity : "",
+          baseUrlNormalized: currentJira.status === "CONNECTED" ? currentJira.baseUrlNormalized : "",
+          serverTitle: currentJira.status === "CONNECTED" ? currentJira.serverTitle : "",
+          serverTitleStatus: currentJira.status === "CONNECTED" ? currentJira.serverTitleStatus : "unverified",
+          connectionLabel: loadConnectionState().activeConnection.name
+        }
+      })
+      : {
+        ok: false,
+        status: "blocked",
+        reasonCode: "STABILITY_GATE_DATABASE_WRITE_BLOCKED",
+        targetDatabase: databasePath,
+        databaseId: "",
+        boundJiraServer: "",
+        preflightStatus: "blocked",
+        summary: {},
+        retries: 0,
+        readbackVerified: false,
+        foreignKeyCheck: "not_run",
+        durationMs: 0,
+        outcomes: [],
+        stabilityGate
+      };
     latestSourceArchiveDatabaseWrite = databaseWrite;
     appendStagingDiagnostic(latestFullFetchStaging.dir, "source_archive_database_write", {
       operationId,
@@ -3929,6 +4024,15 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     const run = latestAutoSavedRuns.get(resultType);
     if (run) writeBundleJson(folderPath, fileName, run.data);
   }
+  const runChain = {
+    activityStream: latestBaselineRecord ? { runId: latestBaselineRecord.runId, status: latestBaselineRecord.retry.finalClassification, count: latestBaselineRecord.comparison.currentCounts.parsedActivityCount } : null,
+    timeline: latestUserActivityTimeline ? { runId: latestUserActivityTimeline.timelineRunId, parentRunId: String((latestUserActivityTimeline as unknown as Record<string, unknown>).parentRunId ?? ""), status: "completed", count: latestUserActivityTimeline.summary.totalEvents } : null,
+    fullFetch: latestFullFetchStaging ? { runId: latestFullFetchStaging.state.fullFetchRunId, parentRunId: String((latestFullFetchStaging.state as unknown as Record<string, unknown>).parentRunId ?? ""), status: latestFullFetchStaging.state.status, count: latestFullFetchStaging.state.total } : null,
+    databaseSave: latestSourceArchiveDatabaseWrite ? { runId: String(latestSourceArchiveDatabaseWrite.operationId ?? ""), parentRunId: String(latestSourceArchiveDatabaseWrite.runId ?? ""), status: String(latestSourceArchiveDatabaseWrite.status ?? ""), count: Number(asRecord(latestSourceArchiveDatabaseWrite.summary).eventsCreated ?? 0) } : null
+  };
+  const runConsistency = reconcileRunChain(runChain);
+  writeBundleJson(folderPath, "run-reconciliation.json", { createdAt, runs: runChain, consistency: runConsistency, stabilityGate: refreshStabilityGateDecision() });
+  writeBundleJson(folderPath, "run-manifest-v0.2.52.json", { debugSessionId: path.basename(folderPath), createdAt, appVersion: __MAIN_APP_VERSION__, sourceCommit: __MAIN_GIT_COMMIT__, packagedCommit: __MAIN_GIT_COMMIT__, runs: { activityStreamRunId: runChain.activityStream?.runId ?? "unavailable", timelineRunId: runChain.timeline?.runId ?? "unavailable", fullFetchRunId: runChain.fullFetch?.runId ?? "unavailable", databaseSaveRunId: runChain.databaseSave?.runId ?? "unavailable" }, consistency: runConsistency });
   const included = fs.readdirSync(folderPath);
   const missing = (Object.entries(bundleFiles) as Array<[AutoSaveResultType, string]>).filter(([type]) => !latestAutoSavedRuns.has(type)).map(([, fileName]) => `${fileName}: not_run / no result available`);
   const trackingLines = (label: string, run: AutoSavedRun | null) => run ? [`${label}:`, `- runId: ${run.runId}`, `- status: ${run.status}`, `- diagnosis: ${String(asRecord(run.data.activityStream).diagnosis ?? "unknown")}`, `- parsedActivityCount: ${Number(asRecord(run.data.activityStream).parsedActivityCount ?? 0)}`, `- path: ${run.filePath}`] : [`${label}:`, "- not_available"];
@@ -5550,8 +5654,12 @@ function createMainWindow() {
     }
   });
 
+  startupMilestones.mark("BrowserWindow Created");
+  window.webContents.on("dom-ready", () => startupMilestones.mark("Renderer DOM Ready"));
+
   window.webContents.on("did-finish-load", () => {
     console.log("[renderer did-finish-load]", window.webContents.getURL());
+    startupMilestones.mark("Initial Route Ready", window.webContents.getURL());
     persistentDiagnostics.write("main", "did-finish-load", { currentRoute: window.webContents.getURL() });
     startPostRendererStartup();
     if (isUiSmoke) {

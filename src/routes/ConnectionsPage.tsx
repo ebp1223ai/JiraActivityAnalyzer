@@ -30,7 +30,7 @@ export function ConnectionsPage() {
   const [notice, setNotice] = useState("");
   const [testing, setTesting] = useState(false);
   const currentEnvPath = envStatus?.currentEnvPath ?? envStatus?.envPath ?? "Not loaded";
-  const connected = activeConnection?.status === "connected";
+  const connected = runtimeState.jira.connectionStatus === "connected";
 
   async function handleReloadEnv() {
     appendDebugLog("connections", ["[INFO] Reload Env requested", `[INFO] Active ENV: ${currentEnvPath}`]);
@@ -117,8 +117,8 @@ export function ConnectionsPage() {
 
         <SectionCard title="Jira 連線測試 / Test Jira Connection" subtitle="Read-only authentication and server metadata check">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <StatusBadge tone={connected ? "green" : activeConnection?.status === "failed" ? "red" : "gray"}>
-              {activeConnection?.status ?? "not_tested"}
+            <StatusBadge tone={connected ? "green" : runtimeState.jira.connectionStatus === "failed" ? "red" : runtimeState.jira.connectionStatus === "settings_changed" ? "amber" : "gray"}>
+              {runtimeState.jira.connectionStatus}
             </StatusBadge>
             <button className="btn btn-primary" type="button" disabled={!activeConnection || testing} onClick={() => void handleTest()}>
               {testing ? <RefreshCw className="animate-spin" size={16} /> : <ShieldCheck size={16} />}
@@ -127,9 +127,9 @@ export function ConnectionsPage() {
           </div>
           <div className="min-w-0 rounded-md border border-line px-4">
             <ReadOnlyField label="Jira Server">{value(runtimeState.jira.serverTitle, "Unverified")}</ReadOnlyField>
-            <ReadOnlyField label="Authenticated User">{value(activeConnection?.authenticatedUser, "Not tested")}</ReadOnlyField>
+            <ReadOnlyField label="Authenticated User">{value(runtimeState.jira.accountDisplayName, "Not tested")}</ReadOnlyField>
             <ReadOnlyField label="Accessible Projects">{String(activeConnection?.accessibleProjectsCount ?? 0)}</ReadOnlyField>
-            <ReadOnlyField label="Last Tested">{value(activeConnection?.lastTestedAt, "Not tested")}</ReadOnlyField>
+            <ReadOnlyField label="Last Tested">{value(runtimeState.jira.testedAt, "Not tested")}</ReadOnlyField>
           </div>
           <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-700">
             此測試只驗證 Jira 連線與伺服器資訊，不檢查 SQLite、Database Path、Schema、Integrity 或 Issue Snapshot。
@@ -141,11 +141,11 @@ export function ConnectionsPage() {
 
       <SectionCard className="mt-4" title="連線狀態 / Connection Status">
         <ResponsiveMetricGrid min={180}>
-          <MetricCard label="Authenticated User" sub="Jira identity" value={activeConnection?.authenticatedUser || "-"} icon={UserCheck} tone="bg-green-50 text-green-600" />
+          <MetricCard label="Authenticated User" sub="Jira identity" value={runtimeState.jira.accountDisplayName || "-"} icon={UserCheck} tone="bg-green-50 text-green-600" />
           <MetricCard label="Accessible Projects" sub="Project count" value={String(activeConnection?.accessibleProjectsCount ?? 0)} icon={Cloud} />
-          <MetricCard label="Auth Type" sub="Authentication" value={activeConnection?.authType === "basic" ? "Basic" : "Bearer"} icon={ShieldCheck} tone="bg-violet-50 text-violet-600" />
+          <MetricCard label="Auth Type" sub="Authentication" value={runtimeState.jira.authType === "basic" ? "Basic" : runtimeState.jira.authType === "bearer" ? "Bearer" : "-"} icon={ShieldCheck} tone="bg-violet-50 text-violet-600" />
           <MetricCard label="Jira Server" sub={runtimeState.jira.serverTitleStatus} value={runtimeState.jira.serverTitle || "-"} icon={Cloud} />
-          <MetricCard label="Last Tested" sub="Connection test" value={activeConnection?.lastTestedAt || "-"} icon={KeyRound} tone="bg-amber-50 text-amber-600" />
+          <MetricCard label="Last Tested" sub="Connection test" value={runtimeState.jira.testedAt || "-"} icon={KeyRound} tone="bg-amber-50 text-amber-600" />
         </ResponsiveMetricGrid>
       </SectionCard>
     </div>

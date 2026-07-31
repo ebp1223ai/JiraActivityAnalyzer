@@ -55,7 +55,13 @@ function result(status: JiraRuntimeStatus, overrides: Partial<Omit<JiraRuntimeSt
     username: overrides.username ?? "",
     serverIdentity: overrides.serverIdentity ?? "",
     serverTitle: overrides.serverTitle ?? "",
-    serverTitleStatus: overrides.serverTitleStatus ?? "unverified"
+serverTitleStatus: overrides.serverTitleStatus ?? "unverified",
+    connectionStatus: overrides.connectionStatus ?? (status === "CONNECTED" ? "connected" : status === "CHECKING" ? "testing" : status === "NOT_CONFIGURED" ? "not_tested" : ["DNS_ERROR", "NETWORK_ERROR", "TIMEOUT", "TLS_ERROR"].includes(status) ? "offline" : "failed"),
+    authType: overrides.authType ?? "",
+    testedAt: overrides.testedAt ?? new Date().toISOString(),
+    errorCode: overrides.errorCode ?? (status === "CONNECTED" ? "" : status),
+    errorMessage: overrides.errorMessage ?? (status === "CONNECTED" ? "" : overrides.message ?? status),
+    settingsFingerprint: overrides.settingsFingerprint ?? ""
   };
 }
 

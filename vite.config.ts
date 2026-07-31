@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 
 function formatTaipeiBuildTime(date: Date) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -40,6 +41,8 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(buildTime),
     __APP_VERSION__: JSON.stringify(packageJson.version),
     __GIT_COMMIT__: JSON.stringify(process.env.JAA_PACKAGED_SOURCE_COMMIT ?? gitValue("git rev-parse HEAD")),
-    __GIT_BRANCH__: JSON.stringify(gitValue("git branch --show-current"))
+    __GIT_BRANCH__: JSON.stringify(gitValue("git branch --show-current")),
+    __BUILD_MACHINE__: JSON.stringify(os.hostname()),
+    __BUILD_OS__: JSON.stringify(`${os.type()} ${os.release()} ${os.arch()}`)
   }
 });

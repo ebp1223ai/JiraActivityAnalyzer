@@ -1,7 +1,7 @@
 export type JiraRuntimeStatus =
   | "CHECKING" | "CONNECTED" | "NOT_CONFIGURED" | "INVALID_URL" | "DNS_ERROR"
   | "NETWORK_ERROR" | "TIMEOUT" | "TLS_ERROR" | "AUTH_FAILED" | "PERMISSION_DENIED"
-  | "SERVER_ERROR" | "UNSUPPORTED_RESPONSE" | "UNKNOWN_ERROR";
+  | "SERVER_ERROR" | "UNSUPPORTED_RESPONSE" | "SETTINGS_CHANGED" | "UNKNOWN_ERROR";
 
 export type DatabaseRuntimeStatus =
   | "CHECKING" | "READY" | "READY_READ_ONLY" | "NOT_CONFIGURED" | "MISSING"
@@ -23,6 +23,12 @@ export type JiraRuntimeState = {
   serverIdentity: string;
   serverTitle: string;
   serverTitleStatus: "verified" | "unverified";
+  connectionStatus: "not_tested" | "testing" | "connected" | "failed" | "offline" | "settings_changed";
+  authType: "basic" | "bearer" | "";
+  testedAt: string;
+  errorCode: string;
+  errorMessage: string;
+  settingsFingerprint: string;
   requestId: number;
 };
 
@@ -86,7 +92,8 @@ export function initialRuntimeState(): RuntimeState {
     status: "CHECKING", reasonCode: "CHECKING", message: "Checking Jira connection.",
     checkedAt: "", lastSuccessAt: "", latencyMs: null, baseUrlNormalized: "",
     accountDisplayName: "", username: "", serverIdentity: "", serverTitle: "",
-    serverTitleStatus: "unverified", requestId: 0
+    serverTitleStatus: "unverified", connectionStatus: "testing", authType: "", testedAt: "", errorCode: "",
+    errorMessage: "", settingsFingerprint: "", requestId: 0
   };
   const database: DatabaseRuntimeState = {
     status: "CHECKING", reasonCode: "CHECKING", message: "Checking current local database.",
@@ -116,9 +123,27 @@ export class StartupCheckCoordinator {
     this.onChange(this.snapshot());
   }
 
+  markJiraSettingsChanged(settings: Pick<JiraRuntimeState, "settingsFingerprint" | "baseUrlNormalized" | "username" | "authType">) {
+    if (settings.settingsFingerprint && settings.settingsFingerprint === this.state.jira.settingsFingerprint) return this.snapshot();
+    const requestId = ++this.jiraRequestId;
+    this.state.jira = {
+      ...this.state.jira,
+      ...settings,
+      status: "SETTINGS_CHANGED",
+      reasonCode: "SETTINGS_CHANGED",
+      connectionStatus: "settings_changed",
+      message: "Jira settings changed. Test the connection again.",
+      checkedAt: new Date().toISOString(),
+      errorCode: "SETTINGS_CHANGED",
+      errorMessage: "Connection settings changed after the last successful test.",
+      requestId
+    };
+    this.emit();
+    return this.snapshot();
+  }
   async retryJira() {
     const requestId = ++this.jiraRequestId;
-    this.state.jira = { ...this.state.jira, status: "CHECKING", reasonCode: "CHECKING", message: "Checking Jira connection.", requestId };
+    this.state.jira = { ...this.state.jira, status: "CHECKING", reasonCode: "CHECKING", connectionStatus: "testing", message: "Checking Jira connection.", requestId };
     this.emit();
     const result = await this.checkJira(requestId);
     if (requestId !== this.jiraRequestId) return this.snapshot();

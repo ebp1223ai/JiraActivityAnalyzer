@@ -1,4 +1,12 @@
 # Changelog
+## 0.2.52 - Data Trustworthiness, Runtime Consistency and Stability Gate
+
+- Added explicit rich-content availability, diff status and diff basis semantics; missing Comment Before now shows full After, while Description never guesses unavailable history.
+- Made Electron main the Jira connection state owner with a credential-safe settings fingerprint and `SETTINGS_CHANGED` invalidation.
+- Added five Activity Stream stability outcomes and enforced Full Fetch/formal SQLite write gates at main/service boundaries.
+- Added run-chain reconciliation, startup milestones, query phase timing, bounded recent-result cache and slow-query diagnostics without changing Current-State schema v2.
+- Reduced Data Collection to three editable fields and moved fixed settings into a collapsed read-only summary.
+- Added Build Host/OS and packaged artifact SHA-256 metadata. Acceptance remains Partial pending real Jira, Windows GUI, cold-start and packaged launch gates.
 ## 0.2.51 - GUI Interaction Correctness, Rich Content Diff and Viewer State Persistence
 
 - Replaced overlay table filters with layout-participating filter rows across Database and shared SQLite tables.

@@ -3,6 +3,8 @@ export type CanonicalRichContent = {
   rawValue: unknown;
   displayText: string;
   canonicalVisibleText: string;
+  parseFailed: boolean;
+  warnings: string[];
 };
 
 const MAX_CANONICAL_CHARS = 200_000;
@@ -121,8 +123,20 @@ export function readableContentText(value: unknown, hint?: string): string {
 }
 
 export function canonicalizeRichContent(value: unknown, hint?: string): CanonicalRichContent {
+  const format = detectReadableContentFormat(value, hint);
+  let parseFailed = false;
+  const warnings: string[] = [];
+  if (format === "adf" && typeof value === "string") {
+    try {
+      JSON.parse(value);
+    } catch {
+      parseFailed = true;
+      warnings.push("ADF parsing failed; the original value was preserved for safe display.");
+    }
+  }
   const displayText = readableContentText(value, hint);
-  return { rawValue: value, displayText, canonicalVisibleText: normalizeVisibleText(displayText) };
+  if (displayText.includes(TRUNCATED_MARKER.trim())) warnings.push("Content exceeded the normalization safety limit and was truncated.");
+  return { rawValue: value, displayText, canonicalVisibleText: normalizeVisibleText(displayText), parseFailed, warnings };
 }
 
 export function readableContentSummary(value: unknown, hint?: string, limit = 240) {

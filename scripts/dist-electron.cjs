@@ -1,5 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const crypto = require("node:crypto");
+const os = require("node:os");
 const { execFileSync, execSync } = require("node:child_process");
 const { Arch, Platform, build } = require("electron-builder");
 
@@ -35,7 +37,11 @@ const buildInfo = {
   appVersion: packageJson.version,
   packagedSourceCommit,
   buildTime,
-  buildTimeIso: buildDate.toISOString()
+  buildTimeIso: buildDate.toISOString(),
+  buildMachine: os.hostname(),
+  buildOs: `${os.type()} ${os.release()} ${os.arch()}`,
+  gitBranch: execSync("git branch --show-current", { cwd: projectRoot, stdio: ["ignore", "pipe", "inherit"] }).toString().trim(),
+  dirtyState: false
 };
 const buildEnvironment = {
   ...process.env,
@@ -77,7 +83,11 @@ build({
 }).then(() => {
   const releaseDir = path.join(projectRoot, "release");
   fs.copyFileSync(path.join(projectRoot, ".env.Version"), path.join(releaseDir, ".env.Version"));
-  fs.writeFileSync(path.join(releaseDir, "build-info.json"), `${JSON.stringify(buildInfo, null, 2)}\n`, "utf8");
+  const artifacts = fs.readdirSync(releaseDir).filter((name) => name.endsWith(".exe")).map((name) => {
+    const filePath = path.join(releaseDir, name);
+    return { fileName: name, sizeBytes: fs.statSync(filePath).size, sha256: crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex") };
+  });
+  fs.writeFileSync(path.join(releaseDir, "build-info.json"), `${JSON.stringify({ ...buildInfo, artifacts }, null, 2)}\n`, "utf8");
   console.log(`  copied versioned environment template  file=${path.join("release", ".env.Version")}`);
   console.log(`  packaged source commit  commit=${packagedSourceCommit}`);
 }).catch((error) => {

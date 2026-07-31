@@ -29,6 +29,11 @@ function UiSmokeErrorTrigger() {
 export default function App() {
   useEffect(() => {
     document.title = `Jira Activity Analyzer ${buildInfo.version}`;
+    requestAnimationFrame(() => {
+      void window.desktopApp?.appDiagnostics?.reportRendererEvent({ event: "startup_milestone", milestone: "First Paint" });
+      void window.desktopApp?.appDiagnostics?.reportRendererEvent({ event: "startup_milestone", milestone: "Shell Visible" });
+      void window.desktopApp?.appDiagnostics?.reportRendererEvent({ event: "startup_milestone", milestone: "Initial Route Ready" });
+    });
   }, []);
 
   return (

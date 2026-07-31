@@ -7,6 +7,8 @@ export function BuildInfo() {
       <div className="font-black text-ink" data-no-clip="true">{buildInfo.version}</div>
       <div className="mt-2" data-no-clip="true">Build Time / 建置時間</div>
       <div className="font-black text-ink" data-no-clip="true">{buildInfo.buildTime}</div>
+      <div className="mt-2" data-no-clip="true">Build Host / OS</div>
+      <div className="break-words font-semibold text-ink" title={`${buildInfo.buildMachine} / ${buildInfo.buildOs}`}>{buildInfo.buildMachine} / {buildInfo.buildOs}</div>
       <div className="mt-2 truncate" title={`${buildInfo.gitBranch} ${buildInfo.gitCommit}`} data-allow-truncate="true">
         {buildInfo.gitBranch} / {buildInfo.gitCommit}
       </div>

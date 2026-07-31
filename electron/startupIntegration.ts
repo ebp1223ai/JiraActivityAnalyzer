@@ -59,6 +59,12 @@ export function connectedFixture(overrides: Partial<Omit<JiraRuntimeState, "requ
     serverIdentity: "jira:fixture",
     serverTitle: "Synthetic Jira",
     serverTitleStatus: "verified",
+    connectionStatus: "connected",
+    authType: "bearer",
+    testedAt: new Date().toISOString(),
+    errorCode: "",
+    errorMessage: "",
+    settingsFingerprint: "fixture-settings",
     ...overrides
   };
 }

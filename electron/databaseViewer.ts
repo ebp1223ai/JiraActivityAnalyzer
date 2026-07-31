@@ -691,7 +691,35 @@ export function queryDatabaseIssueEvents(databasePath: string, issueKeyInput: st
   return queryDatabaseEvents(databasePath, { userId: "", issueKey }, input);
 }
 
-function queryDatabaseEvents(databasePath: string, subject: { userId: string; issueKey: string }, input: ViewerQueryInput) {
+type EventQueryResult = {
+  rows: Row[];
+  filteredCount: number;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  diagnostics: {
+    queryFingerprint: string;
+    sqlExecutionMs: number;
+    rowMappingAndPayloadNormalizationMs: number;
+    totalMs: number;
+    cacheHit: boolean;
+    slow: boolean;
+    queryPlan: Row[];
+  };
+};
+const EVENT_QUERY_CACHE_TTL_MS = 2_000;
+const EVENT_QUERY_CACHE_LIMIT = 32;
+const eventQueryCache = new Map<string, { expiresAt: number; value: EventQueryResult }>();
+
+function queryDatabaseEvents(databasePath: string, subject: { userId: string; issueKey: string }, input: ViewerQueryInput): EventQueryResult {
+  const sourceStat = fs.statSync(databasePath);
+  const queryFingerprint = crypto.createHash("sha256").update(JSON.stringify({ databasePath: path.resolve(databasePath), sourceSize: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, subject, input }), "utf8").digest("hex");
+  const cached = eventQueryCache.get(queryFingerprint);
+  if (cached && cached.expiresAt >= Date.now()) {
+    return { ...structuredClone(cached.value), diagnostics: { ...cached.value.diagnostics, cacheHit: true } };
+  }
+  const startedAt = performance.now();
   const sortColumns = Object.fromEntries(Object.entries(USER_EVENT_COLUMNS).map(([key, value]) => [key, value.expression]));
   const query = normalizeViewerQuery(input, sortColumns, "eventTime");
   const filter = viewerFilterSql(query.filters, USER_EVENT_COLUMNS);
@@ -701,6 +729,7 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
   const parameters: Array<string | number> = [subjectValue, ...filter.parameters];
   const { db } = openReadOnly(databasePath);
   try {
+    const sqlStartedAt = performance.now();
     const totalCount = Number(row(db.prepare(`
       SELECT COUNT(*) AS count FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
       WHERE ${subjectWhere}
@@ -712,7 +741,7 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
     `).get(...parameters)).count ?? 0);
     const pageCount = Math.max(1, Math.ceil(filteredCount / query.pageSize));
     const page = Math.min(query.page, pageCount);
-    const rowsResult = rows(db.prepare(`
+    const rowsSql = `
       SELECT e.id AS eventId, e.source_object_id AS sourceObjectId, e.event_time AS eventTime, e.actor_account_id AS userId,
         e.actor_display_name AS displayName, o.issue_key AS issueKey, e.event_type AS eventType,
         e.field_id AS fieldId, e.field_name AS fieldName, e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
@@ -721,9 +750,37 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
       LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
       WHERE ${where}
       ORDER BY ${sortColumns[query.sortField]} ${query.sortDirection.toUpperCase()}, e.id ASC
-      LIMIT ? OFFSET ?
-    `).all(...parameters, query.pageSize, (page - 1) * query.pageSize));
-    return { rows: enrichCommentEventRows(db, rowsResult), filteredCount, totalCount, page, pageSize: query.pageSize, pageCount };
+      LIMIT ? OFFSET ?`;
+    const rowsResult = rows(db.prepare(rowsSql).all(...parameters, query.pageSize, (page - 1) * query.pageSize));
+    const sqlExecutionMs = performance.now() - sqlStartedAt;
+    const mappingStartedAt = performance.now();
+    const enrichedRows = enrichCommentEventRows(db, rowsResult);
+    const rowMappingMs = performance.now() - mappingStartedAt;
+    const totalMs = performance.now() - startedAt;
+    const slow = totalMs > 1_000;
+    const queryPlan = totalMs > 3_000
+      ? rows(db.prepare(`EXPLAIN QUERY PLAN ${rowsSql}`).all(...parameters, query.pageSize, (page - 1) * query.pageSize))
+      : [];
+    const value = {
+      rows: enrichedRows,
+      filteredCount,
+      totalCount,
+      page,
+      pageSize: query.pageSize,
+      pageCount,
+      diagnostics: {
+        queryFingerprint,
+        sqlExecutionMs: Math.round(sqlExecutionMs * 100) / 100,
+        rowMappingAndPayloadNormalizationMs: Math.round(rowMappingMs * 100) / 100,
+        totalMs: Math.round(totalMs * 100) / 100,
+        cacheHit: false,
+        slow,
+        queryPlan
+      }
+    };
+    eventQueryCache.set(queryFingerprint, { expiresAt: Date.now() + EVENT_QUERY_CACHE_TTL_MS, value });
+    while (eventQueryCache.size > EVENT_QUERY_CACHE_LIMIT) eventQueryCache.delete(eventQueryCache.keys().next().value as string);
+    return value;
   } finally {
     db.close();
   }

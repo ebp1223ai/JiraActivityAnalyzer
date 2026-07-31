@@ -1,5 +1,15 @@
 # Jira Activity Analyzer
 
+> v0.2.52 adds explicit rich-content availability/diff semantics, main-owned Jira connection status, Activity Stream Stability Gates, run reconciliation, startup/query diagnostics, and a simplified Data Collection setup. Current-State schema remains v2; acceptance is Partial pending real Jira and Windows packaged human gates.
+
+## v0.2.52 Data Trustworthiness and Runtime Stability
+
+- **Rich content:** Comment/Description rendering distinguishes missing, empty, unavailable, not applicable, and parse failure; no missing Before is treated as unchanged.
+- **Runtime SSOT:** Jira settings changes invalidate prior connection success through a credential-safe fingerprint owned by Electron main.
+- **Stability Gate:** only stable initial/retry outcomes may formally write SQLite; unstable usable may continue/export but remains database-write blocked.
+- **Diagnostics:** Debug Folder run reconciliation, shell-first milestones, Activity Events query timing/cache and artifact metadata are available without changing schema v2.
+- **Decision required:** persistent semantic columns/migration remain deferred; see `docs/v0.2.52-sqlite-persistence-decision.md`.
+
 > v0.2.46 adds frozen Data Collection run context, shared SQLite table queries, stable-user and issue Activity Stream views, a read-only Connections page, and safer Jira wiki rendering. Current-State schema remains v2 with no migration or recreation.
 > v0.2.47 keeps Step 3 Full Fetch owned by Electron main across route changes, replaces Viewer Activity Stream tabs with complete local SQLite Activity Events, and stabilizes Database Issue filters. Current-State schema remains v2 with no migration or recreation.
 > v0.2.48 separates the renderer shell from database bootstrap, adds phased readiness and stale-query protection, and unifies readable Viewer content. Current-State schema remains v2; payload-backed Changelog and Comments remain documented partial limitations.
