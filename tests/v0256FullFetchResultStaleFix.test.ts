@@ -96,11 +96,21 @@ try {
     /FULL_FETCH_IDENTITY_MISMATCH/
   ));
 
-  const savedOnce = registry.markSaved(identity(current), path.join(tempRoot, "result.json"), "2026-01-02T01:01:00.000Z");
-  const savedTwice = registry.markSaved(identity(current), path.join(tempRoot, "result-2.json"), "2026-01-02T01:02:00.000Z");
+  const saveEvidence = {
+    operationId: "save-operation-current",
+    savedAt: "2026-01-02T01:01:00.000Z",
+    filePath: path.join(tempRoot, "result.json"),
+    folderPath: tempRoot,
+    fileSize: 128,
+    sha256: "synthetic-sha256",
+    fileSave: { status: "completed" },
+    databaseWrite: { ok: true, status: "completed", readbackVerified: true, foreignKeyCheck: "passed" }
+  };
+  const savedOnce = registry.markSaved(identity(current), saveEvidence);
+  const savedTwice = registry.resolveSaveRequest(identity(current));
   check("first save records saved state", () => assert.equal(savedOnce.attempt.attemptStatus, "saved"));
-  check("repeated save remains eligible for database dedupe path", () => assert.equal(savedTwice.attempt.saveEligible, true));
-  check("repeated save preserves the same run identity", () => assert.equal(savedTwice.fullFetchRunId, "run-current"));
+  check("repeated save resolves to database no-op path", () => assert.equal(savedTwice.status, "already_saved"));
+  check("repeated save preserves the same run identity", () => assert.equal(savedTwice.record.fullFetchRunId, "run-current"));
 
   const partialRegistry = new FullFetchRunRegistry();
   const partialDir = fs.mkdirSync(path.join(tempRoot, "partial"), { recursive: true });
@@ -122,12 +132,12 @@ try {
   const main = read("electron/main.ts");
   const saveHandler = main.slice(main.indexOf('ipcMain.handle("user-analysis:save-full-fetch-result"'), main.indexOf('ipcMain.handle("user-analysis:open-export-folder"'));
   const debugHandler = main.slice(main.indexOf('ipcMain.handle("debug-log:save-bundle"'));
-  check("Save IPC resolves registry identity", () => assert.match(saveHandler, /fullFetchRunRegistry\.resolveForSave\(identity\)/));
+  check("Save IPC resolves registry identity", () => assert.match(saveHandler, /fullFetchRunRegistry\.resolveSaveRequest\(identity\)/));
   check("Save IPC loads the registry staging directory", () => assert.match(saveHandler, /loadStagingRun\(runRecord\.stagingDir\)/));
   check("Save IPC does not depend on global latest staging", () => assert.doesNotMatch(saveHandler, /latestFullFetchStaging/));
   check("Debug Folder resolves current run registry identity", () => assert.match(debugHandler, /fullFetchRunRegistry\.resolve/));
   check("Debug Folder staging comes from current run record", () => assert.match(debugHandler, /loadStagingRun\(currentRunRecord\.stagingDir\)/));
-  check("renderer Save sends complete identity", () => assert.match(read("src/routes/AnalysisPage.tsx"), /saveFullFetchResult\?\.\(\{ attemptId:[\s\S]*selectedTimelineRunId:[\s\S]*fullFetchRunId:[\s\S]*stagingId:/));
+  check("renderer Save sends completed result identity", () => assert.match(read("src/routes/AnalysisPage.tsx"), /const completedIdentity = userAnalysis\.completedFullFetchIdentity;[\s\S]*saveFullFetchResult\?\.\(completedIdentity\)/));
   check("preload Save contract requires complete identity", () => assert.match(read("electron/preload.ts"), /saveFullFetchResult: \(payload: \{ attemptId: string; selectedTimelineRunId: string; fullFetchRunId: string; stagingId: string \}\)/));
   check("SQLite schema remains v3", () => assert.match(read("electron/currentStateArchive.ts"), /CURRENT_STATE_SCHEMA_VERSION = 3/));
   check("event identity remains v3", () => assert.match(read("electron/activityEvents.ts"), /EVENT_IDENTITY_POLICY_VERSION = 3/));

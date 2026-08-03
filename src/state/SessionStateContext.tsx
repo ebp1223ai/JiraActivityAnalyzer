@@ -538,6 +538,13 @@ export type UserAnalysisFullFetchProgress = {
   issueStatus: Array<{ index: number; issueKey: string; status: string; durationMs?: number; error?: string }>;
 };
 
+export type FullFetchResultIdentity = {
+  attemptId: string;
+  selectedTimelineRunId: string;
+  fullFetchRunId: string;
+  stagingId: string;
+};
+
 export type UserAnalysisSessionState = {
   selectedUsersText: string;
   startDate: string;
@@ -662,6 +669,8 @@ export type UserAnalysisSessionState = {
   lastSavedExportFolderPath: string;
   fullFetchRunId: string;
   fullFetchAttemptId: string;
+  completedFullFetchIdentity: FullFetchResultIdentity | null;
+  completedFullFetchSaveEligible: boolean;
   fetchQueueTimelineRunId: string;
   fullFetchPreflight: { status: "checking" | "eligible" | "blocked"; reasonCode: string; reasonMessage: string; queueTotal: number } | null;
   fullFetchStartedAt: string;
@@ -956,6 +965,8 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   lastSavedExportFolderPath: "",
   fullFetchRunId: "",
   fullFetchAttemptId: "",
+  completedFullFetchIdentity: null,
+  completedFullFetchSaveEligible: false,
   fetchQueueTimelineRunId: "",
   fullFetchPreflight: null,
   fullFetchStartedAt: "",

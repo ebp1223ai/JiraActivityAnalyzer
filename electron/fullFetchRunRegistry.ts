@@ -15,10 +15,22 @@ export type FullFetchResultRecord = {
   generatedAutomatically: boolean;
 };
 
+export type FullFetchSaveEvidence = {
+  operationId: string;
+  savedAt: string;
+  filePath: string;
+  folderPath: string;
+  fileSize: number;
+  sha256: string;
+  fileSave: Record<string, unknown>;
+  databaseWrite: Record<string, unknown>;
+};
+
 export type FullFetchRunRecord = FullFetchRunIdentity & {
   stagingDir: string;
   attempt: FullFetchAttempt;
   result: FullFetchResultRecord | null;
+  saveEvidence: FullFetchSaveEvidence | null;
 };
 
 const normalize = (value: unknown) => String(value ?? "").trim();
@@ -56,7 +68,7 @@ export class FullFetchRunRegistry {
     if (!identity.attemptId || !identity.selectedTimelineRunId || !identity.fullFetchRunId || !identity.stagingId) {
       throw new Error("FULL_FETCH_IDENTITY_INCOMPLETE: Cannot register a Full Fetch run without its complete identity.");
     }
-    const record = { ...identity, stagingDir, attempt, result: null };
+    const record = { ...identity, stagingDir, attempt, result: null, saveEvidence: null };
     this.byRunId.set(identity.fullFetchRunId, record);
     this.runIdByAttemptId.set(identity.attemptId, identity.fullFetchRunId);
     return record;
@@ -114,17 +126,34 @@ export class FullFetchRunRegistry {
     return current;
   }
 
+  resolveSaveRequest(identity: FullFetchRunIdentity):
+    | { status: "ready"; record: FullFetchRunRecord }
+    | { status: "already_saved"; record: FullFetchRunRecord; evidence: FullFetchSaveEvidence } {
+    const record = this.resolveForSave(identity);
+    return record.saveEvidence
+      ? { status: "already_saved", record, evidence: record.saveEvidence }
+      : { status: "ready", record };
+  }
+
   resolveByAttemptId(attemptId: string): FullFetchRunRecord | null {
     const runId = this.runIdByAttemptId.get(normalize(attemptId));
     return runId ? this.byRunId.get(runId) ?? null : null;
   }
 
-  markSaved(identity: FullFetchRunIdentity, savedPath: string, savedAt: string): FullFetchRunRecord {
+  markSaved(identity: FullFetchRunIdentity, evidence: FullFetchSaveEvidence): FullFetchRunRecord {
     const current = this.resolveForSave(identity);
+    const databaseWrite = evidence.databaseWrite;
+    if (databaseWrite.ok !== true
+      || databaseWrite.status !== "completed"
+      || databaseWrite.readbackVerified !== true
+      || databaseWrite.foreignKeyCheck !== "passed") {
+      throw new Error("FULL_FETCH_SAVE_NOT_COMMITTED: Saved state requires a committed, readback-verified database write.");
+    }
     const next = {
       ...current,
-      attempt: { ...current.attempt, attemptStatus: "saved" as const, savedAt, updatedAt: savedAt },
-      result: current.result ? { ...current.result, savedPath, generatedAutomatically: false } : null
+      attempt: { ...current.attempt, attemptStatus: "saved" as const, savedAt: evidence.savedAt, updatedAt: evidence.savedAt },
+      result: current.result ? { ...current.result, savedPath: evidence.filePath, generatedAutomatically: false } : null,
+      saveEvidence: evidence
     };
     this.registerAttempt(next.attempt);
     this.byRunId.set(current.fullFetchRunId, next);

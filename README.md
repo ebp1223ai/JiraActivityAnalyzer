@@ -1,5 +1,15 @@
 # Jira Activity Analyzer
 
+> v0.2.57 separates Full Fetch draft/preflight, active attempt, completed result, and saved result identities. Save is bound to one completed four-part identity and becomes an idempotent no-op after a verified SQLite commit. SQLite schema and Event Identity Policy remain v3.
+
+## v0.2.57 Full Fetch Identity Lifecycle & Idempotent Save Repair
+
+- **Attempt boundary:** navigation, hydration, queue changes, and preflight checks no longer create executable attempts; an attempt starts only after the user runs Full Fetch and all gates pass.
+- **Stable completed result:** the completed tuple (`attemptId`, selected Timeline Run ID, Full Fetch Run ID, and staging ID) survives navigation and is not replaced by later blocked, partial, failed, or cancelled attempts.
+- **Idempotent Save:** the first eligible Save records JSON and verified SQLite evidence; a repeated Save returns `ALREADY_SAVED` without another JSON export or SQLite transaction.
+- **Commit truthfulness:** the attempt becomes `saved` only after database commit, readback verification, and foreign-key verification succeed.
+- **Debug consistency:** Debug Folder resolves staging and database-save evidence from the same registered completed result instead of mutable latest-session globals.
+- **Safety:** Partial, Failed, Cancelled, stale, or mismatched identities fail closed. Jira remains read-only and no schema migration or external SQLite dependency was added.
 > v0.2.56 fixes Full Fetch result persistence by binding completion, Save, and Debug Folder to one main-process attempt/run/staging registry. SQLite schema and Event Identity Policy remain v3.
 
 ## v0.2.56 Full Fetch Result Stale Fix

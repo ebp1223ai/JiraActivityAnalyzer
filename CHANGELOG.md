@@ -1,3 +1,11 @@
+## 0.2.57 - Full Fetch Identity Lifecycle & Idempotent Save Repair
+
+- Moved Full Fetch attempt creation behind eligibility and queue gates so preflight, navigation, hydration, and mount operations remain non-executable.
+- Added a stable completed-result identity separate from the latest active attempt and preserved it across route changes and non-eligible terminal attempts.
+- Made Save Full Fetch Result idempotent: repeated requests return `ALREADY_SAVED` with original evidence and start no duplicate JSON export or SQLite transaction.
+- Required successful SQLite commit, readback verification, and foreign-key verification before transitioning an attempt to `saved`.
+- Bound Debug Folder database evidence to the exact registered Full Fetch result and retained fail-closed stale/mismatch/partial/failed/cancelled behavior.
+- Added 56 synthetic focused checks plus v0.2.56, v0.2.41, v0.2.53, and v0.2.55 regressions; kept SQLite schema v3, Event Identity Policy v3, dependencies, and Jira read-only behavior unchanged.
 ## 0.2.56 - Full Fetch Result Stale Fix
 
 - Added one main-process Full Fetch registry for preflight attempts, run/staging identity, terminal reconciliation, result availability, and save eligibility.

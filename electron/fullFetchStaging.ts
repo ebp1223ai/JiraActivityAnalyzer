@@ -76,7 +76,7 @@ export type FullFetchRunContext = {
   buildInfo?: PackagedBuildIdentity;
 };
 export type Step5ActionRecord = {
-  action: "full_fetch_result_saved" | "source_archive_exported" | "debug_bundle_generated";
+  action: "full_fetch_result_saved" | "full_fetch_json_saved" | "full_fetch_database_saved" | "source_archive_exported" | "debug_bundle_generated";
   timestamp: string; runId: string; outputPath: string; fileSize: number; sha256: string; issueCount: number; eligibleCount: number;
   result: "completed" | "completed_with_errors" | "failed"; error: string; generatedAutomatically?: boolean;
 };

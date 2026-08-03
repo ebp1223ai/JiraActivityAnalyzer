@@ -27,7 +27,7 @@ check("incomplete canonical merge is blocked", () => assert.equal(evaluateFullFe
 const blockedEligibility = evaluateFullFetchEligibility({ selectedTimelineRunId: "timeline-1", queueTimelineRunId: "timeline-2", timelineRun: timeline() });
 const attempt = createFullFetchAttempt({ selectedTimelineRunId: "timeline-1", queueTimelineRunId: "timeline-2", selectedIssueKeys: Array.from({ length: 15 }, (_, index) => `DEMO-${index + 1}`), eligibility: blockedEligibility, now: "2026-01-02T00:00:00.000Z", attemptId: "attempt-1" });
 const blocked = blockedFullFetchResponse(attempt, blockedEligibility);
-check("blocked preflight creates attempt identity", () => assert.equal(attempt.attemptId, "attempt-1"));
+check("IPC preflight does not create executable attempt identity", () => { const main = read("electron/main.ts"); const section = main.slice(main.indexOf('ipcMain.handle("user-analysis:full-fetch-preflight"'), main.indexOf('ipcMain.handle("user-analysis:full-fetch"')); assert.match(section, /attempt:\s*null/); assert.doesNotMatch(section, /createFullFetchAttempt|registerAttempt/); });
 check("blocked queue total remains 15", () => assert.equal(blocked.summary.queueTotal, 15));
 check("blocked attempted count is zero", () => assert.equal(blocked.summary.attempted, 0));
 check("blocked success count is zero", () => assert.equal(blocked.summary.succeeded, 0));

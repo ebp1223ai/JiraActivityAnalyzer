@@ -10,7 +10,7 @@ import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { createIncidentId, rememberSafeUserAction, reportQueueTransition, reportRendererDiagnostic } from "../diagnostics/rendererDiagnostics";
 import { useConnectionContext } from "../state/ConnectionContext";
-import { useSessionState, type JiraEvidenceSummary, type UserActivityTimelineEvent, type UserActivityTimelineSummary, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
+import { useSessionState, type JiraEvidenceSummary, type UserActivityTimelineEvent, type UserActivityTimelineSummary, type UserAnalysisCandidateIssue, type UserAnalysisFullFetchMemory, type UserAnalysisFullFetchProgress, type FullFetchResultIdentity, type UserAnalysisPrecisionProbeResult, type UserAnalysisPrecisionProbeSummary } from "../state/SessionStateContext";
 import { buildTimelineIssueGroups, buildTimelineQueueTransition, defaultWorkflowSteps, isRecommendedRelationType, mergeQueueMetadata, normalizeFetchQueueMetadata, normalizeIssueKey, type FetchQueueMetadata, type FetchQueueSource } from "../../electron/userAnalysisWorkflow";
 import { preflightFullFetchQueue } from "../../electron/fullFetchPreflight";
 import { createActivityTimelineRunContext } from "../../electron/activityTimelineRunContext";
@@ -21,6 +21,18 @@ const timelineOptionalColumns = [{ value: "title", label: "Title / Summary" }, {
 const issueGroupRequiredColumns = [{ value: "selected", label: "Selected" }, { value: "issueKey", label: "Issue Key" }, { value: "sourceApplications", label: "Source Applications" }, { value: "eventCount", label: "Event Count" }, { value: "firstSeen", label: "First Seen" }, { value: "lastSeen", label: "Last Seen" }];
 const issueGroupOptionalColumns = [{ value: "activityTypes", label: "Activity Types" }, { value: "confidence", label: "Confidence Summary" }, { value: "issueKeyRole", label: "Issue Key Role" }, { value: "projectKey", label: "Project Key" }, { value: "jiraRelation", label: "Jira Relation" }, { value: "relatedSystems", label: "Related Systems" }, { value: "sourceDetails", label: "Source Details" }, { value: "timelineEventIds", label: "Timeline Event IDs" }, { value: "allIssueKeys", label: "All Issue Keys" }, { value: "matchedReasons", label: "Matched Reasons" }];
 type WorkflowVisualState = "current" | "completed" | "ready" | "blocked" | "warning" | "failed" | "advanced";
+
+function parseFullFetchResultIdentity(value: unknown): FullFetchResultIdentity | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const identity = {
+    attemptId: String(record.attemptId ?? "").trim(),
+    selectedTimelineRunId: String(record.selectedTimelineRunId ?? "").trim(),
+    fullFetchRunId: String(record.fullFetchRunId ?? "").trim(),
+    stagingId: String(record.stagingId ?? "").trim()
+  };
+  return Object.values(identity).every(Boolean) ? identity : null;
+}
 const workflowStateStyles: Record<WorkflowVisualState, string> = {
   current: "border-blue-300 border-l-blue-600 bg-blue-50",
   completed: "border-emerald-300 border-l-emerald-600 bg-emerald-50",
@@ -356,8 +368,11 @@ export function AnalysisPage() {
     ? "Full Fetch is running / 完整抓取正在執行中"
     : !hasFullFetchResult
       ? "No Full Fetch result yet / 尚無完整抓取結果"
-      : "";
-
+      : !userAnalysis.completedFullFetchIdentity
+        ? "Completed Full Fetch identity is unavailable / 完整抓取結果識別不存在"
+        : !userAnalysis.completedFullFetchSaveEligible
+          ? "Only a complete reconciled Full Fetch can be saved / 僅可儲存完整且已核對的結果"
+          : "";
   function workflowStepState(step: string): { state: WorkflowVisualState; reason: string } {
     const active = (step === "timeline" && userAnalysis.activeTab === "timeline") || (step === "selectIssues" && userAnalysis.activeTab === "selectIssues") || (step === "queue" && ["queue", "fetchReport"].includes(userAnalysis.activeTab)) || (step === "relatedIssues" && userAnalysis.activeTab === "relatedIssues") || (step === "exports" && userAnalysis.activeTab === "exports");
     if (step === "timeline") {
@@ -502,6 +517,10 @@ export function AnalysisPage() {
           .map((item) => ({ ...item, key: String(item.key).trim().toUpperCase(), queueMetadata: normalizeFetchQueueMetadata(item.queueMetadata) }))
         : [];
       const restoredSelected = restoredQueue.map((item) => item.key).filter(Boolean);
+      const snapshotUiState = snapshot.uiState && typeof snapshot.uiState === "object" && !Array.isArray(snapshot.uiState)
+        ? snapshot.uiState as Record<string, unknown>
+        : {};
+      const restoredCompletedIdentity = parseFullFetchResultIdentity(snapshotUiState.completedFullFetchIdentity);
       setUserAnalysis((current) => ({
         ...current,
         workflowSteps: { ...current.workflowSteps, ...(snapshot.steps as Partial<typeof current.workflowSteps> | undefined) },
@@ -513,7 +532,9 @@ export function AnalysisPage() {
         addedTimelineIssuesToFetchQueueCount: Number(snapshot.addedTimelineIssuesToFetchQueueCount ?? current.addedTimelineIssuesToFetchQueueCount),
         addedRelatedIssuesToFetchQueueCount: Number(snapshot.addedRelatedIssuesToFetchQueueCount ?? current.addedRelatedIssuesToFetchQueueCount),
         addedRecommendedRelatedIssuesToFetchQueueCount: Number(snapshot.addedRecommendedRelatedIssuesToFetchQueueCount ?? current.addedRecommendedRelatedIssuesToFetchQueueCount),
-        addedOptionalRelatedIssuesToFetchQueueCount: Number(snapshot.addedOptionalRelatedIssuesToFetchQueueCount ?? current.addedOptionalRelatedIssuesToFetchQueueCount)
+        addedOptionalRelatedIssuesToFetchQueueCount: Number(snapshot.addedOptionalRelatedIssuesToFetchQueueCount ?? current.addedOptionalRelatedIssuesToFetchQueueCount),
+        completedFullFetchIdentity: restoredCompletedIdentity ?? current.completedFullFetchIdentity,
+        completedFullFetchSaveEligible: restoredCompletedIdentity ? snapshotUiState.completedFullFetchSaveEligible === true : current.completedFullFetchSaveEligible
       }));
     }).catch((error) => console.error("User Analysis workflow snapshot load failed", error)).finally(() => {
       if (active) setWorkflowSnapshotReady(true);
@@ -680,7 +701,9 @@ export function AnalysisPage() {
       const failed = result.runs.find((item) => ["failed_final", "aborted_on_restart", "completed_with_errors", "legacy_incomplete"].includes(String(item.state.status ?? "")));
       setUserAnalysis((current) => ({
         ...current,
-        fullFetchStaging: latest?.state ?? null,
+        fullFetchStaging: current.completedFullFetchIdentity
+          ? result.runs?.find((item) => String(item.state.stagingId ?? "") === current.completedFullFetchIdentity?.stagingId)?.state ?? current.fullFetchStaging
+          : latest?.state ?? null,
         failedFullFetchRun: failed ? { ...failed.state, ...failed.preview } : null,
         failedFullFetchRunDismissed: false
       }));
@@ -697,8 +720,8 @@ export function AnalysisPage() {
     void window.desktopApp?.userAnalysis?.fullFetchPreflight?.({ fetchQueue, selectedTimelineRunId, queueTimelineRunId }).then((response) => {
       if (!active || !response) return;
       const preflight = (response.preflight ?? {}) as Record<string, unknown>;
-      const attempt = (response.attempt ?? {}) as Record<string, unknown>;
-      patchState({ fullFetchAttemptId: String(attempt.attemptId ?? ""), fullFetchPreflight: { status: response.ok === true ? "eligible" : "blocked", reasonCode: String(preflight.reasonCode ?? response.status ?? "UNKNOWN"), reasonMessage: String(preflight.reasonMessage ?? (response.ok === true ? "Eligible for Full Fetch." : "Full Fetch preflight blocked.")), queueTotal: fetchQueue.length } });
+
+      patchState({ fullFetchPreflight: { status: response.ok === true ? "eligible" : "blocked", reasonCode: String(preflight.reasonCode ?? response.status ?? "UNKNOWN"), reasonMessage: String(preflight.reasonMessage ?? (response.ok === true ? "Eligible for Full Fetch." : "Full Fetch preflight blocked.")), queueTotal: fetchQueue.length } });
     });
     return () => { active = false; };
   }, [userAnalysis.activeTab, userAnalysis.timelineRunContext?.runId, userAnalysis.fetchQueueTimelineRunId, fetchQueue.map((item) => item.key).join("|")]);
@@ -813,6 +836,10 @@ export function AnalysisPage() {
   }
 
   function persistWorkflowSnapshot(overrides: Record<string, unknown> = {}) {
+    const { uiState: uiStateOverrides, ...snapshotOverrides } = overrides;
+    const extraUiState = uiStateOverrides && typeof uiStateOverrides === "object" && !Array.isArray(uiStateOverrides)
+      ? uiStateOverrides as Record<string, unknown>
+      : {};
     return window.desktopApp?.userAnalysis?.updateWorkflowSnapshot?.({
       steps: userAnalysis.workflowSteps,
       timelineIssueGroups: userAnalysis.timelineIssueGroups,
@@ -827,6 +854,8 @@ export function AnalysisPage() {
         workflowStepCount: 5,
         advancedToolsVisible: false,
         fullFetchProgressLocation: "step3_full_fetch",
+        completedFullFetchIdentity: userAnalysis.completedFullFetchIdentity,
+        completedFullFetchSaveEligible: userAnalysis.completedFullFetchSaveEligible,
         timeline: {
           visibleColumns: userAnalysis.timelineVisibleColumns,
           requiredColumns: timelineRequiredColumns.map((column) => column.value),
@@ -842,9 +871,10 @@ export function AnalysisPage() {
           filters: userAnalysis.timelineIssueFilters,
           filteredCount: filteredTimelineIssueGroups.length,
           totalCount: userAnalysis.timelineIssueGroups.length
-        }
+        },
+        ...extraUiState
       },
-      ...overrides
+      ...snapshotOverrides
     });
   }
 
@@ -936,13 +966,13 @@ export function AnalysisPage() {
       const queueTimelineRunId = userAnalysis.timelineRunContext?.runId ?? "";
       const preflightResponse = await window.desktopApp?.userAnalysis?.fullFetchPreflight?.({ fetchQueue: transition.selectedForFetch, selectedTimelineRunId: queueTimelineRunId, queueTimelineRunId });
       const preflight = (preflightResponse?.preflight ?? {}) as Record<string, unknown>;
-      const attempt = (preflightResponse?.attempt ?? {}) as Record<string, unknown>;
+
       patchState({
         candidateIssues: transition.candidateIssues,
         selectedTimelineIssueKeys: transition.acceptedIssueKeys,
         selectedForFetch: transition.selectedForFetch,
         fetchQueueTimelineRunId: queueTimelineRunId,
-        fullFetchAttemptId: String(attempt.attemptId ?? ""),
+
         fullFetchPreflight: { status: preflightResponse?.ok === true ? "eligible" : "blocked", reasonCode: String(preflight.reasonCode ?? preflightResponse?.status ?? "UNKNOWN"), reasonMessage: String(preflight.reasonMessage ?? (preflightResponse?.ok === true ? "Eligible for Full Fetch." : "Full Fetch preflight blocked.")), queueTotal: transition.selectedForFetch.length },
         addedTimelineIssuesToFetchQueueCount: count,
         lastQueueAddSummary: { kind: "timeline", added: transition.addedCount, merged: transition.mergedCount, total: transition.queueCountAfter },
@@ -1411,8 +1441,12 @@ export function AnalysisPage() {
       lastDiscoveryAt: "",
       lastSavedCandidateResultPath: "",
       lastSavedCandidateRawDataPath: "",
+
       lastSavedExportFolderPath: "",
       fullFetchRunId: "",
+      fullFetchAttemptId: "",
+      completedFullFetchIdentity: null,
+      completedFullFetchSaveEligible: false,
       fullFetchStartedAt: "",
       fullFetchFinishedAt: "",
       fullFetchStatus: "idle",
@@ -1605,7 +1639,7 @@ export function AnalysisPage() {
       fullFetchStatus: "running",
       fullFetchStartedAt: new Date().toISOString(),
       fullFetchFinishedAt: "",
-      fullFetchRunId: "",
+
       jiraEvidenceSummary: null,
       fullFetchWarnings: [],
       fullFetchErrors: [],
@@ -1652,16 +1686,16 @@ export function AnalysisPage() {
         relatedIssuesStatus: userAnalysis.workflowSteps.relatedReview,
         fetchRemoteLinks: userAnalysis.fetchRemoteLinks,
         directIssueKeys: userAnalysis.selectedTimelineIssueKeys,
-        attemptId: userAnalysis.fullFetchAttemptId,
+
         selectedTimelineRunId: userAnalysis.timelineRunContext?.runId ?? "",
         queueTimelineRunId: userAnalysis.fetchQueueTimelineRunId
       });
       if (!response) throw new Error("Electron User Analysis Full Fetch API is not available.");
       const preflight = (response.preflight ?? {}) as Record<string, unknown>;
-      if (response.ok === false && response.run == null && preflight.ok === false) {
+      if (response.ok === false && response.run == null) {
         const preflightErrors = Array.isArray(response.errors) ? response.errors as string[] : ["Preflight validation failed / 抓取前驗證失敗"];
-        const attempt = (response.attempt ?? {}) as Record<string, unknown>;
-        patchState({ fullFetchStatus: "preflight_blocked", fullFetchAttemptId: String(attempt.attemptId ?? userAnalysis.fullFetchAttemptId), fullFetchRunId: "", fullFetchStartedAt: "", fullFetchFinishedAt: new Date().toISOString(), fullFetchStaging: null, fullFetchSummary: response.summary as typeof userAnalysis.fullFetchSummary, fullFetchErrors: preflightErrors, errors: preflightErrors, fullFetchWarnings: Array.isArray(response.warnings) ? response.warnings as string[] : [], notice: "PRE_FLIGHT_BLOCKED: selected queue preserved; no Full Fetch run was created. / 抓取前已阻擋，佇列保留且未建立執行。" });
+
+        patchState({ fullFetchStatus: userAnalysis.fullFetchStatus, fullFetchAttemptId: userAnalysis.fullFetchAttemptId, fullFetchRunId: userAnalysis.fullFetchRunId, fullFetchStartedAt: userAnalysis.fullFetchStartedAt, fullFetchFinishedAt: userAnalysis.fullFetchFinishedAt, fullFetchStaging: userAnalysis.fullFetchStaging, fullFetchSummary: response.summary as typeof userAnalysis.fullFetchSummary, fullFetchErrors: preflightErrors, errors: preflightErrors, fullFetchWarnings: Array.isArray(response.warnings) ? response.warnings as string[] : [], notice: "PRE_FLIGHT_BLOCKED: selected queue preserved; no Full Fetch run was created. / 抓取前已阻擋，佇列保留且未建立執行。" });
         appendDebugLog("analysis", ["[ERROR] Preflight validation failed / 抓取前驗證失敗", "[INFO] No Full Fetch run or staging was created."]);
         return;
       }
@@ -1672,6 +1706,10 @@ export function AnalysisPage() {
       const relatedCandidateIssues = (Array.isArray(response.relatedCandidateIssues) ? response.relatedCandidateIssues : []) as typeof userAnalysis.relatedCandidateIssues;
       const jiraEvidenceSummary = response.jiraEvidenceSummary as JiraEvidenceSummary | undefined;
       const terminalAttempt = (response.attempt ?? {}) as Record<string, unknown>;
+      const terminalIdentity = parseFullFetchResultIdentity(response.identity);
+      const terminalSaveEligible = terminalIdentity !== null && terminalAttempt.saveEligible === true;
+      const completedIdentity = terminalSaveEligible ? terminalIdentity : userAnalysis.completedFullFetchIdentity;
+      const completedSaveEligible = terminalSaveEligible ? true : userAnalysis.completedFullFetchSaveEligible;
       const workflowSteps = {
         ...userAnalysis.workflowSteps,
         fetchQueue: "completed" as const,
@@ -1682,7 +1720,9 @@ export function AnalysisPage() {
         relatedFullFetch: runningRelatedFullFetch ? "completed" as const : userAnalysis.workflowSteps.relatedFullFetch
       };
       patchState({
-        fullFetchAttemptId: String(terminalAttempt.attemptId ?? userAnalysis.fullFetchAttemptId),
+        fullFetchAttemptId: terminalIdentity?.attemptId ?? String(terminalAttempt.attemptId ?? userAnalysis.fullFetchAttemptId),
+        completedFullFetchIdentity: completedIdentity,
+        completedFullFetchSaveEligible: completedSaveEligible,
         fullFetchRunId: String(run.runId ?? ""),
         fullFetchStartedAt: String(run.startedAt ?? ""),
         fullFetchFinishedAt: String(run.finishedAt ?? new Date().toISOString()),
@@ -1703,7 +1743,7 @@ export function AnalysisPage() {
         warnings: [...userAnalysis.warnings, ...(Array.isArray(response.warnings) ? response.warnings as string[] : [])],
         notice: `Full Fetch ${status}: ${(response.summary as Record<string, unknown> | undefined)?.eligible ?? 0} eligible, ${(response.summary as Record<string, unknown> | undefined)?.partial ?? 0} partial, ${(response.summary as Record<string, unknown> | undefined)?.failed ?? 0} failed.`
       });
-      void persistWorkflowSnapshot({ steps: workflowSteps, relatedCandidateIssues, sessionEvent: "related_issues_expanded" });
+      void persistWorkflowSnapshot({ steps: workflowSteps, relatedCandidateIssues, sessionEvent: "related_issues_expanded", uiState: { completedFullFetchIdentity: completedIdentity, completedFullFetchSaveEligible: completedSaveEligible } });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Full Fetch failed.";
       patchState({
@@ -1789,9 +1829,14 @@ export function AnalysisPage() {
       logAnalysisAction("GUARD", `Action blocked: ${fullFetchSaveDisabledReason}`);
       return;
     }
+    const completedIdentity = userAnalysis.completedFullFetchIdentity;
+    if (!completedIdentity) {
+      patchState({ errors: ["Completed Full Fetch identity is unavailable. / 完整抓取結果識別不存在。"] });
+      return;
+    }
     patchState({ saving: true, notice: "" });
     try {
-      const result = await window.desktopApp?.userAnalysis?.saveFullFetchResult?.({ attemptId: userAnalysis.fullFetchAttemptId, selectedTimelineRunId: userAnalysis.timelineRunContext?.runId ?? "", fullFetchRunId: userAnalysis.fullFetchRunId, stagingId: String(userAnalysis.fullFetchStaging?.stagingId ?? "") });
+      const result = await window.desktopApp?.userAnalysis?.saveFullFetchResult?.(completedIdentity);
       if (!result) throw new Error("Electron export API is not available.");
       if (result.canceled) {
         patchState({ saving: false, notice: "Save canceled.", errors: [] });
@@ -1804,10 +1849,13 @@ export function AnalysisPage() {
       const databaseMessage = String(databaseWrite.message ?? "Database write did not run.");
       patchState({
         saving: false,
-        notice: databaseStatus === "completed"
-          ? `Full Fetch JSON and Database Write completed: ${result.filePath}`
-          : `Full Fetch JSON saved; Database Write ${databaseStatus}: ${String(databaseWrite.reasonCode ?? "UNKNOWN")}`,
-        errors: databaseStatus === "completed" ? [] : [databaseMessage],
+        notice: result.alreadySaved
+          ? `ALREADY_SAVED: Full Fetch result was already committed; no duplicate write was performed. ${result.filePath ?? ""}`
+          : databaseStatus === "completed"
+            ? `Full Fetch JSON and Database Write completed: ${result.filePath}`
+            : `Full Fetch JSON saved; Database Write ${databaseStatus}: ${String(databaseWrite.reasonCode ?? "UNKNOWN")}`,
+        errors: databaseStatus === "completed" || result.alreadySaved ? [] : [databaseMessage],
+        completedFullFetchSaveEligible: databaseStatus === "completed" || result.alreadySaved,
         lastSavedFullFetchResultPath: result.filePath ?? "",
         lastFullFetchFileSaveResult: result.fileSave ?? null,
         lastDatabaseWriteResult: result.databaseWrite ?? null,
@@ -1831,7 +1879,7 @@ export function AnalysisPage() {
   async function generateFullFetchDebugBundle() {
     logAnalysisAction("USER_ACTION", "Button clicked: Export Debug Folder / 匯出除錯資料夾");
     try {
-      const result = await window.desktopApp?.appDebug?.saveBundle?.({ debugLog: getDebugLogs("analysis").join("\n"), currentPage: "analysis", fullFetchIdentity: { attemptId: userAnalysis.fullFetchAttemptId, selectedTimelineRunId: userAnalysis.timelineRunContext?.runId ?? "", fullFetchRunId: userAnalysis.fullFetchRunId, stagingId: String(userAnalysis.fullFetchStaging?.stagingId ?? "") } });
+      const result = await window.desktopApp?.appDebug?.saveBundle?.({ debugLog: getDebugLogs("analysis").join("\n"), currentPage: "analysis", fullFetchIdentity: userAnalysis.completedFullFetchIdentity ?? undefined });
       if (!result) throw new Error("Debug Folder API is not available.");
       if (result.status === "failed") throw new Error(`Debug Folder failed: ${String(result.errorCode ?? "unknown_error")} (${String(result.stage ?? "debug_folder")})`);
       if (result.canceled) {
