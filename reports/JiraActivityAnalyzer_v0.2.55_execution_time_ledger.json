@@ -4,8 +4,8 @@
     "timezone":  "Asia/Taipei",
     "wallClock":  {
                       "startedAt":  "2026-08-03T10:49:27+08:00",
-                      "endedAt":  "2026-08-03T11:55:15+08:00",
-                      "durationSeconds":  3948
+                      "endedAt":  "2026-08-03T12:05:00+08:00",
+                      "durationSeconds":  4533
                   },
     "environment":  {
                         "os":  "Microsoft Windows NT 10.0.26100.0",
@@ -24,7 +24,7 @@
                        "packagingAttemptSeconds":  10,
                        "documentationAndAuditSeconds":  753,
                        "handoffAuthorizationWaitSeconds":  890,
-                       "finalizationSeconds":  336
+                       "finalizationSeconds":  921
                    },
     "commands":  [
                      {
@@ -281,6 +281,59 @@
                          "exitCode":  0,
                          "status":  "passed",
                          "note":  "No sensitive paths or new credential values"
+                     },
+                     {
+                         "command":  "git commit -m feat: finalize Jira Activity Analyzer v0.2.55",
+                         "durationSeconds":  0.7,
+                         "exitCode":  0,
+                         "status":  "passed",
+                         "note":  "v0.2.55 source commit 68928662"
+                     },
+                     {
+                         "command":  "git stash push -- reports/JiraActivityAnalyzer_v0.2.47_Background_Fetch_and_Activity_Events_UX_implementation_report.md",
+                         "durationSeconds":  1.4,
+                         "exitCode":  0,
+                         "status":  "passed",
+                         "note":  "Path-scoped user modification isolation"
+                     },
+                     {
+                         "command":  "npm.cmd run dist",
+                         "attempt":  2,
+                         "durationSeconds":  5.032,
+                         "exitCode":  124,
+                         "status":  "wrapper_timeout",
+                         "note":  "Command wrapper terminated before electron-builder remained active; no v0.2.55 artifact produced"
+                     },
+                     {
+                         "command":  "npm.cmd run dist",
+                         "attempt":  3,
+                         "durationSeconds":  110.409,
+                         "exitCode":  0,
+                         "status":  "passed",
+                         "note":  "Installer and Portable generated from source commit 68928662"
+                     },
+                     {
+                         "command":  "artifact hash and signature verification",
+                         "attempt":  1,
+                         "durationSeconds":  0.3,
+                         "exitCode":  1,
+                         "status":  "failed",
+                         "note":  "PowerShell pipeline syntax corrected before execution"
+                     },
+                     {
+                         "command":  "artifact hash and signature verification",
+                         "attempt":  2,
+                         "durationSeconds":  4.9,
+                         "exitCode":  0,
+                         "status":  "passed",
+                         "note":  "Four artifact hashes, NotSigned status, build-info, and no SQLite .node"
+                     },
+                     {
+                         "command":  "git stash apply, restore hash verification, and stash drop",
+                         "durationSeconds":  1.6,
+                         "exitCode":  0,
+                         "status":  "passed",
+                         "note":  "User report content and diff SHA256 matched exactly"
                      }
                  ],
     "sessions":  [
@@ -299,8 +352,42 @@
                      {
                          "name":  "finalization",
                          "startedAt":  "2026-08-03T11:49:39+08:00",
-                         "endedAt":  "2026-08-03T11:55:15+08:00",
-                         "durationSeconds":  336
+                         "endedAt":  "2026-08-03T12:05:00+08:00",
+                         "durationSeconds":  921
                      }
-                 ]
+                 ],
+    "packaging":  {
+                      "sourceCommit":  "68928662bc599268e4e1b21ace4047a8779ffcc9",
+                      "packagedSourceCommit":  "68928662bc599268e4e1b21ace4047a8779ffcc9",
+                      "startedAt":  "2026-08-03T11:57:26+08:00",
+                      "endedAt":  "2026-08-03T11:59:17+08:00",
+                      "durationSeconds":  110.409,
+                      "signed":  false,
+                      "artifacts":  [
+                                        {
+                                            "type":  "installer",
+                                            "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.2.55.exe",
+                                            "sizeBytes":  106275308,
+                                            "sha256":  "7502DFEF598A48C3E4246603935C5511FC34C1A3AE8C92AEB7147AA05C184F3E"
+                                        },
+                                        {
+                                            "type":  "portable",
+                                            "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.2.55.exe",
+                                            "sizeBytes":  106045230,
+                                            "sha256":  "BB8BD749095D4CD00F571B1E5897501336E77FC669BF558C9091B1AFABC9F95C"
+                                        },
+                                        {
+                                            "type":  "win-unpacked-exe",
+                                            "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+                                            "sizeBytes":  235706368,
+                                            "sha256":  "C4D312D265797F01E48007D725672DEB046E2120A37BE53E4F469D02FAC41A8D"
+                                        },
+                                        {
+                                            "type":  "app-asar",
+                                            "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\resources\\app.asar",
+                                            "sizeBytes":  24172466,
+                                            "sha256":  "69F6CF470FF6387FE1844011672A9DFF1A7E9F8C158231B66D9B22AF25C80567"
+                                        }
+                                    ]
+                  }
 }
