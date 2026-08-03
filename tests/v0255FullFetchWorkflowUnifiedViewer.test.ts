@@ -63,7 +63,7 @@ check("User Viewer uses shared detail panel", () => assert.match(userViewer, /Ac
 check("expanded control exposes aria-expanded", () => assert.match(diffCell, /aria-expanded=\{expanded\}/));
 check("Comment branch does not render text diff", () => assert.match(detail, /if \(policy\.kind === "comment"\)[\s\S]*return \([\s\S]*Comment details/));
 check("current attempt metadata excludes historical staging", () => assert.match(main, /historicalStagingIncluded: false/));
-check("staging selection requires current attempt run ID", () => assert.match(main, /latestFullFetchStaging\?\.state\.fullFetchRunId === currentAttempt\.fullFetchRunId/));
+check("staging selection uses current attempt run registry", () => assert.match(main, /loadStagingRun\(currentRunRecord\.stagingDir\)/));
 check("Debug Folder writes attempt metadata", () => assert.match(main, /full-fetch-attempt\.json/));
 check("connection context subscribes to authoritative state", () => assert.match(connection, /connections\?\.onStateChanged/));
 check("schema remains v3", () => assert.match(read("electron/currentStateArchive.ts"), /CURRENT_STATE_SCHEMA_VERSION = 3/));

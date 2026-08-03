@@ -25,6 +25,7 @@ import { classifyWorklogCompleteness, normalizeWorklogs } from "./worklogComplet
 import { assertReadOnlyRequest, ReadOnlyViolationError } from "./jira/jiraReadOnlyGuard.js";
 import { createCanonicalQueueSnapshot, preflightFullFetchQueue } from "./fullFetchPreflight.js";
 import { blockedFullFetchResponse, createFullFetchAttempt, evaluateFullFetchEligibility, type FullFetchAttempt, type TimelineRunEligibilityRecord } from "./fullFetchEligibility.js";
+import { FullFetchRunRegistry, type FullFetchRunIdentity, type FullFetchRunRecord } from "./fullFetchRunRegistry.js";
 import { evaluateEmbeddedChangelog } from "./changelogCompatibility.js";
 import { ensureExportFolders, saveExportJson } from "./export/exportService.js";
 import { sanitizeExportData, sanitizeTextForBundle } from "./export/sanitizeExport.js";
@@ -156,7 +157,7 @@ function refreshStabilityGateDecision() {
 let latestUserActivityTimeline: (UserActivityTimelineBuild & { exportedFiles: { jsonPath: string; csvPath: string; summaryPath: string } }) | null = null;
 const timelineEligibilityRuns = new Map<string, TimelineRunEligibilityRecord>();
 const timelineRunResults = new Map<string, UserActivityTimelineBuild & { exportedFiles: { jsonPath: string; csvPath: string; summaryPath: string } }>();
-const fullFetchAttempts = new Map<string, FullFetchAttempt>();
+const fullFetchRunRegistry = new FullFetchRunRegistry();
 let latestFullFetchAttempt: FullFetchAttempt | null = null;
 let latestUserAnalysisWorkflow: { steps: WorkflowStepStatus; timelineIssueGroups: unknown[]; timelineSelectedIssues: string[]; fetchQueue: unknown[]; relatedCandidateIssues: RelatedCandidateIssue[]; addedTimelineIssuesToFetchQueueCount: number; addedRelatedIssuesToFetchQueueCount: number; addedRecommendedRelatedIssuesToFetchQueueCount: number; addedOptionalRelatedIssuesToFetchQueueCount: number; uiState: Record<string, unknown>; updatedAt: string } | null = null;
 type FullFetchFailedIssue = { issueKey: string; errorCode: string; httpStatus: number | null; message: string; stage: "issue_full_fetch"; retryCount: number; source: string; matchedReason: string; occurredAt: string };
@@ -2723,7 +2724,7 @@ ipcMain.handle("user-analysis:full-fetch-preflight", async (_event, payload: { f
   const queueTimelineRunId = text(payload.queueTimelineRunId) === "-" ? "" : text(payload.queueTimelineRunId);
   const eligibility = evaluateFullFetchEligibility({ selectedTimelineRunId, queueTimelineRunId, timelineRun: timelineEligibilityRuns.get(selectedTimelineRunId) ?? null });
   const attempt = createFullFetchAttempt({ selectedTimelineRunId, queueTimelineRunId, selectedIssueKeys, eligibility });
-  fullFetchAttempts.set(attempt.attemptId, attempt);
+  fullFetchRunRegistry.registerAttempt(attempt);
   latestFullFetchAttempt = attempt;
   return eligibility.eligible ? { ok: queuePreflight.ok, status: queuePreflight.ok ? "ELIGIBLE" : "QUEUE_INVALID", preflight: { ...eligibility, queue: queuePreflight }, attempt } : blockedFullFetchResponse(attempt, eligibility);
 });
@@ -2741,11 +2742,11 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
   const selectedTimelineRunId = text(payload.selectedTimelineRunId) === "-" ? "" : text(payload.selectedTimelineRunId);
   const queueTimelineRunId = text(payload.queueTimelineRunId) === "-" ? "" : text(payload.queueTimelineRunId);
   const eligibility = evaluateFullFetchEligibility({ selectedTimelineRunId, queueTimelineRunId, timelineRun: timelineEligibilityRuns.get(selectedTimelineRunId) ?? null });
-  const existingAttempt = payload.attemptId ? fullFetchAttempts.get(payload.attemptId) : null;
+  const existingAttempt = payload.attemptId ? fullFetchRunRegistry.getAttempt(payload.attemptId) : null;
   const attempt = existingAttempt && existingAttempt.selectedTimelineRunId === selectedTimelineRunId && existingAttempt.queueTimelineRunId === queueTimelineRunId && existingAttempt.selectedIssueKeys.join("\n") === selectedIssueKeysForAttempt.join("\n")
     ? { ...existingAttempt, preflightStatus: eligibility.status, blockedAt: eligibility.eligible ? "" : new Date().toISOString(), blockReasonCode: eligibility.eligible ? "" as const : eligibility.reasonCode as FullFetchAttempt["blockReasonCode"], blockReasonMessage: eligibility.eligible ? "" : eligibility.reasonMessage, updatedAt: new Date().toISOString() }
     : createFullFetchAttempt({ selectedTimelineRunId, queueTimelineRunId, selectedIssueKeys: selectedIssueKeysForAttempt, eligibility });
-  fullFetchAttempts.set(attempt.attemptId, attempt);
+  fullFetchRunRegistry.registerAttempt(attempt);
   latestFullFetchAttempt = attempt;
   if (!eligibility.eligible) return blockedFullFetchResponse(attempt, eligibility);
   const connection = payload.connection;
@@ -2798,9 +2799,10 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
       }
     : { sourceSystem: "jira" as const, serverIdentity: "", baseUrlNormalized: "", serverTitle: "", serverTitleStatus: "unverified" as const, connectionLabel: activeConnectionLabel };
   const stagingRun = createStagingRun(stagingRoot, { runId, selectedUser, queue: fetchQueue, createdAt: startedAt, runContext: { attemptId: attempt.attemptId, selectedTimelineRunId, queueTimelineRunId, selectedUser, projectScope, dateRange: { start: startDate, end: endDate }, jql: generatedJql, selectedIssues, directIssueKeys: originalDirectIssueKeys, relatedIssuesStatus, fetchRemoteLinks, queueSnapshot, sourceProvenance } });
-  const runningAttempt: FullFetchAttempt = { ...attempt, fullFetchRunCreated: true, fullFetchRunId: runId, stagingId: stagingRun.state.stagingId, updatedAt: startedAt };
-  fullFetchAttempts.set(runningAttempt.attemptId, runningAttempt);
+  const runningAttempt: FullFetchAttempt = { ...attempt, fullFetchRunCreated: true, fullFetchRunId: runId, stagingId: stagingRun.state.stagingId, attemptStatus: "running", stagingAvailable: true, stagingReference: { stagingId: stagingRun.state.stagingId, fullFetchRunId: runId, stagingDir: stagingRun.dir }, updatedAt: startedAt };
+  fullFetchRunRegistry.registerAttempt(runningAttempt);
   latestFullFetchAttempt = runningAttempt;
+  fullFetchRunRegistry.attachRun(runningAttempt, stagingRun.dir);
   latestFullFetchStaging = stagingRun;
   setStagingStatus(stagingRun, "running");
   const runManifestPath = stagingPaths(stagingRun).state;
@@ -2968,10 +2970,23 @@ for (const page of worklogPageResult.metadata.pages) targetEndpointMetadata.push
     latestJiraEvidence = { eventsDocument: { schemaVersion: "jira_evidence_file_backed_v1", runId, stagingId: state.stagingId, canonicalStorage: "issues/<issueKey>/evidence.ndjson" }, events: [], summary: evidenceSummary, excluded: evidenceExcluded, files: evidenceFiles };
     if (!state.countReconciliationPassed) log("ERROR", `FULL_FETCH_COUNT_RECONCILIATION_FAILED ${JSON.stringify(state.countReconciliation.errors)}`);
     const diagnostics = { autoLogPath, runManifestPath, rawDataMode, queueSnapshot, countReconciliation: state.countReconciliation, issueKeyReconciliation, memorySummary: { peakRssMB, peakHeapUsedMB, peakRawDataEstimateMB }, finalMemory: activeFullFetch?.memory ?? memorySnapshot(state.stagingSizeBytes), staging: previewStaging(stagingRun), ...getActionLogDiagnostics() };
-    const response = { ok: state.status !== "failed", preflight, attempt: latestFullFetchAttempt, logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: state.status, executionMode: "sequential_file_backed", diagnostics }, summary, stagingSummary: state, fetchReport: [], issueResults: [], relatedCandidateIssues, relatedIssueExpansionSummary: { ...relatedIssueSummary(relatedCandidateIssues), ...relatedIssueScopeSummary(relatedCandidateIssues) }, jiraEvidenceEvents: [], jiraEvidenceSummary: evidenceSummary, jiraEvidenceExcludedSummary: evidenceExcluded, jiraEvidenceFiles: null, rawData: { exportType: "user-analysis-full-fetch-file-reference-manifest", rawDataMode, stagingId: state.stagingId, stagingDir: stagingRun.dir, stagingSizeBytes: state.stagingSizeBytes, issueCount: issueResults.length, message: "Canonical files are persisted by main process. Per-Issue Raw/Snapshot/Evidence references are not sent through normal renderer IPC." }, diagnostics, warnings, errors };
+    const response = { ok: state.status !== "failed", preflight, attempt: runningAttempt, logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: state.status, executionMode: "sequential_file_backed", diagnostics }, summary, stagingSummary: state, fetchReport: [], issueResults: [], relatedCandidateIssues, relatedIssueExpansionSummary: { ...relatedIssueSummary(relatedCandidateIssues), ...relatedIssueScopeSummary(relatedCandidateIssues) }, jiraEvidenceEvents: [], jiraEvidenceSummary: evidenceSummary, jiraEvidenceExcludedSummary: evidenceExcluded, jiraEvidenceFiles: null, rawData: { exportType: "user-analysis-full-fetch-file-reference-manifest", rawDataMode, stagingId: state.stagingId, stagingDir: stagingRun.dir, stagingSizeBytes: state.stagingSizeBytes, issueCount: issueResults.length, message: "Canonical files are persisted by main process. Per-Issue Raw/Snapshot/Evidence references are not sent through normal renderer IPC." }, diagnostics, warnings, errors };
     const indexDocument = readFullFetchResultIndex(stagingRun);
     const fullFetchResultDocument = buildFullFetchResultDocument({ app: { name: "Jira Activity Analyzer", version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__, gitBranch: __MAIN_GIT_BRANCH__ }, run: response.run, requestContext: { selectedUser, projectScope, dateRange: { start: startDate, end: endDate, endInclusive: true }, jql: generatedJql, selectedIssues, fetchQueue: state.runContext.fetchQueue, directIssueKeys: Array.from(directIssueKeys), fetchRemoteLinks, relatedIssuesStatus }, stagingReference: { stagingId: state.stagingId, fullFetchRunId: runId, stagingDir: stagingRun.dir, resultIndex: stagingPaths(stagingRun).result }, summary: { ...summary, stagingSizeBytes: state.stagingSizeBytes, archiveEligible: state.archiveEligible }, fetchReport: report, issueResults: Array.isArray(indexDocument.issues) ? indexDocument.issues : issueResults, directJiraEvidence: { summary: evidenceSummary, excludedSummary: evidenceExcluded, files: evidenceFiles }, relatedCandidateIssues, warnings, errors, diagnostics, debugLogSanitized: logs });
-    latestFullFetchResult = { runId, document: fullFetchResultDocument, savedPath: "", generatedAutomatically: false };
+    const resultRecord = { runId, document: fullFetchResultDocument, savedPath: "", generatedAutomatically: false };
+    const terminalStatus = cancelled ? "cancelled" : state.status === "failed" ? "failed" : (partial > 0 || failed > 0 || state.notAttempted > 0) ? "partial" : "completed";
+    const terminalRecord = fullFetchRunRegistry.publishTerminal({
+      identity: { attemptId: runningAttempt.attemptId, selectedTimelineRunId: runningAttempt.selectedTimelineRunId, fullFetchRunId: runId, stagingId: state.stagingId },
+      status: terminalStatus,
+      countReconciliationPassed: state.countReconciliationPassed,
+      issueKeyReconciliation: issueKeyReconciliation.status === "MATCH" ? "MATCH" : "MISMATCH",
+      result: resultRecord,
+      completedAt: state.finishedAt ?? new Date().toISOString()
+    });
+    fullFetchRunRegistry.registerAttempt(terminalRecord.attempt);
+    latestFullFetchAttempt = terminalRecord.attempt;
+    latestFullFetchResult = resultRecord;
+    response.attempt = terminalRecord.attempt;
     log(issueKeyReconciliation.status === "MATCH" ? "SUCCESS" : "ERROR", `Issue Key reconciliation=${issueKeyReconciliation.status} selected=${issueKeyReconciliation.sets.selected.count} queue=${issueKeyReconciliation.sets.fetchQueue.count} attempted=${issueKeyReconciliation.sets.attempted.count} outcomes=${issueKeyReconciliation.sets.completed.count + issueKeyReconciliation.sets.partial.count + issueKeyReconciliation.sets.failed.count}`);
     if (activeFullFetch) {
       activeFullFetch.skipped = state.notAttempted;
@@ -2993,8 +3008,18 @@ for (const page of worklogPageResult.metadata.pages) targetEndpointMetadata.push
       failedIssueKeys: stagingRun.index.targets.filter((target) => ["failed_issue", "failed_final"].includes(target.status)).map((target) => target.objectKey)
     });
     appendStagingDiagnostic(stagingRun.dir, "issue_key_reconciliation", issueKeyReconciliation);
+    const failedRecord = fullFetchRunRegistry.publishTerminal({
+      identity: { attemptId: runningAttempt.attemptId, selectedTimelineRunId: runningAttempt.selectedTimelineRunId, fullFetchRunId: runId, stagingId: state.stagingId },
+      status: "failed",
+      countReconciliationPassed: state.countReconciliationPassed,
+      issueKeyReconciliation: issueKeyReconciliation.status === "MATCH" ? "MATCH" : "MISMATCH",
+      result: null,
+      completedAt: state.finishedAt ?? new Date().toISOString()
+    });
+    fullFetchRunRegistry.registerAttempt(failedRecord.attempt);
+    latestFullFetchAttempt = failedRecord.attempt;
     const diagnostics = { autoLogPath, runManifestPath, issueKeyReconciliation, staging: previewStaging(stagingRun), finalMemory: memorySnapshot(state.stagingSizeBytes) };
-    return { ok: false, preflight, attempt: latestFullFetchAttempt, logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: "failed", diagnostics, error: state.runError }, summary: { queueTotal: preflight.queueTotal, totalIssues: state.total, total: state.total, planned: preflight.plannedCount, eligible: preflight.eligibleCount, excluded: preflight.excludedCount, invalid: preflight.invalidCount, attempted: state.eligible + state.partial + state.failed, completed: state.eligible, pending: state.notAttempted, running: 0, success: state.eligible, partial: state.partial, failed: state.failed, skipped: state.notAttempted, notAttempted: state.notAttempted, countReconciliationPassed: state.countReconciliationPassed, countReconciliation: state.countReconciliation, issueKeyReconciliation, archiveEligible: false, archiveBlockedReasons: [state.runError?.message ?? "Full Fetch failed."], ...aggregate }, stagingSummary: state, fetchReport: [], issueResults: [], relatedCandidateIssues, jiraEvidenceEvents: [], diagnostics, warnings, errors: [...errors, state.runError?.message ?? "Full Fetch failed."] };
+    return { ok: false, preflight, attempt: failedRecord.attempt, logs, run: { runId, startedAt, finishedAt: state.finishedAt, status: "failed", diagnostics, error: state.runError }, summary: { queueTotal: preflight.queueTotal, totalIssues: state.total, total: state.total, planned: preflight.plannedCount, eligible: preflight.eligibleCount, excluded: preflight.excludedCount, invalid: preflight.invalidCount, attempted: state.eligible + state.partial + state.failed, completed: state.eligible, pending: state.notAttempted, running: 0, success: state.eligible, partial: state.partial, failed: state.failed, skipped: state.notAttempted, notAttempted: state.notAttempted, countReconciliationPassed: state.countReconciliationPassed, countReconciliation: state.countReconciliation, issueKeyReconciliation, archiveEligible: false, archiveBlockedReasons: [state.runError?.message ?? "Full Fetch failed."], ...aggregate }, stagingSummary: state, fetchReport: [], issueResults: [], relatedCandidateIssues, jiraEvidenceEvents: [], diagnostics, warnings, errors: [...errors, state.runError?.message ?? "Full Fetch failed."] };
   } finally {
     if (activeFullFetch && !latestFullFetchRunSnapshot) latestFullFetchRunSnapshot = progressPayload();
     activeFullFetch = null;
@@ -3247,31 +3272,48 @@ ipcMain.handle("user-analysis:save-export", async (_event, payload: { category: 
   return saveExportJson(payload);
 });
 
-ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: { runId: string }) => {
-  const runId = text(payload?.runId);
-  if (!latestFullFetchResult || latestFullFetchResult.runId !== runId) throw new Error("The requested Full Fetch Result is not available for this run.");
-  if (activeSourceArchiveDatabaseWrites.has(runId)) throw new Error("A Save Full Fetch Result operation is already active for this run.");
-  if (!latestFullFetchStaging || latestFullFetchStaging.state.fullFetchRunId !== runId) {
-    throw new Error("FULL_FETCH_RESULT_STALE: The matching Full Fetch staging run is not available.");
+ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: FullFetchRunIdentity) => {
+  const identity: FullFetchRunIdentity = {
+    attemptId: text(payload?.attemptId),
+    selectedTimelineRunId: text(payload?.selectedTimelineRunId),
+    fullFetchRunId: text(payload?.fullFetchRunId),
+    stagingId: text(payload?.stagingId)
+  };
+  const runId = identity.fullFetchRunId;
+  const runRecord = fullFetchRunRegistry.resolveForSave(identity);
+  if (!runRecord.result) throw new Error("FULL_FETCH_RESULT_NOT_AVAILABLE: The requested result document is unavailable.");
+  const resolvedStaging = loadStagingRun(runRecord.stagingDir);
+  const runContext = resolvedStaging.state.runContext;
+  if (resolvedStaging.state.fullFetchRunId !== identity.fullFetchRunId
+    || resolvedStaging.state.stagingId !== identity.stagingId
+    || text(runContext.attemptId) !== identity.attemptId
+    || text(runContext.selectedTimelineRunId) !== identity.selectedTimelineRunId) {
+    throw new Error("FULL_FETCH_IDENTITY_MISMATCH: Staging metadata does not match the requested Full Fetch run.");
   }
+  if (activeSourceArchiveDatabaseWrites.has(runId)) throw new Error("A Save Full Fetch Result operation is already active for this run.");
   activeSourceArchiveDatabaseWrites.add(runId);
   const operationId = `save-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
   try {
     const outputDir = ensureDir(getFullFetchResultsDir());
-    const saved = saveFullFetchResult(latestFullFetchResult.document, outputDir, `user-analysis-full-fetch-${fileTimestamp()}.json`);
-    latestFullFetchResult = { ...latestFullFetchResult, savedPath: saved.filePath, generatedAutomatically: false };
-    recordStep5Action(latestFullFetchStaging, { action: "full_fetch_result_saved", timestamp: new Date().toISOString(), runId, outputPath: saved.filePath, fileSize: saved.fileSize, sha256: saved.sha256, issueCount: latestFullFetchStaging.state.total, eligibleCount: latestFullFetchStaging.state.eligible, result: "completed", error: "", generatedAutomatically: false });
+    const saved = saveFullFetchResult(runRecord.result.document, outputDir, `user-analysis-full-fetch-${fileTimestamp()}.json`);
+    const savedAt = new Date().toISOString();
+    const savedRecord = fullFetchRunRegistry.markSaved(identity, saved.filePath, savedAt);
+    latestFullFetchResult = savedRecord.result;
+    latestFullFetchAttempt = savedRecord.attempt;
+    fullFetchRunRegistry.registerAttempt(savedRecord.attempt);
+    recordStep5Action(resolvedStaging, { action: "full_fetch_result_saved", timestamp: savedAt, runId, outputPath: saved.filePath, fileSize: saved.fileSize, sha256: saved.sha256, issueCount: resolvedStaging.state.total, eligibleCount: resolvedStaging.state.eligible, result: "completed", error: "", generatedAutomatically: false });
 
     const config = loadRuntimeConfig(resolveCurrentEnvPath());
     const databasePath = resolveLocalDatabasePath(getAppRuntimeDir(), config.localDatabasePath);
     const currentJira = getRuntimeCoordinator().snapshot().jira;
-    const formalDatabaseWriteAllowed = latestFullFetchAttempt?.preflightStatus === "eligible"
-      && latestFullFetchAttempt.fullFetchRunId === latestFullFetchStaging.state.fullFetchRunId;
+    const formalDatabaseWriteAllowed = runRecord.attempt.preflightStatus === "eligible"
+      && runRecord.attempt.saveEligible
+      && runRecord.fullFetchRunId === resolvedStaging.state.fullFetchRunId;
     const databaseWrite = formalDatabaseWriteAllowed
       ? writeFullFetchStagingToCurrentDatabase({
         operationId,
         databasePath,
-        run: latestFullFetchStaging,
+        run: resolvedStaging,
         diagnosticsDir: getFullFetchResultsDir(),
         currentJira: {
           sourceSystem: "jira",
@@ -3296,10 +3338,10 @@ ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: {
         foreignKeyCheck: "not_run",
         durationMs: 0,
         outcomes: [],
-        eligibility: latestFullFetchAttempt ? { attemptId: latestFullFetchAttempt.attemptId, selectedTimelineRunId: latestFullFetchAttempt.selectedTimelineRunId, preflightStatus: latestFullFetchAttempt.preflightStatus } : null
+        eligibility: { attemptId: runRecord.attempt.attemptId, selectedTimelineRunId: runRecord.attempt.selectedTimelineRunId, preflightStatus: runRecord.attempt.preflightStatus }
       };
     latestSourceArchiveDatabaseWrite = databaseWrite;
-    appendStagingDiagnostic(latestFullFetchStaging.dir, "source_archive_database_write", {
+    appendStagingDiagnostic(resolvedStaging.dir, "source_archive_database_write", {
       operationId,
       status: databaseWrite.status,
       reasonCode: databaseWrite.reasonCode,
@@ -3315,7 +3357,7 @@ ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: {
       outcomes: databaseWrite.outcomes
     });
     await getRuntimeCoordinator().retryDatabase();
-    const archiveForRun = latestSourceArchiveExport?.fileName.includes(latestFullFetchStaging.state.stagingId)
+    const archiveForRun = latestSourceArchiveExport?.fileName.includes(resolvedStaging.state.stagingId)
       ? latestSourceArchiveExport
       : null;
     const logs = [
@@ -3333,7 +3375,7 @@ ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: {
       canceled: false,
       operationId,
       ...saved,
-      staging: latestFullFetchStaging.state,
+      staging: resolvedStaging.state,
       fileSave: {
         fullFetchJson: { status: "success", filePath: saved.filePath, fileSize: saved.fileSize, sha256: saved.sha256 },
         sourceArchiveZip: archiveForRun
@@ -3745,7 +3787,7 @@ function debugLogTimeline(debugLog: string) {
   });
 }
 
-ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: string; currentPage: string }) => {
+ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: string; currentPage: string; fullFetchIdentity?: Partial<FullFetchRunIdentity> }) => {
   const createdAt = new Date().toISOString();
   const outputRoot = ensureDir(getDebugFoldersDir());
   const folderPath = createCollisionSafeDirectory(
@@ -3753,7 +3795,18 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     outputRoot,
     `jira-activity-analyzer-debug-folder-${fileTimestamp()}`
   );
-  const currentAttempt = latestFullFetchAttempt;
+  const requestedFullFetchIdentity = payload.fullFetchIdentity;
+  let currentRunRecord: FullFetchRunRecord | null = null;
+  if (requestedFullFetchIdentity?.attemptId && requestedFullFetchIdentity.selectedTimelineRunId && requestedFullFetchIdentity.fullFetchRunId && requestedFullFetchIdentity.stagingId) {
+    try {
+      currentRunRecord = fullFetchRunRegistry.resolve(requestedFullFetchIdentity as FullFetchRunIdentity);
+    } catch {
+      currentRunRecord = null;
+    }
+  } else if (!requestedFullFetchIdentity && latestFullFetchAttempt) {
+    currentRunRecord = fullFetchRunRegistry.resolveByAttemptId(latestFullFetchAttempt.attemptId);
+  }
+  const currentAttempt = currentRunRecord?.attempt ?? (requestedFullFetchIdentity ? null : latestFullFetchAttempt);
   const timelineForBundle = currentAttempt ? timelineRunResults.get(currentAttempt.selectedTimelineRunId) ?? null : latestUserActivityTimeline;
   const copiedEntries: DebugFolderEntry[] = [];
   const evidenceEntries: DebugEvidenceEntry[] = [];
@@ -3888,7 +3941,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   writeBundleJson(folderPath, "timeline-source-system-diagnostics.json", timelineSourceSystemDiagnostics);
   const timelineJiraRelationDiagnostics = timelineForBundle ? { available: true, jiraRelationCounts: timelineForBundle.summary.jiraRelationCounts, sourceApplicationCounts: timelineForBundle.summary.sourceApplicationCounts, confluenceLinkedToJiraCount: timelineForBundle.summary.confluenceLinkedToJiraCount, confluenceLinkedToJiraIssueGroups: timelineForBundle.summary.jiraRelationDiagnostics.confluenceLinkedToJiraIssueGroups, defaultSelectIssuesFilter: { jiraRelation: ["jira_related"], sourceApplication: ["jira", "confluence"] }, classificationRulesVersion: "v0.2.22" } : { available: false, jiraRelationCounts: { jiraRelated: 0, nonJiraRelated: 0, hasJiraIssueKey: 0, unknownRelation: 0 }, sourceApplicationCounts: { jira: 0, confluence: 0, other: 0, unknown: 0 }, confluenceLinkedToJiraCount: 0, confluenceLinkedToJiraIssueGroups: [], defaultSelectIssuesFilter: { jiraRelation: ["jira_related"], sourceApplication: ["jira", "confluence"] }, classificationRulesVersion: "v0.2.22" };
   writeBundleJson(folderPath, "timeline-jira-relation-diagnostics.json", timelineJiraRelationDiagnostics);
-  writeBundleJson(folderPath, "full-fetch-attempt.json", currentAttempt ? { ...currentAttempt, attemptStatus: currentAttempt.preflightStatus === "blocked" ? "preflight_blocked" : currentAttempt.fullFetchRunCreated ? "run_created" : "eligible", stagingAvailable: Boolean(currentAttempt.fullFetchRunId && latestFullFetchStaging?.state.fullFetchRunId === currentAttempt.fullFetchRunId), historicalStagingIncluded: false } : { attemptStatus: "not_available", fullFetchRunCreated: false, stagingAvailable: false, historicalStagingIncluded: false });
+  writeBundleJson(folderPath, "full-fetch-attempt.json", currentAttempt ? { ...currentAttempt, historicalStagingIncluded: false } : { attemptStatus: "not_available", fullFetchRunCreated: false, stagingAvailable: false, historicalStagingIncluded: false });
   const fullFetchWasRun = currentAttempt?.fullFetchRunCreated === true;
   const failureEvidence = describeFullFetchFailureEvidence(fullFetchWasRun, latestFullFetchFailedIssues.length);
   const failureSummary = fullFetchWasRun
@@ -3902,9 +3955,14 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     relativePath: "full-fetch-failure-summary.json",
     reason: fullFetchWasRun ? "Full Fetch diagnostics were generated for an executed run." : "Full Fetch was not executed in this session."
   });
-  let stagingForBundle = currentAttempt?.fullFetchRunId && latestFullFetchStaging?.state.fullFetchRunId === currentAttempt.fullFetchRunId ? latestFullFetchStaging : null;
-  if (stagingForBundle) {
-    try { stagingForBundle = loadStagingRun(stagingForBundle.dir); } catch { stagingForBundle = null; }
+  let stagingForBundle: StagingRun | null = null;
+  if (currentRunRecord) {
+    try {
+      stagingForBundle = loadStagingRun(currentRunRecord.stagingDir);
+      if (stagingForBundle.state.fullFetchRunId !== currentRunRecord.fullFetchRunId || stagingForBundle.state.stagingId !== currentRunRecord.stagingId) stagingForBundle = null;
+    } catch {
+      stagingForBundle = null;
+    }
   }
   const jiraEvidenceForBundle = fullFetchWasRun && String(latestJiraEvidence?.eventsDocument.runId ?? "") === currentAttempt?.fullFetchRunId ? latestJiraEvidence : null;
   const sourceArchiveForBundle = stagingForBundle && latestSourceArchiveExport?.fileName.includes(stagingForBundle.state.stagingId) ? latestSourceArchiveExport : null;
@@ -3935,15 +3993,18 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   let debugBundleStatus: "completed" | "completed_with_errors" = "completed";
   const expectedFullFetchRunId = currentAttempt?.fullFetchRunId ?? "";
   const resultFolder = ensureDir(path.join(folderPath, "full-fetch-result"));
-  if (latestFullFetchResult && latestFullFetchResult.runId === expectedFullFetchRunId) {
+  let fullFetchResultForBundle = currentRunRecord?.result ?? null;
+  if (fullFetchResultForBundle && fullFetchResultForBundle.runId === expectedFullFetchRunId) {
     try {
-      let sourcePath = latestFullFetchResult.savedPath;
-      let generatedAutomatically = latestFullFetchResult.generatedAutomatically;
+      let sourcePath = fullFetchResultForBundle.savedPath;
+      let generatedAutomatically = fullFetchResultForBundle.generatedAutomatically;
       if (!sourcePath || !fs.existsSync(sourcePath)) {
-        const saved = saveFullFetchResult(latestFullFetchResult.document, ensureDir(getFullFetchResultsDir()), `user-analysis-full-fetch-${fileTimestamp()}.json`);
+        const saved = saveFullFetchResult(fullFetchResultForBundle.document, ensureDir(getFullFetchResultsDir()), `user-analysis-full-fetch-${fileTimestamp()}.json`);
         sourcePath = saved.filePath;
         generatedAutomatically = true;
-        latestFullFetchResult = { ...latestFullFetchResult, savedPath: sourcePath, generatedAutomatically: true };
+        fullFetchResultForBundle = { ...fullFetchResultForBundle, savedPath: sourcePath, generatedAutomatically: true };
+        if (currentRunRecord) currentRunRecord.result = fullFetchResultForBundle;
+        if (latestFullFetchResult?.runId === expectedFullFetchRunId) latestFullFetchResult = fullFetchResultForBundle;
       }
       const targetName = path.basename(sourcePath);
       const copied = collectDebugFolderSources(folderPath, [{ sourcePath, relativePath: `full-fetch-result/${targetName}` }]);
@@ -3956,7 +4017,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     }
   } else if (expectedFullFetchRunId) {
     debugBundleStatus = "completed_with_errors";
-    fullFetchResultMetadata = { included: false, status: "run_mismatch", expectedRunId: expectedFullFetchRunId, availableRunId: latestFullFetchResult?.runId ?? "", error: "No matching Full Fetch Result document is available." };
+    fullFetchResultMetadata = { included: false, status: "run_mismatch", expectedRunId: expectedFullFetchRunId, availableRunId: fullFetchResultForBundle?.runId ?? "", error: "No matching Full Fetch Result document is available." };
   }
   writeBundleJson(resultFolder, "full-fetch-result-metadata.json", fullFetchResultMetadata);
   writeBundleJson(folderPath, "full-fetch-result-index.json", fullFetchResultMetadata);

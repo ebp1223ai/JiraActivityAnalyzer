@@ -1,3 +1,11 @@
+## 0.2.56 - Full Fetch Result Stale Fix
+
+- Added one main-process Full Fetch registry for preflight attempts, run/staging identity, terminal reconciliation, result availability, and save eligibility.
+- Published Completed, Partial, Failed, and Cancelled terminal state only after persisted staging and reconciliation are available.
+- Bound Save Full Fetch Result and Debug Folder to exact attempt, Timeline Run, Full Fetch Run, and staging identities instead of mutable global latest staging.
+- Reserved FULL_FETCH_RESULT_STALE for genuinely missing matching staging; Partial, Failed, Cancelled, identity mismatch, and incomplete reconciliation remain fail-closed.
+- Added focused synthetic registry/staging tests and retained Current-State v3 rollback, dedupe, v0.2.53, and v0.2.55 regressions.
+- Kept SQLite schema v3, Event Identity Policy v3, Jira read-only access, and dependencies unchanged.
 ## 0.2.55 - Full Fetch Workflow Correctness & Unified Diff Viewer UX
 
 - Bound Full Fetch eligibility, preflight, attempt identity, staging and Debug Folder evidence to the selected canonical standard Timeline Run; Advanced Stability Probe is diagnostic-only.

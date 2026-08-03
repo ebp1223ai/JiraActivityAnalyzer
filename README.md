@@ -1,5 +1,14 @@
 # Jira Activity Analyzer
 
+> v0.2.56 fixes Full Fetch result persistence by binding completion, Save, and Debug Folder to one main-process attempt/run/staging registry. SQLite schema and Event Identity Policy remain v3.
+
+## v0.2.56 Full Fetch Result Stale Fix
+
+- **Single authoritative chain:** preflight attempt, Timeline Run, Full Fetch Run, staging reference, reconciliation, result, and save eligibility are held in one main-process registry.
+- **Exact Save identity:** Save validates attempt ID, selected Timeline Run ID, Full Fetch Run ID, staging ID, and persisted staging metadata; historical directory timestamps cannot select another run.
+- **Truthful stale handling:** FULL_FETCH_RESULT_STALE is reserved for a matching completed run whose staging directory is genuinely unavailable. Identity mismatch and non-save-eligible terminal states fail separately.
+- **Debug consistency:** Full Fetch attempt metadata, staging evidence, result, and run reconciliation resolve the same current run and never include historical staging.
+- **Safety:** Partial, Failed, Cancelled, or incomplete reconciliation cannot write formal SQLite. Jira access remains read-only.
 > v0.2.55 implements run-bound Full Fetch preflight and attempt correctness, current-attempt Debug Folder evidence, shared full-width Activity Event details, Comment-specific display, and authoritative Jira connection hydration. SQLite schema and Event Identity Policy remain v3.
 
 ## v0.2.55 Full Fetch Workflow Correctness & Unified Diff Viewer UX

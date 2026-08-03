@@ -1671,6 +1671,7 @@ export function AnalysisPage() {
       const status = String(run.status ?? (response.ok ? "completed" : "failed")) as typeof userAnalysis.fullFetchStatus;
       const relatedCandidateIssues = (Array.isArray(response.relatedCandidateIssues) ? response.relatedCandidateIssues : []) as typeof userAnalysis.relatedCandidateIssues;
       const jiraEvidenceSummary = response.jiraEvidenceSummary as JiraEvidenceSummary | undefined;
+      const terminalAttempt = (response.attempt ?? {}) as Record<string, unknown>;
       const workflowSteps = {
         ...userAnalysis.workflowSteps,
         fetchQueue: "completed" as const,
@@ -1681,6 +1682,7 @@ export function AnalysisPage() {
         relatedFullFetch: runningRelatedFullFetch ? "completed" as const : userAnalysis.workflowSteps.relatedFullFetch
       };
       patchState({
+        fullFetchAttemptId: String(terminalAttempt.attemptId ?? userAnalysis.fullFetchAttemptId),
         fullFetchRunId: String(run.runId ?? ""),
         fullFetchStartedAt: String(run.startedAt ?? ""),
         fullFetchFinishedAt: String(run.finishedAt ?? new Date().toISOString()),
@@ -1789,7 +1791,7 @@ export function AnalysisPage() {
     }
     patchState({ saving: true, notice: "" });
     try {
-      const result = await window.desktopApp?.userAnalysis?.saveFullFetchResult?.({ runId: userAnalysis.fullFetchRunId });
+      const result = await window.desktopApp?.userAnalysis?.saveFullFetchResult?.({ attemptId: userAnalysis.fullFetchAttemptId, selectedTimelineRunId: userAnalysis.timelineRunContext?.runId ?? "", fullFetchRunId: userAnalysis.fullFetchRunId, stagingId: String(userAnalysis.fullFetchStaging?.stagingId ?? "") });
       if (!result) throw new Error("Electron export API is not available.");
       if (result.canceled) {
         patchState({ saving: false, notice: "Save canceled.", errors: [] });
@@ -1829,7 +1831,7 @@ export function AnalysisPage() {
   async function generateFullFetchDebugBundle() {
     logAnalysisAction("USER_ACTION", "Button clicked: Export Debug Folder / 匯出除錯資料夾");
     try {
-      const result = await window.desktopApp?.appDebug?.saveBundle?.({ debugLog: getDebugLogs("analysis").join("\n"), currentPage: "analysis" });
+      const result = await window.desktopApp?.appDebug?.saveBundle?.({ debugLog: getDebugLogs("analysis").join("\n"), currentPage: "analysis", fullFetchIdentity: { attemptId: userAnalysis.fullFetchAttemptId, selectedTimelineRunId: userAnalysis.timelineRunContext?.runId ?? "", fullFetchRunId: userAnalysis.fullFetchRunId, stagingId: String(userAnalysis.fullFetchStaging?.stagingId ?? "") } });
       if (!result) throw new Error("Debug Folder API is not available.");
       if (result.status === "failed") throw new Error(`Debug Folder failed: ${String(result.errorCode ?? "unknown_error")} (${String(result.stage ?? "debug_folder")})`);
       if (result.canceled) {

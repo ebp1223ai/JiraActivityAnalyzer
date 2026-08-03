@@ -51,8 +51,14 @@ export type FullFetchAttempt = {
   fullFetchRunCreated: boolean;
   fullFetchRunId: string;
   stagingId: string;
-  countReconciliation: "NOT_RUN";
-  issueKeyReconciliation: "NOT_RUN";
+  attemptStatus: "created" | "preflight_blocked" | "run_created" | "running" | "completed" | "partial" | "failed" | "cancelled" | "saved";
+  stagingAvailable: boolean;
+  stagingReference: { stagingId: string; fullFetchRunId: string; stagingDir: string } | null;
+  countReconciliation: "NOT_RUN" | "PASSED" | "FAILED";
+  issueKeyReconciliation: "NOT_RUN" | "MATCH" | "MISMATCH";
+  saveEligible: boolean;
+  completedAt: string;
+  savedAt: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -117,8 +123,14 @@ export function createFullFetchAttempt(input: {
     fullFetchRunCreated: false,
     fullFetchRunId: "",
     stagingId: "",
+    attemptStatus: input.eligibility.eligible ? "created" : "preflight_blocked",
+    stagingAvailable: false,
+    stagingReference: null,
     countReconciliation: "NOT_RUN",
     issueKeyReconciliation: "NOT_RUN",
+    saveEligible: false,
+    completedAt: "",
+    savedAt: "",
     createdAt: now,
     updatedAt: now
   };
