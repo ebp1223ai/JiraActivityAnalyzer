@@ -14,6 +14,7 @@ export function CommentCard({ comment }: { comment: Record<string, unknown> }) {
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-slate-50 px-4 py-3">
         <b className="text-sm text-slate-950">{String(comment.author ?? "Unknown author")}</b>
         <span className="text-xs font-semibold text-muted">{formatDisplayTime(comment.created)}</span>
+        {comment.dateModeFallback ? <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800">Updated unavailable · using Created</span> : null}
         {comment.edited ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">Edited {formatDisplayTime(comment.updated)}</span> : null}
       </header>
       <div className="p-4">

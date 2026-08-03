@@ -1,5 +1,16 @@
 # Jira Activity Analyzer
 
+> v0.2.58 adds shared local-calendar date ranges, scoped Excel-style filters, cross-page filtered selection, safe Description diff classification, Comment date modes, and isolated filter presets while keeping SQLite schema v3 and Jira read-only behavior unchanged.
+
+## v0.2.58 Date Range, Excel Filtering & Content Diff UX
+
+- **Date semantics:** All Time, Today, Last 7 Days, Last 30 Days, This Month, and Custom use start-inclusive and next-day-exclusive local calendar bounds.
+- **Scoped queries:** Database Overview, User Viewer, Activity Events, distributions, and Excel candidate values share one typed query scope with request revision/stale suppression.
+- **Selection:** Step 2 can select or deselect all filtered results across pages while Project Key remains display-only and global selection is retained.
+- **Content and comments:** Description uses canonical field identity and safe rich-content states; Comments support Created and Last Updated with explicit Created fallback.
+- **Presets:** viewer/tab-isolated filter presets persist atomically under APP_ROOT/app-data/settings/ui-preferences.json.
+- **Safety:** Jira access remains read-only, SQLite schema stays v3, and no dependency or ENV format changed.
+
 > v0.2.57 separates Full Fetch draft/preflight, active attempt, completed result, and saved result identities. Save is bound to one completed four-part identity and becomes an idempotent no-op after a verified SQLite commit. SQLite schema and Event Identity Policy remain v3.
 
 ## v0.2.57 Full Fetch Identity Lifecycle & Idempotent Save Repair

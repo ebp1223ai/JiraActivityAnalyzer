@@ -84,15 +84,15 @@ declare global {
         overview: () => Promise<Record<string, unknown>>;
         healthCheck: () => Promise<Record<string, unknown>>;
         listIssues: (payload?: DatabaseIssueQuery) => Promise<DatabaseIssueQueryResult>;
-        issueDistributions: () => Promise<DatabaseIssueDistributions>;
+        issueDistributions: (payload?: DatabaseIssueQuery) => Promise<DatabaseIssueDistributions>;
         getIssue: (payload: { issueKey: string }) => Promise<IssueViewerDto>;
         listUsers: (payload?: { search?: string; limit?: number; offset?: number }) => Promise<{ total: number; limit: number; offset: number; items: Array<Record<string, unknown>> }>;
         getUser: (payload: { userId: string; limit?: number; offset?: number }) => Promise<Record<string, unknown>>;
-        userDistributions: (payload: { userId: string }) => Promise<{ totalRelatedIssues: number; projectKey: Array<{ value: string; count: number }>; issueType: Array<{ value: string; count: number }>; status: Array<{ value: string; count: number }>; priority: Array<{ value: string; count: number }> }>;
+        userDistributions: (payload: { userId: string; query?: ViewerTableQuery }) => Promise<{ totalRelatedIssues: number; projectKey: Array<{ value: string; count: number }>; issueType: Array<{ value: string; count: number }>; status: Array<{ value: string; count: number }>; priority: Array<{ value: string; count: number }> }>;
         userRelatedIssues: (payload: { userId: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
         userEvents: (payload: { userId: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
         issueEvents: (payload: { issueKey: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
-        distinctValues: (payload: { source: "databaseIssues" | "userRelatedIssues" | "userEvents" | "issueEvents"; subjectId?: string; field: string; search?: string; limit?: number }) => Promise<ViewerDistinctResult>;
+        distinctValues: (payload: { source: "databaseIssues" | "userRelatedIssues" | "userEvents" | "issueEvents"; subjectId?: string; field: string; search?: string; limit?: number; query?: DatabaseIssueQuery | ViewerTableQuery }) => Promise<ViewerDistinctResult>;
       };
       uiPreferences?: {
         get: () => Promise<UiPreferencesLoadResult>;

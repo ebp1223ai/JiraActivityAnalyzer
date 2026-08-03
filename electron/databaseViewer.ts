@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import { DatabaseSync } from "node:sqlite";
 import { normalizeSourceObjectKey } from "./sourceArchiveDatabase.js";
+import { dateRangeBounds, normalizeDateRange } from "./dateRange.js";
 type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
 
 interface ViewerSection<T = unknown> {
@@ -72,6 +73,9 @@ type IssueQuery = {
   pageSize?: unknown;
   sort?: unknown;
   filters?: unknown;
+  dateMode?: unknown;
+  dateRange?: unknown;
+  revision?: unknown;
 };
 
 function openReadOnly(databasePath: string) {
@@ -371,9 +375,38 @@ function normalizeIssueQuery(input: IssueQuery = {}) {
   if (sortDirection !== "asc" && sortDirection !== "desc") throw new Error("INVALID_SORT_DIRECTION");
   const filters = input.filters === undefined ? {} : plainRecord(input.filters);
   assertOnlyKeys(filters, Object.keys(ISSUE_COLUMN_SQL), "FILTER");
-  return { page, pageSize, sortField, sortDirection, filters };
+  const dateMode = ["activity", "created", "updated"].includes(String(input.dateMode)) ? String(input.dateMode) as "activity" | "created" | "updated" : "activity";
+  const dateRange = normalizeDateRange(input.dateRange);
+  const revision = Number.isSafeInteger(Number(input.revision)) ? Number(input.revision) : 0;
+  return { page, pageSize, sortField, sortDirection, filters, dateMode, dateRange, revision };
 }
 
+function appendDateBounds(where: string[], parameters: Array<string | number>, expression: string, range: unknown) {
+  const bounds = dateRangeBounds(range);
+  if (bounds.startInclusive) {
+    where.push("datetime(" + expression + ") >= datetime(?)");
+    parameters.push(bounds.startInclusive);
+  }
+  if (bounds.endExclusive) {
+    where.push("datetime(" + expression + ") < datetime(?)");
+    parameters.push(bounds.endExclusive);
+  }
+}
+
+function issueDateScope(query: ReturnType<typeof normalizeIssueQuery>) {
+  const where: string[] = [];
+  const parameters: Array<string | number> = [];
+  const bounds = dateRangeBounds(query.dateRange);
+  if (!bounds.startInclusive && !bounds.endExclusive) return { where, parameters };
+  if (query.dateMode === "activity") {
+    const eventWhere: string[] = [];
+    appendDateBounds(eventWhere, parameters, "range_event.event_time", query.dateRange);
+    where.push("EXISTS (SELECT 1 FROM activity_events range_event WHERE range_event.source_object_id=o.id AND " + eventWhere.join(" AND ") + ")");
+  } else {
+    appendDateBounds(where, parameters, query.dateMode === "created" ? ISSUE_COLUMN_SQL.createdAt : ISSUE_COLUMN_SQL.jiraUpdatedAt, query.dateRange);
+  }
+  return { where, parameters };
+}
 function issueFilterSql(filters: Row) {
   const where: string[] = [];
   const parameters: Array<string | number> = [];
@@ -450,6 +483,8 @@ type ViewerQueryInput = {
   pageSize?: unknown;
   sort?: unknown;
   filters?: unknown;
+  dateRange?: unknown;
+  revision?: unknown;
 };
 
 function normalizeViewerQuery(input: ViewerQueryInput, sortColumns: Record<string, string>, defaultSort: string) {
@@ -466,7 +501,9 @@ function normalizeViewerQuery(input: ViewerQueryInput, sortColumns: Record<strin
   const direction = String(sort.direction ?? "desc").toLowerCase();
   if (!(field in sortColumns)) throw new Error("INVALID_SORT_FIELD");
   if (direction !== "asc" && direction !== "desc") throw new Error("INVALID_SORT_DIRECTION");
-  return { page, pageSize, filters, sortField: field, sortDirection: direction };
+  const dateRange = normalizeDateRange(input.dateRange);
+  const revision = Number.isSafeInteger(Number(input.revision)) ? Number(input.revision) : 0;
+  return { page, pageSize, filters, sortField: field, sortDirection: direction, dateRange, revision };
 }
 
 function viewerFilterSql(filters: Row, columns: Record<string, { expression: string; kind: "text" | "multi" | "date" | "number" }>) {
@@ -534,43 +571,61 @@ export function queryDatabaseUserRelatedIssues(databasePath: string, userIdInput
   const sortColumns = Object.fromEntries(Object.entries(USER_RELATED_COLUMNS).map(([key, value]) => [key, value.expression]));
   const query = normalizeViewerQuery(input, sortColumns, "lastActivity");
   const filters = viewerFilterSql(query.filters, USER_RELATED_COLUMNS);
-  const baseParameters: Array<string | number> = [userId];
+  const dateWhere: string[] = [];
+  const dateParameters: Array<string | number> = [];
+  appendDateBounds(dateWhere, dateParameters, "e.event_time", query.dateRange);
+  const baseParameters: Array<string | number> = [userId, ...dateParameters];
   const having = filters.where;
-  const from = `
-    FROM activity_events e
-    JOIN source_objects o ON o.id = e.source_object_id
-    LEFT JOIN current_issue_snapshots s ON s.source_object_id = o.id
-    WHERE e.actor_account_id = ?
-    GROUP BY o.id, o.issue_key, o.project_key, s.summary, s.issue_type, s.status, s.priority
-    ${having.length ? `HAVING ${having.join(" AND ")}` : ""}
-  `;
+  const from = [
+    "FROM activity_events e",
+    "JOIN source_objects o ON o.id = e.source_object_id",
+    "LEFT JOIN current_issue_snapshots s ON s.source_object_id = o.id",
+    "WHERE e.actor_account_id = ?" + (dateWhere.length ? " AND " + dateWhere.join(" AND ") : ""),
+    "GROUP BY o.id, o.issue_key, o.project_key, s.summary, s.issue_type, s.status, s.priority",
+    having.length ? "HAVING " + having.join(" AND ") : ""
+  ].join(" ");
   const parameters = [...baseParameters, ...filters.parameters];
+  const periodWhere = "actor_account_id = ?" + (dateWhere.length ? " AND " + dateWhere.join(" AND ") : "");
   const { db } = openReadOnly(databasePath);
   try {
-    const totalCount = Number(row(db.prepare("SELECT COUNT(DISTINCT source_object_id) AS count FROM activity_events WHERE actor_account_id = ?").get(userId)).count ?? 0);
-    const filteredCount = Number(row(db.prepare(`SELECT COUNT(*) AS count FROM (SELECT o.id ${from})`).get(...parameters)).count ?? 0);
+    const totalCount = Number(row(db.prepare("SELECT COUNT(DISTINCT source_object_id) AS count FROM activity_events e WHERE " + periodWhere).get(...baseParameters)).count ?? 0);
+    const filteredCount = Number(row(db.prepare("SELECT COUNT(*) AS count FROM (SELECT o.id " + from + ")").get(...parameters)).count ?? 0);
     const pageCount = Math.max(1, Math.ceil(filteredCount / query.pageSize));
     const page = Math.min(query.page, pageCount);
-    const rowsResult = rows(db.prepare(`
-      SELECT o.issue_key AS issueKey, s.summary, o.project_key AS projectKey, s.issue_type AS issueType,
-        s.status, s.priority, COUNT(*) AS userActivityCount,
-        SUM(CASE WHEN e.event_type IN ('comment_created','comment_updated') THEN 1 ELSE 0 END) AS commentCount,
-        SUM(CASE WHEN e.event_type IN ('field_changed','status_changed','assignee_changed') THEN 1 ELSE 0 END) AS fieldChangeCount,
-        MIN(e.event_time) AS firstActivity, MAX(e.event_time) AS lastActivity
-      ${from}
-      ORDER BY ${sortColumns[query.sortField]} ${query.sortDirection.toUpperCase()}, o.issue_key ASC
-      LIMIT ? OFFSET ?
-    `).all(...parameters, query.pageSize, (page - 1) * query.pageSize));
-    return { rows: rowsResult, filteredCount, totalCount, page, pageSize: query.pageSize, pageCount };
+    const rowsResult = rows(db.prepare([
+      "SELECT o.issue_key AS issueKey, s.summary, o.project_key AS projectKey, s.issue_type AS issueType,",
+      "s.status, s.priority, COUNT(*) AS userActivityCount,",
+      "SUM(CASE WHEN e.event_type IN ('comment_created','comment_updated') THEN 1 ELSE 0 END) AS commentCount,",
+      "SUM(CASE WHEN e.event_type IN ('field_changed','status_changed','assignee_changed') THEN 1 ELSE 0 END) AS fieldChangeCount,",
+      "MIN(e.event_time) AS firstActivity, MAX(e.event_time) AS lastActivity",
+      from,
+      "ORDER BY " + sortColumns[query.sortField] + " " + query.sortDirection.toUpperCase() + ", o.issue_key ASC",
+      "LIMIT ? OFFSET ?"
+    ].join(" ")).all(...parameters, query.pageSize, (page - 1) * query.pageSize));
+    return { rows: rowsResult, filteredCount, totalCount, page, pageSize: query.pageSize, pageCount, revision: query.revision };
   } finally {
     db.close();
   }
 }
 
-
-export function queryDatabaseUserDistributions(databasePath: string, userIdInput: string) {
+export function queryDatabaseUserDistributions(databasePath: string, userIdInput: string, input: ViewerQueryInput = {}) {
   const userId = String(userIdInput ?? "").trim();
   if (!userId) throw new Error("STABLE_USER_ID_REQUIRED");
+  const sortColumns = Object.fromEntries(Object.entries(USER_RELATED_COLUMNS).map(([key, value]) => [key, value.expression]));
+  const query = normalizeViewerQuery(input, sortColumns, "lastActivity");
+  const filters = viewerFilterSql(query.filters, USER_RELATED_COLUMNS);
+  const dateWhere: string[] = [];
+  const dateParameters: Array<string | number> = [];
+  appendDateBounds(dateWhere, dateParameters, "e.event_time", query.dateRange);
+  const issueScope = [
+    "SELECT o.id FROM activity_events e",
+    "JOIN source_objects o ON o.id=e.source_object_id",
+    "LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id",
+    "WHERE e.actor_account_id = ?" + (dateWhere.length ? " AND " + dateWhere.join(" AND ") : ""),
+    "GROUP BY o.id, o.issue_key, o.project_key, s.summary, s.issue_type, s.status, s.priority",
+    filters.where.length ? "HAVING " + filters.where.join(" AND ") : ""
+  ].join(" ");
+  const parameters: Array<string | number> = [userId, ...dateParameters, ...filters.parameters];
   const dimensions = {
     projectKey: "o.project_key",
     issueType: "s.issue_type",
@@ -579,26 +634,25 @@ export function queryDatabaseUserDistributions(databasePath: string, userIdInput
   } as const;
   const { db } = openReadOnly(databasePath);
   try {
-    const totalRelatedIssues = Number(row(db.prepare("SELECT COUNT(DISTINCT source_object_id) AS count FROM activity_events WHERE actor_account_id = ?").get(userId)).count ?? 0);
+    const totalRelatedIssues = Number(row(db.prepare("SELECT COUNT(*) AS count FROM (" + issueScope + ")").get(...parameters)).count ?? 0);
     const result: Record<string, Array<{ value: string; count: number }>> = {};
     for (const [key, expression] of Object.entries(dimensions)) {
-      result[key] = rows(db.prepare(`
-        SELECT COALESCE(NULLIF(TRIM(${expression}), ''), 'Unknown') AS value,
-          COUNT(DISTINCT o.id) AS count
-        FROM activity_events e
-        JOIN source_objects o ON o.id=e.source_object_id
-        LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
-        WHERE e.actor_account_id = ?
-        GROUP BY COALESCE(NULLIF(TRIM(${expression}), ''), 'Unknown')
-        ORDER BY count DESC, value ASC
-      `).all(userId)) as Array<{ value: string; count: number }>;
+      const sql = [
+        "SELECT COALESCE(NULLIF(TRIM(" + expression + "), ''), 'Unknown') AS value, COUNT(*) AS count",
+        "FROM source_objects o LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id",
+        "WHERE o.id IN (" + issueScope + ")",
+        "GROUP BY COALESCE(NULLIF(TRIM(" + expression + "), ''), 'Unknown')",
+        "ORDER BY count DESC, value ASC"
+      ].join(" ");
+      result[key] = rows(db.prepare(sql).all(...parameters)) as Array<{ value: string; count: number }>;
     }
     return {
       totalRelatedIssues,
       projectKey: result.projectKey ?? [],
       issueType: result.issueType ?? [],
       status: result.status ?? [],
-      priority: result.priority ?? []
+      priority: result.priority ?? [],
+      revision: query.revision
     };
   } finally {
     db.close();
@@ -728,6 +782,7 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
   const sortColumns = Object.fromEntries(Object.entries(USER_EVENT_COLUMNS).map(([key, value]) => [key, value.expression]));
   const query = normalizeViewerQuery(input, sortColumns, "eventTime");
   const filter = viewerFilterSql(query.filters, USER_EVENT_COLUMNS);
+  appendDateBounds(filter.where, filter.parameters, "e.event_time", query.dateRange);
   const subjectWhere = subject.userId ? "e.actor_account_id = ?" : "o.issue_key = ?";
   const subjectValue = subject.userId || subject.issueKey;
   const where = `${subjectWhere} ${filter.where.length ? `AND ${filter.where.join(" AND ")}` : ""}`;
@@ -795,7 +850,11 @@ export function listDatabaseIssues(databasePath: string, input: IssueQuery = {})
   const { db } = openReadOnly(databasePath);
   try {
     const query = normalizeIssueQuery(input);
-    const { clause, parameters } = issueFilterSql(query.filters);
+    const filters = issueFilterSql(query.filters);
+    const scope = issueDateScope(query);
+    const where = [filters.clause ? filters.clause.slice(6) : "", ...scope.where].filter(Boolean);
+    const clause = where.length ? "WHERE " + where.join(" AND ") : "";
+    const parameters = [...filters.parameters, ...scope.parameters];
     const databaseTotal = Number(row(db.prepare("SELECT COUNT(*) AS count FROM source_objects").get()).count ?? 0);
     const filteredTotal = Number(row(db.prepare(`SELECT COUNT(*) AS count ${ISSUE_QUERY_FROM} ${clause}`).get(...parameters)).count ?? 0);
     const pageCount = Math.max(1, Math.ceil(filteredTotal / query.pageSize));
@@ -834,27 +893,37 @@ export function listDatabaseIssues(databasePath: string, input: IssueQuery = {})
   }
 }
 
-export function loadDatabaseIssueDistributions(databasePath: string) {
+export function loadDatabaseIssueDistributions(databasePath: string, input: IssueQuery = {}) {
   const { db } = openReadOnly(databasePath);
   try {
-    const distribution = (expression: string) => rows(db.prepare(`
-      SELECT COALESCE(NULLIF(TRIM(${expression}), ''), '未設定') AS value, COUNT(*) AS count
-      FROM source_objects o LEFT JOIN current_issue_snapshots s ON s.source_object_id = o.id
-      GROUP BY COALESCE(NULLIF(TRIM(${expression}), ''), '未設定')
-      ORDER BY count DESC, value ASC
-    `).all()).map((item) => ({ value: String(item.value), count: Number(item.count) }));
+    const query = normalizeIssueQuery(input);
+    const filters = issueFilterSql(query.filters);
+    const scope = issueDateScope(query);
+    const where = [filters.clause ? filters.clause.slice(6) : "", ...scope.where].filter(Boolean);
+    const clause = where.length ? "WHERE " + where.join(" AND ") : "";
+    const parameters = [...filters.parameters, ...scope.parameters];
+    const distribution = (expression: string) => {
+      const sql = [
+        "SELECT COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定') AS value, COUNT(*) AS count",
+        ISSUE_QUERY_FROM,
+        clause,
+        "GROUP BY COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定')",
+        "ORDER BY count DESC, value ASC"
+      ].join(" ");
+      return rows(db.prepare(sql).all(...parameters)).map((item) => ({ value: String(item.value), count: Number(item.count) }));
+    };
     return {
-      total: Number(row(db.prepare("SELECT COUNT(*) AS count FROM source_objects").get()).count ?? 0),
+      total: Number(row(db.prepare("SELECT COUNT(*) AS count " + ISSUE_QUERY_FROM + " " + clause).get(...parameters)).count ?? 0),
       projectKey: distribution("o.project_key"),
       issueType: distribution("s.issue_type"),
       status: distribution("s.status"),
-      priority: distribution("s.priority")
+      priority: distribution("s.priority"),
+      revision: query.revision
     };
   } finally {
     db.close();
   }
 }
-
 export function loadDatabaseIssue(databasePath: string, issueKeyInput: string) {
   const issueKey = normalizeSourceObjectKey("jira", "issue", issueKeyInput);
   const { db } = openReadOnly(databasePath);
@@ -969,52 +1038,83 @@ export function listDatabaseUsers(databasePath: string, input: { search?: string
 
 export function queryDatabaseDistinctValues(
   databasePath: string,
-  input: { source?: unknown; subjectId?: unknown; field?: unknown; search?: unknown; limit?: unknown }
+  input: { source?: unknown; subjectId?: unknown; field?: unknown; search?: unknown; limit?: unknown; query?: unknown }
 ) {
   const source = String(input.source ?? "");
   const subjectId = String(input.subjectId ?? "").trim();
   const field = String(input.field ?? "");
   const search = String(input.search ?? "").trim();
   const limit = Math.max(1, Math.min(500, Number(input.limit ?? 100)));
-  const definitions: Record<string, { fields: Record<string, string>; from: string; subject: string }> = {
-    databaseIssues: {
-      fields: { projectKey: "o.project_key", issueType: "s.issue_type", status: "s.status", priority: "s.priority", issueKey: "o.issue_key" },
-      from: "FROM source_objects o LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id",
-      subject: ""
-    },
-    userRelatedIssues: {
-      fields: { projectKey: "o.project_key", issueType: "s.issue_type", status: "s.status", priority: "s.priority", issueKey: "o.issue_key" },
-      from: "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id",
-      subject: "e.actor_account_id = ?"
-    },
-    userEvents: {
-      fields: { actor: "e.actor_display_name", action: "e.event_type", field: "e.field_name", source: "e.source_provenance", eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", issueKey: "o.issue_key" },
-      from: "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id",
-      subject: "e.actor_account_id = ?"
-    },
-    issueEvents: {
-      fields: { actor: "e.actor_display_name", action: "e.event_type", field: "e.field_name", source: "e.source_provenance", eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", userId: "e.actor_account_id", displayName: "e.actor_display_name" },
-      from: "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id",
-      subject: "o.issue_key = ?"
-    }
+  const searchClause = (expression: string, where: string[], parameters: Array<string | number>) => {
+    if (!search) return;
+    where.push("LOWER(COALESCE(" + expression + ", '')) LIKE LOWER(?) ESCAPE '\\'");
+    parameters.push("%" + search.replace(/[\\%_]/g, "\\$&") + "%");
   };
-  const definition = definitions[source];
-  if (!definition) throw new Error("INVALID_DISTINCT_SOURCE");
-  const expression = definition.fields[field];
-  if (!expression) throw new Error("INVALID_DISTINCT_FIELD");
-  if (definition.subject && !subjectId) throw new Error("DISTINCT_SUBJECT_REQUIRED");
-  const where = [definition.subject, search ? `LOWER(COALESCE(${expression}, '')) LIKE LOWER(?) ESCAPE '\\'` : ""].filter(Boolean);
-  const parameters: Array<string | number> = [];
-  if (definition.subject) parameters.push(subjectId);
-  if (search) parameters.push(`%${search.replace(/[\\%_]/g, "\\$&")}%`);
+  let sql = "";
+  let parameters: Array<string | number> = [];
+  let expression = "";
+  if (source === "databaseIssues") {
+    const query = normalizeIssueQuery(input.query as IssueQuery);
+    const scopedFilters = { ...query.filters };
+    delete scopedFilters[field];
+    const filters = issueFilterSql(scopedFilters);
+    const scope = issueDateScope(query);
+    const where = [filters.clause ? filters.clause.slice(6) : "", ...scope.where].filter(Boolean);
+    parameters = [...filters.parameters, ...scope.parameters];
+    expression = ({ projectKey: "o.project_key", issueType: "s.issue_type", status: "s.status", priority: "s.priority", issueKey: "o.issue_key" } as Record<string, string>)[field] ?? "";
+    if (!expression) throw new Error("INVALID_DISTINCT_FIELD");
+    searchClause(expression, where, parameters);
+    sql = "SELECT COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定') AS value, COUNT(*) AS count " + ISSUE_QUERY_FROM
+      + (where.length ? " WHERE " + where.join(" AND ") : "")
+      + " GROUP BY COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定') ORDER BY count DESC, value ASC LIMIT ?";
+  } else if (source === "userRelatedIssues") {
+    if (!subjectId) throw new Error("DISTINCT_SUBJECT_REQUIRED");
+    expression = ({ projectKey: "o.project_key", issueType: "s.issue_type", status: "s.status", priority: "s.priority", issueKey: "o.issue_key" } as Record<string, string>)[field] ?? "";
+    if (!expression) throw new Error("INVALID_DISTINCT_FIELD");
+    const sortColumns = Object.fromEntries(Object.entries(USER_RELATED_COLUMNS).map(([key, value]) => [key, value.expression]));
+    const query = normalizeViewerQuery(input.query as ViewerQueryInput ?? {}, sortColumns, "lastActivity");
+    const scopedFilters = { ...query.filters };
+    delete scopedFilters[field];
+    const filters = viewerFilterSql(scopedFilters, USER_RELATED_COLUMNS);
+    const dateWhere: string[] = [];
+    const dateParameters: Array<string | number> = [];
+    appendDateBounds(dateWhere, dateParameters, "e.event_time", query.dateRange);
+    const candidateSearch: string[] = [];
+    const searchParameters: Array<string | number> = [];
+    searchClause(expression, candidateSearch, searchParameters);
+    parameters = [subjectId, ...dateParameters, ...filters.parameters, ...searchParameters];
+    const scoped = [
+      "SELECT COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定') AS value",
+      "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id",
+      "LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id",
+      "WHERE e.actor_account_id = ?" + (dateWhere.length ? " AND " + dateWhere.join(" AND ") : "") + (candidateSearch.length ? " AND " + candidateSearch.join(" AND ") : ""),
+      "GROUP BY o.id, o.issue_key, o.project_key, s.summary, s.issue_type, s.status, s.priority",
+      filters.where.length ? "HAVING " + filters.where.join(" AND ") : ""
+    ].join(" ");
+    sql = "SELECT value, COUNT(*) AS count FROM (" + scoped + ") GROUP BY value ORDER BY count DESC, value ASC LIMIT ?";
+  } else if (source === "userEvents" || source === "issueEvents") {
+    if (!subjectId) throw new Error("DISTINCT_SUBJECT_REQUIRED");
+    expression = (source === "userEvents"
+      ? { actor: "e.actor_display_name", action: "e.event_type", field: "e.field_name", source: "e.source_provenance", eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", issueKey: "o.issue_key" }
+      : { actor: "e.actor_display_name", action: "e.event_type", field: "e.field_name", source: "e.source_provenance", eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", userId: "e.actor_account_id", displayName: "e.actor_display_name" } as Record<string, string>)[field] ?? "";
+    if (!expression) throw new Error("INVALID_DISTINCT_FIELD");
+    const query = normalizeViewerQuery(input.query as ViewerQueryInput ?? {}, Object.fromEntries(Object.entries(USER_EVENT_COLUMNS).map(([key, value]) => [key, value.expression])), "eventTime");
+    const scopedFilters = { ...query.filters };
+    delete scopedFilters[field];
+    const filters = viewerFilterSql(scopedFilters, USER_EVENT_COLUMNS);
+    appendDateBounds(filters.where, filters.parameters, "e.event_time", query.dateRange);
+    const where = [source === "userEvents" ? "e.actor_account_id = ?" : "o.issue_key = ?", ...filters.where];
+    parameters = [subjectId, ...filters.parameters];
+    searchClause(expression, where, parameters);
+    sql = "SELECT COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定') AS value, COUNT(*) AS count "
+      + "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id "
+      + "WHERE " + where.join(" AND ") + " GROUP BY COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定') ORDER BY count DESC, value ASC LIMIT ?";
+  } else {
+    throw new Error("INVALID_DISTINCT_SOURCE");
+  }
   const { db } = openReadOnly(databasePath);
   try {
-    const values = rows(db.prepare(`
-      SELECT COALESCE(NULLIF(TRIM(${expression}), ''), '未設定') AS value, COUNT(*) AS count
-      ${definition.from} ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-      GROUP BY COALESCE(NULLIF(TRIM(${expression}), ''), '未設定')
-      ORDER BY count DESC, value ASC LIMIT ?
-    `).all(...parameters, limit + 1));
+    const values = rows(db.prepare(sql).all(...parameters, limit + 1));
     return {
       field,
       values: values.slice(0, limit).map((item) => ({ value: String(item.value), count: Number(item.count) })),
@@ -1024,7 +1124,6 @@ export function queryDatabaseDistinctValues(
     db.close();
   }
 }
-
 export function loadDatabaseUser(databasePath: string, userIdInput: string, input: { limit?: number; offset?: number } = {}) {
   const userId = String(userIdInput ?? "").trim();
   if (!userId) throw new Error("STABLE_USER_ID_REQUIRED");

@@ -1,3 +1,9 @@
+## 0.2.58 - Date Range, Excel Filtering & Content Diff UX
+
+- Added shared local-calendar date shortcuts and custom start-inclusive/end-exclusive query bounds without changing SQLite schema v3.
+- Made Database Overview counts/distributions, User related issues/distributions, event tables, and Excel candidate values follow one scoped query contract with stale request suppression.
+- Added cross-page Select/Deselect All Filtered Results, safe Description content classification, Comment Created/Last Updated semantics, and explicit unavailable/fallback states.
+- Added isolated, atomically persisted filter presets plus focused synthetic v0.2.58 regression coverage; Jira remains read-only and no dependency was upgraded.
 ## 0.2.57 - Full Fetch Identity Lifecycle & Idempotent Save Repair
 
 - Moved Full Fetch attempt creation behind eligibility and queue gates so preflight, navigation, hydration, and mount operations remain non-executable.

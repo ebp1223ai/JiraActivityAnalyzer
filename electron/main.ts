@@ -812,7 +812,7 @@ ipcMain.handle("ui-preferences:update", async (_event, payload: { section?: unkn
   const section = String(payload?.section ?? "");
   const allowedSections = new Set([
     "databaseIssueList", "timelineEventList", "userRelatedIssues", "userAllActivityEvents",
-    "issueActivityEvents", "issueChangelog", "issueComments"
+    "issueActivityEvents", "issueChangelog", "issueComments", "filterPresets"
   ]);
   if (!allowedSections.has(section)) throw new Error("INVALID_UI_PREFERENCE_SECTION");
   return updateUiPreferences(getConfiguredAppRoot(), section as Parameters<typeof updateUiPreferences>[1], payload?.value);

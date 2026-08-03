@@ -1,3 +1,4 @@
+import type { DateRangeState } from "./dateRange";
 export const DATABASE_ISSUE_PAGE_SIZES = [25, 50, 100] as const;
 
 export type DatabaseIssuePageSize = typeof DATABASE_ISSUE_PAGE_SIZES[number];
@@ -36,6 +37,9 @@ export type DatabaseIssueQuery = {
   pageSize: DatabaseIssuePageSize;
   sort: { field: DatabaseIssueColumn; direction: DatabaseIssueSortDirection };
   filters: DatabaseIssueFilters;
+  dateMode?: "activity" | "created" | "updated";
+  dateRange?: DateRangeState;
+  revision?: number;
 };
 
 export type DatabaseIssueQueryResult = {

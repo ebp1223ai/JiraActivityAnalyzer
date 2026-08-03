@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Activity, Database, MessageSquare, Search, UserRound, Wrench } from "lucide-react";
 import { MetricCard } from "../components/MetricCard";
+import { DateRangeControl } from "../components/DateRangeControl";
+import { FilterPresetControl } from "../components/FilterPresetControl";
 import { PageHeader } from "../components/PageHeader";
 import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
@@ -13,6 +15,7 @@ import { SqliteDataTable, type SqliteTableColumn } from "../components/SqliteDat
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import { useSessionState } from "../state/SessionStateContext";
 import type { ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
+import { ALL_TIME_DATE_RANGE } from "../types/dateRange";
 import type { UserViewerDistributions } from "../types/databaseViewer";
 import type { TablePreferences, UiPreferences, UiPreferencesUpdate } from "../types/uiPreferences";
 import { activityEventAfter, activityEventBefore, formatActivityActor, formatActivityEventType, formatActivityEventValue, formatActivitySource } from "../utils/activityEventDisplay";
@@ -122,7 +125,8 @@ export function UserViewerPage() {
     try {
       const detailPromise = window.desktopApp?.databaseViewer?.getUser({ userId, limit: 1, offset: 0 });
       const resultPromise = tab === "Related Issues" ? window.desktopApp?.databaseViewer?.userRelatedIssues({ userId, query }) : window.desktopApp?.databaseViewer?.userEvents({ userId, query });
-      const distributionPromise = window.desktopApp?.databaseViewer?.userDistributions({ userId });
+      const distributionQuery = tab === "Related Issues" ? query : { ...userViewer.relatedQuery, dateRange: query.dateRange };
+      const distributionPromise = window.desktopApp?.databaseViewer?.userDistributions({ userId, query: distributionQuery });
       const [detail, result, distributions] = await Promise.all([detailPromise, resultPromise, distributionPromise]);
       if (requestId !== latestUserViewerRequest) {
         recordTableRequest("stale", { requestId, tableId, query, startedAt });
@@ -192,16 +196,28 @@ export function UserViewerPage() {
 
   function updateQuery(query: ViewerTableQuery) {
     if (!userViewer.selectedUserId) return;
-    patch(userViewer.activeTab === "Related Issues" ? { relatedQuery: query } : { eventQuery: query });
-    void queryTab(userViewer.selectedUserId, userViewer.activeTab, query);
+    const next = { ...query, revision: (activeQuery.revision ?? 0) + 1 };
+    patch(userViewer.activeTab === "Related Issues" ? { relatedQuery: next } : { eventQuery: next });
+    void queryTab(userViewer.selectedUserId, userViewer.activeTab, next);
   }
 
+  function updateDateRange(dateRange: NonNullable<ViewerTableQuery["dateRange"]>) {
+    const revision = Math.max(userViewer.relatedQuery.revision ?? 0, userViewer.eventQuery.revision ?? 0) + 1;
+    const relatedQuery = { ...userViewer.relatedQuery, page: 1, dateRange, revision };
+    const eventQuery = { ...userViewer.eventQuery, page: 1, dateRange, revision };
+    patch({ relatedQuery, eventQuery, relatedResult: null, allEventsResult: null, relatedCacheKey: "", eventCacheKey: "" });
+    if (userViewer.selectedUserId) void queryTab(userViewer.selectedUserId, userViewer.activeTab, userViewer.activeTab === "Related Issues" ? relatedQuery : eventQuery);
+  }
   async function saveTablePreferences(section: UiPreferencesUpdate["section"], value: TablePreferences) {
     const response = await window.desktopApp?.uiPreferences?.update({ section, value });
     if (response) setPreferences(response.preferences);
   }
 
   const preferenceSection = userViewer.activeTab === "Related Issues" ? "userRelatedIssues" : "userAllActivityEvents";
+
+  function saveFilterPresets(next: NonNullable<typeof preferences>["filterPresets"]) {
+    void window.desktopApp?.uiPreferences?.update({ section: "filterPresets", value: next }).then((response) => { if (response) setPreferences(response.preferences); });
+  }
 
   function applyDistributionFilter(field: "projectKey" | "issueType" | "status" | "priority", value: string) {
     if (!userViewer.selectedUserId) return;
@@ -228,9 +244,12 @@ export function UserViewerPage() {
         <SectionCard className="mt-4" title={text(summary.displayName, "Unknown user")} subtitle={`Stable User ID · ${text(summary.userId)}`}>
           <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3"><div><b>Earliest：</b>{formatDisplayTime(summary.earliestEvent)}</div><div><b>Latest：</b>{formatDisplayTime(summary.latestEvent)}</div><div className="break-all"><b>Database：</b>{state.database.sourceBinding || "Unavailable"}</div></div>
         </SectionCard>
-        <ResponsiveMetricGrid min={170} className="mt-4">
-          <MetricCard label="相關 Issue" sub="Related Issues" value={text(summary.totalIssues, "0")} icon={Database} />
-          <MetricCard label="全部事件" sub="All Activity Events" value={text(summary.totalEvents, "0")} icon={UserRound} />
+        <SectionCard className="mt-4" title="Selected Period" subtitle="選取期間 · Activity Events eventTime">
+          <DateRangeControl value={activeQuery.dateRange ?? ALL_TIME_DATE_RANGE} onChange={updateDateRange} />
+          <div className="mt-3"><FilterPresetControl viewerId="userViewer" tabId={userViewer.activeTab === "Related Issues" ? "relatedIssues" : "allActivityEvents"} query={activeQuery} presets={preferences?.filterPresets ?? []} onApply={(next) => updateQuery(next as ViewerTableQuery)} onPresetsChange={saveFilterPresets} /></div>
+        </SectionCard>        <ResponsiveMetricGrid min={170} className="mt-4">
+          <MetricCard label="相關 Issue" sub="Related Issues" value={text(distributions?.totalRelatedIssues, "0")} icon={Database} />
+          <MetricCard label="全部事件" sub="All Activity Events" value={text(userViewer.allEventsResult?.filteredCount ?? (userViewer.eventQuery.dateRange?.shortcut === "all" ? summary.totalEvents : 0), "0")} icon={UserRound} />
           <MetricCard label="留言" sub="Comments" value={text(summary.comments, "0")} icon={MessageSquare} />
           <MetricCard label="欄位變更" sub="Field Changes" value={text(summary.fieldChanges, "0")} icon={Wrench} />
         </ResponsiveMetricGrid>
@@ -261,7 +280,8 @@ export function UserViewerPage() {
               subjectId: userViewer.selectedUserId,
               field,
               search,
-              limit: 200
+              limit: 200,
+              query: activeQuery
             })}
           />
           </SectionErrorBoundary>

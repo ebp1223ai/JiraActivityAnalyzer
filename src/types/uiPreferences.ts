@@ -19,6 +19,24 @@ export type TablePreferences<TColumn extends string = string> = {
   filters?: Record<string, TableFilterPreference>;
 };
 
+export type FilterPreset = {
+  schemaVersion: 1;
+  id: string;
+  viewerId: string;
+  tabId: string;
+  name: string;
+  query: {
+    dateMode?: "activity" | "created" | "updated";
+    dateRange?: import("./dateRange").DateRangeState;
+    filters: Record<string, TableFilterPreference>;
+    sort?: { field: string; direction: "asc" | "desc" } | null;
+    pageSize?: number;
+    commentDateMode?: "created" | "updated";
+    descriptionChangedOnly?: boolean;
+    includeBeforeUnavailable?: boolean;
+  };
+  updatedAt: string;
+};
 export type UiPreferences = {
   formatVersion: 2;
   databaseIssueList: TablePreferences<DatabaseIssueColumn>;
@@ -28,6 +46,7 @@ export type UiPreferences = {
   issueActivityEvents: TablePreferences;
   issueChangelog: TablePreferences;
   issueComments: TablePreferences;
+  filterPresets: FilterPreset[];
 };
 
 export type UiPreferencesLoadResult = {
@@ -38,8 +57,8 @@ export type UiPreferencesLoadResult = {
 
 export type UiPreferencesUpdate = {
   section: "databaseIssueList" | "timelineEventList" | "userRelatedIssues"
-    | "userAllActivityEvents" | "issueActivityEvents" | "issueChangelog" | "issueComments";
-  value: TablePreferences<DatabaseIssueColumn> | TablePreferences;
+    | "userAllActivityEvents" | "issueActivityEvents" | "issueChangelog" | "issueComments" | "filterPresets";
+  value: TablePreferences<DatabaseIssueColumn> | TablePreferences | FilterPreset[];
 };
 
 export type DatabaseIssueListPreferences = TablePreferences<DatabaseIssueColumn> & {

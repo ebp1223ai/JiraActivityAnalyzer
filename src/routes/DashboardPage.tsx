@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, Copy, Database, FileClock, FileInput, FileText, HeartPulse, MessageSquare, Plus, RefreshCw, Wrench } from "lucide-react";
 import { DatabaseIssueTable, DEFAULT_DATABASE_COLUMNS } from "../components/DatabaseIssueTable";
+import { DateRangeControl } from "../components/DateRangeControl";
+import { FilterPresetControl } from "../components/FilterPresetControl";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { ResponsiveMetricGrid } from "../components/Responsive";
@@ -10,7 +12,8 @@ import { SectionErrorBoundary } from "../components/SectionErrorBoundary";
 import { recordTableRequest } from "../diagnostics/tableDiagnostics";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import type { DatabaseIssueDistributions, DatabaseIssueQuery, DatabaseIssueQueryResult } from "../types/databaseQuery";
-import type { DatabaseIssueListPreferences } from "../types/uiPreferences";
+import type { DatabaseIssueListPreferences, FilterPreset } from "../types/uiPreferences";
+import { ALL_TIME_DATE_RANGE } from "../types/dateRange";
 
 type Overview = {
   status?: string;
@@ -19,7 +22,7 @@ type Overview = {
   latestRun?: Record<string, unknown>;
 };
 
-const defaultQuery: DatabaseIssueQuery = { page: 1, pageSize: 50, sort: { field: "jiraUpdatedAt", direction: "desc" }, filters: {} };
+const defaultQuery: DatabaseIssueQuery = { page: 1, pageSize: 50, sort: { field: "jiraUpdatedAt", direction: "desc" }, filters: {}, dateMode: "activity", dateRange: ALL_TIME_DATE_RANGE, revision: 0 };
 const defaultPreferences: DatabaseIssueListPreferences = {
   visibleColumns: [...DEFAULT_DATABASE_COLUMNS],
   columnOrder: [...DEFAULT_DATABASE_COLUMNS],
@@ -53,6 +56,7 @@ export function DashboardPage() {
   const [distributions, setDistributions] = useState<DatabaseIssueDistributions | null>(null);
   const [query, setQuery] = useState<DatabaseIssueQuery>(defaultQuery);
   const [preferences, setPreferences] = useState<DatabaseIssueListPreferences>(defaultPreferences);
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
   const [overviewStatus, setOverviewStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [issueStatus, setIssueStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [distributionStatus, setDistributionStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -126,10 +130,10 @@ export function DashboardPage() {
   }, [query, overviewStatus, state.database.canRead, databaseIdentity]);
 
   useEffect(() => {
-    if (!state.database.canRead || !issueInteractionReady || distributionStatus !== "idle") return;
+    if (!state.database.canRead || !issueInteractionReady) return;
     const requestId = ++distributionRequest.current;
     setDistributionStatus("loading");
-    void window.desktopApp?.databaseViewer?.issueDistributions().then((result) => {
+    void window.desktopApp?.databaseViewer?.issueDistributions(query).then((result) => {
       if (requestId !== distributionRequest.current) return;
       setDistributions(result ?? null);
       setDistributionStatus("ready");
@@ -140,11 +144,12 @@ export function DashboardPage() {
       setDistributionStatus("error");
       setDatabaseLoadStatus("error");
     });
-  }, [databaseIdentity, distributionStatus, issueInteractionReady, state.database.canRead]);
+  }, [databaseIdentity, issueInteractionReady, query, state.database.canRead]);
   useEffect(() => { void refresh(); }, [refresh, state.database.requestId]);
   useEffect(() => {
     void window.desktopApp?.uiPreferences?.get().then((loaded) => {
       const next = loaded?.preferences.databaseIssueList as DatabaseIssueListPreferences | undefined;
+      setFilterPresets(loaded?.preferences.filterPresets ?? []);
       if (next) {
         setPreferences(next);
         setQuery((current) => ({ ...current, pageSize: next.pageSize }));
@@ -187,6 +192,11 @@ export function DashboardPage() {
     void window.desktopApp?.uiPreferences?.update({ section: "databaseIssueList", value: next }).then((loaded) => {
       if (loaded.warning) setNotice(loaded.warning);
     });
+  }
+
+  function saveFilterPresets(next: FilterPreset[]) {
+    setFilterPresets(next);
+    void window.desktopApp?.uiPreferences?.update({ section: "filterPresets", value: next }).then((loaded) => setFilterPresets(loaded.preferences.filterPresets));
   }
 
   async function fullHealthCheck() {
@@ -278,6 +288,13 @@ export function DashboardPage() {
             {(["projectKey", "issueType", "status", "priority"] as const).map((field) => <DistributionPanel key={field} title={field === "projectKey" ? "Project 分布" : field === "issueType" ? "類型分布" : field === "status" ? "狀態分布" : "優先級分布"} subtitle={`${field} · ${distributions.total} issues`} total={distributions.total} items={distributions[field]} onSelect={(value) => setQuery((current) => ({ ...current, page: 1, filters: { ...current.filters, [field]: { values: [value === "未設定" ? "__UNSET__" : value] } } }))} />)}
           </div> : distributionStatus === "loading" ? <div className="mt-4 rounded-md border border-line bg-white p-5 text-sm font-bold text-muted">Loading distributions...</div> : null}
 
+          <SectionCard className="mt-4" title="Issue 範圍" subtitle="Issue Scope">
+            <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[260px_minmax(0,1fr)]">
+              <label className="min-w-0"><span className="mb-1 block text-xs font-black text-muted">Date Mode / 日期依據</span><select className="field" value={query.dateMode ?? "activity"} onChange={(event) => setQuery((current) => ({ ...current, page: 1, dateMode: event.currentTarget.value as DatabaseIssueQuery["dateMode"], revision: (current.revision ?? 0) + 1 }))}><option value="activity">Activity Events Date / 活動事件日期</option><option value="created">Jira Created Date / 建立日期</option><option value="updated">Jira Last Updated Date / 最後更新日期</option></select></label>
+              <DateRangeControl value={query.dateRange ?? ALL_TIME_DATE_RANGE} onChange={(dateRange) => setQuery((current) => ({ ...current, page: 1, dateRange, revision: (current.revision ?? 0) + 1 }))} />
+            </div>
+            <div className="mt-3"><FilterPresetControl viewerId="databaseOverview" tabId="issueList" query={query} presets={filterPresets} onApply={(next) => setQuery(next as DatabaseIssueQuery)} onPresetsChange={saveFilterPresets} /></div>
+          </SectionCard>
           <SectionCard className="mt-4" title="Issue 清單" subtitle="Issue List">
             <SectionErrorBoundary context="database-overview-issue-list" resetKey={databaseIdentity}>
             <DatabaseIssueTable
@@ -286,9 +303,9 @@ export function DashboardPage() {
               preferences={preferences}
               loading={issueStatus === "loading"}
               disabled={!issueInteractionReady}
-              onQueryChange={setQuery}
+              onQueryChange={(next) => setQuery((current) => ({ ...next, revision: (current.revision ?? 0) + 1 }))}
               onPreferencesChange={savePreferences}
-              loadDistinct={async (field, search) => (await window.desktopApp?.databaseViewer?.distinctValues({ source: "databaseIssues", subjectId: "", field, search, limit: 100 })) ?? { field, values: [], truncated: false }}
+              loadDistinct={async (field, search) => (await window.desktopApp?.databaseViewer?.distinctValues({ source: "databaseIssues", subjectId: "", field, search, limit: 100, query })) ?? { field, values: [], truncated: false }}
             />
             </SectionErrorBoundary>
           </SectionCard>

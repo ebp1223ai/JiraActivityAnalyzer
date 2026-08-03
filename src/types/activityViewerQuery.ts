@@ -1,3 +1,4 @@
+﻿import type { DateRangeState } from "./dateRange";
 export type ViewerSortDirection = "asc" | "desc";
 export type ViewerTableQuery = {
   page: number;
@@ -11,6 +12,11 @@ export type ViewerTableQuery = {
     min?: number;
     max?: number;
   }>;
+  dateRange?: DateRangeState;
+  revision?: number;
+  commentDateMode?: "created" | "updated";
+  descriptionChangedOnly?: boolean;
+  includeBeforeUnavailable?: boolean;
 };
 
 export type ViewerTableResult = {
@@ -29,4 +35,3 @@ export type ViewerDistinctResult = {
   values: Array<{ value: string; count: number }>;
   truncated: boolean;
 };
-

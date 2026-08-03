@@ -1,4 +1,4 @@
-export type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
+﻿export type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
 
 export type ViewerSection<T> = {
   status: ViewerSectionStatus;
@@ -63,6 +63,12 @@ export type IssueViewerSessionState = {
   activeTab: string;
   payloadFilter: string;
   payloadPage: number;
+  changelogQuery: ViewerTableQuery;
+  commentsQuery: ViewerTableQuery;
+  payloadDateRange: import("./dateRange").DateRangeState;
+  commentDateMode: "created" | "updated";
+  descriptionChangedOnly: boolean;
+  includeBeforeUnavailable: boolean;
   activityEventsQuery: ViewerTableQuery;
   activityEventsResult: ViewerTableResult | null;
   activityEventsStatus: "idle" | "loading" | "ready" | "error";

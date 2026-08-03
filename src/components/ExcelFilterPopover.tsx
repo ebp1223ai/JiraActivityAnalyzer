@@ -19,15 +19,20 @@ function normalizedValue(value: string) {
 export function ExcelFilterPopover({ label, selected, search, result, loading, onSearchChange, onApply, onCancel }: Props) {
   const [draft, setDraft] = useState(selected);
   useEffect(() => setDraft(selected), [selected]);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [onCancel]);
   const visibleValues = result?.values.map((item) => normalizedValue(item.value)) ?? [];
 
   return (
     <div className="min-w-0 rounded-md border border-line bg-white p-2 text-left" data-table-filter-panel="layout">
       <label className="mb-2 block truncate text-xs font-black" title={label}>{label}</label>
-      <input autoFocus className="field mb-2 !px-2 !py-1 text-xs" value={search} onChange={(event) => onSearchChange(event.currentTarget.value)} placeholder="搜尋候選值..." />
+      <input autoFocus className="field mb-2 !px-2 !py-1 text-xs" value={search} onChange={(event) => onSearchChange(event.currentTarget.value)} placeholder="Search candidates / 搜尋候選值..." />
       <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
-        <button className="font-bold text-blue-700" type="button" onClick={() => setDraft(Array.from(new Set([...draft, ...visibleValues])))}>全選結果</button>
-        <button className="font-bold text-blue-700" type="button" onClick={() => setDraft([])}>清除</button>
+        <button className="font-bold text-blue-700" type="button" onClick={() => setDraft(Array.from(new Set([...draft, ...visibleValues])))}>Select All Search Results / 全選搜尋結果</button>
+        <button className="font-bold text-blue-700" type="button" onClick={() => setDraft([])}>Clear Draft / 清除草稿</button><button className="font-bold text-rose-700" type="button" onClick={() => onApply([])}>Clear Column / 清除此欄</button>
         <span className="ml-auto text-muted">已選 {draft.length}</span>
       </div>
       <div className="thin-scroll max-h-40 space-y-1 overflow-y-auto">

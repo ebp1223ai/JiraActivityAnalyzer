@@ -30,6 +30,7 @@ export type UiPreferences = {
   issueActivityEvents: TablePreferences;
   issueChangelog: TablePreferences;
   issueComments: TablePreferences;
+  filterPresets: Array<Record<string, unknown>>;
   [key: string]: unknown;
 };
 
@@ -77,7 +78,8 @@ export function defaultUiPreferences(): UiPreferences {
     userAllActivityEvents: { ...defaultTable(ACTIVITY_VIEWER_COLUMNS), visibleColumns: ACTIVITY_VIEWER_COLUMNS.filter((column) => !["before", "after"].includes(column)) },
     issueActivityEvents: defaultTable(ACTIVITY_VIEWER_COLUMNS),
     issueChangelog: defaultTable(ISSUE_CHANGELOG_COLUMNS),
-    issueComments: defaultTable(ISSUE_COMMENT_COLUMNS)
+    issueComments: defaultTable(ISSUE_COMMENT_COLUMNS),
+    filterPresets: []
   };
 }
 
@@ -143,6 +145,39 @@ function normalizeTable(value: unknown, columns: readonly string[], fallback: Ta
   return { visibleColumns, columnOrder, columnWidths, pageSize, pageIndex, sort, filters };
 }
 
+function normalizeFilterPresets(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const result: Array<Record<string, unknown>> = [];
+  for (const item of value.slice(0, 200)) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const source = item as Record<string, unknown>;
+    const id = boundedText(source.id, 128);
+    const viewerId = boundedText(source.viewerId, 64);
+    const tabId = boundedText(source.tabId, 64);
+    const name = boundedText(source.name, 80).trim();
+    const key = viewerId + ":" + tabId + ":" + name.toLowerCase();
+    if (!id || !viewerId || !tabId || !name || seen.has(key)) continue;
+    seen.add(key);
+    const querySource = source.query && typeof source.query === "object" && !Array.isArray(source.query) ? source.query as Record<string, unknown> : {};
+    const filters: Record<string, TableFilterPreference> = {};
+    const rawFilters = querySource.filters && typeof querySource.filters === "object" && !Array.isArray(querySource.filters) ? querySource.filters as Record<string, unknown> : {};
+    for (const [field, candidate] of Object.entries(rawFilters).slice(0, 100)) {
+      const filter = normalizeFilter(candidate);
+      if (filter) filters[field.slice(0, 128)] = filter;
+    }
+    const query: Record<string, unknown> = { filters };
+    if (["activity", "created", "updated"].includes(String(querySource.dateMode))) query.dateMode = querySource.dateMode;
+    if (querySource.dateRange && typeof querySource.dateRange === "object") query.dateRange = querySource.dateRange;
+    if (querySource.sort === null || (querySource.sort && typeof querySource.sort === "object")) query.sort = querySource.sort;
+    if ([25, 50, 100, 200].includes(Number(querySource.pageSize))) query.pageSize = Number(querySource.pageSize);
+    if (["created", "updated"].includes(String(querySource.commentDateMode))) query.commentDateMode = querySource.commentDateMode;
+    if (typeof querySource.descriptionChangedOnly === "boolean") query.descriptionChangedOnly = querySource.descriptionChangedOnly;
+    if (typeof querySource.includeBeforeUnavailable === "boolean") query.includeBeforeUnavailable = querySource.includeBeforeUnavailable;
+    result.push({ schemaVersion: 1, id, viewerId, tabId, name, query, updatedAt: boundedText(source.updatedAt, 64) || new Date(0).toISOString() });
+  }
+  return result;
+}
 export function normalizeUiPreferences(value: unknown): UiPreferences {
   const defaults = defaultUiPreferences();
   const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -158,7 +193,8 @@ export function normalizeUiPreferences(value: unknown): UiPreferences {
     userAllActivityEvents: normalizeTable(source.userAllActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.userAllActivityEvents, ["eventTime", "issueKey", "eventType"], ACTIVITY_QUERY_FIELDS),
     issueActivityEvents: normalizeTable(source.issueActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.issueActivityEvents, ["eventTime", "eventType"], ACTIVITY_QUERY_FIELDS),
     issueChangelog: normalizeTable(source.issueChangelog, ISSUE_CHANGELOG_COLUMNS, defaults.issueChangelog, ["created", "field"]),
-    issueComments: normalizeTable(source.issueComments, ISSUE_COMMENT_COLUMNS, defaults.issueComments, ["created", "author"])
+    issueComments: normalizeTable(source.issueComments, ISSUE_COMMENT_COLUMNS, defaults.issueComments, ["created", "author"]),
+    filterPresets: normalizeFilterPresets(source.filterPresets)
   };
 }
 
@@ -200,7 +236,7 @@ export function loadUiPreferences(appRoot: string) {
 }
 
 export type UiPreferenceSection = "databaseIssueList" | "timelineEventList" | "userRelatedIssues" | "userAllActivityEvents"
-  | "issueActivityEvents" | "issueChangelog" | "issueComments";
+  | "issueActivityEvents" | "issueChangelog" | "issueComments" | "filterPresets";
 
 export function updateUiPreferences(appRoot: string, section: UiPreferenceSection, value: unknown) {
   const loaded = loadUiPreferences(appRoot);
