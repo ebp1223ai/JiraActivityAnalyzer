@@ -19,7 +19,10 @@ Automated focused checks are complete. The following GUI/package checks remain m
 ## Packaged Windows application
 
 - [ ] Launch Installer build.
-- [ ] Launch Portable build.
-- [ ] Confirm Build Info version, source commit, branch, and build time.
+- [x] Launch packaged `win-unpacked` renderer in a short offline background smoke; title and local `app.asar` URL loaded successfully.
+- [ ] Launch Portable build interactively.
+- [x] Confirm generated Build Info version, source commit, branch, build time, and clean state.
 - [ ] Repeat the Development UI checks against packaged renderer.
 - [ ] Confirm no Jira write and no database schema migration.
+
+Automated package evidence: Installer and Portable were generated, hashed, and ASAR-audited. The short smoke did not capture the desktop and did not contact Jira. Installer installation/removal and Portable interactive behavior remain user validation gates.

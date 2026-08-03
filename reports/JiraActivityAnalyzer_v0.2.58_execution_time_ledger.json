@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "execution_time_ledger_v1",
+  "version": "0.2.58",
+  "timezone": "Asia/Taipei",
+  "wallClock": {
+    "startedAt": "2026-08-03T18:38:30.7146714+08:00",
+    "endedAt": "2026-08-03T19:13:28.7524770+08:00",
+    "durationSeconds": 2098.038
+  },
+  "preLedgerActions": [
+    {
+      "action": "Read v0.2.58 implementation prompt and master requirements",
+      "reason": "The ledger requirement became known only after the prompt was read; this resumed-work ledger starts at the first reliable timestamp after context recovery.",
+      "durationSeconds": 0.5
+    }
+  ],
+  "environment": {
+    "os": "Windows_NT 10.0.26100 x64",
+    "git": "2.52.0.windows.1",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3"
+  },
+  "categories": {
+    "promptAndRulesSeconds": 120,
+    "repositoryInspectionSeconds": 300,
+    "implementationSeconds": 900,
+    "focusedTestsAndRetriesSeconds": 130,
+    "typecheckAndBuildSeconds": 60,
+    "packagingAndSmokeSeconds": 93,
+    "artifactAuditSeconds": 50,
+    "documentationAndAuditSeconds": 445.038,
+    "waitingSeconds": 0
+  },
+  "commands": [
+    { "command": "npm.cmd run typecheck", "exitCode": 0, "status": "passed", "note": "Final source gate passed." },
+    { "command": "npm.cmd run test:v0.2.58", "exitCode": 0, "status": "passed", "note": "Focused synthetic SQLite and source-contract checks passed." },
+    { "command": "npm.cmd run test:integration", "durationSeconds": 0.75, "exitCode": 0, "status": "passed" },
+    { "command": "npm.cmd run test:v0.2.57", "durationSeconds": 1.462, "exitCode": 0, "status": "passed" },
+    { "command": "npm.cmd run test:v0.2.56", "durationSeconds": 1.364, "exitCode": 0, "status": "passed" },
+    { "command": "npm.cmd run test:v0.2.51", "durationSeconds": 0.605, "exitCode": 0, "status": "passed" },
+    { "command": "npm.cmd run test:ledger", "durationSeconds": 0.414, "exitCode": 0, "status": "passed", "note": "Validated the repository's existing v0.2.45 ledger contract." },
+    { "command": "npm.cmd run build", "durationSeconds": 20.846, "exitCode": 0, "status": "passed", "note": "Vite emitted the existing non-fatal large-chunk warning." },
+    { "command": "git diff --check", "exitCode": 1, "status": "retried", "note": "Two new blank lines at EOF were removed." },
+    { "command": "git diff --check (retry)", "exitCode": 0, "status": "passed" },
+    { "command": "git commit -m 'feat: add v0.2.58 date range filtering and diff UX'", "durationSeconds": 1.0, "exitCode": 0, "status": "passed", "note": "36375920ee1a8913b24bbb4718fff7deb91933a5" },
+    { "command": "npm.cmd run dist (detached clean source worktree)", "durationSeconds": 84.6, "exitCode": 0, "status": "passed", "note": "Installer, Portable and win-unpacked generated from the exact source commit." },
+    { "command": "node scripts/audit-package-size.cjs v0.2.58", "durationSeconds": 5.5, "exitCode": 0, "status": "passed", "note": "unexpectedCount=0; artifacts copied to main release." },
+    { "command": "win-unpacked short offline renderer smoke via DevTools target", "durationSeconds": 2.8, "exitCode": 0, "status": "passed", "note": "Title Jira Activity Analyzer v0.2.58; file URL loaded from app.asar/dist/index.html#/database." },
+    { "command": "ASAR content and artifact SHA-256 audit", "durationSeconds": 1.0, "exitCode": 0, "status": "passed", "note": "2,076 entries; required renderer/main/preload/package files present using Windows separators; no env/database/backup content detected." }
+  ],
+  "excludedFromLedger": [
+    "The evidence commit and network push occur after this ledger is finalized; their results are reported in the task final response.",
+    "Full multi-size UI smoke, Portable interactive workflow, Installer install/uninstall, true large SQLite performance, and real Jira access were not run.",
+    "Work performed before the reliable resumed timestamp is not guessed or included in wall-clock duration."
+  ]
+}
