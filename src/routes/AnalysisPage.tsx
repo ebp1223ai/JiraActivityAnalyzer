@@ -344,6 +344,8 @@ export function AnalysisPage() {
   const connectionReady = Boolean(window.desktopApp?.uiSmoke || (activeConnection?.baseUrl && activeConnection?.apiToken));
   const fullFetchDisabledReason = fetchQueue.length === 0
     ? "Fetch Queue is empty / 抓取佇列是空的"
+    : userAnalysis.fullFetchPreflight?.status === "blocked"
+      ? userAnalysis.fullFetchPreflight.reasonMessage
     : isFullFetchActive
       ? "Full Fetch is already running / 完整抓取正在執行中"
       : !connectionReady
@@ -686,6 +688,21 @@ export function AnalysisPage() {
     return () => { active = false; };
   }, [setUserAnalysis]);
 
+  useEffect(() => {
+    if (userAnalysis.activeTab !== "queue" || fetchQueue.length === 0) return;
+    const selectedTimelineRunId = userAnalysis.timelineRunContext?.runId ?? "";
+    const queueTimelineRunId = userAnalysis.fetchQueueTimelineRunId;
+    let active = true;
+    patchState({ fullFetchPreflight: { status: "checking", reasonCode: "CHECKING", reasonMessage: "Checking the selected standard Timeline Run...", queueTotal: fetchQueue.length } });
+    void window.desktopApp?.userAnalysis?.fullFetchPreflight?.({ fetchQueue, selectedTimelineRunId, queueTimelineRunId }).then((response) => {
+      if (!active || !response) return;
+      const preflight = (response.preflight ?? {}) as Record<string, unknown>;
+      const attempt = (response.attempt ?? {}) as Record<string, unknown>;
+      patchState({ fullFetchAttemptId: String(attempt.attemptId ?? ""), fullFetchPreflight: { status: response.ok === true ? "eligible" : "blocked", reasonCode: String(preflight.reasonCode ?? response.status ?? "UNKNOWN"), reasonMessage: String(preflight.reasonMessage ?? (response.ok === true ? "Eligible for Full Fetch." : "Full Fetch preflight blocked.")), queueTotal: fetchQueue.length } });
+    });
+    return () => { active = false; };
+  }, [userAnalysis.activeTab, userAnalysis.timelineRunContext?.runId, userAnalysis.fetchQueueTimelineRunId, fetchQueue.map((item) => item.key).join("|")]);
+
   function showStep(step: "timeline" | "selectIssues" | "queue" | "fetchReport" | "relatedIssues" | "exports" | "candidate") {
     const labels = {
       selectIssues: "Select Issues / 選取議題",
@@ -741,6 +758,9 @@ export function AnalysisPage() {
       relatedCandidateIssues: [],
       selectedRelatedIssueKeys: [],
       fullFetchStatus: "idle",
+      fullFetchAttemptId: "",
+      fetchQueueTimelineRunId: "",
+      fullFetchPreflight: null,
       workflowSteps: defaultWorkflowSteps(),
       errors: [],
       notice: "Building Activity Timeline... / 正在建立活動時間線..."
@@ -860,7 +880,7 @@ export function AnalysisPage() {
     patchState({ selectedTimelineIssueKeys: Array.from(selected), workflowSteps: { ...userAnalysis.workflowSteps, timelineIssueSelection: "completed" } });
   }
 
-  function addTimelineIssuesToQueue() {
+  async function addTimelineIssuesToQueue() {
     const startedAt = performance.now();
     rememberSafeUserAction("Add Selected Issues, then go to Step 3: Full Fetch");
     reportQueueTransition({
@@ -913,10 +933,17 @@ export function AnalysisPage() {
         rejections: transition.rejections,
         durationMs: Math.round(performance.now() - startedAt)
       });
+      const queueTimelineRunId = userAnalysis.timelineRunContext?.runId ?? "";
+      const preflightResponse = await window.desktopApp?.userAnalysis?.fullFetchPreflight?.({ fetchQueue: transition.selectedForFetch, selectedTimelineRunId: queueTimelineRunId, queueTimelineRunId });
+      const preflight = (preflightResponse?.preflight ?? {}) as Record<string, unknown>;
+      const attempt = (preflightResponse?.attempt ?? {}) as Record<string, unknown>;
       patchState({
         candidateIssues: transition.candidateIssues,
         selectedTimelineIssueKeys: transition.acceptedIssueKeys,
         selectedForFetch: transition.selectedForFetch,
+        fetchQueueTimelineRunId: queueTimelineRunId,
+        fullFetchAttemptId: String(attempt.attemptId ?? ""),
+        fullFetchPreflight: { status: preflightResponse?.ok === true ? "eligible" : "blocked", reasonCode: String(preflight.reasonCode ?? preflightResponse?.status ?? "UNKNOWN"), reasonMessage: String(preflight.reasonMessage ?? (preflightResponse?.ok === true ? "Eligible for Full Fetch." : "Full Fetch preflight blocked.")), queueTotal: transition.selectedForFetch.length },
         addedTimelineIssuesToFetchQueueCount: count,
         lastQueueAddSummary: { kind: "timeline", added: transition.addedCount, merged: transition.mergedCount, total: transition.queueCountAfter },
         workflowSteps: steps,
@@ -1624,13 +1651,17 @@ export function AnalysisPage() {
         selectedIssues: runningRelatedFullFetch ? userAnalysis.selectedForFetch : userAnalysis.selectedTimelineIssueKeys,
         relatedIssuesStatus: userAnalysis.workflowSteps.relatedReview,
         fetchRemoteLinks: userAnalysis.fetchRemoteLinks,
-        directIssueKeys: userAnalysis.selectedTimelineIssueKeys
+        directIssueKeys: userAnalysis.selectedTimelineIssueKeys,
+        attemptId: userAnalysis.fullFetchAttemptId,
+        selectedTimelineRunId: userAnalysis.timelineRunContext?.runId ?? "",
+        queueTimelineRunId: userAnalysis.fetchQueueTimelineRunId
       });
       if (!response) throw new Error("Electron User Analysis Full Fetch API is not available.");
       const preflight = (response.preflight ?? {}) as Record<string, unknown>;
       if (response.ok === false && response.run == null && preflight.ok === false) {
         const preflightErrors = Array.isArray(response.errors) ? response.errors as string[] : ["Preflight validation failed / 抓取前驗證失敗"];
-        patchState({ fullFetchStatus: "idle", fullFetchRunId: "", fullFetchStartedAt: "", fullFetchFinishedAt: "", fullFetchStaging: null, fullFetchErrors: preflightErrors, errors: preflightErrors, fullFetchWarnings: Array.isArray(response.warnings) ? response.warnings as string[] : [], notice: "Preflight validation failed / 抓取前驗證失敗" });
+        const attempt = (response.attempt ?? {}) as Record<string, unknown>;
+        patchState({ fullFetchStatus: "preflight_blocked", fullFetchAttemptId: String(attempt.attemptId ?? userAnalysis.fullFetchAttemptId), fullFetchRunId: "", fullFetchStartedAt: "", fullFetchFinishedAt: new Date().toISOString(), fullFetchStaging: null, fullFetchSummary: response.summary as typeof userAnalysis.fullFetchSummary, fullFetchErrors: preflightErrors, errors: preflightErrors, fullFetchWarnings: Array.isArray(response.warnings) ? response.warnings as string[] : [], notice: "PRE_FLIGHT_BLOCKED: selected queue preserved; no Full Fetch run was created. / 抓取前已阻擋，佇列保留且未建立執行。" });
         appendDebugLog("analysis", ["[ERROR] Preflight validation failed / 抓取前驗證失敗", "[INFO] No Full Fetch run or staging was created."]);
         return;
       }
@@ -2399,6 +2430,7 @@ export function AnalysisPage() {
             <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">
               <b>Fetch Queue / 抓取佇列</b><br />Only issues in the Fetch Queue will be processed by Full Fetch. / 只有抓取佇列中的 Jira 會被完整抓取。
             </div>
+            {userAnalysis.fullFetchPreflight ? <div data-testid="full-fetch-preflight" className={`mb-3 rounded-lg border p-3 text-sm font-semibold leading-relaxed ${userAnalysis.fullFetchPreflight.status === "eligible" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-950"}`}><b>{userAnalysis.fullFetchPreflight.status === "eligible" ? "Eligible / 可執行" : "Blocked / 已阻擋"}</b><br />{userAnalysis.fullFetchPreflight.reasonMessage}<div className="mt-1 text-xs">Timeline Run: {userAnalysis.fetchQueueTimelineRunId || "missing"} · Queue: {userAnalysis.fullFetchPreflight.queueTotal} · Advanced Stability Probe: diagnostic only</div></div> : null}
             <div className="mb-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3" data-testid="fetch-queue-source-summary">
               <MiniStat label="Ready / 準備完成" value={fetchQueue.length} />
               <MiniStat label="Timeline / 時間線" value={queueSourceCounts.activity_timeline ?? 0} />
@@ -2479,7 +2511,7 @@ export function AnalysisPage() {
               <MiniStat label="Failed / 失敗" value={userAnalysis.fullFetchSummary.failed} />
               <MiniStat label="Not Attempted / 未嘗試" value={userAnalysis.fullFetchSummary.notAttempted ?? 0} />
               <MiniStat label="Duration / 耗時" value={formatDuration(fullFetchDurationMs)} />
-              <MiniStat label="Count Reconciliation / 數量守恆" value={userAnalysis.fullFetchSummary.countReconciliationPassed === false ? "Failed" : "Passed"} />
+              <MiniStat label="Count Reconciliation / 數量守恆" value={userAnalysis.fullFetchSummary.countReconciliation === "NOT_RUN" ? "Not run" : userAnalysis.fullFetchSummary.countReconciliationPassed === false ? "Failed" : "Passed"} />
               <MiniStat label="Issue Key Sets / Jira 集合核對" value={userAnalysis.fullFetchSummary.issueKeyReconciliation?.status ?? "Not run"} />
             </div>
             <div data-testid="full-fetch-evidence-counts" className="mb-3 rounded-lg border border-blue-200 bg-blue-50/40 p-4">

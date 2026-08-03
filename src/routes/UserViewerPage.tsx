@@ -6,6 +6,7 @@ import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { DistributionPanel } from "../components/DistributionPanel";
 import { DiffCell } from "../components/DiffCell";
+import { ActivityEventDetailPanel } from "../components/ActivityEventDetailPanel";
 import { ReadableContentCell } from "../components/ReadableContentCell";
 import { SectionErrorBoundary } from "../components/SectionErrorBoundary";
 import { SqliteDataTable, type SqliteTableColumn } from "../components/SqliteDataTable";
@@ -255,7 +256,7 @@ export function UserViewerPage() {
             onQueryChange={updateQuery}
             sessionState={userViewer.tableStates[preferenceSection]}
             onSessionStateChange={(value) => setUserViewer((current) => ({ ...current, tableStates: { ...current.tableStates, [preferenceSection]: value } }))}
-            loadDistinct={(field, search) => window.desktopApp!.databaseViewer!.distinctValues({
+            renderExpandedRow={(row) => <ActivityEventDetailPanel row={row} />} loadDistinct={(field, search) => window.desktopApp!.databaseViewer!.distinctValues({
               source: userViewer.activeTab === "Related Issues" ? "userRelatedIssues" : "userEvents",
               subjectId: userViewer.selectedUserId,
               field,

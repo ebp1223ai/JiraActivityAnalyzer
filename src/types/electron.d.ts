@@ -66,7 +66,8 @@ declare global {
         loadEnv: () => Promise<ConnectionStatePayload>;
         chooseEnv: () => Promise<{ canceled: boolean; state: ConnectionStatePayload }>;
         list: () => Promise<ConnectionStatePayload>;
-        test: (connection: JiraConnection) => Promise<{ connection: JiraConnection; logs: string[]; result: unknown }>;
+        test: (connection: JiraConnection) => Promise<{ connection: JiraConnection; logs: string[]; result: unknown; runtime?: RuntimeState; state?: ConnectionStatePayload }>;
+        onStateChanged: (callback: (state: ConnectionStatePayload) => void) => () => void;
       };
       runtime?: {
         getState: () => Promise<RuntimeState>;
@@ -116,7 +117,8 @@ declare global {
         onActivityTimelineProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
         activityStreamManualReplay: (payload: { connection: JiraConnection; manualUrl: string; runId: string }) => Promise<Record<string, unknown>>;
         precisionProbe: (payload: { connection: JiraConnection; selectedUsers: string[]; startInclusive: string; endExclusive: string; activityStreamEndInclusive: string; projectScope: string; activityStreamUser: string; activityStreamQueryMode: "auto" | "username" | "escaped_username" | "email" | "custom"; activityStreamRelativeLinks: boolean; activityStreamRunId: string; activityStreamDateQueryMode: "none" | "startDate_endDate" | "update_date_after_before" | "both"; activityStreamChunkingMode?: "off" | "auto" | "monthly" | "weekly" | "custom_days"; activityStreamCustomChunkDays?: number; maxResults: number; maxResultsSource: "custom" | "quick"; largeMaxResultsConfirmed: boolean; standardFlow?: boolean; advancedOverrideUsed?: boolean; broadJql: string }) => Promise<Record<string, unknown>>;
-      fullFetch: (payload: { connection: JiraConnection; fetchQueue: unknown[]; rawDataMode: "auto_save_raw_per_issue"; selectedUser: string; startDate: string; endDate: string; jql: string; candidateIssues: unknown[]; selectedIssues: string[]; relatedIssuesStatus: string; fetchRemoteLinks: boolean; directIssueKeys: string[] }) => Promise<Record<string, unknown>>;
+      fullFetchPreflight: (payload: { fetchQueue: unknown[]; selectedTimelineRunId: string; queueTimelineRunId: string }) => Promise<Record<string, unknown>>;
+      fullFetch: (payload: { connection: JiraConnection; fetchQueue: unknown[]; attemptId?: string; selectedTimelineRunId?: string; queueTimelineRunId?: string; rawDataMode: "auto_save_raw_per_issue"; selectedUser: string; startDate: string; endDate: string; jql: string; candidateIssues: unknown[]; selectedIssues: string[]; relatedIssuesStatus: string; fetchRemoteLinks: boolean; directIssueKeys: string[] }) => Promise<Record<string, unknown>>;
         getActiveFullFetchRun: () => Promise<Record<string, unknown> | null>;
         getFullFetchRunStatus: (runId: string) => Promise<Record<string, unknown> | null>;
         previewSourceArchive: (payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => Promise<Record<string, unknown>>;

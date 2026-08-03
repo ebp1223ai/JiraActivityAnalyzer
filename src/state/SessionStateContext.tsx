@@ -465,7 +465,7 @@ export type UserAnalysisFullFetchSummary = {
   archiveEligible?: boolean;
   archiveBlockedReasons?: string[];
   countReconciliationPassed?: boolean;
-  countReconciliation?: Record<string, unknown>;
+  countReconciliation?: Record<string, unknown> | "NOT_RUN";
   issueKeyReconciliation?: IssueKeySetReconciliation;
   totalChangelogHistories: number;
   totalChangelogItems: number;
@@ -661,9 +661,12 @@ export type UserAnalysisSessionState = {
   lastSavedCandidateRawDataPath: string;
   lastSavedExportFolderPath: string;
   fullFetchRunId: string;
+  fullFetchAttemptId: string;
+  fetchQueueTimelineRunId: string;
+  fullFetchPreflight: { status: "checking" | "eligible" | "blocked"; reasonCode: string; reasonMessage: string; queueTotal: number } | null;
   fullFetchStartedAt: string;
   fullFetchFinishedAt: string;
-  fullFetchStatus: "idle" | "running" | "cancel_requested" | "cancelled" | "completed" | "completed_with_partial" | "completed_with_errors" | "failed" | "failed_final" | "aborted_on_restart" | "discarded";
+  fullFetchStatus: "idle" | "preflight_blocked" | "running" | "cancel_requested" | "cancelled" | "completed" | "completed_with_partial" | "completed_with_errors" | "failed" | "failed_final" | "aborted_on_restart" | "discarded";
   fullFetchSummary: UserAnalysisFullFetchSummary;
   jiraEvidenceSummary: JiraEvidenceSummary | null;
   fullFetchWarnings: string[];
@@ -952,6 +955,9 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   lastSavedCandidateRawDataPath: "",
   lastSavedExportFolderPath: "",
   fullFetchRunId: "",
+  fullFetchAttemptId: "",
+  fetchQueueTimelineRunId: "",
+  fullFetchPreflight: null,
   fullFetchStartedAt: "",
   fullFetchFinishedAt: "",
   fullFetchStatus: "idle",

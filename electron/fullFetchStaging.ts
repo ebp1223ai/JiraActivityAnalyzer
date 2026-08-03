@@ -40,6 +40,9 @@ export type OptionalEndpointState = "available" | "unsupported" | "permission_de
 export type OptionalEndpointStatus = { enabled: boolean; status: OptionalEndpointState; archiveBlocking: false; retryable: false; warning: string | null; httpStatus: number | "-" | null; errorCode: string; attemptCount: number; fetchedAt: string | null };
 export type FullFetchRunContext = {
   fullFetchRunId: string;
+  attemptId?: string;
+  selectedTimelineRunId?: string;
+  queueTimelineRunId?: string;
   stagingId: string;
   selectedUser: string;
   projectScope: string;

@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { ConnectionEnvStatus, ConnectionStatePayload, JiraConnection } from "../types/connection";
+import type { ConnectionEnvStatus, ConnectionStatePayload, JiraConnection, JiraConnectionState } from "../types/connection";
 import type { RuntimeState } from "../types/runtime";
 
 type ConnectionContextValue = {
   activeConnection: JiraConnection | null;
   savedConnections: JiraConnection[];
   envStatus: ConnectionEnvStatus | null;
+  jiraState: JiraConnectionState | null;
   reloadEnv: () => Promise<ConnectionStatePayload | null>;
   chooseEnv: () => Promise<{ canceled: boolean; state: ConnectionStatePayload } | null>;
   testConnection: (connection: JiraConnection) => Promise<{ connection: JiraConnection; logs: string[]; result: unknown } | null>;
@@ -17,11 +18,13 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
   const [activeConnection, setActiveConnectionState] = useState<JiraConnection | null>(null);
   const [savedConnections, setSavedConnections] = useState<JiraConnection[]>([]);
   const [envStatus, setEnvStatus] = useState<ConnectionEnvStatus | null>(null);
+  const [jiraState, setJiraState] = useState<JiraConnectionState | null>(null);
 
   function applyState(payload: ConnectionStatePayload) {
     setActiveConnectionState(payload.activeConnection);
     setSavedConnections(payload.connections);
     setEnvStatus(payload.env);
+    setJiraState(payload.jiraState);
     return payload;
   }
 
@@ -45,23 +48,25 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
   async function testConnection(connection: JiraConnection) {
     const result = await window.desktopApp?.connections?.test?.(connection);
     if (!result) return null;
-    setActiveConnectionState((current) => current?.id === result.connection.id ? result.connection : current);
-    setSavedConnections((current) => current.map((item) => item.id === result.connection.id ? result.connection : item));
+    if (result.state) applyState(result.state);
     return result;
   }
 
   useEffect(() => {
     void refreshList();
+    const unsubscribe = window.desktopApp?.connections?.onStateChanged?.((state) => applyState(state));
+    return () => unsubscribe?.();
   }, []);
 
   const value = useMemo(() => ({
     activeConnection,
     savedConnections,
     envStatus,
+    jiraState,
     reloadEnv,
     chooseEnv,
     testConnection
-  }), [activeConnection, envStatus, savedConnections]);
+  }), [activeConnection, envStatus, jiraState, savedConnections]);
 
   return <ConnectionContext.Provider value={value}>{children}</ConnectionContext.Provider>;
 }

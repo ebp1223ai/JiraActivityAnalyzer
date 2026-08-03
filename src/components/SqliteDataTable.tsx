@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronsUpDown, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Filter, RotateCcw, Settings2, X } from "lucide-react";
 import type { ViewerDistinctResult, ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
 import type { ViewerTableSessionState } from "../types/databaseViewer";
@@ -42,13 +42,14 @@ type Props = {
   sessionState?: ViewerTableSessionState;
   onSessionStateChange?: (state: ViewerTableSessionState) => void;
   getRowId?: (row: Record<string, unknown>) => string;
+  renderExpandedRow?: (row: Record<string, unknown>, context: SqliteTableRenderContext) => ReactNode;
 };
 
 function text(value: unknown) {
   return value === undefined || value === null || value === "" ? "—" : String(value);
 }
 
-export function SqliteDataTable({ tableId = "sqlite-table", columns, result, query, loading, error, onQueryChange, loadDistinct, preferences, onPreferencesChange, sessionState, onSessionStateChange, getRowId = stableViewerRowId }: Props) {
+export function SqliteDataTable({ tableId = "sqlite-table", columns, result, query, loading, error, onQueryChange, loadDistinct, preferences, onPreferencesChange, sessionState, onSessionStateChange, getRowId = stableViewerRowId, renderExpandedRow }: Props) {
   const normalized = useMemo(() => normalizeTablePreferences(preferences, columns.map((column) => ({ id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))), [columns, preferences]);
   const normalizedSession = useMemo(() => normalizeViewerTableSession(sessionState), [sessionState]);
   const [filterColumn, setFilterColumn] = useState("");
@@ -177,7 +178,7 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
           <tbody>
             {loading ? <tr><td colSpan={shown.length} className="h-1 bg-blue-500 p-0" aria-label="Loading table rows" /></tr> : null}
             {!loading && !result.rows.length ? <tr><td colSpan={shown.length} className="p-10 text-center font-bold text-muted">找不到符合篩選條件的資料 / No matching records</td></tr> : null}
-            {result.rows.map((row, rowIndex) => { const rowId = getRowId(row); const expanded = rowId ? normalizedSession.expandedRowIds.includes(rowId) : false; const context: SqliteTableRenderContext = { rowId, expanded, setExpanded: (value) => rowId && onSessionStateChange?.(setViewerRowExpanded(normalizedSession, rowId, value)) }; return <tr key={rowId || `unidentified-${rowIndex}`} className="border-b border-line last:border-0 hover:bg-blue-50/30">{shown.map((column) => <td key={column.id} className="max-w-0 px-3 py-2 align-top">{column.render ? column.render(row, context) : <span className="block truncate" title={text(row[column.id])}>{text(row[column.id])}</span>}</td>)}</tr>; })}
+            {result.rows.map((row, rowIndex) => { const rowId = getRowId(row); const expanded = rowId ? normalizedSession.expandedRowIds.includes(rowId) : false; const context: SqliteTableRenderContext = { rowId, expanded, setExpanded: (value) => rowId && onSessionStateChange?.(setViewerRowExpanded(normalizedSession, rowId, value)) }; return <Fragment key={rowId || `unidentified-${rowIndex}`}><tr className="activity-event-summary-row border-b border-line last:border-0 hover:bg-blue-50/30">{shown.map((column) => <td key={column.id} className="max-w-0 px-3 py-2 align-top">{column.render ? column.render(row, context) : <span className="block truncate" title={text(row[column.id])}>{text(row[column.id])}</span>}</td>)}</tr>{expanded && renderExpandedRow ? <tr className="activity-event-detail-row border-b border-line bg-slate-50/70"><td className="min-w-0 max-w-0 p-3" colSpan={shown.length}>{renderExpandedRow(row, context)}</td></tr> : null}</Fragment>; })}
           </tbody>
         </table>
       </div>

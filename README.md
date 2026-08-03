@@ -1,6 +1,14 @@
 # Jira Activity Analyzer
 
-> v0.2.53 implements Single Full Fetch Completeness & Content/Diff Viewer. Worklogs are fetched independently through the read-only Jira API, validated as a required source, stored in Current-State schema v3, and surfaced with precise content provenance.
+> v0.2.55 implements run-bound Full Fetch preflight and attempt correctness, current-attempt Debug Folder evidence, shared full-width Activity Event details, Comment-specific display, and authoritative Jira connection hydration. SQLite schema and Event Identity Policy remain v3.
+
+## v0.2.55 Full Fetch Workflow Correctness & Unified Diff Viewer UX
+
+- **Run-bound Full Fetch:** eligibility follows the selected standard Timeline Run and its canonical rounds, merge, and reconciliation. Advanced Probe state cannot block it.
+- **Attempt correctness:** blocked preflight preserves the immutable Queue, records an attempt ID, reports NOT_RUN reconciliation, and never borrows historical staging.
+- **Unified Viewer:** Issue/User Activity Events share a full-width detail row and stable expansion identity.
+- **Comment display:** CREATE, UPDATE, and neutral COMMENT show current full content without constructing previous revisions or invoking text diff.
+- **Connection state:** startup and manual Jira checks hydrate all subscribers from Electron main.
 
 ## v0.2.53 Single Full Fetch Completeness & Content/Diff Viewer
 

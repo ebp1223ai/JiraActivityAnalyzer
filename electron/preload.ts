@@ -21,7 +21,12 @@ contextBridge.exposeInMainWorld("desktopApp", {
     loadEnv: () => ipcRenderer.invoke("connection:load-env"),
     chooseEnv: () => ipcRenderer.invoke("connection:choose-env"),
     list: () => ipcRenderer.invoke("connection:list"),
-    test: (connection: unknown) => ipcRenderer.invoke("connection:test", connection)
+    test: (connection: unknown) => ipcRenderer.invoke("connection:test", connection),
+    onStateChanged: (callback: (state: unknown) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, state: unknown) => callback(state);
+      ipcRenderer.on("connection-state:changed", listener);
+      return () => ipcRenderer.removeListener("connection-state:changed", listener);
+    }
   },
   runtime: {
     getState: () => ipcRenderer.invoke("runtime:get-state"),
@@ -87,6 +92,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
     },
     activityStreamManualReplay: (payload: unknown) => ipcRenderer.invoke("user-analysis:activity-stream-manual-replay", payload),
     precisionProbe: (payload: unknown) => ipcRenderer.invoke("user-analysis:precision-probe", payload),
+    fullFetchPreflight: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch-preflight", payload),
     fullFetch: (payload: unknown) => ipcRenderer.invoke("user-analysis:full-fetch", payload),
     getActiveFullFetchRun: () => ipcRenderer.invoke("user-analysis:get-active-full-fetch-run"),
     getFullFetchRunStatus: (runId: string) => ipcRenderer.invoke("user-analysis:get-full-fetch-run-status", { runId }),

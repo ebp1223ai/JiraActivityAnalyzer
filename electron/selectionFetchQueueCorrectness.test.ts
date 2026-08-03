@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { createActivityTimelineRunContext, validateActivityTimelineRunContext } from "./activityTimelineRunContext.js";
 import { preflightFullFetchQueue } from "./fullFetchPreflight.js";
 import {
   buildTimelineQueueTransition,
@@ -149,8 +150,23 @@ assert.deepEqual(outcomeMismatch.differences.multiOutcomeKeys, ["A-1"]);
 const root = process.cwd();
 const analysisSource = fs.readFileSync(path.join(root, "src", "routes", "AnalysisPage.tsx"), "utf8");
 const mainSource = fs.readFileSync(path.join(root, "electron", "main.ts"), "utf8");
+const timelineRunContext = createActivityTimelineRunContext({
+  sessionId: "selection-session-1",
+  runId: "selection-run-1",
+  selectedUser: "test.user",
+  selectedStartDate: "2026-07-01",
+  selectedEndDate: "2026-07-23",
+  createdAt: "2026-07-23T00:00:00.000Z"
+});
+assert.equal(validateActivityTimelineRunContext(timelineRunContext).runId, "selection-run-1");
+assert.deepEqual(timelineRunContext.requestWindows, [
+  { windowId: "month-001", start: "2026-07-01", end: "2026-07-23" }
+]);
+assert.equal(timelineRunContext.roundExecutionMode, "force_all_rounds");
+assert.equal(timelineRunContext.fullScanRounds, 3);
 assert.equal(analysisSource.includes('data-testid="analysis-setup-project"'), false);
-assert.match(analysisSource, /buildActivityTimeline\(\{ connection: activeConnection, selectedUser:[\s\S]*?startDate:[\s\S]*?endDate:[\s\S]*?requestWindow:/);
+assert.match(analysisSource, /createActivityTimelineRunContext\(\{[\s\S]*?selectedUser:[\s\S]*?selectedStartDate:[\s\S]*?selectedEndDate:/);
+assert.match(analysisSource, /buildActivityTimeline\(\{[\s\S]*?connection: activeConnection,[\s\S]*?runContext[\s\S]*?\}\)/);
 assert.match(mainSource, /ActivityStreamStabilityConfigV2 = \{[\s\S]*?projectScope: ""/);
 
 console.log("v0.2.34 Selection / Fetch Queue correctness tests passed.");

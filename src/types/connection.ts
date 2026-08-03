@@ -1,6 +1,7 @@
 export type ConnectionAuthType = "basic" | "bearer";
 export type ConnectionApiVersion = "auto" | "v3" | "v2";
-export type ConnectionStatus = "connected" | "failed" | "not_tested";
+export type ConnectionStatus = "connected" | "failed" | "not_tested" | "testing" | "offline";
+export type JiraConnectionState = { status: ConnectionStatus; serverUrl: string | null; testedAt: string | null; errorCode: string | null; source: "startup" | "manual" | "restored"; sequence: number };
 export type TokenSource = "env" | "session" | "encrypted-store";
 
 export type JiraConnection = {
@@ -37,4 +38,5 @@ export type ConnectionStatePayload = {
   activeConnectionId: string;
   activeConnection: JiraConnection;
   connections: JiraConnection[];
+  jiraState: JiraConnectionState;
 };

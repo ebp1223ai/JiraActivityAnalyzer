@@ -1,3 +1,11 @@
+## 0.2.55 - Full Fetch Workflow Correctness & Unified Diff Viewer UX
+
+- Bound Full Fetch eligibility, preflight, attempt identity, staging and Debug Folder evidence to the selected canonical standard Timeline Run; Advanced Stability Probe is diagnostic-only.
+- Preserved blocked Fetch Queues and reported PRE_FLIGHT_BLOCKED with zero attempts and NOT_RUN reconciliation instead of a false failed run.
+- Added shared full-width Activity Event detail rows for Issue/User Viewer and dedicated CREATE/UPDATE/COMMENT rendering without previous Comment revision inference.
+- Hydrated renderer connection UI from one Electron-main authoritative Jira state with startup/manual subscription updates.
+- Kept Current-State SQLite schema v3 and Event Identity Policy v3; no Comment history, Development Mode work, Jira writes or dependency upgrades were added.
+
 ## 0.2.54 - Development Manual Verification Candidate
 
 - Promoted the v0.2.53 Worklog, content display, Diff Viewer, schema-v3 migration, event-identity-v3, deduplication, and Complete/Partial save-gate baseline for Electron Development Mode manual verification.

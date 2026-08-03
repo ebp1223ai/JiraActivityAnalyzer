@@ -1,8 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { normalizeActivityChange } from "../utils/normalizedChange";
-import { ContentDiffViewer } from "./ContentDiffViewer";
-import { SectionErrorBoundary } from "./SectionErrorBoundary";
+import { activityEventDisplayPolicy } from "../utils/activityEventDisplayPolicy";
 
 type Props = {
   row: Record<string, unknown>;
@@ -10,37 +8,25 @@ type Props = {
   onExpandedChange?: (expanded: boolean) => void;
 };
 
-export function DiffCell({ row, expanded: controlledExpanded, onExpandedChange }: Props) {
-  const [localExpanded, setLocalExpanded] = useState(false);
-  const expanded = controlledExpanded ?? localExpanded;
-  const change = useMemo(() => normalizeActivityChange(row), [row]);
-  const result = change.contentDisplay;
-  const setExpanded = (value: boolean) => {
-    if (onExpandedChange) onExpandedChange(value);
-    else setLocalExpanded(value);
-  };
-  if (result.mode === "empty" || result.mode === "parse_failed" || result.mode === "not_applicable") {
-    return <span className="text-muted" aria-label="No content">—</span>;
-  }
-  if (result.mode === "latest_content") {
-    const value = result.displayText ?? "—";
-    const long = value.length > 180 || value.includes("\n");
-    return (
-      <div className="min-w-0 text-xs leading-relaxed">
-        {!expanded ? <div className="line-clamp-4 whitespace-pre-wrap break-words text-slate-800" title={value}>{value}</div> : <ContentDiffViewer result={result} segments={[]} />}
-        {long ? <button className="mt-1 inline-flex items-center gap-1 font-bold text-blue-700" type="button" onClick={() => setExpanded(!expanded)}>{expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}{expanded ? "收合完整內容" : "查看完整內容"}</button> : null}
-      </div>
-    );
-  }
-  const segments = change.diff ?? [];
+export function DiffCell({ row, expanded = false, onExpandedChange }: Props) {
+  const policy = useMemo(() => activityEventDisplayPolicy(row), [row]);
+  const label = policy.kind === "comment" ? `${policy.operation} Comment` : "Diff preview";
   return (
-    <SectionErrorBoundary context="activity-diff" safeText={`${result.beforeText ?? ""}\n${result.afterText ?? ""}`}>
-      <div className="min-w-0 text-xs leading-relaxed">
-        {!expanded ? <div className="space-y-1">
-          {(segments.length ? segments.slice(0, 4) : [{ kind: "same" as const, text: result.afterText ?? "—" }]).map((segment, index) => <div key={`${segment.kind}-${index}`} className={`max-w-full whitespace-pre-wrap break-words rounded px-2 py-1 ${segment.kind === "added" ? "bg-emerald-50 text-emerald-800" : segment.kind === "removed" ? "bg-rose-50 text-rose-800 line-through" : "bg-slate-50 text-slate-700"}`}>{segment.text}</div>)}
-        </div> : <ContentDiffViewer result={result} segments={segments} />}
-        <button className="mt-1 inline-flex items-center gap-1 font-bold text-blue-700" type="button" onClick={() => setExpanded(!expanded)}>{expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}{expanded ? "收合 Diff Viewer" : "開啟 Diff Viewer"}</button>
+    <div className="min-w-0 text-xs leading-relaxed">
+      <div className="mb-1 flex items-start gap-2">
+        {policy.operation ? <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-black">{policy.operation}</span> : null}
+        <span className="line-clamp-2 min-w-0 break-words" title={policy.content}>{policy.preview || "View event details"}</span>
       </div>
-    </SectionErrorBoundary>
+      <button
+        className="inline-flex items-center gap-1 font-bold text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+        type="button"
+        aria-expanded={expanded}
+        aria-label={`${expanded ? "Collapse" : "View"} ${label}`}
+        onClick={() => onExpandedChange?.(!expanded)}
+      >
+        {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        {expanded ? "收合詳細資料" : "查看詳細資料"}
+      </button>
+    </div>
   );
 }
