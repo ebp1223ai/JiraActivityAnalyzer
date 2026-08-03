@@ -1,0 +1,162 @@
+﻿{
+  "schemaVersion": "execution_time_ledger_v1",
+  "version": "0.2.56",
+  "timezone": "Asia/Taipei",
+  "wallClock": {
+    "startedAt": "2026-08-03T13:10:44+08:00",
+    "endedAt": "2026-08-03T13:52:00+08:00",
+    "durationSeconds": 2476
+  },
+  "preLedgerActions": [
+    {
+      "action": "Read v0.2.56 implementation prompt",
+      "reason": "Ledger requirement was contained in the prompt and could only be known after reading it",
+      "durationSeconds": 0.3
+    }
+  ],
+  "environment": {
+    "os": "Windows_NT 10.0.26100 x64",
+    "git": "2.52.0.windows.1",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3"
+  },
+  "categories": {
+    "promptAndRulesSeconds": 85,
+    "repositoryInspectionSeconds": 130,
+    "rootCauseInvestigationSeconds": 330,
+    "implementationSeconds": 720,
+    "focusedTestsAndRetriesSeconds": 315,
+    "typecheckAndBuildSeconds": 45,
+    "packagingAndSmokeSeconds": 260,
+    "artifactAuditSeconds": 150,
+    "documentationAndAuditSeconds": 441,
+    "waitingSeconds": 0
+  },
+  "commands": [
+    {
+      "command": "Read JiraActivityAnalyzer_v0.2.56_Full_Fetch_Result_Stale_Fix_Codex_Prompt.md",
+      "durationSeconds": 0.3,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "Pre-ledger action; exact timestamp unavailable"
+    },
+    {
+      "command": "apply_patch (initial edit attempt)",
+      "exitCode": 1,
+      "status": "retried",
+      "note": "Windows ACL helper failed; edits continued with safe anchored replacements"
+    },
+    {
+      "command": "npm.cmd run typecheck (initial)",
+      "exitCode": 2,
+      "status": "failed",
+      "note": "Two nullable state.finishedAt errors; implementation corrected"
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "durationSeconds": 8.8,
+      "exitCode": 0,
+      "status": "passed"
+    },
+    {
+      "command": "v0.2.56 focused test (first run)",
+      "exitCode": 1,
+      "status": "failed",
+      "note": "All 24 assertions passed but expected count was incorrectly set to 25; metadata corrected"
+    },
+    {
+      "command": "v0.2.56 chain with obsolete v0.2.38 fixture",
+      "exitCode": 1,
+      "status": "failed",
+      "note": "Legacy fixture correctly hit LEGACY_DATABASE_READ_ONLY; chain replaced by current regressions"
+    },
+    {
+      "command": "v0.2.56 chain with v0.2.55 source assertion",
+      "exitCode": 1,
+      "status": "failed",
+      "note": "Assertion expected removed global latest staging; updated to authoritative registry contract"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.56",
+      "durationSeconds": 2.3,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "v0.2.56 24/24 plus v0.2.41, v0.2.53 and v0.2.55 regression"
+    },
+    {
+      "command": "npm.cmd run build",
+      "durationSeconds": 20.8,
+      "exitCode": 0,
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "durationSeconds": 0.5,
+      "exitCode": 0,
+      "status": "passed"
+    },
+    {
+      "command": "source staged sensitive-value diff scan",
+      "exitCode": 0,
+      "status": "passed"
+    },
+    {
+      "command": "git commit -m 'fix: resolve full fetch result from authoritative run state'",
+      "exitCode": 0,
+      "status": "passed",
+      "note": "5195b493e780b94f4e98eb51b4114a3118200247"
+    },
+    {
+      "command": "npm.cmd run dist (detached clean worktree)",
+      "durationSeconds": 92.1,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "electron-builder emitted non-fatal transitive dependency path warnings"
+    },
+    {
+      "command": "npm.cmd run audit:package-size -- v0.2.56 test-artifacts/package-size-v0.2.56.json",
+      "durationSeconds": 1.4,
+      "exitCode": 0,
+      "status": "passed"
+    },
+    {
+      "command": "ASAR and release artifact audit",
+      "durationSeconds": 3.2,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "2076 entries; no sensitive/runtime data and no external native module"
+    },
+    {
+      "command": "win-unpacked short offline packaged smoke",
+      "durationSeconds": 16.1,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "Renderer did-finish-load observed"
+    },
+    {
+      "command": "Portable short offline packaged smoke",
+      "durationSeconds": 12.9,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "Renderer did-finish-load observed; only processes created by this launch were closed"
+    },
+    {
+      "command": "Copy verified v0.2.56 artifacts into main release directory",
+      "durationSeconds": 3.7,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "Existing win-unpacked preserved as win-unpacked-v0.2.55; release/.env untouched"
+    },
+    {
+      "command": "Main release SHA-256 and Build Info verification",
+      "durationSeconds": 2,
+      "exitCode": 0,
+      "status": "passed"
+    }
+  ],
+  "excludedFromLedger": [
+    "Final report commit and network push occur after this tracked ledger is finalized; their result is reported in the task final response."
+  ]
+}
