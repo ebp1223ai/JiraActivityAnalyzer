@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "execution_time_ledger_v1",
+  "version": "0.2.57",
+  "timezone": "Asia/Taipei",
+  "wallClock": {
+    "startedAt": "2026-08-03T15:08:26.9163957+08:00",
+    "endedAt": "2026-08-03T15:51:16.4686320+08:00",
+    "durationSeconds": 2569.552
+  },
+  "preLedgerActions": [
+    {
+      "action": "Read v0.2.57 implementation prompt",
+      "reason": "The ledger requirement was contained in the prompt and could only be known after reading it",
+      "durationSeconds": 0.5
+    }
+  ],
+  "environment": {
+    "os": "Windows_NT 10.0.26100 x64",
+    "git": "2.52.0.windows.1",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3"
+  },
+  "categories": {
+    "promptAndRulesSeconds": 90,
+    "repositoryInspectionSeconds": 210,
+    "rootCauseInvestigationSeconds": 300,
+    "implementationSeconds": 700,
+    "focusedTestsAndRetriesSeconds": 430,
+    "typecheckAndBuildSeconds": 70,
+    "packagingAndSmokeSeconds": 125,
+    "artifactAuditSeconds": 80,
+    "documentationAndAuditSeconds": 564.552,
+    "waitingSeconds": 0
+  },
+  "commands": [
+    {
+      "command": "Read JiraActivityAnalyzer_v0.2.57_Full_Fetch_Identity_Lifecycle_Idempotent_Save_Repair_Codex_Prompt.md and Master Requirements",
+      "durationSeconds": 0.5,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "Prompt read is a pre-ledger action"
+    },
+    {
+      "command": "apply_patch attempts",
+      "exitCode": 1,
+      "status": "retried",
+      "note": "Windows sandbox ACL helper could not read workspace files; exact anchored UTF-8 replacements were used instead"
+    },
+    {
+      "command": "npm.cmd run typecheck (initial implementation)",
+      "durationSeconds": 11.2,
+      "exitCode": 1,
+      "status": "failed",
+      "note": "Two new Step5 action names were absent from the closed union; union corrected"
+    },
+    {
+      "command": "npm.cmd run typecheck (retry)",
+      "durationSeconds": 8.1,
+      "exitCode": 0,
+      "status": "passed"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.57 (first run)",
+      "durationSeconds": 1.3,
+      "exitCode": 1,
+      "status": "failed",
+      "note": "Source assertion expected a variable name not used by production; assertion changed to the actual explicit identity object"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.57 (second run)",
+      "durationSeconds": 1.3,
+      "exitCode": 1,
+      "status": "failed",
+      "note": "v0.2.56 renderer assertion still expected an inline mutable identity; updated to completed-result identity"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.57 (focused retry)",
+      "durationSeconds": 2.5,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "v0.2.57 56/56 plus v0.2.56, v0.2.41, v0.2.53, and v0.2.55 regressions"
+    },
+    {
+      "command": "npm.cmd run typecheck (source gate)",
+      "durationSeconds": 7.216,
+      "exitCode": 0,
+      "status": "passed"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.57 (source gate)",
+      "durationSeconds": 1.84,
+      "exitCode": 0,
+      "status": "passed"
+    },
+    {
+      "command": "npm.cmd run build (source gate)",
+      "durationSeconds": 17.34,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "Vite emitted the existing non-fatal large-chunk warning"
+    },
+    {
+      "command": "git diff --check (source gate first attempt)",
+      "durationSeconds": 0.111,
+      "exitCode": 2,
+      "status": "failed",
+      "note": "One trailing-whitespace line was removed"
+    },
+    {
+      "command": "git diff --check (retry)",
+      "durationSeconds": 0.5,
+      "exitCode": 0,
+      "status": "passed"
+    },
+    {
+      "command": "staged source sensitive-value scan",
+      "durationSeconds": 1,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "No credential-like literal detected; token.txt and existing user files were not staged or read"
+    },
+    {
+      "command": "git commit -m 'fix: repair full fetch identity lifecycle and idempotent save'",
+      "durationSeconds": 0.7,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "a4485b1ffa4368d406f06ea0acfbbde6778e2d71"
+    },
+    {
+      "command": "npm.cmd run dist (detached clean source worktree)",
+      "durationSeconds": 82.275,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "Installer, Portable and win-unpacked generated; electron-builder transitive dependency path warning was non-fatal"
+    },
+    {
+      "command": "npm.cmd run audit:package-size",
+      "durationSeconds": 2,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "unexpectedCount=0"
+    },
+    {
+      "command": "win-unpacked short offline packaged smoke",
+      "durationSeconds": 8.421,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "Four tracked processes remained alive after six seconds; launched process tree was terminated"
+    },
+    {
+      "command": "Portable short offline packaged smoke",
+      "durationSeconds": 8.633,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "Five tracked processes and one application window remained after six seconds; launched process tree was terminated"
+    },
+    {
+      "command": "Copy verified v0.2.57 artifacts to main release",
+      "durationSeconds": 2.2,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "Existing win-unpacked preserved as win-unpacked-v0.2.56; release/.env untouched"
+    },
+    {
+      "command": "ASAR content and artifact SHA-256 audit",
+      "durationSeconds": 0.9,
+      "exitCode": 0,
+      "status": "passed",
+      "note": "2076 entries; no env/token/database/debug/staging/source-archive/native-node entries"
+    }
+  ],
+  "excludedFromLedger": [
+    "The verification/report commit and network push occur after this ledger is finalized; their results are reported in the task final response.",
+    "True Jira Full Fetch, true SQLite save/repeat-save, full GUI navigation, and Installer install/uninstall were not run."
+  ]
+}
