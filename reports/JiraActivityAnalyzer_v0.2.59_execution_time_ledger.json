@@ -1,0 +1,329 @@
+{
+  "schemaVersion": "execution_time_ledger_v1",
+  "version": "0.2.59",
+  "timezone": "Asia/Taipei",
+  "wallClock": {
+    "startedAt": "2026-08-04T10:42:26.9005863+08:00",
+    "endedAt": "2026-08-04T11:30:02.4399667+08:00",
+    "durationSeconds": 2855.539,
+    "activeObservedSeconds": 2855.539,
+    "waitingForUserSeconds": 0
+  },
+  "preLedgerActions": [
+    {
+      "action": "Read v0.2.59 implementation prompt",
+      "reason": "The ledger requirement became known only after the prompt was read; the first reliable timestamp was recorded immediately afterward.",
+      "durationSeconds": null
+    }
+  ],
+  "environment": {
+    "os": "Windows_NT 10.0.26100 x64",
+    "git": "2.52.0.windows.1",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3"
+  },
+  "baseline": {
+    "repository": "F:\\AI\\JiraActivityAnalyzer",
+    "branch": "feat/v0.2.59-description-diff-source-identity-hunk-rendering-correctness",
+    "baselineCommit": "c843bf5ae495819c10e25a976335a23fd157f6d9",
+    "v0258SourceCommit": "36375920ee1a8913b24bbb4718fff7deb91933a5",
+    "sourceCommit": "fa8341421df6df880e3224fb53d042cd17655ba6",
+    "schemaVersion": 3
+  },
+  "phases": [
+    {
+      "name": "Prompt/rules and baseline inspection",
+      "durationSeconds": null,
+      "note": "Performed before context compaction; exact phase duration was not retained and is not reconstructed."
+    },
+    {
+      "name": "Root-cause trace and red fixtures",
+      "durationSeconds": null,
+      "note": "Located generic jira_native_source_id-to-commentId projection and established synthetic failures."
+    },
+    {
+      "name": "Identity, diff engine, IPC and renderer implementation",
+      "durationSeconds": null,
+      "note": "Exact phase duration unavailable after context compaction."
+    },
+    {
+      "name": "Primary dependency recovery",
+      "durationSeconds": 126.1
+    },
+    {
+      "name": "Clean packaging dependency install",
+      "durationSeconds": 119.3
+    },
+    {
+      "name": "Windows dist",
+      "durationSeconds": 169.2
+    },
+    {
+      "name": "Targeted packaged smoke",
+      "durationSeconds": 28.9
+    },
+    {
+      "name": "Package/ASAR audit",
+      "durationSeconds": 5
+    },
+    {
+      "name": "Evidence documentation",
+      "durationSeconds": null,
+      "note": "Completed within wall-clock; exact isolated duration not guessed."
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm.cmd run test:v0.2.59",
+      "exitCode": 1,
+      "status": "failed",
+      "durationSeconds": null,
+      "note": "Initial environment failure: esbuild unavailable before npm ci."
+    },
+    {
+      "command": "npm.cmd ci (primary worktree)",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 126.1,
+      "note": "Restored 499 lockfile packages; existing 9 audit findings, no upgrade."
+    },
+    {
+      "command": "npm.cmd run test:v0.2.59",
+      "exitCode": 1,
+      "status": "red-fixture",
+      "durationSeconds": null,
+      "note": "Expected failure before shared/descriptionDiff.ts existed."
+    },
+    {
+      "command": "npm.cmd run test:v0.2.59",
+      "exitCode": 1,
+      "status": "red-fixture",
+      "durationSeconds": null,
+      "note": "Engine/data assertions reached the expected missing DescriptionDiffCell integration."
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "exitCode": 1,
+      "status": "fixed",
+      "durationSeconds": 6.3,
+      "note": "Intl.Segmenter lib typing fixed with local feature-detection interface."
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "exitCode": 1,
+      "status": "fixed",
+      "durationSeconds": 8.3,
+      "note": "Electron rootDir and row typing/new signature integration fixed."
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 7.8
+    },
+    {
+      "command": "npm.cmd run test:v0.2.59",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 0.8
+    },
+    {
+      "command": "npm.cmd run test:integration",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 0.671
+    },
+    {
+      "command": "npm.cmd run test:v0.2.58",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 0.706
+    },
+    {
+      "command": "npm.cmd run test:v0.2.57",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 1.329,
+      "note": "Includes inherited v0.2.56/v0.2.41/v0.2.53/v0.2.55 checks."
+    },
+    {
+      "command": "npm.cmd run test:v0.2.56",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 1.15
+    },
+    {
+      "command": "npm.cmd run test:v0.2.53",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 0.724
+    },
+    {
+      "command": "npm.cmd run test:v0.2.51",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 0.47
+    },
+    {
+      "command": "npm.cmd run test:ledger",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 0.424,
+      "note": "Repository validator checks the existing v0.2.45 ledger contract."
+    },
+    {
+      "command": "npm.cmd run build",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 16.5,
+      "note": "Existing non-fatal Vite large-chunk warning."
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 0.5
+    },
+    {
+      "command": "npm.cmd run test:v0.2.45",
+      "exitCode": 1,
+      "status": "known-unrelated-failure",
+      "durationSeconds": 0.9,
+      "note": "Optional extra check failed on pre-existing Remote Links (Locked) source-text assertion. Test expectation was not modified."
+    },
+    {
+      "command": "npm.cmd run typecheck && npm.cmd run test:v0.2.59",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 9.3,
+      "note": "Final compatibility rerun."
+    },
+    {
+      "command": "git commit -m 'fix: correct v0.2.59 description diff identity and hunks'",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 0.7,
+      "note": "fa8341421df6df880e3224fb53d042cd17655ba6"
+    },
+    {
+      "command": "git worktree add --detach test-artifacts/v0259-package fa83414",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 1.1
+    },
+    {
+      "command": "npm.cmd ci (detached clean worktree)",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 119.3,
+      "note": "499 packages; no dependency upgrade."
+    },
+    {
+      "command": "npm.cmd run dist (detached clean source worktree)",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 169.2,
+      "note": "Installer, Portable and win-unpacked generated from exact source commit."
+    },
+    {
+      "command": "node scripts/audit-package-size.cjs v0.2.59",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 2,
+      "note": "unexpectedCount=0; Top 50 files and Top 20 directories generated."
+    },
+    {
+      "command": "win-unpacked short offline renderer launch via DevTools endpoint",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 1.4,
+      "note": "Local app.asar renderer loaded; no screenshot."
+    },
+    {
+      "command": "Portable short offline renderer launch via DevTools endpoint",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 27.5,
+      "note": "Title v0.2.59 and local app.asar #/database loaded; no screenshot."
+    },
+    {
+      "command": "ASAR required-file/sensitive-path/SHA-256 audit",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 1,
+      "note": "4,681 entries; required 4/4; unexpected sensitive paths 0."
+    },
+    {
+      "command": "Copy clean-source artifacts to main ignored release directory",
+      "exitCode": 0,
+      "status": "passed",
+      "durationSeconds": 2.1
+    }
+  ],
+  "failuresAndRetries": [
+    {
+      "failure": "Missing esbuild in primary node_modules",
+      "resolution": "npm ci from unchanged lockfile",
+      "finalStatus": "passed"
+    },
+    {
+      "failure": "Red fixture missing shared engine/component",
+      "resolution": "Implemented production engine and renderer integration",
+      "finalStatus": "passed"
+    },
+    {
+      "failure": "Intl.Segmenter/rootDir/row TypeScript integration",
+      "resolution": "Local typing, project rootDir and explicit row contracts",
+      "finalStatus": "passed"
+    },
+    {
+      "failure": "Optional v0.2.45 UI text assertion",
+      "resolution": "Not changed; recorded as unrelated inherited assertion",
+      "finalStatus": "not_applicable_to_required_gate"
+    }
+  ],
+  "topFiveObservedDurations": [
+    {
+      "name": "Windows dist",
+      "seconds": 169.2
+    },
+    {
+      "name": "Primary npm ci",
+      "seconds": 126.1
+    },
+    {
+      "name": "Clean packaging npm ci",
+      "seconds": 119.3
+    },
+    {
+      "name": "Portable targeted launch",
+      "seconds": 27.5
+    },
+    {
+      "name": "Production build",
+      "seconds": 16.5
+    }
+  ],
+  "security": {
+    "realJiraAccess": false,
+    "realDatabaseAccess": false,
+    "tokenFileRead": false,
+    "stagedSensitivePatternHits": 0,
+    "asarUnexpectedSensitivePaths": 0,
+    "installerPortableCommitted": false
+  },
+  "manualNotRun": [
+    "Original v0.2.58 real SQLite failure case",
+    "Full interactive Windows GUI",
+    "Installer install/uninstall",
+    "Real Jira/Confluence/internal services",
+    "True large SQLite performance"
+  ],
+  "excludedFromLedger": [
+    "Evidence commit and network push occur after ledger finalization and are reported in the final response.",
+    "Exact durations lost across context compaction are null, not estimated.",
+    "The prompt read precedes the reliable ledger timestamp and is recorded only as a pre-ledger action."
+  ]
+}
