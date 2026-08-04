@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type UIEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Copy, Pilcrow, WrapText } from "lucide-react";
 import type { DescriptionComparisonPayload, OriginalContentValue } from "../../shared/descriptionComparison";
 import type { DescriptionDiffResult, DiffLine } from "../../shared/descriptionDiff";
@@ -57,19 +57,7 @@ function availabilityText(value: OriginalContentValue, label: string) {
   return "Source mismatch";
 }
 
-function OriginalPane({
-  label,
-  value,
-  tone,
-  paneRef,
-  onScroll
-}: {
-  label: string;
-  value: OriginalContentValue;
-  tone: string;
-  paneRef: (node: HTMLPreElement | null) => void;
-  onScroll: (event: UIEvent<HTMLPreElement>) => void;
-}) {
+function OriginalPane({ label, value, tone }: { label: string; value: OriginalContentValue; tone: string }) {
   const [wrap, setWrap] = useState(true);
   const [showWhitespace, setShowWhitespace] = useState(false);
   const [copyState, setCopyState] = useState("");
@@ -98,7 +86,7 @@ function OriginalPane({
       </div>
     </header>
     {available
-      ? <pre ref={paneRef} onScroll={onScroll} className={"thin-scroll min-h-0 flex-1 overflow-auto p-3 font-mono text-xs leading-5 " + (wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre")}>{showWhitespace ? visibleWhitespace(value.raw ?? "") : value.raw}</pre>
+      ? <pre className={"thin-scroll min-h-0 flex-1 overflow-auto p-3 font-mono text-xs leading-5 " + (wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre")}>{showWhitespace ? visibleWhitespace(value.raw ?? "") : value.raw}</pre>
       : <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-sm font-bold">{availabilityText(value, label)}</div>}
   </section>;
 }
@@ -120,11 +108,7 @@ export function DescriptionDiffCell({
   const [loadError, setLoadError] = useState("");
   const [retry, setRetry] = useState(0);
   const [showAllHunks, setShowAllHunks] = useState(false);
-  const [syncScroll, setSyncScroll] = useState(true);
   const latestRequest = useRef("");
-  const beforePane = useRef<HTMLPreElement | null>(null);
-  const afterPane = useRef<HTMLPreElement | null>(null);
-  const syncing = useRef(false);
   const visibleHunks = showAllHunks ? result.hunks.length : Math.min(result.hunks.length, 3);
   const databaseIdentity = String(row.databaseIdentity ?? "");
   const generation = String(row.previewGeneration ?? "");
@@ -174,31 +158,17 @@ export function DescriptionDiffCell({
     });
   }, [databaseIdentity, detail, generation, result.eventId, result.issueKey, result.status, retry]);
 
-  function sync(source: "before" | "after", event: UIEvent<HTMLPreElement>) {
-    if (!syncScroll || syncing.current) return;
-    const from = event.currentTarget;
-    const target = source === "before" ? afterPane.current : beforePane.current;
-    if (!target) return;
-    const fromRange = Math.max(1, from.scrollHeight - from.clientHeight);
-    const targetRange = Math.max(0, target.scrollHeight - target.clientHeight);
-    syncing.current = true;
-    target.scrollTop = (from.scrollTop / fromRange) * targetRange;
-    requestAnimationFrame(() => { syncing.current = false; });
-  }
 
   const badgeTone = result.status === "changed" ? "bg-blue-100 text-blue-800" : result.status === "source-mismatch" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-700";
   if (detail) {
     return <div className="min-w-0 space-y-3" data-description-comparison={result.eventId}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2"><span className={"rounded px-2 py-1 text-[11px] font-black " + badgeTone}>DESCRIPTION COMPARISON</span><span className="text-xs font-bold">{statusText[result.status]}</span></div>
-        <div className="flex flex-wrap items-center gap-2"><label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={syncScroll} onChange={(event) => setSyncScroll(event.currentTarget.checked)} />Sync scroll</label>{expanded ? <button className="btn px-2 py-1 text-xs" type="button" onClick={() => onExpandedChange?.(false)}>Collapse row</button> : null}</div>
-      </div>
+      <div className="flex flex-wrap items-center gap-2"><span className={"rounded px-2 py-1 text-[11px] font-black " + badgeTone}>DESCRIPTION COMPARISON</span><span className="text-xs font-bold">{statusText[result.status]}</span></div>
       <div className="rounded border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-900">Exact original evidence from the validated local SQLite event. Display controls never modify copied content.</div>
       {loading ? <div className="rounded border border-line bg-slate-50 p-4 text-sm font-bold">Loading full original comparison...</div> : null}
       {loadError ? <div className="rounded border border-rose-300 bg-rose-50 p-4 text-sm font-bold text-rose-800">{loadError}<button className="btn ml-3 px-2 py-1 text-xs" type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button></div> : null}
       {comparison ? <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-3">
-        <OriginalPane label="Before Original" value={comparison.before} tone="border-rose-200 bg-rose-50/50 text-rose-950" paneRef={(node) => { beforePane.current = node; }} onScroll={(event) => sync("before", event)} />
-        <OriginalPane label="After Original" value={comparison.after} tone="border-emerald-200 bg-emerald-50/50 text-emerald-950" paneRef={(node) => { afterPane.current = node; }} onScroll={(event) => sync("after", event)} />
+        <OriginalPane label="Before Original" value={comparison.before} tone="border-rose-200 bg-rose-50/50 text-rose-950" />
+        <OriginalPane label="After Original" value={comparison.after} tone="border-emerald-200 bg-emerald-50/50 text-emerald-950" />
         <section className="min-h-[24rem] min-w-0 overflow-hidden rounded border border-blue-200 bg-blue-50/40">
           <header className="border-b border-blue-100 p-3"><h3 className="text-sm font-black">Diff Hunks</h3><div className="mt-1 text-[11px] font-bold text-muted">History: {comparison.historyId ?? "-"} / Item: {comparison.itemIndex ?? "-"} / Field: {comparison.canonicalFieldId}</div></header>
           <div className="thin-scroll max-h-[55vh] space-y-2 overflow-auto p-3">{comparison.diff.hunks.length ? comparison.diff.hunks.map((_, index) => <Hunk key={comparison.diff.hunks[index].id} result={comparison.diff} index={index} />) : <div className="text-sm font-bold text-muted">No diff hunks.</div>}</div>
@@ -214,6 +184,6 @@ export function DescriptionDiffCell({
       {result.status === "changed" ? <span className="text-xs font-black text-slate-700">+{result.addedLines} / -{result.deletedLines}</span> : null}
     </div>
     {result.status === "changed" ? <div className="space-y-2">{Array.from({ length: visibleHunks }, (_, index) => <Hunk key={result.hunks[index].id} result={result} index={index} />)}{result.hunks.length > 3 ? <button className="inline-flex items-center gap-1 text-xs font-bold text-blue-700" type="button" onClick={() => setShowAllHunks((value) => !value)}>{showAllHunks ? <ChevronUp size={13} /> : <ChevronDown size={13} />}{showAllHunks ? "Collapse hunks" : "Show all " + result.hunks.length + " hunks"}</button> : null}</div> : null}
-    <button className="btn px-2 py-1 text-xs" disabled={result.status === "source-mismatch"} type="button" title="Show Full Context" onClick={() => onExpandedChange?.(true)}>View Full Original Comparison</button>
+    <button className="btn px-2 py-1 text-xs" disabled={result.status === "source-mismatch"} type="button" title={expanded ? "Hide Full Original" : "Show Full Context"} onClick={() => onExpandedChange?.(!expanded)}>{expanded ? "Hide Full Original / 隱藏完整原文" : "View Full Original / 查看完整原文"}</button>
   </div>;
 }

@@ -1,3 +1,13 @@
+> v0.2.61 unifies Before/After/Diff presentation across Viewer activity tables and simplifies table controls without changing validated evidence or query semantics.
+
+## v0.2.61 Viewer Diff and Table UX
+
+- Issue Changelog, Issue Activity Events, and User Activity Events share the same original preview and Diff components.
+- `View Full Original / 查看完整原文` toggles in place to `Hide Full Original / 隱藏完整原文`.
+- Before, After, and Diff panes scroll independently; synchronized scrolling is no longer exposed.
+- Current Viewer surfaces keep Excel filters, search, date range, and clear-filter actions, but no longer expose Filter Preset management.
+- `Reset Table Layout / 重設表格版面` resets only column visibility, order, and widths. Existing query filters and state remain intact.
+- Legacy saved Filter Preset data remains compatible and is not deleted or migrated.
 > v0.2.60 restores exact original Before/After evidence for validated Description events without enlarging compact table DTOs.
 
 ## v0.2.60 Original Before/After Evidence Verification

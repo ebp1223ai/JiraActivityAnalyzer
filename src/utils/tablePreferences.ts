@@ -93,3 +93,15 @@ export function normalizeTablePreferences(
   }
   return { visibleColumns, columnOrder, columnWidths, pageSize, pageIndex, sort, filters };
 }
+export function resetTableLayout(
+  preferences: TablePreferences,
+  columns: TablePreferenceColumn[]
+): TablePreferences {
+  const defaults = normalizeTablePreferences(null, columns, preferences.pageSize);
+  return {
+    ...preferences,
+    visibleColumns: defaults.visibleColumns,
+    columnOrder: defaults.columnOrder,
+    columnWidths: {}
+  };
+}

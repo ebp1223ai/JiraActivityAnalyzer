@@ -1,3 +1,11 @@
+## 0.2.61 - Viewer Diff Presentation Consistency & Table UX Simplification
+
+- Unified Issue Changelog, Issue Activity Events, and User Activity Events on the same Before Original Preview / After Original Preview / Diff presentation and shared row expansion state.
+- Replaced the one-way full-original action with an in-place View Full Original / Hide Full Original toggle and retained validated exact evidence, source identity, integrity, and stale-response guards.
+- Removed synchronized scrolling and row-collapse controls from the full comparison so Before, After, and Diff panes scroll independently.
+- Removed visible Filter Preset controls from current viewer surfaces while preserving legacy preference data and compatibility.
+- Renamed table reset controls and limited Reset Table Layout to visible columns, column order, and widths without clearing filters, search/date scope, pagination, or sort state.
+- Kept Current-State SQLite schema v3, compact DTO contracts, Jira read-only behavior, dependencies, and inherited limitations unchanged.
 ## 0.2.60 - Original Before/After Evidence Visibility & Manual Verification UX
 
 - Restored bounded Before/After Original previews in Issue Changelog, Issue Activity Events, and User Activity Events while keeping full raw values out of compact list DTOs.

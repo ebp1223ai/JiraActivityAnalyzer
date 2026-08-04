@@ -79,11 +79,13 @@ function sideMessage(availability: string, side: Side) {
 export function DescriptionOriginalPreviewCell({
   row,
   side,
-  onViewFull
+  expanded,
+  onExpandedChange
 }: {
   row: Record<string, unknown>;
   side: Side;
-  onViewFull: () => void;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
 }) {
   const diff = row.descriptionDiff as DescriptionDiffResult;
   const databaseIdentity = String(row.databaseIdentity ?? "");
@@ -120,7 +122,7 @@ export function DescriptionOriginalPreviewCell({
       : <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-50 p-2 font-mono text-[11px] leading-5">{value.preview || "(Empty value)"}</pre>}
     <div className="flex flex-wrap items-center gap-2">
       {value.truncated ? <span className="font-bold text-amber-700">Preview truncated</span> : null}
-      <button className="font-black text-blue-700" type="button" onClick={onViewFull}>View Full Original</button>
+      <button className="font-black text-blue-700" type="button" onClick={() => onExpandedChange(!expanded)}>{expanded ? "Hide Full Original / 隱藏完整原文" : "View Full Original / 查看完整原文"}</button>
     </div>
   </div>;
 }

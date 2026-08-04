@@ -178,10 +178,11 @@ for (const source of [issueSource, userSource]) {
   assert.doesNotMatch(source, /Use validated Diff controls/);
   assert.match(source, /DescriptionOriginalPreviewCell/);
 }
-for (const label of ["Before Original", "After Original", "Diff Hunks", "Copy Original", "Show Whitespace", "Wrap", "Sync scroll"]) {
+for (const label of ["Before Original", "After Original", "Diff Hunks", "Copy Original", "Show Whitespace", "Wrap"]) {
   assert.match(cellSource, new RegExp(label));
 }
 assert.match(previewSource, /offset \+= 100/);
 assert.match(previewSource, /databaseIdentity \+ ":" \+ generation/);
+assert.doesNotMatch(cellSource, /Sync scroll|syncScroll|Collapse row/);
 assert.doesNotMatch(cellSource + previewSource, /dangerouslySetInnerHTML/);
 console.log("v0.2.60 exact original evidence, preview batch, integrity, and comparison UX tests passed.");

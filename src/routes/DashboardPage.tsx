@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, Copy, Database, FileClock, FileInput, FileText, HeartPulse, MessageSquare, Plus, RefreshCw, Wrench } from "lucide-react";
 import { DatabaseIssueTable, DEFAULT_DATABASE_COLUMNS } from "../components/DatabaseIssueTable";
 import { DateRangeControl } from "../components/DateRangeControl";
-import { FilterPresetControl } from "../components/FilterPresetControl";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { ResponsiveMetricGrid } from "../components/Responsive";
@@ -12,7 +11,7 @@ import { SectionErrorBoundary } from "../components/SectionErrorBoundary";
 import { recordTableRequest } from "../diagnostics/tableDiagnostics";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import type { DatabaseIssueDistributions, DatabaseIssueQuery, DatabaseIssueQueryResult } from "../types/databaseQuery";
-import type { DatabaseIssueListPreferences, FilterPreset } from "../types/uiPreferences";
+import type { DatabaseIssueListPreferences } from "../types/uiPreferences";
 import { ALL_TIME_DATE_RANGE } from "../types/dateRange";
 
 type Overview = {
@@ -56,7 +55,6 @@ export function DashboardPage() {
   const [distributions, setDistributions] = useState<DatabaseIssueDistributions | null>(null);
   const [query, setQuery] = useState<DatabaseIssueQuery>(defaultQuery);
   const [preferences, setPreferences] = useState<DatabaseIssueListPreferences>(defaultPreferences);
-  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
   const [overviewStatus, setOverviewStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [issueStatus, setIssueStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [distributionStatus, setDistributionStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -149,7 +147,6 @@ export function DashboardPage() {
   useEffect(() => {
     void window.desktopApp?.uiPreferences?.get().then((loaded) => {
       const next = loaded?.preferences.databaseIssueList as DatabaseIssueListPreferences | undefined;
-      setFilterPresets(loaded?.preferences.filterPresets ?? []);
       if (next) {
         setPreferences(next);
         setQuery((current) => ({ ...current, pageSize: next.pageSize }));
@@ -194,10 +191,6 @@ export function DashboardPage() {
     });
   }
 
-  function saveFilterPresets(next: FilterPreset[]) {
-    setFilterPresets(next);
-    void window.desktopApp?.uiPreferences?.update({ section: "filterPresets", value: next }).then((loaded) => setFilterPresets(loaded.preferences.filterPresets));
-  }
 
   async function fullHealthCheck() {
     setHealthRunning(true);
@@ -293,7 +286,7 @@ export function DashboardPage() {
               <label className="min-w-0"><span className="mb-1 block text-xs font-black text-muted">Date Mode / 日期依據</span><select className="field" value={query.dateMode ?? "activity"} onChange={(event) => setQuery((current) => ({ ...current, page: 1, dateMode: event.currentTarget.value as DatabaseIssueQuery["dateMode"], revision: (current.revision ?? 0) + 1 }))}><option value="activity">Activity Events Date / 活動事件日期</option><option value="created">Jira Created Date / 建立日期</option><option value="updated">Jira Last Updated Date / 最後更新日期</option></select></label>
               <DateRangeControl value={query.dateRange ?? ALL_TIME_DATE_RANGE} onChange={(dateRange) => setQuery((current) => ({ ...current, page: 1, dateRange, revision: (current.revision ?? 0) + 1 }))} />
             </div>
-            <div className="mt-3"><FilterPresetControl viewerId="databaseOverview" tabId="issueList" query={query} presets={filterPresets} onApply={(next) => setQuery(next as DatabaseIssueQuery)} onPresetsChange={saveFilterPresets} /></div>
+
           </SectionCard>
           <SectionCard className="mt-4" title="Issue 清單" subtitle="Issue List">
             <SectionErrorBoundary context="database-overview-issue-list" resetKey={databaseIdentity}>

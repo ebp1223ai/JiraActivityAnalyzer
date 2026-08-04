@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Activity, Database, MessageSquare, Search, UserRound, Wrench } from "lucide-react";
 import { MetricCard } from "../components/MetricCard";
 import { DateRangeControl } from "../components/DateRangeControl";
-import { FilterPresetControl } from "../components/FilterPresetControl";
 import { PageHeader } from "../components/PageHeader";
 import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
@@ -50,8 +49,8 @@ const eventColumns: SqliteTableColumn[] = [
   { id: "eventType", queryField: "action", label: "Action", kind: "multi", required: true, width: 140, render: (row) => formatActivityEventType(row.eventType) },
   { id: "displayName", queryField: "actor", label: "Actor", kind: "multi", width: 180, render: (row) => formatActivityActor(row) },
   { id: "fieldName", queryField: "field", label: "Field", kind: "multi", width: 180, render: (row) => formatActivityEventValue(row.fieldName, "Not applicable") },
-  { id: "before", label: "Before", kind: "text", defaultVisible: false, width: 320, render: (row, context) => isDescriptionDiffRow(row) ? <DescriptionOriginalPreviewCell row={row} side="before" onViewFull={() => context.setExpanded(true)} /> : <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
-  { id: "after", label: "After", kind: "text", defaultVisible: false, width: 320, render: (row, context) => isDescriptionDiffRow(row) ? <DescriptionOriginalPreviewCell row={row} side="after" onViewFull={() => context.setExpanded(true)} /> : <ReadableContentCell value={activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
+  { id: "before", label: "Before", kind: "text", defaultVisible: false, width: 320, render: (row, context) => isDescriptionDiffRow(row) ? <DescriptionOriginalPreviewCell row={row} side="before" expanded={context.expanded} onExpandedChange={context.setExpanded} /> : <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
+  { id: "after", label: "After", kind: "text", defaultVisible: false, width: 320, render: (row, context) => isDescriptionDiffRow(row) ? <DescriptionOriginalPreviewCell row={row} side="after" expanded={context.expanded} onExpandedChange={context.setExpanded} /> : <ReadableContentCell value={activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
   { id: "diff", label: "Diff", kind: "text", width: 400, render: (row, context) => <DiffCell row={row} expanded={context.expanded} onExpandedChange={context.setExpanded} /> },
   { id: "sourceProvenance", queryField: "source", label: "Source", kind: "multi", width: 140, render: (row) => formatActivitySource(row.sourceProvenance) }
 ];
@@ -217,9 +216,6 @@ export function UserViewerPage() {
 
   const preferenceSection = userViewer.activeTab === "Related Issues" ? "userRelatedIssues" : "userAllActivityEvents";
 
-  function saveFilterPresets(next: NonNullable<typeof preferences>["filterPresets"]) {
-    void window.desktopApp?.uiPreferences?.update({ section: "filterPresets", value: next }).then((response) => { if (response) setPreferences(response.preferences); });
-  }
 
   function applyDistributionFilter(field: "projectKey" | "issueType" | "status" | "priority", value: string) {
     if (!userViewer.selectedUserId) return;
@@ -248,7 +244,7 @@ export function UserViewerPage() {
         </SectionCard>
         <SectionCard className="mt-4" title="Selected Period" subtitle="選取期間 · Activity Events eventTime">
           <DateRangeControl value={activeQuery.dateRange ?? ALL_TIME_DATE_RANGE} onChange={updateDateRange} />
-          <div className="mt-3"><FilterPresetControl viewerId="userViewer" tabId={userViewer.activeTab === "Related Issues" ? "relatedIssues" : "allActivityEvents"} query={activeQuery} presets={preferences?.filterPresets ?? []} onApply={(next) => updateQuery(next as ViewerTableQuery)} onPresetsChange={saveFilterPresets} /></div>
+
         </SectionCard>        <ResponsiveMetricGrid min={170} className="mt-4">
           <MetricCard label="相關 Issue" sub="Related Issues" value={text(distributions?.totalRelatedIssues, "0")} icon={Database} />
           <MetricCard label="全部事件" sub="All Activity Events" value={text(userViewer.allEventsResult?.filteredCount ?? (userViewer.eventQuery.dateRange?.shortcut === "all" ? summary.totalEvents : 0), "0")} icon={UserRound} />
