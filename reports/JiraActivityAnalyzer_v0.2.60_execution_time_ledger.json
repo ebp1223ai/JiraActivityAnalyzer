@@ -1,0 +1,200 @@
+{
+  "schemaVersion": "execution_time_ledger_v1",
+  "version": "0.2.60",
+  "startedAt": "2026-08-04T12:10:15.1311635+08:00",
+  "evidenceCutoffAt": "2026-08-04T12:46:40.7163861+08:00",
+  "wallClockSecondsAtCutoff": 2185.585,
+  "overallStatus": "Partial",
+  "commands": [
+    {
+      "phase": "baseline",
+      "command": "git status / branch / HEAD inspection",
+      "exitCode": 0,
+      "durationSeconds": 0.5,
+      "result": "passed"
+    },
+    {
+      "phase": "red-fixture",
+      "command": "npm run test:v0.2.60",
+      "exitCode": 1,
+      "durationSeconds": 1.6,
+      "result": "expected failure",
+      "note": "descriptionComparison module did not exist"
+    },
+    {
+      "phase": "ipc-contract",
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "durationSeconds": 13.9,
+      "result": "passed"
+    },
+    {
+      "phase": "focused",
+      "command": "npm run test:v0.2.60",
+      "exitCode": 0,
+      "durationSeconds": 1.2,
+      "result": "passed"
+    },
+    {
+      "phase": "regression",
+      "command": "npm run test:v0.2.59",
+      "exitCode": 1,
+      "durationSeconds": 1,
+      "result": "failed",
+      "note": "legacy Show Full Context source assertion"
+    },
+    {
+      "phase": "regression-retry",
+      "command": "npm run test:v0.2.59",
+      "exitCode": 0,
+      "durationSeconds": 1,
+      "result": "passed",
+      "note": "compatible button title restored"
+    },
+    {
+      "phase": "focused",
+      "command": "npm run test:v0.2.60",
+      "exitCode": 0,
+      "durationSeconds": 1,
+      "result": "passed"
+    },
+    {
+      "phase": "typecheck",
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "durationSeconds": 10.5,
+      "result": "passed"
+    },
+    {
+      "phase": "integration",
+      "command": "npm run test:integration",
+      "exitCode": 0,
+      "durationSeconds": 1.1,
+      "result": "passed"
+    },
+    {
+      "phase": "regression",
+      "command": "npm run test:v0.2.58",
+      "exitCode": 0,
+      "durationSeconds": 1,
+      "result": "passed"
+    },
+    {
+      "phase": "build",
+      "command": "npm run build",
+      "exitCode": 0,
+      "durationSeconds": 29.1,
+      "result": "passed"
+    },
+    {
+      "phase": "regression",
+      "command": "npm run test:v0.2.57",
+      "exitCode": 0,
+      "durationSeconds": 3.5,
+      "result": "passed"
+    },
+    {
+      "phase": "regression",
+      "command": "npm run test:v0.2.53 and npm run test:v0.2.51",
+      "exitCode": 0,
+      "durationSeconds": 3.3,
+      "result": "passed"
+    },
+    {
+      "phase": "regression",
+      "command": "npm run test:v0.2.56",
+      "exitCode": 0,
+      "durationSeconds": 1.9,
+      "result": "passed"
+    },
+    {
+      "phase": "ledger-validation",
+      "command": "npm run test:ledger",
+      "exitCode": 0,
+      "durationSeconds": 0.9,
+      "result": "passed",
+      "note": "existing v0.2.45 ledger validator"
+    },
+    {
+      "phase": "final-build",
+      "command": "npm run build",
+      "exitCode": 0,
+      "durationSeconds": 16,
+      "result": "passed"
+    },
+    {
+      "phase": "source-commit",
+      "command": "git commit -m fix: restore v0.2.60 description originals and comparison UX",
+      "exitCode": 0,
+      "durationSeconds": 0.8,
+      "result": "passed",
+      "commit": "55b2d48c3f466ce935870767936c1e833f3733d8"
+    },
+    {
+      "phase": "clean-package-dependencies",
+      "command": "npm ci",
+      "exitCode": 0,
+      "durationSeconds": 185.6,
+      "result": "passed",
+      "note": "existing audit: 9 vulnerabilities"
+    },
+    {
+      "phase": "dist",
+      "command": "npm run dist",
+      "exitCode": 0,
+      "durationSeconds": 211.6,
+      "result": "passed"
+    },
+    {
+      "phase": "package-audit",
+      "command": "npm run audit:package-size -- v0.2.60",
+      "exitCode": 0,
+      "durationSeconds": 3.1,
+      "result": "passed"
+    },
+    {
+      "phase": "portable-target-smoke",
+      "command": "Portable remote-debugging page target",
+      "exitCode": 0,
+      "durationSeconds": 9.6,
+      "result": "passed"
+    },
+    {
+      "phase": "portable-dom-smoke-1",
+      "command": "Portable DOM probe with English Dashboard assertion",
+      "exitCode": 1,
+      "durationSeconds": 9.9,
+      "result": "failed",
+      "note": "root/version/debug passed; wording assertion was too narrow"
+    },
+    {
+      "phase": "portable-dom-smoke-2",
+      "command": "Portable Promise DOM probe",
+      "exitCode": 1,
+      "durationSeconds": 9.7,
+      "result": "failed",
+      "note": "temporary probe returned undefined"
+    },
+    {
+      "phase": "portable-dom-smoke-final",
+      "command": "Portable synchronous app-only DOM snapshot",
+      "exitCode": 0,
+      "durationSeconds": 11.1,
+      "result": "passed",
+      "note": "root=1 sidebarLinks=8 version/debug visible"
+    }
+  ],
+  "notRun": [
+    "full multi-size UI smoke",
+    "real Jira access",
+    "real SQLite failure-case verification",
+    "full manual Windows GUI verification",
+    "Installer install/uninstall",
+    "test:v0.2.45 inherited stale assertion"
+  ],
+  "notes": [
+    "Inspection commands and file writes are included in wall clock but not individually timed in this compact command table.",
+    "No OS desktop screenshot was used.",
+    "Evidence report/commit and push occur after this cutoff and are reported separately."
+  ]
+}
