@@ -1,0 +1,50 @@
+{
+  "formatVersion": 1,
+  "releaseVersion": "0.2.63",
+  "timezone": "Asia/Taipei",
+  "sessionStart": "2026-08-04T18:15:00.0000000+08:00",
+  "sessionEnd": "2026-08-04T18:42:00.0000000+08:00",
+  "totalWallClockSeconds": 1620,
+  "phases": [
+    { "name": "phase-a-v0262-inspection-push-and-verification", "start": "2026-08-04T18:15:00.0000000+08:00", "end": "2026-08-04T18:20:13.0000000+08:00", "durationSeconds": 313, "status": "completed" },
+    { "name": "root-cause-analysis-and-implementation", "start": "2026-08-04T18:20:13.0000000+08:00", "end": "2026-08-04T18:32:00.0000000+08:00", "durationSeconds": 707, "status": "completed" },
+    { "name": "focused-tests-source-gate-and-commit", "start": "2026-08-04T18:32:00.0000000+08:00", "end": "2026-08-04T18:36:10.0000000+08:00", "durationSeconds": 250, "status": "completed" },
+    { "name": "detached-clean-worktree-build-dist", "start": "2026-08-04T18:36:10.0000000+08:00", "end": "2026-08-04T18:39:35.0000000+08:00", "durationSeconds": 205, "status": "completed" },
+    { "name": "package-audit-reports-and-evidence-preparation", "start": "2026-08-04T18:39:35.0000000+08:00", "end": "2026-08-04T18:42:00.0000000+08:00", "durationSeconds": 145, "status": "completed" }
+  ],
+  "commandAttempts": [
+    { "command": "initial sandbox read of v0.2.63 prompt", "exitCode": 1, "durationSeconds": 0.4, "result": "failed" },
+    { "command": "elevated read of v0.2.63 prompt", "exitCode": 0, "durationSeconds": 0.3, "result": "passed" },
+    { "command": "initial sandbox git inspection", "exitCode": 1, "durationSeconds": 0.3, "result": "failed" },
+    { "command": "git status branch log remote inspection", "exitCode": 0, "durationSeconds": 0.6, "result": "passed" },
+    { "command": "git ancestry and pending path inspection", "exitCode": 0, "durationSeconds": 0.8, "result": "passed" },
+    { "command": "git push --set-upstream origin feat/v0.2.62-issue-viewer-changelog-all-users", "exitCode": 0, "durationSeconds": 3.7, "result": "passed" },
+    { "command": "first upstream verification attempt (PowerShell parser)", "exitCode": 1, "durationSeconds": 0.3, "result": "failed" },
+    { "command": "upstream and ls-remote verification retry", "exitCode": 0, "durationSeconds": 1.2, "result": "passed" },
+    { "command": "git switch -c fix/v0.2.63-analyzer-evidence-ui", "exitCode": 0, "durationSeconds": 0.3, "result": "passed" },
+    { "command": "apply_patch existing ACL-protected ActivityComparisonTable", "exitCode": 1, "durationSeconds": 0.3, "result": "failed" },
+    { "command": "guarded UTF-8 source edits and query contract implementation", "exitCode": 0, "durationSeconds": 18.2, "result": "passed" },
+    { "command": "initial npm.cmd run typecheck after renderer edit", "exitCode": 1, "durationSeconds": 12.2, "result": "failed" },
+    { "command": "second npm.cmd run typecheck after import edit", "exitCode": 1, "durationSeconds": 10.3, "result": "failed" },
+    { "command": "npm.cmd run typecheck after contract fixes", "exitCode": 0, "durationSeconds": 9.1, "result": "passed" },
+    { "command": "npm.cmd version 0.2.63 and npm pkg set test script", "exitCode": 1, "durationSeconds": 1.4, "result": "failed" },
+    { "command": "JSON API test:v0.2.63 script update", "exitCode": 0, "durationSeconds": 0.3, "result": "passed" },
+    { "command": "npm.cmd run test:v0.2.63", "exitCode": 0, "durationSeconds": 1.7, "result": "passed" },
+    { "command": "npm.cmd run test:v0.2.62 and test:v0.2.61", "exitCode": 0, "durationSeconds": 1.5, "result": "passed" },
+    { "command": "npm.cmd run test:v0.2.60 through test:v0.2.58", "exitCode": 0, "durationSeconds": 2.7, "result": "passed" },
+    { "command": "final source typecheck v0.2.61-v0.2.63 tests and diff check", "exitCode": 0, "durationSeconds": 10.1, "result": "passed" },
+    { "command": "git commit fix(v0.2.63): correct evidence columns and add issue metadata", "exitCode": 0, "durationSeconds": 0.7, "result": "passed" },
+    { "command": "detached clean-worktree npm.cmd ci", "exitCode": 0, "durationSeconds": 55.4, "result": "passed" },
+    { "command": "detached clean-worktree typecheck test:v0.2.63 and build", "exitCode": 0, "durationSeconds": 29.2, "result": "passed" },
+    { "command": "detached clean-worktree npm.cmd run dist", "exitCode": 0, "durationSeconds": 74.1, "result": "passed" },
+    { "command": "npm.cmd run audit:package-size and artifact hashing", "exitCode": 0, "durationSeconds": 3.4, "result": "passed" }
+  ],
+  "unaccountedTimeSeconds": 0,
+  "reconciliation": "The complete wall clock is assigned to five contiguous phases. Phase time includes repository inspection, safe guarded edits, source review, user updates, command orchestration, report writing, and command execution; command durations overlap their owning phase and are not subtracted separately.",
+  "notes": [
+    "The v0.2.62 branch was pushed and verified at local/upstream/ls-remote SHA 803dff7a43665db30342c3063e067715b898c870 with ahead/behind 0/0.",
+    "No v0.2.63 push, tag, PR, Release, artifact upload, OS desktop screenshot, real Jira request, or real SQLite validation was performed.",
+    "Packaged renderer smoke was not run because no short app-only packaged harness was available; Overall Status remains Partial.",
+    "The unrelated modified v0.2.47 report and all pre-existing untracked user files remained unstaged and untouched."
+  ]
+}
