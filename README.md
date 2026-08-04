@@ -1,5 +1,16 @@
 # Jira Activity Analyzer
 
+> v0.2.59 fixes Description evidence identity and renders deterministic compact line/inline diff hunks from the exact local changelog event. SQLite schema v3 and Jira read-only behavior remain unchanged.
+
+## v0.2.59 Description Diff Source Identity & Hunk Rendering Correctness
+
+- **Stable source identity:** Description rows resolve by activity event ID and exact changelog history/item identity; timestamp and Comment fallbacks are prohibited.
+- **Fail-closed evidence:** missing, ambiguous, incomplete, or mismatched evidence reports an explicit status without exposing unrelated content.
+- **Real hunks:** deterministic line diff emits only changed lines plus two context lines, with optional inline grapheme-level emphasis.
+- **On-demand context:** full Before/After content is fetched from local SQLite only after explicit user action and is guarded against stale responses.
+- **Cross-view consistency:** Issue Changelog, Issue Activity Events, and User Activity Events share one result model and renderer.
+- **Safety:** Jira remains read-only, SQLite schema stays v3, and no dependency or ENV format changed.
+
 > v0.2.58 adds shared local-calendar date ranges, scoped Excel-style filters, cross-page filtered selection, safe Description diff classification, Comment date modes, and isolated filter presets while keeping SQLite schema v3 and Jira read-only behavior unchanged.
 
 ## v0.2.58 Date Range, Excel Filtering & Content Diff UX

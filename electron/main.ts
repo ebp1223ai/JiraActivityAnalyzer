@@ -59,6 +59,7 @@ import {
   queryDatabaseDistinctValues,
   queryDatabaseUserDistributions,
   queryDatabaseIssueEvents,
+  queryDescriptionFullContext,
   queryDatabaseUserEvents,
   queryDatabaseUserRelatedIssues,
   loadDatabaseIssue,
@@ -805,6 +806,8 @@ ipcMain.handle("database-viewer:user-events", async (_event, payload: { userId?:
   queryDatabaseUserEvents(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload?.query));
 ipcMain.handle("database-viewer:issue-events", async (_event, payload: { issueKey?: string; query?: Record<string, unknown> }) =>
   queryDatabaseIssueEvents(currentReadableDatabasePath(), String(payload?.issueKey ?? ""), payload?.query));
+ipcMain.handle("database-viewer:description-full-context", async (_event, payload: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; revision?: unknown }) =>
+  queryDescriptionFullContext(currentReadableDatabasePath(), payload));
 ipcMain.handle("database-viewer:distinct-values", async (_event, payload: Record<string, unknown>) =>
   queryDatabaseDistinctValues(currentReadableDatabasePath(), payload));
 ipcMain.handle("ui-preferences:get", async () => loadUiPreferences(getConfiguredAppRoot()));

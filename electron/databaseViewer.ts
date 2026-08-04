@@ -5,6 +5,7 @@ import { gunzipSync } from "node:zlib";
 import { DatabaseSync } from "node:sqlite";
 import { normalizeSourceObjectKey } from "./sourceArchiveDatabase.js";
 import { dateRangeBounds, normalizeDateRange } from "./dateRange.js";
+import { buildDescriptionDiff, resolveDescriptionFullContext, type DescriptionDiffInput, type DescriptionDiffResult } from "../shared/descriptionDiff.js";
 type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
 
 interface ViewerSection<T = unknown> {
@@ -165,29 +166,53 @@ function displayName(value: unknown) {
   return String(actor.displayName ?? actor.name ?? actor.emailAddress ?? actor.accountId ?? "");
 }
 
-function normalizeChangelogRecords(value: Row[]) {
+function normalizeChangelogRecords(value: Row[], issueKey: string, activityEvents: Row[]) {
+  const bySourceRecord = new Map<string, Row[]>();
+  for (const event of activityEvents) {
+    const sourceRecordId = String(event.sourceRecordId ?? "");
+    if (!sourceRecordId) continue;
+    const candidates = bySourceRecord.get(sourceRecordId) ?? [];
+    candidates.push(event);
+    bySourceRecord.set(sourceRecordId, candidates);
+  }
   return value.flatMap((history, historyIndex) => {
     const historyId = String(history.id ?? `history-${historyIndex + 1}`);
     const created = String(history.created ?? history.time ?? "");
     const author = displayName(history.author);
     const items = Array.isArray(history.items) ? history.items.map(record) : [history];
     return items.map((item, itemIndex) => {
-      const before = plainText(item.fromString ?? item.from ?? "");
-      const after = plainText(item.toString ?? item.to ?? "");
+      const fieldId = String(item.fieldId ?? "").trim();
+      const fieldName = String(item.field ?? item.fieldId ?? "Unknown field");
+      const isDescription = fieldId.toLowerCase() === "description" || (!fieldId && fieldName.trim().toLowerCase() === "description");
+      const beforePresent = Object.prototype.hasOwnProperty.call(item, "fromString") || Object.prototype.hasOwnProperty.call(item, "from");
+      const afterPresent = Object.prototype.hasOwnProperty.call(item, "toString") || Object.prototype.hasOwnProperty.call(item, "to");
+      const beforeRaw = Object.prototype.hasOwnProperty.call(item, "fromString") ? item.fromString : item.from;
+      const afterRaw = Object.prototype.hasOwnProperty.call(item, "toString") ? item.toString : item.to;
+      const before = plainText(beforeRaw ?? "");
+      const after = plainText(afterRaw ?? "");
+      const sourceRecordId = `${historyId}:${itemIndex}`;
+      const candidates = bySourceRecord.get(sourceRecordId) ?? [];
+      const matched = candidates.length === 1 ? candidates[0] : null;
+      const descriptionDiff: DescriptionDiffResult | undefined = !isDescription ? undefined : (matched?.descriptionDiff as DescriptionDiffResult | undefined) ?? buildDescriptionDiff({
+        eventId: String(matched?.eventId ?? ""), issueKey, fieldId, fieldName,
+        sourceType: String(matched?.sourceProvenance ?? "jira_changelog"), sourceId: sourceRecordId,
+        changelogHistoryId: historyId, changelogItemIndex: itemIndex, candidateCount: candidates.length,
+        before: { available: beforePresent, complete: beforePresent, value: beforeRaw },
+        after: { available: afterPresent, complete: afterPresent, value: afterRaw }
+      });
       return {
-        historyId,
-        itemId: `${historyId}-${itemIndex + 1}`,
-        created,
-        author,
-        field: String(item.field ?? item.fieldId ?? "Unknown field"),
-        before,
-        after,
-        changeKind: before && after ? "changed" : after ? "added" : before ? "removed" : "recorded"
+        historyId, itemId: sourceRecordId, itemIndex, eventId: matched?.eventId,
+        issueKey, created, author, fieldId, fieldName, field: fieldName,
+        before: isDescription ? undefined : before, after: isDescription ? undefined : after,
+        beforeAvailable: isDescription ? descriptionDiff?.beforeAvailable : beforePresent,
+        afterAvailable: isDescription ? descriptionDiff?.afterAvailable : afterPresent,
+        descriptionDiff,
+        source: isDescription ? (descriptionDiff?.status === "source-mismatch" ? "Description source mismatch" : "Jira Changelog") : "Jira Changelog",
+        changeKind: isDescription ? descriptionDiff?.status : before && after ? "changed" : after ? "added" : before ? "removed" : "recorded"
       };
     });
   });
 }
-
 function normalizeCommentRecords(value: Row[]) {
   return value.map((comment, index) => {
     const bodyValue = comment.renderedBody ?? comment.body ?? "";
@@ -210,9 +235,13 @@ function normalizeCommentRecords(value: Row[]) {
 
 export function normalizeIssueViewerPayload(
   rawValue: unknown,
-  metadata: { payloadFormatVersion: number; payloadSavedAt: string; coverageProfile?: unknown },
-  activityEvents: Row[]
+  issueKeyOrMetadata: string | { payloadFormatVersion: number; payloadSavedAt: string; coverageProfile?: unknown },
+  metadataOrActivityEvents: { payloadFormatVersion: number; payloadSavedAt: string; coverageProfile?: unknown } | Row[],
+  explicitActivityEvents: Row[] = []
 ): Omit<IssueViewerDto, "found" | "status" | "issueKey" | "message" | "overview"> {
+  const issueKey = typeof issueKeyOrMetadata === "string" ? issueKeyOrMetadata : "";
+  const metadata = (typeof issueKeyOrMetadata === "string" ? metadataOrActivityEvents : issueKeyOrMetadata) as { payloadFormatVersion: number; payloadSavedAt: string; coverageProfile?: unknown };
+  const activityEvents = (typeof issueKeyOrMetadata === "string" ? explicitActivityEvents : metadataOrActivityEvents) as Row[];
   const raw = record(rawValue);
   const issue = record(raw.issue);
   const fields = record(issue.fields);
@@ -241,7 +270,7 @@ export function normalizeIssueViewerPayload(
       : fallbackDescription
         ? { status: "ready", source: "plain", plainText: fallbackDescription, content: fallbackDescription, format: "plain" as const, message: "" }
         : { status: "no_records", source: "none", plainText: "", content: "", format: "plain" as const, message: "No description / 無 Description" },
-    changelog: section(normalizeChangelogRecords(changelog)),
+    changelog: section(normalizeChangelogRecords(changelog, issueKey, activityEvents)),
     comments: section(normalizeCommentRecords(comments)),
     worklogs: section(worklogs),
     attachments: section(attachments),
@@ -692,6 +721,42 @@ function commentIndexFromPayload(value: unknown) {
   return new Map(normalizeCommentRecords(comments).map((comment) => [String(comment.id), comment]));
 }
 
+function parseDescriptionStoredValue(value: unknown) {
+  if (typeof value !== "string") return value;
+  try { return JSON.parse(value); } catch { return value; }
+}
+
+function descriptionInputFromEventRow(event: Row): DescriptionDiffInput {
+  const sourceRecordId = String(event.sourceRecordId ?? "");
+  const itemMatch = /^(.*):(\d+)$/.exec(sourceRecordId);
+  const beforeAvailable = event.before !== null && event.before !== undefined;
+  const afterAvailable = event.after !== null && event.after !== undefined;
+  return {
+    eventId: String(event.eventId ?? ""), issueKey: String(event.issueKey ?? ""),
+    fieldId: event.fieldId == null ? null : String(event.fieldId), fieldName: event.fieldName == null ? null : String(event.fieldName),
+    sourceType: String(event.sourceProvenance ?? ""), sourceId: sourceRecordId || null,
+    changelogHistoryId: String(event.jiraNativeSourceId ?? itemMatch?.[1] ?? "") || null,
+    changelogItemIndex: itemMatch ? Number(itemMatch[2]) : null, candidateCount: 1,
+    before: { available: beforeAvailable, complete: beforeAvailable, value: parseDescriptionStoredValue(event.before) },
+    after: { available: afterAvailable, complete: afterAvailable, value: parseDescriptionStoredValue(event.after) }
+  };
+}
+
+function isDescriptionEventRow(event: Row) {
+  const fieldId = String(event.fieldId ?? "").trim().toLowerCase();
+  const fieldName = String(event.fieldName ?? "").trim().toLowerCase();
+  return fieldId === "description" || (!fieldId && fieldName === "description");
+}
+
+function attachDescriptionDiffRows(eventRows: Row[]) {
+  return eventRows.map((event) => {
+    if (!isDescriptionEventRow(event)) return event;
+    const compact: Row = { ...event, descriptionDiff: buildDescriptionDiff(descriptionInputFromEventRow(event)), commentId: null };
+    delete compact.commentBody; delete compact.commentBodyFormat; delete compact.commentCreated; delete compact.commentUpdated;
+    delete compact.before; delete compact.after;
+    return compact;
+  });
+}
 function enrichCommentEventRows(db: DatabaseSync, eventRows: Row[]) {
   const relevant = eventRows.filter((event) => ["comment_created", "comment_updated"].includes(String(event.eventType)));
   const sourceObjectIds = Array.from(new Set(relevant.map((event) => String(event.sourceObjectId ?? "")).filter(Boolean)));
@@ -805,7 +870,9 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
       SELECT e.id AS eventId, e.source_object_id AS sourceObjectId, e.event_time AS eventTime, e.actor_account_id AS userId,
         e.actor_display_name AS displayName, o.issue_key AS issueKey, e.event_type AS eventType,
         e.field_id AS fieldId, e.field_name AS fieldName, e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
-        e.jira_native_source_id AS commentId, s.summary, e.source_provenance AS sourceProvenance
+        e.jira_native_source_id AS jiraNativeSourceId,
+        CASE WHEN e.event_type IN ('comment_created','comment_updated') THEN e.jira_native_source_id ELSE NULL END AS commentId,
+        e.identity_key_type AS identityKeyType, s.summary, e.source_provenance AS sourceProvenance
       FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
       LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
       WHERE ${where}
@@ -814,7 +881,7 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
     const rowsResult = rows(db.prepare(rowsSql).all(...parameters, query.pageSize, (page - 1) * query.pageSize));
     const sqlExecutionMs = performance.now() - sqlStartedAt;
     const mappingStartedAt = performance.now();
-    const enrichedRows = enrichCommentEventRows(db, rowsResult);
+    const enrichedRows = attachDescriptionDiffRows(enrichCommentEventRows(db, rowsResult));
     const rowMappingMs = performance.now() - mappingStartedAt;
     const totalMs = performance.now() - startedAt;
     const slow = totalMs > 1_000;
@@ -846,6 +913,25 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
   }
 }
 
+export function queryDescriptionFullContext(databasePath: string, input: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; revision?: unknown }) {
+  const eventId = String(input.eventId ?? "").trim();
+  const issueKey = normalizeSourceObjectKey("jira", "issue", String(input.issueKey ?? ""));
+  const requestId = Number.isSafeInteger(Number(input.requestId)) ? Number(input.requestId) : 0;
+  const revision = Number.isSafeInteger(Number(input.revision)) ? Number(input.revision) : 0;
+  if (!eventId) throw new Error("DESCRIPTION_EVENT_ID_REQUIRED");
+  const { db } = openReadOnly(databasePath);
+  try {
+    const event = row(db.prepare(`
+      SELECT e.id AS eventId, o.issue_key AS issueKey, e.field_id AS fieldId, e.field_name AS fieldName,
+        e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
+        e.jira_native_source_id AS jiraNativeSourceId, e.source_provenance AS sourceProvenance
+      FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
+      WHERE e.id=? AND o.issue_key=?
+    `).get(eventId, issueKey));
+    if (!event.eventId) return { requestId, revision, eventId, issueKey, status: "source-mismatch", diffStatus: "source-mismatch", beforeText: null, afterText: null, beforeAvailable: false, afterAvailable: false, beforeComplete: false, afterComplete: false, diagnosticsCode: "DESCRIPTION_EVENT_IDENTITY_MISMATCH" };
+    return { requestId, revision, ...resolveDescriptionFullContext(descriptionInputFromEventRow(event), eventId) };
+  } finally { db.close(); }
+}
 export function listDatabaseIssues(databasePath: string, input: IssueQuery = {}) {
   const { db } = openReadOnly(databasePath);
   try {
@@ -955,12 +1041,13 @@ export function loadDatabaseIssue(databasePath: string, issueKeyInput: string) {
       : issue.payloadGzip instanceof Uint8Array
         ? Buffer.from(issue.payloadGzip)
         : null;
-    const events = rows(db.prepare(`
-      SELECT event_type AS eventType, event_time AS eventTime, actor_account_id AS actorAccountId,
+    const events = attachDescriptionDiffRows(rows(db.prepare(`
+      SELECT id AS eventId, event_type AS eventType, event_time AS eventTime, actor_account_id AS actorAccountId,
              actor_display_name AS actorDisplayName, field_id AS fieldId, field_name AS fieldName,
-             from_value_json AS fromValueJson, to_value_json AS toValueJson, source_provenance AS sourceProvenance
+             from_value_json AS before, to_value_json AS after, source_record_id AS sourceRecordId,
+             jira_native_source_id AS jiraNativeSourceId, identity_key_type AS identityKeyType, source_provenance AS sourceProvenance
       FROM activity_events WHERE source_object_id = ? ORDER BY event_time DESC, id DESC LIMIT 500
-    `).all(String(issue.sourceObjectId)));
+    `).all(String(issue.sourceObjectId))).map((event) => ({ ...event, issueKey })));
     if (!payloadBuffer) return issueViewerFailure(issueKey, "payload_unavailable", "Full Fetch payload is unavailable.", overview);
     const compressedBytes = Number(issue.compressedBytes);
     const uncompressedBytes = Number(issue.uncompressedBytes);
@@ -988,7 +1075,7 @@ export function loadDatabaseIssue(databasePath: string, issueKeyInput: string) {
     } catch {
       return issueViewerFailure(issueKey, "payload_invalid", "Payload JSON is malformed.", overview);
     }
-    const normalized = normalizeIssueViewerPayload(rawPayload, {
+    const normalized = normalizeIssueViewerPayload(rawPayload, issueKey, {
       payloadFormatVersion,
       payloadSavedAt: String(issue.payloadSavedAt ?? ""),
       coverageProfile: issue.coverage

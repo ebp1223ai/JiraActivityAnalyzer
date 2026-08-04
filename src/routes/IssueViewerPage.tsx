@@ -24,12 +24,19 @@ import { queryFromTablePreferences } from "../utils/preferenceQuery";
 import { normalizeViewerTableSession, setViewerRowExpanded, stableViewerRowId, viewerQueryCacheKey } from "../utils/viewerSessionState";
 import { recordTableRequest } from "../diagnostics/tableDiagnostics";
 import { dateRangeBounds } from "../types/dateRange";
-import { classifyContentChange, isDescriptionField } from "../utils/contentChange";
+import { isDescriptionField } from "../utils/contentChange";
 import { localDistinctValues, queryLocalTable, type LocalQueryColumn } from "../utils/localTableQuery";
+import { isDescriptionDiffRow } from "../components/DescriptionDiffCell";
 
 let issueViewerRequestSequence = 0;
 let latestIssueSnapshotRequest = 0;
 let latestIssueActivityRequest = 0;
+
+function includeDescriptionChange(row: Record<string, unknown>, includeBeforeUnavailable: boolean): boolean {
+  if (!isDescriptionDiffRow(row)) return false;
+  const status = String((row.descriptionDiff as Record<string, unknown> | undefined)?.status ?? "source-mismatch");
+  return status === "changed" || (includeBeforeUnavailable && status === "before-unavailable");
+}
 
 const tabs = ["Overview", "Description", "Changelog", "Comments", "Worklogs", "Attachments Metadata", "Issue Links", "Remote Links", "Activity Events", "Raw Evidence"] as const;
 
@@ -38,8 +45,8 @@ const activityEventColumns: SqliteTableColumn[] = [
   { id: "displayName", queryField: "actor", label: "Actor", kind: "multi", width: 180, render: (row) => formatActivityActor(row) },
   { id: "eventType", queryField: "action", label: "Action", kind: "multi", required: true, width: 140, render: (row) => formatActivityEventType(row.eventType) },
   { id: "fieldName", queryField: "field", label: "Field", kind: "multi", width: 180, render: (row) => formatActivityEventValue(row.fieldName, "Not applicable") },
-  { id: "before", label: "Before", kind: "text", width: 320, render: (row) => <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
-  { id: "after", label: "After", kind: "text", width: 320, render: (row) => <ReadableContentCell value={row.commentBody ?? activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
+  { id: "before", label: "Before", kind: "text", width: 320, render: (row) => isDescriptionDiffRow(row) ? <span className="text-xs font-bold text-muted">Use validated Diff controls</span> : <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
+  { id: "after", label: "After", kind: "text", width: 320, render: (row) => isDescriptionDiffRow(row) ? <span className="text-xs font-bold text-muted">Use validated Diff controls</span> : <ReadableContentCell value={activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
   { id: "diff", label: "Diff", kind: "text", width: 400, render: (row, context) => <DiffCell row={row} expanded={context.expanded} onExpandedChange={context.setExpanded} /> },
   { id: "sourceProvenance", queryField: "source", label: "Source", kind: "multi", width: 140, render: (row) => formatActivitySource(row.sourceProvenance) }
 ];
@@ -59,6 +66,7 @@ const changelogColumns: SqliteTableColumn[] = [
   { id: "field", label: "Field", kind: "multi", required: true, width: 160 },
   { id: "before", label: "Before", kind: "text", width: 320, render: (row) => <ReadableContentCell value={row.before} missing={row.beforeAvailable === false ? "Before unavailable" : "Empty"} /> },
   { id: "after", label: "After", kind: "text", width: 320, render: (row) => <ReadableContentCell value={row.after} missing={row.afterAvailable === false ? "After unavailable" : "Empty"} /> },
+  { id: "diff", label: "Diff", kind: "text", width: 520, render: (row, context) => isDescriptionDiffRow(row) ? <DiffCell row={row} expanded={context.expanded} onExpandedChange={context.setExpanded} /> : <span className="text-xs text-muted">Not a Description event</span> },
   { id: "source", label: "Source", kind: "multi", width: 130 }
 ];
 function text(value: unknown, fallback = "Unavailable") {
@@ -266,17 +274,14 @@ export function IssueViewerPage() {
     if (payloadBounds.endExclusive && timestamp >= payloadBounds.endExclusive) return false;
     if (issueViewer.activeTab === "Changelog" && (issueViewer.changelogQuery.descriptionChangedOnly ?? false)) {
       if (!isDescriptionField(item.fieldId, item.field)) return false;
-      const status = classifyContentChange(item.before, item.after, item.beforeAvailable !== false, item.afterAvailable !== false);
-      if (status === "before-unavailable" && !(issueViewer.changelogQuery.includeBeforeUnavailable ?? false)) return false;
-      return status === "changed" || status === "whitespace-only" || ((issueViewer.changelogQuery.includeBeforeUnavailable ?? false) && status === "before-unavailable");
+      return includeDescriptionChange(item, issueViewer.changelogQuery.includeBeforeUnavailable ?? false);
     }
     return true;
   });
   const changelogRecords: Array<Record<string, unknown>> = payloadRecords.map((item) => ({ ...(item as Record<string, unknown>), source: String(item.source ?? "jira payload") }));
   const changelogScopedRecords = !(issueViewer.changelogQuery.descriptionChangedOnly ?? false) ? changelogRecords : changelogRecords.filter((item) => {
     if (!isDescriptionField(item.fieldId, item.field)) return false;
-    const status = classifyContentChange(item.before, item.after, item.beforeAvailable !== false, item.afterAvailable !== false);
-    return status === "changed" || status === "whitespace-only" || ((issueViewer.changelogQuery.includeBeforeUnavailable ?? false) && status === "before-unavailable");
+    return includeDescriptionChange(item, issueViewer.changelogQuery.includeBeforeUnavailable ?? false);
   });
   const changelogResult = queryLocalTable(changelogScopedRecords, issueViewer.changelogQuery, changelogQueryColumns, "created");
   const payloadPageCount = Math.max(1, Math.ceil(filteredPayloadRecords.length / 50));
@@ -311,7 +316,7 @@ export function IssueViewerPage() {
               : <div className="rounded-md border border-slate-300 bg-slate-50 p-6 text-center font-bold text-muted">{result.description.message}</div> : null}
             {section ? sectionState(section, issueViewer.activeTab) : null}
             {section?.status === "ready" && ["Changelog", "Comments"].includes(issueViewer.activeTab) ? <div className="mb-3 space-y-3"><DateRangeControl value={issueViewer.activeTab === "Changelog" ? issueViewer.changelogQuery.dateRange ?? issueViewer.payloadDateRange : issueViewer.commentsQuery.dateRange ?? issueViewer.payloadDateRange} onChange={(payloadDateRange) => issueViewer.activeTab === "Changelog" ? patch({ changelogQuery: { ...issueViewer.changelogQuery, page: 1, dateRange: payloadDateRange, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 } }) : patch({ commentsQuery: { ...issueViewer.commentsQuery, page: 1, dateRange: payloadDateRange, revision: (issueViewer.commentsQuery.revision ?? 0) + 1 }, payloadDateRange, payloadPage: 1 })} label={issueViewer.activeTab === "Changelog" ? "Changelog Time / 變更時間" : (issueViewer.commentsQuery.commentDateMode ?? "created") === "created" ? "Comments Created / 留言建立時間" : "Comments Last Updated / 留言最後更新"} />{issueViewer.activeTab === "Comments" ? <label className="block max-w-sm"><span className="mb-1 block text-xs font-black text-muted">Comment Date Mode / 留言日期依據</span><select className="field" value={issueViewer.commentsQuery.commentDateMode ?? "created"} onChange={(event) => patch({ commentsQuery: { ...issueViewer.commentsQuery, page: 1, commentDateMode: event.currentTarget.value as "created" | "updated", revision: (issueViewer.commentsQuery.revision ?? 0) + 1 }, commentDateMode: event.currentTarget.value as "created" | "updated", payloadPage: 1 })}><option value="created">Created (default) / 建立時間</option><option value="updated">Last Updated / 最後更新</option></select></label> : <div className="flex flex-wrap gap-4"><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={issueViewer.changelogQuery.descriptionChangedOnly ?? false} onChange={(event) => patch({ changelogQuery: { ...issueViewer.changelogQuery, page: 1, descriptionChangedOnly: event.currentTarget.checked, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 }, descriptionChangedOnly: event.currentTarget.checked, payloadPage: 1 })} />Description Changed Only / 僅 Description 變更</label><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={issueViewer.changelogQuery.includeBeforeUnavailable ?? false} onChange={(event) => patch({ changelogQuery: { ...issueViewer.changelogQuery, page: 1, includeBeforeUnavailable: event.currentTarget.checked, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 }, includeBeforeUnavailable: event.currentTarget.checked, payloadPage: 1 })} />Include Before unavailable / 包含缺少 Before</label></div>}</div> : null}            {section?.status === "ready" && issueViewer.activeTab === "Comments" ? <div className="mb-3 flex flex-wrap items-end justify-between gap-3 rounded-md border border-line bg-slate-50 p-3"><label className="min-w-[240px] flex-1"><span className="mb-1 block text-xs font-black text-muted">Filter current payload section</span><input className="field" value={issueViewer.payloadFilter} onChange={(event) => patch({ payloadFilter: event.currentTarget.value, payloadPage: 1 })} placeholder="Author, field, value, or comment text" /></label><div className="text-xs font-bold text-muted">Filtered {filteredPayloadRecords.length.toLocaleString()} / Total {payloadRecords.length.toLocaleString()} / 50 per page {commentsMissingDateCount ? <span> · Missing both dates excluded: {commentsMissingDateCount}</span> : null}</div></div> : null}            {section?.status === "ready" && issueViewer.activeTab === "Changelog" ? <div className="mb-3"><FilterPresetControl viewerId="issueViewer" tabId="changelog" query={issueViewer.changelogQuery} presets={preferences?.filterPresets ?? []} onApply={(next) => patch({ changelogQuery: next as typeof issueViewer.changelogQuery })} onPresetsChange={saveFilterPresets} /></div> : null}
-            {section?.status === "ready" && issueViewer.activeTab === "Changelog" ? <SqliteDataTable tableId="issueChangelog" columns={changelogColumns} result={changelogResult} query={issueViewer.changelogQuery} preferences={preferences?.issueChangelog} onPreferencesChange={(value) => void window.desktopApp?.uiPreferences?.update({ section: "issueChangelog", value }).then((response) => { if (response) setPreferences(response.preferences); })} onQueryChange={(query) => patch({ changelogQuery: { ...query, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 } })} sessionState={issueViewer.tableStates.issueChangelog} onSessionStateChange={(value) => setTableState("issueChangelog", value)} getRowId={(row) => stableViewerRowId(row)} renderExpandedRow={(row) => <BeforeAfterDiff before={row.before} after={row.after} expanded={true} onExpandedChange={() => undefined} />} loadDistinct={async (field, search) => localDistinctValues(changelogScopedRecords, issueViewer.changelogQuery, changelogQueryColumns, field, search)} /> : null}
+            {section?.status === "ready" && issueViewer.activeTab === "Changelog" ? <SqliteDataTable tableId="issueChangelog" columns={changelogColumns} result={changelogResult} query={issueViewer.changelogQuery} preferences={preferences?.issueChangelog} onPreferencesChange={(value) => void window.desktopApp?.uiPreferences?.update({ section: "issueChangelog", value }).then((response) => { if (response) setPreferences(response.preferences); })} onQueryChange={(query) => patch({ changelogQuery: { ...query, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 } })} sessionState={issueViewer.tableStates.issueChangelog} onSessionStateChange={(value) => setTableState("issueChangelog", value)} getRowId={(row) => stableViewerRowId(row)} renderExpandedRow={(row) => isDescriptionDiffRow(row) ? <DiffCell row={row} expanded /> : <BeforeAfterDiff before={row.before} after={row.after} expanded={true} onExpandedChange={() => undefined} />} loadDistinct={async (field, search) => localDistinctValues(changelogScopedRecords, issueViewer.changelogQuery, changelogQueryColumns, field, search)} /> : null}
             {section?.status === "ready" && issueViewer.activeTab === "Comments" ? <div className="mb-3"><FilterPresetControl viewerId="issueViewer" tabId="comments" query={issueViewer.commentsQuery} presets={preferences?.filterPresets ?? []} onApply={(next) => patch({ commentsQuery: next as typeof issueViewer.commentsQuery, payloadPage: 1 })} onPresetsChange={saveFilterPresets} /></div> : null}
             {section?.status === "ready" && issueViewer.activeTab === "Comments" ? <div className="space-y-3">{visiblePayloadRecords.map((item) => <CommentCard key={text(item.id)} comment={{ ...item, dateModeFallback: (issueViewer.commentsQuery.commentDateMode ?? "created") === "updated" && !item.updated && Boolean(item.created) }} />)}</div> : null}
             {section?.status === "ready" && issueViewer.activeTab === "Worklogs" ? <DataTable headers={["Started", "Author", "Time Spent", "Comment", "Worklog ID"]} rows={section.records.map((item) => [formatDisplayTime(item.startedAt ?? item.started), text(item.authorDisplayName ?? (item.author as Record<string, unknown> | undefined)?.displayName), text(item.timeSpent), <ReadableContentCell value={item.commentText ?? item.comment} />, text(item.worklogId ?? item.id)])} /> : null}

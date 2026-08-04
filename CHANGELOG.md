@@ -1,3 +1,12 @@
+## 0.2.59 - Description Diff Source Identity & Hunk Rendering Correctness
+
+- Corrected Description event identity so changelog and activity views use the exact local activity event and changelog history/item source instead of treating every Jira-native source ID as a Comment ID.
+- Added fail-closed source/provenance validation with explicit unavailable, mismatch, unparseable, and resource-guard states; unrelated Comment or snapshot content is never used as Description evidence.
+- Added deterministic Myers line diff hunks with two context lines, grapheme-safe inline emphasis, compact list DTOs, and explicit local-only full-context loading with stale-response protection.
+- Unified Issue Changelog, Issue Activity Events, and User Activity Events on the same Description diff result and renderer; Description Changed Only now uses the same validated classifier.
+- Added synthetic v0.2.59 identity, same-timestamp Comment/Description, HTML/ADF, long-content, multi-hunk, empty/unavailable, and privacy regression coverage.
+- Kept SQLite schema v3, ENV format, dependencies, Jira read-only access, and the inherited v0.2.57 Debug Folder limitation unchanged.
+
 ## 0.2.58 - Date Range, Excel Filtering & Content Diff UX
 
 - Added shared local-calendar date shortcuts and custom start-inclusive/end-exclusive query bounds without changing SQLite schema v3.

@@ -6,6 +6,7 @@ import type { DatabaseIssueDistributions, DatabaseIssueQuery, DatabaseIssueQuery
 import type { UiPreferencesLoadResult, UiPreferencesUpdate } from "./uiPreferences";
 import type { ActivityTimelineRunContext } from "../../electron/activityTimelineRunContext";
 import type { ViewerDistinctResult, ViewerTableQuery, ViewerTableResult } from "./activityViewerQuery";
+import type { DescriptionFullContextResult } from "../../shared/descriptionDiff";
 
 declare global {
   interface Window {
@@ -92,6 +93,7 @@ declare global {
         userRelatedIssues: (payload: { userId: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
         userEvents: (payload: { userId: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
         issueEvents: (payload: { issueKey: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
+        descriptionFullContext: (payload: { eventId: string; issueKey: string; requestId: number; revision: number }) => Promise<DescriptionFullContextResult & { requestId: number; revision: number }>;
         distinctValues: (payload: { source: "databaseIssues" | "userRelatedIssues" | "userEvents" | "issueEvents"; subjectId?: string; field: string; search?: string; limit?: number; query?: DatabaseIssueQuery | ViewerTableQuery }) => Promise<ViewerDistinctResult>;
       };
       uiPreferences?: {

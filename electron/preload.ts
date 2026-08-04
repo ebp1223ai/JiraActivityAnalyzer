@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
     userRelatedIssues: (payload: unknown) => ipcRenderer.invoke("database-viewer:user-related-issues", payload),
     userEvents: (payload: unknown) => ipcRenderer.invoke("database-viewer:user-events", payload),
     issueEvents: (payload: unknown) => ipcRenderer.invoke("database-viewer:issue-events", payload),
+    descriptionFullContext: (payload: unknown) => ipcRenderer.invoke("database-viewer:description-full-context", payload),
     distinctValues: (payload: unknown) => ipcRenderer.invoke("database-viewer:distinct-values", payload)
   },
   uiPreferences: {

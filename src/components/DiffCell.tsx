@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { activityEventDisplayPolicy } from "../utils/activityEventDisplayPolicy";
+import { DescriptionDiffCell, isDescriptionDiffRow } from "./DescriptionDiffCell";
 
 type Props = {
   row: Record<string, unknown>;
@@ -10,6 +11,7 @@ type Props = {
 
 export function DiffCell({ row, expanded = false, onExpandedChange }: Props) {
   const policy = useMemo(() => activityEventDisplayPolicy(row), [row]);
+  if (isDescriptionDiffRow(row)) return <DescriptionDiffCell row={row} expanded={expanded} onExpandedChange={onExpandedChange} />;
   const label = policy.kind === "comment" ? `${policy.operation} Comment` : "Diff preview";
   return (
     <div className="min-w-0 text-xs leading-relaxed">
