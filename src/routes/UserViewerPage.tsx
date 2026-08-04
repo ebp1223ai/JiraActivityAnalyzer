@@ -24,6 +24,7 @@ import { queryFromTablePreferences } from "../utils/preferenceQuery";
 import { viewerQueryCacheKey } from "../utils/viewerSessionState";
 import { recordTableRequest } from "../diagnostics/tableDiagnostics";
 import { isDescriptionDiffRow } from "../components/DescriptionDiffCell";
+import { DescriptionOriginalPreviewCell } from "../components/DescriptionOriginalPreviewCell";
 
 function text(value: unknown, fallback = "—") {
   return value === undefined || value === null || value === "" ? fallback : String(value);
@@ -49,8 +50,8 @@ const eventColumns: SqliteTableColumn[] = [
   { id: "eventType", queryField: "action", label: "Action", kind: "multi", required: true, width: 140, render: (row) => formatActivityEventType(row.eventType) },
   { id: "displayName", queryField: "actor", label: "Actor", kind: "multi", width: 180, render: (row) => formatActivityActor(row) },
   { id: "fieldName", queryField: "field", label: "Field", kind: "multi", width: 180, render: (row) => formatActivityEventValue(row.fieldName, "Not applicable") },
-  { id: "before", label: "Before", kind: "text", defaultVisible: false, width: 320, render: (row) => isDescriptionDiffRow(row) ? <span className="text-xs font-bold text-muted">Use validated Diff controls</span> : <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
-  { id: "after", label: "After", kind: "text", defaultVisible: false, width: 320, render: (row) => isDescriptionDiffRow(row) ? <span className="text-xs font-bold text-muted">Use validated Diff controls</span> : <ReadableContentCell value={activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
+  { id: "before", label: "Before", kind: "text", defaultVisible: false, width: 320, render: (row, context) => isDescriptionDiffRow(row) ? <DescriptionOriginalPreviewCell row={row} side="before" onViewFull={() => context.setExpanded(true)} /> : <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" /> },
+  { id: "after", label: "After", kind: "text", defaultVisible: false, width: 320, render: (row, context) => isDescriptionDiffRow(row) ? <DescriptionOriginalPreviewCell row={row} side="after" onViewFull={() => context.setExpanded(true)} /> : <ReadableContentCell value={activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} /> },
   { id: "diff", label: "Diff", kind: "text", width: 400, render: (row, context) => <DiffCell row={row} expanded={context.expanded} onExpandedChange={context.setExpanded} /> },
   { id: "sourceProvenance", queryField: "source", label: "Source", kind: "multi", width: 140, render: (row) => formatActivitySource(row.sourceProvenance) }
 ];

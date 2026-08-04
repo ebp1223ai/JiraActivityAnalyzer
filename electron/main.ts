@@ -59,7 +59,9 @@ import {
   queryDatabaseDistinctValues,
   queryDatabaseUserDistributions,
   queryDatabaseIssueEvents,
+  queryDescriptionComparison,
   queryDescriptionFullContext,
+  queryDescriptionOriginalPreviews,
   queryDatabaseUserEvents,
   queryDatabaseUserRelatedIssues,
   loadDatabaseIssue,
@@ -808,6 +810,10 @@ ipcMain.handle("database-viewer:issue-events", async (_event, payload: { issueKe
   queryDatabaseIssueEvents(currentReadableDatabasePath(), String(payload?.issueKey ?? ""), payload?.query));
 ipcMain.handle("database-viewer:description-full-context", async (_event, payload: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; revision?: unknown }) =>
   queryDescriptionFullContext(currentReadableDatabasePath(), payload));
+ipcMain.handle("database-viewer:description-original-previews", async (_event, payload: Record<string, unknown>) =>
+  queryDescriptionOriginalPreviews(currentReadableDatabasePath(), payload));
+ipcMain.handle("database-viewer:description-comparison", async (_event, payload: Record<string, unknown>) =>
+  queryDescriptionComparison(currentReadableDatabasePath(), payload));
 ipcMain.handle("database-viewer:distinct-values", async (_event, payload: Record<string, unknown>) =>
   queryDatabaseDistinctValues(currentReadableDatabasePath(), payload));
 ipcMain.handle("ui-preferences:get", async () => loadUiPreferences(getConfiguredAppRoot()));

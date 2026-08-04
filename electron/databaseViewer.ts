@@ -5,7 +5,8 @@ import { gunzipSync } from "node:zlib";
 import { DatabaseSync } from "node:sqlite";
 import { normalizeSourceObjectKey } from "./sourceArchiveDatabase.js";
 import { dateRangeBounds, normalizeDateRange } from "./dateRange.js";
-import { buildDescriptionDiff, resolveDescriptionFullContext, type DescriptionDiffInput, type DescriptionDiffResult } from "../shared/descriptionDiff.js";
+import { buildDescriptionDiff, type DescriptionDiffInput, type DescriptionDiffResult } from "../shared/descriptionDiff.js";
+import { DESCRIPTION_PREVIEW_LIMITS, comparisonIntegrity, originalContentMetadata, previewFromComparison, type DescriptionComparisonPayload, type DescriptionPreviewBatchResponse } from "../shared/descriptionComparison.js";
 type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
 
 interface ViewerSection<T = unknown> {
@@ -85,6 +86,11 @@ function openReadOnly(databasePath: string) {
   const db = new DatabaseSync(resolved, { readOnly: true });
   db.exec("PRAGMA foreign_keys = ON; PRAGMA query_only = ON; PRAGMA busy_timeout = 3000;");
   return { db, resolved };
+}
+function databaseFileIdentity(databasePath: string) {
+  const resolved = path.resolve(databasePath);
+  const stat = fs.statSync(resolved);
+  return crypto.createHash("sha256").update([resolved.toLowerCase(), stat.size, stat.mtimeMs].join("|"), "utf8").digest("hex");
 }
 
 function rows(value: unknown) {
@@ -202,6 +208,7 @@ function normalizeChangelogRecords(value: Row[], issueKey: string, activityEvent
       });
       return {
         historyId, itemId: sourceRecordId, itemIndex, eventId: matched?.eventId,
+        databaseIdentity: matched?.databaseIdentity, previewGeneration: matched?.previewGeneration,
         issueKey, created, author, fieldId, fieldName, field: fieldName,
         before: isDescription ? undefined : before, after: isDescription ? undefined : after,
         beforeAvailable: isDescription ? descriptionDiff?.beforeAvailable : beforePresent,
@@ -725,20 +732,33 @@ function parseDescriptionStoredValue(value: unknown) {
   if (typeof value !== "string") return value;
   try { return JSON.parse(value); } catch { return value; }
 }
+function originalDescriptionRaw(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return String(value);
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (parsed === null || parsed === undefined) return null;
+    return typeof parsed === "string" ? parsed : value;
+  } catch {
+    return value;
+  }
+}
 
 function descriptionInputFromEventRow(event: Row): DescriptionDiffInput {
   const sourceRecordId = String(event.sourceRecordId ?? "");
   const itemMatch = /^(.*):(\d+)$/.exec(sourceRecordId);
-  const beforeAvailable = event.before !== null && event.before !== undefined;
-  const afterAvailable = event.after !== null && event.after !== undefined;
+  const beforeRaw = originalDescriptionRaw(event.before);
+  const afterRaw = originalDescriptionRaw(event.after);
+  const beforeAvailable = beforeRaw !== null;
+  const afterAvailable = afterRaw !== null;
   return {
     eventId: String(event.eventId ?? ""), issueKey: String(event.issueKey ?? ""),
     fieldId: event.fieldId == null ? null : String(event.fieldId), fieldName: event.fieldName == null ? null : String(event.fieldName),
     sourceType: String(event.sourceProvenance ?? ""), sourceId: sourceRecordId || null,
     changelogHistoryId: String(event.jiraNativeSourceId ?? itemMatch?.[1] ?? "") || null,
     changelogItemIndex: itemMatch ? Number(itemMatch[2]) : null, candidateCount: 1,
-    before: { available: beforeAvailable, complete: beforeAvailable, value: parseDescriptionStoredValue(event.before) },
-    after: { available: afterAvailable, complete: afterAvailable, value: parseDescriptionStoredValue(event.after) }
+    before: { available: beforeAvailable, complete: beforeAvailable, value: parseDescriptionStoredValue(event.before), raw: beforeRaw },
+    after: { available: afterAvailable, complete: afterAvailable, value: parseDescriptionStoredValue(event.after), raw: afterRaw }
   };
 }
 
@@ -838,6 +858,7 @@ const eventQueryCache = new Map<string, { expiresAt: number; value: EventQueryRe
 
 function queryDatabaseEvents(databasePath: string, subject: { userId: string; issueKey: string }, input: ViewerQueryInput): EventQueryResult {
   const sourceStat = fs.statSync(databasePath);
+  const databaseIdentity = databaseFileIdentity(databasePath);
   const queryFingerprint = crypto.createHash("sha256").update(JSON.stringify({ databasePath: path.resolve(databasePath), sourceSize: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, subject, input }), "utf8").digest("hex");
   const cached = eventQueryCache.get(queryFingerprint);
   if (cached && cached.expiresAt >= Date.now()) {
@@ -881,7 +902,7 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
     const rowsResult = rows(db.prepare(rowsSql).all(...parameters, query.pageSize, (page - 1) * query.pageSize));
     const sqlExecutionMs = performance.now() - sqlStartedAt;
     const mappingStartedAt = performance.now();
-    const enrichedRows = attachDescriptionDiffRows(enrichCommentEventRows(db, rowsResult));
+    const enrichedRows = attachDescriptionDiffRows(enrichCommentEventRows(db, rowsResult)).map((event) => ({ ...event, databaseIdentity, previewGeneration: queryFingerprint }));
     const rowMappingMs = performance.now() - mappingStartedAt;
     const totalMs = performance.now() - startedAt;
     const slow = totalMs > 1_000;
@@ -913,24 +934,142 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
   }
 }
 
-export function queryDescriptionFullContext(databasePath: string, input: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; revision?: unknown }) {
-  const eventId = String(input.eventId ?? "").trim();
-  const issueKey = normalizeSourceObjectKey("jira", "issue", String(input.issueKey ?? ""));
-  const requestId = Number.isSafeInteger(Number(input.requestId)) ? Number(input.requestId) : 0;
-  const revision = Number.isSafeInteger(Number(input.revision)) ? Number(input.revision) : 0;
-  if (!eventId) throw new Error("DESCRIPTION_EVENT_ID_REQUIRED");
+
+const DESCRIPTION_EVENT_SELECT = `
+  SELECT e.id AS eventId, o.issue_key AS issueKey, e.field_id AS fieldId, e.field_name AS fieldName,
+    e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
+    e.jira_native_source_id AS jiraNativeSourceId, e.identity_key_type AS identityKeyType,
+    e.source_provenance AS sourceProvenance
+  FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
+`;
+
+function descriptionComparisonFromEvent(
+  event: Row,
+  databaseIdentity: string,
+  requestId: string,
+  generation: string
+): DescriptionComparisonPayload {
+  const input = descriptionInputFromEventRow(event);
+  const diff = buildDescriptionDiff(input);
+  const sourceMismatch = diff.status === "source-mismatch";
+  const before = sourceMismatch
+    ? originalContentMetadata(null, "source-mismatch")
+    : originalContentMetadata(input.before.raw ?? null);
+  const after = sourceMismatch
+    ? originalContentMetadata(null, "source-mismatch")
+    : originalContentMetadata(input.after.raw ?? null);
+  const integrity = comparisonIntegrity(before, after, diff);
+  const itemMatch = /^(.*):(\d+)$/.exec(String(event.sourceRecordId ?? ""));
+  return {
+    requestId,
+    generation,
+    databaseIdentity,
+    activityEventId: String(event.eventId ?? ""),
+    issueKey: String(event.issueKey ?? ""),
+    historyId: String(event.jiraNativeSourceId ?? itemMatch?.[1] ?? "") || null,
+    itemIndex: itemMatch ? Number(itemMatch[2]) : null,
+    canonicalFieldId: diff.fieldIdentity,
+    sourceType: diff.sourceType,
+    sourceId: diff.sourceId,
+    before,
+    after,
+    diff,
+    diffInputBeforeSha256: diff.diffInputBeforeSha256,
+    diffInputAfterSha256: diff.diffInputAfterSha256,
+    integrityStatus: integrity.status,
+    diagnosticsCode: integrity.code
+  };
+}
+
+function validateDescriptionRequestText(value: unknown, code: string, maxLength = 256) {
+  const text = String(value ?? "").trim();
+  if (!text || text.length > maxLength) throw new Error(code);
+  return text;
+}
+
+export function queryDescriptionOriginalPreviews(
+  databasePath: string,
+  input: { eventIds?: unknown; requestId?: unknown; generation?: unknown; databaseIdentity?: unknown }
+): DescriptionPreviewBatchResponse {
+  const eventIdsInput = Array.isArray(input.eventIds) ? input.eventIds : [];
+  const eventIds = Array.from(new Set(eventIdsInput.map((value) => String(value ?? "").trim()).filter(Boolean)));
+  if (!eventIds.length || eventIds.length > DESCRIPTION_PREVIEW_LIMITS.maxBatchSize) throw new Error("DESCRIPTION_PREVIEW_BATCH_LIMIT");
+  const requestId = validateDescriptionRequestText(input.requestId, "DESCRIPTION_PREVIEW_REQUEST_INVALID");
+  const generation = validateDescriptionRequestText(input.generation, "DESCRIPTION_PREVIEW_GENERATION_INVALID");
+  const currentIdentity = databaseFileIdentity(databasePath);
+  const expectedIdentity = validateDescriptionRequestText(input.databaseIdentity, "DESCRIPTION_DATABASE_IDENTITY_REQUIRED");
+  if (currentIdentity !== expectedIdentity) throw new Error("DESCRIPTION_ORIGINAL_REQUEST_STALE");
   const { db } = openReadOnly(databasePath);
   try {
-    const event = row(db.prepare(`
-      SELECT e.id AS eventId, o.issue_key AS issueKey, e.field_id AS fieldId, e.field_name AS fieldName,
-        e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
-        e.jira_native_source_id AS jiraNativeSourceId, e.source_provenance AS sourceProvenance
-      FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
-      WHERE e.id=? AND o.issue_key=?
-    `).get(eventId, issueKey));
-    if (!event.eventId) return { requestId, revision, eventId, issueKey, status: "source-mismatch", diffStatus: "source-mismatch", beforeText: null, afterText: null, beforeAvailable: false, afterAvailable: false, beforeComplete: false, afterComplete: false, diagnosticsCode: "DESCRIPTION_EVENT_IDENTITY_MISMATCH" };
-    return { requestId, revision, ...resolveDescriptionFullContext(descriptionInputFromEventRow(event), eventId) };
-  } finally { db.close(); }
+    const placeholders = eventIds.map(() => "?").join(",");
+    const found = rows(db.prepare(`${DESCRIPTION_EVENT_SELECT} WHERE e.id IN (${placeholders})`).all(...eventIds));
+    const byId = new Map(found.map((event) => [String(event.eventId), event]));
+    const items = eventIds.flatMap((eventId) => {
+      const event = byId.get(eventId);
+      return event ? [previewFromComparison(descriptionComparisonFromEvent(event, currentIdentity, requestId, generation))] : [];
+    });
+    const errors = eventIds.filter((eventId) => !byId.has(eventId)).map((activityEventId) => ({ activityEventId, code: "DESCRIPTION_ORIGINAL_SOURCE_MISMATCH" }));
+    return { requestId, generation, databaseIdentity: currentIdentity, items, errors };
+  } finally {
+    db.close();
+  }
+}
+
+export function queryDescriptionComparison(
+  databasePath: string,
+  input: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; generation?: unknown; databaseIdentity?: unknown }
+): DescriptionComparisonPayload {
+  const eventId = validateDescriptionRequestText(input.eventId, "DESCRIPTION_EVENT_ID_REQUIRED");
+  const requestId = validateDescriptionRequestText(input.requestId, "DESCRIPTION_COMPARISON_REQUEST_INVALID");
+  const generation = validateDescriptionRequestText(input.generation, "DESCRIPTION_COMPARISON_GENERATION_INVALID");
+  const expectedIdentity = validateDescriptionRequestText(input.databaseIdentity, "DESCRIPTION_DATABASE_IDENTITY_REQUIRED");
+  const currentIdentity = databaseFileIdentity(databasePath);
+  if (currentIdentity !== expectedIdentity) throw new Error("DESCRIPTION_ORIGINAL_REQUEST_STALE");
+  const expectedIssueKey = String(input.issueKey ?? "").trim();
+  const { db } = openReadOnly(databasePath);
+  try {
+    const event = row(db.prepare(`${DESCRIPTION_EVENT_SELECT} WHERE e.id=?`).get(eventId));
+    if (!event.eventId || (expectedIssueKey && normalizeSourceObjectKey("jira", "issue", expectedIssueKey) !== String(event.issueKey))) {
+      return descriptionComparisonFromEvent({
+        eventId,
+        issueKey: expectedIssueKey,
+        fieldId: "",
+        fieldName: "",
+        sourceRecordId: null,
+        sourceProvenance: "source_mismatch"
+      }, currentIdentity, requestId, generation);
+    }
+    return descriptionComparisonFromEvent(event, currentIdentity, requestId, generation);
+  } finally {
+    db.close();
+  }
+}
+
+export function queryDescriptionFullContext(databasePath: string, input: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; revision?: unknown }) {
+  const eventId = String(input.eventId ?? "").trim();
+  const issueKey = String(input.issueKey ?? "").trim();
+  const requestId = Number.isSafeInteger(Number(input.requestId)) ? Number(input.requestId) : 0;
+  const revision = Number.isSafeInteger(Number(input.revision)) ? Number(input.revision) : 0;
+  const comparison = queryDescriptionComparison(databasePath, {
+    eventId, issueKey, requestId: String(requestId), generation: String(revision),
+    databaseIdentity: databaseFileIdentity(databasePath)
+  });
+  const blocked = comparison.integrityStatus === "mismatch" || comparison.diff.status === "source-mismatch";
+  const contextStatus = blocked
+    ? "source-mismatch"
+    : ["before-unavailable", "after-unavailable", "unparseable", "diff-too-large"].includes(comparison.diff.status)
+      ? comparison.diff.status
+      : "ready";
+  return {
+    requestId, revision, eventId: comparison.activityEventId, issueKey: comparison.issueKey,
+    status: contextStatus, diffStatus: comparison.diff.status,
+    beforeText: blocked ? null : comparison.before.raw, afterText: blocked ? null : comparison.after.raw,
+    beforeAvailable: comparison.before.availability === "available" || comparison.before.availability === "available-empty",
+    afterAvailable: comparison.after.availability === "available" || comparison.after.availability === "available-empty",
+    beforeComplete: comparison.before.availability === "available" || comparison.before.availability === "available-empty",
+    afterComplete: comparison.after.availability === "available" || comparison.after.availability === "available-empty",
+    diagnosticsCode: comparison.diagnosticsCode
+  };
 }
 export function listDatabaseIssues(databasePath: string, input: IssueQuery = {}) {
   const { db } = openReadOnly(databasePath);
@@ -1041,13 +1180,14 @@ export function loadDatabaseIssue(databasePath: string, issueKeyInput: string) {
       : issue.payloadGzip instanceof Uint8Array
         ? Buffer.from(issue.payloadGzip)
         : null;
+    const databaseIdentity = databaseFileIdentity(databasePath);
     const events = attachDescriptionDiffRows(rows(db.prepare(`
       SELECT id AS eventId, event_type AS eventType, event_time AS eventTime, actor_account_id AS actorAccountId,
              actor_display_name AS actorDisplayName, field_id AS fieldId, field_name AS fieldName,
              from_value_json AS before, to_value_json AS after, source_record_id AS sourceRecordId,
              jira_native_source_id AS jiraNativeSourceId, identity_key_type AS identityKeyType, source_provenance AS sourceProvenance
       FROM activity_events WHERE source_object_id = ? ORDER BY event_time DESC, id DESC LIMIT 500
-    `).all(String(issue.sourceObjectId))).map((event) => ({ ...event, issueKey })));
+    `).all(String(issue.sourceObjectId))).map((event) => ({ ...event, issueKey, databaseIdentity, previewGeneration: databaseIdentity })));
     if (!payloadBuffer) return issueViewerFailure(issueKey, "payload_unavailable", "Full Fetch payload is unavailable.", overview);
     const compressedBytes = Number(issue.compressedBytes);
     const uncompressedBytes = Number(issue.uncompressedBytes);

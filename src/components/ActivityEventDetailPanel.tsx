@@ -8,7 +8,7 @@ import { DescriptionDiffCell, isDescriptionDiffRow } from "./DescriptionDiffCell
 export function ActivityEventDetailPanel({ row }: { row: Record<string, unknown> }) {
   const policy = useMemo(() => activityEventDisplayPolicy(row), [row]);
   const change = useMemo(() => normalizeActivityChange(row), [row]);
-  if (isDescriptionDiffRow(row)) return <section className="min-w-0 rounded-md border border-blue-200 bg-white p-4" aria-label="Description Diff details"><DescriptionDiffCell row={row} /></section>;
+  if (isDescriptionDiffRow(row)) return <section className="min-w-0 rounded-md border border-blue-200 bg-white p-4" aria-label="Description Diff details"><DescriptionDiffCell row={row} expanded detail /></section>;
   if (policy.kind === "comment") {
     return (
       <section className="min-w-0 rounded-md border border-blue-200 bg-white p-4" aria-label={`${policy.operation} Comment details`}>

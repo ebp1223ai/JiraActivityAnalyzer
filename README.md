@@ -1,3 +1,13 @@
+> v0.2.60 restores exact original Before/After evidence for validated Description events without enlarging compact table DTOs.
+
+## v0.2.60 Original Before/After Evidence Verification
+
+- **Visible previews:** Issue Changelog, Issue Activity Events, and User Activity Events lazily request bounded Before/After previews in batches of at most 100 stable event IDs.
+- **Exact comparison:** expanding a Description event loads the original SQLite strings and renders Before Original, After Original, and the v0.2.59 Diff Hunks together.
+- **Manual verification:** each original shows code-point, UTF-8 byte, logical-line, and SHA-256 metadata; Wrap and Show Whitespace affect display only, while Copy Original copies the exact unmodified string.
+- **Integrity and privacy:** requests are bound to database identity and generation. Source, event, issue, or hash mismatch fails closed, raw originals never enter compact DTOs or logs, and HTML/ADF/JSON evidence is rendered as inert text.
+- **Scope:** local SQLite schema v3 remains unchanged and Jira remains read-only. Database Activity Events is not an available route in this baseline, so that view is N/A.
+
 # Jira Activity Analyzer
 
 > v0.2.59 fixes Description evidence identity and renders deterministic compact line/inline diff hunks from the exact local changelog event. SQLite schema v3 and Jira read-only behavior remain unchanged.

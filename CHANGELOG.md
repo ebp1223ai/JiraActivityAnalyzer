@@ -1,3 +1,11 @@
+## 0.2.60 - Original Before/After Evidence Visibility & Manual Verification UX
+
+- Restored bounded Before/After Original previews in Issue Changelog, Issue Activity Events, and User Activity Events while keeping full raw values out of compact list DTOs.
+- Added event-identity-bound preview batching and full comparison IPC with database/generation stale-response guards, exact raw metadata, UTF-8 SHA-256 integrity checks, and fail-closed source handling.
+- Added a responsive three-column Before Original / After Original / Diff Hunks verifier with wrap, whitespace visualization, exact-copy, synchronized scrolling, and explicit empty/unavailable states.
+- Added synthetic schema-v3 coverage for CRLF, tabs, emoji, HTML literals, 200-line values, empty/unavailable sources, same-time Comment isolation, request limits, stale identity, and hash mismatch.
+- Kept Current-State SQLite schema v3, ENV format, dependencies, Jira read-only access, and the inherited v0.2.57 Debug Folder limitation unchanged. Database Activity Events is N/A because no such product route exists in this baseline.
+
 ## 0.2.59 - Description Diff Source Identity & Hunk Rendering Correctness
 
 - Corrected Description event identity so changelog and activity views use the exact local activity event and changelog history/item source instead of treating every Jira-native source ID as a Comment ID.

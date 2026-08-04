@@ -7,6 +7,7 @@ import type { UiPreferencesLoadResult, UiPreferencesUpdate } from "./uiPreferenc
 import type { ActivityTimelineRunContext } from "../../electron/activityTimelineRunContext";
 import type { ViewerDistinctResult, ViewerTableQuery, ViewerTableResult } from "./activityViewerQuery";
 import type { DescriptionFullContextResult } from "../../shared/descriptionDiff";
+import type { DescriptionComparisonPayload, DescriptionPreviewBatchResponse } from "../../shared/descriptionComparison";
 
 declare global {
   interface Window {
@@ -94,6 +95,8 @@ declare global {
         userEvents: (payload: { userId: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
         issueEvents: (payload: { issueKey: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
         descriptionFullContext: (payload: { eventId: string; issueKey: string; requestId: number; revision: number }) => Promise<DescriptionFullContextResult & { requestId: number; revision: number }>;
+        descriptionOriginalPreviews: (payload: { requestId: string; generation: string; databaseIdentity: string; eventIds: string[] }) => Promise<DescriptionPreviewBatchResponse>;
+        descriptionComparison: (payload: { requestId: string; generation: string; databaseIdentity: string; eventId: string; issueKey?: string }) => Promise<DescriptionComparisonPayload>;
         distinctValues: (payload: { source: "databaseIssues" | "userRelatedIssues" | "userEvents" | "issueEvents"; subjectId?: string; field: string; search?: string; limit?: number; query?: DatabaseIssueQuery | ViewerTableQuery }) => Promise<ViewerDistinctResult>;
       };
       uiPreferences?: {

@@ -56,6 +56,8 @@ contextBridge.exposeInMainWorld("desktopApp", {
     userEvents: (payload: unknown) => ipcRenderer.invoke("database-viewer:user-events", payload),
     issueEvents: (payload: unknown) => ipcRenderer.invoke("database-viewer:issue-events", payload),
     descriptionFullContext: (payload: unknown) => ipcRenderer.invoke("database-viewer:description-full-context", payload),
+    descriptionOriginalPreviews: (payload: unknown) => ipcRenderer.invoke("database-viewer:description-original-previews", payload),
+    descriptionComparison: (payload: unknown) => ipcRenderer.invoke("database-viewer:description-comparison", payload),
     distinctValues: (payload: unknown) => ipcRenderer.invoke("database-viewer:distinct-values", payload)
   },
   uiPreferences: {
