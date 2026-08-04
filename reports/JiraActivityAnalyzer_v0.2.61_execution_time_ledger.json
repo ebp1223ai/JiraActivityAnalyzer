@@ -1,0 +1,160 @@
+{
+    "schemaVersion":  "execution_time_ledger_v1",
+    "version":  "0.2.61",
+    "startedAt":  "2026-08-04T14:46:04.9372344+08:00",
+    "evidenceCutoffAt":  "2026-08-04T15:04:35.4252150+08:00",
+    "wallClockSecondsAtCutoff":  1110.488,
+    "overallStatus":  "Partial",
+    "commands":  [
+                     {
+                         "phase":  "baseline",
+                         "command":  "git status / branch / HEAD / ancestry inspection",
+                         "exitCode":  0,
+                         "durationSeconds":  0.7,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "implementation-retry",
+                         "command":  "initial table helper insertion",
+                         "exitCode":  1,
+                         "durationSeconds":  0.4,
+                         "result":  "failed",
+                         "note":  "PowerShell replacement inserted the helper repeatedly; command stopped before other component writes"
+                     },
+                     {
+                         "phase":  "implementation-repair",
+                         "command":  "restore tablePreferences.ts from HEAD and append one helper",
+                         "exitCode":  0,
+                         "durationSeconds":  0.4,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "implementation-retry",
+                         "command":  "first shared component edit command",
+                         "exitCode":  1,
+                         "durationSeconds":  0.3,
+                         "result":  "failed",
+                         "note":  "PowerShell R alias collision; no component write from this attempt"
+                     },
+                     {
+                         "phase":  "implementation",
+                         "command":  "shared Description presentation edits",
+                         "exitCode":  0,
+                         "durationSeconds":  0.3,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "implementation",
+                         "command":  "Viewer route and table UX edits with exact-count retries",
+                         "exitCode":  0,
+                         "durationSeconds":  1.2,
+                         "result":  "passed",
+                         "note":  "Exact-count guards exposed four Issue and two User preview call sites"
+                     },
+                     {
+                         "phase":  "typecheck-retry",
+                         "command":  "npm run typecheck",
+                         "exitCode":  2,
+                         "durationSeconds":  4.7,
+                         "result":  "failed",
+                         "note":  "Removed preset controls left two empty JSX ternaries"
+                     },
+                     {
+                         "phase":  "typecheck",
+                         "command":  "npm run typecheck",
+                         "exitCode":  0,
+                         "durationSeconds":  9.9,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "focused-and-regression",
+                         "command":  "npm run test:v0.2.61, v0.2.60, v0.2.59, v0.2.58",
+                         "exitCode":  0,
+                         "durationSeconds":  3.6,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "source-gate",
+                         "command":  "typecheck, v0.2.61-v0.2.58, hotfix, v0.2.50, ledger, build, git diff --check",
+                         "exitCode":  0,
+                         "durationSeconds":  34.3,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "source-commit",
+                         "command":  "git commit -m feat(v0.2.61): unify viewer diff presentation and simplify table UX",
+                         "exitCode":  0,
+                         "durationSeconds":  0.8,
+                         "result":  "passed",
+                         "commit":  "f3cd7d9de9b965eaae12b7594ba861943d70fa18"
+                     },
+                     {
+                         "phase":  "clean-package-worktree",
+                         "command":  "git worktree add --detach and version verification",
+                         "exitCode":  0,
+                         "durationSeconds":  1,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "dist",
+                         "command":  "npm run dist",
+                         "exitCode":  0,
+                         "durationSeconds":  85.011,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "package-audit",
+                         "command":  "npm run audit:package-size and ASAR content audit",
+                         "exitCode":  0,
+                         "durationSeconds":  2,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "artifact-copy",
+                         "command":  "copy clean artifacts to release and re-hash",
+                         "exitCode":  0,
+                         "durationSeconds":  5,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "package-worktree-cleanup-retry",
+                         "command":  "PowerShell Remove-Item junction",
+                         "exitCode":  1,
+                         "durationSeconds":  0.3,
+                         "result":  "failed",
+                         "note":  "Windows junction Remove-Item null-reference; no target content removed"
+                     },
+                     {
+                         "phase":  "package-worktree-cleanup",
+                         "command":  ".NET non-recursive junction deletion and git worktree remove",
+                         "exitCode":  0,
+                         "durationSeconds":  1.2,
+                         "result":  "passed"
+                     },
+                     {
+                         "phase":  "evidence-writing",
+                         "command":  "write v0.2.61 implementation, manual, package audit, and execution ledger reports",
+                         "exitCode":  0,
+                         "durationSeconds":  0.075,
+                         "result":  "passed"
+                     }
+                 ],
+    "notRun":  [
+                   "short packaged app-only smoke: existing repository smoke is a broad long-running integration suite",
+                   "real Jira access",
+                   "real SQLite verification",
+                   "full Windows GUI validation",
+                   "Installer install/uninstall",
+                   "tag",
+                   "push",
+                   "pull request",
+                   "GitHub Release"
+               ],
+    "notes":  [
+                  "Inspection commands and user-facing updates are included in wall clock but only material commands are listed individually.",
+                  "No OS desktop screenshot was used.",
+                  "The unrelated modified v0.2.47 report and pre-existing untracked files remained unstaged and untouched.",
+                  "Evidence commit and final Git verification occur after this ledger cutoff and are reported in the implementation report and final response.",
+                  "Overall Status remains Partial until real SQLite and full Windows GUI validation pass."
+              ]
+}
