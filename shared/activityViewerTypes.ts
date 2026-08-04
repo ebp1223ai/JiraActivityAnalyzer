@@ -1,0 +1,22 @@
+export type ActivityViewerRow = Record<string, unknown> & {
+  eventId: string;
+  eventTime: string;
+  action?: string | null;
+  eventType?: string | null;
+  userId?: string | null;
+  displayName?: string | null;
+  issueKey: string;
+  summary?: string | null;
+  projectKey?: string | null;
+  issueTypeName?: string | null;
+  currentStatusName?: string | null;
+  currentPriorityName?: string | null;
+  fieldName?: string | null;
+  before?: unknown;
+  after?: unknown;
+  historyId?: string | null;
+  itemIndex?: number | null;
+  sourceProvenance?: string | null;
+  databaseIdentity: string;
+  previewGeneration: string;
+};

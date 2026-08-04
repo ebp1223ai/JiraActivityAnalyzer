@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronsUpDown, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Filter, RotateCcw, Settings2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronsUpDown, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Filter, RotateCcw, Settings2, X } from "lucide-react";
 import type { ViewerDistinctResult, ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
 import type { ViewerTableSessionState } from "../types/databaseViewer";
 import type { TablePreferences } from "../types/uiPreferences";
@@ -60,7 +60,8 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
   const distinctRequest = useRef(0);
   const scrollContainer = useRef<HTMLDivElement>(null);
   const restoredTable = useRef("");
-  const shown = useMemo(() => normalized.columnOrder.map((id) => columns.find((column) => column.id === id)).filter((column): column is SqliteTableColumn => Boolean(column && normalized.visibleColumns.includes(column.id))), [columns, normalized]);
+  const orderedColumns = useMemo(() => normalized.columnOrder.map((id) => columns.find((column) => column.id === id)).filter((column): column is SqliteTableColumn => Boolean(column)), [columns, normalized.columnOrder]);
+  const shown = useMemo(() => orderedColumns.filter((column) => normalized.visibleColumns.includes(column.id)), [orderedColumns, normalized.visibleColumns]);
   const activeColumn = columns.find((column) => column.id === filterColumn);
   const queryField = (column: SqliteTableColumn) => column.queryField ?? column.id;
 
@@ -109,6 +110,17 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
     if (column.required && !checked) return;
     const next = checked ? Array.from(new Set([...normalized.visibleColumns, column.id])) : normalized.visibleColumns.filter((id) => id !== column.id);
     savePreferences({ ...normalized, visibleColumns: next }, `column_visibility column=${column.id} visible=${checked}`);
+  }
+
+  function moveColumn(column: SqliteTableColumn, direction: -1 | 1) {
+    if (column.required) return;
+    const order = [...normalized.columnOrder];
+    const currentIndex = order.indexOf(column.id);
+    const targetIndex = currentIndex + direction;
+    const requiredCount = columns.filter((candidate) => candidate.required).length;
+    if (currentIndex < 0 || targetIndex < requiredCount || targetIndex >= order.length) return;
+    [order[currentIndex], order[targetIndex]] = [order[targetIndex], order[currentIndex]];
+    savePreferences({ ...normalized, columnOrder: order }, "column_reorder column=" + column.id + " direction=" + direction);
   }
 
   function sort(column: SqliteTableColumn) {
@@ -167,7 +179,7 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
   return (
     <div className="min-w-0" aria-busy={loading} data-table-id={tableId}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold"><span>篩選後 {result.filteredCount.toLocaleString()}，全部 {result.totalCount.toLocaleString()}</span><div className="flex gap-2">{Object.keys(query.filters).length ? <button className="btn" type="button" onClick={() => changeQuery({ ...query, page: 1, filters: {} }, "filter_clear_all")}><X size={14} />清除全部篩選</button> : null}<button className="btn" type="button" onClick={() => { log("columns_toggle"); setSettingsOpen((value) => !value); }}><Settings2 size={14} />欄位</button></div></div>
-      {settingsOpen ? <div className="mb-3 rounded-md border border-line bg-slate-50 p-3"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><b className="text-xs">Columns / 欄位</b><div className="flex flex-wrap gap-2"><button className="btn" type="button" onClick={() => savePreferences({ ...normalized, columnWidths: {} }, "column_widths_reset")}><RotateCcw size={14} />Reset Widths / 重設欄寬</button><button className="btn" type="button" onClick={() => savePreferences(resetTableLayout(normalized, columns.map((column) => ({ id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))), "table_layout_reset")}><RotateCcw size={14} />Reset Table Layout / 重設表格版面</button></div></div><div className="flex flex-wrap gap-3">{columns.map((column) => <label key={column.id} className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={normalized.visibleColumns.includes(column.id)} disabled={column.required} onChange={(event) => setColumnVisible(column, event.currentTarget.checked)} />{column.label}{column.required ? <span className="text-[10px] text-blue-700">Required／必要</span> : null}</label>)}</div></div> : null}
+      {settingsOpen ? <div className="mb-3 rounded-md border border-line bg-slate-50 p-3"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><b className="text-xs">Columns / 欄位</b><div className="flex flex-wrap gap-2"><button className="btn" type="button" onClick={() => savePreferences({ ...normalized, columnWidths: {} }, "column_widths_reset")}><RotateCcw size={14} />Reset Widths / 重設欄寬</button><button className="btn" type="button" onClick={() => savePreferences(resetTableLayout(normalized, columns.map((column) => ({ id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))), "table_layout_reset")}><RotateCcw size={14} />Reset Table Layout / 重設表格版面</button></div></div><div className="flex flex-wrap gap-3">{orderedColumns.map((column, index) => <div key={column.id} className="flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1"><label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={normalized.visibleColumns.includes(column.id)} disabled={column.required} onChange={(event) => setColumnVisible(column, event.currentTarget.checked)} />{column.label}{column.required ? <span className="text-[10px] text-blue-700">Required／必要</span> : null}</label>{column.required ? null : <div className="ml-1 flex gap-1"><button className="icon-btn !h-6 !w-6" type="button" disabled={index <= columns.filter((candidate) => candidate.required).length} title={"Move " + column.label + " left"} onClick={() => moveColumn(column, -1)}><ArrowLeft size={12} /></button><button className="icon-btn !h-6 !w-6" type="button" disabled={index >= orderedColumns.length - 1} title={"Move " + column.label + " right"} onClick={() => moveColumn(column, 1)}><ArrowRight size={12} /></button></div>}</div>)}</div></div> : null}
       {error ? <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{error}</div> : null}
       <div ref={scrollContainer} className="thin-scroll max-w-full overflow-x-auto rounded-md border border-line" data-table-scroll-container="true" onScroll={(event) => onSessionStateChange?.({ ...normalizedSession, scrollLeft: event.currentTarget.scrollLeft, scrollTop: event.currentTarget.scrollTop })}>
         <table className="w-max min-w-full table-fixed text-left text-xs">

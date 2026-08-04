@@ -1,3 +1,10 @@
+## 0.2.63 - Analyzer Evidence UI, Viewer Column Control & Issue Metadata
+
+- Added one canonical column registry for Issue Changelog, Issue Activity Events, and User All Activity Events, with Time and Action required in the first two positions and optional visibility/order/width controls.
+- Corrected the Changelog Before/After visibility persistence bug by migrating legacy column IDs and normalizing each viewer preference scope independently.
+- Added typed Event Type, Project, Issue Type, current Status, and current Priority fields from existing Current-State SQLite joins, including query-layer filtering, sorting, pagination, and distinct values.
+- Preserved dedicated Changelog and Activity Events queries, source/database/generation stale guards, compact DTOs, All Users behavior, schema v3, and read-only Jira behavior.
+- Added focused synthetic v0.2.63 production-query and preference migration coverage.
 ## 0.2.62 - Issue Viewer Changelog Alignment & All Users Scope
 
 - Moved Issue Viewer Changelog to the same server-side Current-State SQLite event query and shared Before / After / Diff production presentation used by Activity Events, preserving event, history/item, source, database, generation, and integrity identities.

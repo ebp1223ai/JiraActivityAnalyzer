@@ -56,9 +56,12 @@ export function normalizeTablePreferences(
     : {};
   const allowed = new Set(columns.map((column) => column.id));
   const queryFields = new Set(columns.map((column) => column.queryField ?? column.id));
+  const requiredIds = columns.filter((column) => column.required).map((column) => column.id);
+  const requiredSet = new Set(requiredIds);
   const sourceOrder = Array.isArray(source.columnOrder) ? source.columnOrder : [];
-  const columnOrder = Array.from(new Set(sourceOrder.filter((id): id is string => typeof id === "string" && allowed.has(id))));
-  for (const column of columns) if (!columnOrder.includes(column.id)) columnOrder.push(column.id);
+  const optionalOrder = Array.from(new Set(sourceOrder.filter((id): id is string => typeof id === "string" && allowed.has(id) && !requiredSet.has(id))));
+  for (const column of columns) if (!requiredSet.has(column.id) && !optionalOrder.includes(column.id)) optionalOrder.push(column.id);
+  const columnOrder = [...requiredIds, ...optionalOrder];
 
   const sourceVisible = Array.isArray(source.visibleColumns) ? source.visibleColumns : [];
   const visibleColumns = Array.from(new Set(sourceVisible.filter((id): id is string => typeof id === "string" && allowed.has(id))));

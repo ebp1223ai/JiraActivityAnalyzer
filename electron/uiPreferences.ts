@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { activityViewerRegistryForScope } from "../shared/activityViewerColumns.js";
 import { assertPathInsideRoot, resolveInsideRoot } from "./appRoot.js";
 
 export type TableFilterPreference = {
@@ -51,19 +52,16 @@ export const USER_RELATED_ISSUE_COLUMNS = [
   "userActivities", "comments", "fieldChanges", "firstActivity", "lastActivity"
 ] as const;
 
-export const ACTIVITY_VIEWER_COLUMNS = [
-  "eventTime", "userId", "displayName", "issueKey", "eventType", "fieldName",
-  "before", "after", "diff", "summary", "sourceProvenance"
-] as const;
-
-export const ISSUE_CHANGELOG_COLUMNS = [
-  "created", "author", "field", "before", "after", "added", "removed"
-] as const;
+export const ISSUE_ACTIVITY_EVENT_COLUMNS = activityViewerRegistryForScope("issueActivityEvents").map((column) => column.id);
+export const ISSUE_CHANGELOG_COLUMNS = activityViewerRegistryForScope("issueChangelog").map((column) => column.id);
+export const USER_ACTIVITY_EVENT_COLUMNS = activityViewerRegistryForScope("userAllActivityEvents").map((column) => column.id);
 
 export const ISSUE_COMMENT_COLUMNS = ["author", "created", "updated", "body"] as const;
 
 const PAGE_SIZES = new Set([25, 50, 100]);
-const ACTIVITY_QUERY_FIELDS = ["eventTime", "issueKey", "actor", "action", "field", "before", "after", "diff", "summary", "source"] as const;
+const ACTIVITY_QUERY_FIELDS = Array.from(new Set(["issueActivityEvents", "issueChangelog", "userAllActivityEvents"].flatMap((scope) =>
+  activityViewerRegistryForScope(scope as "issueActivityEvents" | "issueChangelog" | "userAllActivityEvents").map((column) => column.queryField)
+)));
 
 function defaultTable(columns: readonly string[], pageSize = 50): TablePreferences {
   return { visibleColumns: [...columns], columnOrder: [...columns], columnWidths: {}, pageSize, pageIndex: 1, sort: null, filters: {} };
@@ -75,8 +73,8 @@ export function defaultUiPreferences(): UiPreferences {
     databaseIssueList: defaultTable(DATABASE_ISSUE_COLUMNS, 50),
     timelineEventList: defaultTable(TIMELINE_EVENT_COLUMNS),
     userRelatedIssues: defaultTable(USER_RELATED_ISSUE_COLUMNS),
-    userAllActivityEvents: { ...defaultTable(ACTIVITY_VIEWER_COLUMNS), visibleColumns: ACTIVITY_VIEWER_COLUMNS.filter((column) => !["before", "after"].includes(column)) },
-    issueActivityEvents: defaultTable(ACTIVITY_VIEWER_COLUMNS),
+    userAllActivityEvents: { ...defaultTable(USER_ACTIVITY_EVENT_COLUMNS), visibleColumns: USER_ACTIVITY_EVENT_COLUMNS.filter((column) => !["before", "after"].includes(column)) },
+    issueActivityEvents: defaultTable(ISSUE_ACTIVITY_EVENT_COLUMNS),
     issueChangelog: defaultTable(ISSUE_CHANGELOG_COLUMNS),
     issueComments: defaultTable(ISSUE_COMMENT_COLUMNS),
     filterPresets: []
@@ -115,12 +113,44 @@ function normalizeFilter(value: unknown): TableFilterPreference | null {
   return Object.keys(result).length ? result : null;
 }
 
+const LEGACY_ACTIVITY_COLUMN_IDS: Record<string, string> = {
+  created: "eventTime",
+  author: "displayName",
+  field: "fieldName",
+  added: "after",
+  removed: "before"
+};
+
+function migrateActivityPreferences(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const source = value as Record<string, unknown>;
+  const mapIds = (candidate: unknown) => Array.isArray(candidate)
+    ? candidate.map((id) => typeof id === "string" ? (LEGACY_ACTIVITY_COLUMN_IDS[id] ?? id) : id)
+    : candidate;
+  const columnOrder = mapIds(source.columnOrder);
+  const visibleColumns = mapIds(source.visibleColumns);
+  const order = Array.isArray(columnOrder) ? [...columnOrder] : [];
+  if (!order.includes("action") && order.includes("eventType")) order.splice(order.indexOf("eventType"), 0, "action");
+  const widths = source.columnWidths && typeof source.columnWidths === "object" && !Array.isArray(source.columnWidths)
+    ? { ...(source.columnWidths as Record<string, unknown>) }
+    : {};
+  for (const [legacyId, canonicalId] of Object.entries(LEGACY_ACTIVITY_COLUMN_IDS)) {
+    if (widths[canonicalId] === undefined && widths[legacyId] !== undefined) widths[canonicalId] = widths[legacyId];
+    delete widths[legacyId];
+  }
+  if (widths.action === undefined && widths.eventType !== undefined && !Array.isArray(source.columnOrder)) widths.action = widths.eventType;
+  return { ...source, columnOrder: order, visibleColumns, columnWidths: widths };
+}
 function normalizeTable(value: unknown, columns: readonly string[], fallback: TablePreferences, required: readonly string[] = [], queryFields: readonly string[] = columns): TablePreferences {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
-  const columnOrder = uniqueAllowed(source.columnOrder, columns, fallback.columnOrder);
+  const persistedOrder = uniqueAllowed(source.columnOrder, columns, fallback.columnOrder);
+  const requiredSet = new Set(required.filter((column) => columns.includes(column)));
+  const columnOrder = [...requiredSet, ...persistedOrder.filter((column) => !requiredSet.has(column))];
   for (const column of columns) if (!columnOrder.includes(column)) columnOrder.push(column);
   const visibleColumns = uniqueAllowed(source.visibleColumns, columns, fallback.visibleColumns);
-  for (const column of required) if (columns.includes(column) && !visibleColumns.includes(column)) visibleColumns.push(column);
+  const rawOrder = Array.isArray(source.columnOrder) ? source.columnOrder.filter((column): column is string => typeof column === "string") : [];
+  for (const column of fallback.visibleColumns) if (!rawOrder.includes(column) && !visibleColumns.includes(column)) visibleColumns.push(column);
+  for (const column of requiredSet) if (!visibleColumns.includes(column)) visibleColumns.push(column);
   const widthsSource = source.columnWidths && typeof source.columnWidths === "object" && !Array.isArray(source.columnWidths)
     ? source.columnWidths as Record<string, unknown> : {};
   const columnWidths: Record<string, number> = {};
@@ -190,9 +220,9 @@ export function normalizeUiPreferences(value: unknown): UiPreferences {
     databaseIssueList: normalizeTable(source.databaseIssueList, DATABASE_ISSUE_COLUMNS, defaults.databaseIssueList, ["issueKey"]),
     timelineEventList: normalizeTable(source.timelineEventList, TIMELINE_EVENT_COLUMNS, defaults.timelineEventList),
     userRelatedIssues: normalizeTable(source.userRelatedIssues, USER_RELATED_ISSUE_COLUMNS, defaults.userRelatedIssues, ["issueKey"]),
-    userAllActivityEvents: normalizeTable(source.userAllActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.userAllActivityEvents, ["eventTime", "issueKey", "eventType"], ACTIVITY_QUERY_FIELDS),
-    issueActivityEvents: normalizeTable(source.issueActivityEvents, ACTIVITY_VIEWER_COLUMNS, defaults.issueActivityEvents, ["eventTime", "eventType"], ACTIVITY_QUERY_FIELDS),
-    issueChangelog: normalizeTable(source.issueChangelog, ISSUE_CHANGELOG_COLUMNS, defaults.issueChangelog, ["created", "field"]),
+    userAllActivityEvents: normalizeTable(migrateActivityPreferences(source.userAllActivityEvents), USER_ACTIVITY_EVENT_COLUMNS, defaults.userAllActivityEvents, ["eventTime", "action", "issueKey"], ACTIVITY_QUERY_FIELDS),
+    issueActivityEvents: normalizeTable(migrateActivityPreferences(source.issueActivityEvents), ISSUE_ACTIVITY_EVENT_COLUMNS, defaults.issueActivityEvents, ["eventTime", "action"], ACTIVITY_QUERY_FIELDS),
+    issueChangelog: normalizeTable(migrateActivityPreferences(source.issueChangelog), ISSUE_CHANGELOG_COLUMNS, defaults.issueChangelog, ["eventTime", "action"], ACTIVITY_QUERY_FIELDS),
     issueComments: normalizeTable(source.issueComments, ISSUE_COMMENT_COLUMNS, defaults.issueComments, ["created", "author"]),
     filterPresets: normalizeFilterPresets(source.filterPresets)
   };

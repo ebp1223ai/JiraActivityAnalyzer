@@ -7,6 +7,7 @@ import { normalizeSourceObjectKey } from "./sourceArchiveDatabase.js";
 import { dateRangeBounds, normalizeDateRange } from "./dateRange.js";
 import { buildDescriptionDiff, type DescriptionDiffInput, type DescriptionDiffResult } from "../shared/descriptionDiff.js";
 import { DESCRIPTION_PREVIEW_LIMITS, comparisonIntegrity, originalContentMetadata, previewFromComparison, type DescriptionComparisonPayload, type DescriptionPreviewBatchResponse } from "../shared/descriptionComparison.js";
+import type { ActivityViewerRow } from "../shared/activityViewerTypes.js";
 import { normalizeUserViewerScope, type UserViewerScope } from "../shared/userViewerScope.js";
 type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
 
@@ -747,17 +748,24 @@ function enrichCommentEventRows(db: DatabaseSync, eventRows: Row[]) {
 }
 const USER_EVENT_COLUMNS = {
   eventTime: { expression: "e.event_time", kind: "date" },
-  issueKey: { expression: "o.issue_key", kind: "text" },
-  actor: { expression: "e.actor_display_name", kind: "multi" },
   action: { expression: "e.event_type", kind: "multi" },
-  field: { expression: "e.field_name", kind: "multi" },
-  source: { expression: "e.source_provenance", kind: "multi" },
   eventType: { expression: "e.event_type", kind: "multi" },
+  actor: { expression: "e.actor_display_name", kind: "multi" },
+  displayName: { expression: "e.actor_display_name", kind: "multi" },
+  issueKey: { expression: "o.issue_key", kind: "text" },
+  summary: { expression: "s.summary", kind: "text" },
+  projectKey: { expression: "o.project_key", kind: "multi" },
+  issueTypeName: { expression: "s.issue_type", kind: "multi" },
+  currentStatusName: { expression: "s.status", kind: "multi" },
+  currentPriorityName: { expression: "s.priority", kind: "multi" },
+  field: { expression: "e.field_name", kind: "multi" },
   fieldName: { expression: "e.field_name", kind: "multi" },
   before: { expression: "e.from_value_json", kind: "text" },
   after: { expression: "e.to_value_json", kind: "text" },
   diff: { expression: "COALESCE(e.from_value_json, '') || ' ' || COALESCE(e.to_value_json, '')", kind: "text" },
-  summary: { expression: "s.summary", kind: "text" },
+  historyId: { expression: "COALESCE(NULLIF(e.jira_native_source_id, ''), CASE WHEN instr(e.source_record_id, ':') > 0 THEN substr(e.source_record_id, 1, instr(e.source_record_id, ':') - 1) ELSE e.source_record_id END)", kind: "text" },
+  itemIndex: { expression: "CASE WHEN instr(e.source_record_id, ':') > 0 THEN CAST(substr(e.source_record_id, instr(e.source_record_id, ':') + 1) AS INTEGER) ELSE NULL END", kind: "number" },
+  source: { expression: "e.source_provenance", kind: "multi" },
   sourceProvenance: { expression: "e.source_provenance", kind: "multi" }
 } as const;
 
@@ -776,7 +784,7 @@ export function queryDatabaseIssueChangelog(databasePath: string, issueKeyInput:
 }
 
 type EventQueryResult = {
-  rows: Row[];
+  rows: ActivityViewerRow[];
   filteredCount: number;
   totalCount: number;
   page: number;
@@ -849,11 +857,13 @@ function queryDatabaseEvents(databasePath: string, subject: EventQuerySubject, i
     const page = Math.min(query.page, pageCount);
     const rowsSql = `
       SELECT e.id AS eventId, e.source_object_id AS sourceObjectId, e.event_time AS eventTime, e.actor_account_id AS userId,
-        e.actor_display_name AS displayName, o.issue_key AS issueKey, e.event_type AS eventType,
-        e.field_id AS fieldId, e.field_name AS fieldName, e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
+        e.actor_display_name AS displayName, o.issue_key AS issueKey, e.event_type AS action, e.event_type AS eventType,
+        s.summary, o.project_key AS projectKey, s.issue_type AS issueTypeName, s.status AS currentStatusName,
+        s.priority AS currentPriorityName, e.field_id AS fieldId, e.field_name AS fieldName,
+        e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
         e.jira_native_source_id AS jiraNativeSourceId,
         CASE WHEN e.event_type IN ('comment_created','comment_updated') THEN e.jira_native_source_id ELSE NULL END AS commentId,
-        e.identity_key_type AS identityKeyType, s.summary, e.source_provenance AS sourceProvenance
+        e.identity_key_type AS identityKeyType, e.source_provenance AS sourceProvenance
       FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
       LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
       WHERE ${where}
@@ -879,7 +889,7 @@ function queryDatabaseEvents(databasePath: string, subject: EventQuerySubject, i
       ? rows(db.prepare(`EXPLAIN QUERY PLAN ${rowsSql}`).all(...parameters, query.pageSize, (page - 1) * query.pageSize))
       : [];
     const value = {
-      rows: enrichedRows,
+      rows: enrichedRows as ActivityViewerRow[],
       filteredCount,
       totalCount,
       page,
@@ -1283,9 +1293,7 @@ export function queryDatabaseDistinctValues(
     sql = "SELECT value, COUNT(*) AS count FROM (" + scoped + ") GROUP BY value ORDER BY count DESC, value ASC LIMIT ?";
   } else if (source === "userEvents" || source === "issueEvents" || source === "issueChangelog") {
     if (source !== "userEvents" && !subjectId) throw new Error("DISTINCT_SUBJECT_REQUIRED");
-    expression = (source === "userEvents"
-      ? { actor: "e.actor_display_name", action: "e.event_type", field: "e.field_name", source: "e.source_provenance", eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", issueKey: "o.issue_key" }
-      : { actor: "e.actor_display_name", action: "e.event_type", field: "e.field_name", source: "e.source_provenance", eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", userId: "e.actor_account_id", displayName: "e.actor_display_name" } as Record<string, string>)[field] ?? "";
+    expression = USER_EVENT_COLUMNS[field as keyof typeof USER_EVENT_COLUMNS]?.expression ?? "";
     if (!expression) throw new Error("INVALID_DISTINCT_FIELD");
     const query = normalizeViewerQuery(input.query as ViewerQueryInput ?? {}, Object.fromEntries(Object.entries(USER_EVENT_COLUMNS).map(([key, value]) => [key, value.expression])), "eventTime");
     const scopedFilters = { ...query.filters };

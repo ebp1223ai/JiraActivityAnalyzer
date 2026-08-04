@@ -1,4 +1,5 @@
-﻿import type { DateRangeState } from "./dateRange";
+import type { ActivityViewerRow } from "../../shared/activityViewerTypes";
+import type { DateRangeState } from "./dateRange";
 export type ViewerSortDirection = "asc" | "desc";
 export type ViewerTableQuery = {
   page: number;
@@ -19,8 +20,8 @@ export type ViewerTableQuery = {
   includeBeforeUnavailable?: boolean;
 };
 
-export type ViewerTableResult = {
-  rows: Array<Record<string, unknown>>;
+export type ViewerTableResult<TRow extends Record<string, unknown> = Record<string, unknown>> = {
+  rows: TRow[];
   filteredCount: number;
   totalCount: number;
   page: number;
@@ -29,6 +30,8 @@ export type ViewerTableResult = {
   sourceStatus?: "confirmed" | "no_records" | "source_unidentifiable";
   unidentifiableSourceCount?: number;
 };
+
+export type ActivityViewerTableResult = ViewerTableResult<ActivityViewerRow>;
 
 export type ViewerDistinctResult = {
   field: string;
