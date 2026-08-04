@@ -1,3 +1,11 @@
+## 0.2.62 - Issue Viewer Changelog Alignment & All Users Scope
+
+- Moved Issue Viewer Changelog to the same server-side Current-State SQLite event query and shared Before / After / Diff production presentation used by Activity Events, preserving event, history/item, source, database, generation, and integrity identities.
+- Removed Worklogs, Attachments Metadata, and Remote Links from Issue Viewer presentation only, with legacy active-tab values normalized safely to Overview; schema v3 and collection/save contracts remain unchanged.
+- Added a typed All Users scope to User Viewer without a synthetic account ID, with SQLite-side rows, counts, pagination, filters, sorting, distinct values, related-issue distributions, and stable actor identity.
+- Added scope/database-aware cache keys and stale-response suppression for individual-user and All Users transitions.
+- Added focused synthetic v0.2.62 coverage and retained v0.2.58 through v0.2.61 viewer/date/identity/diff regressions.
+- Kept Jira access read-only, Current-State SQLite schema v3, dependencies, Full Fetch, Source Archive, and export contracts unchanged.
 ## 0.2.61 - Viewer Diff Presentation Consistency & Table UX Simplification
 
 - Unified Issue Changelog, Issue Activity Events, and User Activity Events on the same Before Original Preview / After Original Preview / Diff presentation and shared row expansion state.

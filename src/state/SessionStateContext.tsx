@@ -756,7 +756,11 @@ const initialIssueViewer: IssueViewerSessionState = {
   activeTab: "Overview",
   payloadFilter: "",
   payloadPage: 1,
-  changelogQuery: { page: 1, pageSize: 50, sort: { field: "created", direction: "desc" }, filters: {}, dateRange: { shortcut: "all", startDate: "", endDate: "" }, revision: 0, descriptionChangedOnly: false, includeBeforeUnavailable: false },
+  changelogQuery: { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {}, dateRange: { shortcut: "all", startDate: "", endDate: "" }, revision: 0, descriptionChangedOnly: false, includeBeforeUnavailable: false },
+  changelogResult: null,
+  changelogStatus: "idle",
+  changelogMessage: "",
+  changelogCacheKey: "",
   commentsQuery: { page: 1, pageSize: 50, sort: { field: "created", direction: "desc" }, filters: {}, dateRange: { shortcut: "all", startDate: "", endDate: "" }, revision: 0, commentDateMode: "created" },
   payloadDateRange: { shortcut: "all", startDate: "", endDate: "" },
   commentDateMode: "created",
@@ -768,14 +772,15 @@ const initialIssueViewer: IssueViewerSessionState = {
   activityEventsMessage: "",
   activityEventsCacheKey: "",
   pendingSnapshotRequestId: 0,
+  pendingChangelogRequestId: 0,
   pendingActivityRequestId: 0,
   tableStates: {}
 };
 
 const initialUserViewer: UserViewerSessionState = {
   search: "",
-  selectedUserId: "",
-  loadedUserId: "",
+  selectionScope: null,
+  loadedScopeKey: "",
   databaseIdentity: "",
   users: [],
   detail: null,

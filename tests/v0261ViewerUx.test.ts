@@ -51,6 +51,7 @@ const previewSource = read("src/components/DescriptionOriginalPreviewCell.tsx");
 const detailSource = read("src/components/ActivityEventDetailPanel.tsx");
 const sqliteTableSource = read("src/components/SqliteDataTable.tsx");
 const databaseTableSource = read("src/components/DatabaseIssueTable.tsx");
+const comparisonSource = read("src/components/ActivityComparisonTable.tsx");
 
 for (const source of [issueSource, userSource, dashboardSource]) {
   assert.doesNotMatch(source, /FilterPresetControl|saveFilterPresets|Filter Preset|Preset Name/);
@@ -65,10 +66,11 @@ assert.match(previewSource, /Hide Full Original \/ 隱藏完整原文/);
 assert.match(previewSource, /View Full Original \/ 查看完整原文/);
 assert.match(detailSource, /<DescriptionDiffCell row=\{row\} detail \/>/);
 assert.doesNotMatch(detailSource, /<DescriptionDiffCell row=\{row\} expanded detail \/>/);
-assert.ok((issueSource.match(/DescriptionOriginalPreviewCell/g) ?? []).length >= 5);
-assert.ok((userSource.match(/DescriptionOriginalPreviewCell/g) ?? []).length >= 3);
-assert.match(issueSource, /<DiffCell row=\{row\} expanded=\{context.expanded\} onExpandedChange=\{context.setExpanded\}/);
-assert.match(userSource, /<DiffCell row=\{row\} expanded=\{context.expanded\} onExpandedChange=\{context.setExpanded\}/);
+assert.match(issueSource, /mode="issue-changelog"/);
+assert.match(issueSource, /mode="issue-events"/);
+assert.match(userSource, /mode="user-events"/);
+assert.match(comparisonSource, /DescriptionOriginalPreviewCell/);
+assert.match(comparisonSource, /<DiffCell row=\{row\} expanded=\{context.expanded\} onExpandedChange=\{context.setExpanded\}/);
 assert.match(sqliteTableSource, /Reset Table Layout \/ 重設表格版面/);
 assert.match(sqliteTableSource, /resetTableLayout\(normalized/);
 assert.doesNotMatch(sqliteTableSource, /table_query_reset|table_settings_reset/);

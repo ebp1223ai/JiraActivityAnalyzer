@@ -8,6 +8,7 @@ import type { ActivityTimelineRunContext } from "../../electron/activityTimeline
 import type { ViewerDistinctResult, ViewerTableQuery, ViewerTableResult } from "./activityViewerQuery";
 import type { DescriptionFullContextResult } from "../../shared/descriptionDiff";
 import type { DescriptionComparisonPayload, DescriptionPreviewBatchResponse } from "../../shared/descriptionComparison";
+import type { UserViewerScope } from "../../shared/userViewerScope";
 
 declare global {
   interface Window {
@@ -90,14 +91,15 @@ declare global {
         getIssue: (payload: { issueKey: string }) => Promise<IssueViewerDto>;
         listUsers: (payload?: { search?: string; limit?: number; offset?: number }) => Promise<{ total: number; limit: number; offset: number; items: Array<Record<string, unknown>> }>;
         getUser: (payload: { userId: string; limit?: number; offset?: number }) => Promise<Record<string, unknown>>;
-        userDistributions: (payload: { userId: string; query?: ViewerTableQuery }) => Promise<{ totalRelatedIssues: number; projectKey: Array<{ value: string; count: number }>; issueType: Array<{ value: string; count: number }>; status: Array<{ value: string; count: number }>; priority: Array<{ value: string; count: number }> }>;
-        userRelatedIssues: (payload: { userId: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
-        userEvents: (payload: { userId: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
+userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery }) => Promise<{ totalRelatedIssues: number; totalEvents: number; comments: number; fieldChanges: number; attachments: number; earliestEvent: string; latestEvent: string; projectKey: Array<{ value: string; count: number }>; issueType: Array<{ value: string; count: number }>; status: Array<{ value: string; count: number }>; priority: Array<{ value: string; count: number }> }>;
+        userRelatedIssues: (payload: { scope: UserViewerScope; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
+        userEvents: (payload: { scope: UserViewerScope; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
         issueEvents: (payload: { issueKey: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
+        issueChangelog: (payload: { issueKey: string; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
         descriptionFullContext: (payload: { eventId: string; issueKey: string; requestId: number; revision: number }) => Promise<DescriptionFullContextResult & { requestId: number; revision: number }>;
         descriptionOriginalPreviews: (payload: { requestId: string; generation: string; databaseIdentity: string; eventIds: string[] }) => Promise<DescriptionPreviewBatchResponse>;
         descriptionComparison: (payload: { requestId: string; generation: string; databaseIdentity: string; eventId: string; issueKey?: string }) => Promise<DescriptionComparisonPayload>;
-        distinctValues: (payload: { source: "databaseIssues" | "userRelatedIssues" | "userEvents" | "issueEvents"; subjectId?: string; field: string; search?: string; limit?: number; query?: DatabaseIssueQuery | ViewerTableQuery }) => Promise<ViewerDistinctResult>;
+        distinctValues: (payload: { source: "databaseIssues" | "userRelatedIssues" | "userEvents" | "issueEvents" | "issueChangelog"; scope?: UserViewerScope; subjectId?: string; field: string; search?: string; limit?: number; query?: DatabaseIssueQuery | ViewerTableQuery }) => Promise<ViewerDistinctResult>;
       };
       uiPreferences?: {
         get: () => Promise<UiPreferencesLoadResult>;

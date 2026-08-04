@@ -59,6 +59,7 @@ import {
   queryDatabaseDistinctValues,
   queryDatabaseUserDistributions,
   queryDatabaseIssueEvents,
+  queryDatabaseIssueChangelog,
   queryDescriptionComparison,
   queryDescriptionFullContext,
   queryDescriptionOriginalPreviews,
@@ -800,14 +801,16 @@ ipcMain.handle("database-viewer:list-users", async (_event, payload?: { search?:
   listDatabaseUsers(currentReadableDatabasePath(), payload));
 ipcMain.handle("database-viewer:get-user", async (_event, payload: { userId?: string; limit?: number; offset?: number }) =>
   loadDatabaseUser(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload));
-ipcMain.handle("database-viewer:user-distributions", async (_event, payload: { userId?: string }) =>
-  queryDatabaseUserDistributions(currentReadableDatabasePath(), String(payload?.userId ?? "")));
-ipcMain.handle("database-viewer:user-related-issues", async (_event, payload: { userId?: string; query?: Record<string, unknown> }) =>
-  queryDatabaseUserRelatedIssues(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload?.query));
-ipcMain.handle("database-viewer:user-events", async (_event, payload: { userId?: string; query?: Record<string, unknown> }) =>
-  queryDatabaseUserEvents(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload?.query));
+ipcMain.handle("database-viewer:user-distributions", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
+  queryDatabaseUserDistributions(currentReadableDatabasePath(), payload?.scope, payload?.query));
+ipcMain.handle("database-viewer:user-related-issues", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
+  queryDatabaseUserRelatedIssues(currentReadableDatabasePath(), payload?.scope, payload?.query));
+ipcMain.handle("database-viewer:user-events", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
+  queryDatabaseUserEvents(currentReadableDatabasePath(), payload?.scope, payload?.query));
 ipcMain.handle("database-viewer:issue-events", async (_event, payload: { issueKey?: string; query?: Record<string, unknown> }) =>
   queryDatabaseIssueEvents(currentReadableDatabasePath(), String(payload?.issueKey ?? ""), payload?.query));
+ipcMain.handle("database-viewer:issue-changelog", async (_event, payload: { issueKey?: string; query?: Record<string, unknown> }) =>
+  queryDatabaseIssueChangelog(currentReadableDatabasePath(), String(payload?.issueKey ?? ""), payload?.query));
 ipcMain.handle("database-viewer:description-full-context", async (_event, payload: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; revision?: unknown }) =>
   queryDescriptionFullContext(currentReadableDatabasePath(), payload));
 ipcMain.handle("database-viewer:description-original-previews", async (_event, payload: Record<string, unknown>) =>

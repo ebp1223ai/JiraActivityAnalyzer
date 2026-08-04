@@ -1,4 +1,7 @@
-﻿export type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
+import type { UserViewerScope } from "../../shared/userViewerScope";
+import type { ViewerTableQuery, ViewerTableResult } from "./activityViewerQuery";
+
+export type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
 
 export type ViewerSection<T> = {
   status: ViewerSectionStatus;
@@ -21,13 +24,8 @@ export type IssueViewerDto = {
     format: "html" | "wiki" | "plain";
     message: string;
   };
-  changelog: ViewerSection<Record<string, unknown>>;
   comments: ViewerSection<Record<string, unknown>>;
-  worklogs: ViewerSection<Record<string, unknown>>;
-  attachments: ViewerSection<Record<string, unknown>>;
   issueLinks: ViewerSection<Record<string, unknown>>;
-  remoteLinks: ViewerSection<Record<string, unknown>>;
-  activityEvents: ViewerSection<Record<string, unknown>>;
   rawEvidence: {
     status: ViewerSectionStatus;
     schemaVersion: string;
@@ -47,6 +45,12 @@ export type ViewerTableSessionState = {
 export type UserViewerDistributionItem = { value: string; count: number };
 export type UserViewerDistributions = {
   totalRelatedIssues: number;
+  totalEvents: number;
+  comments: number;
+  fieldChanges: number;
+  attachments: number;
+  earliestEvent: string;
+  latestEvent: string;
   projectKey: UserViewerDistributionItem[];
   issueType: UserViewerDistributionItem[];
   status: UserViewerDistributionItem[];
@@ -64,6 +68,10 @@ export type IssueViewerSessionState = {
   payloadFilter: string;
   payloadPage: number;
   changelogQuery: ViewerTableQuery;
+  changelogResult: ViewerTableResult | null;
+  changelogStatus: "idle" | "loading" | "ready" | "error";
+  changelogMessage: string;
+  changelogCacheKey: string;
   commentsQuery: ViewerTableQuery;
   payloadDateRange: import("./dateRange").DateRangeState;
   commentDateMode: "created" | "updated";
@@ -75,14 +83,15 @@ export type IssueViewerSessionState = {
   activityEventsMessage: string;
   activityEventsCacheKey: string;
   pendingSnapshotRequestId: number;
+  pendingChangelogRequestId: number;
   pendingActivityRequestId: number;
   tableStates: Record<string, ViewerTableSessionState>;
 };
 
 export type UserViewerSessionState = {
   search: string;
-  selectedUserId: string;
-  loadedUserId: string;
+  selectionScope: UserViewerScope | null;
+  loadedScopeKey: string;
   databaseIdentity: string;
   users: Array<Record<string, unknown>>;
   detail: Record<string, unknown> | null;
@@ -104,4 +113,3 @@ export type UserViewerSessionState = {
   pendingRequestId: number;
   tableStates: Record<string, ViewerTableSessionState>;
 };
-import type { ViewerTableQuery, ViewerTableResult } from "./activityViewerQuery";

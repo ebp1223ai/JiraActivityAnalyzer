@@ -7,6 +7,7 @@ import { normalizeSourceObjectKey } from "./sourceArchiveDatabase.js";
 import { dateRangeBounds, normalizeDateRange } from "./dateRange.js";
 import { buildDescriptionDiff, type DescriptionDiffInput, type DescriptionDiffResult } from "../shared/descriptionDiff.js";
 import { DESCRIPTION_PREVIEW_LIMITS, comparisonIntegrity, originalContentMetadata, previewFromComparison, type DescriptionComparisonPayload, type DescriptionPreviewBatchResponse } from "../shared/descriptionComparison.js";
+import { normalizeUserViewerScope, type UserViewerScope } from "../shared/userViewerScope.js";
 type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
 
 interface ViewerSection<T = unknown> {
@@ -30,12 +31,8 @@ interface IssueViewerDto {
     format: "html" | "wiki" | "plain";
     message: string;
   };
-  changelog: ViewerSection<Record<string, unknown>>;
   comments: ViewerSection<Record<string, unknown>>;
-  worklogs: ViewerSection<Record<string, unknown>>;
-  attachments: ViewerSection<Record<string, unknown>>;
   issueLinks: ViewerSection<Record<string, unknown>>;
-  remoteLinks: ViewerSection<Record<string, unknown>>;
   activityEvents: ViewerSection<Record<string, unknown>>;
   rawEvidence: {
     status: ViewerSectionStatus;
@@ -78,6 +75,8 @@ type IssueQuery = {
   dateMode?: unknown;
   dateRange?: unknown;
   revision?: unknown;
+  descriptionChangedOnly?: unknown;
+  includeBeforeUnavailable?: unknown;
 };
 
 function openReadOnly(databasePath: string) {
@@ -172,54 +171,6 @@ function displayName(value: unknown) {
   return String(actor.displayName ?? actor.name ?? actor.emailAddress ?? actor.accountId ?? "");
 }
 
-function normalizeChangelogRecords(value: Row[], issueKey: string, activityEvents: Row[]) {
-  const bySourceRecord = new Map<string, Row[]>();
-  for (const event of activityEvents) {
-    const sourceRecordId = String(event.sourceRecordId ?? "");
-    if (!sourceRecordId) continue;
-    const candidates = bySourceRecord.get(sourceRecordId) ?? [];
-    candidates.push(event);
-    bySourceRecord.set(sourceRecordId, candidates);
-  }
-  return value.flatMap((history, historyIndex) => {
-    const historyId = String(history.id ?? `history-${historyIndex + 1}`);
-    const created = String(history.created ?? history.time ?? "");
-    const author = displayName(history.author);
-    const items = Array.isArray(history.items) ? history.items.map(record) : [history];
-    return items.map((item, itemIndex) => {
-      const fieldId = String(item.fieldId ?? "").trim();
-      const fieldName = String(item.field ?? item.fieldId ?? "Unknown field");
-      const isDescription = fieldId.toLowerCase() === "description" || (!fieldId && fieldName.trim().toLowerCase() === "description");
-      const beforePresent = Object.prototype.hasOwnProperty.call(item, "fromString") || Object.prototype.hasOwnProperty.call(item, "from");
-      const afterPresent = Object.prototype.hasOwnProperty.call(item, "toString") || Object.prototype.hasOwnProperty.call(item, "to");
-      const beforeRaw = Object.prototype.hasOwnProperty.call(item, "fromString") ? item.fromString : item.from;
-      const afterRaw = Object.prototype.hasOwnProperty.call(item, "toString") ? item.toString : item.to;
-      const before = plainText(beforeRaw ?? "");
-      const after = plainText(afterRaw ?? "");
-      const sourceRecordId = `${historyId}:${itemIndex}`;
-      const candidates = bySourceRecord.get(sourceRecordId) ?? [];
-      const matched = candidates.length === 1 ? candidates[0] : null;
-      const descriptionDiff: DescriptionDiffResult | undefined = !isDescription ? undefined : (matched?.descriptionDiff as DescriptionDiffResult | undefined) ?? buildDescriptionDiff({
-        eventId: String(matched?.eventId ?? ""), issueKey, fieldId, fieldName,
-        sourceType: String(matched?.sourceProvenance ?? "jira_changelog"), sourceId: sourceRecordId,
-        changelogHistoryId: historyId, changelogItemIndex: itemIndex, candidateCount: candidates.length,
-        before: { available: beforePresent, complete: beforePresent, value: beforeRaw },
-        after: { available: afterPresent, complete: afterPresent, value: afterRaw }
-      });
-      return {
-        historyId, itemId: sourceRecordId, itemIndex, eventId: matched?.eventId,
-        databaseIdentity: matched?.databaseIdentity, previewGeneration: matched?.previewGeneration,
-        issueKey, created, author, fieldId, fieldName, field: fieldName,
-        before: isDescription ? undefined : before, after: isDescription ? undefined : after,
-        beforeAvailable: isDescription ? descriptionDiff?.beforeAvailable : beforePresent,
-        afterAvailable: isDescription ? descriptionDiff?.afterAvailable : afterPresent,
-        descriptionDiff,
-        source: isDescription ? (descriptionDiff?.status === "source-mismatch" ? "Description source mismatch" : "Jira Changelog") : "Jira Changelog",
-        changeKind: isDescription ? descriptionDiff?.status : before && after ? "changed" : after ? "added" : before ? "removed" : "recorded"
-      };
-    });
-  });
-}
 function normalizeCommentRecords(value: Row[]) {
   return value.map((comment, index) => {
     const bodyValue = comment.renderedBody ?? comment.body ?? "";
@@ -242,13 +193,8 @@ function normalizeCommentRecords(value: Row[]) {
 
 export function normalizeIssueViewerPayload(
   rawValue: unknown,
-  issueKeyOrMetadata: string | { payloadFormatVersion: number; payloadSavedAt: string; coverageProfile?: unknown },
-  metadataOrActivityEvents: { payloadFormatVersion: number; payloadSavedAt: string; coverageProfile?: unknown } | Row[],
-  explicitActivityEvents: Row[] = []
+  metadata: { payloadFormatVersion: number; payloadSavedAt: string; coverageProfile?: unknown }
 ): Omit<IssueViewerDto, "found" | "status" | "issueKey" | "message" | "overview"> {
-  const issueKey = typeof issueKeyOrMetadata === "string" ? issueKeyOrMetadata : "";
-  const metadata = (typeof issueKeyOrMetadata === "string" ? metadataOrActivityEvents : issueKeyOrMetadata) as { payloadFormatVersion: number; payloadSavedAt: string; coverageProfile?: unknown };
-  const activityEvents = (typeof issueKeyOrMetadata === "string" ? explicitActivityEvents : metadataOrActivityEvents) as Row[];
   const raw = record(rawValue);
   const issue = record(raw.issue);
   const fields = record(issue.fields);
@@ -256,20 +202,8 @@ export function normalizeIssueViewerPayload(
   const renderedDescriptionValue = typeof renderedFields.description === "string" ? renderedFields.description : "";
   const renderedDescription = plainText(renderedDescriptionValue);
   const fallbackDescription = plainText(fields.description);
-  const changelog = list(raw.changelog ?? record(issue.changelog).histories);
   const comments = list(raw.comments ?? record(fields.comment).comments);
-  const worklogs = list(raw.worklogs ?? fields.worklog);
-  const attachments = list(raw.attachments ?? fields.attachment);
   const issueLinks = list(raw.issueLinks ?? fields.issuelinks);
-  const remoteValue = raw.remoteLinks;
-  const remoteRecord = record(remoteValue);
-  const remoteStatus = record(remoteRecord.sectionStatus);
-  const remoteRecords = Array.isArray(remoteValue) ? list(remoteValue) : list(remoteRecord.records);
-  const coverageProfile = record(metadata.coverageProfile);
-  const remoteDisabled = remoteStatus.enabled === false
-    || String(remoteStatus.status ?? "").toLowerCase() === "not_attempted"
-    || record(raw.coverage).remoteLinks === "Disabled"
-    || coverageProfile.remoteLinks === "Disabled";
   const rawSerialized = JSON.stringify(raw);
   return {
     description: renderedDescription
@@ -277,15 +211,9 @@ export function normalizeIssueViewerPayload(
       : fallbackDescription
         ? { status: "ready", source: "plain", plainText: fallbackDescription, content: fallbackDescription, format: "plain" as const, message: "" }
         : { status: "no_records", source: "none", plainText: "", content: "", format: "plain" as const, message: "No description / 無 Description" },
-    changelog: section(normalizeChangelogRecords(changelog, issueKey, activityEvents)),
     comments: section(normalizeCommentRecords(comments)),
-    worklogs: section(worklogs),
-    attachments: section(attachments),
     issueLinks: section(issueLinks),
-    remoteLinks: remoteDisabled
-      ? section([], "not_collected", "Not collected because Remote Links is disabled.")
-      : section(remoteRecords),
-    activityEvents: section(activityEvents),
+    activityEvents: section([]),
     rawEvidence: {
       status: "ready",
       schemaVersion: String(raw.schemaVersion ?? "unknown"),
@@ -306,12 +234,8 @@ export function issueViewerFailure(issueKey: string, status: IssueViewerDto["sta
     message,
     overview,
     description: { status: "unavailable", source: "none", plainText: "", content: "", format: "plain", message },
-    changelog: unavailable,
     comments: unavailable,
-    worklogs: unavailable,
-    attachments: unavailable,
     issueLinks: unavailable,
-    remoteLinks: unavailable,
     activityEvents: unavailable,
     rawEvidence: { status: "unavailable", schemaVersion: "", payloadFormatVersion: null, payloadSavedAt: "", preview: "", message }
   };
@@ -521,6 +445,8 @@ type ViewerQueryInput = {
   filters?: unknown;
   dateRange?: unknown;
   revision?: unknown;
+  descriptionChangedOnly?: unknown;
+  includeBeforeUnavailable?: unknown;
 };
 
 function normalizeViewerQuery(input: ViewerQueryInput, sortColumns: Record<string, string>, defaultSort: string) {
@@ -539,7 +465,8 @@ function normalizeViewerQuery(input: ViewerQueryInput, sortColumns: Record<strin
   if (direction !== "asc" && direction !== "desc") throw new Error("INVALID_SORT_DIRECTION");
   const dateRange = normalizeDateRange(input.dateRange);
   const revision = Number.isSafeInteger(Number(input.revision)) ? Number(input.revision) : 0;
-  return { page, pageSize, filters, sortField: field, sortDirection: direction, dateRange, revision };
+  return { page, pageSize, filters, sortField: field, sortDirection: direction, dateRange, revision,
+    descriptionChangedOnly: input.descriptionChangedOnly === true, includeBeforeUnavailable: input.includeBeforeUnavailable === true };
 }
 
 function viewerFilterSql(filters: Row, columns: Record<string, { expression: string; kind: "text" | "multi" | "date" | "number" }>) {
@@ -601,30 +528,37 @@ const USER_RELATED_COLUMNS = {
   lastActivity: { expression: "MAX(e.event_time)", kind: "date" }
 } as const;
 
-export function queryDatabaseUserRelatedIssues(databasePath: string, userIdInput: string, input: ViewerQueryInput = {}) {
-  const userId = String(userIdInput ?? "").trim();
-  if (!userId) throw new Error("STABLE_USER_ID_REQUIRED");
+
+type UserScopeSql = { scope: UserViewerScope; where: string; parameters: string[] };
+
+function userScopeSql(value: unknown, expression = "e.actor_account_id"): UserScopeSql {
+  const scope = normalizeUserViewerScope(value);
+  return scope.kind === "all"
+    ? { scope, where: "1=1", parameters: [] }
+    : { scope, where: `${expression} = ?`, parameters: [scope.userId] };
+}
+export function queryDatabaseUserRelatedIssues(databasePath: string, scopeInput: unknown, input: ViewerQueryInput = {}) {
+  const scopeSql = userScopeSql(scopeInput);
   const sortColumns = Object.fromEntries(Object.entries(USER_RELATED_COLUMNS).map(([key, value]) => [key, value.expression]));
   const query = normalizeViewerQuery(input, sortColumns, "lastActivity");
   const filters = viewerFilterSql(query.filters, USER_RELATED_COLUMNS);
   const dateWhere: string[] = [];
   const dateParameters: Array<string | number> = [];
   appendDateBounds(dateWhere, dateParameters, "e.event_time", query.dateRange);
-  const baseParameters: Array<string | number> = [userId, ...dateParameters];
-  const having = filters.where;
+  const scopeWhere = [scopeSql.where, ...dateWhere].join(" AND ");
+  const baseParameters: Array<string | number> = [...scopeSql.parameters, ...dateParameters];
   const from = [
     "FROM activity_events e",
     "JOIN source_objects o ON o.id = e.source_object_id",
     "LEFT JOIN current_issue_snapshots s ON s.source_object_id = o.id",
-    "WHERE e.actor_account_id = ?" + (dateWhere.length ? " AND " + dateWhere.join(" AND ") : ""),
+    "WHERE " + scopeWhere,
     "GROUP BY o.id, o.issue_key, o.project_key, s.summary, s.issue_type, s.status, s.priority",
-    having.length ? "HAVING " + having.join(" AND ") : ""
+    filters.where.length ? "HAVING " + filters.where.join(" AND ") : ""
   ].join(" ");
   const parameters = [...baseParameters, ...filters.parameters];
-  const periodWhere = "actor_account_id = ?" + (dateWhere.length ? " AND " + dateWhere.join(" AND ") : "");
   const { db } = openReadOnly(databasePath);
   try {
-    const totalCount = Number(row(db.prepare("SELECT COUNT(DISTINCT source_object_id) AS count FROM activity_events e WHERE " + periodWhere).get(...baseParameters)).count ?? 0);
+    const totalCount = Number(row(db.prepare("SELECT COUNT(DISTINCT source_object_id) AS count FROM activity_events e WHERE " + scopeWhere).get(...baseParameters)).count ?? 0);
     const filteredCount = Number(row(db.prepare("SELECT COUNT(*) AS count FROM (SELECT o.id " + from + ")").get(...parameters)).count ?? 0);
     const pageCount = Math.max(1, Math.ceil(filteredCount / query.pageSize));
     const page = Math.min(query.page, pageCount);
@@ -643,34 +577,37 @@ export function queryDatabaseUserRelatedIssues(databasePath: string, userIdInput
     db.close();
   }
 }
-
-export function queryDatabaseUserDistributions(databasePath: string, userIdInput: string, input: ViewerQueryInput = {}) {
-  const userId = String(userIdInput ?? "").trim();
-  if (!userId) throw new Error("STABLE_USER_ID_REQUIRED");
+export function queryDatabaseUserDistributions(databasePath: string, scopeInput: unknown, input: ViewerQueryInput = {}) {
+  const scopeSql = userScopeSql(scopeInput);
   const sortColumns = Object.fromEntries(Object.entries(USER_RELATED_COLUMNS).map(([key, value]) => [key, value.expression]));
   const query = normalizeViewerQuery(input, sortColumns, "lastActivity");
   const filters = viewerFilterSql(query.filters, USER_RELATED_COLUMNS);
   const dateWhere: string[] = [];
   const dateParameters: Array<string | number> = [];
   appendDateBounds(dateWhere, dateParameters, "e.event_time", query.dateRange);
+  const scopeWhere = [scopeSql.where, ...dateWhere].join(" AND ");
   const issueScope = [
     "SELECT o.id FROM activity_events e",
     "JOIN source_objects o ON o.id=e.source_object_id",
     "LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id",
-    "WHERE e.actor_account_id = ?" + (dateWhere.length ? " AND " + dateWhere.join(" AND ") : ""),
+    "WHERE " + scopeWhere,
     "GROUP BY o.id, o.issue_key, o.project_key, s.summary, s.issue_type, s.status, s.priority",
     filters.where.length ? "HAVING " + filters.where.join(" AND ") : ""
   ].join(" ");
-  const parameters: Array<string | number> = [userId, ...dateParameters, ...filters.parameters];
-  const dimensions = {
-    projectKey: "o.project_key",
-    issueType: "s.issue_type",
-    status: "s.status",
-    priority: "s.priority"
-  } as const;
+  const parameters: Array<string | number> = [...scopeSql.parameters, ...dateParameters, ...filters.parameters];
+  const dimensions = { projectKey: "o.project_key", issueType: "s.issue_type", status: "s.status", priority: "s.priority" } as const;
   const { db } = openReadOnly(databasePath);
   try {
     const totalRelatedIssues = Number(row(db.prepare("SELECT COUNT(*) AS count FROM (" + issueScope + ")").get(...parameters)).count ?? 0);
+    const eventCounts = row(db.prepare([
+      "SELECT COUNT(*) AS totalEvents,",
+      "SUM(CASE WHEN e.event_type IN ('comment_created','comment_updated') THEN 1 ELSE 0 END) AS comments,",
+      "SUM(CASE WHEN e.event_type IN ('field_changed','status_changed','assignee_changed') THEN 1 ELSE 0 END) AS fieldChanges,",
+      "SUM(CASE WHEN e.event_type = 'attachment_added' THEN 1 ELSE 0 END) AS attachments,",
+      "MIN(e.event_time) AS earliestEvent, MAX(e.event_time) AS latestEvent",
+      "FROM activity_events e WHERE " + scopeWhere,
+      "AND e.source_object_id IN (" + issueScope + ")"
+    ].join(" ")).get(...scopeSql.parameters, ...dateParameters, ...parameters));
     const result: Record<string, Array<{ value: string; count: number }>> = {};
     for (const [key, expression] of Object.entries(dimensions)) {
       const sql = [
@@ -684,10 +621,10 @@ export function queryDatabaseUserDistributions(databasePath: string, userIdInput
     }
     return {
       totalRelatedIssues,
-      projectKey: result.projectKey ?? [],
-      issueType: result.issueType ?? [],
-      status: result.status ?? [],
-      priority: result.priority ?? [],
+      totalEvents: Number(eventCounts.totalEvents ?? 0), comments: Number(eventCounts.comments ?? 0),
+      fieldChanges: Number(eventCounts.fieldChanges ?? 0), attachments: Number(eventCounts.attachments ?? 0),
+      earliestEvent: String(eventCounts.earliestEvent ?? ""), latestEvent: String(eventCounts.latestEvent ?? ""),
+      projectKey: result.projectKey ?? [], issueType: result.issueType ?? [], status: result.status ?? [], priority: result.priority ?? [],
       revision: query.revision
     };
   } finally {
@@ -824,15 +761,18 @@ const USER_EVENT_COLUMNS = {
   sourceProvenance: { expression: "e.source_provenance", kind: "multi" }
 } as const;
 
-export function queryDatabaseUserEvents(databasePath: string, userIdInput: string, input: ViewerQueryInput = {}) {
-  const userId = String(userIdInput ?? "").trim();
-  if (!userId) throw new Error("STABLE_USER_ID_REQUIRED");
-  return queryDatabaseEvents(databasePath, { userId, issueKey: "" }, input);
+export function queryDatabaseUserEvents(databasePath: string, scopeInput: unknown, input: ViewerQueryInput = {}) {
+  return queryDatabaseEvents(databasePath, { kind: "user", scope: normalizeUserViewerScope(scopeInput) }, input);
 }
 
 export function queryDatabaseIssueEvents(databasePath: string, issueKeyInput: string, input: ViewerQueryInput = {}) {
   const issueKey = normalizeSourceObjectKey("jira", "issue", issueKeyInput);
-  return queryDatabaseEvents(databasePath, { userId: "", issueKey }, input);
+  return queryDatabaseEvents(databasePath, { kind: "issue", issueKey, changelogOnly: false }, input);
+}
+
+export function queryDatabaseIssueChangelog(databasePath: string, issueKeyInput: string, input: ViewerQueryInput = {}) {
+  const issueKey = normalizeSourceObjectKey("jira", "issue", issueKeyInput);
+  return queryDatabaseEvents(databasePath, { kind: "issue", issueKey, changelogOnly: true }, input);
 }
 
 type EventQueryResult = {
@@ -856,7 +796,22 @@ const EVENT_QUERY_CACHE_TTL_MS = 2_000;
 const EVENT_QUERY_CACHE_LIMIT = 32;
 const eventQueryCache = new Map<string, { expiresAt: number; value: EventQueryResult }>();
 
-function queryDatabaseEvents(databasePath: string, subject: { userId: string; issueKey: string }, input: ViewerQueryInput): EventQueryResult {
+type EventQuerySubject =
+  | { kind: "user"; scope: UserViewerScope }
+  | { kind: "issue"; issueKey: string; changelogOnly: boolean };
+
+function eventSubjectSql(subject: EventQuerySubject) {
+  if (subject.kind === "user") {
+    const scope = userScopeSql(subject.scope);
+    return { where: scope.where, parameters: scope.parameters };
+  }
+  return {
+    where: `o.issue_key = ?${subject.changelogOnly ? " AND LOWER(COALESCE(e.source_provenance, '')) IN ('jira_changelog', 'changelog')" : ""}`,
+    parameters: [subject.issueKey] as Array<string | number>
+  };
+}
+
+function queryDatabaseEvents(databasePath: string, subject: EventQuerySubject, input: ViewerQueryInput): EventQueryResult {
   const sourceStat = fs.statSync(databasePath);
   const databaseIdentity = databaseFileIdentity(databasePath);
   const queryFingerprint = crypto.createHash("sha256").update(JSON.stringify({ databasePath: path.resolve(databasePath), sourceSize: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, subject, input }), "utf8").digest("hex");
@@ -869,17 +824,22 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
   const query = normalizeViewerQuery(input, sortColumns, "eventTime");
   const filter = viewerFilterSql(query.filters, USER_EVENT_COLUMNS);
   appendDateBounds(filter.where, filter.parameters, "e.event_time", query.dateRange);
-  const subjectWhere = subject.userId ? "e.actor_account_id = ?" : "o.issue_key = ?";
-  const subjectValue = subject.userId || subject.issueKey;
-  const where = `${subjectWhere} ${filter.where.length ? `AND ${filter.where.join(" AND ")}` : ""}`;
-  const parameters: Array<string | number> = [subjectValue, ...filter.parameters];
+  if (subject.kind === "issue" && subject.changelogOnly && query.descriptionChangedOnly) {
+    filter.where.push("LOWER(COALESCE(NULLIF(e.field_id, ''), e.field_name, '')) = 'description'");
+    filter.where.push(query.includeBeforeUnavailable
+      ? "e.to_value_json IS NOT NULL AND (e.from_value_json IS NULL OR e.from_value_json <> e.to_value_json)"
+      : "e.from_value_json IS NOT NULL AND e.to_value_json IS NOT NULL AND e.from_value_json <> e.to_value_json");
+  }
+  const subjectSql = eventSubjectSql(subject);
+  const where = `${subjectSql.where} ${filter.where.length ? `AND ${filter.where.join(" AND ")}` : ""}`;
+  const parameters: Array<string | number> = [...subjectSql.parameters, ...filter.parameters];
   const { db } = openReadOnly(databasePath);
   try {
     const sqlStartedAt = performance.now();
     const totalCount = Number(row(db.prepare(`
       SELECT COUNT(*) AS count FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
-      WHERE ${subjectWhere}
-    `).get(subjectValue)).count ?? 0);
+      WHERE ${subjectSql.where}
+    `).get(...subjectSql.parameters)).count ?? 0);
     const filteredCount = Number(row(db.prepare(`
       SELECT COUNT(*) AS count FROM activity_events e
       JOIN source_objects o ON o.id=e.source_object_id
@@ -902,7 +862,16 @@ function queryDatabaseEvents(databasePath: string, subject: { userId: string; is
     const rowsResult = rows(db.prepare(rowsSql).all(...parameters, query.pageSize, (page - 1) * query.pageSize));
     const sqlExecutionMs = performance.now() - sqlStartedAt;
     const mappingStartedAt = performance.now();
-    const enrichedRows = attachDescriptionDiffRows(enrichCommentEventRows(db, rowsResult)).map((event) => ({ ...event, databaseIdentity, previewGeneration: queryFingerprint }));
+    const enrichedRows = attachDescriptionDiffRows(enrichCommentEventRows(db, rowsResult)).map((event) => {
+      const itemMatch = /^(.*):(\d+)$/.exec(String(event.sourceRecordId ?? ""));
+      return {
+        ...event,
+        historyId: String(event.jiraNativeSourceId ?? itemMatch?.[1] ?? "") || null,
+        itemIndex: itemMatch ? Number(itemMatch[2]) : null,
+        databaseIdentity,
+        previewGeneration: queryFingerprint
+      };
+    });
     const rowMappingMs = performance.now() - mappingStartedAt;
     const totalMs = performance.now() - startedAt;
     const slow = totalMs > 1_000;
@@ -1180,14 +1149,7 @@ export function loadDatabaseIssue(databasePath: string, issueKeyInput: string) {
       : issue.payloadGzip instanceof Uint8Array
         ? Buffer.from(issue.payloadGzip)
         : null;
-    const databaseIdentity = databaseFileIdentity(databasePath);
-    const events = attachDescriptionDiffRows(rows(db.prepare(`
-      SELECT id AS eventId, event_type AS eventType, event_time AS eventTime, actor_account_id AS actorAccountId,
-             actor_display_name AS actorDisplayName, field_id AS fieldId, field_name AS fieldName,
-             from_value_json AS before, to_value_json AS after, source_record_id AS sourceRecordId,
-             jira_native_source_id AS jiraNativeSourceId, identity_key_type AS identityKeyType, source_provenance AS sourceProvenance
-      FROM activity_events WHERE source_object_id = ? ORDER BY event_time DESC, id DESC LIMIT 500
-    `).all(String(issue.sourceObjectId))).map((event) => ({ ...event, issueKey, databaseIdentity, previewGeneration: databaseIdentity })));
+
     if (!payloadBuffer) return issueViewerFailure(issueKey, "payload_unavailable", "Full Fetch payload is unavailable.", overview);
     const compressedBytes = Number(issue.compressedBytes);
     const uncompressedBytes = Number(issue.uncompressedBytes);
@@ -1215,11 +1177,11 @@ export function loadDatabaseIssue(databasePath: string, issueKeyInput: string) {
     } catch {
       return issueViewerFailure(issueKey, "payload_invalid", "Payload JSON is malformed.", overview);
     }
-    const normalized = normalizeIssueViewerPayload(rawPayload, issueKey, {
+    const normalized = normalizeIssueViewerPayload(rawPayload, {
       payloadFormatVersion,
       payloadSavedAt: String(issue.payloadSavedAt ?? ""),
       coverageProfile: issue.coverage
-    }, events);
+    });
     return { found: true, status: "ready", issueKey, message: "", overview, ...normalized } satisfies IssueViewerDto;
   } finally {
     db.close();
@@ -1265,7 +1227,7 @@ export function listDatabaseUsers(databasePath: string, input: { search?: string
 
 export function queryDatabaseDistinctValues(
   databasePath: string,
-  input: { source?: unknown; subjectId?: unknown; field?: unknown; search?: unknown; limit?: unknown; query?: unknown }
+  input: { source?: unknown; scope?: unknown; subjectId?: unknown; field?: unknown; search?: unknown; limit?: unknown; query?: unknown }
 ) {
   const source = String(input.source ?? "");
   const subjectId = String(input.subjectId ?? "").trim();
@@ -1295,9 +1257,9 @@ export function queryDatabaseDistinctValues(
       + (where.length ? " WHERE " + where.join(" AND ") : "")
       + " GROUP BY COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定') ORDER BY count DESC, value ASC LIMIT ?";
   } else if (source === "userRelatedIssues") {
-    if (!subjectId) throw new Error("DISTINCT_SUBJECT_REQUIRED");
     expression = ({ projectKey: "o.project_key", issueType: "s.issue_type", status: "s.status", priority: "s.priority", issueKey: "o.issue_key" } as Record<string, string>)[field] ?? "";
     if (!expression) throw new Error("INVALID_DISTINCT_FIELD");
+    const scopeSql = userScopeSql(input.scope);
     const sortColumns = Object.fromEntries(Object.entries(USER_RELATED_COLUMNS).map(([key, value]) => [key, value.expression]));
     const query = normalizeViewerQuery(input.query as ViewerQueryInput ?? {}, sortColumns, "lastActivity");
     const scopedFilters = { ...query.filters };
@@ -1309,18 +1271,18 @@ export function queryDatabaseDistinctValues(
     const candidateSearch: string[] = [];
     const searchParameters: Array<string | number> = [];
     searchClause(expression, candidateSearch, searchParameters);
-    parameters = [subjectId, ...dateParameters, ...filters.parameters, ...searchParameters];
+    parameters = [...scopeSql.parameters, ...dateParameters, ...filters.parameters, ...searchParameters];
     const scoped = [
-      "SELECT COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定') AS value",
+      "SELECT COALESCE(NULLIF(TRIM(" + expression + "), ''), 'Unknown') AS value",
       "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id",
       "LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id",
-      "WHERE e.actor_account_id = ?" + (dateWhere.length ? " AND " + dateWhere.join(" AND ") : "") + (candidateSearch.length ? " AND " + candidateSearch.join(" AND ") : ""),
+      "WHERE " + scopeSql.where + (dateWhere.length ? " AND " + dateWhere.join(" AND ") : "") + (candidateSearch.length ? " AND " + candidateSearch.join(" AND ") : ""),
       "GROUP BY o.id, o.issue_key, o.project_key, s.summary, s.issue_type, s.status, s.priority",
       filters.where.length ? "HAVING " + filters.where.join(" AND ") : ""
     ].join(" ");
     sql = "SELECT value, COUNT(*) AS count FROM (" + scoped + ") GROUP BY value ORDER BY count DESC, value ASC LIMIT ?";
-  } else if (source === "userEvents" || source === "issueEvents") {
-    if (!subjectId) throw new Error("DISTINCT_SUBJECT_REQUIRED");
+  } else if (source === "userEvents" || source === "issueEvents" || source === "issueChangelog") {
+    if (source !== "userEvents" && !subjectId) throw new Error("DISTINCT_SUBJECT_REQUIRED");
     expression = (source === "userEvents"
       ? { actor: "e.actor_display_name", action: "e.event_type", field: "e.field_name", source: "e.source_provenance", eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", issueKey: "o.issue_key" }
       : { actor: "e.actor_display_name", action: "e.event_type", field: "e.field_name", source: "e.source_provenance", eventType: "e.event_type", fieldName: "e.field_name", sourceProvenance: "e.source_provenance", userId: "e.actor_account_id", displayName: "e.actor_display_name" } as Record<string, string>)[field] ?? "";
@@ -1330,12 +1292,15 @@ export function queryDatabaseDistinctValues(
     delete scopedFilters[field];
     const filters = viewerFilterSql(scopedFilters, USER_EVENT_COLUMNS);
     appendDateBounds(filters.where, filters.parameters, "e.event_time", query.dateRange);
-    const where = [source === "userEvents" ? "e.actor_account_id = ?" : "o.issue_key = ?", ...filters.where];
-    parameters = [subjectId, ...filters.parameters];
+    const subjectSql = source === "userEvents"
+      ? userScopeSql(input.scope)
+      : { where: `o.issue_key = ?${source === "issueChangelog" ? " AND LOWER(COALESCE(e.source_provenance, '')) IN ('jira_changelog', 'changelog')" : ""}`, parameters: [subjectId] };
+    const where = [subjectSql.where, ...filters.where];
+    parameters = [...subjectSql.parameters, ...filters.parameters];
     searchClause(expression, where, parameters);
-    sql = "SELECT COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定') AS value, COUNT(*) AS count "
+    sql = "SELECT COALESCE(NULLIF(TRIM(" + expression + "), ''), 'Unknown') AS value, COUNT(*) AS count "
       + "FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id "
-      + "WHERE " + where.join(" AND ") + " GROUP BY COALESCE(NULLIF(TRIM(" + expression + "), ''), '未設定') ORDER BY count DESC, value ASC LIMIT ?";
+      + "WHERE " + where.join(" AND ") + " GROUP BY COALESCE(NULLIF(TRIM(" + expression + "), ''), 'Unknown') ORDER BY count DESC, value ASC LIMIT ?";
   } else {
     throw new Error("INVALID_DISTINCT_SOURCE");
   }

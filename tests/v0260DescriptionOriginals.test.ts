@@ -174,10 +174,12 @@ const issueSource = fs.readFileSync(path.join(root, "src/routes/IssueViewerPage.
 const userSource = fs.readFileSync(path.join(root, "src/routes/UserViewerPage.tsx"), "utf8");
 const cellSource = fs.readFileSync(path.join(root, "src/components/DescriptionDiffCell.tsx"), "utf8");
 const previewSource = fs.readFileSync(path.join(root, "src/components/DescriptionOriginalPreviewCell.tsx"), "utf8");
+const comparisonSource = fs.readFileSync(path.join(root, "src/components/ActivityComparisonTable.tsx"), "utf8");
 for (const source of [issueSource, userSource]) {
   assert.doesNotMatch(source, /Use validated Diff controls/);
-  assert.match(source, /DescriptionOriginalPreviewCell/);
+  assert.match(source, /ActivityComparisonTable/);
 }
+assert.match(comparisonSource, /DescriptionOriginalPreviewCell/);
 for (const label of ["Before Original", "After Original", "Diff Hunks", "Copy Original", "Show Whitespace", "Wrap"]) {
   assert.match(cellSource, new RegExp(label));
 }

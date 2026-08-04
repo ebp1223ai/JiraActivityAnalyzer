@@ -106,12 +106,12 @@ try {
   assert.deepEqual(distributions.projectKey.map((item) => ({ value: String(item.value), count: Number(item.count) })), [{ value: "ALPHA", count: 1 }]);
 
   const relatedQuery = { page: 1, pageSize: 25 as const, sort: { field: "lastActivity", direction: "desc" as const }, filters: {}, dateRange: july, revision: 8 };
-  const related = queryDatabaseUserRelatedIssues(databasePath, "user-1", relatedQuery);
+  const related = queryDatabaseUserRelatedIssues(databasePath, { kind: "single-user", userId: "user-1" }, relatedQuery);
   assert.equal(related.filteredCount, 2);
-  const userDistributions = queryDatabaseUserDistributions(databasePath, "user-1", { ...relatedQuery, filters: { status: { values: ["Open"] } } });
+  const userDistributions = queryDatabaseUserDistributions(databasePath, { kind: "single-user", userId: "user-1" }, { ...relatedQuery, filters: { status: { values: ["Open"] } } });
   assert.equal(userDistributions.totalRelatedIssues, 1);
   assert.deepEqual(userDistributions.projectKey.map((item) => ({ value: String(item.value), count: Number(item.count) })), [{ value: "ALPHA", count: 1 }]);
-  const userEvents = queryDatabaseUserEvents(databasePath, "user-1", { page: 1, pageSize: 25, sort: { field: "eventTime", direction: "asc" }, filters: {}, dateRange: july, revision: 10 });
+  const userEvents = queryDatabaseUserEvents(databasePath, { kind: "single-user", userId: "user-1" }, { page: 1, pageSize: 25, sort: { field: "eventTime", direction: "asc" }, filters: {}, dateRange: july, revision: 10 });
   assert.equal(userEvents.filteredCount, 2);
   const issueEvents = queryDatabaseIssueEvents(databasePath, "SYNTH-3", { page: 1, pageSize: 25, sort: { field: "eventTime", direction: "asc" }, filters: {}, dateRange: july });
   assert.equal(issueEvents.filteredCount, 0);

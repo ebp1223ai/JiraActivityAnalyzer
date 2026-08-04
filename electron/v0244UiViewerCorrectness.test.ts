@@ -159,13 +159,8 @@ try {
 
   const result = loadDatabaseIssue(databasePath, issueKey);
   assert.equal(result.status, "ready");
-  assert.equal(result.changelog.total, 140);
   assert.equal(result.comments.total, 48);
-  assert.equal(result.attachments.total, 142);
   assert.equal(result.issueLinks.total, 2);
-  assert.equal(result.activityEvents.total, 453);
-  assert.equal(result.remoteLinks.status, "not_collected");
-  assert.equal(result.remoteLinks.message, "Not collected because Remote Links is disabled.");
   assert.equal(result.description.source, "rendered");
   assert.match(result.description.plainText, /Rendered safe description/);
   assert.doesNotMatch(result.description.plainText, /<script|window\.bad|<p>/i);

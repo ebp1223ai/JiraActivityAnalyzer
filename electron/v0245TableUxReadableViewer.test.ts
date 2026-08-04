@@ -110,10 +110,8 @@ try {
       renderedFields: { description: "<p><strong>Readable</strong></p><script>blocked()</script><img src='https://example.invalid/track'>" }
     },
     changelog: [{ id: "h1", created: "2026-01-02", author: { displayName: "Sample" }, items: [{ field: "status", fromString: "Open", toString: "Done" }] }]
-  }, { payloadFormatVersion: 1, payloadSavedAt: "2026-01-02" }, []);
+  }, { payloadFormatVersion: 1, payloadSavedAt: "2026-01-02" });
   assert.equal(normalized.description.format, "html");
-  assert.equal(normalized.changelog.records[0].field, "status");
-  assert.equal(normalized.changelog.records[0].before, "Open");
   assert.equal(normalized.comments.records[0].edited, true);
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true });
