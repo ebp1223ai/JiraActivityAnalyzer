@@ -1,3 +1,12 @@
+## 0.2.64 - Dual Candidate Discovery & Complete Updated-Date Pagination
+
+- Added explicit User-related and Last Updated Date Candidate Discovery modes while keeping User-related as the default and preserving its 1,000-result safety contract.
+- Added inclusive calendar-date JQL with an exclusive next-day bound and deterministic updated/key ordering, without hidden User, window, round, delay, project, or safety-limit parameters.
+- Added read-only complete Jira Search pagination with retry, progress, cancellation, response/cursor/total validation, stable Issue identity deduplication, and fail-closed Partial/Failed/Cancelled outcomes.
+- Added run-scoped configuration snapshots and stale-response protection; only a reconciled Completed run atomically replaces the Step 2 Candidate Set.
+- Added focused synthetic coverage for 0, 1,001, and 3,426 issues, server-limited pages, retries, duplicate identities, total drift, stalled cursors, cancellation, and publish gates.
+- Kept SQLite schema v3, dependencies, Full Fetch, Viewer, APP_ROOT, and Jira read-only contracts unchanged.
+
 ## 0.2.63 - Analyzer Evidence UI, Viewer Column Control & Issue Metadata
 
 - Added one canonical column registry for Issue Changelog, Issue Activity Events, and User All Activity Events, with Time and Action required in the first two positions and optional visibility/order/width controls.

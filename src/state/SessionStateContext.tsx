@@ -5,6 +5,7 @@ import type { ActivityStreamProbeRunV2 } from "../../electron/activityStreamRoun
 import type { ActivityStreamBenchmarkRun } from "../../electron/activityStreamBenchmark";
 import { USER_ANALYSIS_DEFAULTS, userAnalysisInitialDates } from "../../electron/analysisDefaults";
 import type { ActivityTimelineRunContext } from "../../electron/activityTimelineRunContext";
+import type { CandidateDiscoveryConfig, CandidateDiscoveryMode, CandidateDiscoveryStatus } from "../../shared/candidateDiscovery";
 import type { IssueViewerSessionState, UserViewerSessionState } from "../types/databaseViewer";
 
 export type SessionTableState = {
@@ -558,6 +559,30 @@ export type UserAnalysisSessionState = {
   };
   jqlStrategy: "base search without updatedBy" | "base-in-query" | "base-or-chain-fallback";
   updatedByStatus: "disabled" | "success" | "failed" | "not_supported";
+  candidateDiscoveryMode: CandidateDiscoveryMode;
+  candidateDiscoveryStatus: CandidateDiscoveryStatus;
+  candidateDiscoveryRunId: string;
+  candidateDiscoveryConfigSnapshot: CandidateDiscoveryConfig | null;
+  candidateDiscoveryProgress: { startAt: number; pageCount: number; rawFetchedCount: number; observedTotal: number | null };
+  candidateDiscoverySummary: {
+    runId: string;
+    mode: CandidateDiscoveryMode;
+    startDate: string;
+    endDate: string;
+    startedAt: string;
+    completedAt: string;
+    executedJql: string;
+    initialTotal: number | null;
+    finalObservedTotal: number | null;
+    observedTotals: number[];
+    rawFetchedCount: number;
+    uniqueIssueCount: number;
+    duplicateCount: number;
+    pageCount: number;
+    lastSuccessfulStartAt: number | null;
+    completenessStatus: CandidateDiscoveryStatus;
+    consistencyWarnings: string[];
+  } | null;
   candidateSafetyLimit: number;
   candidateIssues: UserAnalysisCandidateIssue[];
   selectedForFetch: string[];
@@ -816,6 +841,12 @@ const initialUserAnalysis: UserAnalysisSessionState = {
   },
   jqlStrategy: "base search without updatedBy",
   updatedByStatus: "disabled",
+  candidateDiscoveryMode: "USER_RELATED",
+  candidateDiscoveryStatus: "IDLE",
+  candidateDiscoveryRunId: "",
+  candidateDiscoveryConfigSnapshot: null,
+  candidateDiscoveryProgress: { startAt: 0, pageCount: 0, rawFetchedCount: 0, observedTotal: null },
+  candidateDiscoverySummary: null,
   candidateSafetyLimit: 1000,
   candidateIssues: [],
   selectedForFetch: [],

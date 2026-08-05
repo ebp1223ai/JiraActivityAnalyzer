@@ -110,7 +110,9 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         saveExport: (payload: { category: "jira-analysis" | "raw-data" | "debug-bundles"; defaultFileName: string; data: unknown }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string }>;
       };
       userAnalysis?: {
-        discoverCandidates: (payload: { connection: JiraConnection; jql: string; safetyLimit: number; selectedUsers: string[] }) => Promise<Record<string, unknown>>;
+        discoverCandidates: (payload: { connection: JiraConnection; mode?: "USER_RELATED" | "LAST_UPDATED_DATE"; runId?: string; startDate?: string; endDate?: string; jql: string; safetyLimit: number; selectedUsers: string[] }) => Promise<Record<string, unknown>>;
+        cancelCandidateDiscovery: (payload?: { runId?: string }) => Promise<{ ok: boolean; runId?: string; message?: string }>;
+        onCandidateDiscoveryProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
         activityStreamProbe: (payload: { connection: JiraConnection; selectedUsers: string[]; activityStreamUser: string; queryMode: "auto" | "username" | "escaped_username" | "email" | "custom"; startDate: string; endDate: string; maxResults: number; maxResultsSource: "custom" | "quick"; largeMaxResultsConfirmed: boolean; dateQueryMode: "none" | "startDate_endDate" | "update_date_after_before" | "both"; chunkingMode: "off" | "auto" | "monthly" | "weekly" | "custom_days"; customChunkDays: number; relativeLinks: boolean; runId: string; standardFlow?: boolean; advancedOverrideUsed?: boolean }) => Promise<Record<string, unknown>>;
         activityStreamStabilityProbe: (payload: { connection: JiraConnection; config: Record<string, unknown>; confirmedLargeRun?: boolean }) => Promise<Record<string, unknown>>;
         cancelStabilityProbe: () => Promise<{ ok: boolean; runId?: string; message?: string }>;

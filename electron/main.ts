@@ -73,6 +73,8 @@ import {
 } from "./databaseViewer.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
+import { runLastUpdatedCandidateDiscovery } from "./updatedCandidateDiscovery.js";
+import type { CandidateDiscoveryMode } from "../shared/candidateDiscovery.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -1124,8 +1126,47 @@ function jiraSearchErrorDetails(response: { json: unknown | null; bodyPreview?: 
   };
 }
 
-ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { connection: AppConnection; jql: string; safetyLimit: number; selectedUsers?: string[] }) => {
+let activeUpdatedCandidateDiscovery: { runId: string; cancelled: boolean } | null = null;
+
+ipcMain.handle("user-analysis:cancel-candidate-discovery", async (_event, payload?: { runId?: string }) => {
+  if (!activeUpdatedCandidateDiscovery || (payload?.runId && payload.runId !== activeUpdatedCandidateDiscovery.runId)) {
+    return { ok: false, message: "No matching Last Updated Date Candidate Discovery is running." };
+  }
+  activeUpdatedCandidateDiscovery.cancelled = true;
+  return { ok: true, runId: activeUpdatedCandidateDiscovery.runId };
+});
+
+ipcMain.handle("user-analysis:discover-candidates", async (event, payload: { connection: AppConnection; mode?: CandidateDiscoveryMode; runId?: string; startDate?: string; endDate?: string; jql: string; safetyLimit: number; selectedUsers?: string[] }) => {
   const connection = payload.connection;
+  const mode = payload.mode ?? "USER_RELATED";
+  if (mode === "LAST_UPDATED_DATE") {
+    const runId = String(payload.runId ?? `updated-discovery-${Date.now()}`);
+    if (activeUpdatedCandidateDiscovery) activeUpdatedCandidateDiscovery.cancelled = true;
+    const activeRun = { runId, cancelled: false };
+    activeUpdatedCandidateDiscovery = activeRun;
+    const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
+    const fields = "key,summary,status,assignee,reporter,creator,updated,created,issuetype,priority,project";
+    const client = createJiraClient({
+      baseUrl: connection.baseUrl,
+      email: connection.email || connection.username,
+      apiToken: connection.apiToken ?? "",
+      authType: connection.authType
+    });
+    try {
+      return await runLastUpdatedCandidateDiscovery({
+        runId,
+        config: { mode: "LAST_UPDATED_DATE", startDate: String(payload.startDate ?? ""), endDate: String(payload.endDate ?? "") },
+        isCancelled: () => activeRun.cancelled,
+        onProgress: (progress) => event.sender.send("user-analysis:candidate-discovery-progress", progress),
+        searchPage: async ({ jql, startAt, maxResults }) => {
+          const pathName = `${apiPrefix}/search?jql=${encodeURIComponent(jql)}&fields=${encodeURIComponent(fields)}&startAt=${startAt}&maxResults=${maxResults}`;
+          return client.get(pathName);
+        }
+      });
+    } finally {
+      if (activeUpdatedCandidateDiscovery === activeRun) activeUpdatedCandidateDiscovery = null;
+    }
+  }
   const safetyLimit = Math.min(Math.max(Number(payload.safetyLimit) || 1000, 1), 1000);
   const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
   const fields = "key,summary,status,assignee,reporter,creator,updated,created,issuetype,priority,project";

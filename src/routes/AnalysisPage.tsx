@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { AlertTriangle, ArrowDown, ArrowUp, Bug, ChevronDown, ChevronUp, Clock3, Columns3, Copy, DatabaseZap, Download, Eye, Filter, FolderOpen, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
@@ -14,6 +14,7 @@ import { useSessionState, type JiraEvidenceSummary, type UserActivityTimelineEve
 import { buildTimelineIssueGroups, buildTimelineQueueTransition, defaultWorkflowSteps, isRecommendedRelationType, mergeQueueMetadata, normalizeFetchQueueMetadata, normalizeIssueKey, type FetchQueueMetadata, type FetchQueueSource } from "../../electron/userAnalysisWorkflow";
 import { preflightFullFetchQueue } from "../../electron/fullFetchPreflight";
 import { createActivityTimelineRunContext } from "../../electron/activityTimelineRunContext";
+import { buildLastUpdatedDateJql, canPublishCandidateDiscoveryResult, candidateDiscoveryModeLabel, validateLastUpdatedDateRange, type CandidateDiscoveryConfig } from "../../shared/candidateDiscovery";
 
 const pageSizeOptions = [10, 20, 40, 80, 160];
 const timelineRequiredColumns = [{ value: "time", label: "Time" }, { value: "user", label: "User" }, { value: "issueKey", label: "Issue Key" }, { value: "activityType", label: "Activity Type" }, { value: "sourceApplication", label: "Source Application" }];
@@ -232,13 +233,35 @@ export function AnalysisPage() {
   const [timelinePreferencesReady, setTimelinePreferencesReady] = useState(false);
   const [timelineSort, setTimelineSort] = useState<{ field: "time" | "user" | "issueKey" | "activityType" | "sourceApplication"; direction: "asc" | "desc" }>({ field: "time", direction: "desc" });
   const [timelineFilterColumn, setTimelineFilterColumn] = useState("");
+  const candidateDiscoveryRunRef = useRef("");
+
+  useEffect(() => window.desktopApp?.userAnalysis?.onCandidateDiscoveryProgress?.((progress) => {
+    const runId = String(progress.runId ?? "");
+    if (!runId || candidateDiscoveryRunRef.current !== runId) return;
+    setUserAnalysis((current) => current.candidateDiscoveryRunId !== runId ? current : {
+      ...current,
+      candidateDiscoveryStatus: String(progress.status ?? "FETCHING") as typeof current.candidateDiscoveryStatus,
+      candidateDiscoveryProgress: {
+        startAt: Number(progress.startAt ?? 0),
+        pageCount: Number(progress.pageCount ?? 0),
+        rawFetchedCount: Number(progress.rawFetchedCount ?? 0),
+        observedTotal: progress.observedTotal === null || progress.observedTotal === undefined ? null : Number(progress.observedTotal)
+      }
+    });
+  }), []);
 
   const selectedUsers = useMemo(() => parseUsers(userAnalysis.selectedUsersText), [userAnalysis.selectedUsersText]);
   const currentJqlDateRange = useMemo(
     () => toJqlDateRange(userAnalysis.startDate, userAnalysis.endDate),
     [userAnalysis.endDate, userAnalysis.startDate]
   );
-  const generatedBaseJql = userAnalysis.generatedBaseJql || buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
+  const isUpdatedDateDiscovery = userAnalysis.candidateDiscoveryMode === "LAST_UPDATED_DATE";
+  const generatedBaseJql = userAnalysis.generatedBaseJql || (isUpdatedDateDiscovery
+    ? (() => {
+      const validation = validateLastUpdatedDateRange(userAnalysis.startDate, userAnalysis.endDate);
+      return validation.ok ? buildLastUpdatedDateJql(userAnalysis.startDate, userAnalysis.endDate) : "";
+    })()
+    : buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate));
   const generatedJql = userAnalysis.generatedJql || formatGeneratedJql(generatedBaseJql, userAnalysis.jqlStrategy, userAnalysis.updatedByStatus, {
     start: userAnalysis.startDate,
     end: userAnalysis.endDate,
@@ -1039,29 +1062,32 @@ export function AnalysisPage() {
     void persistWorkflowSnapshot({ steps });
   }
 
-  function validate() {
-    if (selectedUsers.length === 0) return "Please enter at least one user.";
-    if (!userAnalysis.startDate || !userAnalysis.endDate) return "Please select start date and end date.";
-    if (userAnalysis.startDate > userAnalysis.endDate) return "Start date must be earlier than or equal to end date.";
+  function validateCandidateDiscovery() {
+    if (!userAnalysis.startDate || !userAnalysis.endDate) return "Please select Start Date and End Date.";
+    const dateValidation = validateLastUpdatedDateRange(userAnalysis.startDate, userAnalysis.endDate);
+    if (!dateValidation.ok) return `${dateValidation.code}: ${dateValidation.message}`;
+    if (userAnalysis.candidateDiscoveryMode === "USER_RELATED" && selectedUsers.length === 0) return "Please enter at least one user.";
     return "";
   }
 
   function handlePreviewJql() {
-    logAnalysisAction("USER_ACTION", "Button clicked: Preview JQL / 預覽 JQL");
-    const error = validate();
+    logAnalysisAction("USER_ACTION", "Button clicked: Preview JQL");
+    const error = validateCandidateDiscovery();
     if (error) {
       patchState({ errors: [error], notice: "" });
       appendDebugLog("analysis", [`[WARN] ${error}`]);
       return;
     }
     const nextJqlDateRange = toJqlDateRange(userAnalysis.startDate, userAnalysis.endDate);
-    const nextBaseJql = buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
+    const nextBaseJql = userAnalysis.candidateDiscoveryMode === "LAST_UPDATED_DATE"
+      ? buildLastUpdatedDateJql(userAnalysis.startDate, userAnalysis.endDate)
+      : buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
     const nextGeneratedJql = formatGeneratedJql(nextBaseJql, "base search without updatedBy", "disabled", {
       start: userAnalysis.startDate,
       end: userAnalysis.endDate,
       endExclusive: nextJqlDateRange.endExclusive
     });
-    const updatedByWarning = "updatedBy search is not enabled in Stage 1 because this Jira instance may not support it.";
+    const updatedByWarning = "updatedBy search is not enabled in User-related mode because this Jira instance may not support it.";
     patchState({
       generatedJql: nextGeneratedJql,
       generatedBaseJql: nextBaseJql,
@@ -1069,41 +1095,69 @@ export function AnalysisPage() {
       jqlStrategy: "base search without updatedBy",
       updatedByStatus: "disabled",
       errors: [],
-      warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning],
-      notice: "Generated JQL updated."
+      warnings: userAnalysis.candidateDiscoveryMode === "USER_RELATED"
+        ? [...(dateRangeWarning ? [dateRangeWarning] : []), updatedByWarning]
+        : [],
+      notice: `Generated JQL updated for ${candidateDiscoveryModeLabel(userAnalysis.candidateDiscoveryMode)}.`
     });
     appendDebugLog("analysis", [
-      `[INFO] Selected users parsed: ${selectedUsers.length}`,
+      `[INFO] Candidate Discovery Mode: ${candidateDiscoveryModeLabel(userAnalysis.candidateDiscoveryMode)}`,
       `[INFO] UI date range: ${userAnalysis.startDate} to ${userAnalysis.endDate}`,
       `[INFO] JQL date range: updated >= "${nextJqlDateRange.startInclusive}" AND updated < "${nextJqlDateRange.endExclusive}"`,
-      "[INFO] Search Mode: Standard",
-      "[INFO] JQL Strategy: base search without updatedBy",
-      "[INFO] updatedBy status: disabled",
-      "[INFO] Generated Base JQL:",
-      nextBaseJql
+      "[INFO] Generated JQL:",
+      nextBaseJql,
+      "[INFO] No database write performed"
     ]);
   }
 
+  async function handleCancelCandidateDiscovery() {
+    const runId = candidateDiscoveryRunRef.current;
+    if (!runId) return;
+    await window.desktopApp?.userAnalysis?.cancelCandidateDiscovery?.({ runId });
+    appendDebugLog("analysis", [`[INFO] Candidate Discovery cancellation requested: runId=${runId}`]);
+  }
+
   async function handleRunDiscovery() {
-    logAnalysisAction("USER_ACTION", "Button clicked: Run Advanced Candidate Search / 執行進階候選搜尋");
-    const error = validate();
+    const mode = userAnalysis.candidateDiscoveryMode;
+    logAnalysisAction("USER_ACTION", `Button clicked: Run Candidate Discovery: mode=${mode}`);
+    const error = validateCandidateDiscovery();
     if (error) {
       patchState({ errors: [error], notice: "" });
       appendDebugLog("analysis", [`[ERROR] ${error}`]);
       return;
     }
+
     const nextJqlDateRange = toJqlDateRange(userAnalysis.startDate, userAnalysis.endDate);
-    const nextBaseJql = buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
+    const nextBaseJql = mode === "LAST_UPDATED_DATE"
+      ? buildLastUpdatedDateJql(userAnalysis.startDate, userAnalysis.endDate)
+      : buildBaseJql(selectedUsers, userAnalysis.startDate, userAnalysis.endDate);
     const nextGeneratedJql = formatGeneratedJql(nextBaseJql, "base search without updatedBy", "disabled", {
       start: userAnalysis.startDate,
       end: userAnalysis.endDate,
       endExclusive: nextJqlDateRange.endExclusive
     });
-    const updatedByWarning = "updatedBy search is not enabled in Stage 1 because this Jira instance may not support it.";
+    const runId = globalThis.crypto?.randomUUID?.() ?? `candidate-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const startedAt = new Date().toISOString();
+    const configSnapshot: CandidateDiscoveryConfig = mode === "LAST_UPDATED_DATE"
+      ? { mode, startDate: userAnalysis.startDate, endDate: userAnalysis.endDate }
+      : {
+        mode,
+        startDate: userAnalysis.startDate,
+        endDate: userAnalysis.endDate,
+        jql: nextBaseJql,
+        safetyLimit: userAnalysis.candidateSafetyLimit,
+        selectedUsers: [...selectedUsers]
+      };
+    const updatedByWarning = "updatedBy search is not enabled in User-related mode because this Jira instance may not support it.";
+    candidateDiscoveryRunRef.current = runId;
     patchState({
       loading: true,
+      candidateDiscoveryStatus: "FETCHING",
+      candidateDiscoveryRunId: runId,
+      candidateDiscoveryConfigSnapshot: configSnapshot,
+      candidateDiscoveryProgress: { startAt: 0, pageCount: 0, rawFetchedCount: 0, observedTotal: null },
       errors: [],
-      warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning],
+      warnings: mode === "USER_RELATED" ? [...(dateRangeWarning ? [dateRangeWarning] : []), updatedByWarning] : [],
       generatedJql: nextGeneratedJql,
       generatedBaseJql: nextBaseJql,
       jqlDateRange: nextJqlDateRange,
@@ -1112,62 +1166,107 @@ export function AnalysisPage() {
       notice: ""
     });
     appendDebugLog("analysis", [
-      "[INFO] User Analysis Stage 1 initialized",
+      "[INFO] Candidate Discovery initialized",
+      `[INFO] Run ID: ${runId}`,
+      `[INFO] Candidate Discovery Mode: ${candidateDiscoveryModeLabel(mode)}`,
       "[INFO] Data Source Mode: Live Jira API",
-      "[INFO] Connection Source: Current .env Jira Connection",
-      `[INFO] API Version: ${activeConnection?.apiVersion === "v3" ? "Jira Cloud v3" : "Jira Server/Data Center v2"}`,
-      `[INFO] Auth Type: ${activeConnection?.authType === "basic" ? "Basic Auth" : "Bearer Token / PAT"}`,
+      "[INFO] Search API method: GET only",
       "[INFO] Authorization: [masked]",
-      `[INFO] Selected users parsed: ${selectedUsers.length}`,
       `[INFO] UI date range: ${userAnalysis.startDate} to ${userAnalysis.endDate}`,
-      `[INFO] JQL date range: updated >= "${nextJqlDateRange.startInclusive}" AND updated < "${nextJqlDateRange.endExclusive}"`,
-      "[INFO] Search Mode: Standard",
-      "[INFO] JQL Strategy: base search without updatedBy",
-      "[INFO] updatedBy status: disabled",
-      `[INFO] Candidate Discovery Safety Limit (does not limit Full Fetch Queue): ${userAnalysis.candidateSafetyLimit}`,
-      "[INFO] Generated Base JQL:",
+      ...(mode === "USER_RELATED"
+        ? [`[INFO] Selected users parsed: ${selectedUsers.length}`, `[INFO] Candidate Safety Limit: ${userAnalysis.candidateSafetyLimit}`]
+        : ["[INFO] User, Request Window, Round, Delay, and Candidate Safety Limit are not part of this run."]),
+      "[INFO] Generated JQL:",
       nextBaseJql
     ]);
+
     try {
       if (!activeConnection) throw new Error("No active Jira connection. Reload .env in Connections first.");
       const response = await window.desktopApp?.userAnalysis?.discoverCandidates?.({
         connection: activeConnection,
+        mode,
+        runId,
+        startDate: userAnalysis.startDate,
+        endDate: userAnalysis.endDate,
         jql: nextBaseJql,
         safetyLimit: userAnalysis.candidateSafetyLimit,
-        selectedUsers
+        selectedUsers: mode === "USER_RELATED" ? selectedUsers : []
       });
       if (!response) throw new Error("Electron User Analysis API is not available.");
       appendDebugLog("analysis", Array.isArray(response.logs) ? response.logs as string[] : []);
-      if (!response.ok) {
-        const message = String(response.message ?? "Advanced Candidate Search failed.");
+      if (candidateDiscoveryRunRef.current !== runId) {
+        appendDebugLog("analysis", [`[WARN] Stale Candidate Discovery response ignored: runId=${runId}`]);
+        return;
+      }
+
+      const rawMetadata = response.metadata && typeof response.metadata === "object"
+        ? response.metadata as Record<string, unknown>
+        : {};
+      const metadata: NonNullable<typeof userAnalysis.candidateDiscoverySummary> = mode === "LAST_UPDATED_DATE"
+        ? rawMetadata as NonNullable<typeof userAnalysis.candidateDiscoverySummary>
+        : {
+          runId,
+          mode,
+          startDate: userAnalysis.startDate,
+          endDate: userAnalysis.endDate,
+          startedAt,
+          completedAt: new Date().toISOString(),
+          executedJql: nextBaseJql,
+          initialTotal: Number(rawMetadata.total ?? 0),
+          finalObservedTotal: Number(rawMetadata.total ?? 0),
+          observedTotals: [Number(rawMetadata.total ?? 0)],
+          rawFetchedCount: Number(rawMetadata.returned ?? 0),
+          uniqueIssueCount: Number(rawMetadata.returned ?? 0),
+          duplicateCount: 0,
+          pageCount: Array.isArray(rawMetadata.pages) ? rawMetadata.pages.length : 0,
+          lastSuccessfulStartAt: Array.isArray(rawMetadata.pages) && rawMetadata.pages.length > 0
+            ? Number((rawMetadata.pages[rawMetadata.pages.length - 1] as Record<string, unknown>).startAt ?? 0)
+            : null,
+          completenessStatus: response.ok ? "COMPLETED" : "FAILED",
+          consistencyWarnings: Array.isArray(response.warnings) ? response.warnings.map(String) : []
+        };
+      const responseStatus = String(response.status ?? (response.ok ? "COMPLETED" : "FAILED")) as typeof userAnalysis.candidateDiscoveryStatus;
+      const responseRunId = String(metadata?.runId ?? runId);
+      const responseMode = String(metadata?.mode ?? mode) as typeof mode;
+      if (!response.ok || !canPublishCandidateDiscoveryResult({ status: responseStatus, activeRunId: runId, responseRunId, activeMode: mode, responseMode })) {
+        const message = String(response.message ?? "Candidate Discovery failed.");
         patchState({
           loading: false,
+          candidateDiscoveryStatus: responseStatus,
+          candidateDiscoverySummary: metadata,
           errors: [message],
-          warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning],
-          jqlStrategy: String(response.jqlStrategy ?? "base search without updatedBy") as typeof userAnalysis.jqlStrategy,
-          updatedByStatus: String(response.updatedByStatus ?? "disabled") as typeof userAnalysis.updatedByStatus,
+          warnings: Array.isArray(response.warnings) ? response.warnings as string[] : [],
           rawSearchMetadata: response.metadata ?? null,
-          notice: ""
+          notice: "Candidate Set was not replaced because this run was not complete."
         });
         return;
       }
+
       const discovered = (Array.isArray(response.candidates) ? response.candidates : []) as UserAnalysisCandidateIssue[];
       const existingCandidates = new Map(userAnalysis.candidateIssues.map((issue) => [issue.key, issue]));
       const candidates: UserAnalysisCandidateIssue[] = discovered.map((issue) => ({
         ...issue,
-        queueMetadata: mergeQueueMetadata(existingCandidates.get(issue.key)?.queueMetadata, {
+        queueMetadata: mergeQueueMetadata(mode === "USER_RELATED" ? existingCandidates.get(issue.key)?.queueMetadata : undefined, {
           source: "advanced_candidate_search",
-          matchedReason: issue.matchedReason || "assignee_reporter_creator_jql_match",
-          selectedUser: selectedUsers.join(", "),
+          matchedReason: mode === "LAST_UPDATED_DATE" ? "LAST_UPDATED_IN_RANGE" : issue.matchedReason || "assignee_reporter_creator_jql_match",
+          ...(mode === "USER_RELATED" ? { selectedUser: selectedUsers.join(", ") } : {}),
           dateRange: { start: userAnalysis.startDate, end: userAnalysis.endDate },
           addedAt: new Date().toISOString()
         })
       }));
-      for (const issue of userAnalysis.candidateIssues) if (!candidates.some((candidate) => candidate.key === issue.key)) candidates.push(issue);
-      const warnings = [...(dateRangeWarning ? [dateRangeWarning] : []), updatedByWarning, ...(Array.isArray(response.warnings) ? response.warnings as string[] : [])];
-      const selectedForFetch = Array.from(new Set([...userAnalysis.selectedForFetch, ...discovered.map((issue) => issue.key)]));
+      if (mode === "USER_RELATED") {
+        for (const issue of userAnalysis.candidateIssues) if (!candidates.some((candidate) => candidate.key === issue.key)) candidates.push(issue);
+      }
+      const selectedForFetch = mode === "LAST_UPDATED_DATE"
+        ? discovered.map((issue) => issue.key)
+        : Array.from(new Set([...userAnalysis.selectedForFetch, ...discovered.map((issue) => issue.key)]));
+      const warnings = mode === "USER_RELATED"
+        ? [...(dateRangeWarning ? [dateRangeWarning] : []), updatedByWarning, ...(Array.isArray(response.warnings) ? response.warnings as string[] : [])]
+        : (Array.isArray(response.warnings) ? response.warnings as string[] : []);
       patchState({
         loading: false,
+        candidateDiscoveryStatus: "COMPLETED",
+        candidateDiscoverySummary: metadata,
         candidateIssues: candidates,
         selectedForFetch,
         workflowSteps: { ...userAnalysis.workflowSteps, fetchQueue: selectedForFetch.length ? "ready" : userAnalysis.workflowSteps.fetchQueue },
@@ -1176,17 +1275,22 @@ export function AnalysisPage() {
         page: 1,
         errors: [],
         warnings,
-        jqlStrategy: String(response.jqlStrategy ?? "base search without updatedBy") as typeof userAnalysis.jqlStrategy,
-        updatedByStatus: String(response.updatedByStatus ?? "disabled") as typeof userAnalysis.updatedByStatus,
         lastDiscoveryAt: new Date().toISOString(),
         rawSearchMetadata: response.metadata ?? null,
-        notice: `Advanced Candidate Search completed: ${candidates.length} issues.`
+        notice: `${candidateDiscoveryModeLabel(mode)} completed: ${candidates.length} issues. Candidate Set replaced only after completeness validation.`
       });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Advanced Candidate Search failed.";
-      patchState({ loading: false, errors: [message], warnings: dateRangeWarning ? [dateRangeWarning, updatedByWarning] : [updatedByWarning], notice: "" });
-      appendDebugLog("analysis", [`[ERROR] ${message}`, "[INFO] No database write performed"]);
+    } catch (caught) {
+      if (candidateDiscoveryRunRef.current !== runId) return;
+      const message = caught instanceof Error ? caught.message : "Candidate Discovery failed.";
+      patchState({ loading: false, candidateDiscoveryStatus: "FAILED", errors: [message], notice: "The prior completed Candidate Set was preserved." });
+      appendDebugLog("analysis", [`[ERROR] ${message}`, "[INFO] Candidate Set publish skipped", "[INFO] No database write performed"]);
     }
+  }
+  function validate() {
+    if (selectedUsers.length === 0) return "Please enter at least one user.";
+    if (!userAnalysis.startDate || !userAnalysis.endDate) return "Please select start date and end date.";
+    if (userAnalysis.startDate > userAnalysis.endDate) return "Start date must be earlier than or equal to end date.";
+    return "";
   }
 
   async function handleRunPrecisionProbe() {
@@ -1402,6 +1506,7 @@ export function AnalysisPage() {
   }
 
   function clearSession() {
+    candidateDiscoveryRunRef.current = "";
     logAnalysisAction("USER_ACTION", "Button clicked: Clear Candidate Session / 清除候選工作階段");
     setUserAnalysis((current) => ({
       ...current,
@@ -1413,6 +1518,11 @@ export function AnalysisPage() {
       },
       jqlStrategy: "base search without updatedBy",
       updatedByStatus: "disabled",
+      candidateDiscoveryStatus: "IDLE",
+      candidateDiscoveryRunId: "",
+      candidateDiscoveryConfigSnapshot: null,
+      candidateDiscoveryProgress: { startAt: 0, pageCount: 0, rawFetchedCount: 0, observedTotal: null },
+      candidateDiscoverySummary: null,
       candidateIssues: [],
       selectedForFetch: [],
       excludedIssues: [],
@@ -2219,7 +2329,7 @@ export function AnalysisPage() {
         </div>
       </SectionCard> : null}
 
-      {false ? <>
+      {<>
       <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-950">
         <span>Advanced Candidate Search uses assignee, reporter, creator, and JQL matches as supplementary evidence. It is not direct activity evidence and does not build the Activity Timeline.<br />進階候選搜尋是補充證據，不代表使用者直接活動，也不會建立活動時間線。</span>
         <button className="btn bg-white" type="button" onClick={() => showStep("timeline")}><Clock3 size={15} />Go to Step 2: Build Timeline / 前往 Step 2：建立活動時間線</button>
@@ -2244,15 +2354,33 @@ export function AnalysisPage() {
         </div>
       </SectionCard>
 
-      <SectionCard id="candidate-search" title="Advanced Candidate Search" subtitle="進階候選搜尋" className="mb-4">
+      <SectionCard id="candidate-search" title="Candidate Discovery" subtitle="候選資料探索" className="mb-4">
+        <fieldset className="mb-4 min-w-0" disabled={userAnalysis.loading}>
+          <legend className="mb-2 text-sm font-black text-ink">Candidate Discovery Mode / 候選資料擷取方式</legend>
+          <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2" data-testid="candidate-discovery-mode">
+            {(["USER_RELATED", "LAST_UPDATED_DATE"] as const).map((mode) => (
+              <button
+                key={mode}
+                data-testid={`candidate-mode-${mode.toLowerCase()}`}
+                className={`min-w-0 rounded-lg border p-3 text-left text-sm font-bold leading-snug ${userAnalysis.candidateDiscoveryMode === mode ? "border-blue-500 bg-blue-50 text-blue-900" : "border-line bg-white text-muted"}`}
+                type="button"
+                aria-pressed={userAnalysis.candidateDiscoveryMode === mode}
+                onClick={() => patchState({ candidateDiscoveryMode: mode, generatedJql: "", generatedBaseJql: "", errors: [], warnings: [], notice: "" })}
+              >
+                {candidateDiscoveryModeLabel(mode)}
+              </button>
+            ))}
+          </div>
+        </fieldset>
         {userAnalysis.showHelpTips ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Use this step to search for Jira issues related to selected users and date range.<br />本步驟用來依使用者與日期範圍搜尋可能相關的 Jira。<br /><br /><b>Result / 結果：</b><br />This only creates a candidate issue list. Full comments, attachments, and changelog are not fully fetched yet.<br />這裡只會產生候選 Jira 清單，尚不會完整抓取 comments、attachments、changelog。</div> : null}
         <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-          <div className="min-w-0">
+          {userAnalysis.candidateDiscoveryMode === "USER_RELATED" ? <div className="min-w-0">
             <FieldLabel label="Selected Users" sub="選擇使用者" />
             <textarea
               data-testid="analysis-selected-users"
               className="field min-h-28 resize-y leading-relaxed"
               value={userAnalysis.selectedUsersText}
+              disabled={userAnalysis.loading}
               placeholder={"roger_hsieh\nch_kao\nsomeone@phison.com"}
               onChange={(event) => { logAnalysisAction("USER_ACTION", `Selected Users changed / 選擇使用者變更: userCount=${parseUsers(event.target.value).length}`); patchState({ selectedUsersText: event.target.value }); }}
             />
@@ -2261,39 +2389,55 @@ export function AnalysisPage() {
                 <span key={user} className="chip" title={user}><span className="truncate">{user}</span></span>
               ))}
             </div>
-          </div>
+          </div> : null}
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
             <div>
               <FieldLabel label="Start Date" sub="開始日期" />
-              <input data-testid="analysis-start-date" className="field" type="date" value={userAnalysis.startDate} onChange={(event) => { logAnalysisAction("USER_ACTION", `Date Range changed / 日期範圍變更: startDate=${event.target.value}`); patchState({ startDate: event.target.value }); }} />
+              <input data-testid="analysis-start-date" className="field" type="date" value={userAnalysis.startDate} disabled={userAnalysis.loading} onChange={(event) => { logAnalysisAction("USER_ACTION", `Date Range changed / 日期範圍變更: startDate=${event.target.value}`); patchState({ startDate: event.target.value }); }} />
             </div>
             <div>
               <FieldLabel label="End Date" sub="結束日期" />
-              <input data-testid="analysis-end-date" className="field" type="date" value={userAnalysis.endDate} onChange={(event) => { logAnalysisAction("USER_ACTION", `Date Range changed / 日期範圍變更: endDate=${event.target.value}`); patchState({ endDate: event.target.value }); }} />
+              <input data-testid="analysis-end-date" className="field" type="date" value={userAnalysis.endDate} disabled={userAnalysis.loading} onChange={(event) => { logAnalysisAction("USER_ACTION", `Date Range changed / 日期範圍變更: endDate=${event.target.value}`); patchState({ endDate: event.target.value }); }} />
             </div>
-            <div>
-              <FieldLabel label="Search Mode" sub="搜尋模式" />
-              <select className="field" value="standard" disabled>
-                <option>Standard - assignee OR reporter OR creator</option>
-              </select>
-            </div>
-            <div>
-              <FieldLabel label="Candidate Safety Limit" sub="候選安全上限" />
-              <input className="field" value={userAnalysis.candidateSafetyLimit} readOnly />
-            </div>
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-900">Candidate Discovery Safety Limit only caps search results. It never truncates items already added to the Full Fetch Queue.<br />候選搜尋安全上限只限制搜尋結果，不會截斷已加入 Full Fetch Queue 的項目。</div>
-            <div className="rounded-lg border border-line bg-white p-3 text-xs font-semibold leading-relaxed text-muted">
-              updatedBy is disabled in Stage 1. Exact updatedBy actor requires Stage 2 Full Fetch.<br />第一階段不使用 updatedBy；精確的更新者資訊需由第二階段完整抓取取得。
-            </div>
+            {userAnalysis.candidateDiscoveryMode === "USER_RELATED" ? <>
+              <div>
+                <FieldLabel label="Search Mode" sub="搜尋模式" />
+                <select className="field" value="standard" disabled>
+                  <option>Standard - assignee OR reporter OR creator</option>
+                </select>
+              </div>
+              <div>
+                <FieldLabel label="Candidate Safety Limit" sub="候選安全上限" />
+                <input className="field" value={userAnalysis.candidateSafetyLimit} readOnly />
+              </div>
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-900">Candidate Discovery Safety Limit only caps User-related search results. It never truncates items already added to the Full Fetch Queue.<br />候選搜尋安全上限只限制使用者相關搜尋結果，不會截斷已加入 Full Fetch Queue 的項目。</div>
+              <div className="rounded-lg border border-line bg-white p-3 text-xs font-semibold leading-relaxed text-muted">updatedBy is disabled. Exact actor evidence requires Full Fetch.<br />不使用 updatedBy；精確更新者證據需由完整抓取取得。</div>
+            </> : <div data-testid="updated-date-semantics" className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-950">
+              This mode returns every visible Issue whose current Last Updated date is in the selected inclusive calendar range. It does not mean every Issue that had any activity during that period.<br />
+              此模式擷取目前「最後更新日期」落在所選日期範圍內、且 Token 有權限查看的全部 Issue；不代表期間內曾發生活動的全部 Issue。系統會自動抓完所有分頁，不套用 1,000 筆安全上限。
+            </div>}
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button className="btn" type="button" onClick={handlePreviewJql}><Eye size={16} />Preview JQL / 預覽 JQL</button>
-          <button className="btn btn-primary" type="button" onClick={handleRunDiscovery} disabled={userAnalysis.loading}>
-            <Play size={16} />{userAnalysis.loading ? "Running / 執行中..." : "Run Advanced Candidate Search / 執行進階候選搜尋"}
+          <button className="btn" type="button" onClick={handlePreviewJql} disabled={userAnalysis.loading}><Eye size={16} />Preview JQL / 預覽 JQL</button>
+          <button className="btn btn-primary" type="button" onClick={() => void handleRunDiscovery()} disabled={userAnalysis.loading}>
+            <Play size={16} />{userAnalysis.loading ? "Running / 執行中..." : "Run Candidate Discovery / 執行候選資料探索"}
           </button>
-          <button className="btn" type="button" onClick={clearSession}><RotateCcw size={16} />Clear Candidate Session / 清除候選工作階段</button>
+          {userAnalysis.loading && userAnalysis.candidateDiscoveryMode === "LAST_UPDATED_DATE" ? <button className="btn border-red-300 text-red-700" type="button" onClick={() => void handleCancelCandidateDiscovery()}><PauseCircle size={16} />Cancel / 取消</button> : null}
+          <button className="btn" type="button" onClick={clearSession} disabled={userAnalysis.loading}><RotateCcw size={16} />Clear Candidate Session / 清除候選工作階段</button>
         </div>
+        {(userAnalysis.loading || userAnalysis.candidateDiscoverySummary) ? <div data-testid="candidate-discovery-run-summary" className="mt-4 rounded-lg border border-line bg-slate-50 p-4">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2"><div className="text-sm font-black text-ink">Run Summary / 執行摘要</div><StatusBadge tone={userAnalysis.candidateDiscoveryStatus === "COMPLETED" ? "green" : userAnalysis.candidateDiscoveryStatus === "PARTIAL" ? "amber" : userAnalysis.candidateDiscoveryStatus === "FAILED" || userAnalysis.candidateDiscoveryStatus === "CANCELLED" ? "red" : "blue"}>{userAnalysis.candidateDiscoveryStatus}</StatusBadge></div>
+          <div className="mt-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
+            <MiniStat label="Mode / 模式" value={candidateDiscoveryModeLabel(userAnalysis.candidateDiscoveryConfigSnapshot?.mode ?? userAnalysis.candidateDiscoveryMode)} />
+            <MiniStat label="Date Range / 日期範圍" value={`${userAnalysis.candidateDiscoveryConfigSnapshot?.startDate ?? userAnalysis.startDate} → ${userAnalysis.candidateDiscoveryConfigSnapshot?.endDate ?? userAnalysis.endDate}`} />
+            <MiniStat label="Fetched / 已抓取" value={`${userAnalysis.candidateDiscoverySummary?.rawFetchedCount ?? userAnalysis.candidateDiscoveryProgress.rawFetchedCount} / ${userAnalysis.candidateDiscoverySummary?.finalObservedTotal ?? userAnalysis.candidateDiscoveryProgress.observedTotal ?? "Unknown"}`} />
+            <MiniStat label="Pages / 分頁" value={userAnalysis.candidateDiscoverySummary?.pageCount ?? userAnalysis.candidateDiscoveryProgress.pageCount} />
+            <MiniStat label="Unique Issues / 唯一 Issue" value={userAnalysis.candidateDiscoverySummary?.uniqueIssueCount ?? userAnalysis.candidateDiscoveryProgress.rawFetchedCount} />
+          </div>
+          <div className="mt-3 min-w-0 break-words rounded-md border border-line bg-white p-3 text-xs font-semibold leading-relaxed text-muted"><span className="font-black text-ink">Executed JQL / 實際 JQL：</span><br />{userAnalysis.candidateDiscoverySummary?.executedJql || generatedBaseJql || "Preparing... / 準備中..."}</div>
+          {userAnalysis.candidateDiscoverySummary?.consistencyWarnings.map((warning) => <div key={warning} className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs font-bold text-amber-900">{warning}</div>)}
+        </div> : null}
       </SectionCard>
 
       <SectionCard title="Generated JQL" subtitle="產生的 JQL" className="mb-4">
@@ -2315,12 +2459,12 @@ export function AnalysisPage() {
         <MiniStat label="Candidate Issues / 候選 Jira" value={userAnalysis.candidateIssues.length} />
         <MiniStat label="Fetch Queue / 抓取佇列" value={fetchQueue.length} />
         <MiniStat label="Full Fetch / 完整抓取" value="All Queue" />
-        <MiniStat label="Candidate Safety / 候選安全上限" value={userAnalysis.candidateSafetyLimit} />
+        {userAnalysis.candidateDiscoveryMode === "USER_RELATED" ? <MiniStat label="Candidate Safety / 候選安全上限" value={userAnalysis.candidateSafetyLimit} /> : <MiniStat label="Pagination / 分頁" value="Complete / 全部" />}
       </div>
       <div className="mb-4 flex justify-end">
         <button className="btn btn-primary" type="button" onClick={() => showStep("queue")} disabled={userAnalysis.candidateIssues.length === 0}><DatabaseZap size={16} />Go to Step 4: Full Fetch / 前往 Step 4：完整抓取</button>
       </div>
-      </> : null}
+      </>}
 
       {false ? (
         <div data-testid="precision-probe-panel">
