@@ -1,0 +1,204 @@
+{
+    "formatVersion":  1,
+    "releaseVersion":  "0.2.64",
+    "timezone":  "Asia/Taipei",
+    "sessionStart":  "2026-08-05T14:24:18.0000000+08:00",
+    "sessionEnd":  "2026-08-05T15:34:37.4626782+08:00",
+    "totalWallClockSeconds":  4219.463,
+    "timeSummary":  {
+                        "measuredCommandWaitingSeconds":  772.607,
+                        "activeAndOrchestrationSeconds":  3446.856,
+                        "approvalWaitingSeconds":  0,
+                        "basis":  "Wall clock starts at the first durable v0.2.64 branch timestamp. Measured command waiting is the sum of recorded long-running commands; remaining wall clock covers inspection, implementation, review, updates, short commands, documentation, and orchestration."
+                    },
+    "phases":  [
+                   {
+                       "name":  "baseline-prompt-flow-analysis-and-main-implementation",
+                       "start":  "2026-08-05T14:24:18.0000000+08:00",
+                       "end":  "2026-08-05T15:00:23.0000000+08:00",
+                       "durationSeconds":  2165,
+                       "status":  "completed"
+                   },
+                   {
+                       "name":  "source-validation-commit-and-first-clean-package",
+                       "start":  "2026-08-05T15:00:23.0000000+08:00",
+                       "end":  "2026-08-05T15:11:49.0000000+08:00",
+                       "durationSeconds":  686,
+                       "status":  "completed"
+                   },
+                   {
+                       "name":  "ui-contract-followup-final-clean-package-and-smoke",
+                       "start":  "2026-08-05T15:11:49.0000000+08:00",
+                       "end":  "2026-08-05T15:30:52.0000000+08:00",
+                       "durationSeconds":  1143,
+                       "status":  "completed"
+                   },
+                   {
+                       "name":  "reports-final-gates-and-evidence-commit",
+                       "start":  "2026-08-05T15:30:52.0000000+08:00",
+                       "end":  "2026-08-05T15:34:37.4626782+08:00",
+                       "durationSeconds":  225.463,
+                       "status":  "completed"
+                   }
+               ],
+    "commandAttempts":  [
+                            {
+                                "command":  "baseline git/prompt/production flow inspection",
+                                "exitCode":  0,
+                                "durationSeconds":  8.4,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "apply_patch existing ACL-protected source",
+                                "exitCode":  1,
+                                "durationSeconds":  0.3,
+                                "result":  "failed; switched to guarded UTF-8 exact edits"
+                            },
+                            {
+                                "command":  "temporary PowerShell source edit with encoding damage",
+                                "exitCode":  1,
+                                "durationSeconds":  0.8,
+                                "result":  "failed; source restored and repaired"
+                            },
+                            {
+                                "command":  "initial JSX/typecheck repair cycle",
+                                "exitCode":  1,
+                                "durationSeconds":  8.2,
+                                "result":  "failed; closing structure corrected"
+                            },
+                            {
+                                "command":  "npm.cmd run typecheck (initial source gate)",
+                                "exitCode":  0,
+                                "durationSeconds":  7.9,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.64 (initial source gate)",
+                                "exitCode":  0,
+                                "durationSeconds":  1.7,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "node scripts/test-v0234.cjs",
+                                "exitCode":  0,
+                                "durationSeconds":  1.1,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "node scripts/test-full-fetch-correctness.cjs",
+                                "exitCode":  0,
+                                "durationSeconds":  1.2,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "node scripts/test-app-root.cjs",
+                                "exitCode":  0,
+                                "durationSeconds":  0.8,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "node scripts/test-v0263.cjs",
+                                "exitCode":  0,
+                                "durationSeconds":  0.9,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "npm.cmd run build",
+                                "exitCode":  0,
+                                "durationSeconds":  23.2,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "first detached clean-worktree npm.cmd ci",
+                                "exitCode":  0,
+                                "durationSeconds":  131.3,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "first detached clean-worktree npm.cmd run dist",
+                                "exitCode":  0,
+                                "durationSeconds":  233.5,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "first packaged CDP smoke expression with top-level await",
+                                "exitCode":  1,
+                                "durationSeconds":  2.5,
+                                "result":  "failed; expression wrapped in async IIFE"
+                            },
+                            {
+                                "command":  "first packaged app-only CDP smoke retry",
+                                "exitCode":  0,
+                                "durationSeconds":  2.0,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "npm.cmd run typecheck (final source)",
+                                "exitCode":  0,
+                                "durationSeconds":  12.009,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "npm.cmd run test:v0.2.64 (final source)",
+                                "exitCode":  0,
+                                "durationSeconds":  1.6,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "junction-based npm.cmd run dist",
+                                "exitCode":  0,
+                                "durationSeconds":  95.957,
+                                "result":  "rejected by audit due missing transitive dependency paths"
+                            },
+                            {
+                                "command":  "junction package-size audit",
+                                "exitCode":  0,
+                                "durationSeconds":  1.088,
+                                "result":  "rejected artifact; app.asar only 15.264 MiB"
+                            },
+                            {
+                                "command":  "PowerShell Remove-Item junction",
+                                "exitCode":  1,
+                                "durationSeconds":  0.5,
+                                "result":  "failed with NullReference; junction unchanged"
+                            },
+                            {
+                                "command":  "Windows rmdir verified temporary junction",
+                                "exitCode":  0,
+                                "durationSeconds":  0.3,
+                                "result":  "passed; source node_modules preserved"
+                            },
+                            {
+                                "command":  "final detached clean-worktree npm.cmd ci",
+                                "exitCode":  0,
+                                "durationSeconds":  137.03,
+                                "result":  "passed; 9 vulnerabilities recorded"
+                            },
+                            {
+                                "command":  "final detached clean-worktree npm.cmd run dist",
+                                "exitCode":  0,
+                                "durationSeconds":  172.734,
+                                "result":  "passed"
+                            },
+                            {
+                                "command":  "final npm.cmd run audit:package-size and hashes",
+                                "exitCode":  0,
+                                "durationSeconds":  1.994,
+                                "result":  "passed; unexpectedCount=0"
+                            },
+                            {
+                                "command":  "final packaged app-only CDP smoke",
+                                "exitCode":  0,
+                                "durationSeconds":  3.392,
+                                "result":  "passed"
+                            }
+                        ],
+    "unaccountedTimeSeconds":  0,
+    "reconciliation":  "The four phases are contiguous and total 4219.463 seconds. Command durations overlap their owning phases and are evidence, not additive phase time. The start is the first durable branch-creation timestamp; exact sub-command timestamps before source commit were not recoverable and were not fabricated.",
+    "notes":  [
+                  "Top five measured command durations: first dist 233.500s, final dist 172.734s, final npm ci 137.030s, first npm ci 131.300s, rejected junction dist 95.957s.",
+                  "No long multi-size UI smoke, real Jira request, real Full Fetch, real SQLite, OS desktop screenshot, push, tag, PR, Release, or artifact upload was performed.",
+                  "The unrelated modified v0.2.47 report and all pre-existing untracked user files remained unstaged and untouched.",
+                  "Overall Status remains Partial pending user real Jira and Windows GUI manual validation."
+              ]
+}
