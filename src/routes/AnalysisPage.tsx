@@ -2150,20 +2150,40 @@ export function AnalysisPage() {
 
       {userAnalysis.activeTab === "timeline" ? (
         <SectionCard className="mb-4 workflow-current-panel" title="Step 1. Build Activity Stream" subtitle="Data Collection">
+          <fieldset className="mb-4 min-w-0" disabled={userAnalysis.loading}>
+          <legend className="mb-2 text-sm font-black text-ink">Candidate Discovery Mode / 候選資料擷取方式</legend>
+          <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2" data-testid="candidate-discovery-mode">
+            {(["USER_RELATED", "LAST_UPDATED_DATE"] as const).map((mode) => (
+              <button
+                key={mode}
+                data-testid={`candidate-mode-${mode.toLowerCase()}`}
+                className={`min-w-0 rounded-lg border p-3 text-left text-sm font-bold leading-snug ${userAnalysis.candidateDiscoveryMode === mode ? "border-blue-500 bg-blue-50 text-blue-900" : "border-line bg-white text-muted"}`}
+                type="button"
+                aria-pressed={userAnalysis.candidateDiscoveryMode === mode}
+                onClick={() => patchState({ candidateDiscoveryMode: mode, generatedJql: "", generatedBaseJql: "", errors: [], warnings: [], notice: "" })}
+              >
+                {candidateDiscoveryModeLabel(mode)}
+              </button>
+            ))}
+          </div>
+          </fieldset>
           <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
+            {userAnalysis.candidateDiscoveryMode === "USER_RELATED" ? <>
             <div>
               <FieldLabel label="Selected User" sub="分析對象" />
-              <input data-testid="analysis-setup-user-v244" className="field" value={userAnalysis.selectedUsersText} onChange={(event) => patchState({ selectedUsersText: event.target.value.replace(/[\n,;].*$/, "") })} placeholder="sample.user" />
+              <input data-testid="analysis-setup-user-v244" className="field" value={userAnalysis.selectedUsersText} disabled={userAnalysis.loading} onChange={(event) => patchState({ selectedUsersText: event.target.value.replace(/[\n,;].*$/, "") })} placeholder="sample.user" />
             </div>
+            </> : null}
             <div>
               <FieldLabel label="Start Date" sub="開始日期" />
-              <input data-testid="analysis-setup-start-v245" className="field" type="date" value={userAnalysis.startDate} onChange={(event) => patchState({ startDate: event.target.value })} />
+              <input data-testid="analysis-setup-start-v245" className="field" type="date" value={userAnalysis.startDate} disabled={userAnalysis.loading} onChange={(event) => patchState({ startDate: event.target.value })} />
             </div>
             <div>
               <FieldLabel label="End Date" sub="結束日期" />
-              <input data-testid="analysis-setup-end-v245" className="field" type="date" value={userAnalysis.endDate} onChange={(event) => patchState({ endDate: event.target.value })} />
+              <input data-testid="analysis-setup-end-v245" className="field" type="date" value={userAnalysis.endDate} disabled={userAnalysis.loading} onChange={(event) => patchState({ endDate: event.target.value })} />
             </div>
           </div>
+          {userAnalysis.candidateDiscoveryMode === "USER_RELATED" ? <>
           <details data-testid="analysis-advanced-details-v252" className="mt-4 rounded-md border border-line bg-slate-50">
             <summary className="cursor-pointer px-4 py-3 text-sm font-black text-slate-800">Advanced Details / 執行設定摘要</summary>
             <dl className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-3 border-t border-line px-4 py-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
@@ -2178,6 +2198,7 @@ export function AnalysisPage() {
             </dl>
             <p className="border-t border-line px-4 py-3 text-xs font-semibold leading-relaxed text-muted">These values are fixed for this release and are recorded in the Run Manifest and Debug Folder. / 本版採固定執行參數，並寫入 Run Manifest 與 Debug Folder。</p>
           </details>
+          </> : null}
         </SectionCard>
       ) : null}
 
@@ -2355,23 +2376,6 @@ export function AnalysisPage() {
       </SectionCard>
 
       <SectionCard id="candidate-search" title="Candidate Discovery" subtitle="候選資料探索" className="mb-4">
-        <fieldset className="mb-4 min-w-0" disabled={userAnalysis.loading}>
-          <legend className="mb-2 text-sm font-black text-ink">Candidate Discovery Mode / 候選資料擷取方式</legend>
-          <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2" data-testid="candidate-discovery-mode">
-            {(["USER_RELATED", "LAST_UPDATED_DATE"] as const).map((mode) => (
-              <button
-                key={mode}
-                data-testid={`candidate-mode-${mode.toLowerCase()}`}
-                className={`min-w-0 rounded-lg border p-3 text-left text-sm font-bold leading-snug ${userAnalysis.candidateDiscoveryMode === mode ? "border-blue-500 bg-blue-50 text-blue-900" : "border-line bg-white text-muted"}`}
-                type="button"
-                aria-pressed={userAnalysis.candidateDiscoveryMode === mode}
-                onClick={() => patchState({ candidateDiscoveryMode: mode, generatedJql: "", generatedBaseJql: "", errors: [], warnings: [], notice: "" })}
-              >
-                {candidateDiscoveryModeLabel(mode)}
-              </button>
-            ))}
-          </div>
-        </fieldset>
         {userAnalysis.showHelpTips ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Use this step to search for Jira issues related to selected users and date range.<br />本步驟用來依使用者與日期範圍搜尋可能相關的 Jira。<br /><br /><b>Result / 結果：</b><br />This only creates a candidate issue list. Full comments, attachments, and changelog are not fully fetched yet.<br />這裡只會產生候選 Jira 清單，尚不會完整抓取 comments、attachments、changelog。</div> : null}
         <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           {userAnalysis.candidateDiscoveryMode === "USER_RELATED" ? <div className="min-w-0">
@@ -2799,7 +2803,7 @@ export function AnalysisPage() {
               Uses the selected user, date range, standard Activity Stream flow, classifier, and Baseline Guard.<br />
               使用目前選定使用者、日期範圍、標準 Activity Stream 流程、分類器與 Baseline Guard。
             </div>
-            <div className="flex flex-wrap gap-2"><button data-testid="build-activity-timeline" className="btn btn-primary" type="button" disabled={!setupReady || userAnalysis.timelineStatus === "running"} title={!setupReady ? "Please set Selected User and Date Range before building timeline." : undefined} onClick={() => void handleBuildTimeline()}>
+            <div className="flex flex-wrap gap-2"><button data-testid="build-activity-timeline" className="btn btn-primary" type="button" disabled={!setupReady || userAnalysis.timelineStatus === "running" || userAnalysis.candidateDiscoveryMode === "LAST_UPDATED_DATE"} title={!setupReady ? "Please set Selected User and Date Range before building timeline." : undefined} onClick={() => void handleBuildTimeline()}>
               <Clock3 size={16} />{userAnalysis.timelineStatus === "running" ? "Building... / 建立中..." : "Build Activity Timeline / 建立活動時間線"}
             </button>{userAnalysis.timelineStatus === "running" ? <button data-testid="cancel-activity-timeline" className="btn" type="button" onClick={() => void window.desktopApp?.userAnalysis?.cancelActivityTimeline?.()}><PauseCircle size={16} />Cancel / 取消</button> : null}</div>
           </div>

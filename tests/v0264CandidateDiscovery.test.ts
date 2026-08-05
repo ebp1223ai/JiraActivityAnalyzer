@@ -195,6 +195,10 @@ const analysisSource = fs.readFileSync(path.join(root, "src", "routes", "Analysi
 const mainSource = fs.readFileSync(path.join(root, "electron", "main.ts"), "utf8");
 assert.match(stateSource, /candidateDiscoveryMode: "USER_RELATED"/);
 assert.match(analysisSource, /candidateDiscoveryMode === "USER_RELATED" \? <div className="min-w-0">/);
+assert.equal((analysisSource.match(/data-testid="candidate-discovery-mode"/g) ?? []).length, 1, "Mode selector must have one source of truth");
+assert.match(analysisSource, /candidateDiscoveryMode === "USER_RELATED" \? <>\s*<div>\s*<FieldLabel label="Selected User"/);
+assert.match(analysisSource, /candidateDiscoveryMode === "USER_RELATED" \? <>\s*<details data-testid="analysis-advanced-details-v252"/);
+assert.match(analysisSource, /disabled=\{!setupReady \|\| userAnalysis\.timelineStatus === "running" \|\| userAnalysis\.candidateDiscoveryMode === "LAST_UPDATED_DATE"\}/);
 assert.match(analysisSource, /candidateDiscoveryConfigSnapshot: configSnapshot/);
 assert.match(analysisSource, /mode === "LAST_UPDATED_DATE"\s*\?\s*discovered\.map/);
 assert.match(analysisSource, /canPublishCandidateDiscoveryResult/);
