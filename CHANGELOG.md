@@ -4,6 +4,8 @@
 - Enforced server-side filter/pagination/count query flow for visible rows and distribution queries, including `before-unavailable` filtering, to keep large SQLite tables stable on large datasets.
 - Added dedicated v0.2.66 viewer efficiency regression test and runner (`test:v0.2.66`) for diff filter defaults, multi-user union, scope behavior, and filtering UI coverage.
 - Kept SQLite schema v3 and viewer read-only behavior unchanged; no Jira write paths or dependency upgrades were introduced.
+- Moved synchronous Viewer SQLite work off the Electron main thread into dedicated read-only workers with per-lane one-active/one-latest-pending coordination, timeout/crash recovery, and database-switch invalidation.
+- Added a 32-entry/8 MiB LRU page cache budget and a 20,000-event synthetic worker stability suite covering bounded IPC, heartbeat, stale requests, read-only enforcement, recovery, and schema/logical digest invariants.
 ## 0.2.65 - Viewer Efficiency, Multi-User Comparison & Diff Quick Filters
 
 - Built directly from the verified v0.2.63 final baseline. v0.2.64 was abandoned and not released; its Updated-Date discovery feature is not part of this branch ancestry or production path.

@@ -52,25 +52,9 @@ import { assertFormalDatabaseWriteAllowed, evaluateStabilityGate, type Stability
 import { reconcileRunChain } from "./runReconciliation.js";
 import { StartupMilestoneRecorder, type StartupMilestoneName } from "./startupMilestones.js";
 import { validateAndSaveDatabaseSelection } from "./startupIntegration.js";
-import {
-  listDatabaseIssues,
-  listDatabaseUsers,
-  loadDatabaseIssueDistributions,
-  queryDatabaseDistinctValues,
-  queryDatabaseUserDistributions,
-  queryDatabaseIssueEvents,
-  queryDatabaseIssueChangelog,
-  queryDescriptionComparison,
-  queryDescriptionFullContext,
-  queryDescriptionOriginalPreviews,
-  queryDatabaseUserEvents,
-  queryDatabaseUserRelatedIssues,
-  loadDatabaseIssue,
-  loadDatabaseOverview,
-  loadDatabaseUser,
-  issueViewerFailure,
-  runDatabaseHealthCheck
-} from "./databaseViewer.js";
+import { issueViewerFailure } from "./databaseViewer.js";
+import { DatabaseViewerCoordinator, type ViewerWorkerLane } from "./databaseViewerCoordinator.js";
+import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
 
@@ -91,6 +75,7 @@ const isUiSmoke = process.env.ELECTRON_UI_SMOKE === "1";
 const shouldCaptureUi = process.env.ELECTRON_UI_CAPTURE === "1";
 const shouldSimulateCrashDiagnostic = process.env.JAA_SIMULATE_CRASH_DIAGNOSTIC === "1";
 const appSessionId = `app-session-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+const databaseViewerCoordinator = new DatabaseViewerCoordinator(path.join(__dirname, "database-viewer-worker.cjs"));
 
 const resolvedAppRoot = resolveCanonicalAppRoot({
   isPackaged: app.isPackaged,
@@ -783,42 +768,46 @@ function currentReadableDatabasePath() {
   return database.path;
 }
 
-ipcMain.handle("database-viewer:overview", async () => loadDatabaseOverview(currentReadableDatabasePath()));
-ipcMain.handle("database-viewer:health-check", async () => runDatabaseHealthCheck(currentReadableDatabasePath()));
+function runDatabaseViewer(lane: ViewerWorkerLane, operation: ViewerWorkerOperation, ...args: unknown[]) {
+  return databaseViewerCoordinator.run(lane, operation, currentReadableDatabasePath(), ...args);
+}
+
+ipcMain.handle("database-viewer:overview", async () => runDatabaseViewer("database", "overview"));
+ipcMain.handle("database-viewer:health-check", async () => runDatabaseViewer("database", "healthCheck"));
 ipcMain.handle("database-viewer:list-issues", async (_event, payload?: Record<string, unknown>) =>
-  listDatabaseIssues(currentReadableDatabasePath(), payload));
+  runDatabaseViewer("database-table", "listIssues", payload));
 ipcMain.handle("database-viewer:issue-distributions", async () =>
-  loadDatabaseIssueDistributions(currentReadableDatabasePath()));
+  runDatabaseViewer("database-distributions", "issueDistributions"));
 ipcMain.handle("database-viewer:get-issue", async (_event, payload: { issueKey?: string }) => {
   const issueKey = String(payload?.issueKey ?? "").trim().toUpperCase();
   try {
-    return loadDatabaseIssue(currentReadableDatabasePath(), issueKey);
+    return await runDatabaseViewer("issue", "getIssue", issueKey);
   } catch (error) {
     return issueViewerFailure(issueKey, "query_failed", error instanceof Error ? error.message : "Issue Viewer query failed.");
   }
 });
 ipcMain.handle("database-viewer:list-users", async (_event, payload?: { search?: string; limit?: number; offset?: number }) =>
-  listDatabaseUsers(currentReadableDatabasePath(), payload));
+  runDatabaseViewer("user-directory", "listUsers", payload));
 ipcMain.handle("database-viewer:get-user", async (_event, payload: { userId?: string; limit?: number; offset?: number }) =>
-  loadDatabaseUser(currentReadableDatabasePath(), String(payload?.userId ?? ""), payload));
+  runDatabaseViewer("user-directory", "getUser", String(payload?.userId ?? ""), payload));
 ipcMain.handle("database-viewer:user-distributions", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
-  queryDatabaseUserDistributions(currentReadableDatabasePath(), payload?.scope, payload?.query));
+  runDatabaseViewer("user-distributions", "userDistributions", payload?.scope, payload?.query));
 ipcMain.handle("database-viewer:user-related-issues", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
-  queryDatabaseUserRelatedIssues(currentReadableDatabasePath(), payload?.scope, payload?.query));
+  runDatabaseViewer("user", "userRelatedIssues", payload?.scope, payload?.query));
 ipcMain.handle("database-viewer:user-events", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
-  queryDatabaseUserEvents(currentReadableDatabasePath(), payload?.scope, payload?.query));
+  runDatabaseViewer("user", "userEvents", payload?.scope, payload?.query));
 ipcMain.handle("database-viewer:issue-events", async (_event, payload: { issueKey?: string; query?: Record<string, unknown> }) =>
-  queryDatabaseIssueEvents(currentReadableDatabasePath(), String(payload?.issueKey ?? ""), payload?.query));
+  runDatabaseViewer("issue-table", "issueEvents", String(payload?.issueKey ?? ""), payload?.query));
 ipcMain.handle("database-viewer:issue-changelog", async (_event, payload: { issueKey?: string; query?: Record<string, unknown> }) =>
-  queryDatabaseIssueChangelog(currentReadableDatabasePath(), String(payload?.issueKey ?? ""), payload?.query));
+  runDatabaseViewer("issue-table", "issueChangelog", String(payload?.issueKey ?? ""), payload?.query));
 ipcMain.handle("database-viewer:description-full-context", async (_event, payload: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; revision?: unknown }) =>
-  queryDescriptionFullContext(currentReadableDatabasePath(), payload));
+  runDatabaseViewer("detail", "descriptionFullContext", payload));
 ipcMain.handle("database-viewer:description-original-previews", async (_event, payload: Record<string, unknown>) =>
-  queryDescriptionOriginalPreviews(currentReadableDatabasePath(), payload));
+  runDatabaseViewer("detail", "descriptionOriginalPreviews", payload));
 ipcMain.handle("database-viewer:description-comparison", async (_event, payload: Record<string, unknown>) =>
-  queryDescriptionComparison(currentReadableDatabasePath(), payload));
+  runDatabaseViewer("detail", "descriptionComparison", payload));
 ipcMain.handle("database-viewer:distinct-values", async (_event, payload: Record<string, unknown>) =>
-  queryDatabaseDistinctValues(currentReadableDatabasePath(), payload));
+  runDatabaseViewer("distinct", "distinctValues", payload));
 ipcMain.handle("ui-preferences:get", async () => loadUiPreferences(getConfiguredAppRoot()));
 ipcMain.handle("ui-preferences:update", async (_event, payload: { section?: unknown; value?: unknown }) => {
   const section = String(payload?.section ?? "");
@@ -5950,6 +5939,7 @@ app.on("child-process-gone", (_event, details) => {
 });
 
 app.on("before-quit", () => {
+  void databaseViewerCoordinator.close();
   persistentDiagnostics.close("closed");
 });
 

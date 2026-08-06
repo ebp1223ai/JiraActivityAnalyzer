@@ -58,3 +58,9 @@ esbuild.buildSync({
   entryPoints: [path.resolve(__dirname, "../electron/preload.ts")],
   outfile: path.join(outdir, "preload.cjs")
 });
+
+esbuild.buildSync({
+  ...common,
+  entryPoints: [path.resolve(__dirname, "../electron/databaseViewerWorker.ts")],
+  outfile: path.join(outdir, "database-viewer-worker.cjs")
+});

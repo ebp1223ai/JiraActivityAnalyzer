@@ -830,7 +830,18 @@ type EventQueryResult = {
 };
 const EVENT_QUERY_CACHE_TTL_MS = 2_000;
 const EVENT_QUERY_CACHE_LIMIT = 32;
-const eventQueryCache = new Map<string, { expiresAt: number; value: EventQueryResult }>();
+const EVENT_QUERY_CACHE_BYTES_LIMIT = 8 * 1024 * 1024;
+const eventQueryCache = new Map<string, { expiresAt: number; bytes: number; value: EventQueryResult }>();
+let eventQueryCacheBytes = 0;
+
+export function databaseViewerCacheDiagnostics() {
+  return { entries: eventQueryCache.size, bytes: eventQueryCacheBytes, entryLimit: EVENT_QUERY_CACHE_LIMIT, bytesLimit: EVENT_QUERY_CACHE_BYTES_LIMIT };
+}
+
+export function clearDatabaseViewerCache() {
+  eventQueryCache.clear();
+  eventQueryCacheBytes = 0;
+}
 
 type EventQuerySubject =
   | { kind: "user"; scope: UserViewerScope }
@@ -872,7 +883,13 @@ function queryDatabaseEvents(databasePath: string, subject: EventQuerySubject, i
   const queryFingerprint = crypto.createHash("sha256").update(JSON.stringify({ databasePath: path.resolve(databasePath), sourceSize: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, subject: subjectIdentity, query }), "utf8").digest("hex");
   const cached = eventQueryCache.get(queryFingerprint);
   if (cached && cached.expiresAt >= Date.now()) {
+    eventQueryCache.delete(queryFingerprint);
+    eventQueryCache.set(queryFingerprint, cached);
     return { ...structuredClone(cached.value), diagnostics: { ...cached.value.diagnostics, cacheHit: true } };
+  }
+  if (cached) {
+    eventQueryCache.delete(queryFingerprint);
+    eventQueryCacheBytes -= cached.bytes;
   }
   const filter = viewerFilterSql(query.filters, USER_EVENT_COLUMNS);
   appendDateBounds(filter.where, filter.parameters, "e.event_time", query.dateRange);
@@ -955,8 +972,15 @@ function queryDatabaseEvents(databasePath: string, subject: EventQuerySubject, i
         queryPlan
       }
     };
-    eventQueryCache.set(queryFingerprint, { expiresAt: Date.now() + EVENT_QUERY_CACHE_TTL_MS, value });
-    while (eventQueryCache.size > EVENT_QUERY_CACHE_LIMIT) eventQueryCache.delete(eventQueryCache.keys().next().value as string);
+    const bytes = Buffer.byteLength(JSON.stringify(value), "utf8");
+    eventQueryCache.set(queryFingerprint, { expiresAt: Date.now() + EVENT_QUERY_CACHE_TTL_MS, bytes, value });
+    eventQueryCacheBytes += bytes;
+    while (eventQueryCache.size > EVENT_QUERY_CACHE_LIMIT || eventQueryCacheBytes > EVENT_QUERY_CACHE_BYTES_LIMIT) {
+      const oldestKey = eventQueryCache.keys().next().value as string;
+      const oldest = eventQueryCache.get(oldestKey);
+      eventQueryCache.delete(oldestKey);
+      eventQueryCacheBytes -= oldest?.bytes ?? 0;
+    }
     return value;
   } finally {
     db.close();

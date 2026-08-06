@@ -135,5 +135,5 @@ for (const relative of ["src/routes/UserViewerPage.tsx", "src/routes/IssueViewer
   assert.doesNotMatch(source, /All Issues by Last Updated Date|LAST_UPDATED_IN_RANGE|Fetch Issues by Last Updated Date/);
 }
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")) as { version: string };
-assert.equal(packageJson.version, "0.2.65");
+assert.ok(Number(packageJson.version.split(".")[2]) >= 65, "v0.2.65 regression must run on version 0.2.65 or newer");
 console.log("v0.2.65 viewer efficiency, multi-user union, Diff filters, and preference tests passed.");
