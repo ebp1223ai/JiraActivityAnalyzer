@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "targetVersion": "0.2.66",
+  "phase": "implementation-audit-dist-continuation",
+  "continuationFromSourceCommit": "06076b3144f4bb53bc5e6acdd96274d09233a4d2",
+  "finalSourceCommit": "8ae32a155a604198ace6f702c17af8aa06a38181",
+  "start": "2026-08-06T15:40:37.8692232+08:00",
+  "end": "2026-08-06T16:23:10.3991869+08:00",
+  "wallClockSeconds": 2552.53,
+  "activeSeconds": 1860.0,
+  "waitingSeconds": 692.53,
+  "commands": [
+    { "command": "npm.cmd run typecheck", "result": "passed", "exitCode": 0, "durationSeconds": 7.9 },
+    { "command": "npm.cmd run test:v0.2.66", "result": "passed", "exitCode": 0, "durationSeconds": 12.4 },
+    { "command": "npm.cmd run test:v0.2.65", "result": "passed", "exitCode": 0, "durationSeconds": 1.0 },
+    { "command": "npm.cmd run test:v0.2.63", "result": "passed", "exitCode": 0, "durationSeconds": 1.0 },
+    { "command": "npm.cmd run test:v0.2.62", "result": "passed", "exitCode": 0, "durationSeconds": 0.9 },
+    { "command": "npm.cmd run test:v0.2.61", "result": "passed", "exitCode": 0, "durationSeconds": 0.7 },
+    { "command": "npm.cmd run test:v0.2.60", "result": "passed", "exitCode": 0, "durationSeconds": 0.9 },
+    { "command": "npm.cmd run test:v0.2.59", "result": "passed", "exitCode": 0, "durationSeconds": 0.9 },
+    { "command": "npm.cmd run test:v0.2.58", "result": "passed", "exitCode": 0, "durationSeconds": 1.0 },
+    { "command": "npm.cmd run test:integration", "result": "passed", "exitCode": 0, "durationSeconds": 0.8 },
+    { "command": "npm.cmd run build", "result": "passed", "exitCode": 0, "durationSeconds": 18.4 },
+    { "command": "npm.cmd ci (isolated worktree)", "result": "passed", "exitCode": 0, "durationSeconds": 47.2 },
+    { "command": "npm.cmd run build (isolated worktree)", "result": "passed", "exitCode": 0, "durationSeconds": 15.3 },
+    { "command": "npm.cmd run dist (isolated worktree)", "result": "passed", "exitCode": 0, "durationSeconds": 64.4 },
+    { "command": "npm.cmd run audit:package-size", "result": "passed", "exitCode": 0, "durationSeconds": 2.2 },
+    { "command": "packaged startup smoke (12 second observation)", "result": "passed", "exitCode": 0, "durationSeconds": 14.8 }
+  ],
+  "retries": [
+    { "gate": "typecheck", "attempt": 1, "result": "failed", "durationSeconds": 10.6, "reason": "three TypeScript errors in new coordinator/test; corrected" },
+    { "gate": "test:v0.2.66", "attempt": 1, "result": "failed", "durationSeconds": 12.1, "reason": "test assertion used obsolete overview DTO field; corrected" },
+    { "gate": "test:v0.2.66", "attempt": 2, "result": "failed", "durationSeconds": 12.6, "reason": "worker termination was not awaited before temporary DB cleanup; corrected" },
+    { "gate": "test:v0.2.65", "attempt": 1, "result": "failed", "durationSeconds": 1.0, "reason": "exact 0.2.65 version assertion rejected forward version; made assertion forward-compatible" }
+  ],
+  "topDurationTasks": [
+    { "task": "npm.cmd run dist (isolated worktree)", "durationSeconds": 64.4 },
+    { "task": "npm.cmd ci (isolated worktree)", "durationSeconds": 47.2 },
+    { "task": "npm.cmd run build", "durationSeconds": 18.4 },
+    { "task": "npm.cmd run build (isolated worktree)", "durationSeconds": 15.3 },
+    { "task": "packaged startup smoke", "durationSeconds": 14.8 }
+  ],
+  "notes": [
+    "Created at continuation start; no previous v0.2.66 ledger existed. Prior unrecorded time was not reconstructed.",
+    "Active and waiting seconds are continuation-level accounting; command durations are measured wall-clock observations rounded to one decimal place.",
+    "Real SQLite validation and full Windows GUI validation were not run.",
+    "The isolated build worktree and generated executables were intentionally retained outside the source repository."
+  ]
+}
