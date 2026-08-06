@@ -858,6 +858,7 @@ function diffQuickFilterSql(filters: DiffQuickFilters) {
   if (filters.hideNoChange) where.push(`(${validated}=0 OR (${status} NOT IN ('unchanged','whitespace-only') AND NOT (${added}=0 AND ${deleted}=0)))`);
   if (filters.hideZeroAdded) where.push(`(${validated}=0 OR ${added} IS NULL OR ${added}<>0)`);
   if (filters.hideZeroDeleted) where.push(`(${validated}=0 OR ${deleted} IS NULL OR ${deleted}<>0)`);
+  if (filters.hideBeforeUnavailable) where.push(`(${status} <> 'before-unavailable')`);
   return where;
 }
 

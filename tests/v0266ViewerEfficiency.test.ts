@@ -11,7 +11,7 @@ import { normalizeUserViewerScope, userViewerScopeKey } from "../shared/userView
 import { activityComparisonColumns } from "../src/components/ActivityComparisonTable.js";
 import { normalizeTablePreferences, resetTableLayout } from "../src/utils/tablePreferences.js";
 
-assert.equal(CURRENT_STATE_SCHEMA_VERSION, 3, "v0.2.65 must keep schema v3");
+assert.equal(CURRENT_STATE_SCHEMA_VERSION, 3, "v0.2.66 must keep schema v3");
 assert.deepEqual(DEFAULT_DIFF_QUICK_FILTERS, { hideNoChange: true, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: false });
 
 const classify = (before: unknown, after: unknown) => classifyViewerDiff({
@@ -135,5 +135,5 @@ for (const relative of ["src/routes/UserViewerPage.tsx", "src/routes/IssueViewer
   assert.doesNotMatch(source, /All Issues by Last Updated Date|LAST_UPDATED_IN_RANGE|Fetch Issues by Last Updated Date/);
 }
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")) as { version: string };
-assert.equal(packageJson.version, "0.2.65");
-console.log("v0.2.65 viewer efficiency, multi-user union, Diff filters, and preference tests passed.");
+assert.equal(packageJson.version, "0.2.66");
+console.log("v0.2.66 viewer efficiency, multi-user union, Diff filters, and preference tests passed.");

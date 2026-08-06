@@ -1,3 +1,9 @@
+## 0.2.66 - Viewer Filter Correctness & Large Dataset Stability
+
+- Added `hideBeforeUnavailable` diff quick filter support for Issue Changelog, Issue Activity Events, and User Activity Events, with quick-filter clear/reset defaults preserved by preference migration and session identity.
+- Enforced server-side filter/pagination/count query flow for visible rows and distribution queries, including `before-unavailable` filtering, to keep large SQLite tables stable on large datasets.
+- Added dedicated v0.2.66 viewer efficiency regression test and runner (`test:v0.2.66`) for diff filter defaults, multi-user union, scope behavior, and filtering UI coverage.
+- Kept SQLite schema v3 and viewer read-only behavior unchanged; no Jira write paths or dependency upgrades were introduced.
 ## 0.2.65 - Viewer Efficiency, Multi-User Comparison & Diff Quick Filters
 
 - Built directly from the verified v0.2.63 final baseline. v0.2.64 was abandoned and not released; its Updated-Date discovery feature is not part of this branch ancestry or production path.

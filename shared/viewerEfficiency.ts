@@ -4,12 +4,14 @@ export type DiffQuickFilters = {
   hideNoChange: boolean;
   hideZeroAdded: boolean;
   hideZeroDeleted: boolean;
+  hideBeforeUnavailable: boolean;
 };
 
 export const DEFAULT_DIFF_QUICK_FILTERS: DiffQuickFilters = {
   hideNoChange: true,
   hideZeroAdded: false,
-  hideZeroDeleted: false
+  hideZeroDeleted: false,
+  hideBeforeUnavailable: false
 };
 
 export type ViewerDiffStatus = DescriptionDiffStatus | "non-comparison";
@@ -107,7 +109,8 @@ export function normalizeDiffQuickFilters(value: unknown): DiffQuickFilters {
   return {
     hideNoChange: typeof source.hideNoChange === "boolean" ? source.hideNoChange : DEFAULT_DIFF_QUICK_FILTERS.hideNoChange,
     hideZeroAdded: typeof source.hideZeroAdded === "boolean" ? source.hideZeroAdded : DEFAULT_DIFF_QUICK_FILTERS.hideZeroAdded,
-    hideZeroDeleted: typeof source.hideZeroDeleted === "boolean" ? source.hideZeroDeleted : DEFAULT_DIFF_QUICK_FILTERS.hideZeroDeleted
+    hideZeroDeleted: typeof source.hideZeroDeleted === "boolean" ? source.hideZeroDeleted : DEFAULT_DIFF_QUICK_FILTERS.hideZeroDeleted,
+    hideBeforeUnavailable: typeof source.hideBeforeUnavailable === "boolean" ? source.hideBeforeUnavailable : DEFAULT_DIFF_QUICK_FILTERS.hideBeforeUnavailable
   };
 }
 
@@ -115,5 +118,6 @@ export function viewerDiffPassesFilters(diff: ViewerDiffClassification, filters:
   if (filters.hideNoChange && (diff.status === "unchanged" || diff.status === "whitespace-only" || (diff.comparisonValidated && diff.addedCount === 0 && diff.deletedCount === 0))) return false;
   if (filters.hideZeroAdded && diff.comparisonValidated && diff.addedCount === 0) return false;
   if (filters.hideZeroDeleted && diff.comparisonValidated && diff.deletedCount === 0) return false;
+  if (filters.hideBeforeUnavailable && diff.status === "before-unavailable") return false;
   return true;
 }
