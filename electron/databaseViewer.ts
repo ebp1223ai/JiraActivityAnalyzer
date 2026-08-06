@@ -8,7 +8,8 @@ import { dateRangeBounds, normalizeDateRange } from "./dateRange.js";
 import { buildDescriptionDiff, type DescriptionDiffInput, type DescriptionDiffResult } from "../shared/descriptionDiff.js";
 import { DESCRIPTION_PREVIEW_LIMITS, comparisonIntegrity, originalContentMetadata, previewFromComparison, type DescriptionComparisonPayload, type DescriptionPreviewBatchResponse } from "../shared/descriptionComparison.js";
 import type { ActivityViewerRow } from "../shared/activityViewerTypes.js";
-import { normalizeUserViewerScope, type UserViewerScope } from "../shared/userViewerScope.js";
+import { normalizeUserViewerScope, userViewerScopeKey, type UserViewerScope } from "../shared/userViewerScope.js";
+import { classifyViewerDiff, normalizeDiffQuickFilters, type DiffQuickFilters } from "../shared/viewerEfficiency.js";
 type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
 
 interface ViewerSection<T = unknown> {
@@ -84,6 +85,16 @@ function openReadOnly(databasePath: string) {
   const resolved = path.resolve(databasePath);
   if (!fs.existsSync(resolved)) throw new Error("DATABASE_MISSING");
   const db = new DatabaseSync(resolved, { readOnly: true });
+  const classify = (...values: unknown[]) => classifyViewerDiff({
+    eventId: String(values[0] ?? ""), issueKey: String(values[1] ?? ""),
+    fieldId: values[2] === null ? null : String(values[2] ?? ""), fieldName: values[3] === null ? null : String(values[3] ?? ""),
+    before: values[4], after: values[5], sourceType: values[6] === null ? null : String(values[6] ?? ""),
+    sourceId: values[7] === null ? null : String(values[7] ?? ""), jiraNativeSourceId: values[8] === null ? null : String(values[8] ?? "")
+  });
+  db.function("jaa_diff_status", { deterministic: true, varargs: true }, (...values) => classify(...values).status);
+  db.function("jaa_diff_validated", { deterministic: true, varargs: true }, (...values) => classify(...values).comparisonValidated ? 1 : 0);
+  db.function("jaa_diff_added", { deterministic: true, varargs: true }, (...values) => classify(...values).addedCount);
+  db.function("jaa_diff_deleted", { deterministic: true, varargs: true }, (...values) => classify(...values).deletedCount);
   db.exec("PRAGMA foreign_keys = ON; PRAGMA query_only = ON; PRAGMA busy_timeout = 3000;");
   return { db, resolved };
 }
@@ -448,6 +459,7 @@ type ViewerQueryInput = {
   revision?: unknown;
   descriptionChangedOnly?: unknown;
   includeBeforeUnavailable?: unknown;
+  diffQuickFilters?: unknown;
 };
 
 function normalizeViewerQuery(input: ViewerQueryInput, sortColumns: Record<string, string>, defaultSort: string) {
@@ -467,7 +479,8 @@ function normalizeViewerQuery(input: ViewerQueryInput, sortColumns: Record<strin
   const dateRange = normalizeDateRange(input.dateRange);
   const revision = Number.isSafeInteger(Number(input.revision)) ? Number(input.revision) : 0;
   return { page, pageSize, filters, sortField: field, sortDirection: direction, dateRange, revision,
-    descriptionChangedOnly: input.descriptionChangedOnly === true, includeBeforeUnavailable: input.includeBeforeUnavailable === true };
+    descriptionChangedOnly: input.descriptionChangedOnly === true, includeBeforeUnavailable: input.includeBeforeUnavailable === true,
+    diffQuickFilters: normalizeDiffQuickFilters(input.diffQuickFilters) };
 }
 
 function viewerFilterSql(filters: Row, columns: Record<string, { expression: string; kind: "text" | "multi" | "date" | "number" }>) {
@@ -534,9 +547,12 @@ type UserScopeSql = { scope: UserViewerScope; where: string; parameters: string[
 
 function userScopeSql(value: unknown, expression = "e.actor_account_id"): UserScopeSql {
   const scope = normalizeUserViewerScope(value);
-  return scope.kind === "all"
-    ? { scope, where: "1=1", parameters: [] }
-    : { scope, where: `${expression} = ?`, parameters: [scope.userId] };
+  if (scope.kind === "all") return { scope, where: "1=1", parameters: [] };
+  const chunks: string[] = [];
+  for (let offset = 0; offset < scope.userIds.length; offset += 500) {
+    chunks.push(`${expression} IN (${scope.userIds.slice(offset, offset + 500).map(() => "?").join(",")})`);
+  }
+  return { scope, where: `(${chunks.join(" OR ")})`, parameters: scope.userIds };
 }
 export function queryDatabaseUserRelatedIssues(databasePath: string, scopeInput: unknown, input: ViewerQueryInput = {}) {
   const scopeSql = userScopeSql(scopeInput);
@@ -609,6 +625,18 @@ export function queryDatabaseUserDistributions(databasePath: string, scopeInput:
       "FROM activity_events e WHERE " + scopeWhere,
       "AND e.source_object_id IN (" + issueScope + ")"
     ].join(" ")).get(...scopeSql.parameters, ...dateParameters, ...parameters));
+    const comparison = scopeSql.scope.kind === "selected-users" ? rows(db.prepare([
+      "SELECT e.actor_account_id AS userId, MAX(COALESCE(e.actor_display_name, '')) AS displayName,",
+      "COUNT(*) AS eventCount, COUNT(DISTINCT e.source_object_id) AS distinctRelatedIssues,",
+      "MIN(e.event_time) AS firstEvent, MAX(e.event_time) AS lastEvent",
+      "FROM activity_events e WHERE " + scopeWhere,
+      "AND e.source_object_id IN (" + issueScope + ")",
+      "GROUP BY e.actor_account_id ORDER BY eventCount DESC, e.actor_account_id ASC"
+    ].join(" ")).all(...scopeSql.parameters, ...dateParameters, ...parameters)).map((item) => ({
+      userId: String(item.userId ?? ""), displayName: String(item.displayName ?? ""),
+      eventCount: Number(item.eventCount ?? 0), distinctRelatedIssues: Number(item.distinctRelatedIssues ?? 0),
+      firstEvent: String(item.firstEvent ?? ""), lastEvent: String(item.lastEvent ?? "")
+    })) : [];
     const result: Record<string, Array<{ value: string; count: number }>> = {};
     for (const [key, expression] of Object.entries(dimensions)) {
       const sql = [
@@ -626,7 +654,7 @@ export function queryDatabaseUserDistributions(databasePath: string, scopeInput:
       fieldChanges: Number(eventCounts.fieldChanges ?? 0), attachments: Number(eventCounts.attachments ?? 0),
       earliestEvent: String(eventCounts.earliestEvent ?? ""), latestEvent: String(eventCounts.latestEvent ?? ""),
       projectKey: result.projectKey ?? [], issueType: result.issueType ?? [], status: result.status ?? [], priority: result.priority ?? [],
-      revision: query.revision
+      comparison, revision: query.revision
     };
   } finally {
     db.close();
@@ -819,24 +847,41 @@ function eventSubjectSql(subject: EventQuerySubject) {
   };
 }
 
+const VIEWER_DIFF_SQL_ARGS = "e.id,o.issue_key,e.field_id,e.field_name,e.from_value_json,e.to_value_json,e.source_provenance,e.source_record_id,e.jira_native_source_id";
+
+function diffQuickFilterSql(filters: DiffQuickFilters) {
+  const validated = `jaa_diff_validated(${VIEWER_DIFF_SQL_ARGS})`;
+  const status = `jaa_diff_status(${VIEWER_DIFF_SQL_ARGS})`;
+  const added = `jaa_diff_added(${VIEWER_DIFF_SQL_ARGS})`;
+  const deleted = `jaa_diff_deleted(${VIEWER_DIFF_SQL_ARGS})`;
+  const where: string[] = [];
+  if (filters.hideNoChange) where.push(`(${validated}=0 OR (${status} NOT IN ('unchanged','whitespace-only') AND NOT (${added}=0 AND ${deleted}=0)))`);
+  if (filters.hideZeroAdded) where.push(`(${validated}=0 OR ${added} IS NULL OR ${added}<>0)`);
+  if (filters.hideZeroDeleted) where.push(`(${validated}=0 OR ${deleted} IS NULL OR ${deleted}<>0)`);
+  return where;
+}
+
 function queryDatabaseEvents(databasePath: string, subject: EventQuerySubject, input: ViewerQueryInput): EventQueryResult {
+  const startedAt = performance.now();
   const sourceStat = fs.statSync(databasePath);
   const databaseIdentity = databaseFileIdentity(databasePath);
-  const queryFingerprint = crypto.createHash("sha256").update(JSON.stringify({ databasePath: path.resolve(databasePath), sourceSize: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, subject, input }), "utf8").digest("hex");
+  const sortColumns = Object.fromEntries(Object.entries(USER_EVENT_COLUMNS).map(([key, value]) => [key, value.expression]));
+  const query = normalizeViewerQuery(input, sortColumns, "eventTime");
+  const subjectIdentity = subject.kind === "user" ? { kind: "user", scope: userViewerScopeKey(subject.scope) } : subject;
+  const queryFingerprint = crypto.createHash("sha256").update(JSON.stringify({ databasePath: path.resolve(databasePath), sourceSize: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, subject: subjectIdentity, query }), "utf8").digest("hex");
   const cached = eventQueryCache.get(queryFingerprint);
   if (cached && cached.expiresAt >= Date.now()) {
     return { ...structuredClone(cached.value), diagnostics: { ...cached.value.diagnostics, cacheHit: true } };
   }
-  const startedAt = performance.now();
-  const sortColumns = Object.fromEntries(Object.entries(USER_EVENT_COLUMNS).map(([key, value]) => [key, value.expression]));
-  const query = normalizeViewerQuery(input, sortColumns, "eventTime");
   const filter = viewerFilterSql(query.filters, USER_EVENT_COLUMNS);
   appendDateBounds(filter.where, filter.parameters, "e.event_time", query.dateRange);
+  filter.where.push(...diffQuickFilterSql(query.diffQuickFilters));
   if (subject.kind === "issue" && subject.changelogOnly && query.descriptionChangedOnly) {
     filter.where.push("LOWER(COALESCE(NULLIF(e.field_id, ''), e.field_name, '')) = 'description'");
+    const descriptionStatus = `jaa_diff_status(${VIEWER_DIFF_SQL_ARGS})`;
     filter.where.push(query.includeBeforeUnavailable
-      ? "e.to_value_json IS NOT NULL AND (e.from_value_json IS NULL OR e.from_value_json <> e.to_value_json)"
-      : "e.from_value_json IS NOT NULL AND e.to_value_json IS NOT NULL AND e.from_value_json <> e.to_value_json");
+      ? `${descriptionStatus} IN ('changed','before-unavailable')`
+      : `${descriptionStatus} = 'changed'`);
   }
   const subjectSql = eventSubjectSql(subject);
   const where = `${subjectSql.where} ${filter.where.length ? `AND ${filter.where.join(" AND ")}` : ""}`;
@@ -863,7 +908,11 @@ function queryDatabaseEvents(databasePath: string, subject: EventQuerySubject, i
         e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
         e.jira_native_source_id AS jiraNativeSourceId,
         CASE WHEN e.event_type IN ('comment_created','comment_updated') THEN e.jira_native_source_id ELSE NULL END AS commentId,
-        e.identity_key_type AS identityKeyType, e.source_provenance AS sourceProvenance
+        e.identity_key_type AS identityKeyType, e.source_provenance AS sourceProvenance,
+        jaa_diff_status(${VIEWER_DIFF_SQL_ARGS}) AS diffStatus,
+        jaa_diff_validated(${VIEWER_DIFF_SQL_ARGS}) AS comparisonValidated,
+        jaa_diff_added(${VIEWER_DIFF_SQL_ARGS}) AS addedCount,
+        jaa_diff_deleted(${VIEWER_DIFF_SQL_ARGS}) AS deletedCount
       FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
       LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
       WHERE ${where}
@@ -1198,19 +1247,33 @@ export function loadDatabaseIssue(databasePath: string, issueKeyInput: string) {
   }
 }
 
-export function listDatabaseUsers(databasePath: string, input: { search?: string; limit?: number; offset?: number } = {}) {
+export function listDatabaseUsers(databasePath: string, input: { search?: string; limit?: number; offset?: number; userIds?: unknown } = {}) {
   const { db } = openReadOnly(databasePath);
   try {
-    const limit = boundedLimit(input.limit);
     const offset = boundedOffset(input.offset);
     const search = String(input.search ?? "").trim();
-    const where = search ? "WHERE actor_account_id LIKE ? OR actor_display_name LIKE ?" : "";
-    const parameters = search ? [`%${search}%`, `%${search}%`] : [];
+    const requestedIds = input.userIds === undefined ? [] : Array.from(new Set((Array.isArray(input.userIds) ? input.userIds : []).map((value) => String(value ?? "").trim()).filter(Boolean)));
+    const limit = requestedIds.length ? Math.min(10_000, Math.max(1, Number(input.limit ?? requestedIds.length))) : boundedLimit(input.limit);
+    if (input.userIds !== undefined && !Array.isArray(input.userIds)) throw new Error("USER_IDS_INVALID");
+    if (requestedIds.length > 10_000) throw new Error("SELECTED_USERS_LIMIT_EXCEEDED");
+    const conditions: string[] = [];
+    const parameters: string[] = [];
+    if (search) { conditions.push("(actor_account_id LIKE ? OR actor_display_name LIKE ?)"); parameters.push(`%${search}%`, `%${search}%`); }
+    if (requestedIds.length) {
+      const chunks: string[] = [];
+      for (let offset = 0; offset < requestedIds.length; offset += 500) {
+        const chunk = requestedIds.slice(offset, offset + 500);
+        chunks.push(`actor_account_id IN (${chunk.map(() => "?").join(",")})`);
+        parameters.push(...chunk);
+      }
+      conditions.push(`(${chunks.join(" OR ")})`);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const stableActor = "actor_account_id IS NOT NULL AND actor_account_id <> ''";
     const total = Number(row(db.prepare(`
       SELECT COUNT(*) AS count FROM (
         SELECT actor_account_id FROM activity_events
-        WHERE ${stableActor} ${search ? `AND (${where.slice(6)})` : ""}
+        WHERE ${stableActor} ${where ? `AND (${where.slice(6)})` : ""}
         GROUP BY actor_account_id
       )
     `).get(...parameters)).count ?? 0);
@@ -1224,7 +1287,7 @@ export function listDatabaseUsers(databasePath: string, input: { search?: string
              SUM(CASE WHEN event_type IN ('field_changed', 'status_changed', 'assignee_changed') THEN 1 ELSE 0 END) AS fieldChanges,
              SUM(CASE WHEN event_type = 'attachment_added' THEN 1 ELSE 0 END) AS attachments
       FROM activity_events
-      WHERE ${stableActor} ${search ? `AND (${where.slice(6)})` : ""}
+      WHERE ${stableActor} ${where ? `AND (${where.slice(6)})` : ""}
       GROUP BY actor_account_id
       ORDER BY latestEvent DESC, actor_account_id
       LIMIT ? OFFSET ?

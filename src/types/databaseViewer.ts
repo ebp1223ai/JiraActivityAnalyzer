@@ -43,6 +43,7 @@ export type ViewerTableSessionState = {
 };
 
 export type UserViewerDistributionItem = { value: string; count: number };
+export type UserViewerComparison = { userId: string; displayName: string; eventCount: number; distinctRelatedIssues: number; firstEvent: string; lastEvent: string };
 export type UserViewerDistributions = {
   totalRelatedIssues: number;
   totalEvents: number;
@@ -55,6 +56,7 @@ export type UserViewerDistributions = {
   issueType: UserViewerDistributionItem[];
   status: UserViewerDistributionItem[];
   priority: UserViewerDistributionItem[];
+  comparison: UserViewerComparison[];
 };
 
 export type IssueViewerSessionState = {
@@ -91,6 +93,10 @@ export type IssueViewerSessionState = {
 export type UserViewerSessionState = {
   search: string;
   selectionScope: UserViewerScope | null;
+  scopeMode: "selected" | "all";
+  selectedUserIds: string[];
+  selectedUserDetails: Array<Record<string, unknown>>;
+  searchComposing: boolean;
   loadedScopeKey: string;
   databaseIdentity: string;
   users: Array<Record<string, unknown>>;

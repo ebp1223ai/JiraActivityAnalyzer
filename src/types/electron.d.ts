@@ -1,7 +1,7 @@
 import type { JiraProbeRequest, JiraProbeResult } from "./jiraProbe";
 import type { ConnectionStatePayload, JiraConnection } from "./connection";
 import type { RuntimeState } from "./runtime";
-import type { IssueViewerDto } from "./databaseViewer";
+import type { IssueViewerDto, UserViewerDistributions } from "./databaseViewer";
 import type { DatabaseIssueDistributions, DatabaseIssueQuery, DatabaseIssueQueryResult } from "./databaseQuery";
 import type { UiPreferencesLoadResult, UiPreferencesUpdate } from "./uiPreferences";
 import type { ActivityTimelineRunContext } from "../../electron/activityTimelineRunContext";
@@ -89,9 +89,9 @@ declare global {
         listIssues: (payload?: DatabaseIssueQuery) => Promise<DatabaseIssueQueryResult>;
         issueDistributions: (payload?: DatabaseIssueQuery) => Promise<DatabaseIssueDistributions>;
         getIssue: (payload: { issueKey: string }) => Promise<IssueViewerDto>;
-        listUsers: (payload?: { search?: string; limit?: number; offset?: number }) => Promise<{ total: number; limit: number; offset: number; items: Array<Record<string, unknown>> }>;
+        listUsers: (payload?: { search?: string; limit?: number; offset?: number; userIds?: string[] }) => Promise<{ total: number; limit: number; offset: number; items: Array<Record<string, unknown>> }>;
         getUser: (payload: { userId: string; limit?: number; offset?: number }) => Promise<Record<string, unknown>>;
-userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery }) => Promise<{ totalRelatedIssues: number; totalEvents: number; comments: number; fieldChanges: number; attachments: number; earliestEvent: string; latestEvent: string; projectKey: Array<{ value: string; count: number }>; issueType: Array<{ value: string; count: number }>; status: Array<{ value: string; count: number }>; priority: Array<{ value: string; count: number }> }>;
+userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery }) => Promise<UserViewerDistributions>;
         userRelatedIssues: (payload: { scope: UserViewerScope; query: ViewerTableQuery }) => Promise<ViewerTableResult>;
         userEvents: (payload: { scope: UserViewerScope; query: ViewerTableQuery }) => Promise<ActivityViewerTableResult>;
         issueEvents: (payload: { issueKey: string; query: ViewerTableQuery }) => Promise<ActivityViewerTableResult>;

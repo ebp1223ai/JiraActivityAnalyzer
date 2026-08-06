@@ -1,4 +1,5 @@
 import type { TableFilterPreference, TablePreferences } from "../types/uiPreferences";
+import { normalizeDiffQuickFilters } from "../../shared/viewerEfficiency";
 
 export type TablePreferenceColumn = {
   id: string;
@@ -77,7 +78,7 @@ export function normalizeTablePreferences(
   for (const column of columns) {
     if (sourceWidths[column.id] !== undefined) columnWidths[column.id] = clampColumnWidth(sourceWidths[column.id], column);
   }
-  const allowedPageSizes = new Set([25, 50, 100]);
+  const allowedPageSizes = new Set([25, 50, 100, 200]);
   const pageSize = allowedPageSizes.has(Number(source.pageSize)) ? Number(source.pageSize) : fallbackPageSize;
   const pageIndexValue = Number(source.pageIndex);
   const pageIndex = Number.isSafeInteger(pageIndexValue) && pageIndexValue >= 1 && pageIndexValue <= 1_000_000 ? pageIndexValue : 1;
@@ -94,7 +95,16 @@ export function normalizeTablePreferences(
     const filter = normalizeFilter(candidate);
     if (filter) filters[field] = filter;
   }
-  return { visibleColumns, columnOrder, columnWidths, pageSize, pageIndex, sort, filters };
+  const diffQuickFilters = source.diffQuickFilters !== undefined ? normalizeDiffQuickFilters(source.diffQuickFilters) : undefined;
+  const selectedUserIds = Array.isArray(source.selectedUserIds) && source.selectedUserIds.length <= 10_000
+    ? Array.from(new Set(source.selectedUserIds.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter((item) => item.length > 0 && item.length <= 512)))
+    : undefined;
+  const userScopeMode = source.userScopeMode === "all" ? "all" as const : source.userScopeMode === "selected" ? "selected" as const : undefined;
+  return {
+    visibleColumns, columnOrder, columnWidths, pageSize, pageIndex, sort, filters,
+    ...(diffQuickFilters ? { diffQuickFilters } : {}),
+    ...(userScopeMode ? { userScopeMode, selectedUserIds: selectedUserIds ?? [] } : {})
+  };
 }
 export function resetTableLayout(
   preferences: TablePreferences,

@@ -1,3 +1,12 @@
+## 0.2.65 - Viewer Efficiency, Multi-User Comparison & Diff Quick Filters
+
+- Built directly from the verified v0.2.63 final baseline. v0.2.64 was abandoned and not released; its Updated-Date discovery feature is not part of this branch ancestry or production path.
+- Added canonical SQLite-side Hide No Change, Hide + = 0, and Hide − = 0 quick filters for Issue Changelog, Issue Activity Events, and User All Activity Events, keeping diagnostics and non-comparison rows visible.
+- Added stable-ID multi-user selection with Selected Users union and All Users scopes, distinct related-issue totals, and bounded per-user comparison summaries.
+- Persisted per-viewer Diff filters plus User scope and selected stable IDs, with database-aware restoration and unchanged table-layout reset boundaries.
+- Preserved Comments without synthetic Diff, read-only local Viewer behavior, stale-response guards, compact DTOs, current snapshot metadata semantics, and SQLite schema v3.
+- Did not change Jira access, Candidate Discovery, Full Fetch, save/import/export, Source Archive, or database schema behavior.
+
 ## 0.2.63 - Analyzer Evidence UI, Viewer Column Control & Issue Metadata
 
 - Added one canonical column registry for Issue Changelog, Issue Activity Events, and User All Activity Events, with Time and Action required in the first two positions and optional visibility/order/width controls.

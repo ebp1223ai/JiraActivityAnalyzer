@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { activityViewerRegistryForScope } from "../shared/activityViewerColumns.js";
+import { DEFAULT_DIFF_QUICK_FILTERS, normalizeDiffQuickFilters, type DiffQuickFilters } from "../shared/viewerEfficiency.js";
 import { assertPathInsideRoot, resolveInsideRoot } from "./appRoot.js";
 
 export type TableFilterPreference = {
@@ -20,6 +21,9 @@ export type TablePreferences = {
   pageIndex: number;
   sort: { field: string; direction: "asc" | "desc" } | null;
   filters: Record<string, TableFilterPreference>;
+  diffQuickFilters?: DiffQuickFilters;
+  userScopeMode?: "selected" | "all";
+  selectedUserIds?: string[];
 };
 
 export type UiPreferences = {
@@ -58,7 +62,7 @@ export const USER_ACTIVITY_EVENT_COLUMNS = activityViewerRegistryForScope("userA
 
 export const ISSUE_COMMENT_COLUMNS = ["author", "created", "updated", "body"] as const;
 
-const PAGE_SIZES = new Set([25, 50, 100]);
+const PAGE_SIZES = new Set([25, 50, 100, 200]);
 const ACTIVITY_QUERY_FIELDS = Array.from(new Set(["issueActivityEvents", "issueChangelog", "userAllActivityEvents"].flatMap((scope) =>
   activityViewerRegistryForScope(scope as "issueActivityEvents" | "issueChangelog" | "userAllActivityEvents").map((column) => column.queryField)
 )));
@@ -73,9 +77,9 @@ export function defaultUiPreferences(): UiPreferences {
     databaseIssueList: defaultTable(DATABASE_ISSUE_COLUMNS, 50),
     timelineEventList: defaultTable(TIMELINE_EVENT_COLUMNS),
     userRelatedIssues: defaultTable(USER_RELATED_ISSUE_COLUMNS),
-    userAllActivityEvents: { ...defaultTable(USER_ACTIVITY_EVENT_COLUMNS), visibleColumns: USER_ACTIVITY_EVENT_COLUMNS.filter((column) => !["before", "after"].includes(column)) },
-    issueActivityEvents: defaultTable(ISSUE_ACTIVITY_EVENT_COLUMNS),
-    issueChangelog: defaultTable(ISSUE_CHANGELOG_COLUMNS),
+    userAllActivityEvents: { ...defaultTable(USER_ACTIVITY_EVENT_COLUMNS), visibleColumns: USER_ACTIVITY_EVENT_COLUMNS.filter((column) => !["before", "after"].includes(column)), diffQuickFilters: { ...DEFAULT_DIFF_QUICK_FILTERS }, userScopeMode: "selected", selectedUserIds: [] },
+    issueActivityEvents: { ...defaultTable(ISSUE_ACTIVITY_EVENT_COLUMNS), diffQuickFilters: { ...DEFAULT_DIFF_QUICK_FILTERS } },
+    issueChangelog: { ...defaultTable(ISSUE_CHANGELOG_COLUMNS), diffQuickFilters: { ...DEFAULT_DIFF_QUICK_FILTERS } },
     issueComments: defaultTable(ISSUE_COMMENT_COLUMNS),
     filterPresets: []
   };
@@ -172,7 +176,19 @@ function normalizeTable(value: unknown, columns: readonly string[], fallback: Ta
     const filter = normalizeFilter(candidate);
     if (filter) filters[field] = filter;
   }
-  return { visibleColumns, columnOrder, columnWidths, pageSize, pageIndex, sort, filters };
+  const hasDiffQuickFilters = source.diffQuickFilters !== undefined || fallback.diffQuickFilters !== undefined;
+  const diffQuickFilters = hasDiffQuickFilters ? normalizeDiffQuickFilters(source.diffQuickFilters ?? fallback.diffQuickFilters) : undefined;
+  const rawSelectedUserIds = Array.isArray(source.selectedUserIds) ? source.selectedUserIds : fallback.selectedUserIds ?? [];
+  const selectedUserIds = rawSelectedUserIds.length <= 10_000
+    ? Array.from(new Set(rawSelectedUserIds.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter((item) => item.length > 0 && item.length <= 512)))
+    : [];
+  const hasUserScope = source.userScopeMode !== undefined || fallback.userScopeMode !== undefined;
+  const userScopeMode = source.userScopeMode === "all" ? "all" as const : "selected" as const;
+  return {
+    visibleColumns, columnOrder, columnWidths, pageSize, pageIndex, sort, filters,
+    ...(diffQuickFilters ? { diffQuickFilters } : {}),
+    ...(hasUserScope ? { userScopeMode, selectedUserIds } : {})
+  };
 }
 
 function normalizeFilterPresets(value: unknown) {
@@ -204,6 +220,7 @@ function normalizeFilterPresets(value: unknown) {
     if (["created", "updated"].includes(String(querySource.commentDateMode))) query.commentDateMode = querySource.commentDateMode;
     if (typeof querySource.descriptionChangedOnly === "boolean") query.descriptionChangedOnly = querySource.descriptionChangedOnly;
     if (typeof querySource.includeBeforeUnavailable === "boolean") query.includeBeforeUnavailable = querySource.includeBeforeUnavailable;
+    if (querySource.diffQuickFilters !== undefined) query.diffQuickFilters = normalizeDiffQuickFilters(querySource.diffQuickFilters);
     result.push({ schemaVersion: 1, id, viewerId, tabId, name, query, updatedAt: boundedText(source.updatedAt, 64) || new Date(0).toISOString() });
   }
   return result;

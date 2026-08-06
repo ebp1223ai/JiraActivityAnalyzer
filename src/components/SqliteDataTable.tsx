@@ -6,6 +6,7 @@ import type { TablePreferences } from "../types/uiPreferences";
 import { rememberSafeUserAction } from "../diagnostics/rendererDiagnostics";
 import { clampColumnWidth, normalizeTablePreferences, resetTableLayout } from "../utils/tablePreferences";
 import { normalizeViewerTableSession, setViewerRowExpanded, stableViewerRowId } from "../utils/viewerSessionState";
+import { normalizeDiffQuickFilters } from "../../shared/viewerEfficiency";
 import { ExcelFilterPopover } from "./ExcelFilterPopover";
 import { TextColumnFilter } from "./TextColumnFilter";
 
@@ -64,6 +65,8 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
   const shown = useMemo(() => orderedColumns.filter((column) => normalized.visibleColumns.includes(column.id)), [orderedColumns, normalized.visibleColumns]);
   const activeColumn = columns.find((column) => column.id === filterColumn);
   const queryField = (column: SqliteTableColumn) => column.queryField ?? column.id;
+  const diffQuickFilters = normalizeDiffQuickFilters(query.diffQuickFilters);
+  const hasQuickFilters = diffQuickFilters.hideNoChange || diffQuickFilters.hideZeroAdded || diffQuickFilters.hideZeroDeleted;
 
   useLayoutEffect(() => {
     if (!scrollContainer.current || restoredTable.current === tableId) return;
@@ -79,7 +82,7 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
 
   function changeQuery(next: ViewerTableQuery, action: string) {
     log(action, `page=${next.page} pageSize=${next.pageSize} sort=${next.sort?.field ?? "none"}`);
-    onPreferencesChange?.({ ...normalized, pageSize: next.pageSize, pageIndex: next.page, sort: next.sort, filters: next.filters });
+    onPreferencesChange?.({ ...normalized, pageSize: next.pageSize, pageIndex: next.page, sort: next.sort, filters: next.filters, diffQuickFilters: normalizeDiffQuickFilters(next.diffQuickFilters) });
     onQueryChange(next);
   }
 
@@ -178,7 +181,7 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
 
   return (
     <div className="min-w-0" aria-busy={loading} data-table-id={tableId}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold"><span>篩選後 {result.filteredCount.toLocaleString()}，全部 {result.totalCount.toLocaleString()}</span><div className="flex gap-2">{Object.keys(query.filters).length ? <button className="btn" type="button" onClick={() => changeQuery({ ...query, page: 1, filters: {} }, "filter_clear_all")}><X size={14} />清除全部篩選</button> : null}<button className="btn" type="button" onClick={() => { log("columns_toggle"); setSettingsOpen((value) => !value); }}><Settings2 size={14} />欄位</button></div></div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold"><span>篩選後 {result.filteredCount.toLocaleString()}，全部 {result.totalCount.toLocaleString()}</span><div className="flex gap-2">{Object.keys(query.filters).length || hasQuickFilters ? <button className="btn" type="button" onClick={() => changeQuery({ ...query, page: 1, filters: {}, diffQuickFilters: { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false } }, "filter_clear_all")}><X size={14} />{"Clear All Filters / \u6e05\u9664\u5168\u90e8\u7be9\u9078"}</button> : null}<button className="btn" type="button" onClick={() => { log("columns_toggle"); setSettingsOpen((value) => !value); }}><Settings2 size={14} />欄位</button></div></div>
       {settingsOpen ? <div className="mb-3 rounded-md border border-line bg-slate-50 p-3"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><b className="text-xs">Columns / 欄位</b><div className="flex flex-wrap gap-2"><button className="btn" type="button" onClick={() => savePreferences({ ...normalized, columnWidths: {} }, "column_widths_reset")}><RotateCcw size={14} />Reset Widths / 重設欄寬</button><button className="btn" type="button" onClick={() => savePreferences(resetTableLayout(normalized, columns.map((column) => ({ id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))), "table_layout_reset")}><RotateCcw size={14} />Reset Table Layout / 重設表格版面</button></div></div><div className="flex flex-wrap gap-3">{orderedColumns.map((column, index) => <div key={column.id} className="flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1"><label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={normalized.visibleColumns.includes(column.id)} disabled={column.required} onChange={(event) => setColumnVisible(column, event.currentTarget.checked)} />{column.label}{column.required ? <span className="text-[10px] text-blue-700">Required／必要</span> : null}</label>{column.required ? null : <div className="ml-1 flex gap-1"><button className="icon-btn !h-6 !w-6" type="button" disabled={index <= columns.filter((candidate) => candidate.required).length} title={"Move " + column.label + " left"} onClick={() => moveColumn(column, -1)}><ArrowLeft size={12} /></button><button className="icon-btn !h-6 !w-6" type="button" disabled={index >= orderedColumns.length - 1} title={"Move " + column.label + " right"} onClick={() => moveColumn(column, 1)}><ArrowRight size={12} /></button></div>}</div>)}</div></div> : null}
       {error ? <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{error}</div> : null}
       <div ref={scrollContainer} className="thin-scroll max-w-full overflow-x-auto rounded-md border border-line" data-table-scroll-container="true" onScroll={(event) => onSessionStateChange?.({ ...normalizedSession, scrollLeft: event.currentTarget.scrollLeft, scrollTop: event.currentTarget.scrollTop })}>

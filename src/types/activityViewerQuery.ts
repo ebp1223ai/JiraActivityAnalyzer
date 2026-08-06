@@ -1,5 +1,6 @@
 import type { ActivityViewerRow } from "../../shared/activityViewerTypes";
 import type { DateRangeState } from "./dateRange";
+import type { DiffQuickFilters } from "../../shared/viewerEfficiency";
 export type ViewerSortDirection = "asc" | "desc";
 export type ViewerTableQuery = {
   page: number;
@@ -18,6 +19,7 @@ export type ViewerTableQuery = {
   commentDateMode?: "created" | "updated";
   descriptionChangedOnly?: boolean;
   includeBeforeUnavailable?: boolean;
+  diffQuickFilters?: DiffQuickFilters;
 };
 
 export type ViewerTableResult<TRow extends Record<string, unknown> = Record<string, unknown>> = {

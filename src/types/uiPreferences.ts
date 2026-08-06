@@ -1,4 +1,5 @@
 import type { DatabaseIssueColumn, DatabaseIssuePageSize } from "./databaseQuery";
+import type { DiffQuickFilters } from "../../shared/viewerEfficiency";
 
 export type TableFilterPreference = {
   text?: string;
@@ -17,6 +18,9 @@ export type TablePreferences<TColumn extends string = string> = {
   pageIndex?: number;
   sort?: { field: string; direction: "asc" | "desc" } | null;
   filters?: Record<string, TableFilterPreference>;
+  diffQuickFilters?: DiffQuickFilters;
+  userScopeMode?: "selected" | "all";
+  selectedUserIds?: string[];
 };
 
 export type FilterPreset = {
@@ -34,6 +38,7 @@ export type FilterPreset = {
     commentDateMode?: "created" | "updated";
     descriptionChangedOnly?: boolean;
     includeBeforeUnavailable?: boolean;
+    diffQuickFilters?: DiffQuickFilters;
   };
   updatedAt: string;
 };

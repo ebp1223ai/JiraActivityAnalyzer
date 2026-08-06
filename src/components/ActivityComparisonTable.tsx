@@ -6,6 +6,8 @@ import { DiffCell } from "./DiffCell";
 import { ReadableContentCell } from "./ReadableContentCell";
 import { SqliteDataTable, type SqliteTableColumn } from "./SqliteDataTable";
 import { isDescriptionDiffRow } from "./DescriptionDiffCell";
+import { DiffQuickFilters } from "./DiffQuickFilters";
+import { normalizeDiffQuickFilters } from "../../shared/viewerEfficiency";
 import { activityEventAfter, activityEventBefore, formatActivityActor, formatActivityEventType, formatActivityEventValue, formatActivitySource } from "../utils/activityEventDisplay";
 import { formatDisplayTime } from "../utils/displayTime";
 
@@ -59,6 +61,14 @@ type Props = Omit<ComponentProps<typeof SqliteDataTable>, "columns" | "renderExp
   mode: ActivityComparisonMode;
 };
 
-export function ActivityComparisonTable({ mode, ...props }: Props) {
-  return <SqliteDataTable {...props} columns={activityComparisonColumns(mode)} renderExpandedRow={(row) => <ActivityEventDetailPanel row={row} />} />;
+export function ActivityComparisonTable({ mode, query, onQueryChange, preferences, onPreferencesChange, ...props }: Props) {
+  const diffQuickFilters = normalizeDiffQuickFilters(query.diffQuickFilters);
+  const changeDiffQuickFilters = (next: typeof diffQuickFilters) => {
+    onPreferencesChange?.({ ...(preferences ?? { visibleColumns: [], columnOrder: [], columnWidths: {}, pageSize: query.pageSize, pageIndex: 1, sort: query.sort, filters: query.filters }), diffQuickFilters: next });
+    onQueryChange({ ...query, page: 1, diffQuickFilters: next, revision: (query.revision ?? 0) + 1 });
+  };
+  return <div className="min-w-0 space-y-3">
+    <DiffQuickFilters value={diffQuickFilters} disabled={Boolean(props.loading)} onChange={changeDiffQuickFilters} />
+    <SqliteDataTable {...props} query={query} onQueryChange={onQueryChange} preferences={preferences} onPreferencesChange={onPreferencesChange} columns={activityComparisonColumns(mode)} renderExpandedRow={(row) => <ActivityEventDetailPanel row={row} />} />
+  </div>;
 }

@@ -1,5 +1,6 @@
 import type { ViewerTableQuery } from "../types/activityViewerQuery";
 import type { TablePreferences } from "../types/uiPreferences";
+import { normalizeDiffQuickFilters } from "../../shared/viewerEfficiency";
 
 export function queryFromTablePreferences(
   current: ViewerTableQuery,
@@ -15,6 +16,7 @@ export function queryFromTablePreferences(
       : 1,
     pageSize,
     sort: preferences.sort ?? current.sort,
-    filters: preferences.filters ?? current.filters
+    filters: preferences.filters ?? current.filters,
+    diffQuickFilters: preferences.diffQuickFilters ? normalizeDiffQuickFilters(preferences.diffQuickFilters) : current.diffQuickFilters
   };
 }
