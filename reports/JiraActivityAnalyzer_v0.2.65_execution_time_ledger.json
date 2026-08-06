@@ -1,0 +1,230 @@
+{
+  "formatVersion": 1,
+  "releaseVersion": "0.2.65",
+  "theme": "Viewer Efficiency, Multi-User Comparison & Diff Quick Filters",
+  "timezone": "Asia/Taipei",
+  "sessionStart": "2026-08-06T10:14:15.7526787+08:00",
+  "sessionEnd": "2026-08-06T11:08:31+08:00",
+  "totalWallClockSeconds": 3255.25,
+  "phases": [
+    {
+      "name": "baseline-git-preflight-and-v0264-exclusion",
+      "start": "2026-08-06T10:14:15.7526787+08:00",
+      "end": "2026-08-06T10:20:00+08:00",
+      "durationSeconds": 344.25,
+      "status": "completed"
+    },
+    {
+      "name": "inspection-implementation-and-test-authoring",
+      "start": "2026-08-06T10:20:00+08:00",
+      "end": "2026-08-06T10:47:00+08:00",
+      "durationSeconds": 1620,
+      "status": "completed"
+    },
+    {
+      "name": "focused-regressions-source-gate-and-commit",
+      "start": "2026-08-06T10:47:00+08:00",
+      "end": "2026-08-06T10:53:00+08:00",
+      "durationSeconds": 360,
+      "status": "completed"
+    },
+    {
+      "name": "detached-clean-build-dist-package-audit",
+      "start": "2026-08-06T10:53:00+08:00",
+      "end": "2026-08-06T11:03:00+08:00",
+      "durationSeconds": 600,
+      "status": "completed"
+    },
+    {
+      "name": "reports-ledger-and-final-evidence-preparation",
+      "start": "2026-08-06T11:03:00+08:00",
+      "end": "2026-08-06T11:08:31+08:00",
+      "durationSeconds": 331,
+      "status": "completed"
+    }
+  ],
+  "commandAttempts": [
+    {
+      "command": "initial sandbox status inspection",
+      "exitCode": 1,
+      "durationSeconds": 0.3,
+      "result": "failed"
+    },
+    {
+      "command": "elevated status branch and source inspection",
+      "exitCode": 0,
+      "durationSeconds": 0.5,
+      "result": "passed"
+    },
+    {
+      "command": "apply_patch existing ACL-protected files",
+      "exitCode": 1,
+      "durationSeconds": 0.3,
+      "result": "failed"
+    },
+    {
+      "command": "guarded editor attempts with anchor/encoding mismatches",
+      "exitCode": 1,
+      "durationSeconds": 2.1,
+      "result": "failed"
+    },
+    {
+      "command": "guarded UTF-8 production implementation edits",
+      "exitCode": 0,
+      "durationSeconds": 9.7,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run typecheck initial implementation",
+      "exitCode": 0,
+      "durationSeconds": 12.9,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.65 first attempt",
+      "exitCode": 1,
+      "durationSeconds": 1.8,
+      "result": "failed"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.65 after SQLite varargs fix",
+      "exitCode": 0,
+      "durationSeconds": 1.1,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run typecheck regression matrix",
+      "exitCode": 0,
+      "durationSeconds": 9.313,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.63",
+      "exitCode": 0,
+      "durationSeconds": 0.857,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.62",
+      "exitCode": 0,
+      "durationSeconds": 0.697,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.61",
+      "exitCode": 0,
+      "durationSeconds": 0.475,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.58",
+      "exitCode": 0,
+      "durationSeconds": 0.814,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.59",
+      "exitCode": 0,
+      "durationSeconds": 0.794,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run test:v0.2.60",
+      "exitCode": 0,
+      "durationSeconds": 0.722,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run test:integration",
+      "exitCode": 0,
+      "durationSeconds": 1.171,
+      "result": "passed"
+    },
+    {
+      "command": "canonical cache and Description fix typecheck plus v0.2.65",
+      "exitCode": 0,
+      "durationSeconds": 8.2,
+      "result": "passed"
+    },
+    {
+      "command": "git diff security ancestry and whitespace gate",
+      "exitCode": 0,
+      "durationSeconds": 0.7,
+      "result": "passed"
+    },
+    {
+      "command": "git commit feat(v0.2.65) source",
+      "exitCode": 0,
+      "durationSeconds": 1.4,
+      "result": "passed"
+    },
+    {
+      "command": "git worktree add detached source",
+      "exitCode": 0,
+      "durationSeconds": 2.312,
+      "result": "passed"
+    },
+    {
+      "command": "detached npm.cmd ci",
+      "exitCode": 0,
+      "durationSeconds": 108.592,
+      "result": "passed"
+    },
+    {
+      "command": "detached npm.cmd run build",
+      "exitCode": 0,
+      "durationSeconds": 32.406,
+      "result": "passed"
+    },
+    {
+      "command": "detached npm.cmd run dist",
+      "exitCode": 0,
+      "durationSeconds": 88.154,
+      "result": "passed"
+    },
+    {
+      "command": "npm.cmd run audit:package-size",
+      "exitCode": 0,
+      "durationSeconds": 2.386,
+      "result": "passed"
+    },
+    {
+      "command": "ASAR audit first path assumption",
+      "exitCode": 1,
+      "durationSeconds": 1.183,
+      "result": "failed"
+    },
+    {
+      "command": "ASAR audit normalized extraction path retry",
+      "exitCode": 1,
+      "durationSeconds": 0.197,
+      "result": "failed"
+    },
+    {
+      "command": "ASAR audit Windows raw entry path retry",
+      "exitCode": 0,
+      "durationSeconds": 0.201,
+      "result": "passed"
+    },
+    {
+      "command": "artifact copy first wildcard attempt",
+      "exitCode": 1,
+      "durationSeconds": 0.359,
+      "result": "failed"
+    },
+    {
+      "command": "versioned win-unpacked copy retry",
+      "exitCode": 0,
+      "durationSeconds": 2.4,
+      "result": "passed"
+    }
+  ],
+  "unaccountedTimeSeconds": 0,
+  "reconciliation": "The full wall clock is assigned to five contiguous phases. Command durations overlap their owning phase and are not added to phase time. Inspection, user updates, guarded editing, review, and report writing are included in phase durations.",
+  "notes": [
+    "Source is v0.2.63 final SHA 5e1e6a4; v0.2.64 dedicated commit 29d89eed is not an ancestor.",
+    "No push, tag, PR, Release upload, real Jira request, real SQLite validation, OS screenshot, or full Windows GUI validation was performed.",
+    "Short packaged smoke was not run because the existing harness is a long multi-route workflow suite rather than a bounded startup-only smoke.",
+    "The unrelated modified v0.2.47 report and all pre-existing untracked user files remained unstaged and untouched."
+  ]
+}
