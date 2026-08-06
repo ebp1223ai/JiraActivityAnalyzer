@@ -6,8 +6,9 @@
 - Automated and synthetic validation: Passed
 - Build, dist, and ASAR audit: Passed
 - Packaged startup smoke: Passed from app-only persistent diagnostics
-- Real company SQLite and full Windows GUI validation: Not Run
-- Overall status: Partial
+- Real company SQLite and full Windows GUI validation: Accepted
+- Manual validation: Passed
+- Overall status: Completed
 
 ## Root Cause
 
@@ -63,3 +64,12 @@ The v0.2.66 coordinator also applied a fixed 20,000 ms wall-clock timeout to an 
 - Packaged source SHA: `cccad2fd268b076096fcc6124c81a754a4ddbea4`
 
 No Jira write, schema migration, import/save behavior, dependency version, or production collection path was changed.
+
+## Manual Acceptance
+
+- Acceptance date: 2026-08-06
+- Hide Before unavailable behavior: Passed
+- Large Diff progressive filtering: Passed
+- Real company SQLite and Windows GUI stability: Accepted
+- v0.2.67 reproducibility and delivery artifacts: Accepted
+- Final disposition: v0.2.67 Completed

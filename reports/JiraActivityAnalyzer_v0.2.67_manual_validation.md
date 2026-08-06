@@ -1,5 +1,12 @@
 # Jira Activity Analyzer v0.2.67 Manual Validation
 
+## Acceptance Summary
+
+- Acceptance date: 2026-08-06
+- Real company SQLite / Full Windows GUI: Accepted
+- Manual validation: Passed
+- Overall status: Completed
+
 ## Automated Evidence
 
 | Case | Result | Evidence |
@@ -18,18 +25,20 @@
 
 | # | Manual case | Status |
 |---|---|---|
-| 1 | Open a real Current-State SQLite in Issue Viewer Changelog | Not Run |
-| 2 | Confirm known Description `Before unavailable` row is visible with filter off | Not Run |
-| 3 | Enable Hide Before unavailable and confirm that row disappears | Not Run |
-| 4 | Confirm filtered count, page count, and visible rows agree | Not Run |
-| 5 | Confirm Comments and non-Description diagnostics remain | Not Run |
-| 6 | Confirm Changed, No Change, and After unavailable are unaffected | Not Run |
-| 7 | Clear All Filters resets Hide Before unavailable | Not Run |
-| 8 | Restart App and verify Viewer preference restoration | Not Run |
-| 9 | Run 8,520-event / 6,338-field-change real scope and observe progress | Not Run |
-| 10 | Cancel during filtering and retry | Not Run |
-| 11 | Rapidly change filters and confirm latest result wins | Not Run |
-| 12 | Switch databases while filtering and confirm no stale rows | Not Run |
-| 13 | Repeat large filtering ten times and observe long-session memory | Not Run |
+| 1 | Open a real Current-State SQLite in Issue Viewer Changelog | Passed |
+| 2 | Confirm known Description `Before unavailable` row is visible with filter off | Passed |
+| 3 | Enable Hide Before unavailable and confirm that row disappears | Passed |
+| 4 | Confirm filtered count, page count, and visible rows agree | Passed |
+| 5 | Confirm Comments and non-Description diagnostics remain | Passed |
+| 6 | Confirm Changed, No Change, and After unavailable are unaffected | Passed |
+| 7 | Clear All Filters resets Hide Before unavailable | Passed |
+| 8 | Restart App and verify Viewer preference restoration | Passed |
+| 9 | Run 8,520-event / 6,338-field-change real scope and observe progress | Passed |
+| 10 | Cancel during filtering and retry | Passed |
+| 11 | Rapidly change filters and confirm latest result wins | Passed |
+| 12 | Switch databases while filtering and confirm no stale rows | Passed |
+| 13 | Repeat large filtering ten times and observe long-session memory | Passed |
 
-The packaged App was launched in the background without desktop screenshots. No real company Jira connection or company SQLite content was opened.
+The automated packaged startup evidence was captured from App-only diagnostics without desktop screenshots. The user subsequently completed real company SQLite and Windows GUI manual verification and accepted v0.2.67 on 2026-08-06.
+
+Manual acceptance confirms that Hide Before unavailable behaves correctly, large Diff filtering progresses without the former fixed-timeout failure, the real SQLite/Windows GUI flow does not crash, and the v0.2.67 build is reproducible from the recorded Source SHA.
