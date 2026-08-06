@@ -1,24 +1,13 @@
 import { parentPort } from "node:worker_threads";
 import { DatabaseSync } from "node:sqlite";
 import {
-  listDatabaseIssues,
-  listDatabaseUsers,
-  loadDatabaseIssue,
-  loadDatabaseIssueDistributions,
-  loadDatabaseOverview,
-  loadDatabaseUser,
-  queryDatabaseDistinctValues,
-  queryDatabaseIssueChangelog,
-  queryDatabaseIssueEvents,
-  queryDatabaseUserDistributions,
-  queryDatabaseUserEvents,
-  queryDatabaseUserRelatedIssues,
-  queryDescriptionComparison,
-  queryDescriptionFullContext,
-  queryDescriptionOriginalPreviews,
-  runDatabaseHealthCheck,
-  databaseViewerCacheDiagnostics,
-  clearDatabaseViewerCache
+  listDatabaseIssues, listDatabaseUsers, loadDatabaseIssue, loadDatabaseIssueDistributions,
+  loadDatabaseOverview, loadDatabaseUser, queryDatabaseDistinctValues,
+  queryDatabaseIssueChangelogProgressive, queryDatabaseIssueEventsProgressive,
+  queryDatabaseUserDistributions, queryDatabaseUserEventsProgressive, queryDatabaseUserRelatedIssues,
+  queryDescriptionComparison, queryDescriptionFullContext, queryDescriptionOriginalPreviews,
+  runDatabaseHealthCheck, databaseViewerCacheDiagnostics, clearDatabaseViewerCache,
+  type ProgressiveCheckpoint, type ProgressiveCheckpointDelta, type ViewerProgressDto
 } from "./databaseViewer.js";
 
 export type ViewerWorkerOperation =
@@ -28,11 +17,25 @@ export type ViewerWorkerOperation =
   | "descriptionOriginalPreviews" | "descriptionComparison" | "distinctValues" | "assertReadOnly"
   | "cacheDiagnostics" | "clearCache" | "__testDelay" | "__testCrash";
 
-type WorkerRequest = { id: number; operation: ViewerWorkerOperation; databasePath: string; args: unknown[] };
+type WorkerRunRequest = { type?: "run"; id: number; requestId: string; operation: ViewerWorkerOperation; databasePath: string; args: unknown[]; batchSize?: number; resume?: ProgressiveCheckpoint };
+type WorkerCancelRequest = { type: "cancel"; id: number; requestId: string };
+type WorkerRequest = WorkerRunRequest | WorkerCancelRequest;
 type WorkerResponse = { id: number; ok: true; value: unknown } | { id: number; ok: false; error: { code: string; message: string } };
 
-function dispatch(request: WorkerRequest) {
+const cancelled = new Set<number>();
+const workerPort = parentPort!;
+if (!workerPort) throw new Error("VIEWER_WORKER_PARENT_PORT_MISSING");
+
+async function dispatch(request: WorkerRunRequest) {
   const [first, second] = request.args;
+  const control = {
+    requestId: request.requestId,
+    batchSize: request.batchSize,
+    resume: request.resume,
+    isCancelled: () => cancelled.has(request.id),
+    onCheckpoint: (checkpoint: ProgressiveCheckpointDelta) => workerPort.postMessage({ type: "checkpoint", id: request.id, checkpoint }),
+    onProgress: (progress: ViewerProgressDto) => workerPort.postMessage({ type: "progress", id: request.id, progress })
+  };
   switch (request.operation) {
     case "overview": return loadDatabaseOverview(request.databasePath);
     case "healthCheck": return runDatabaseHealthCheck(request.databasePath);
@@ -43,9 +46,9 @@ function dispatch(request: WorkerRequest) {
     case "getUser": return loadDatabaseUser(request.databasePath, String(first ?? ""), second as { limit?: number; offset?: number } | undefined);
     case "userDistributions": return queryDatabaseUserDistributions(request.databasePath, first, second as Record<string, unknown> | undefined);
     case "userRelatedIssues": return queryDatabaseUserRelatedIssues(request.databasePath, first, second as Record<string, unknown> | undefined);
-    case "userEvents": return queryDatabaseUserEvents(request.databasePath, first, second as Record<string, unknown> | undefined);
-    case "issueEvents": return queryDatabaseIssueEvents(request.databasePath, String(first ?? ""), second as Record<string, unknown> | undefined);
-    case "issueChangelog": return queryDatabaseIssueChangelog(request.databasePath, String(first ?? ""), second as Record<string, unknown> | undefined);
+    case "userEvents": return queryDatabaseUserEventsProgressive(request.databasePath, first, second as Record<string, unknown> | undefined, control);
+    case "issueEvents": return queryDatabaseIssueEventsProgressive(request.databasePath, String(first ?? ""), second as Record<string, unknown> | undefined, control);
+    case "issueChangelog": return queryDatabaseIssueChangelogProgressive(request.databasePath, String(first ?? ""), second as Record<string, unknown> | undefined, control);
     case "descriptionFullContext": return queryDescriptionFullContext(request.databasePath, first as Record<string, unknown>);
     case "descriptionOriginalPreviews": return queryDescriptionOriginalPreviews(request.databasePath, first as Record<string, unknown>);
     case "descriptionComparison": return queryDescriptionComparison(request.databasePath, first as Record<string, unknown>);
@@ -75,15 +78,17 @@ function dispatch(request: WorkerRequest) {
   }
 }
 
-const port = parentPort;
-if (!port) throw new Error("VIEWER_WORKER_PARENT_PORT_MISSING");
-port.on("message", (request: WorkerRequest) => {
-  try {
-    const response: WorkerResponse = { id: request.id, ok: true, value: dispatch(request) };
-    port.postMessage(response);
-  } catch (error) {
+workerPort.on("message", (request: WorkerRequest) => {
+  if (request.type === "cancel") {
+    cancelled.add(request.id);
+    return;
+  }
+  void dispatch(request).then((value) => {
+    const response: WorkerResponse = { id: request.id, ok: true, value };
+    workerPort.postMessage(response);
+  }).catch((error: unknown) => {
     const candidate = error as { code?: string; message?: string };
     const response: WorkerResponse = { id: request.id, ok: false, error: { code: candidate.code ?? "VIEWER_WORKER_QUERY_FAILED", message: candidate.message ?? String(error) } };
-    port.postMessage(response);
-  }
+    workerPort.postMessage(response);
+  }).finally(() => cancelled.delete(request.id));
 });

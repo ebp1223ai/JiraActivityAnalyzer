@@ -14,7 +14,7 @@ import { SqliteDataTable, type SqliteTableColumn } from "../components/SqliteDat
 import { recordTableRequest } from "../diagnostics/tableDiagnostics";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import { useSessionState } from "../state/SessionStateContext";
-import type { ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
+import type { ViewerProgressDto, ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
 import { ALL_TIME_DATE_RANGE } from "../types/dateRange";
 import type { UserViewerDistributions } from "../types/databaseViewer";
 import type { TablePreferences, UiPreferences, UiPreferencesUpdate } from "../types/uiPreferences";
@@ -43,17 +43,23 @@ const issueColumns: SqliteTableColumn[] = [
 
 let userViewerRequestSequence = 0;
 let latestUserViewerRequest = 0;
+let latestUserProgressRequest = "";
 
 export function UserViewerPage() {
   const { state } = useRuntimeStatus();
   const { userViewer, setUserViewer } = useSessionState();
   const [preferences, setPreferences] = useState<UiPreferences | null>(null);
+  const [eventProgress, setEventProgress] = useState<ViewerProgressDto | null>(null);
   const databaseIdentity = state.database.sourceBinding || `database-request:${state.database.requestId}`;
   const selectedScope = userViewer.selectionScope;
   const selectedScopeKey = selectedScope ? userViewerScopeKey(selectedScope) : "";
   const selectedIds = userViewer.selectedUserIds;
   const selectedSet = new Set(selectedIds);
   const patch = (value: Partial<typeof userViewer>) => setUserViewer((current) => ({ ...current, ...value }));
+
+  useEffect(() => window.desktopApp?.databaseViewer?.onProgress?.((progress) => {
+    if (progress.requestId === latestUserProgressRequest) setEventProgress(progress.status === "completed" ? null : progress);
+  }), []);
 
   async function loadUsers(searchOverride = userViewer.search) {
     if (!state.database.canRead) return;
@@ -86,7 +92,9 @@ export function UserViewerPage() {
       return;
     }
     const requestId = ++userViewerRequestSequence;
+    const progressRequestId = `user-events-${requestId}-${Date.now()}`;
     latestUserViewerRequest = requestId;
+    if (tab !== "Related Issues") { latestUserProgressRequest = progressRequestId; setEventProgress({ requestId: progressRequestId, status: "filtering", scanned: 0, total: null, matched: 0, percentage: null, elapsedMs: 0, batchSize: 100, checkpoint: "" }); }
     const startedAt = performance.now();
     recordTableRequest("started", { requestId, tableId, query: { ...query, scope: scope.kind }, startedAt });
     setUserViewer((current) => {
@@ -97,18 +105,19 @@ export function UserViewerPage() {
     try {
       const oneUserId = scope.kind === "selected-users" && scope.userIds.length === 1 ? scope.userIds[0] : "";
       const detailPromise = oneUserId ? window.desktopApp?.databaseViewer?.getUser({ userId: oneUserId, limit: 1, offset: 0 }) : Promise.resolve(null);
-      const resultPromise = tab === "Related Issues" ? window.desktopApp?.databaseViewer?.userRelatedIssues({ scope, query }) : window.desktopApp?.databaseViewer?.userEvents({ scope, query });
+      const resultPromise = tab === "Related Issues" ? window.desktopApp?.databaseViewer?.userRelatedIssues({ scope, query }) : window.desktopApp?.databaseViewer?.userEvents({ requestId: progressRequestId, scope, query });
       const distributionQuery = tab === "Related Issues" ? query : { ...userViewer.relatedQuery, dateRange: query.dateRange };
       const distributionPromise = window.desktopApp?.databaseViewer?.userDistributions({ scope, query: distributionQuery });
       const [detail, result, distributions] = await Promise.all([detailPromise, resultPromise, distributionPromise]);
       if (requestId !== latestUserViewerRequest) return recordTableRequest("stale", { requestId, tableId, query: { ...query, scope: scope.kind }, startedAt });
       recordTableRequest("completed", { requestId, tableId, query: { ...query, scope: scope.kind }, startedAt, resultCount: result?.rows.length ?? 0 });
+      if (tab !== "Related Issues") setEventProgress(null);
       setUserViewer((current) => current.pendingRequestId !== requestId ? current : { ...current, detail: detail ?? null,
         distributions: (distributions ?? current.distributions) as UserViewerDistributions | null, loadedScopeKey: scopeKey,
         ...(tab === "Related Issues" ? { relatedResult: result ?? emptyResult, relatedCacheKey: cacheKey } : { allEventsResult: result ?? emptyResult, eventCacheKey: cacheKey }), status: "ready" });
     } catch (error) {
       recordTableRequest("failed", { requestId, tableId, query: { ...query, scope: scope.kind }, startedAt, error });
-      if (requestId === latestUserViewerRequest) setUserViewer((current) => current.pendingRequestId === requestId ? { ...current, message: error instanceof Error ? error.message : String(error), status: "error" } : current);
+      if (requestId === latestUserViewerRequest) { const message = error instanceof Error ? error.message : String(error); const cancelled = /CANCELLED|SUPERSEDED/.test(message); if (tab !== "Related Issues") setEventProgress(null); setUserViewer((current) => current.pendingRequestId === requestId ? { ...current, message: cancelled ? "Filtering cancelled." : message, status: cancelled && current.allEventsResult ? "ready" : "error" } : current); }
     }
   }
 
@@ -255,7 +264,7 @@ export function UserViewerPage() {
         <div className="mb-4 flex max-w-full overflow-x-auto border-b border-line" role="tablist">{(["Related Issues", "All Activity Events"] as const).map((tab) => <button key={tab} className={`shrink-0 border-b-2 px-4 py-3 text-sm font-black ${userViewer.activeTab === tab ? "border-blue-600 bg-blue-50 text-blue-700" : "border-transparent text-muted"}`} type="button" onClick={() => void queryTab(selectedScope, tab)}>{tab}</button>)}</div>
         {userViewer.activeTab === "All Activity Events" ? <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-semibold">Local SQLite activity events for {scopeTitle}. Actor identity remains visible on every row.</div> : null}
         <SectionErrorBoundary context={`user-viewer:${userViewer.activeTab}`} resetKey={`${state.database.requestId}:${selectedScopeKey}:${userViewer.activeTab}`}>
-          {userViewer.activeTab === "Related Issues" ? <SqliteDataTable tableId="userRelatedIssues" columns={issueColumns} result={activeResult ?? emptyResult} query={activeQuery} loading={userViewer.status === "loading"} error={userViewer.status === "error" ? userViewer.message : ""} preferences={preferences?.userRelatedIssues} onPreferencesChange={(value) => void saveTablePreferences("userRelatedIssues", value)} onQueryChange={updateQuery} sessionState={userViewer.tableStates.userRelatedIssues} onSessionStateChange={(value) => setUserViewer((current) => ({ ...current, tableStates: { ...current.tableStates, userRelatedIssues: value } }))} loadDistinct={(field, search) => window.desktopApp!.databaseViewer!.distinctValues({ source: "userRelatedIssues", scope: selectedScope, field, search, limit: 200, query: activeQuery })} /> : <ActivityComparisonTable mode="user-events" tableId="userAllActivityEvents" result={activeResult ?? emptyResult} query={activeQuery} loading={userViewer.status === "loading"} error={userViewer.status === "error" ? userViewer.message : ""} preferences={preferences?.userAllActivityEvents} onPreferencesChange={(value) => void saveTablePreferences("userAllActivityEvents", value)} onQueryChange={updateQuery} sessionState={userViewer.tableStates.userAllActivityEvents} onSessionStateChange={(value) => setUserViewer((current) => ({ ...current, tableStates: { ...current.tableStates, userAllActivityEvents: value } }))} loadDistinct={(field, search) => window.desktopApp!.databaseViewer!.distinctValues({ source: "userEvents", scope: selectedScope, field, search, limit: 200, query: activeQuery })} />}
+          {userViewer.activeTab === "Related Issues" ? <SqliteDataTable tableId="userRelatedIssues" columns={issueColumns} result={activeResult ?? emptyResult} query={activeQuery} loading={userViewer.status === "loading"} error={userViewer.status === "error" ? userViewer.message : ""} preferences={preferences?.userRelatedIssues} onPreferencesChange={(value) => void saveTablePreferences("userRelatedIssues", value)} onQueryChange={updateQuery} sessionState={userViewer.tableStates.userRelatedIssues} onSessionStateChange={(value) => setUserViewer((current) => ({ ...current, tableStates: { ...current.tableStates, userRelatedIssues: value } }))} loadDistinct={(field, search) => window.desktopApp!.databaseViewer!.distinctValues({ source: "userRelatedIssues", scope: selectedScope, field, search, limit: 200, query: activeQuery })} /> : <ActivityComparisonTable mode="user-events" tableId="userAllActivityEvents" result={activeResult ?? emptyResult} query={activeQuery} loading={userViewer.status === "loading"} error={userViewer.status === "error" ? userViewer.message : ""} progress={eventProgress} onCancel={() => void window.desktopApp?.databaseViewer?.cancel({ requestId: latestUserProgressRequest, target: "user-events" })} preferences={preferences?.userAllActivityEvents} onPreferencesChange={(value) => void saveTablePreferences("userAllActivityEvents", value)} onQueryChange={updateQuery} sessionState={userViewer.tableStates.userAllActivityEvents} onSessionStateChange={(value) => setUserViewer((current) => ({ ...current, tableStates: { ...current.tableStates, userAllActivityEvents: value } }))} loadDistinct={(field, search) => window.desktopApp!.databaseViewer!.distinctValues({ source: "userEvents", scope: selectedScope, field, search, limit: 200, query: activeQuery })} />}
         </SectionErrorBoundary>
       </SectionCard>
     </>}

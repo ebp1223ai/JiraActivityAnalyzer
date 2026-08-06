@@ -97,7 +97,7 @@ async function run() {
     await assert.rejects(coordinator.run("detail", "__testCrash", databasePath), (error: Error & { code?: string }) => error.code === "VIEWER_WORKER_EXITED");
     assert.equal((await coordinator.run("detail", "overview", databasePath) as { database: { schema_version: number } }).database.schema_version, 3);
     const timeout = new DatabaseViewerCoordinator(workerPath, 30);
-    await assert.rejects(timeout.run("database", "__testDelay", databasePath, 150), (error: Error & { code?: string }) => error.code === "VIEWER_WORKER_TIMEOUT");
+    await assert.rejects(timeout.run("database", "__testDelay", databasePath, 150), (error: Error & { code?: string }) => error.code === "VIEWER_WORKER_STALLED" && /Retry/.test(error.message));
     assert.equal((await timeout.run("database", "overview", databasePath) as { database: { schema_version: number } }).database.schema_version, 3);
     await timeout.close();
     const switching = coordinator.run("issue", "__testDelay", databasePath, 150);

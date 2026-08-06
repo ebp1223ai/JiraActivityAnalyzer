@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronsUpDown, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Filter, RotateCcw, Settings2, X } from "lucide-react";
-import type { ViewerDistinctResult, ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
+import type { ViewerDistinctResult, ViewerProgressDto, ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
 import type { ViewerTableSessionState } from "../types/databaseViewer";
 import type { TablePreferences } from "../types/uiPreferences";
 import { rememberSafeUserAction } from "../diagnostics/rendererDiagnostics";
@@ -36,6 +36,8 @@ type Props = {
   query: ViewerTableQuery;
   loading?: boolean;
   error?: string;
+  progress?: ViewerProgressDto | null;
+  onCancel?: () => void;
   onQueryChange: (query: ViewerTableQuery) => void;
   loadDistinct?: (field: string, search: string) => Promise<ViewerDistinctResult>;
   preferences?: TablePreferences;
@@ -50,7 +52,7 @@ function text(value: unknown) {
   return value === undefined || value === null || value === "" ? "—" : String(value);
 }
 
-export function SqliteDataTable({ tableId = "sqlite-table", columns, result, query, loading, error, onQueryChange, loadDistinct, preferences, onPreferencesChange, sessionState, onSessionStateChange, getRowId = stableViewerRowId, renderExpandedRow }: Props) {
+export function SqliteDataTable({ tableId = "sqlite-table", columns, result, query, loading, error, progress, onCancel, onQueryChange, loadDistinct, preferences, onPreferencesChange, sessionState, onSessionStateChange, getRowId = stableViewerRowId, renderExpandedRow }: Props) {
   const normalized = useMemo(() => normalizeTablePreferences(preferences, columns.map((column) => ({ id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))), [columns, preferences]);
   const normalizedSession = useMemo(() => normalizeViewerTableSession(sessionState), [sessionState]);
   const [filterColumn, setFilterColumn] = useState("");
@@ -181,6 +183,10 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
 
   return (
     <div className="min-w-0" aria-busy={loading} data-table-id={tableId}>
+      {progress?.status === "filtering" ? <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 p-3 text-sm font-semibold text-blue-950" data-viewer-progress={progress.requestId}>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0"><div className="font-black">Filtering / 正在篩選 {progress.scanned.toLocaleString()} / {progress.total === null ? "?" : progress.total.toLocaleString()}{progress.percentage === null ? "" : `（${progress.percentage}%）`}</div><div className="mt-1 text-xs">Matched so far / 目前符合 {progress.matched.toLocaleString()} 筆 · Elapsed / 已執行 {(progress.elapsedMs / 1000).toFixed(1)} 秒 · Partial result</div></div>{onCancel ? <button className="btn shrink-0 border-blue-400 bg-white" type="button" onClick={onCancel}>Cancel / 取消</button> : null}</div>
+        <div className="mt-2 h-2 overflow-hidden rounded bg-blue-100">{progress.percentage === null ? <div className="h-full w-1/3 animate-pulse rounded bg-blue-500" /> : <div className="h-full rounded bg-blue-600 transition-[width]" style={{ width: `${progress.percentage}%` }} />}</div>
+      </div> : null}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold"><span>篩選後 {result.filteredCount.toLocaleString()}，全部 {result.totalCount.toLocaleString()}</span><div className="flex gap-2">{Object.keys(query.filters).length || hasQuickFilters ? <button className="btn" type="button" onClick={() => changeQuery({ ...query, page: 1, filters: {}, diffQuickFilters: { ...DEFAULT_DIFF_QUICK_FILTERS } }, "filter_clear_all")}><X size={14} />{"Clear All Filters / \u6e05\u9664\u5168\u90e8\u7be9\u9078"}</button> : null}<button className="btn" type="button" onClick={() => { log("columns_toggle"); setSettingsOpen((value) => !value); }}><Settings2 size={14} />欄位</button></div></div>
       {settingsOpen ? <div className="mb-3 rounded-md border border-line bg-slate-50 p-3"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><b className="text-xs">Columns / 欄位</b><div className="flex flex-wrap gap-2"><button className="btn" type="button" onClick={() => savePreferences({ ...normalized, columnWidths: {} }, "column_widths_reset")}><RotateCcw size={14} />Reset Widths / 重設欄寬</button><button className="btn" type="button" onClick={() => savePreferences(resetTableLayout(normalized, columns.map((column) => ({ id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))), "table_layout_reset")}><RotateCcw size={14} />Reset Table Layout / 重設表格版面</button></div></div><div className="flex flex-wrap gap-3">{orderedColumns.map((column, index) => <div key={column.id} className="flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1"><label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={normalized.visibleColumns.includes(column.id)} disabled={column.required} onChange={(event) => setColumnVisible(column, event.currentTarget.checked)} />{column.label}{column.required ? <span className="text-[10px] text-blue-700">Required／必要</span> : null}</label>{column.required ? null : <div className="ml-1 flex gap-1"><button className="icon-btn !h-6 !w-6" type="button" disabled={index <= columns.filter((candidate) => candidate.required).length} title={"Move " + column.label + " left"} onClick={() => moveColumn(column, -1)}><ArrowLeft size={12} /></button><button className="icon-btn !h-6 !w-6" type="button" disabled={index >= orderedColumns.length - 1} title={"Move " + column.label + " right"} onClick={() => moveColumn(column, 1)}><ArrowRight size={12} /></button></div>}</div>)}</div></div> : null}
       {error ? <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{error}</div> : null}

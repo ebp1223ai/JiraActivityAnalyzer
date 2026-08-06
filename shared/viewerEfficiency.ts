@@ -1,4 +1,6 @@
-import { buildDescriptionDiff, type DescriptionDiffStatus } from "./descriptionDiff.js";
+import { buildDescriptionDiff, type DescriptionDiffInput, type DescriptionDiffResult, type DescriptionDiffStatus } from "./descriptionDiff.js";
+
+export const VIEWER_DIFF_CLASSIFIER_VERSION = "v2";
 
 export type DiffQuickFilters = {
   hideNoChange: boolean;
@@ -20,6 +22,8 @@ export type ViewerDiffClassification = {
   comparisonValidated: boolean;
   addedCount: number | null;
   deletedCount: number | null;
+  descriptionDiff?: DescriptionDiffResult;
+  descriptionComparison?: boolean;
 };
 
 export type ViewerDiffInput = {
@@ -38,6 +42,18 @@ function storedValue(value: unknown) {
   if (value === null || value === undefined) return value;
   if (typeof value !== "string") return value;
   try { return JSON.parse(value) as unknown; } catch { return value; }
+}
+
+function originalDescriptionRaw(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return String(value);
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (parsed === null || parsed === undefined) return null;
+    return typeof parsed === "string" ? parsed : value;
+  } catch {
+    return value;
+  }
 }
 
 function canonicalText(value: unknown, seen = new Set<object>()): string {
@@ -68,28 +84,29 @@ function isDescription(fieldId: unknown, fieldName: unknown) {
   return id === "description" || (!id && name === "description");
 }
 
+export function descriptionDiffInputForViewer(input: ViewerDiffInput): DescriptionDiffInput {
+  const sourceId = String(input.sourceId ?? "") || null;
+  const itemMatch = /^(.*):(\d+)$/.exec(sourceId ?? "");
+  const beforeRaw = originalDescriptionRaw(input.before);
+  const afterRaw = originalDescriptionRaw(input.after);
+  return {
+    eventId: input.eventId, issueKey: input.issueKey, fieldId: input.fieldId, fieldName: input.fieldName,
+    sourceType: String(input.sourceType ?? ""), sourceId,
+    changelogHistoryId: String(input.jiraNativeSourceId ?? itemMatch?.[1] ?? "") || null,
+    changelogItemIndex: itemMatch ? Number(itemMatch[2]) : null, candidateCount: 1,
+    before: { available: beforeRaw !== null, complete: beforeRaw !== null, value: storedValue(input.before), raw: beforeRaw },
+    after: { available: afterRaw !== null, complete: afterRaw !== null, value: storedValue(input.after), raw: afterRaw }
+  };
+}
+
 export function classifyViewerDiff(input: ViewerDiffInput): ViewerDiffClassification {
   const beforeAvailable = input.before !== null && input.before !== undefined;
   const afterAvailable = input.after !== null && input.after !== undefined;
   if (!beforeAvailable && !afterAvailable) return { status: "non-comparison", comparisonValidated: false, addedCount: null, deletedCount: null };
   if (isDescription(input.fieldId, input.fieldName)) {
-    const sourceId = String(input.sourceId ?? "") || null;
-    const itemMatch = /^(.*):(\d+)$/.exec(sourceId ?? "");
-    const result = buildDescriptionDiff({
-      eventId: input.eventId,
-      issueKey: input.issueKey,
-      fieldId: input.fieldId,
-      fieldName: input.fieldName,
-      sourceType: String(input.sourceType ?? ""),
-      sourceId,
-      changelogHistoryId: String(input.jiraNativeSourceId ?? itemMatch?.[1] ?? "") || null,
-      changelogItemIndex: itemMatch ? Number(itemMatch[2]) : null,
-      candidateCount: 1,
-      before: { available: beforeAvailable, complete: beforeAvailable, value: storedValue(input.before), raw: typeof input.before === "string" ? input.before : null },
-      after: { available: afterAvailable, complete: afterAvailable, value: storedValue(input.after), raw: typeof input.after === "string" ? input.after : null }
-    });
+    const result = buildDescriptionDiff(descriptionDiffInputForViewer(input));
     const validated = ["changed", "unchanged", "whitespace-only"].includes(result.status);
-    return { status: result.status, comparisonValidated: validated, addedCount: validated ? result.addedLines : null, deletedCount: validated ? result.deletedLines : null };
+    return { status: result.status, comparisonValidated: validated, addedCount: validated ? result.addedLines : null, deletedCount: validated ? result.deletedLines : null, descriptionDiff: result, descriptionComparison: true };
   }
   if (!beforeAvailable) return { status: "before-unavailable", comparisonValidated: false, addedCount: null, deletedCount: null };
   if (!afterAvailable) return { status: "after-unavailable", comparisonValidated: false, addedCount: null, deletedCount: null };
@@ -118,6 +135,6 @@ export function viewerDiffPassesFilters(diff: ViewerDiffClassification, filters:
   if (filters.hideNoChange && (diff.status === "unchanged" || diff.status === "whitespace-only" || (diff.comparisonValidated && diff.addedCount === 0 && diff.deletedCount === 0))) return false;
   if (filters.hideZeroAdded && diff.comparisonValidated && diff.addedCount === 0) return false;
   if (filters.hideZeroDeleted && diff.comparisonValidated && diff.deletedCount === 0) return false;
-  if (filters.hideBeforeUnavailable && diff.status === "before-unavailable") return false;
+  if (filters.hideBeforeUnavailable && diff.descriptionComparison === true && diff.status === "before-unavailable") return false;
   return true;
 }

@@ -772,6 +772,18 @@ function runDatabaseViewer(lane: ViewerWorkerLane, operation: ViewerWorkerOperat
   return databaseViewerCoordinator.run(lane, operation, currentReadableDatabasePath(), ...args);
 }
 
+function progressiveRequestId(value: unknown) {
+  const requestId = String(value ?? "").trim();
+  if (!/^[a-z0-9:_-]{1,160}$/i.test(requestId)) throw new Error("VIEWER_REQUEST_ID_INVALID");
+  return requestId;
+}
+
+function runProgressiveDatabaseViewer(event: Electron.IpcMainInvokeEvent, lane: ViewerWorkerLane, operation: ViewerWorkerOperation, requestIdInput: unknown, ...args: unknown[]) {
+  const requestId = progressiveRequestId(requestIdInput);
+  return databaseViewerCoordinator.runProgressive(lane, operation, currentReadableDatabasePath(), requestId,
+    (progress) => { if (!event.sender.isDestroyed()) event.sender.send("database-viewer:progress", progress); }, ...args);
+}
+
 ipcMain.handle("database-viewer:overview", async () => runDatabaseViewer("database", "overview"));
 ipcMain.handle("database-viewer:health-check", async () => runDatabaseViewer("database", "healthCheck"));
 ipcMain.handle("database-viewer:list-issues", async (_event, payload?: Record<string, unknown>) =>
@@ -794,12 +806,19 @@ ipcMain.handle("database-viewer:user-distributions", async (_event, payload: { s
   runDatabaseViewer("user-distributions", "userDistributions", payload?.scope, payload?.query));
 ipcMain.handle("database-viewer:user-related-issues", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
   runDatabaseViewer("user", "userRelatedIssues", payload?.scope, payload?.query));
-ipcMain.handle("database-viewer:user-events", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
-  runDatabaseViewer("user", "userEvents", payload?.scope, payload?.query));
-ipcMain.handle("database-viewer:issue-events", async (_event, payload: { issueKey?: string; query?: Record<string, unknown> }) =>
-  runDatabaseViewer("issue-table", "issueEvents", String(payload?.issueKey ?? ""), payload?.query));
-ipcMain.handle("database-viewer:issue-changelog", async (_event, payload: { issueKey?: string; query?: Record<string, unknown> }) =>
-  runDatabaseViewer("issue-table", "issueChangelog", String(payload?.issueKey ?? ""), payload?.query));
+ipcMain.handle("database-viewer:user-events", async (event, payload: { requestId?: unknown; scope?: unknown; query?: Record<string, unknown> }) =>
+  runProgressiveDatabaseViewer(event, "user", "userEvents", payload?.requestId, payload?.scope, payload?.query));
+ipcMain.handle("database-viewer:issue-events", async (event, payload: { requestId?: unknown; issueKey?: string; query?: Record<string, unknown> }) =>
+  runProgressiveDatabaseViewer(event, "issue-table", "issueEvents", payload?.requestId, String(payload?.issueKey ?? ""), payload?.query));
+ipcMain.handle("database-viewer:issue-changelog", async (event, payload: { requestId?: unknown; issueKey?: string; query?: Record<string, unknown> }) =>
+  runProgressiveDatabaseViewer(event, "issue-table", "issueChangelog", payload?.requestId, String(payload?.issueKey ?? ""), payload?.query));
+ipcMain.handle("database-viewer:cancel", async (_event, payload: { requestId?: unknown; target?: unknown }) => {
+  const requestId = progressiveRequestId(payload?.requestId);
+  const target = String(payload?.target ?? "");
+  const lane = target === "user-events" ? "user" : target === "issue-events" || target === "issue-changelog" ? "issue-table" : null;
+  if (!lane) throw new Error("VIEWER_CANCEL_TARGET_INVALID");
+  return { cancelled: databaseViewerCoordinator.cancel(lane, requestId), requestId };
+});
 ipcMain.handle("database-viewer:description-full-context", async (_event, payload: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; revision?: unknown }) =>
   runDatabaseViewer("detail", "descriptionFullContext", payload));
 ipcMain.handle("database-viewer:description-original-previews", async (_event, payload: Record<string, unknown>) =>

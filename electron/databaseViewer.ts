@@ -9,7 +9,7 @@ import { buildDescriptionDiff, type DescriptionDiffInput, type DescriptionDiffRe
 import { DESCRIPTION_PREVIEW_LIMITS, comparisonIntegrity, originalContentMetadata, previewFromComparison, type DescriptionComparisonPayload, type DescriptionPreviewBatchResponse } from "../shared/descriptionComparison.js";
 import type { ActivityViewerRow } from "../shared/activityViewerTypes.js";
 import { normalizeUserViewerScope, userViewerScopeKey, type UserViewerScope } from "../shared/userViewerScope.js";
-import { classifyViewerDiff, normalizeDiffQuickFilters, type DiffQuickFilters } from "../shared/viewerEfficiency.js";
+import { VIEWER_DIFF_CLASSIFIER_VERSION, classifyViewerDiff, descriptionDiffInputForViewer, normalizeDiffQuickFilters, viewerDiffPassesFilters, type DiffQuickFilters, type ViewerDiffInput } from "../shared/viewerEfficiency.js";
 type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
 
 interface ViewerSection<T = unknown> {
@@ -95,6 +95,7 @@ function openReadOnly(databasePath: string) {
   db.function("jaa_diff_validated", { deterministic: true, varargs: true }, (...values) => classify(...values).comparisonValidated ? 1 : 0);
   db.function("jaa_diff_added", { deterministic: true, varargs: true }, (...values) => classify(...values).addedCount);
   db.function("jaa_diff_deleted", { deterministic: true, varargs: true }, (...values) => classify(...values).deletedCount);
+  db.function("jaa_diff_description", { deterministic: true, varargs: true }, (...values) => classify(...values).descriptionComparison ? 1 : 0);
   db.exec("PRAGMA foreign_keys = ON; PRAGMA query_only = ON; PRAGMA busy_timeout = 3000;");
   return { db, resolved };
 }
@@ -694,38 +695,17 @@ function commentIndexFromPayload(value: unknown) {
   return new Map(normalizeCommentRecords(comments).map((comment) => [String(comment.id), comment]));
 }
 
-function parseDescriptionStoredValue(value: unknown) {
-  if (typeof value !== "string") return value;
-  try { return JSON.parse(value); } catch { return value; }
-}
-function originalDescriptionRaw(value: unknown): string | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "string") return String(value);
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (parsed === null || parsed === undefined) return null;
-    return typeof parsed === "string" ? parsed : value;
-  } catch {
-    return value;
-  }
-}
-
-function descriptionInputFromEventRow(event: Row): DescriptionDiffInput {
-  const sourceRecordId = String(event.sourceRecordId ?? "");
-  const itemMatch = /^(.*):(\d+)$/.exec(sourceRecordId);
-  const beforeRaw = originalDescriptionRaw(event.before);
-  const afterRaw = originalDescriptionRaw(event.after);
-  const beforeAvailable = beforeRaw !== null;
-  const afterAvailable = afterRaw !== null;
+function viewerDiffInputFromEventRow(event: Row): ViewerDiffInput {
   return {
     eventId: String(event.eventId ?? ""), issueKey: String(event.issueKey ?? ""),
     fieldId: event.fieldId == null ? null : String(event.fieldId), fieldName: event.fieldName == null ? null : String(event.fieldName),
-    sourceType: String(event.sourceProvenance ?? ""), sourceId: sourceRecordId || null,
-    changelogHistoryId: String(event.jiraNativeSourceId ?? itemMatch?.[1] ?? "") || null,
-    changelogItemIndex: itemMatch ? Number(itemMatch[2]) : null, candidateCount: 1,
-    before: { available: beforeAvailable, complete: beforeAvailable, value: parseDescriptionStoredValue(event.before), raw: beforeRaw },
-    after: { available: afterAvailable, complete: afterAvailable, value: parseDescriptionStoredValue(event.after), raw: afterRaw }
+    sourceType: String(event.sourceProvenance ?? ""), sourceId: String(event.sourceRecordId ?? "") || null,
+    jiraNativeSourceId: String(event.jiraNativeSourceId ?? "") || null,
+    before: event.before, after: event.after
   };
+}
+function descriptionInputFromEventRow(event: Row): DescriptionDiffInput {
+  return descriptionDiffInputForViewer(viewerDiffInputFromEventRow(event));
 }
 
 function isDescriptionEventRow(event: Row) {
@@ -737,7 +717,8 @@ function isDescriptionEventRow(event: Row) {
 function attachDescriptionDiffRows(eventRows: Row[]) {
   return eventRows.map((event) => {
     if (!isDescriptionEventRow(event)) return event;
-    const compact: Row = { ...event, descriptionDiff: buildDescriptionDiff(descriptionInputFromEventRow(event)), commentId: null };
+    const classification = classifyViewerDiff(viewerDiffInputFromEventRow(event));
+    const compact: Row = { ...event, descriptionDiff: classification.descriptionDiff, diffStatus: classification.status, comparisonValidated: classification.comparisonValidated, addedCount: classification.addedCount, deletedCount: classification.deletedCount, commentId: null };
     delete compact.commentBody; delete compact.commentBodyFormat; delete compact.commentCreated; delete compact.commentUpdated;
     delete compact.before; delete compact.after;
     return compact;
@@ -864,12 +845,13 @@ function diffQuickFilterSql(filters: DiffQuickFilters) {
   const validated = `jaa_diff_validated(${VIEWER_DIFF_SQL_ARGS})`;
   const status = `jaa_diff_status(${VIEWER_DIFF_SQL_ARGS})`;
   const added = `jaa_diff_added(${VIEWER_DIFF_SQL_ARGS})`;
+  const description = `jaa_diff_description(${VIEWER_DIFF_SQL_ARGS})`;
   const deleted = `jaa_diff_deleted(${VIEWER_DIFF_SQL_ARGS})`;
   const where: string[] = [];
   if (filters.hideNoChange) where.push(`(${validated}=0 OR (${status} NOT IN ('unchanged','whitespace-only') AND NOT (${added}=0 AND ${deleted}=0)))`);
   if (filters.hideZeroAdded) where.push(`(${validated}=0 OR ${added} IS NULL OR ${added}<>0)`);
   if (filters.hideZeroDeleted) where.push(`(${validated}=0 OR ${deleted} IS NULL OR ${deleted}<>0)`);
-  if (filters.hideBeforeUnavailable) where.push(`(${status} <> 'before-unavailable')`);
+  if (filters.hideBeforeUnavailable) where.push(`(${description}=0 OR ${status} <> 'before-unavailable')`);
   return where;
 }
 
@@ -880,7 +862,7 @@ function queryDatabaseEvents(databasePath: string, subject: EventQuerySubject, i
   const sortColumns = Object.fromEntries(Object.entries(USER_EVENT_COLUMNS).map(([key, value]) => [key, value.expression]));
   const query = normalizeViewerQuery(input, sortColumns, "eventTime");
   const subjectIdentity = subject.kind === "user" ? { kind: "user", scope: userViewerScopeKey(subject.scope) } : subject;
-  const queryFingerprint = crypto.createHash("sha256").update(JSON.stringify({ databasePath: path.resolve(databasePath), sourceSize: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, subject: subjectIdentity, query }), "utf8").digest("hex");
+  const queryFingerprint = crypto.createHash("sha256").update(JSON.stringify({ databasePath: path.resolve(databasePath), sourceSize: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, subject: subjectIdentity, query, classifierVersion: VIEWER_DIFF_CLASSIFIER_VERSION }), "utf8").digest("hex");
   const cached = eventQueryCache.get(queryFingerprint);
   if (cached && cached.expiresAt >= Date.now()) {
     eventQueryCache.delete(queryFingerprint);
@@ -985,6 +967,201 @@ function queryDatabaseEvents(databasePath: string, subject: EventQuerySubject, i
   } finally {
     db.close();
   }
+}
+
+
+export type ViewerProgressDto = {
+  requestId: string;
+  status: "filtering" | "completed" | "cancelled";
+  scanned: number;
+  total: number | null;
+  matched: number;
+  percentage: number | null;
+  elapsedMs: number;
+  batchSize: number;
+  checkpoint: string;
+};
+
+export type ProgressiveMatch = { eventId: string; sortValue: unknown };
+export type ProgressiveCheckpoint = { cursor: string; scanned: number; elapsedMs: number; matching: ProgressiveMatch[] };
+export type ProgressiveCheckpointDelta = { cursor: string; scanned: number; elapsedMs: number; matches: ProgressiveMatch[] };
+
+export type ProgressiveQueryControl = {
+  requestId: string;
+  onProgress?: (progress: ViewerProgressDto) => void;
+  onCheckpoint?: (checkpoint: ProgressiveCheckpointDelta) => void;
+  resume?: ProgressiveCheckpoint;
+  isCancelled?: () => boolean;
+  batchSize?: number;
+  now?: () => number;
+};
+
+export const PROGRESSIVE_DIFF_CONFIG = {
+  defaultBatchSize: 100,
+  reducedBatchSize: 50,
+  targetBatchMs: 250,
+  maxMatchingBytes: 32 * 1024 * 1024
+} as const;
+
+function progressiveError(code: string) {
+  const error = new Error(code) as Error & { code?: string };
+  error.code = code;
+  return error;
+}
+
+function hasExpensiveDiffFilter(query: ReturnType<typeof normalizeViewerQuery>) {
+  const filters = query.diffQuickFilters;
+  return query.descriptionChangedOnly || filters.hideNoChange || filters.hideZeroAdded || filters.hideZeroDeleted || filters.hideBeforeUnavailable;
+}
+
+function canonicalPassesQuery(event: Row, query: ReturnType<typeof normalizeViewerQuery>) {
+  const classification = classifyViewerDiff(viewerDiffInputFromEventRow(event));
+  if (query.descriptionChangedOnly) {
+    const allowed = query.includeBeforeUnavailable
+      ? classification.status === "changed" || classification.status === "before-unavailable"
+      : classification.status === "changed";
+    if (!allowed) return false;
+  }
+  return viewerDiffPassesFilters(classification, query.diffQuickFilters);
+}
+
+function compareProgressiveValue(left: unknown, right: unknown, direction: string) {
+  const leftNull = left === null || left === undefined;
+  const rightNull = right === null || right === undefined;
+  if (leftNull || rightNull) {
+    if (leftNull && rightNull) return 0;
+    const value = leftNull ? -1 : 1;
+    return direction === "asc" ? value : -value;
+  }
+  const leftNumber = typeof left === "number" ? left : Number.NaN;
+  const rightNumber = typeof right === "number" ? right : Number.NaN;
+  const value = Number.isFinite(leftNumber) && Number.isFinite(rightNumber)
+    ? leftNumber - rightNumber
+    : String(left) < String(right) ? -1 : String(left) > String(right) ? 1 : 0;
+  return direction === "asc" ? value : -value;
+}
+
+async function queryDatabaseEventsProgressive(
+  databasePath: string,
+  subject: EventQuerySubject,
+  input: ViewerQueryInput,
+  control: ProgressiveQueryControl
+): Promise<EventQueryResult> {
+  const now = control.now ?? (() => performance.now());
+  const initialNow = now();
+  const startedAt = initialNow - Math.max(0, control.resume?.elapsedMs ?? 0);
+  const sourceStat = fs.statSync(databasePath);
+  const databaseIdentity = databaseFileIdentity(databasePath);
+  const sortColumns = Object.fromEntries(Object.entries(USER_EVENT_COLUMNS).map(([key, value]) => [key, value.expression]));
+  const query = normalizeViewerQuery(input, sortColumns, "eventTime");
+  if (!hasExpensiveDiffFilter(query)) return queryDatabaseEvents(databasePath, subject, input);
+  const subjectIdentity = subject.kind === "user" ? { kind: "user", scope: userViewerScopeKey(subject.scope) } : subject;
+  const queryFingerprint = crypto.createHash("sha256").update(JSON.stringify({ databasePath: path.resolve(databasePath), sourceSize: sourceStat.size, sourceMtimeMs: sourceStat.mtimeMs, subject: subjectIdentity, query, classifierVersion: VIEWER_DIFF_CLASSIFIER_VERSION, progressive: true }), "utf8").digest("hex");
+  const cached = eventQueryCache.get(queryFingerprint);
+  if (cached && cached.expiresAt >= Date.now()) return { ...structuredClone(cached.value), diagnostics: { ...cached.value.diagnostics, cacheHit: true } };
+
+  const filter = viewerFilterSql(query.filters, USER_EVENT_COLUMNS);
+  appendDateBounds(filter.where, filter.parameters, "e.event_time", query.dateRange);
+  if (subject.kind === "issue" && subject.changelogOnly && query.descriptionChangedOnly) filter.where.push("LOWER(COALESCE(NULLIF(e.field_id, ''), e.field_name, '')) = 'description'");
+  const subjectSql = eventSubjectSql(subject);
+  const where = `${subjectSql.where} ${filter.where.length ? `AND ${filter.where.join(" AND ")}` : ""}`;
+  const parameters: Array<string | number> = [...subjectSql.parameters, ...filter.parameters];
+  const { db } = openReadOnly(databasePath);
+  try {
+    const totalCount = Number(row(db.prepare(`SELECT COUNT(*) AS count FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id WHERE ${subjectSql.where}`).get(...subjectSql.parameters)).count ?? 0);
+    const candidateTotal = Number(row(db.prepare(`SELECT COUNT(*) AS count FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id WHERE ${where}`).get(...parameters)).count ?? 0);
+    const candidateSql = `SELECT e.id AS eventId, o.issue_key AS issueKey, e.field_id AS fieldId, e.field_name AS fieldName,
+      e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
+      e.jira_native_source_id AS jiraNativeSourceId, e.source_provenance AS sourceProvenance,
+      ${sortColumns[query.sortField]} AS sortValue
+      FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
+      LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
+      WHERE ${where} AND e.id > ? ORDER BY e.id ASC LIMIT ?`;
+    let batchSize = Math.max(PROGRESSIVE_DIFF_CONFIG.reducedBatchSize, Math.min(PROGRESSIVE_DIFF_CONFIG.defaultBatchSize, Math.trunc(control.batchSize ?? PROGRESSIVE_DIFF_CONFIG.defaultBatchSize)));
+    let cursor = control.resume?.cursor ?? "";
+    let scanned = Math.max(0, Math.min(candidateTotal, Math.trunc(control.resume?.scanned ?? 0)));
+    const matching: ProgressiveMatch[] = structuredClone(control.resume?.matching ?? []);
+    let matchingBytes = matching.reduce((total, item) => total + Buffer.byteLength(item.eventId + JSON.stringify(item.sortValue ?? null), "utf8") + 32, 0);
+    if (matchingBytes > PROGRESSIVE_DIFF_CONFIG.maxMatchingBytes) throw progressiveError("VIEWER_PROGRESSIVE_MATCH_LIMIT");
+    while (scanned < candidateTotal) {
+      if (control.isCancelled?.()) throw progressiveError("VIEWER_REQUEST_CANCELLED");
+      const batchStartedAt = now();
+      const batch = rows(db.prepare(candidateSql).all(...parameters, cursor, batchSize));
+      if (!batch.length) break;
+      const batchMatches: ProgressiveMatch[] = [];
+      for (const event of batch) {
+        const eventId = String(event.eventId ?? "");
+        cursor = eventId;
+        if (canonicalPassesQuery(event, query)) {
+          matchingBytes += Buffer.byteLength(eventId + JSON.stringify(event.sortValue ?? null), "utf8") + 32;
+          if (matchingBytes > PROGRESSIVE_DIFF_CONFIG.maxMatchingBytes) throw progressiveError("VIEWER_PROGRESSIVE_MATCH_LIMIT");
+          const item = { eventId, sortValue: event.sortValue };
+          matching.push(item);
+          batchMatches.push(item);
+        }
+      }
+      scanned += batch.length;
+      const batchElapsed = now() - batchStartedAt;
+      if (batchElapsed > PROGRESSIVE_DIFF_CONFIG.targetBatchMs) batchSize = PROGRESSIVE_DIFF_CONFIG.reducedBatchSize;
+      const elapsedMs = Math.max(0, now() - startedAt);
+      control.onCheckpoint?.({ cursor, scanned, elapsedMs, matches: batchMatches });
+      control.onProgress?.({ requestId: control.requestId, status: "filtering", scanned, total: candidateTotal, matched: matching.length, percentage: candidateTotal ? Math.min(100, Math.round(scanned / candidateTotal * 100)) : 100, elapsedMs, batchSize, checkpoint: cursor });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    if (control.isCancelled?.()) throw progressiveError("VIEWER_REQUEST_CANCELLED");
+    matching.sort((left, right) => compareProgressiveValue(left.sortValue, right.sortValue, query.sortDirection) || left.eventId.localeCompare(right.eventId));
+    const filteredCount = matching.length;
+    const pageCount = Math.max(1, Math.ceil(filteredCount / query.pageSize));
+    const page = Math.min(query.page, pageCount);
+    const pageIds = matching.slice((page - 1) * query.pageSize, page * query.pageSize).map((item) => item.eventId);
+    let enrichedRows: Row[] = [];
+    if (pageIds.length) {
+      const placeholders = pageIds.map(() => "?").join(",");
+      const pageRows = rows(db.prepare(`SELECT e.id AS eventId, e.source_object_id AS sourceObjectId, e.event_time AS eventTime,
+        e.actor_account_id AS userId, e.actor_display_name AS displayName, o.issue_key AS issueKey,
+        e.event_type AS action, e.event_type AS eventType, s.summary, o.project_key AS projectKey,
+        s.issue_type AS issueTypeName, s.status AS currentStatusName, s.priority AS currentPriorityName,
+        e.field_id AS fieldId, e.field_name AS fieldName, e.from_value_json AS before, e.to_value_json AS after,
+        e.source_record_id AS sourceRecordId, e.jira_native_source_id AS jiraNativeSourceId,
+        CASE WHEN e.event_type IN ('comment_created','comment_updated') THEN e.jira_native_source_id ELSE NULL END AS commentId,
+        e.identity_key_type AS identityKeyType, e.source_provenance AS sourceProvenance
+        FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
+        LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id WHERE e.id IN (${placeholders})`).all(...pageIds));
+      const byId = new Map(pageRows.map((event) => [String(event.eventId), event]));
+      const ordered = pageIds.flatMap((eventId) => byId.has(eventId) ? [byId.get(eventId)!] : []);
+      enrichedRows = attachDescriptionDiffRows(enrichCommentEventRows(db, ordered)).map((event) => {
+        const classification = classifyViewerDiff(viewerDiffInputFromEventRow(event));
+        const itemMatch = /^(.*):(\d+)$/.exec(String(event.sourceRecordId ?? ""));
+        return { ...event, diffStatus: classification.status, comparisonValidated: classification.comparisonValidated,
+          addedCount: classification.addedCount, deletedCount: classification.deletedCount,
+          historyId: String(event.jiraNativeSourceId ?? itemMatch?.[1] ?? "") || null,
+          itemIndex: itemMatch ? Number(itemMatch[2]) : null, databaseIdentity, previewGeneration: queryFingerprint };
+      });
+    }
+    const totalMs = now() - startedAt;
+    const value: EventQueryResult = { rows: enrichedRows as ActivityViewerRow[], filteredCount, totalCount, page, pageSize: query.pageSize, pageCount,
+      diagnostics: { queryFingerprint, sqlExecutionMs: Math.round(totalMs * 100) / 100, rowMappingAndPayloadNormalizationMs: 0,
+        totalMs: Math.round(totalMs * 100) / 100, cacheHit: false, slow: totalMs > 1_000, queryPlan: [] } };
+    const bytes = Buffer.byteLength(JSON.stringify(value), "utf8");
+    eventQueryCache.set(queryFingerprint, { expiresAt: Date.now() + EVENT_QUERY_CACHE_TTL_MS, bytes, value });
+    eventQueryCacheBytes += bytes;
+    while (eventQueryCache.size > EVENT_QUERY_CACHE_LIMIT || eventQueryCacheBytes > EVENT_QUERY_CACHE_BYTES_LIMIT) {
+      const oldestKey = eventQueryCache.keys().next().value as string;
+      const oldest = eventQueryCache.get(oldestKey); eventQueryCache.delete(oldestKey); eventQueryCacheBytes -= oldest?.bytes ?? 0;
+    }
+    control.onProgress?.({ requestId: control.requestId, status: "completed", scanned, total: candidateTotal, matched: filteredCount, percentage: 100, elapsedMs: Math.max(0, totalMs), batchSize, checkpoint: cursor });
+    return value;
+  } finally { db.close(); }
+}
+
+export function queryDatabaseUserEventsProgressive(databasePath: string, scopeInput: unknown, input: ViewerQueryInput = {}, control: ProgressiveQueryControl) {
+  return queryDatabaseEventsProgressive(databasePath, { kind: "user", scope: normalizeUserViewerScope(scopeInput) }, input, control);
+}
+export function queryDatabaseIssueEventsProgressive(databasePath: string, issueKeyInput: string, input: ViewerQueryInput = {}, control: ProgressiveQueryControl) {
+  return queryDatabaseEventsProgressive(databasePath, { kind: "issue", issueKey: normalizeSourceObjectKey("jira", "issue", issueKeyInput), changelogOnly: false }, input, control);
+}
+export function queryDatabaseIssueChangelogProgressive(databasePath: string, issueKeyInput: string, input: ViewerQueryInput = {}, control: ProgressiveQueryControl) {
+  return queryDatabaseEventsProgressive(databasePath, { kind: "issue", issueKey: normalizeSourceObjectKey("jira", "issue", issueKeyInput), changelogOnly: true }, input, control);
 }
 
 

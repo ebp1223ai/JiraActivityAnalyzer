@@ -12,6 +12,7 @@ import { SectionErrorBoundary } from "../components/SectionErrorBoundary";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import { useSessionState } from "../state/SessionStateContext";
 import { dateRangeBounds } from "../types/dateRange";
+import type { ViewerProgressDto } from "../types/activityViewerQuery";
 import type { ViewerSection } from "../types/databaseViewer";
 import type { UiPreferences } from "../types/uiPreferences";
 import { recordTableRequest } from "../diagnostics/tableDiagnostics";
@@ -24,6 +25,8 @@ let issueViewerRequestSequence = 0;
 let latestIssueSnapshotRequest = 0;
 let latestIssueChangelogRequest = 0;
 let latestIssueActivityRequest = 0;
+let latestIssueChangelogProgressRequest = "";
+let latestIssueActivityProgressRequest = "";
 
 function text(value: unknown, fallback = "Unavailable") {
   return value === undefined || value === null || value === "" ? fallback : String(value);
@@ -47,6 +50,8 @@ export function IssueViewerPage() {
   const { issueViewer, setIssueViewer } = useSessionState();
   const [searchParams, setSearchParams] = useSearchParams();
   const [preferences, setPreferences] = useState<UiPreferences | null>(null);
+  const [changelogProgress, setChangelogProgress] = useState<ViewerProgressDto | null>(null);
+  const [activityProgress, setActivityProgress] = useState<ViewerProgressDto | null>(null);
   const result = issueViewer.result;
   const overview = result?.overview ?? {};
   const activeTab = normalizeIssueViewerTab(issueViewer.activeTab);
@@ -110,6 +115,11 @@ export function IssueViewerPage() {
     if (activeTab !== issueViewer.activeTab) patch({ activeTab });
   }, [activeTab, issueViewer.activeTab]);
 
+  useEffect(() => window.desktopApp?.databaseViewer?.onProgress?.((progress) => {
+    if (progress.requestId === latestIssueChangelogProgressRequest) setChangelogProgress(progress.status === "completed" ? null : progress);
+    if (progress.requestId === latestIssueActivityProgressRequest) setActivityProgress(progress.status === "completed" ? null : progress);
+  }), []);
+
   useEffect(() => {
     if (!state.database.canRead) return;
     if (issueViewer.databaseIdentity && issueViewer.databaseIdentity !== databaseIdentity) {
@@ -146,18 +156,22 @@ export function IssueViewerPage() {
     const cacheKey = viewerQueryCacheKey(databaseIdentity, issueViewer.loadedIssueKey, "issueChangelog", query);
     if (issueViewer.changelogResult && issueViewer.changelogCacheKey === cacheKey) return;
     const requestId = ++issueViewerRequestSequence;
+    const progressRequestId = `issue-changelog-${requestId}-${Date.now()}`;
     latestIssueChangelogRequest = requestId;
+    latestIssueChangelogProgressRequest = progressRequestId;
     const startedAt = performance.now();
     recordTableRequest("started", { requestId, tableId: "issueChangelog", query, startedAt });
     patch({ pendingChangelogRequestId: requestId, changelogStatus: "loading", changelogMessage: "" });
-    void window.desktopApp?.databaseViewer?.issueChangelog({ issueKey: issueViewer.loadedIssueKey, query }).then((next) => {
+    setChangelogProgress({ requestId: progressRequestId, status: "filtering", scanned: 0, total: null, matched: 0, percentage: null, elapsedMs: 0, batchSize: 100, checkpoint: "" });
+    void window.desktopApp?.databaseViewer?.issueChangelog({ requestId: progressRequestId, issueKey: issueViewer.loadedIssueKey, query }).then((next) => {
       if (requestId !== latestIssueChangelogRequest) return recordTableRequest("stale", { requestId, tableId: "issueChangelog", query, startedAt });
       if (!next) throw new Error("Issue Changelog IPC unavailable.");
       recordTableRequest("completed", { requestId, tableId: "issueChangelog", query, startedAt, resultCount: next.rows.length });
+      setChangelogProgress(null);
       setIssueViewer((current) => current.pendingChangelogRequestId !== requestId ? current : { ...current, changelogResult: next, changelogStatus: "ready", changelogMessage: "", changelogCacheKey: cacheKey });
     }).catch((error: unknown) => {
       recordTableRequest("failed", { requestId, tableId: "issueChangelog", query, startedAt, error });
-      if (requestId === latestIssueChangelogRequest) setIssueViewer((current) => current.pendingChangelogRequestId === requestId ? { ...current, changelogStatus: "error", changelogMessage: error instanceof Error ? error.message : "Issue Changelog query failed." } : current);
+      if (requestId === latestIssueChangelogRequest) { const message = error instanceof Error ? error.message : "Issue Changelog query failed."; const cancelled = /CANCELLED|SUPERSEDED/.test(message); setChangelogProgress(null); setIssueViewer((current) => current.pendingChangelogRequestId === requestId ? { ...current, changelogStatus: cancelled && current.changelogResult ? "ready" : cancelled ? "idle" : "error", changelogMessage: cancelled ? "Filtering cancelled." : message } : current); }
     });
   }, [activeTab, issueViewer.status, issueViewer.loadedIssueKey, issueViewer.changelogQuery, databaseIdentity]);
 
@@ -167,18 +181,22 @@ export function IssueViewerPage() {
     const cacheKey = viewerQueryCacheKey(databaseIdentity, issueViewer.loadedIssueKey, "issueActivityEvents", query);
     if (issueViewer.activityEventsResult && issueViewer.activityEventsCacheKey === cacheKey) return;
     const requestId = ++issueViewerRequestSequence;
+    const progressRequestId = `issue-events-${requestId}-${Date.now()}`;
     latestIssueActivityRequest = requestId;
+    latestIssueActivityProgressRequest = progressRequestId;
     const startedAt = performance.now();
     recordTableRequest("started", { requestId, tableId: "issueActivityEvents", query, startedAt });
     patch({ pendingActivityRequestId: requestId, activityEventsStatus: "loading", activityEventsMessage: "" });
-    void window.desktopApp?.databaseViewer?.issueEvents({ issueKey: issueViewer.loadedIssueKey, query }).then((next) => {
+    setActivityProgress({ requestId: progressRequestId, status: "filtering", scanned: 0, total: null, matched: 0, percentage: null, elapsedMs: 0, batchSize: 100, checkpoint: "" });
+    void window.desktopApp?.databaseViewer?.issueEvents({ requestId: progressRequestId, issueKey: issueViewer.loadedIssueKey, query }).then((next) => {
       if (requestId !== latestIssueActivityRequest) return recordTableRequest("stale", { requestId, tableId: "issueActivityEvents", query, startedAt });
       if (!next) throw new Error("Issue Activity Events IPC unavailable.");
       recordTableRequest("completed", { requestId, tableId: "issueActivityEvents", query, startedAt, resultCount: next.rows.length });
+      setActivityProgress(null);
       setIssueViewer((current) => current.pendingActivityRequestId !== requestId ? current : { ...current, activityEventsResult: next, activityEventsStatus: "ready", activityEventsMessage: "", activityEventsCacheKey: cacheKey });
     }).catch((error: unknown) => {
       recordTableRequest("failed", { requestId, tableId: "issueActivityEvents", query, startedAt, error });
-      if (requestId === latestIssueActivityRequest) setIssueViewer((current) => current.pendingActivityRequestId === requestId ? { ...current, activityEventsStatus: "error", activityEventsMessage: error instanceof Error ? error.message : "Issue Activity Events query failed." } : current);
+      if (requestId === latestIssueActivityRequest) { const message = error instanceof Error ? error.message : "Issue Activity Events query failed."; const cancelled = /CANCELLED|SUPERSEDED/.test(message); setActivityProgress(null); setIssueViewer((current) => current.pendingActivityRequestId === requestId ? { ...current, activityEventsStatus: cancelled && current.activityEventsResult ? "ready" : cancelled ? "idle" : "error", activityEventsMessage: cancelled ? "Filtering cancelled." : message } : current); }
     });
   }, [activeTab, issueViewer.status, issueViewer.loadedIssueKey, issueViewer.activityEventsQuery, databaseIdentity]);
 
@@ -228,10 +246,10 @@ export function IssueViewerPage() {
           {activeTab === "Overview" ? <DataTable headers={["Field", "Value"]} rows={overviewRows} /> : null}
           {activeTab === "Description" ? result.description.status === "ready" ? <JiraContent className="rounded-md bg-slate-50 p-4" content={result.description.content || result.description.plainText} format={result.description.format} /> : <div className="rounded-md border border-slate-300 bg-slate-50 p-6 text-center font-bold text-muted">{result.description.message}</div> : null}
           {section ? sectionState(section, activeTab) : null}
-          {activeTab === "Changelog" ? <div className="space-y-3"><DateRangeControl value={issueViewer.changelogQuery.dateRange ?? { shortcut: "all", startDate: "", endDate: "" }} onChange={(dateRange) => patch({ changelogQuery: { ...issueViewer.changelogQuery, page: 1, dateRange, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 }, changelogResult: null, changelogCacheKey: "" })} label="Changelog Time / 變更時間" /><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={issueViewer.changelogQuery.descriptionChangedOnly ?? false} onChange={(event) => patch({ changelogQuery: { ...issueViewer.changelogQuery, page: 1, descriptionChangedOnly: event.currentTarget.checked, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 }, changelogResult: null, changelogCacheKey: "" })} />Description Changed Only / 僅 Description 變更</label><ActivityComparisonTable mode="issue-changelog" tableId="issueChangelog" result={issueViewer.changelogResult ?? emptyTable} query={issueViewer.changelogQuery} loading={issueViewer.changelogStatus === "loading"} error={issueViewer.changelogMessage} preferences={preferences?.issueChangelog} onPreferencesChange={(value) => void window.desktopApp?.uiPreferences?.update({ section: "issueChangelog", value }).then((response) => { if (response) setPreferences(response.preferences); })} onQueryChange={(changelogQuery) => patch({ changelogQuery: { ...changelogQuery, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 }, changelogResult: null, changelogCacheKey: "" })} sessionState={issueViewer.tableStates.issueChangelog} onSessionStateChange={(value) => setTableState("issueChangelog", value)} loadDistinct={async (field, search) => (await window.desktopApp?.databaseViewer?.distinctValues({ source: "issueChangelog", subjectId: issueViewer.loadedIssueKey, field, search, limit: 100, query: issueViewer.changelogQuery })) ?? { field, values: [], truncated: false }} /></div> : null}
+          {activeTab === "Changelog" ? <div className="space-y-3"><DateRangeControl value={issueViewer.changelogQuery.dateRange ?? { shortcut: "all", startDate: "", endDate: "" }} onChange={(dateRange) => patch({ changelogQuery: { ...issueViewer.changelogQuery, page: 1, dateRange, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 }, changelogCacheKey: "" })} label="Changelog Time / 變更時間" /><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={issueViewer.changelogQuery.descriptionChangedOnly ?? false} onChange={(event) => patch({ changelogQuery: { ...issueViewer.changelogQuery, page: 1, descriptionChangedOnly: event.currentTarget.checked, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 }, changelogCacheKey: "" })} />Description Changed Only / 僅 Description 變更</label><ActivityComparisonTable mode="issue-changelog" tableId="issueChangelog" result={issueViewer.changelogResult ?? emptyTable} query={issueViewer.changelogQuery} loading={issueViewer.changelogStatus === "loading"} error={issueViewer.changelogMessage} progress={changelogProgress} onCancel={() => void window.desktopApp?.databaseViewer?.cancel({ requestId: latestIssueChangelogProgressRequest, target: "issue-changelog" })} preferences={preferences?.issueChangelog} onPreferencesChange={(value) => void window.desktopApp?.uiPreferences?.update({ section: "issueChangelog", value }).then((response) => { if (response) setPreferences(response.preferences); })} onQueryChange={(changelogQuery) => patch({ changelogQuery: { ...changelogQuery, revision: (issueViewer.changelogQuery.revision ?? 0) + 1 }, changelogCacheKey: "" })} sessionState={issueViewer.tableStates.issueChangelog} onSessionStateChange={(value) => setTableState("issueChangelog", value)} loadDistinct={async (field, search) => (await window.desktopApp?.databaseViewer?.distinctValues({ source: "issueChangelog", subjectId: issueViewer.loadedIssueKey, field, search, limit: 100, query: issueViewer.changelogQuery })) ?? { field, values: [], truncated: false }} /></div> : null}
           {section?.status === "ready" && activeTab === "Comments" ? <div className="space-y-3"><DateRangeControl value={issueViewer.commentsQuery.dateRange ?? { shortcut: "all", startDate: "", endDate: "" }} onChange={(dateRange) => patch({ commentsQuery: { ...issueViewer.commentsQuery, page: 1, dateRange, revision: (issueViewer.commentsQuery.revision ?? 0) + 1 }, payloadPage: 1 })} label="Comments Date / 留言日期" /><label className="block max-w-sm"><span className="mb-1 block text-xs font-black text-muted">Comment Date Mode / 留言日期模式</span><select className="field" value={issueViewer.commentsQuery.commentDateMode ?? "created"} onChange={(event) => patch({ commentsQuery: { ...issueViewer.commentsQuery, page: 1, commentDateMode: event.currentTarget.value as "created" | "updated", revision: (issueViewer.commentsQuery.revision ?? 0) + 1 }, payloadPage: 1 })}><option value="created">Created / 建立時間</option><option value="updated">Last Updated / 最後更新</option></select></label><div className="flex flex-wrap items-end justify-between gap-3 rounded-md border border-line bg-slate-50 p-3"><label className="min-w-[240px] flex-1"><span className="mb-1 block text-xs font-black text-muted">Filter current payload section</span><input className="field" value={issueViewer.payloadFilter} onChange={(event) => patch({ payloadFilter: event.currentTarget.value, payloadPage: 1 })} placeholder="Author or comment text" /></label><div className="text-xs font-bold text-muted">Filtered {filteredPayloadRecords.length.toLocaleString()} / Total {payloadRecords.length.toLocaleString()}{commentsMissingDateCount ? ` · Missing dates: ${commentsMissingDateCount}` : ""}</div></div><div className="space-y-3">{visiblePayloadRecords.map((item) => <CommentCard key={text(item.id)} comment={{ ...item, dateModeFallback: (issueViewer.commentsQuery.commentDateMode ?? "created") === "updated" && !item.updated && Boolean(item.created) }} />)}</div>{payloadPageCount > 1 ? <div className="flex items-center justify-end gap-2"><button className="btn" type="button" disabled={payloadPage <= 1} onClick={() => patch({ payloadPage: payloadPage - 1 })}>Previous</button><span className="text-xs font-bold">Page {payloadPage} / {payloadPageCount}</span><button className="btn" type="button" disabled={payloadPage >= payloadPageCount} onClick={() => patch({ payloadPage: payloadPage + 1 })}>Next</button></div> : null}</div> : null}
           {section?.status === "ready" && activeTab === "Issue Links" ? <DataTable headers={["Type", "Direction", "Issue"]} rows={section.records.map((item) => [text((item.type as Record<string, unknown> | undefined)?.name), text(item.inwardIssue ? "Inward" : "Outward"), text((item.inwardIssue as Record<string, unknown> | undefined)?.key ?? (item.outwardIssue as Record<string, unknown> | undefined)?.key)])} /> : null}
-          {activeTab === "Activity Events" ? <div className="space-y-3"><DateRangeControl value={issueViewer.activityEventsQuery.dateRange ?? { shortcut: "all", startDate: "", endDate: "" }} onChange={(dateRange) => patch({ activityEventsQuery: { ...issueViewer.activityEventsQuery, page: 1, dateRange, revision: (issueViewer.activityEventsQuery.revision ?? 0) + 1 }, activityEventsResult: null, activityEventsCacheKey: "" })} label="Activity Events Time / 活動事件時間" /><div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-900">All local SQLite activity events for this Issue Key. No Jira request is sent.</div><ActivityComparisonTable mode="issue-events" tableId="issueActivityEvents" result={issueViewer.activityEventsResult ?? emptyTable} query={issueViewer.activityEventsQuery} loading={issueViewer.activityEventsStatus === "loading"} error={issueViewer.activityEventsMessage} preferences={preferences?.issueActivityEvents} onPreferencesChange={(value) => void window.desktopApp?.uiPreferences?.update({ section: "issueActivityEvents", value }).then((response) => { if (response) setPreferences(response.preferences); })} onQueryChange={(activityEventsQuery) => patch({ activityEventsQuery: { ...activityEventsQuery, revision: (issueViewer.activityEventsQuery.revision ?? 0) + 1 }, activityEventsResult: null, activityEventsCacheKey: "" })} sessionState={issueViewer.tableStates.issueActivityEvents} onSessionStateChange={(value) => setTableState("issueActivityEvents", value)} loadDistinct={async (field, search) => (await window.desktopApp?.databaseViewer?.distinctValues({ source: "issueEvents", subjectId: issueViewer.loadedIssueKey, field, search, limit: 100, query: issueViewer.activityEventsQuery })) ?? { field, values: [], truncated: false }} /></div> : null}
+          {activeTab === "Activity Events" ? <div className="space-y-3"><DateRangeControl value={issueViewer.activityEventsQuery.dateRange ?? { shortcut: "all", startDate: "", endDate: "" }} onChange={(dateRange) => patch({ activityEventsQuery: { ...issueViewer.activityEventsQuery, page: 1, dateRange, revision: (issueViewer.activityEventsQuery.revision ?? 0) + 1 }, activityEventsCacheKey: "" })} label="Activity Events Time / 活動事件時間" /><div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-900">All local SQLite activity events for this Issue Key. No Jira request is sent.</div><ActivityComparisonTable mode="issue-events" tableId="issueActivityEvents" result={issueViewer.activityEventsResult ?? emptyTable} query={issueViewer.activityEventsQuery} loading={issueViewer.activityEventsStatus === "loading"} error={issueViewer.activityEventsMessage} progress={activityProgress} onCancel={() => void window.desktopApp?.databaseViewer?.cancel({ requestId: latestIssueActivityProgressRequest, target: "issue-events" })} preferences={preferences?.issueActivityEvents} onPreferencesChange={(value) => void window.desktopApp?.uiPreferences?.update({ section: "issueActivityEvents", value }).then((response) => { if (response) setPreferences(response.preferences); })} onQueryChange={(activityEventsQuery) => patch({ activityEventsQuery: { ...activityEventsQuery, revision: (issueViewer.activityEventsQuery.revision ?? 0) + 1 }, activityEventsCacheKey: "" })} sessionState={issueViewer.tableStates.issueActivityEvents} onSessionStateChange={(value) => setTableState("issueActivityEvents", value)} loadDistinct={async (field, search) => (await window.desktopApp?.databaseViewer?.distinctValues({ source: "issueEvents", subjectId: issueViewer.loadedIssueKey, field, search, limit: 100, query: issueViewer.activityEventsQuery })) ?? { field, values: [], truncated: false }} /></div> : null}
           {activeTab === "Raw Evidence" ? <div><div className="mb-3 text-xs font-bold text-muted">Schema: {result.rawEvidence.schemaVersion} · Payload Format: {text(result.rawEvidence.payloadFormatVersion)} · Saved: {text(result.rawEvidence.payloadSavedAt)}</div><pre className="thin-scroll max-h-[560px] overflow-auto whitespace-pre-wrap break-all rounded-md bg-slate-950 p-4 text-xs text-slate-100">{result.rawEvidence.preview}</pre>{result.rawEvidence.message ? <p className="mt-2 text-xs font-bold text-amber-700">{result.rawEvidence.message}</p> : null}</div> : null}
         </div>
       </SectionErrorBoundary>

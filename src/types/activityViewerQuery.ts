@@ -2,6 +2,17 @@ import type { ActivityViewerRow } from "../../shared/activityViewerTypes";
 import type { DateRangeState } from "./dateRange";
 import type { DiffQuickFilters } from "../../shared/viewerEfficiency";
 export type ViewerSortDirection = "asc" | "desc";
+export type ViewerProgressDto = {
+  requestId: string;
+  status: "filtering" | "completed" | "cancelled";
+  scanned: number;
+  total: number | null;
+  matched: number;
+  percentage: number | null;
+  elapsedMs: number;
+  batchSize: number;
+  checkpoint: string;
+};
 export type ViewerTableQuery = {
   page: number;
   pageSize: 25 | 50 | 100 | 200;

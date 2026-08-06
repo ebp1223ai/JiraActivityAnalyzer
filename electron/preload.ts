@@ -56,6 +56,12 @@ contextBridge.exposeInMainWorld("desktopApp", {
     userEvents: (payload: unknown) => ipcRenderer.invoke("database-viewer:user-events", payload),
     issueEvents: (payload: unknown) => ipcRenderer.invoke("database-viewer:issue-events", payload),
     issueChangelog: (payload: unknown) => ipcRenderer.invoke("database-viewer:issue-changelog", payload),
+    cancel: (payload: unknown) => ipcRenderer.invoke("database-viewer:cancel", payload),
+    onProgress: (listener: (progress: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: unknown) => listener(progress);
+      ipcRenderer.on("database-viewer:progress", handler);
+      return () => ipcRenderer.removeListener("database-viewer:progress", handler);
+    },
     descriptionFullContext: (payload: unknown) => ipcRenderer.invoke("database-viewer:description-full-context", payload),
     descriptionOriginalPreviews: (payload: unknown) => ipcRenderer.invoke("database-viewer:description-original-previews", payload),
     descriptionComparison: (payload: unknown) => ipcRenderer.invoke("database-viewer:description-comparison", payload),

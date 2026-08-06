@@ -1,3 +1,12 @@
+## 0.2.67 - Progressive Diff Filtering & Before-Unavailable Correctness
+
+- Unified Description Diff display, filter, count, and page-row classification behind one typed canonical classifier, including legacy stored `"null"` values.
+- Corrected Hide Before unavailable so it applies only to Description comparisons and behaves consistently in Issue Changelog, Issue Activity Events, and User All Activity Events.
+- Replaced the fixed 20-second Viewer query cutoff with progressive keyset scanning, bounded adaptive batches, compact progress events, cancellation, and latest-request-wins coordination.
+- Added a 30-second no-progress watchdog with one reduced-batch recovery attempt and typed retryable failure reporting.
+- Added realistic schema-v3 synthetic coverage for 20,000 events, classifier parity, read-only invariants, bounded queue/cache/IPC behavior, cancellation, database switching, and runs longer than 20 seconds.
+- Kept SQLite schema v3, Jira read-only behavior, dependencies, and all data collection/save paths unchanged.
+
 ## 0.2.66 - Viewer Filter Correctness & Large Dataset Stability
 
 - Added `hideBeforeUnavailable` diff quick filter support for Issue Changelog, Issue Activity Events, and User Activity Events, with quick-filter clear/reset defaults preserved by preference migration and session identity.

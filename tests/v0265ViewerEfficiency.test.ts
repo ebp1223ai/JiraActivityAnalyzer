@@ -23,12 +23,16 @@ const whitespace = classify("same value", "same   value");
 const zeroAdded = classify("old", "");
 const zeroDeleted = classify("", "new");
 const unavailable = classify(null, "new");
+const descriptionUnavailable = classifyViewerDiff({ eventId: "synthetic-description", issueKey: "SYNTH-1", fieldId: "description", fieldName: "Description", before: "null", after: "new", sourceType: "jira_changelog", sourceId: "history:0", jiraNativeSourceId: "history" });
 const nonComparison = classify(null, null);
 assert.equal(unchanged.status, "unchanged");
 assert.equal(whitespace.status, "whitespace-only");
 assert.deepEqual([zeroAdded.addedCount, zeroAdded.deletedCount], [0, 1]);
 assert.deepEqual([zeroDeleted.addedCount, zeroDeleted.deletedCount], [1, 0]);
-assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: true }), false);
+assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: true }), true);
+assert.equal(descriptionUnavailable.status, "before-unavailable");
+assert.equal(descriptionUnavailable.descriptionDiff?.status, "before-unavailable");
+assert.equal(viewerDiffPassesFilters(descriptionUnavailable, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: true }), false);
 assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false }), true);
 assert.equal(viewerDiffPassesFilters(nonComparison, { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false }), true);
 assert.equal(viewerDiffPassesFilters(zeroAdded, { hideNoChange: false, hideZeroAdded: true, hideZeroDeleted: false, hideBeforeUnavailable: false }), false);
@@ -80,8 +84,8 @@ try {
   assert.equal(diagnosticRows.filteredCount, 2, "unavailable and non-comparison rows must survive all quick filters except explicit before-hide");
   assert.ok(diagnosticRows.rows.some((row) => row.eventId === "e-comment" && row.comparisonValidated === 0));
   const diagnosticRowsNoBefore = queryDatabaseUserEvents(databasePath, { kind: "selected-users", userIds: ["user-c"] }, { ...baseQuery, diffQuickFilters: { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: true } });
-  assert.equal(diagnosticRowsNoBefore.filteredCount, 1, "Hide Before unavailable should remove before-unavailable rows");
-  assert.equal(diagnosticRowsNoBefore.rows.some((row) => row.eventId === "e-unavailable"), false);
+  assert.equal(diagnosticRowsNoBefore.filteredCount, 2, "Hide Before unavailable applies only to Description comparisons");
+  assert.equal(diagnosticRowsNoBefore.rows.some((row) => row.eventId === "e-unavailable"), true);
 
   const selectedScope = { kind: "selected-users", userIds: ["user-a", "user-b"] } as const;
   const selectedEvents = queryDatabaseUserEvents(databasePath, selectedScope, { ...baseQuery, diffQuickFilters: noQuick });
