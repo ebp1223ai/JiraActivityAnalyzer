@@ -1,3 +1,11 @@
+## 0.3.2 - Compact Diff Export
+
+- Replaced duplicated full Before/After Pending Analysis payloads with an allowlisted compact reference DTO containing canonical Diff hunks, stable SQLite source identity, provenance, availability, and original content SHA-256 values.
+- Added recursive forbidden-key validation so full-content aliases cannot enter records, nested objects, compatibility data, diagnostics, or integrity metadata.
+- Changed the review-draft export contract to `0.3.2-draft.1` and added explicit non-self-contained `compact-reference` metadata.
+- Recomputed per-record and record-array SHA-256 over the compact canonical representation while preserving full filtered-set, multi-batch, progress, cancellation, source-generation, and atomic cleanup behavior.
+- Kept Current-State SQLite schema v3, Jira read-only behavior, dependencies, and database write paths unchanged.
+
 ## 0.3.1 - Pending Analysis Export Correctness
 
 - Replaced the property/value-only local-path rejection with a central provenance-aware integrity policy that permits path-like Jira evidence unchanged while failing generated runtime paths, unknown provenance, and credential material with typed reason and JSON path only.

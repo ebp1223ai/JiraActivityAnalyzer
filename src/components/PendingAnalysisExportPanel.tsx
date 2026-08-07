@@ -74,13 +74,14 @@ export function PendingAnalysisExportPanel(props: Props) {
   return <div data-testid={`pending-analysis-export-${props.sourceView.toLowerCase()}`} className="rounded-md border border-blue-200 bg-blue-50 p-3">
     <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
       <div className="min-w-0 text-sm text-blue-950">
-        <div className="font-black">Export Pending Analysis Data / 匯出待分析資料</div>
+        <div className="font-black">Export Compact Diff References / 匯出待分析資料</div>
         <div className="mt-1 break-words text-xs font-semibold">Source / 來源：{label} · Filtered / 篩選後：<span data-no-clip="true">{props.filteredCount.toLocaleString()}</span> · Status / 狀態：{forThisView ? run?.status ?? "ready" : "ready"}</div>
+        <div className="mt-1 max-w-full break-words text-xs font-semibold text-blue-800">Compact reference export: Diff, stable SQLite references, and SHA-256 only. Full Before/After content remains in the source database.</div>
         {disabledReason ? <div className="mt-1 text-xs font-bold text-amber-800">{disabledReason}</div> : null}
       </div>
       <div className="flex flex-wrap gap-2">
         {active && run && isPendingAnalysisActive(run) ? <button className="btn" type="button" onClick={() => void window.desktopApp?.pendingAnalysisExport?.cancel({ exportId: run.exportId })}><Square size={15} />Cancel / 取消</button> : null}
-        {!active ? <button className="btn btn-primary" type="button" disabled={Boolean(disabledReason)} title={disabledReason || "Export the complete frozen filtered set"} onClick={() => void start()}><Download size={16} />Export Pending Analysis Data / 匯出待分析資料</button> : null}
+        {!active ? <button className="btn btn-primary" type="button" disabled={Boolean(disabledReason)} title={disabledReason || "Export compact Diff references for the complete frozen filtered set"} onClick={() => void start()}><Download size={16} />Export Compact Diff References / 匯出待分析資料</button> : null}
       </div>
     </div>
     {forThisView && run && isPendingAnalysisActive(run) ? <div className="mt-3">

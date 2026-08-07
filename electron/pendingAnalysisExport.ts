@@ -6,6 +6,7 @@ import { assertPathInsideRoot, resolveInsideRoot } from "./appRoot.js";
 import { scanDatabaseEventsForPendingAnalysis } from "./databaseViewer.js";
 import {
   PENDING_ANALYSIS_CONTRACT_STATUS,
+  PENDING_ANALYSIS_EXPORT_MODE,
   PENDING_ANALYSIS_SCHEMA_NAME,
   PENDING_ANALYSIS_SCHEMA_VERSION,
   PendingAnalysisExportError,
@@ -42,91 +43,105 @@ function taipeiTimestamp(date = new Date()) {
   return { file: `${get("year")}${get("month")}${get("day")}_${get("hour")}${get("minute")}${get("second")}`, iso: `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}+08:00` };
 }
 
-function jsonValue(value: unknown) {
-  if (typeof value !== "string") return value ?? null;
-  try { return JSON.parse(value); } catch { return value; }
-}
-
 function hostOnly(value: unknown) {
   try { return new URL(String(value ?? "")).host; } catch { return ""; }
 }
 
+function nullableText(value: unknown) {
+  return value === null || value === undefined || value === "" ? null : String(value);
+}
+
+function rawContent(value: unknown) {
+  return value === null || value === undefined ? null : String(value);
+}
+
+function sha256Text(value: string | null) {
+  return value === null ? null : crypto.createHash("sha256").update(value, "utf8").digest("hex");
+}
+
 export function pendingAnalysisRecord(row: Record<string, unknown>, source: { databaseId: string; jiraServerFingerprint: string }, runtimeIdentity: PendingAnalysisRuntimeIdentity = {}): PendingAnalysisRecord {
-  const beforeRaw = row.before == null ? null : String(row.before);
-  const afterRaw = row.after == null ? null : String(row.after);
+  const beforeRaw = rawContent(row.before);
+  const afterRaw = rawContent(row.after);
   const descriptionDiff = row.descriptionDiff && typeof row.descriptionDiff === "object" ? row.descriptionDiff as Record<string, unknown> : null;
+  const beforeAvailable = descriptionDiff && typeof descriptionDiff.beforeAvailable === "boolean"
+    ? descriptionDiff.beforeAvailable && descriptionDiff.beforeComplete !== false
+    : beforeRaw !== null && row.beforeComplete !== 0;
+  const afterAvailable = descriptionDiff && typeof descriptionDiff.afterAvailable === "boolean"
+    ? descriptionDiff.afterAvailable && descriptionDiff.afterComplete !== false
+    : afterRaw !== null && row.afterComplete !== 0;
+  const diffBeforeSha256 = nullableText(descriptionDiff?.diffInputBeforeSha256);
+  const diffAfterSha256 = nullableText(descriptionDiff?.diffInputAfterSha256);
+  const beforeSha256 = beforeAvailable ? diffBeforeSha256 ?? sha256Text(beforeRaw) : null;
+  const afterSha256 = afterAvailable ? diffAfterSha256 ?? sha256Text(afterRaw) : null;
+  if ((beforeAvailable && !beforeSha256) || (afterAvailable && !afterSha256)) {
+    throw new PendingAnalysisExportError("EXPORT_INTEGRITY_FAILED", "Canonical source content hash is unavailable.");
+  }
+  const activityEventId = nullableText(row.eventId) ?? "";
+  const sourceRecordStableId = nullableText(row.sourceRecordId);
   const sourceIdentity = {
-    issueId: row.issueId ?? null, issueKey: row.issueKey ?? null, eventTime: row.eventTime ?? null,
-    eventType: row.eventType ?? null, sourceProvenance: row.sourceProvenance ?? null,
-    sourceRecordStableId: row.sourceRecordId ?? null, jiraNativeSourceId: row.jiraNativeSourceId ?? null,
-    identityKeyType: row.identityKeyType ?? null, fieldId: row.fieldId ?? null,
-    historyId: row.historyId ?? null, historyItemIndex: row.itemIndex ?? null
+    activityEventId,
+    sourceRecordStableId,
+    historyId: nullableText(row.historyId),
+    historyItemIndex: typeof row.itemIndex === "number" ? row.itemIndex : row.itemIndex == null ? null : Number(row.itemIndex),
+    issueId: nullableText(row.issueId),
+    issueKey: nullableText(row.issueKey),
+    projectKey: nullableText(row.projectKey),
+    fieldId: nullableText(row.fieldId),
+    fieldName: nullableText(row.fieldName),
+    eventTime: nullableText(row.eventTime),
+    actor: { stableIdentity: nullableText(row.userId), displayValue: nullableText(row.displayName) },
+    sourceProvenance: nullableText(row.sourceProvenance)
   };
-  const beforeAvailable = beforeRaw !== null && row.beforeComplete !== 0;
-  const afterAvailable = afterRaw !== null && row.afterComplete !== 0;
-  const beforeSha256 = descriptionDiff?.diffInputBeforeSha256 ?? (beforeAvailable ? crypto.createHash("sha256").update(beforeRaw!, "utf8").digest("hex") : null);
-  const afterSha256 = descriptionDiff?.diffInputAfterSha256 ?? (afterAvailable ? crypto.createHash("sha256").update(afterRaw!, "utf8").digest("hex") : null);
-  const analysisContent = {
-    beforeRaw, afterRaw,
+  const diffHunks = Array.isArray(descriptionDiff?.hunks) ? structuredClone(descriptionDiff.hunks) as PendingAnalysisRecord["diff"]["diffHunks"] : [];
+  const diffStatus = nullableText(descriptionDiff?.status) ?? nullableText(row.diffStatus);
+  const addedLineCount = Number.isInteger(descriptionDiff?.addedLines) ? Number(descriptionDiff?.addedLines)
+    : Number.isInteger(row.addedCount) ? Number(row.addedCount) : null;
+  const removedLineCount = Number.isInteger(descriptionDiff?.deletedLines) ? Number(descriptionDiff?.deletedLines)
+    : Number.isInteger(row.deletedCount) ? Number(row.deletedCount) : null;
+  const sourceContentHash = sha256Canonical({ sourceIdentity, beforeSha256, afterSha256, diffStatus, diffHunks });
+  const reference: PendingAnalysisRecord["reference"] = {
+    evidenceId: createPendingEvidenceId(source.databaseId, sourceIdentity, sourceContentHash),
+    activityEventId,
+    sourceDatabaseId: source.databaseId,
+    jiraServerFingerprint: source.jiraServerFingerprint,
+    sourceRecordStableId,
+    historyId: sourceIdentity.historyId,
+    historyItemIndex: Number.isFinite(sourceIdentity.historyItemIndex) ? sourceIdentity.historyItemIndex : null,
+    issueId: sourceIdentity.issueId,
+    issueKey: sourceIdentity.issueKey,
+    projectKey: sourceIdentity.projectKey,
+    fieldId: sourceIdentity.fieldId,
+    fieldName: sourceIdentity.fieldName,
+    eventTime: sourceIdentity.eventTime,
+    actor: sourceIdentity.actor,
+    sourceProvenance: sourceIdentity.sourceProvenance,
+    sourceContentHash,
+    beforeSha256,
+    afterSha256
+  };
+  const diff: PendingAnalysisRecord["diff"] = {
+    diffText: null,
+    diffHunks,
+    addedLineCount,
+    removedLineCount,
+    diffStatus,
+    isSubstantiveChange: diffStatus === "changed",
     beforeAvailability: beforeAvailable ? "AVAILABLE" : "UNAVAILABLE",
     afterAvailability: afterAvailable ? "AVAILABLE" : "UNAVAILABLE",
-    beforeSha256, afterSha256,
-    diffStatus: row.diffStatus ?? null,
-    diffReason: descriptionDiff?.diagnosticsCode ?? null,
-    diffText: null,
-    diffHunks: descriptionDiff?.hunks ?? [],
-    addedLineCount: row.addedCount ?? null,
-    removedLineCount: row.deletedCount ?? null,
-    unchangedLineCount: null,
-    isSubstantiveChange: row.diffStatus === "changed",
-    contentDisplayMode: row.contentDisplayMode ?? null,
-    contentSource: row.contentSource ?? null,
-    parsedBefore: jsonValue(row.before), parsedAfter: jsonValue(row.after),
-    comment: row.commentBody ?? null, commentFormat: row.commentBodyFormat ?? null,
-    diagnostics: [descriptionDiff?.diagnosticsCode].filter(Boolean)
+    integrityStatus: beforeSha256 || afterSha256 ? "VERIFIED" : "NOT_APPLICABLE",
+    diagnostics: [nullableText(descriptionDiff?.diagnosticsCode)].filter((value): value is string => Boolean(value))
   };
-  const sourceContentHash = sha256Canonical({ sourceIdentity, beforeRaw, afterRaw, beforeSha256, afterSha256, diffStatus: row.diffStatus ?? null });
-  const evidenceIdentity = {
-    evidenceId: createPendingEvidenceId(source.databaseId, sourceIdentity, sourceContentHash),
-    activityEventId: String(row.eventId ?? ""), sourceRecordType: "ACTIVITY_EVENT",
-    sourceRecordStableId: row.sourceRecordId ?? null, sourceDatabaseId: source.databaseId,
-    jiraServerFingerprint: source.jiraServerFingerprint, issueId: row.issueId ?? null,
-    issueKey: row.issueKey ?? null, historyId: row.historyId ?? null, historyItemIndex: row.itemIndex ?? null,
-    commentId: row.sourceCommentId ?? null, fieldId: row.fieldId ?? null, fieldName: row.fieldName ?? null,
-    sourceType: row.sourceProvenance ?? null, sourceContentHash,
-    availability: { history: row.historyId ? "AVAILABLE" : "NOT_APPLICABLE", comment: row.sourceCommentId ? "AVAILABLE" : "NOT_APPLICABLE" }
+  const integrityBase = {
+    originalEvidenceAvailable: beforeAvailable || afterAvailable,
+    sourceContentHashesVerified: Boolean((!beforeAvailable || beforeSha256) && (!afterAvailable || afterSha256)),
+    diagnostics: [] as string[]
   };
-  const recordBase = {
-    evidenceIdentity,
-    eventMetadata: {
-      eventTime: row.eventTime ?? null, eventType: row.eventType ?? null, action: row.eventType ?? null,
-      actor: { stableIdentity: row.userId ?? null, displayValue: row.displayName ?? null },
-      projectKey: row.projectKey ?? null, source: row.sourceProvenance ?? null, sourceUrl: null,
-      provenanceStatus: row.sourceProvenance ? "AVAILABLE" : "UNAVAILABLE",
-      integrityStatus: row.parseStatus === "success" ? "VALIDATED" : String(row.parseStatus ?? "UNKNOWN")
-    },
-    analysisContent,
-    currentIssueContext: {
-      contextType: "CURRENT_SAVED_ISSUE_SNAPSHOT" as const,
-      contextSemantics: "CURRENT_SAVED_ISSUE_SNAPSHOT",
-      summary: row.summary ?? null, projectKey: row.projectKey ?? null, projectName: null,
-      issueType: row.issueTypeName ?? null, status: row.currentStatusName ?? null, priority: row.currentPriorityName ?? null,
-      labels: jsonValue(row.currentLabels), components: jsonValue(row.currentComponents),
-      assignee: row.currentAssigneeId ?? null, reporter: row.currentReporterId ?? null, creator: row.currentCreatorId ?? null,
-      startDate: row.currentStartDate ?? null, dueDate: row.currentDueDate ?? null,
-      currentDescription: null, currentDescriptionAvailability: "NOT_PROJECTED_BY_CURRENT_SCHEMA",
-      snapshotUpdatedAt: row.currentSnapshotUpdatedAt ?? null
-    },
-    relatedContextCandidates: { sameHistoryItems: [], availability: "UNAVAILABLE", diagnostics: ["Bounded same-history projection is not available in v0.3.0 draft. No remote request was made."] },
-    integrity: {
-      recordSha256: "", originalEvidenceAvailable: beforeRaw !== null || afterRaw !== null,
-      identityCompleteness: evidenceIdentity.activityEventId && evidenceIdentity.sourceRecordStableId && evidenceIdentity.sourceDatabaseId ? "COMPLETE" : "INCOMPLETE",
-      beforeAfterHashVerified: Boolean((!beforeAvailable || beforeSha256) && (!afterAvailable || afterSha256)),
-      crossViewIdentityConsistency: "DETERMINISTIC_BY_SOURCE_IDENTITY_AND_CONTENT_HASH",
-      diagnostics: [] as string[]
-    }
+  const compactBase = { reference, diff, integrity: integrityBase };
+  const record: PendingAnalysisRecord = {
+    reference,
+    diff,
+    integrity: { recordSha256: sha256Canonical(compactBase), ...integrityBase }
   };
-  const record = { ...recordBase, integrity: { ...recordBase.integrity, recordSha256: sha256Canonical(recordBase) } } as PendingAnalysisRecord;
   assertPendingAnalysisRecordSafe(record, runtimeIdentity);
   return record;
 }
@@ -243,7 +258,9 @@ export async function runPendingAnalysisExport(input: RunInput, control: RunCont
     const header = {
       schemaName: PENDING_ANALYSIS_SCHEMA_NAME, schemaVersion: PENDING_ANALYSIS_SCHEMA_VERSION,
       contractStatus: PENDING_ANALYSIS_CONTRACT_STATUS, exportId: input.exportId, createdAt: timestamp.iso,
-      timezone: "Asia/Taipei", appVersion: input.appVersion, sourceView: input.sourceView,
+      timezone: "Asia/Taipei", appVersion: input.appVersion,
+      exportMetadata: { exportMode: PENDING_ANALYSIS_EXPORT_MODE, selfContained: false, fullContentIncluded: false, sourceDatabaseRequiredForFullContent: true },
+      sourceView: input.sourceView,
       sourceDatabase: { sourceDatabaseId: databaseId, jiraServerFingerprint: jiraServerIdentity, jiraServerHost: hostOnly(scan.metadata.jiraServerUrl), sourceSchemaVersion: Number(scan.metadata.schemaVersion), databaseGeneration: scan.databaseGeneration },
       querySnapshot, counts: { filteredCountAtStart: scan.filteredCount, exportedCount, skippedCount: 0, failedCount: 0, batchCount }
     };
@@ -253,7 +270,7 @@ export async function runPendingAnalysisExport(input: RunInput, control: RunCont
     const headerText = JSON.stringify(header, null, 2).replace(/\n}$/, "");
     fs.writeFileSync(partialPath, `${headerText},\n  \"records\": [\n`, { encoding: "utf8", flag: "wx" });
     await pipeline(fs.createReadStream(spoolPath), fs.createWriteStream(partialPath, { flags: "a" }));
-    fs.appendFileSync(partialPath, `\n  ],\n  \"integrity\": ${JSON.stringify({ recordsSha256: recordsDigest.digest("hex"), recordCount: exportedCount, schemaVersion: PENDING_ANALYSIS_SCHEMA_VERSION, exportCompletionStatus: "COMPLETED", algorithm: "SHA-256" })},\n  \"diagnostics\": ${JSON.stringify(["Contract remains review-draft pending real SQLite and user content review"])}\n}\n`, "utf8");
+    fs.appendFileSync(partialPath, `\n  ],\n  \"integrity\": ${JSON.stringify({ recordsSha256: recordsDigest.digest("hex"), recordCount: exportedCount, schemaVersion: PENDING_ANALYSIS_SCHEMA_VERSION, exportCompletionStatus: "COMPLETED", algorithm: "SHA-256" })},\n  \"diagnostics\": ${JSON.stringify(["Compact reference export. Full source content remains in the source SQLite database."])}\n}\n`, "utf8");
     const fileHash = crypto.createHash("sha256");
     await new Promise<void>((resolve, reject) => { const stream = fs.createReadStream(partialPath); stream.on("data", (chunk) => fileHash.update(chunk)); stream.on("end", resolve); stream.on("error", reject); });
     const sha256 = fileHash.digest("hex");

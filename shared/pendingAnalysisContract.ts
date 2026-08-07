@@ -1,8 +1,10 @@
 import crypto from "node:crypto";
+import type { DiffHunk } from "./descriptionDiff.js";
 
 export const PENDING_ANALYSIS_SCHEMA_NAME = "jira-activity-analyzer.pending-analysis" as const;
-export const PENDING_ANALYSIS_SCHEMA_VERSION = "0.3.0-draft.1" as const;
+export const PENDING_ANALYSIS_SCHEMA_VERSION = "0.3.2-draft.1" as const;
 export const PENDING_ANALYSIS_CONTRACT_STATUS = "review-draft" as const;
+export const PENDING_ANALYSIS_EXPORT_MODE = "compact-reference" as const;
 
 export type PendingAnalysisSourceView = "ISSUE_ACTIVITY_EVENTS" | "USER_ALL_ACTIVITY_EVENTS";
 export type PendingAnalysisExportErrorCode =
@@ -23,6 +25,7 @@ export type PendingAnalysisIntegrityReason =
   | "EVIDENCE_PATH_TEXT_ALLOWED"
   | "RUNTIME_PATH_IN_GENERATED_METADATA"
   | "CREDENTIAL_PATTERN_DETECTED"
+  | "FULL_CONTENT_FIELD_FORBIDDEN"
   | "UNKNOWN_FIELD_PROVENANCE";
 
 export type PendingAnalysisRuntimeIdentity = {
@@ -82,17 +85,47 @@ export type PendingAnalysisExportRequest = {
   userScope?: unknown;
 };
 
+export type PendingAnalysisAvailability = "AVAILABLE" | "UNAVAILABLE";
+
 export type PendingAnalysisRecord = {
-  evidenceIdentity: Record<string, unknown> & {
+  reference: {
     evidenceId: string;
     activityEventId: string;
+    sourceDatabaseId: string;
+    jiraServerFingerprint: string;
+    sourceRecordStableId: string | null;
+    historyId: string | null;
+    historyItemIndex: number | null;
+    issueId: string | null;
+    issueKey: string | null;
+    projectKey: string | null;
+    fieldId: string | null;
+    fieldName: string | null;
+    eventTime: string | null;
+    actor: { stableIdentity: string | null; displayValue: string | null };
+    sourceProvenance: string | null;
     sourceContentHash: string;
+    beforeSha256: string | null;
+    afterSha256: string | null;
   };
-  eventMetadata: Record<string, unknown>;
-  analysisContent: Record<string, unknown>;
-  currentIssueContext: Record<string, unknown> & { contextType: "CURRENT_SAVED_ISSUE_SNAPSHOT" };
-  relatedContextCandidates: { sameHistoryItems: unknown[]; availability: string; diagnostics: string[] };
-  integrity: { recordSha256: string; originalEvidenceAvailable: boolean; diagnostics: string[] };
+  diff: {
+    diffText: null;
+    diffHunks: DiffHunk[];
+    addedLineCount: number | null;
+    removedLineCount: number | null;
+    diffStatus: string | null;
+    isSubstantiveChange: boolean;
+    beforeAvailability: PendingAnalysisAvailability;
+    afterAvailability: PendingAnalysisAvailability;
+    integrityStatus: "VERIFIED" | "NOT_APPLICABLE";
+    diagnostics: string[];
+  };
+  integrity: {
+    recordSha256: string;
+    originalEvidenceAvailable: boolean;
+    sourceContentHashesVerified: boolean;
+    diagnostics: string[];
+  };
 };
 
 export type PendingAnalysisDocument = {
@@ -102,7 +135,13 @@ export type PendingAnalysisDocument = {
   exportId: string;
   createdAt: string;
   timezone: "Asia/Taipei";
-  appVersion: "0.3.1";
+  appVersion: "0.3.2";
+  exportMetadata: {
+    exportMode: typeof PENDING_ANALYSIS_EXPORT_MODE;
+    selfContained: false;
+    fullContentIncluded: false;
+    sourceDatabaseRequiredForFullContent: true;
+  };
   sourceView: PendingAnalysisSourceView;
   sourceDatabase: {
     sourceDatabaseId: string;
@@ -230,30 +269,41 @@ function scanFields(value: unknown, rules: Record<string, PendingAnalysisProvena
   return decisions;
 }
 
+const forbiddenCompactKeys = new Set([
+  "beforeraw", "afterraw", "parsedbefore", "parsedafter", "before", "after",
+  "beforecontent", "aftercontent", "fromvalue", "tovalue", "fromstring", "tostring",
+  "oldvalue", "newvalue", "rawbefore", "rawafter"
+]);
+
+export function assertNoEmbeddedFullContent(value: unknown, path = "$compact") {
+  const visit = (child: unknown, childPath: string) => {
+    if (Array.isArray(child)) child.forEach((item, index) => visit(item, `${childPath}[${index}]`));
+    else if (child && typeof child === "object") {
+      for (const [key, item] of Object.entries(child as Record<string, unknown>)) {
+        const itemPath = `${childPath}.${key}`;
+        if (forbiddenCompactKeys.has(key.toLowerCase())) integrityFailure("FULL_CONTENT_FIELD_FORBIDDEN", itemPath);
+        visit(item, itemPath);
+      }
+    }
+  };
+  visit(value, path);
+  return value;
+}
+
 export function assertPendingAnalysisRecordSafe(record: PendingAnalysisRecord, context: PendingAnalysisRuntimeIdentity = {}) {
   const top = record as Record<string, unknown>;
-  const allowedTop = new Set(["evidenceIdentity", "eventMetadata", "analysisContent", "currentIssueContext", "relatedContextCandidates", "integrity"]);
+  const allowedTop = new Set(["reference", "diff", "integrity"]);
   for (const key of Object.keys(top)) if (!allowedTop.has(key)) integrityFailure("UNKNOWN_FIELD_PROVENANCE", "$." + key);
+  assertNoEmbeddedFullContent(record);
+  const { recordSha256, ...integrityBase } = record.integrity;
+  const expectedRecordSha256 = sha256Canonical({ reference: record.reference, diff: record.diff, integrity: integrityBase });
+  if (recordSha256 !== expectedRecordSha256) throw new PendingAnalysisExportError("EXPORT_INTEGRITY_FAILED", "Compact record digest mismatch.");
+  if (!record.reference.sourceDatabaseId || !record.reference.jiraServerFingerprint || !record.reference.activityEventId) {
+    throw new PendingAnalysisExportError("SOURCE_IDENTITY_INCOMPLETE", "Compact source reference is incomplete.");
+  }
   return [
-    ...scanPendingAnalysisValue(record.evidenceIdentity, "DERIVED_FROM_EVIDENCE", "$.evidenceIdentity", context),
-    ...scanPendingAnalysisValue(record.eventMetadata, "SOURCE_EVIDENCE", "$.eventMetadata", context),
-    ...scanFields(record.analysisContent, {
-      beforeRaw: "SOURCE_EVIDENCE", afterRaw: "SOURCE_EVIDENCE", parsedBefore: "SOURCE_EVIDENCE", parsedAfter: "SOURCE_EVIDENCE", comment: "SOURCE_EVIDENCE",
-      beforeAvailability: "DERIVED_FROM_EVIDENCE", afterAvailability: "DERIVED_FROM_EVIDENCE", beforeSha256: "DERIVED_FROM_EVIDENCE", afterSha256: "DERIVED_FROM_EVIDENCE",
-      diffStatus: "DERIVED_FROM_EVIDENCE", diffReason: "DERIVED_FROM_EVIDENCE", diffText: "DERIVED_FROM_EVIDENCE", diffHunks: "DERIVED_FROM_EVIDENCE",
-      addedLineCount: "DERIVED_FROM_EVIDENCE", removedLineCount: "DERIVED_FROM_EVIDENCE", unchangedLineCount: "DERIVED_FROM_EVIDENCE",
-      isSubstantiveChange: "DERIVED_FROM_EVIDENCE", contentDisplayMode: "DERIVED_FROM_EVIDENCE", contentSource: "DERIVED_FROM_EVIDENCE",
-      commentFormat: "DERIVED_FROM_EVIDENCE", diagnostics: "DERIVED_FROM_EVIDENCE"
-    }, "$.analysisContent", context),
-    ...scanFields(record.currentIssueContext, {
-      contextType: "RUNTIME_GENERATED_METADATA", contextSemantics: "RUNTIME_GENERATED_METADATA", currentDescriptionAvailability: "RUNTIME_GENERATED_METADATA",
-      summary: "SOURCE_EVIDENCE", projectKey: "SOURCE_EVIDENCE", projectName: "SOURCE_EVIDENCE", issueType: "SOURCE_EVIDENCE", status: "SOURCE_EVIDENCE",
-      priority: "SOURCE_EVIDENCE", labels: "SOURCE_EVIDENCE", components: "SOURCE_EVIDENCE", assignee: "SOURCE_EVIDENCE", reporter: "SOURCE_EVIDENCE",
-      creator: "SOURCE_EVIDENCE", startDate: "SOURCE_EVIDENCE", dueDate: "SOURCE_EVIDENCE", currentDescription: "SOURCE_EVIDENCE", snapshotUpdatedAt: "SOURCE_EVIDENCE"
-    }, "$.currentIssueContext", context),
-    ...scanFields(record.relatedContextCandidates, {
-      sameHistoryItems: "SOURCE_EVIDENCE", availability: "RUNTIME_GENERATED_METADATA", diagnostics: "RUNTIME_GENERATED_METADATA"
-    }, "$.relatedContextCandidates", context),
+    ...scanPendingAnalysisValue(record.reference, "DERIVED_FROM_EVIDENCE", "$.reference", context),
+    ...scanPendingAnalysisValue(record.diff, "DERIVED_FROM_EVIDENCE", "$.diff", context),
     ...scanPendingAnalysisValue(record.integrity, "RUNTIME_GENERATED_METADATA", "$.integrity", context)
   ];
 }
@@ -262,7 +312,8 @@ export function assertPendingAnalysisHeaderSafe(value: Record<string, unknown>, 
   return scanFields(value, {
     schemaName: "RUNTIME_GENERATED_METADATA", schemaVersion: "RUNTIME_GENERATED_METADATA", contractStatus: "RUNTIME_GENERATED_METADATA",
     exportId: "RUNTIME_GENERATED_METADATA", createdAt: "RUNTIME_GENERATED_METADATA", timezone: "RUNTIME_GENERATED_METADATA",
-    appVersion: "RUNTIME_GENERATED_METADATA", sourceView: "RUNTIME_GENERATED_METADATA", sourceDatabase: "RUNTIME_GENERATED_METADATA",
+    appVersion: "RUNTIME_GENERATED_METADATA", exportMetadata: "RUNTIME_GENERATED_METADATA",
+    sourceView: "RUNTIME_GENERATED_METADATA", sourceDatabase: "RUNTIME_GENERATED_METADATA",
     querySnapshot: "RUNTIME_GENERATED_METADATA", counts: "RUNTIME_GENERATED_METADATA"
   }, "$", context);
 }
@@ -270,6 +321,10 @@ export function assertPendingAnalysisHeaderSafe(value: Record<string, unknown>, 
 export function assertPendingAnalysisDocument(document: PendingAnalysisDocument, context: PendingAnalysisRuntimeIdentity = {}) {
   if (document.schemaName !== PENDING_ANALYSIS_SCHEMA_NAME || document.schemaVersion !== PENDING_ANALYSIS_SCHEMA_VERSION || document.contractStatus !== PENDING_ANALYSIS_CONTRACT_STATUS) {
     throw new PendingAnalysisExportError("EXPORT_INTEGRITY_FAILED", "Pending-analysis contract header is invalid.");
+  }
+  if (document.exportMetadata.exportMode !== PENDING_ANALYSIS_EXPORT_MODE || document.exportMetadata.selfContained
+      || document.exportMetadata.fullContentIncluded || !document.exportMetadata.sourceDatabaseRequiredForFullContent) {
+    throw new PendingAnalysisExportError("EXPORT_INTEGRITY_FAILED", "Compact export metadata is invalid.");
   }
   if (!document.sourceDatabase.sourceDatabaseId || !document.sourceDatabase.jiraServerFingerprint || !document.sourceDatabase.databaseGeneration) {
     throw new PendingAnalysisExportError("SOURCE_IDENTITY_INCOMPLETE", "Source database identity is incomplete.");

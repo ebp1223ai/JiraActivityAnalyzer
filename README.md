@@ -1,24 +1,24 @@
 # Jira Activity Analyzer
 
-> v0.3.1 corrects pending-analysis export integrity, diagnostics, concurrency, and progress. Jira remains read-only, Current-State SQLite schema stays at v3, and the export contract remains review-draft `0.3.0-draft.1`.
+> v0.3.2 changes Pending Analysis into a compact, non-self-contained Diff reference export. Jira remains read-only and Current-State SQLite schema stays at v3.
 
-## v0.3.1 Pending Analysis Export Correctness
+## v0.3.2 Compact Diff Export
 
-- Path-like text from Jira Before/After, Diff/hunks, comments, descriptions, and other explicit evidence remains unchanged and hash-stable.
-- Runtime-generated host paths, credentials, and unknown provenance fail closed with typed reason and JSON path; the scanner never cleans evidence and continues.
-- Pending export lifecycle diagnostics are written through the existing persistent logger and included by the existing Debug Folder session collector without evidence, credentials, or absolute runtime roots.
-- Active exports expose only Cancel in both Viewers, duplicate renderer starts are suppressed, and stale events do not replace the active run.
-- Progress reports processed records against the frozen filtered total. Finalization does not fabricate record progress, and only successful completion reaches 100%.
+- Exports canonical Diff hunks, change counts/status, stable SQLite source references, actor/event provenance, and original content SHA-256 values.
+- Full Before/After values, parsed duplicates, comments, and compatibility aliases are not serialized into Pending Analysis JSON.
+- Full source content remains in the selected source SQLite database and is recoverable by `sourceDatabaseId + activityEventId` with supporting stable identity fields.
+- Each compact record and the complete record array have deterministic SHA-256 integrity values.
+- This is intentionally not a self-contained export. Moving or deleting the source database removes access to full original content.
 
 ## Pending Analysis Data Export Contract
 
-- Open **Issue Viewer → Activity Events** or **User Viewer → All Activity Events**, apply the existing filters, then select **Export Pending Analysis Data / 匯出待分析資料**.
-- The export freezes the current typed filter and sort snapshot and writes every matching record across all pages, not only the visible page.
-- Files are readable UTF-8 JSON under `<APP_ROOT>/exports/pending-analysis/`. The UI reports filename, absolute output path, record count, size, SHA-256, elapsed time, and an Open Folder action.
-- Export runs are owned by Electron main/worker, use bounded batches, remain observable after route changes, support cancellation, and fail closed if counts or the source database generation change.
-- The file contains stable source/evidence identity, original SQLite Before/After values and hashes, canonical Diff status/hunks when available, and explicitly current (not event-time) saved Issue context.
-- The file never contains the local SQLite path or APP_ROOT path. Credentials, Authorization, cookies, passwords, and tokens are prohibited.
-- Schema: `jira-activity-analyzer.pending-analysis` / `0.3.0-draft.1`; status: `review-draft`. Real SQLite and user content review must complete before this contract can become final.
+- Open **Issue Viewer / Activity Events** or **User Viewer / All Activity Events**, apply filters, then select **Export Compact Diff References**.
+- The export freezes the typed filter/sort snapshot and writes every matching record across all pages, not only the visible page.
+- Files are UTF-8 JSON under `<APP_ROOT>/exports/pending-analysis/`; the UI reports path, count, size, SHA-256, elapsed time, and Open Folder.
+- Export runs use bounded batches, cancellation, source-generation guards, collision-safe filenames, and atomic finalization.
+- Export metadata declares `compact-reference`, `selfContained: false`, `fullContentIncluded: false`, and `sourceDatabaseRequiredForFullContent: true`.
+- Local SQLite/APP_ROOT paths and credentials are prohibited.
+- Schema: `jira-activity-analyzer.pending-analysis` / `0.3.2-draft.1`; status: `review-draft`.
 
 > v0.2.61 unifies Before/After/Diff presentation across Viewer activity tables and simplifies table controls without changing validated evidence or query semantics.
 

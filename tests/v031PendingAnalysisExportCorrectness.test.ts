@@ -54,29 +54,38 @@ function progress(exportId: string, status: PendingAnalysisProgress["status"] = 
 }
 
 async function run() {
-  assert.equal(PENDING_ANALYSIS_SCHEMA_VERSION, "0.3.0-draft.1");
+  assert.equal(PENDING_ANALYSIS_SCHEMA_VERSION, "0.3.2-draft.1");
   assert.equal(PENDING_ANALYSIS_CONTRACT_STATUS, "review-draft");
   const beforeRaw = JSON.stringify({ windows: "C:\\Jira\\evidence.txt", slash: "C:/Jira/evidence.txt", unc: "\\\\server\\share\\evidence.txt" });
   const afterRaw = JSON.stringify({ posix: "/var/jira/evidence.txt", relative: "../jira/evidence.txt" });
+  const diffHunks = [{
+    id: "event-v031:hunk:1:1:1", oldStart: 1, oldLines: 1, newStart: 1, newLines: 1,
+    lines: [
+      { kind: "delete" as const, oldLineNumber: 1, newLineNumber: null, text: "Changed C:\\Jira\\diff.txt" },
+      { kind: "insert" as const, oldLineNumber: null, newLineNumber: 1, text: "Changed /var/jira/diff.txt" }
+    ]
+  }];
   const record = pendingAnalysisRecord({
-    eventId: "event-v031", issueId: "100", issueKey: "SYNTH-31", eventTime: "2026-08-07T00:00:00.000Z",
+    eventId: "event-v031", issueId: "100", issueKey: "SYNTH-31", projectKey: "SYNTH", eventTime: "2026-08-07T00:00:00.000Z",
     eventType: "field_changed", sourceProvenance: "jira_changelog", sourceRecordId: "history-31:0",
     jiraNativeSourceId: "history-31", identityKeyType: "jira_native", fieldId: "description", fieldName: "Description",
-    before: beforeRaw, after: afterRaw, beforeComplete: 1, afterComplete: 1, diffStatus: "changed", addedCount: 2, deletedCount: 1,
+    before: beforeRaw, after: afterRaw, beforeComplete: 1, afterComplete: 1, diffStatus: "changed", addedCount: 1, deletedCount: 1,
     descriptionDiff: {
-      diffInputBeforeSha256: sha(beforeRaw), diffInputAfterSha256: sha(afterRaw), diagnosticsCode: "changed",
-      hunks: [{ before: "C:\\Jira\\diff.txt", after: "/var/jira/diff.txt", relative: "./diff/evidence.txt" }]
+      status: "changed", addedLines: 1, deletedLines: 1,
+      diffInputBeforeSha256: sha(beforeRaw), diffInputAfterSha256: sha(afterRaw), diagnosticsCode: null, hunks: diffHunks
     },
-    commentBody: "\\\\server\\share\\comment.txt", commentBodyFormat: "plain",
-    summary: "Evidence at C:/Jira/summary.txt", parseStatus: "success"
+    userId: "actor-31", displayName: "Synthetic User", parseStatus: "success"
   }, { databaseId: "synthetic-db", jiraServerFingerprint: "synthetic-server" }, runtimeIdentity);
-  assert.equal(record.analysisContent.beforeRaw, beforeRaw);
-  assert.equal(record.analysisContent.afterRaw, afterRaw);
-  assert.equal(record.analysisContent.beforeSha256, sha(beforeRaw));
-  assert.equal(record.analysisContent.afterSha256, sha(afterRaw));
-  assert.deepEqual(record.analysisContent.diffHunks, [{ before: "C:\\Jira\\diff.txt", after: "/var/jira/diff.txt", relative: "./diff/evidence.txt" }]);
+  assert.equal(record.reference.beforeSha256, sha(beforeRaw));
+  assert.equal(record.reference.afterSha256, sha(afterRaw));
+  assert.equal(record.reference.activityEventId, "event-v031");
+  assert.deepEqual(record.diff.diffHunks, diffHunks);
+  assert.equal(record.diff.diffText, null);
+  assert.equal("analysisContent" in record, false);
+  assert.equal(JSON.stringify(record).includes(beforeRaw), false);
+  assert.equal(JSON.stringify(record).includes(afterRaw), false);
   const allowed = assertPendingAnalysisRecordSafe(record, runtimeIdentity);
-  assert.ok(allowed.some((decision) => decision.reason === "EVIDENCE_PATH_TEXT_ALLOWED" && decision.jsonPath === "$.analysisContent.beforeRaw"));
+  assert.ok(allowed.some((decision) => decision.reason === "EVIDENCE_PATH_TEXT_ALLOWED" && decision.jsonPath.endsWith(".text")));
 
   for (const value of [
     runtimeIdentity.appRoot + "/exports/file.json", runtimeIdentity.databasePath, runtimeIdentity.userDataPath,
@@ -158,7 +167,7 @@ async function run() {
   const coordinatorInput = {
     exportId: "coordinator-run", sourceView: "ISSUE_ACTIVITY_EVENTS" as const, query: {}, issueKey: "SYNTH-31",
     expectedFilteredCount: 10, expectedDatabaseIdentity: "", databasePath: path.join(root, "synthetic.sqlite"),
-    appRoot: runtimeIdentity.appRoot, appVersion: "0.3.1"
+    appRoot: runtimeIdentity.appRoot, appVersion: "0.3.2"
   };
   const firstRun = coordinator.start(coordinatorInput, () => undefined);
   assert.throws(() => coordinator.start({ ...coordinatorInput, exportId: "duplicate-run" }, () => undefined),
