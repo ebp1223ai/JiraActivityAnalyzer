@@ -1,0 +1,36 @@
+{
+  "ledgerType": "v0.3.1-controller-supervision",
+  "schemaVersion": 1,
+  "startedAt": "2026-08-07T14:23:42.5100179+08:00",
+  "endedAt": "2026-08-07T18:13:38.4140116+08:00",
+  "status": "READY_FOR_MANUAL_VALIDATION",
+  "requiredBranch": "fix/v0.3.1-pending-analysis-export-correctness",
+  "sourceCommit": "c94ef8d099fbc15b00baa0d3d6f0c17fef15472f",
+  "controllerUsage": {
+    "availability": "UNAVAILABLE",
+    "reason": "The outer Controller runtime is not executed through the repository telemetry runner and cannot observe its own turn.completed.usage."
+  },
+  "workerMeasuredCoverage": {
+    "availability": "PARTIAL",
+    "threadId": "019fdaec-059b-7350-9441-6eae685ceb76",
+    "availableRunCount": 3,
+    "unavailableRunCount": 4,
+    "measuredTotalTokens": 22746077,
+    "note": "Cached input and reasoning output are reported as subsets and are not added to totalTokens."
+  },
+  "delivery": {
+    "distRuns": 1,
+    "sourceCommitMatched": true,
+    "packageAudit": "passed",
+    "shortPackagedStartup": "passed",
+    "fullUiSmoke": "not_run",
+    "realSQLiteAndGuiValidation": "pending"
+  },
+  "rawEvidencePolicy": "Raw JSONL, stderr, manifests, and hashes remain outside the repository and package root.",
+  "gitPolicy": {
+    "preciseStagingOnly": true,
+    "tokenTxtExcluded": true,
+    "unrelatedChangesPreserved": true,
+    "pushTagPrRelease": false
+  }
+}

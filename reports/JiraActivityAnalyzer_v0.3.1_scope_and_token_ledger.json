@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "release": "0.3.1",
+  "status": "completed_ready_for_manual_validation",
+  "sourceCommit": "c94ef8d099fbc15b00baa0d3d6f0c17fef15472f",
+  "scope": {
+    "implemented": [
+      "provenance-aware Pending Analysis integrity policy",
+      "runtime path and credential rejection",
+      "sanitized durable diagnostics",
+      "duplicate-start, stale-progress, cancellation and progress correctness",
+      "focused synthetic regressions",
+      "version 0.3.1 and Windows delivery evidence"
+    ],
+    "preserved": [
+      "SQLite schema v3",
+      "ENV_FORMAT_VERSION",
+      "jira-activity-analyzer.pending-analysis",
+      "0.3.0-draft.1",
+      "review-draft",
+      "100-row-equivalent batches",
+      "full frozen filtered set",
+      "atomic rename and cancellation guards"
+    ],
+    "notPerformed": [
+      "real Jira connection",
+      "real SQLite export acceptance",
+      "full multi-route UI smoke",
+      "push, tag, PR or GitHub Release"
+    ]
+  },
+  "tokenUsage": {
+    "availability": "PARTIAL",
+    "formula": "totalTokens is inputTokens + outputTokens per completed turn; cached input and reasoning output are subsets and are not added again",
+    "measuredRuns": [
+      {
+        "runId": "v0.3.1-20260807-143207",
+        "phase": "preflight_inspection",
+        "status": "AVAILABLE",
+        "inputTokens": 3662652,
+        "cachedInputTokens": 3503872,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 30985,
+        "reasoningOutputTokens": 6125,
+        "totalTokens": 3693637
+      },
+      {
+        "runId": "v0.3.1-recovery-20260807-144703",
+        "phase": "failed_implementation_attempt",
+        "status": "AVAILABLE",
+        "inputTokens": 4930872,
+        "cachedInputTokens": 4750848,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 33589,
+        "reasoningOutputTokens": 7258,
+        "totalTokens": 4964461
+      },
+      {
+        "runId": "v0.3.1-recovery-20260807-155109",
+        "phase": "implementation",
+        "status": "AVAILABLE",
+        "inputTokens": 14002625,
+        "cachedInputTokens": 13673472,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 85354,
+        "reasoningOutputTokens": 22869,
+        "totalTokens": 14087979
+      }
+    ],
+    "unavailableRuns": [
+      {
+        "runId": "v0.3.1-20260807-142425",
+        "reason": "empty JSONL before a thread started"
+      },
+      {
+        "runId": "v0.3.1-recovery-20260807-145249",
+        "reason": "partial JSONL without turn.completed usage"
+      },
+      {
+        "runId": "v0.3.1-verify-package-20260807-165755",
+        "reason": "no JSONL usage evidence"
+      },
+      {
+        "runId": "direct_autonomous_closeout",
+        "reason": "outer Codex runtime usage is not observable by the repository telemetry runner"
+      }
+    ],
+    "measuredAggregate": {
+      "inputTokens": 22596149,
+      "cachedInputTokens": 21928192,
+      "cacheWriteInputTokens": 0,
+      "outputTokens": 149928,
+      "reasoningOutputTokens": 36252,
+      "totalTokens": 22746077
+    }
+  },
+  "safety": {
+    "tokenTxtRead": false,
+    "tokenTxtStaged": false,
+    "tokenTxtCommitted": false,
+    "unrelatedDirtyAndUntrackedPreserved": true,
+    "rawTelemetryPackaged": false
+  }
+}

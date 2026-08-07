@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "release": "0.3.1",
+  "status": "ready_for_manual_validation",
+  "sourceCommit": "c94ef8d099fbc15b00baa0d3d6f0c17fef15472f",
+  "buildTime": "2026/08/07 18:03:23",
+  "dirtyState": false,
+  "deliveryRoot": "F:\\AI\\JiraActivityAnalyzer-v0.3.1-delivery-20260807-180437",
+  "artifacts": [
+    {
+      "type": "portable",
+      "path": "F:\\AI\\JiraActivityAnalyzer-v0.3.1-delivery-20260807-180437\\Jira Activity Analyzer Portable 0.3.1.exe",
+      "bytes": 105173307,
+      "mib": 100.301,
+      "sha256": "0262406351578a7bc94ef72aa8bad1d7c6b2369e3fa99e63f381506f984df73f",
+      "fileVersion": "0.3.1",
+      "productVersion": "0.3.1"
+    },
+    {
+      "type": "installer",
+      "path": "F:\\AI\\JiraActivityAnalyzer-v0.3.1-delivery-20260807-180437\\Jira Activity Analyzer Setup 0.3.1.exe",
+      "bytes": 105403325,
+      "mib": 100.52,
+      "sha256": "6dee1cb362d093e0880c53a4143c739db7ab8dc54ed906121cfce29b26038dc6",
+      "fileVersion": "0.3.1",
+      "productVersion": "0.3.1"
+    },
+    {
+      "type": "win-unpacked-executable",
+      "path": "F:\\AI\\JiraActivityAnalyzer-v0.3.1-delivery-20260807-180437\\win-unpacked\\Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "mib": 224.787,
+      "sha256": "2fce74d7ac9aee2b60f5c4203c344268bf2cb7915856f0a6ad409b149360e0e1",
+      "fileVersion": "0.3.1",
+      "productVersion": "0.3.1.0"
+    },
+    {
+      "type": "app-asar",
+      "path": "F:\\AI\\JiraActivityAnalyzer-v0.3.1-delivery-20260807-180437\\win-unpacked\\resources\\app.asar",
+      "bytes": 16124427,
+      "mib": 15.377,
+      "sha256": "a75627b578b971fd28d79add1f653e4adb83de7cf7234eccd475583f77429706"
+    }
+  ],
+  "audit": {
+    "asarEntryCount": 2078,
+    "unexpectedEntryCount": 0,
+    "packageSizeAudit": "passed",
+    "targetedContaminationScan": "passed",
+    "shortPackagedStartup": {
+      "status": "passed",
+      "aliveAfterSeconds": 8,
+      "matchingProcessCount": 4,
+      "remainingProcessCount": 0
+    }
+  }
+}

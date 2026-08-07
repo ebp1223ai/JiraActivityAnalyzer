@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "release": "0.3.1",
+  "threadId": "019fdaec-059b-7350-9441-6eae685ceb76",
+  "startedAt": "2026-08-07T14:33:16.4092131+08:00",
+  "endedAt": "2026-08-07T18:13:38.4140116+08:00",
+  "status": "completed_ready_for_manual_validation",
+  "phases": [
+    {
+      "phaseId": "preflight_inspection",
+      "startedAt": "2026-08-07T14:33:16.4092131+08:00",
+      "endedAt": "2026-08-07T14:42:34.1325003+08:00",
+      "status": "completed",
+      "wallClockSeconds": 557.723
+    },
+    {
+      "phaseId": "implementation",
+      "startedAt": "2026-08-07T14:53:24.1416666+08:00",
+      "endedAt": "2026-08-07T15:10:24.0846995+08:00",
+      "status": "completed",
+      "wallClockSeconds": 1019.943,
+      "focusedTestRuns": 2
+    },
+    {
+      "phaseId": "verification_source_commit",
+      "startedAt": "2026-08-07T16:58:26.7945048+08:00",
+      "endedAt": "2026-08-07T17:01:00.3478614+08:00",
+      "status": "completed",
+      "wallClockSeconds": 153.553,
+      "sourceCommit": "c94ef8d099fbc15b00baa0d3d6f0c17fef15472f"
+    },
+    {
+      "phaseId": "clean_windows_dist",
+      "startedAt": "2026-08-07T18:02:38+08:00",
+      "endedAt": "2026-08-07T18:03:58.6+08:00",
+      "status": "completed",
+      "wallClockSeconds": 80.6,
+      "distRuns": 1
+    },
+    {
+      "phaseId": "artifact_audit_short_startup_and_evidence",
+      "startedAt": "2026-08-07T18:03:58.6+08:00",
+      "endedAt": "2026-08-07T18:13:38.4140116+08:00",
+      "status": "completed",
+      "shortStartupSeconds": 8,
+      "fullUiSmokeRun": false
+    }
+  ],
+  "retriesAndExceptions": [
+    {
+      "operation": "v0.2.47 historical regression",
+      "result": "unrelated_stale_assertion",
+      "note": "The test omits the already-required action column; relevant sources were unchanged."
+    },
+    {
+      "operation": "delivery copy",
+      "result": "retry_succeeded",
+      "note": "The first LiteralPath wildcard copy attempt was corrected to a normal Path copy."
+    },
+    {
+      "operation": "short packaged startup evidence",
+      "result": "rerun_succeeded",
+      "note": "The first output was lost during context compaction; one bounded 8-second startup was rerun."
+    }
+  ],
+  "notes": [
+    "Long multi-route UI smoke and real SQLite/GUI acceptance were intentionally not run.",
+    "Phase gaps include controller coordination and are not counted as command execution time."
+  ]
+}
