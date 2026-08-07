@@ -1629,3 +1629,103 @@ export function loadDatabaseUser(databasePath: string, userIdInput: string, inpu
     db.close();
   }
 }
+
+export type PendingAnalysisScanInput = {
+  sourceView: "ISSUE_ACTIVITY_EVENTS" | "USER_ALL_ACTIVITY_EVENTS";
+  query: ViewerQueryInput;
+  issueKey?: string;
+  userScope?: unknown;
+};
+
+export type PendingAnalysisScanControl = {
+  batchSize?: number;
+  isCancelled?: () => boolean;
+  onProgress?: (value: { stage: "filtering" | "reading"; scanned: number; total: number; matched: number }) => void;
+  onStart?: (value: { metadata: Row; databaseGeneration: string; candidateTotal: number }) => void;
+  onBatch: (rows: Row[]) => Promise<void> | void;
+};
+
+export async function scanDatabaseEventsForPendingAnalysis(databasePath: string, input: PendingAnalysisScanInput, control: PendingAnalysisScanControl) {
+  const initialGeneration = databaseFileIdentity(databasePath);
+  const subject: EventQuerySubject = input.sourceView === "ISSUE_ACTIVITY_EVENTS"
+    ? { kind: "issue", issueKey: normalizeSourceObjectKey("jira", "issue", String(input.issueKey ?? "")), changelogOnly: false }
+    : { kind: "user", scope: normalizeUserViewerScope(input.userScope) };
+  const sortColumns = Object.fromEntries(Object.entries(USER_EVENT_COLUMNS).map(([key, value]) => [key, value.expression]));
+  const query = normalizeViewerQuery(input.query, sortColumns, "eventTime");
+  const filter = viewerFilterSql(query.filters, USER_EVENT_COLUMNS);
+  appendDateBounds(filter.where, filter.parameters, "e.event_time", query.dateRange);
+  const subjectSql = eventSubjectSql(subject);
+  const where = `${subjectSql.where} ${filter.where.length ? `AND ${filter.where.join(" AND ")}` : ""}`;
+  const parameters: Array<string | number> = [...subjectSql.parameters, ...filter.parameters];
+  const batchSize = Math.max(25, Math.min(500, Math.trunc(control.batchSize ?? 100)));
+  const { db } = openReadOnly(databasePath);
+  try {
+    const metadata = row(db.prepare(`SELECT database_id AS databaseId, schema_version AS schemaVersion,
+      jira_server_url AS jiraServerUrl, jira_server_identity_hash AS jiraServerIdentity FROM database_metadata WHERE metadata_key='primary'`).get());
+    const binding: Row = {};
+    const candidateTotal = Number(row(db.prepare(`SELECT COUNT(*) AS count FROM activity_events e
+      JOIN source_objects o ON o.id=e.source_object_id LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
+      WHERE ${where}`).get(...parameters)).count ?? 0);
+    control.onStart?.({ metadata: { ...metadata, ...binding }, databaseGeneration: initialGeneration, candidateTotal });
+    const candidateSql = `SELECT e.id AS eventId, o.issue_key AS issueKey, e.field_id AS fieldId, e.field_name AS fieldName,
+      e.from_value_json AS before, e.to_value_json AS after, e.source_record_id AS sourceRecordId,
+      e.jira_native_source_id AS jiraNativeSourceId, e.source_provenance AS sourceProvenance,
+      ${sortColumns[query.sortField]} AS sortValue
+      FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
+      LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
+      WHERE ${where} AND e.id > ? ORDER BY e.id ASC LIMIT ?`;
+    let cursor = "";
+    let scanned = 0;
+    const matching: ProgressiveMatch[] = [];
+    while (scanned < candidateTotal) {
+      if (control.isCancelled?.()) throw progressiveError("EXPORT_CANCELLED");
+      const batch = rows(db.prepare(candidateSql).all(...parameters, cursor, batchSize));
+      if (!batch.length) break;
+      for (const event of batch) {
+        cursor = String(event.eventId ?? "");
+        if (canonicalPassesQuery(event, query)) matching.push({ eventId: cursor, sortValue: event.sortValue });
+      }
+      scanned += batch.length;
+      control.onProgress?.({ stage: "filtering", scanned, total: candidateTotal, matched: matching.length });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    matching.sort((left, right) => compareProgressiveValue(left.sortValue, right.sortValue, query.sortDirection) || left.eventId.localeCompare(right.eventId));
+    let delivered = 0;
+    for (let offset = 0; offset < matching.length; offset += batchSize) {
+      if (control.isCancelled?.()) throw progressiveError("EXPORT_CANCELLED");
+      const ids = matching.slice(offset, offset + batchSize).map((item) => item.eventId);
+      const placeholders = ids.map(() => "?").join(",");
+      const rawRows = rows(db.prepare(`SELECT e.id AS eventId, e.source_object_id AS sourceObjectId,
+        e.event_time AS eventTime, e.actor_account_id AS userId, e.actor_display_name AS displayName,
+        o.jira_issue_id AS issueId, o.issue_key AS issueKey, o.project_key AS projectKey, e.event_type AS eventType,
+        e.field_id AS fieldId, e.field_name AS fieldName, e.from_value_json AS before, e.to_value_json AS after,
+        e.source_record_id AS sourceRecordId, e.jira_native_source_id AS jiraNativeSourceId,
+        e.identity_key_type AS identityKeyType, e.source_provenance AS sourceProvenance,
+        e.content_display_mode AS contentDisplayMode, e.content_source AS contentSource,
+        e.before_complete AS beforeComplete, e.after_complete AS afterComplete, e.parse_status AS parseStatus,
+        e.source_comment_id AS sourceCommentId, e.source_worklog_id AS sourceWorklogId,
+        s.summary, s.issue_type AS issueTypeName, s.status AS currentStatusName, s.priority AS currentPriorityName,
+        s.assignee AS currentAssigneeId, s.reporter AS currentReporterId,
+        s.creator AS currentCreatorId, s.labels_json AS currentLabels, s.components_json AS currentComponents,
+        s.start_date AS currentStartDate, s.due_date AS currentDueDate, s.snapshot_updated_at AS currentSnapshotUpdatedAt
+        FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
+        LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id WHERE e.id IN (${placeholders})`).all(...ids));
+      const byId = new Map(enrichCommentEventRows(db, rawRows).map((event) => [String(event.eventId), event]));
+      const ordered = ids.flatMap((id) => byId.has(id) ? [byId.get(id)!] : []).map((event) => {
+        const classification = classifyViewerDiff(viewerDiffInputFromEventRow(event));
+        const itemMatch = /^(.*):(\d+)$/.exec(String(event.sourceRecordId ?? ""));
+        return { ...event, historyId: String(event.jiraNativeSourceId ?? itemMatch?.[1] ?? "") || null,
+          itemIndex: itemMatch ? Number(itemMatch[2]) : null, diffStatus: classification.status,
+          comparisonValidated: classification.comparisonValidated, addedCount: classification.addedCount,
+          deletedCount: classification.deletedCount, descriptionDiff: classification.descriptionDiff };
+      });
+      await control.onBatch(ordered);
+      delivered += ordered.length;
+      control.onProgress?.({ stage: "reading", scanned: delivered, total: matching.length, matched: matching.length });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    if (databaseFileIdentity(databasePath) !== initialGeneration) throw progressiveError("SOURCE_DATABASE_CHANGED");
+    return { filteredCount: matching.length, exportedCount: delivered, databaseGeneration: initialGeneration,
+      metadata: { ...metadata, ...binding }, normalizedQuery: query };
+  } finally { db.close(); }
+}

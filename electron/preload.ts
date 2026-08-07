@@ -67,6 +67,17 @@ contextBridge.exposeInMainWorld("desktopApp", {
     descriptionComparison: (payload: unknown) => ipcRenderer.invoke("database-viewer:description-comparison", payload),
     distinctValues: (payload: unknown) => ipcRenderer.invoke("database-viewer:distinct-values", payload)
   },
+  pendingAnalysisExport: {
+    start: (payload: unknown) => ipcRenderer.invoke("pending-analysis-export:start", payload),
+    getStatus: () => ipcRenderer.invoke("pending-analysis-export:status"),
+    cancel: (payload: unknown) => ipcRenderer.invoke("pending-analysis-export:cancel", payload),
+    openFolder: () => ipcRenderer.invoke("pending-analysis-export:open-folder"),
+    onProgress: (listener: (progress: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: unknown) => listener(progress);
+      ipcRenderer.on("pending-analysis-export:progress", handler);
+      return () => ipcRenderer.removeListener("pending-analysis-export:progress", handler);
+    }
+  },
   uiPreferences: {
     get: () => ipcRenderer.invoke("ui-preferences:get"),
     update: (payload: unknown) => ipcRenderer.invoke("ui-preferences:update", payload)

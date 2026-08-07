@@ -54,6 +54,8 @@ import { StartupMilestoneRecorder, type StartupMilestoneName } from "./startupMi
 import { validateAndSaveDatabaseSelection } from "./startupIntegration.js";
 import { issueViewerFailure } from "./databaseViewer.js";
 import { DatabaseViewerCoordinator, type ViewerWorkerLane } from "./databaseViewerCoordinator.js";
+import { PendingAnalysisExportCoordinator } from "./pendingAnalysisExportCoordinator.js";
+import type { PendingAnalysisExportRequest } from "../shared/pendingAnalysisContract.js";
 import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
@@ -76,6 +78,7 @@ const shouldCaptureUi = process.env.ELECTRON_UI_CAPTURE === "1";
 const shouldSimulateCrashDiagnostic = process.env.JAA_SIMULATE_CRASH_DIAGNOSTIC === "1";
 const appSessionId = `app-session-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 const databaseViewerCoordinator = new DatabaseViewerCoordinator(path.join(__dirname, "database-viewer-worker.cjs"));
+const pendingAnalysisExportCoordinator = new PendingAnalysisExportCoordinator(path.join(__dirname, "pending-analysis-export-worker.cjs"));
 
 const resolvedAppRoot = resolveCanonicalAppRoot({
   isPackaged: app.isPackaged,
@@ -827,6 +830,25 @@ ipcMain.handle("database-viewer:description-comparison", async (_event, payload:
   runDatabaseViewer("detail", "descriptionComparison", payload));
 ipcMain.handle("database-viewer:distinct-values", async (_event, payload: Record<string, unknown>) =>
   runDatabaseViewer("distinct", "distinctValues", payload));
+ipcMain.handle("pending-analysis-export:start", async (event, payload: PendingAnalysisExportRequest) => {
+  const expectedFilteredCount = Number(payload?.expectedFilteredCount ?? 0);
+  if (!Number.isSafeInteger(expectedFilteredCount) || expectedFilteredCount <= 0) throw Object.assign(new Error("No filtered records are available for export."), { code: "NO_FILTERED_RECORDS" });
+  if (!payload || !["ISSUE_ACTIVITY_EVENTS", "USER_ALL_ACTIVITY_EVENTS"].includes(payload.sourceView)) throw Object.assign(new Error("Invalid pending-analysis source view."), { code: "FILTER_SNAPSHOT_INVALID" });
+  const exportId = crypto.randomUUID();
+  let databasePath: string;
+  try { databasePath = currentReadableDatabasePath(); } catch (error) { throw Object.assign(new Error(error instanceof Error ? error.message : String(error)), { code: "SOURCE_DATABASE_NOT_READY" }); }
+  return pendingAnalysisExportCoordinator.start({ ...payload, exportId, expectedFilteredCount, databasePath, appRoot: getConfiguredAppRoot(), appVersion: __MAIN_APP_VERSION__ },
+    (progress) => { if (!event.sender.isDestroyed()) event.sender.send("pending-analysis-export:progress", progress); });
+});
+ipcMain.handle("pending-analysis-export:status", async () => pendingAnalysisExportCoordinator.current());
+ipcMain.handle("pending-analysis-export:cancel", async (_event, payload: { exportId?: unknown }) => ({ cancelled: pendingAnalysisExportCoordinator.cancel(String(payload?.exportId ?? "")) }));
+ipcMain.handle("pending-analysis-export:open-folder", async () => {
+  const folderPath = assertAppPath(path.join(getExportsDir(), "pending-analysis"));
+  ensureDir(folderPath);
+  const error = await shell.openPath(folderPath);
+  return { ok: !error, folderPath, error };
+});
+
 ipcMain.handle("ui-preferences:get", async () => loadUiPreferences(getConfiguredAppRoot()));
 ipcMain.handle("ui-preferences:update", async (_event, payload: { section?: unknown; value?: unknown }) => {
   const section = String(payload?.section ?? "");

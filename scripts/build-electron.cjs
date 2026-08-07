@@ -64,3 +64,10 @@ esbuild.buildSync({
   entryPoints: [path.resolve(__dirname, "../electron/databaseViewerWorker.ts")],
   outfile: path.join(outdir, "database-viewer-worker.cjs")
 });
+
+
+esbuild.buildSync({
+  ...common,
+  entryPoints: [path.resolve(__dirname, "../electron/pendingAnalysisExportWorker.ts")],
+  outfile: path.join(outdir, "pending-analysis-export-worker.cjs")
+});

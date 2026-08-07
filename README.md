@@ -1,3 +1,17 @@
+# Jira Activity Analyzer
+
+> v0.3.0 adds a review-draft, local-only Pending Analysis Data export. Jira remains read-only and Current-State SQLite schema stays at v3.
+
+## v0.3.0 Pending Analysis Data Export
+
+- Open **Issue Viewer → Activity Events** or **User Viewer → All Activity Events**, apply the existing filters, then select **Export Pending Analysis Data / 匯出待分析資料**.
+- The export freezes the current typed filter and sort snapshot and writes every matching record across all pages, not only the visible page.
+- Files are readable UTF-8 JSON under `<APP_ROOT>/exports/pending-analysis/`. The UI reports filename, absolute output path, record count, size, SHA-256, elapsed time, and an Open Folder action.
+- Export runs are owned by Electron main/worker, use bounded batches, remain observable after route changes, support cancellation, and fail closed if counts or the source database generation change.
+- The file contains stable source/evidence identity, original SQLite Before/After values and hashes, canonical Diff status/hunks when available, and explicitly current (not event-time) saved Issue context.
+- The file never contains the local SQLite path or APP_ROOT path. Credentials, Authorization, cookies, passwords, and tokens are prohibited.
+- Schema: `jira-activity-analyzer.pending-analysis` / `0.3.0-draft.1`; status: `review-draft`. Real SQLite and user content review must complete before this contract can become final.
+
 > v0.2.61 unifies Before/After/Diff presentation across Viewer activity tables and simplifies table controls without changing validated evidence or query semantics.
 
 ## v0.2.61 Viewer Diff and Table UX

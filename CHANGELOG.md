@@ -1,3 +1,12 @@
+## 0.3.0 - Pending Analysis Data Export & Real-data Contract Review
+
+- Added production pending-analysis JSON export to Issue Viewer / Activity Events and User Viewer / All Activity Events only.
+- Exports the complete frozen filtered set across all pages through a main-owned worker with bounded batches, progress, cancellation, generation guards, collision-safe filenames, and atomic finalization under APP_ROOT.
+- Added the review-draft `jira-activity-analyzer.pending-analysis` contract `0.3.0-draft.1` with stable evidence identity, exact SQLite Before/After, canonical Diff data, current-snapshot context, records digest, and external whole-file SHA-256.
+- Added synthetic Current-State schema-v3 production-path coverage for cross-page and cross-view parity, UTF-8 content, deterministic hashes, cancellation, count mismatch, source-generation changes, and partial-file cleanup.
+- Kept Jira read-only, Current-State SQLite schema v3, ENV format, dependencies, Full Fetch, and all database write paths unchanged.
+- Contract status remains Review Draft; real SQLite content review and Windows GUI validation are pending user acceptance.
+
 ## 0.2.67 - Progressive Diff Filtering & Before-Unavailable Correctness
 
 - Unified Description Diff display, filter, count, and page-row classification behind one typed canonical classifier, including legacy stored `"null"` values.

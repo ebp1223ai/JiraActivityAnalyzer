@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.2.67",
+  "version": "0.3.0",
   "description": "Static Electron desktop UI prototype for Jira Activity Analyzer.",
   "author": "COPGEN",
   "type": "module",
@@ -55,7 +55,8 @@
     "test:v0.2.63": "node scripts/test-v0263.cjs",
     "test:v0.2.65": "node scripts/test-v0265.cjs",
     "test:v0.2.66": "npm run electron:build && node scripts/test-v0266.cjs",
-    "test:v0.2.67": "npm run electron:build && node scripts/test-v0267.cjs"
+    "test:v0.2.67": "npm run electron:build && node scripts/test-v0267.cjs",
+    "test:v0.3.0": "node scripts/test-v030.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.469.0",

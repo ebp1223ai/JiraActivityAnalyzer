@@ -9,6 +9,7 @@ import type { ActivityViewerTableResult, ViewerDistinctResult, ViewerProgressDto
 import type { DescriptionFullContextResult } from "../../shared/descriptionDiff";
 import type { DescriptionComparisonPayload, DescriptionPreviewBatchResponse } from "../../shared/descriptionComparison";
 import type { UserViewerScope } from "../../shared/userViewerScope";
+import type { PendingAnalysisExportRequest, PendingAnalysisExportResult, PendingAnalysisProgress } from "../../shared/pendingAnalysisContract";
 
 declare global {
   interface Window {
@@ -102,6 +103,13 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         descriptionOriginalPreviews: (payload: { requestId: string; generation: string; databaseIdentity: string; eventIds: string[] }) => Promise<DescriptionPreviewBatchResponse>;
         descriptionComparison: (payload: { requestId: string; generation: string; databaseIdentity: string; eventId: string; issueKey?: string }) => Promise<DescriptionComparisonPayload>;
         distinctValues: (payload: { source: "databaseIssues" | "userRelatedIssues" | "userEvents" | "issueEvents" | "issueChangelog"; scope?: UserViewerScope; subjectId?: string; field: string; search?: string; limit?: number; query?: DatabaseIssueQuery | ViewerTableQuery }) => Promise<ViewerDistinctResult>;
+      };
+      pendingAnalysisExport?: {
+        start: (payload: PendingAnalysisExportRequest) => Promise<PendingAnalysisExportResult>;
+        getStatus: () => Promise<PendingAnalysisProgress | null>;
+        cancel: (payload: { exportId: string }) => Promise<{ cancelled: boolean }>;
+        openFolder: () => Promise<{ ok: boolean; folderPath: string; error?: string }>;
+        onProgress: (listener: (progress: PendingAnalysisProgress) => void) => () => void;
       };
       uiPreferences?: {
         get: () => Promise<UiPreferencesLoadResult>;
