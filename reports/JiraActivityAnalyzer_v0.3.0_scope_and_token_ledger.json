@@ -1,0 +1,336 @@
+{
+  "taskClassification": "CROSS_LAYER_CHANGE",
+  "classificationEvidence": "Feature is concentrated but crosses two Viewer routes, shared query/contract, Electron main/preload, a dedicated worker, packaging, tests and documentation. No project-wide rewrite.",
+  "tokenTelemetry": {
+    "availability": "UNAVAILABLE",
+    "source": null,
+    "taskTotal": {
+      "input": null,
+      "cachedInput": null,
+      "output": null,
+      "reasoningOutput": null,
+      "total": null
+    },
+    "reason": "Codex desktop runtime exposed no machine-readable task/phase token telemetry. No values were estimated from text, files, or time."
+  },
+  "scopeMatrix": [
+    {
+      "layer": "Inspection",
+      "plannedPaths": [
+        "Viewer UI",
+        "Electron IPC",
+        "SQLite viewer worker",
+        "export/path utilities",
+        "tests",
+        "version/reports"
+      ],
+      "actualPaths": [
+        "src/routes/IssueViewerPage.tsx",
+        "src/routes/UserViewerPage.tsx",
+        "electron/databaseViewer.ts",
+        "electron/main.ts",
+        "electron/preload.ts",
+        "electron/appRoot.ts",
+        "electron/appPaths.ts",
+        "shared viewer/diff types",
+        "build/dist scripts"
+      ],
+      "fullProject": "Partial",
+      "scopeExpansion": null
+    },
+    {
+      "layer": "Implementation",
+      "plannedPaths": [
+        "Issue/User Viewer",
+        "preload/main",
+        "database viewer/export modules",
+        "shared contract"
+      ],
+      "actualPaths": [
+        "shared/pendingAnalysisContract.ts",
+        "electron/databaseViewer.ts",
+        "electron/pendingAnalysisExport*.ts",
+        "electron/main.ts",
+        "electron/preload.ts",
+        "src/components/PendingAnalysisExportPanel.tsx",
+        "two Viewer routes",
+        "build script"
+      ],
+      "fullProject": "No",
+      "scopeExpansion": "Dedicated coordinator/worker files were direct architecture dependencies already anticipated by worker/export scope."
+    },
+    {
+      "layer": "Verification",
+      "plannedPaths": [
+        "v0.3.0 focused",
+        "Viewer regression",
+        "integration",
+        "typecheck"
+      ],
+      "actualPaths": [
+        "tests/v030PendingAnalysisExport.test.ts",
+        "scripts/test-v030.cjs",
+        "test:v0.2.67",
+        "test:integration",
+        "typecheck",
+        "package scans"
+      ],
+      "fullProject": "Partial",
+      "scopeExpansion": null
+    },
+    {
+      "layer": "Build/Dist",
+      "plannedPaths": [
+        "production build",
+        "Windows Dist",
+        "ASAR audit",
+        "short packaged smoke"
+      ],
+      "actualPaths": [
+        "clean detached worktree final build/Dist",
+        "package-size audit",
+        "ASAR inventory",
+        "packaged worker export smoke",
+        "8-second startup smoke"
+      ],
+      "fullProject": "Yes",
+      "scopeExpansion": null
+    }
+  ],
+  "phases": [
+    {
+      "name": "preflight",
+      "start": "2026-08-07T11:34:08.5118334+08:00",
+      "end": "2026-08-07T11:41:16.0830130+08:00",
+      "durationMs": 427572,
+      "tokenUsage": {
+        "availability": "UNAVAILABLE",
+        "input": null,
+        "cachedInput": null,
+        "output": null,
+        "reasoningOutput": null,
+        "total": null
+      },
+      "inspectedPaths": [],
+      "modifiedPaths": [],
+      "commands": [],
+      "scopeExpansion": null
+    },
+    {
+      "name": "inspection",
+      "start": "2026-08-07T11:41:16.0830130+08:00",
+      "end": "2026-08-07T11:42:06.7993905+08:00",
+      "durationMs": 50716,
+      "tokenUsage": {
+        "availability": "UNAVAILABLE",
+        "input": null,
+        "cachedInput": null,
+        "output": null,
+        "reasoningOutput": null,
+        "total": null
+      },
+      "inspectedPaths": [],
+      "modifiedPaths": [],
+      "commands": [],
+      "scopeExpansion": null
+    },
+    {
+      "name": "implementation",
+      "start": "2026-08-07T11:42:06.7993905+08:00",
+      "end": "2026-08-07T11:58:39.3715366+08:00",
+      "durationMs": 992572,
+      "tokenUsage": {
+        "availability": "UNAVAILABLE",
+        "input": null,
+        "cachedInput": null,
+        "output": null,
+        "reasoningOutput": null,
+        "total": null
+      },
+      "inspectedPaths": [],
+      "modifiedPaths": [],
+      "commands": [],
+      "scopeExpansion": null
+    },
+    {
+      "name": "focused_test",
+      "start": "2026-08-07T11:58:39.3715366+08:00",
+      "end": "2026-08-07T12:00:10.0000000+08:00",
+      "durationMs": 90629,
+      "tokenUsage": {
+        "availability": "UNAVAILABLE",
+        "input": null,
+        "cachedInput": null,
+        "output": null,
+        "reasoningOutput": null,
+        "total": null
+      },
+      "inspectedPaths": [],
+      "modifiedPaths": [],
+      "commands": [],
+      "scopeExpansion": null
+    },
+    {
+      "name": "regression",
+      "start": "2026-08-07T12:00:10.0000000+08:00",
+      "end": "2026-08-07T12:01:46.0000000+08:00",
+      "durationMs": 96000,
+      "tokenUsage": {
+        "availability": "UNAVAILABLE",
+        "input": null,
+        "cachedInput": null,
+        "output": null,
+        "reasoningOutput": null,
+        "total": null
+      },
+      "inspectedPaths": [],
+      "modifiedPaths": [],
+      "commands": [],
+      "scopeExpansion": null
+    },
+    {
+      "name": "integration_and_clean_worktree",
+      "start": "2026-08-07T12:01:46.0000000+08:00",
+      "end": "2026-08-07T12:03:15.0420000+08:00",
+      "durationMs": 89042,
+      "tokenUsage": {
+        "availability": "UNAVAILABLE",
+        "input": null,
+        "cachedInput": null,
+        "output": null,
+        "reasoningOutput": null,
+        "total": null
+      },
+      "inspectedPaths": [],
+      "modifiedPaths": [],
+      "commands": [],
+      "scopeExpansion": null
+    },
+    {
+      "name": "build_and_dist",
+      "start": "2026-08-07T12:03:15.0420000+08:00",
+      "end": "2026-08-07T12:05:46.6194168+08:00",
+      "durationMs": 151577,
+      "tokenUsage": {
+        "availability": "UNAVAILABLE",
+        "input": null,
+        "cachedInput": null,
+        "output": null,
+        "reasoningOutput": null,
+        "total": null
+      },
+      "inspectedPaths": [],
+      "modifiedPaths": [],
+      "commands": [],
+      "scopeExpansion": null
+    },
+    {
+      "name": "package_audit",
+      "start": "2026-08-07T12:05:46.6194168+08:00",
+      "end": "2026-08-07T12:06:20.0000000+08:00",
+      "durationMs": 33381,
+      "tokenUsage": {
+        "availability": "UNAVAILABLE",
+        "input": null,
+        "cachedInput": null,
+        "output": null,
+        "reasoningOutput": null,
+        "total": null
+      },
+      "inspectedPaths": [],
+      "modifiedPaths": [],
+      "commands": [],
+      "scopeExpansion": null
+    },
+    {
+      "name": "packaged_smoke",
+      "start": "2026-08-07T12:06:20.0000000+08:00",
+      "end": "2026-08-07T12:08:19.0000000+08:00",
+      "durationMs": 119000,
+      "tokenUsage": {
+        "availability": "UNAVAILABLE",
+        "input": null,
+        "cachedInput": null,
+        "output": null,
+        "reasoningOutput": null,
+        "total": null
+      },
+      "inspectedPaths": [],
+      "modifiedPaths": [],
+      "commands": [],
+      "scopeExpansion": null
+    },
+    {
+      "name": "documentation_and_git",
+      "start": "2026-08-07T12:08:19.0000000+08:00",
+      "end": "2026-08-07T12:11:00.3272370+08:00",
+      "durationMs": 161327,
+      "tokenUsage": {
+        "availability": "UNAVAILABLE",
+        "input": null,
+        "cachedInput": null,
+        "output": null,
+        "reasoningOutput": null,
+        "total": null
+      },
+      "inspectedPaths": [],
+      "modifiedPaths": [],
+      "commands": [],
+      "scopeExpansion": null
+    }
+  ],
+  "actualImplementation": {
+    "productionFilesChanged": [
+      "shared/pendingAnalysisContract.ts",
+      "electron/databaseViewer.ts",
+      "electron/pendingAnalysisExport.ts",
+      "electron/pendingAnalysisExportCoordinator.ts",
+      "electron/pendingAnalysisExportWorker.ts",
+      "electron/main.ts",
+      "electron/preload.ts",
+      "scripts/build-electron.cjs",
+      "src/components/PendingAnalysisExportPanel.tsx",
+      "src/routes/IssueViewerPage.tsx",
+      "src/routes/UserViewerPage.tsx",
+      "src/types/electron.d.ts"
+    ],
+    "testFilesChanged": [
+      "tests/v030PendingAnalysisExport.test.ts",
+      "scripts/test-v030.cjs"
+    ],
+    "documentFilesChanged": [
+      "README.md",
+      "CHANGELOG.md",
+      "reports/JiraActivityAnalyzer_v0.3.0_*.md/json"
+    ],
+    "versionMetadataChanged": [
+      "VERSION",
+      "package.json",
+      "package-lock.json"
+    ],
+    "linesAdded": 791,
+    "linesDeleted": 7,
+    "projectWideRewrite": false
+  },
+  "inspectionFindings": {
+    "databaseMetadata": "Current-State database_metadata provides database_id, schema_version, jira_server_url and jira_server_identity_hash.",
+    "canonicalQuery": "databaseViewer owns normalized filter/date/Diff predicates, original evidence and deterministic sorting.",
+    "appRoot": "getExportsDir resolves APP_ROOT/exports and root assertions reject escape.",
+    "uiPlacement": [
+      "Issue Viewer / Activity Events",
+      "User Viewer / All Activity Events"
+    ],
+    "excludedUiPlacement": [
+      "Issue Viewer / Changelog"
+    ]
+  },
+  "repeatedWork": {
+    "npmInstall": 0,
+    "fullBuild": 1,
+    "dist": 1,
+    "fullLegacyUiSmoke": 0,
+    "reasonedRetries": 3,
+    "notes": "Typecheck/focused tests were rerun only after concrete compiler/schema failures. Dist contained the sole final production build."
+  },
+  "updatedAt": "2026-08-07T12:11:00.3272370+08:00"
+}

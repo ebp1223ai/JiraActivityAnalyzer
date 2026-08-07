@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "targetVersion": "0.3.0",
+  "phase": "pending-analysis-data-export",
+  "start": "2026-08-07T11:34:08.5118334+08:00",
+  "end": "2026-08-07T12:11:00.3272370+08:00",
+  "wallClockSeconds": 2211.82,
+  "activeSeconds": 2211.82,
+  "waitingSeconds": 0,
+  "commands": [
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "PASS (final)",
+      "exitCode": 0,
+      "durationSeconds": 7.8
+    },
+    {
+      "command": "npm.cmd run test:v0.3.0",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 1.4
+    },
+    {
+      "command": "npm.cmd run test:v0.2.67",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 35.3
+    },
+    {
+      "command": "npm.cmd run test:integration",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 3
+    },
+    {
+      "command": "npm.cmd run dist (clean detached worktree)",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 161.4
+    },
+    {
+      "command": "node scripts/audit-package-size.cjs v030",
+      "result": "PASS; unexpectedCount=0",
+      "exitCode": 0,
+      "durationSeconds": 4.4
+    },
+    {
+      "command": "packaged app.asar worker synthetic export smoke",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 4.1
+    },
+    {
+      "command": "hidden win-unpacked startup smoke",
+      "result": "PASS; alive after 8 seconds; renderer routes logged",
+      "exitCode": 0,
+      "durationSeconds": 9.5
+    },
+    {
+      "command": "git diff --check and secret/path scans",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 0.9
+    }
+  ],
+  "retries": [
+    {
+      "stage": "implementation",
+      "failure": "temporary patch script template-literal syntax error",
+      "exitCode": 1,
+      "action": "used apply_patch-created snippet plus asserted append script"
+    },
+    {
+      "stage": "typecheck",
+      "failure": "renderer unknown-to-string and misplaced callback/narrowing errors",
+      "exitCode": 1,
+      "action": "minimal type fixes; final typecheck passed"
+    },
+    {
+      "stage": "focused_test",
+      "failure": "incorrect source_system_bindings assumption for Current-State v3",
+      "exitCode": 1,
+      "action": "used database_metadata jira_server_identity_hash; focused test passed"
+    }
+  ],
+  "phases": [
+    {
+      "name": "ledger-initialization",
+      "start": "2026-08-07T11:34:08.5118334+08:00",
+      "end": "2026-08-07T11:34:08.5118334+08:00",
+      "durationSeconds": 0,
+      "status": "completed"
+    },
+    {
+      "name": "preflight",
+      "start": "2026-08-07T11:34:08.5118334+08:00",
+      "end": "2026-08-07T11:41:16.0830130+08:00",
+      "durationSeconds": 427.57,
+      "status": "completed"
+    },
+    {
+      "name": "inspection",
+      "start": "2026-08-07T11:41:16.0830130+08:00",
+      "end": "2026-08-07T11:42:06.7993905+08:00",
+      "durationSeconds": 50.72,
+      "status": "completed"
+    },
+    {
+      "name": "implementation",
+      "start": "2026-08-07T11:42:06.7993905+08:00",
+      "end": "2026-08-07T11:58:39.3715366+08:00",
+      "durationSeconds": 992.57,
+      "status": "completed"
+    },
+    {
+      "name": "focused_test",
+      "start": "2026-08-07T11:58:39.3715366+08:00",
+      "end": "2026-08-07T12:00:10.0000000+08:00",
+      "durationSeconds": 90.63,
+      "status": "completed"
+    },
+    {
+      "name": "regression",
+      "start": "2026-08-07T12:00:10.0000000+08:00",
+      "end": "2026-08-07T12:01:46.0000000+08:00",
+      "durationSeconds": 96,
+      "status": "completed"
+    },
+    {
+      "name": "integration_and_clean_worktree",
+      "start": "2026-08-07T12:01:46.0000000+08:00",
+      "end": "2026-08-07T12:03:15.0420000+08:00",
+      "durationSeconds": 89.04,
+      "status": "completed"
+    },
+    {
+      "name": "build_and_dist",
+      "start": "2026-08-07T12:03:15.0420000+08:00",
+      "end": "2026-08-07T12:05:46.6194168+08:00",
+      "durationSeconds": 151.58,
+      "status": "completed"
+    },
+    {
+      "name": "package_audit",
+      "start": "2026-08-07T12:05:46.6194168+08:00",
+      "end": "2026-08-07T12:06:20.0000000+08:00",
+      "durationSeconds": 33.38,
+      "status": "completed"
+    },
+    {
+      "name": "packaged_smoke",
+      "start": "2026-08-07T12:06:20.0000000+08:00",
+      "end": "2026-08-07T12:08:19.0000000+08:00",
+      "durationSeconds": 119,
+      "status": "completed"
+    },
+    {
+      "name": "documentation_and_git",
+      "start": "2026-08-07T12:08:19.0000000+08:00",
+      "end": "2026-08-07T12:11:00.3272370+08:00",
+      "durationSeconds": 161.33,
+      "status": "completed"
+    }
+  ],
+  "topDurationTasks": [
+    {
+      "task": "production implementation and focused corrections",
+      "durationSeconds": 992.57
+    },
+    {
+      "task": "preflight/baseline/scope gate",
+      "durationSeconds": 427.57
+    },
+    {
+      "task": "final build and Windows Dist",
+      "durationSeconds": 161.4
+    },
+    {
+      "task": "documentation/evidence preparation",
+      "durationSeconds": 161.33
+    },
+    {
+      "task": "v0.2.67 20,000-event regression",
+      "durationSeconds": 35.3
+    }
+  ],
+  "reconciliation": {
+    "phaseDurationSeconds": 2211.82,
+    "wallClockSeconds": 2211.82,
+    "method": "Continuous phase boundaries reconstructed from ledger/source/commit/build/audit/app-log machine timestamps; command durations are tool-reported."
+  },
+  "notes": [
+    "No npm install was run; the clean build worktree reused existing node_modules through a junction.",
+    "No real environment, credential, company SQLite, or real export was read.",
+    "Active time includes automated command execution; no user/external-state waiting occurred.",
+    "Final evidence commit occurs immediately after this ledger closure and is reported in the task response."
+  ]
+}
