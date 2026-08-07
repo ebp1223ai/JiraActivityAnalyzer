@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/codex-telemetry/phase-handoff.schema.json",
+  "type": "object",
+  "required": ["phaseId", "status", "threadId", "branch", "head", "startedAt", "endedAt", "inspectedPaths", "modifiedPaths", "commands", "retries", "nextPhaseReady", "blockers"],
+  "properties": {
+    "phaseId": { "type": "string", "minLength": 1 },
+    "status": { "const": "completed" },
+    "threadId": { "type": "string", "minLength": 1 },
+    "branch": { "type": "string", "minLength": 1 },
+    "head": { "type": "string", "minLength": 7 },
+    "startedAt": { "type": "string", "minLength": 1 },
+    "endedAt": { "type": "string", "minLength": 1 },
+    "inspectedPaths": { "type": "array", "items": { "type": "string" } },
+    "modifiedPaths": { "type": "array", "items": { "type": "string" } },
+    "commands": { "type": "array" },
+    "retries": { "type": "array" },
+    "nextPhaseReady": { "const": true },
+    "blockers": { "type": "array", "maxItems": 0 }
+  },
+  "additionalProperties": true
+}

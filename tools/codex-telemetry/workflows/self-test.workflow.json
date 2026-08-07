@@ -1,0 +1,16 @@
+{
+    "schemaVersion":  1,
+    "workflowId":  "codex-telemetry-read-only-self-test",
+    "requireHandoff":  false,
+    "phases":  [
+                   {
+                       "phaseId":  "self_test_initial",
+                       "instruction":  "Do not inspect, read, or write repository files. Do not run tools. Reply with exactly TELEMETRY_SELF_TEST_ONE and stop."
+                   },
+                   {
+                       "phaseId":  "self_test_resume",
+                       "instruction":  "Do not inspect, read, or write repository files. Do not run tools. Reply with exactly TELEMETRY_SELF_TEST_TWO and stop."
+                   }
+               ],
+    "isolated":  true
+}

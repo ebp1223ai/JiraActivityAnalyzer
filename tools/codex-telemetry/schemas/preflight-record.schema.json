@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/codex-telemetry/preflight-record.schema.json",
+  "type": "object",
+  "required": ["schemaVersion", "status", "validatedAt", "codexCliVersion", "authenticationCheck", "runnerParserSchemaHashes", "selfTestRunId", "requiredEvents", "sandbox", "safeMachineIdentityHash", "expirationReasons"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "status": { "const": "VALID" },
+    "codexCliVersion": { "type": "string", "minLength": 1 },
+    "sandbox": { "const": "workspace-write" },
+    "safeMachineIdentityHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "requiredEvents": {
+      "type": "object",
+      "required": ["threadStarted", "turnCompleted", "validUsage", "explicitResume"],
+      "properties": {
+        "threadStarted": { "const": true },
+        "turnCompleted": { "const": true },
+        "validUsage": { "const": true },
+        "explicitResume": { "const": true }
+      }
+    }
+  },
+  "additionalProperties": true
+}

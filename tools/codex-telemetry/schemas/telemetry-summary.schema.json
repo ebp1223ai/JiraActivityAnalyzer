@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/codex-telemetry/telemetry-summary.schema.json",
+  "type": "object",
+  "required": ["schemaVersion", "status", "phases", "usage"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "status": { "enum": ["AVAILABLE", "PARTIAL", "UNAVAILABLE", "FAILED"] },
+    "phases": { "type": "array" },
+    "usage": {
+      "type": "object",
+      "required": ["availability"],
+      "properties": {
+        "availability": { "enum": ["AVAILABLE", "UNAVAILABLE"] },
+        "inputTokens": { "type": "integer", "minimum": 0 },
+        "cachedInputTokens": { "type": "integer", "minimum": 0 },
+        "cacheWriteInputTokens": { "type": ["integer", "null"], "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "reasoningOutputTokens": { "type": "integer", "minimum": 0 },
+        "totalTokens": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

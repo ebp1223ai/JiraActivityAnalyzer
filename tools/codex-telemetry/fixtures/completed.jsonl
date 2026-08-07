@@ -1,0 +1,8 @@
+{"type":"thread.started","thread_id":"fixture-thread"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"type":"command_execution","command":"git status","exit_code":0}}
+{"type":"item.completed","item":{"type":"file_change","changes":[{"path":"src/example.ts","kind":"update"}]}}
+{"type":"item.completed","item":{"type":"mcp_tool_call","name":"example","status":"completed"}}
+{"type":"item.completed","item":{"type":"web_search","query":"example","status":"completed"}}
+{"type":"item.completed","item":{"type":"plan_update","status":"completed"}}
+{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":5,"output_tokens":30,"reasoning_output_tokens":10,"total_tokens":130}}

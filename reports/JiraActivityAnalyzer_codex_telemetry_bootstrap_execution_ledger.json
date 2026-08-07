@@ -1,0 +1,439 @@
+{
+    "ledgerType":  "codex-telemetry-bootstrap-execution",
+    "schemaVersion":  1,
+    "startedAt":  "2026-08-07T13:01:57.2612829+08:00",
+    "timestampNote":  "Recorded from the machine clock immediately after creating the bootstrap ledger; the user-supplied master prompt was the only content read beforehand.",
+    "preLedgerActivity":  [
+                              "Loaded and read the user-supplied v0.3.1 master prompt so its mandatory bootstrap instructions could be followed.",
+                              "No repository inspection, source inspection, build, test, branch change, or application implementation was performed before this ledger was created."
+                          ],
+    "controllerBootstrapUsage":  {
+                                     "availability":  "UNAVAILABLE",
+                                     "reason":  "The controller turn began before the telemetry runner existed and cannot observe its own outer runtime usage.",
+                                     "inputTokens":  null,
+                                     "cachedInputTokens":  null,
+                                     "outputTokens":  null,
+                                     "reasoningOutputTokens":  null,
+                                     "totalTokens":  null
+                                 },
+    "stoppedAt":  "2026-08-07T13:05:47.7269545+08:00",
+    "status":  "COMPLETED",
+    "blockingCondition":  "Codex CLI exists only under the packaged WindowsApps directory and every execution method returned Access is denied; codex exec --json and codex exec resume therefore cannot be safely validated or used.",
+    "baseline":  {
+                     "branch":  "feat/v0.3.0-pending-analysis-data-export",
+                     "head":  "bd3a44fde48754ea56a125808d1913ba34dc3a5c",
+                     "packagedSource":  "1cba4a00f100cb7fc02728a345aa050d38b19e5c",
+                     "matchedRequiredBaseline":  true
+                 },
+    "cliPreflight":  [
+                         {
+                             "command":  "codex --version",
+                             "exitCode":  1,
+                             "result":  "Access is denied"
+                         },
+                         {
+                             "command":  "explicit WindowsApps codex.exe --version",
+                             "exitCode":  1,
+                             "result":  "Access is denied"
+                         },
+                         {
+                             "command":  "Start-Process codex.exe --version",
+                             "exitCode":  1,
+                             "result":  "Access is denied"
+                         }
+                     ],
+    "attemptHistory":  [
+                           {
+                               "startedAt":  "2026-08-07T13:01:57.2612829+08:00",
+                               "stoppedAt":  "2026-08-07T13:05:47.7269545+08:00",
+                               "status":  "BLOCKED",
+                               "blockingCondition":  "Codex CLI exists only under the packaged WindowsApps directory and every execution method returned Access is denied; codex exec --json and codex exec resume therefore cannot be safely validated or used.",
+                               "cliPreflight":  [
+                                                    {
+                                                        "command":  "codex --version",
+                                                        "exitCode":  1,
+                                                        "result":  "Access is denied"
+                                                    },
+                                                    {
+                                                        "command":  "explicit WindowsApps codex.exe --version",
+                                                        "exitCode":  1,
+                                                        "result":  "Access is denied"
+                                                    },
+                                                    {
+                                                        "command":  "Start-Process codex.exe --version",
+                                                        "exitCode":  1,
+                                                        "result":  "Access is denied"
+                                                    }
+                                                ],
+                               "controllerDecision":  "Stopped before telemetry tooling implementation and before any application implementation, as required when CLI JSON/resume capability cannot be safely used."
+                           }
+                       ],
+    "currentAttemptStartedAt":  "2026-08-07T13:49:15.9302234+08:00",
+    "currentAttemptMode":  "BOOTSTRAP_MODE",
+    "currentAttemptExternalCapabilityEvidence":  {
+                                                     "status":  "PASS",
+                                                     "date":  "2026-08-07",
+                                                     "codexCliVersion":  "0.147.0",
+                                                     "execJson":  "PASS",
+                                                     "usage":  "PASS",
+                                                     "explicitThreadResume":  "PASS",
+                                                     "note":  "Manual external evidence is bootstrap input only and does not replace the required runner self-test."
+                                                 },
+    "currentAttemptNote":  "Retry started from the updated master prompt. Previous Access denied evidence is retained in attemptHistory.",
+    "currentAttemptCompletedAt":  "2026-08-07T14:51:07.0587586+08:00",
+    "bootstrapResult":  {
+                            "mode":  "BOOTSTRAP_MODE",
+                            "cliVersion":  "codex-cli 0.147.0",
+                            "syntheticTests":  {
+                                                   "total":  16,
+                                                   "passed":  16,
+                                                   "failed":  0,
+                                                   "framework":  "node:test"
+                                               },
+                            "finalSelfTest":  {
+                                                  "runId":  "self-test-resume-approval-20260807-145016",
+                                                  "status":  "AVAILABLE",
+                                                  "threadId":  "019fdafc-a325-7760-bd7f-729257e2dcea",
+                                                  "phaseCount":  2,
+                                                  "explicitResume":  true,
+                                                  "usage":  {
+                                                                "availability":  "AVAILABLE",
+                                                                "inputTokens":  49707,
+                                                                "cachedInputTokens":  37120,
+                                                                "cacheWriteInputTokens":  0,
+                                                                "outputTokens":  33,
+                                                                "reasoningOutputTokens":  0,
+                                                                "totalTokens":  49740,
+                                                                "totalFormula":  "sum of per-turn totalTokens; cached/reasoning breakdowns are not added again"
+                                                            },
+                                                  "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-resume-approval-20260807-145016",
+                                                  "sha256ManifestSha256":  "5cc7b29ac25e3f41fb6ed3b92f3d896e89a343d83cab03171c667fa3541a4a3a",
+                                                  "promptTransport":  "stdin",
+                                                  "resumeApprovalMode":  "exec parent --approve-for-me with workspace-write auto-review"
+                                              },
+                            "selfTestAttempts":  [
+                                                     {
+                                                         "runId":  "self-test-20260807-140023",
+                                                         "status":  "failed",
+                                                         "failure":  "CODEX_PROCESS_FAILED:self_test_initial:2",
+                                                         "threadId":  null,
+                                                         "phases":  [
+                                                                        {
+                                                                            "phaseId":  "self_test_initial",
+                                                                            "parserStatus":  "PARTIAL",
+                                                                            "usage":  {
+                                                                                          "availability":  "UNAVAILABLE"
+                                                                                      }
+                                                                        }
+                                                                    ],
+                                                         "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-20260807-140023"
+                                                     },
+                                                     {
+                                                         "runId":  "self-test-20260807-140140",
+                                                         "status":  "failed",
+                                                         "failure":  "CODEX_PROCESS_FAILED:self_test_resume:2",
+                                                         "threadId":  "019fdad0-2390-7fd3-9212-dbae00862e1d",
+                                                         "phases":  [
+                                                                        {
+                                                                            "phaseId":  "self_test_initial",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  60212,
+                                                                                          "cachedInputTokens":  41984,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  568,
+                                                                                          "reasoningOutputTokens":  262,
+                                                                                          "totalTokens":  60780
+                                                                                      }
+                                                                        },
+                                                                        {
+                                                                            "phaseId":  "self_test_resume",
+                                                                            "parserStatus":  "PARTIAL",
+                                                                            "usage":  {
+                                                                                          "availability":  "UNAVAILABLE"
+                                                                                      }
+                                                                        }
+                                                                    ],
+                                                         "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-20260807-140140"
+                                                     },
+                                                     {
+                                                         "runId":  "self-test-20260807-140324",
+                                                         "status":  "completed",
+                                                         "failure":  null,
+                                                         "threadId":  "019fdad1-b854-7242-9947-1fea91f818c3",
+                                                         "phases":  [
+                                                                        {
+                                                                            "phaseId":  "self_test_initial",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  91291,
+                                                                                          "cachedInputTokens":  71168,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  715,
+                                                                                          "reasoningOutputTokens":  298,
+                                                                                          "totalTokens":  92006
+                                                                                      }
+                                                                        },
+                                                                        {
+                                                                            "phaseId":  "self_test_resume",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  124031,
+                                                                                          "cachedInputTokens":  102400,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  919,
+                                                                                          "reasoningOutputTokens":  348,
+                                                                                          "totalTokens":  124950
+                                                                                      }
+                                                                        }
+                                                                    ],
+                                                         "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-20260807-140324"
+                                                     },
+                                                     {
+                                                         "runId":  "self-test-20260807-140728",
+                                                         "status":  "failed",
+                                                         "failure":  "LAST_MESSAGE_MISMATCH:self_test_initial",
+                                                         "threadId":  null,
+                                                         "phases":  [
+                                                                        {
+                                                                            "phaseId":  "self_test_initial",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  76768,
+                                                                                          "cachedInputTokens":  65280,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  808,
+                                                                                          "reasoningOutputTokens":  353,
+                                                                                          "totalTokens":  77576
+                                                                                      }
+                                                                        }
+                                                                    ],
+                                                         "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-20260807-140728"
+                                                     },
+                                                     {
+                                                         "runId":  "self-test-20260807-140927",
+                                                         "status":  "failed",
+                                                         "failure":  "LAST_MESSAGE_MISMATCH:self_test_initial",
+                                                         "threadId":  null,
+                                                         "phases":  [
+                                                                        {
+                                                                            "phaseId":  "self_test_initial",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  82712,
+                                                                                          "cachedInputTokens":  68352,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  961,
+                                                                                          "reasoningOutputTokens":  273,
+                                                                                          "totalTokens":  83673
+                                                                                      }
+                                                                        }
+                                                                    ],
+                                                         "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-20260807-140927"
+                                                     },
+                                                     {
+                                                         "runId":  "self-test-20260807-141123",
+                                                         "status":  "failed",
+                                                         "failure":  "CODEX_PROCESS_FAILED:self_test_resume:1",
+                                                         "threadId":  "019fdad9-0902-7d13-b80b-8e90c11ce866",
+                                                         "phases":  [
+                                                                        {
+                                                                            "phaseId":  "self_test_initial",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  81593,
+                                                                                          "cachedInputTokens":  73472,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  712,
+                                                                                          "reasoningOutputTokens":  143,
+                                                                                          "totalTokens":  82305
+                                                                                      }
+                                                                        },
+                                                                        {
+                                                                            "phaseId":  "self_test_resume",
+                                                                            "parserStatus":  "PARTIAL",
+                                                                            "usage":  {
+                                                                                          "availability":  "UNAVAILABLE"
+                                                                                      }
+                                                                        }
+                                                                    ],
+                                                         "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-20260807-141123"
+                                                     },
+                                                     {
+                                                         "runId":  "self-test-20260807-141316",
+                                                         "status":  "completed",
+                                                         "failure":  null,
+                                                         "threadId":  "019fdada-c24e-7a63-9236-2290fc48eac1",
+                                                         "phases":  [
+                                                                        {
+                                                                            "phaseId":  "self_test_initial",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  81588,
+                                                                                          "cachedInputTokens":  69376,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  747,
+                                                                                          "reasoningOutputTokens":  119,
+                                                                                          "totalTokens":  82335
+                                                                                      }
+                                                                        },
+                                                                        {
+                                                                            "phaseId":  "self_test_resume",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  99123,
+                                                                                          "cachedInputTokens":  85504,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  856,
+                                                                                          "reasoningOutputTokens":  210,
+                                                                                          "totalTokens":  99979
+                                                                                      }
+                                                                        }
+                                                                    ],
+                                                         "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-20260807-141316"
+                                                     },
+                                                     {
+                                                         "runId":  "self-test-final-20260807-141857",
+                                                         "status":  "completed",
+                                                         "failure":  null,
+                                                         "threadId":  "019fdadf-f7f2-7ed1-81a5-1ea6aa43ff0d",
+                                                         "phases":  [
+                                                                        {
+                                                                            "phaseId":  "self_test_initial",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  81540,
+                                                                                          "cachedInputTokens":  53248,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  764,
+                                                                                          "reasoningOutputTokens":  257,
+                                                                                          "totalTokens":  82304
+                                                                                      }
+                                                                        },
+                                                                        {
+                                                                            "phaseId":  "self_test_resume",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  99177,
+                                                                                          "cachedInputTokens":  69376,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  798,
+                                                                                          "reasoningOutputTokens":  272,
+                                                                                          "totalTokens":  99975
+                                                                                      }
+                                                                        }
+                                                                    ],
+                                                         "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-final-20260807-141857"
+                                                     },
+                                                     {
+                                                         "runId":  "self-test-stdin-20260807-142701",
+                                                         "status":  "completed",
+                                                         "failure":  null,
+                                                         "threadId":  "019fdae7-5806-7953-9fce-16c7ec62ec5f",
+                                                         "phases":  [
+                                                                        {
+                                                                            "phaseId":  "self_test_initial",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  15972,
+                                                                                          "cachedInputTokens":  13056,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  11,
+                                                                                          "reasoningOutputTokens":  0,
+                                                                                          "totalTokens":  15983,
+                                                                                          "totalFormula":  "sum of per-turn totalTokens; cached/reasoning breakdowns are not added again"
+                                                                                      }
+                                                                        },
+                                                                        {
+                                                                            "phaseId":  "self_test_resume",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  32697,
+                                                                                          "cachedInputTokens":  28160,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  22,
+                                                                                          "reasoningOutputTokens":  0,
+                                                                                          "totalTokens":  32719,
+                                                                                          "totalFormula":  "sum of per-turn totalTokens; cached/reasoning breakdowns are not added again"
+                                                                                      }
+                                                                        }
+                                                                    ],
+                                                         "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-stdin-20260807-142701"
+                                                     },
+                                                     {
+                                                         "runId":  "self-test-resume-approval-20260807-145016",
+                                                         "status":  "completed",
+                                                         "failure":  null,
+                                                         "threadId":  "019fdafc-a325-7760-bd7f-729257e2dcea",
+                                                         "phases":  [
+                                                                        {
+                                                                            "phaseId":  "self_test_initial",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  15998,
+                                                                                          "cachedInputTokens":  11008,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  11,
+                                                                                          "reasoningOutputTokens":  0,
+                                                                                          "totalTokens":  16009,
+                                                                                          "totalFormula":  "sum of per-turn totalTokens; cached/reasoning breakdowns are not added again"
+                                                                                      }
+                                                                        },
+                                                                        {
+                                                                            "phaseId":  "self_test_resume",
+                                                                            "parserStatus":  "AVAILABLE",
+                                                                            "usage":  {
+                                                                                          "availability":  "AVAILABLE",
+                                                                                          "inputTokens":  33709,
+                                                                                          "cachedInputTokens":  26112,
+                                                                                          "cacheWriteInputTokens":  0,
+                                                                                          "outputTokens":  22,
+                                                                                          "reasoningOutputTokens":  0,
+                                                                                          "totalTokens":  33731,
+                                                                                          "totalFormula":  "sum of per-turn totalTokens; cached/reasoning breakdowns are not added again"
+                                                                                      }
+                                                                        }
+                                                                    ],
+                                                         "rawEvidenceRelativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/self-test-resume-approval-20260807-145016"
+                                                     }
+                                                 ],
+                            "selfTestGrossMeasuredUsage":  {
+                                                               "inputTokens":  976411,
+                                                               "cachedInputTokens":  778496,
+                                                               "cacheWriteInputTokens":  0,
+                                                               "outputTokens":  7914,
+                                                               "reasoningOutputTokens":  2535,
+                                                               "totalTokens":  984325
+                                                           },
+                            "grossUsageFormula":  "Sum of every attempt phase with a valid turn.completed.usage; cached and reasoning tokens are retained as breakdowns and not added again to totalTokens.",
+                            "persistentPreflightRecord":  {
+                                                              "status":  "VALID",
+                                                              "relativeIdentity":  "JiraActivityAnalyzer-codex-telemetry/preflight/preflight-record.json",
+                                                              "sha256":  "cece67d79e45d80f4baedfec05715bd07ef05be2a36eae90642782527e60c112",
+                                                              "toolingHashMismatchCount":  0
+                                                          },
+                            "appWorktreeChangedBySelfTest":  false,
+                            "rawEvidencePolicy":  "Sensitive local audit data outside the repository and package root; not staged, committed, packaged, uploaded, or pasted into reports."
+                        },
+    "controllerDecision":  "Bootstrap completed. Instrumentation commit may proceed; v0.3.1 production implementation remains delegated to the monitored Worker workflow.",
+    "postCommitBootstrapCorrection":  {
+                                          "reason":  "The initial App Worker launch exposed the Windows .cmd command-line length limit. The runner now transports prompts through stdin as supported by codex exec.",
+                                          "failedWorkerLaunchRunId":  "v0.3.1-20260807-142425",
+                                          "failedWorkerLaunchUsage":  "UNAVAILABLE_NO_TURN_STARTED",
+                                          "replacementSelfTestRunId":  "self-test-stdin-20260807-142701",
+                                          "resumeCorrection":  "Resume now receives exec parent --approve-for-me; verified by the final two-turn self-test."
+                                      }
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "workflowId": "jira-activity-analyzer-v0.3.1",
+  "requirementsPath": "../../../prompts/JiraActivityAnalyzer_v0.3.1_worker_requirements.md",
+  "requireHandoff": true,
+  "phases": [
+    {
+      "phaseId": "preflight_inspection",
+      "instruction": "Create the required v0.3.1 branch, start the App ledgers, perform focused inspection, produce the planned scope matrix, complete the handoff, and stop. Do not implement production changes."
+    },
+    {
+      "phaseId": "implementation",
+      "instruction": "Read the prior handoff. Implement only the approved production, tests, version metadata, CHANGELOG, and minimal documentation scope. Do not run Dist or commit. Complete the handoff and stop."
+    },
+    {
+      "phaseId": "verification_source_commit",
+      "instruction": "Read the prior handoff. Run focused v0.3.1 tests, v0.3.0 export regression, affected regressions, typecheck, necessary integration, and git diff --check. Fix only in-scope failures, create the Source commit by precise staging, complete the handoff, and stop. Do not run Dist."
+    },
+    {
+      "phaseId": "package_audit_reports_evidence_commit",
+      "instruction": "Read the prior handoff. From the Source commit run the single authorized clean production Windows Dist, audit the same artifacts, run the short packaged synthetic smoke and contamination scan, finish reports and ledgers, create the Evidence commit by precise staging, complete the handoff, and stop. Do not push, tag, open a PR, or release."
+    }
+  ]
+}
