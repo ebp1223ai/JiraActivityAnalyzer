@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "release": "0.3.2",
+  "startedAt": "2026-08-07T19:16:06+08:00",
+  "endedAt": "2026-08-07T19:37:09.4485163+08:00",
+  "wallClockSeconds": 1263.449,
+  "status": "completed_ready_for_manual_validation",
+  "phases": [
+    {
+      "phaseId": "inspection_design_implementation_source_verification",
+      "startedAt": "2026-08-07T19:16:06+08:00",
+      "endedAt": "2026-08-07T19:32:02+08:00",
+      "status": "completed",
+      "sourceCommit": "05724206531834728a04a45dae9ba28f45b2f403"
+    },
+    {
+      "phaseId": "clean_windows_dist",
+      "status": "completed",
+      "wallClockSeconds": 79.148,
+      "distRuns": 1
+    },
+    {
+      "phaseId": "artifact_audit_short_startup_and_evidence",
+      "status": "completed",
+      "shortStartupSeconds": 8,
+      "fullGuiSmokeRun": false
+    }
+  ],
+  "retries": [
+    {
+      "operation": "release metadata edit script",
+      "reason": "Markdown backticks conflicted with a JavaScript template literal before any repository file was written.",
+      "result": "Replaced with a line-array implementation and completed successfully."
+    },
+    {
+      "operation": "production-path compact hash validation",
+      "reason": "The first implementation treated SQLite completeness flags as canonical Diff availability.",
+      "result": "Aligned source hash availability with the existing canonical Diff pipeline; regression passed."
+    },
+    {
+      "operation": "artifact hash command",
+      "reason": "The first PowerShell foreach pipeline had an empty pipe parser error.",
+      "result": "Corrected to collect rows before JSON serialization; no artifact was rebuilt."
+    }
+  ]
+}

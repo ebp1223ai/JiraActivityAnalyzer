@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "release": "0.3.2",
+  "status": "completed_ready_for_manual_validation",
+  "scope": {
+    "implemented": [
+      "compact-reference Pending Analysis DTO",
+      "canonical Diff-only payload",
+      "stable SQLite source references",
+      "original content SHA-256 references",
+      "recursive full-content key rejection",
+      "compact record and record-array integrity",
+      "UI and documentation warning",
+      "focused and production-path tests",
+      "Windows test delivery"
+    ],
+    "preserved": [
+      "Current-State SQLite schema v3",
+      "Jira read-only behavior",
+      "full frozen filtered-set export",
+      "bounded multi-batch processing",
+      "progress and duplicate-start guards",
+      "cancellation and partial cleanup",
+      "source-generation validation",
+      "atomic finalization"
+    ],
+    "notPerformed": [
+      "SQLite schema or data migration",
+      "self-contained export",
+      "real Jira connection",
+      "real SQLite content acceptance",
+      "full GUI smoke",
+      "push, tag, PR or GitHub Release"
+    ]
+  },
+  "tokenUsage": {
+    "availability": "UNAVAILABLE",
+    "reason": "This direct Codex closeout was not launched through the repository telemetry runner; turn.completed.usage is not observable and was not estimated."
+  },
+  "safety": {
+    "tokenTxtRead": false,
+    "tokenTxtStaged": false,
+    "tokenTxtCommitted": false,
+    "unrelatedDirtyAndUntrackedPreserved": true,
+    "rawTelemetryPackaged": false
+  }
+}
