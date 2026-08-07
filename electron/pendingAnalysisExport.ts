@@ -9,7 +9,8 @@ import {
   PENDING_ANALYSIS_SCHEMA_NAME,
   PENDING_ANALYSIS_SCHEMA_VERSION,
   PendingAnalysisExportError,
-  assertPendingAnalysisSafe,
+  assertPendingAnalysisHeaderSafe,
+  assertPendingAnalysisRecordSafe,
   canonicalJson,
   createPendingEvidenceId,
   filterSnapshot,
@@ -17,7 +18,8 @@ import {
   type PendingAnalysisExportRequest,
   type PendingAnalysisExportResult,
   type PendingAnalysisProgress,
-  type PendingAnalysisRecord
+  type PendingAnalysisRecord,
+  type PendingAnalysisRuntimeIdentity
 } from "../shared/pendingAnalysisContract.js";
 
 type RunInput = PendingAnalysisExportRequest & {
@@ -25,6 +27,7 @@ type RunInput = PendingAnalysisExportRequest & {
   databasePath: string;
   appRoot: string;
   appVersion: string;
+  runtimeIdentity?: PendingAnalysisRuntimeIdentity;
 };
 
 type RunControl = {
@@ -48,7 +51,7 @@ function hostOnly(value: unknown) {
   try { return new URL(String(value ?? "")).host; } catch { return ""; }
 }
 
-export function pendingAnalysisRecord(row: Record<string, unknown>, source: { databaseId: string; jiraServerFingerprint: string }): PendingAnalysisRecord {
+export function pendingAnalysisRecord(row: Record<string, unknown>, source: { databaseId: string; jiraServerFingerprint: string }, runtimeIdentity: PendingAnalysisRuntimeIdentity = {}): PendingAnalysisRecord {
   const beforeRaw = row.before == null ? null : String(row.before);
   const afterRaw = row.after == null ? null : String(row.after);
   const descriptionDiff = row.descriptionDiff && typeof row.descriptionDiff === "object" ? row.descriptionDiff as Record<string, unknown> : null;
@@ -123,8 +126,8 @@ export function pendingAnalysisRecord(row: Record<string, unknown>, source: { da
       diagnostics: [] as string[]
     }
   };
-  const record = { ...recordBase, integrity: { ...recordBase.integrity, recordSha256: sha256Canonical(recordBase) } };
-  assertPendingAnalysisSafe(record);
+  const record = { ...recordBase, integrity: { ...recordBase.integrity, recordSha256: sha256Canonical(recordBase) } } as PendingAnalysisRecord;
+  assertPendingAnalysisRecordSafe(record, runtimeIdentity);
   return record;
 }
 function errorCode(error: unknown, phase: "preparing" | "filtering" | "writing" | "finalizing") {
@@ -137,6 +140,31 @@ function errorCode(error: unknown, phase: "preparing" | "filtering" | "writing" 
   if (/ENOENT|SQLITE_CANTOPEN|no such table|DATABASE_UNAVAILABLE/.test(message)) return "SOURCE_DATABASE_NOT_READY";
   if (phase === "finalizing") return "EXPORT_FINALIZE_FAILED";
   return "EXPORT_WRITE_FAILED";
+}
+
+export function pendingAnalysisProgress(input: {
+  exportId: string;
+  status: Exclude<PendingAnalysisProgress["status"], "idle">;
+  sourceView: PendingAnalysisProgress["sourceView"];
+  totalRecords: number;
+  processedRecords: number;
+  serializedRecords?: number;
+  writtenRecords?: number;
+  elapsedMs: number;
+  message: string;
+}): PendingAnalysisProgress {
+  const totalRecords = Math.max(0, Math.trunc(input.totalRecords));
+  const processedRecords = Math.max(0, Math.min(totalRecords, Math.trunc(input.processedRecords)));
+  const serializedRecords = Math.max(0, Math.min(processedRecords, Math.trunc(input.serializedRecords ?? processedRecords)));
+  const writtenRecords = Math.max(0, Math.min(serializedRecords, Math.trunc(input.writtenRecords ?? serializedRecords)));
+  const percentage = input.status === "completed" ? 100
+    : totalRecords > 0 ? Math.min(99, Math.floor(processedRecords / totalRecords * 100)) : 0;
+  return {
+    exportId: input.exportId, status: input.status, stage: input.status, sourceView: input.sourceView,
+    totalRecords, processedRecords, serializedRecords, writtenRecords,
+    filteredCount: totalRecords, exportedCount: processedRecords, percentage,
+    elapsedMs: Math.max(0, input.elapsedMs), message: input.message
+  };
 }
 
 export async function runPendingAnalysisExport(input: RunInput, control: RunControl = {}): Promise<PendingAnalysisExportResult> {
@@ -162,12 +190,19 @@ export async function runPendingAnalysisExport(input: RunInput, control: RunCont
   const recordsDigest = crypto.createHash("sha256");
   let phase: "preparing" | "filtering" | "writing" | "finalizing" = "preparing";
   let exportedCount = 0;
+  let serializedCount = 0;
+  let writtenCount = 0;
   let sourceDatabaseId = "";
   let jiraServerFingerprint = "";
   let batchCount = 0;
   let firstRecord = true;
-  const emit = (status: PendingAnalysisProgress["status"], message: string, filteredCount: number, percentage: number) => control.onProgress?.({ exportId: input.exportId, status, sourceView: input.sourceView, filteredCount, exportedCount, percentage, elapsedMs: Math.max(0, now() - startedAt), message });
-  emit("preparing", "Freezing filtered query snapshot / 凍結篩選條件", input.expectedFilteredCount, 0);
+  const runtimeIdentity = { ...input.runtimeIdentity, appRoot: input.appRoot, databasePath: input.databasePath };
+  const emit = (status: Exclude<PendingAnalysisProgress["status"], "idle">, message: string) => control.onProgress?.(pendingAnalysisProgress({
+    exportId: input.exportId, status, sourceView: input.sourceView, totalRecords: input.expectedFilteredCount,
+    processedRecords: exportedCount, serializedRecords: serializedCount, writtenRecords: writtenCount,
+    elapsedMs: now() - startedAt, message
+  }));
+  emit("preparing", "Freezing filtered query snapshot / 凍結篩選條件");
   try {
     fs.writeFileSync(spoolPath, "", { encoding: "utf8", flag: "wx" });
     recordsDigest.update("[");
@@ -180,20 +215,22 @@ export async function runPendingAnalysisExport(input: RunInput, control: RunCont
         if (input.expectedDatabaseIdentity && input.expectedDatabaseIdentity !== value.databaseGeneration) throw new PendingAnalysisExportError("SOURCE_DATABASE_CHANGED", "Viewer database generation changed before export started.");
       },
       isCancelled: control.isCancelled,
-      onProgress: (value) => emit(value.stage === "filtering" ? "filtering" : "writing", value.stage === "filtering" ? "Filtering complete data set / 篩選完整資料集" : "Writing export records / 寫入匯出紀錄", value.stage === "filtering" ? value.matched : value.total, value.total ? Math.min(95, Math.round(value.scanned / value.total * 95)) : 0),
+      onProgress: (value) => emit(value.stage === "filtering" ? "filtering" : "writing", value.stage === "filtering" ? "Filtering complete data set / 篩選完整資料集" : "Writing export records / 寫入匯出紀錄"),
       onBatch: (batch) => {
         phase = "writing";
         const chunks: string[] = [];
         batchCount += 1;
         for (const row of batch) {
-          const record = pendingAnalysisRecord(row, { databaseId: sourceDatabaseId, jiraServerFingerprint });
+          const record = pendingAnalysisRecord(row, { databaseId: sourceDatabaseId, jiraServerFingerprint }, runtimeIdentity);
           const canonical = canonicalJson(record);
+          serializedCount += 1;
           recordsDigest.update(firstRecord ? canonical : `,${canonical}`);
           chunks.push(`${firstRecord ? "" : ",\n"}${JSON.stringify(record, null, 2).split("\n").map((line) => `    ${line}`).join("\n")}`);
           firstRecord = false;
           exportedCount += 1;
         }
         fs.appendFileSync(spoolPath, chunks.join(""), "utf8");
+        writtenCount = exportedCount;
       }
     });
     if (!scan.filteredCount) throw new PendingAnalysisExportError("NO_FILTERED_RECORDS", "No filtered records are available for export.");
@@ -210,9 +247,9 @@ export async function runPendingAnalysisExport(input: RunInput, control: RunCont
       sourceDatabase: { sourceDatabaseId: databaseId, jiraServerFingerprint: jiraServerIdentity, jiraServerHost: hostOnly(scan.metadata.jiraServerUrl), sourceSchemaVersion: Number(scan.metadata.schemaVersion), databaseGeneration: scan.databaseGeneration },
       querySnapshot, counts: { filteredCountAtStart: scan.filteredCount, exportedCount, skippedCount: 0, failedCount: 0, batchCount }
     };
-    assertPendingAnalysisSafe(header);
+    assertPendingAnalysisHeaderSafe(header, runtimeIdentity);
     phase = "finalizing";
-    emit("finalizing", "Finalizing integrity metadata / 完成完整性資料", scan.filteredCount, 96);
+    emit("finalizing", "Finalizing integrity metadata / 完成完整性資料");
     const headerText = JSON.stringify(header, null, 2).replace(/\n}$/, "");
     fs.writeFileSync(partialPath, `${headerText},\n  \"records\": [\n`, { encoding: "utf8", flag: "wx" });
     await pipeline(fs.createReadStream(spoolPath), fs.createWriteStream(partialPath, { flags: "a" }));
@@ -224,7 +261,7 @@ export async function runPendingAnalysisExport(input: RunInput, control: RunCont
     fs.renameSync(partialPath, finalPath);
     fs.unlinkSync(spoolPath);
     const result = { exportId: input.exportId, fileName, filePath: finalPath, folderPath, exportedCount, sizeBytes, sha256, elapsedMs: Math.max(0, now() - startedAt) };
-    emit("completed", "Export completed / 匯出完成", exportedCount, 100);
+    emit("completed", "Export completed / 匯出完成");
     return result;
   } catch (error) {
     for (const candidate of [partialPath, spoolPath]) { try { fs.unlinkSync(candidate); } catch { /* Atomic cleanup. */ } }

@@ -1,8 +1,16 @@
 # Jira Activity Analyzer
 
-> v0.3.0 adds a review-draft, local-only Pending Analysis Data export. Jira remains read-only and Current-State SQLite schema stays at v3.
+> v0.3.1 corrects pending-analysis export integrity, diagnostics, concurrency, and progress. Jira remains read-only, Current-State SQLite schema stays at v3, and the export contract remains review-draft `0.3.0-draft.1`.
 
-## v0.3.0 Pending Analysis Data Export
+## v0.3.1 Pending Analysis Export Correctness
+
+- Path-like text from Jira Before/After, Diff/hunks, comments, descriptions, and other explicit evidence remains unchanged and hash-stable.
+- Runtime-generated host paths, credentials, and unknown provenance fail closed with typed reason and JSON path; the scanner never cleans evidence and continues.
+- Pending export lifecycle diagnostics are written through the existing persistent logger and included by the existing Debug Folder session collector without evidence, credentials, or absolute runtime roots.
+- Active exports expose only Cancel in both Viewers, duplicate renderer starts are suppressed, and stale events do not replace the active run.
+- Progress reports processed records against the frozen filtered total. Finalization does not fabricate record progress, and only successful completion reaches 100%.
+
+## Pending Analysis Data Export Contract
 
 - Open **Issue Viewer → Activity Events** or **User Viewer → All Activity Events**, apply the existing filters, then select **Export Pending Analysis Data / 匯出待分析資料**.
 - The export freezes the current typed filter and sort snapshot and writes every matching record across all pages, not only the visible page.

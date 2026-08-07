@@ -13,6 +13,11 @@ parentPort.on("message", async (message: { type: string; input?: Parameters<type
     });
     parentPort!.postMessage({ type: "completed", result });
   } catch (error) {
-    parentPort!.postMessage({ type: "failed", error: { code: error && typeof error === "object" && "code" in error ? String(error.code) : "EXPORT_WRITE_FAILED", message: error instanceof Error ? error.message : String(error) } });
+    parentPort!.postMessage({ type: "failed", error: {
+      code: error && typeof error === "object" && "code" in error ? String(error.code) : "EXPORT_WRITE_FAILED",
+      message: error instanceof Error ? error.message : String(error),
+      integrityReason: error && typeof error === "object" && "integrityReason" in error ? String(error.integrityReason ?? "") : undefined,
+      offendingJsonPath: error && typeof error === "object" && "offendingJsonPath" in error ? String(error.offendingJsonPath ?? "") : undefined
+    } });
   }
 });

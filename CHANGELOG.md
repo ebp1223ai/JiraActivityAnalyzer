@@ -1,3 +1,12 @@
+## 0.3.1 - Pending Analysis Export Correctness
+
+- Replaced the property/value-only local-path rejection with a central provenance-aware integrity policy that permits path-like Jira evidence unchanged while failing generated runtime paths, unknown provenance, and credential material with typed reason and JSON path only.
+- Added sanitized, throttled pending-analysis started/completed/failed/cancelled lifecycle diagnostics through the existing persistent logger and Debug Folder session collector.
+- Prevented duplicate renderer starts, retained the main/coordinator already-running guard, ignored stale run events, and made active Viewer panels expose only Cancel.
+- Corrected progress to use a frozen total and bounded monotonic processed/serialized/written counts: `0 / N` is 0%, finalization is a stage, and only successful completion is 100%.
+- Added focused synthetic production-path coverage while preserving Current-State schema v3, ENV format, dependencies, read-only behavior, 100-row-equivalent batching, atomic rename, and contract `0.3.0-draft.1 / review-draft`.
+- Automated status remains Partial pending a successful real SQLite export and Windows GUI user revalidation.
+
 ## 0.3.0 - Pending Analysis Data Export & Real-data Contract Review
 
 - Added production pending-analysis JSON export to Issue Viewer / Activity Events and User Viewer / All Activity Events only.

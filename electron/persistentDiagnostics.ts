@@ -136,6 +136,29 @@ export function createPersistentDiagnostics(options: DiagnosticOptions) {
     return resolvedIncidentId;
   };
 
+  const writeRestricted = (channel: DiagnosticChannel, event: string, details: unknown = {}) => {
+    try {
+      const record = {
+        timestamp: now().toISOString(),
+        channel,
+        event,
+        build: options.build,
+        details: safeValue(details)
+      };
+      const sanitized = options.sanitizeText(maskCommonSecrets(JSON.stringify(record)));
+      fs.appendFileSync(fileFor(channel), sanitized + "\n", "utf8");
+      counts[channel] += 1;
+      updateSummary();
+    } catch (error) {
+      writerFailed = true;
+      try {
+        fs.appendFileSync(path.join(options.logsDir, "diagnostic-writer-failures.log"), now().toISOString() + " " + String(error) + "\n", "utf8");
+      } catch {
+        // Diagnostics must never recursively crash the application.
+      }
+    }
+  };
+
   const retention = () => {
     const keep = Math.max(2, options.retentionSessions ?? 12);
     try {
@@ -168,6 +191,7 @@ export function createPersistentDiagnostics(options: DiagnosticOptions) {
     latestPath,
     fileFor,
     write,
+    writeRestricted,
     close: (status = "closed") => {
       try { updateSummary(status); } catch { /* best effort during shutdown */ }
     },

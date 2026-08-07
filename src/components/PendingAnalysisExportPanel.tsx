@@ -1,6 +1,13 @@
 import { Download, FolderOpen, Square } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PendingAnalysisExportRequest, PendingAnalysisProgress, PendingAnalysisSourceView } from "../../shared/pendingAnalysisContract";
+import {
+  claimPendingAnalysisRendererStart,
+  isPendingAnalysisActive,
+  isPendingAnalysisTerminal,
+  releasePendingAnalysisRendererStart,
+  shouldAcceptPendingAnalysisProgress
+} from "./pendingAnalysisExportState";
 
 type Props = {
   sourceView: PendingAnalysisSourceView;
@@ -11,11 +18,13 @@ type Props = {
   userScope?: unknown;
 };
 
-const activeStatuses = new Set(["preparing", "filtering", "writing", "finalizing"]);
-
 export function PendingAnalysisExportPanel(props: Props) {
   const [run, setRun] = useState<PendingAnalysisProgress | null>(null);
-  const active = Boolean(run && activeStatuses.has(run.status));
+  const [starting, setStarting] = useState(false);
+  const acceptedRunId = useRef("");
+  const rejectedRunId = useRef("");
+  const awaitingNewRun = useRef(false);
+  const active = starting || isPendingAnalysisActive(run);
   const forThisView = run?.sourceView === props.sourceView;
   const disabledReason = props.filteredCount === 0
     ? "No filtered records to export. / 沒有可匯出的篩選紀錄。"
@@ -23,11 +32,24 @@ export function PendingAnalysisExportPanel(props: Props) {
   const label = useMemo(() => props.sourceView === "ISSUE_ACTIVITY_EVENTS" ? "Issue Viewer · Activity Events" : "User Viewer · All Activity Events", [props.sourceView]);
 
   useEffect(() => {
-    void window.desktopApp?.pendingAnalysisExport?.getStatus().then((status) => { if (status) setRun(status); });
-    return window.desktopApp?.pendingAnalysisExport?.onProgress((progress) => setRun(progress));
+    const accept = (progress: PendingAnalysisProgress) => {
+      if (awaitingNewRun.current && progress.exportId === rejectedRunId.current) return;
+      if (!shouldAcceptPendingAnalysisProgress(acceptedRunId.current, progress) && !awaitingNewRun.current) return;
+      awaitingNewRun.current = false;
+      acceptedRunId.current = progress.exportId;
+      setStarting(false);
+      setRun(progress);
+    };
+    void window.desktopApp?.pendingAnalysisExport?.getStatus().then((status) => { if (status) accept(status); });
+    return window.desktopApp?.pendingAnalysisExport?.onProgress(accept);
   }, []);
 
   async function start() {
+    if (active || !claimPendingAnalysisRendererStart()) return;
+    rejectedRunId.current = acceptedRunId.current;
+    acceptedRunId.current = "";
+    awaitingNewRun.current = true;
+    setStarting(true);
     const request: PendingAnalysisExportRequest = {
       sourceView: props.sourceView,
       query: structuredClone(props.query),
@@ -37,7 +59,16 @@ export function PendingAnalysisExportPanel(props: Props) {
       userScope: props.userScope
     };
     try { await window.desktopApp?.pendingAnalysisExport?.start(request); }
-    catch (error) { setRun((current) => current ? { ...current, status: "failed", message: error instanceof Error ? error.message : String(error) } : current); }
+    catch (error) {
+      setStarting(false);
+      setRun((current) => current && isPendingAnalysisTerminal(current) ? current : current ? {
+        ...current, status: "failed", stage: "failed", processedRecords: 0, serializedRecords: 0,
+        writtenRecords: 0, exportedCount: 0, percentage: 0, message: error instanceof Error ? error.message : String(error)
+      } : current);
+    } finally {
+      awaitingNewRun.current = false;
+      releasePendingAnalysisRendererStart();
+    }
   }
 
   return <div data-testid={`pending-analysis-export-${props.sourceView.toLowerCase()}`} className="rounded-md border border-blue-200 bg-blue-50 p-3">
@@ -48,13 +79,13 @@ export function PendingAnalysisExportPanel(props: Props) {
         {disabledReason ? <div className="mt-1 text-xs font-bold text-amber-800">{disabledReason}</div> : null}
       </div>
       <div className="flex flex-wrap gap-2">
-        {active && forThisView ? <button className="btn" type="button" onClick={() => void window.desktopApp?.pendingAnalysisExport?.cancel({ exportId: run!.exportId })}><Square size={15} />Cancel / 取消</button> : null}
-        <button className="btn btn-primary" type="button" disabled={Boolean(disabledReason)} title={disabledReason || "Export the complete frozen filtered set"} onClick={() => void start()}><Download size={16} />Export Pending Analysis Data / 匯出待分析資料</button>
+        {active && run && isPendingAnalysisActive(run) ? <button className="btn" type="button" onClick={() => void window.desktopApp?.pendingAnalysisExport?.cancel({ exportId: run.exportId })}><Square size={15} />Cancel / 取消</button> : null}
+        {!active ? <button className="btn btn-primary" type="button" disabled={Boolean(disabledReason)} title={disabledReason || "Export the complete frozen filtered set"} onClick={() => void start()}><Download size={16} />Export Pending Analysis Data / 匯出待分析資料</button> : null}
       </div>
     </div>
-    {forThisView && run && activeStatuses.has(run.status) ? <div className="mt-3">
+    {forThisView && run && isPendingAnalysisActive(run) ? <div className="mt-3">
       <div className="h-2 overflow-hidden rounded bg-blue-100"><div className="h-full bg-blue-600 transition-[width]" style={{ width: `${run.percentage}%` }} /></div>
-      <div className="mt-1 flex flex-wrap justify-between gap-2 text-xs font-bold text-blue-900"><span>{run.message}</span><span>{run.exportedCount.toLocaleString()} / {run.filteredCount.toLocaleString()} · {run.percentage}%</span></div>
+      <div className="mt-1 flex flex-wrap justify-between gap-2 text-xs font-bold text-blue-900"><span>{run.message}</span><span>{run.processedRecords.toLocaleString()} / {run.totalRecords.toLocaleString()} · {run.percentage}%</span></div>
     </div> : null}
     {forThisView && run?.status === "failed" ? <div className="mt-3 rounded border border-rose-300 bg-rose-50 p-2 text-xs font-bold text-rose-800">{run.errorCode}: {run.message}</div> : null}
     {forThisView && run?.status === "cancelled" ? <div className="mt-3 text-xs font-bold text-amber-800">Export cancelled. No final file was created. / 匯出已取消，未建立正式檔案。</div> : null}

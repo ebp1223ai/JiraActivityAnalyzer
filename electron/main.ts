@@ -55,7 +55,8 @@ import { validateAndSaveDatabaseSelection } from "./startupIntegration.js";
 import { issueViewerFailure } from "./databaseViewer.js";
 import { DatabaseViewerCoordinator, type ViewerWorkerLane } from "./databaseViewerCoordinator.js";
 import { PendingAnalysisExportCoordinator } from "./pendingAnalysisExportCoordinator.js";
-import type { PendingAnalysisExportRequest } from "../shared/pendingAnalysisContract.js";
+import { createPendingAnalysisExportDiagnostics, pendingAnalysisPublicReason, type PendingAnalysisDiagnosticSnapshot } from "./pendingAnalysisExportDiagnostics.js";
+import { filterSnapshot, type PendingAnalysisExportRequest, type PendingAnalysisExportResult, type PendingAnalysisProgress } from "../shared/pendingAnalysisContract.js";
 import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
@@ -837,8 +838,74 @@ ipcMain.handle("pending-analysis-export:start", async (event, payload: PendingAn
   const exportId = crypto.randomUUID();
   let databasePath: string;
   try { databasePath = currentReadableDatabasePath(); } catch (error) { throw Object.assign(new Error(error instanceof Error ? error.message : String(error)), { code: "SOURCE_DATABASE_NOT_READY" }); }
-  return pendingAnalysisExportCoordinator.start({ ...payload, exportId, expectedFilteredCount, databasePath, appRoot: getConfiguredAppRoot(), appVersion: __MAIN_APP_VERSION__ },
-    (progress) => { if (!event.sender.isDestroyed()) event.sender.send("pending-analysis-export:progress", progress); });
+  const snapshot = filterSnapshot(payload.query, payload.sourceView === "ISSUE_ACTIVITY_EVENTS" ? { issueKey: payload.issueKey } : { userScope: payload.userScope });
+  const diagnostics = createPendingAnalysisExportDiagnostics((diagnosticEvent, details) =>
+    persistentDiagnostics.writeRestricted("main", diagnosticEvent, details));
+  let lastProgress: PendingAnalysisProgress | null = null;
+  const diagnosticSnapshot = (progress: PendingAnalysisProgress | null, extra: Partial<PendingAnalysisDiagnosticSnapshot> = {}): PendingAnalysisDiagnosticSnapshot => ({
+    runId: exportId,
+    sourceView: payload.sourceView,
+    filterSnapshotHash: snapshot.filterSnapshotHash,
+    totalRecords: progress?.totalRecords ?? expectedFilteredCount,
+    processedRecords: progress?.processedRecords ?? 0,
+    serializedRecords: progress?.serializedRecords ?? 0,
+    writtenRecords: progress?.writtenRecords ?? 0,
+    stage: progress?.stage ?? "preparing",
+    elapsedMs: progress?.elapsedMs ?? 0,
+    ...extra
+  });
+  diagnostics.started(diagnosticSnapshot(null));
+  const appRoot = getConfiguredAppRoot();
+  const credentialValues = Object.entries(process.env)
+    .filter(([key, value]) => Boolean(value) && /(?:authorization|bearer|cookie|session|password|secret|api[_-]?token|token)/i.test(key))
+    .map(([, value]) => String(value));
+  try {
+    const result = await pendingAnalysisExportCoordinator.start({
+      ...payload,
+      exportId,
+      expectedFilteredCount,
+      databasePath,
+      appRoot,
+      appVersion: __MAIN_APP_VERSION__,
+      runtimeIdentity: {
+        appRoot,
+        databasePath,
+        executablePath: process.execPath,
+        userDataPath: getAppDataDir(),
+        tempPath: getTempDir(),
+        stagingPath: getFullFetchStagingDir(),
+        profilePath: app.getPath("userData"),
+        credentialValues
+      }
+    }, (progress) => {
+      lastProgress = progress;
+      diagnostics.progress(diagnosticSnapshot(progress));
+      if (!event.sender.isDestroyed()) event.sender.send("pending-analysis-export:progress", progress);
+    }) as PendingAnalysisExportResult;
+    diagnostics.completed(diagnosticSnapshot(lastProgress, {
+      stage: "completed",
+      processedRecords: result.exportedCount,
+      serializedRecords: result.exportedCount,
+      writtenRecords: result.exportedCount,
+      elapsedMs: result.elapsedMs,
+      outputFileName: result.fileName
+    }));
+    return result;
+  } catch (error) {
+    const internalReason = error && typeof error === "object" && "code" in error ? String(error.code ?? "EXPORT_WRITE_FAILED") : "EXPORT_WRITE_FAILED";
+    const integrityReason = error && typeof error === "object" && "integrityReason" in error ? String(error.integrityReason ?? "") as PendingAnalysisDiagnosticSnapshot["integrityReason"] : undefined;
+    const offendingJsonPath = error && typeof error === "object" && "offendingJsonPath" in error ? String(error.offendingJsonPath ?? "") : undefined;
+    const failure = diagnosticSnapshot(lastProgress, {
+      stage: internalReason === "EXPORT_CANCELLED" ? "cancelled" : "failed",
+      publicReason: pendingAnalysisPublicReason(internalReason),
+      internalReason,
+      integrityReason,
+      offendingJsonPath
+    });
+    if (internalReason === "EXPORT_CANCELLED") diagnostics.cancelled(failure);
+    else diagnostics.failed(failure);
+    throw error;
+  }
 });
 ipcMain.handle("pending-analysis-export:status", async () => pendingAnalysisExportCoordinator.current());
 ipcMain.handle("pending-analysis-export:cancel", async (_event, payload: { exportId?: unknown }) => ({ cancelled: pendingAnalysisExportCoordinator.cancel(String(payload?.exportId ?? "")) }));
