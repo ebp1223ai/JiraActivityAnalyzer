@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "codex_execution_ledger_v1",
+  "version": "0.3.3",
+  "baselineCommit": "4b0d0244a063a68fe96a281af83bcc6c6afaa956",
+  "branch": "fix/v0.3.3-compact-diff-export-correctness",
+  "firstDurableImplementationEvidenceAt": "2026-08-10T12:46:05+08:00",
+  "recordingLimitation": "Repository inspection and branch creation began before the first durable edit timestamp; their exact start timestamp is unavailable and was not fabricated.",
+  "entries": [
+    {
+      "command": "npm.cmd run test:v0.3.3",
+      "result": "FAIL",
+      "elapsedMs": 1800,
+      "reason": "Detected comma-induced false array diff."
+    },
+    {
+      "command": "npm.cmd run test:v0.3.3",
+      "result": "PASS",
+      "elapsedMs": 800
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "FAIL",
+      "elapsedMs": 12300,
+      "reason": "Frozen-ID guard needed an explicit Row cast."
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "PASS",
+      "elapsedMs": 8895
+    },
+    {
+      "command": "npm.cmd run test:v0.3.2",
+      "result": "PASS",
+      "elapsedMs": 619
+    },
+    {
+      "command": "npm.cmd run test:v0.3.1",
+      "result": "PASS",
+      "elapsedMs": 699
+    },
+    {
+      "command": "npm.cmd run test:v0.3.0",
+      "result": "PASS",
+      "elapsedMs": 1516
+    },
+    {
+      "command": "npm.cmd run test:v0.2.67",
+      "result": "FAIL",
+      "elapsedMs": 5504,
+      "reason": "Old hideBeforeUnavailable expected count."
+    },
+    {
+      "command": "npm.cmd run test:v0.2.67",
+      "result": "PASS",
+      "elapsedMs": 17200
+    },
+    {
+      "command": "npm.cmd run test:v0.2.66",
+      "result": "FAIL",
+      "elapsedMs": 1397,
+      "reason": "Old empty-string-as-missing fixture."
+    },
+    {
+      "command": "npm.cmd run test:v0.2.66",
+      "result": "FAIL",
+      "elapsedMs": 16720,
+      "reason": "30 ms worker recovery watchdog was scheduler-flaky."
+    },
+    {
+      "command": "npm.cmd run test:v0.2.66",
+      "result": "PASS",
+      "elapsedMs": 17494
+    },
+    {
+      "command": "npm.cmd run test:integration",
+      "result": "PASS",
+      "elapsedMs": 676
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "PASS",
+      "elapsedMs": 20280
+    }
+  ],
+  "pending": [
+    "source commit",
+    "one clean Windows dist",
+    "package audit",
+    "short packaged startup",
+    "artifact report finalization"
+  ]
+}

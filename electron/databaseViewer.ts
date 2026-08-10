@@ -96,6 +96,7 @@ function openReadOnly(databasePath: string) {
   db.function("jaa_diff_added", { deterministic: true, varargs: true }, (...values) => classify(...values).addedCount);
   db.function("jaa_diff_deleted", { deterministic: true, varargs: true }, (...values) => classify(...values).deletedCount);
   db.function("jaa_diff_description", { deterministic: true, varargs: true }, (...values) => classify(...values).descriptionComparison ? 1 : 0);
+  db.function("jaa_diff_before_available", { deterministic: true, varargs: true }, (...values) => classify(...values).beforeAvailable ? 1 : 0);
   db.exec("PRAGMA foreign_keys = ON; PRAGMA query_only = ON; PRAGMA busy_timeout = 3000;");
   return { db, resolved };
 }
@@ -842,16 +843,15 @@ function eventSubjectSql(subject: EventQuerySubject) {
 const VIEWER_DIFF_SQL_ARGS = "e.id,o.issue_key,e.field_id,e.field_name,e.from_value_json,e.to_value_json,e.source_provenance,e.source_record_id,e.jira_native_source_id";
 
 function diffQuickFilterSql(filters: DiffQuickFilters) {
-  const validated = `jaa_diff_validated(${VIEWER_DIFF_SQL_ARGS})`;
   const status = `jaa_diff_status(${VIEWER_DIFF_SQL_ARGS})`;
   const added = `jaa_diff_added(${VIEWER_DIFF_SQL_ARGS})`;
-  const description = `jaa_diff_description(${VIEWER_DIFF_SQL_ARGS})`;
   const deleted = `jaa_diff_deleted(${VIEWER_DIFF_SQL_ARGS})`;
+  const beforeAvailable = `jaa_diff_before_available(${VIEWER_DIFF_SQL_ARGS})`;
   const where: string[] = [];
-  if (filters.hideNoChange) where.push(`(${validated}=0 OR (${status} NOT IN ('unchanged','whitespace-only') AND NOT (${added}=0 AND ${deleted}=0)))`);
-  if (filters.hideZeroAdded) where.push(`(${validated}=0 OR ${added} IS NULL OR ${added}<>0)`);
-  if (filters.hideZeroDeleted) where.push(`(${validated}=0 OR ${deleted} IS NULL OR ${deleted}<>0)`);
-  if (filters.hideBeforeUnavailable) where.push(`(${description}=0 OR ${status} <> 'before-unavailable')`);
+  if (filters.hideNoChange) where.push(`${status} = 'changed'`);
+  if (filters.hideZeroAdded) where.push(`${added} IS NOT NULL AND ${added} > 0`);
+  if (filters.hideZeroDeleted) where.push(`${deleted} IS NOT NULL AND ${deleted} > 0`);
+  if (filters.hideBeforeUnavailable) where.push(`${beforeAvailable} = 1`);
   return where;
 }
 
@@ -1717,13 +1717,19 @@ export async function scanDatabaseEventsForPendingAnalysis(databasePath: string,
         return { ...event, historyId: String(event.jiraNativeSourceId ?? itemMatch?.[1] ?? "") || null,
           itemIndex: itemMatch ? Number(itemMatch[2]) : null, diffStatus: classification.status,
           comparisonValidated: classification.comparisonValidated, addedCount: classification.addedCount,
-          deletedCount: classification.deletedCount, descriptionDiff: classification.descriptionDiff };
+          deletedCount: classification.deletedCount, beforeAvailable: classification.beforeAvailable,
+          afterAvailable: classification.afterAvailable, isSubstantiveChange: classification.isSubstantiveChange,
+          diffHunks: classification.diffHunks, descriptionDiff: classification.descriptionDiff };
       });
+      if (ordered.length !== ids.length || ordered.some((event, index) => String((event as Row).eventId ?? "") !== ids[index])) {
+        throw progressiveError("EXPORT_FROZEN_ID_MISMATCH");
+      }
       await control.onBatch(ordered);
       delivered += ordered.length;
       control.onProgress?.({ stage: "reading", scanned: delivered, total: matching.length, matched: matching.length });
       await new Promise<void>((resolve) => setImmediate(resolve));
     }
+    if (delivered !== matching.length) throw progressiveError("EXPORT_FROZEN_ID_MISMATCH");
     if (databaseFileIdentity(databasePath) !== initialGeneration) throw progressiveError("SOURCE_DATABASE_CHANGED");
     return { filteredCount: matching.length, exportedCount: delivered, databaseGeneration: initialGeneration,
       metadata: { ...metadata, ...binding }, normalizedQuery: query };

@@ -85,7 +85,7 @@ function assertMonotonic(progress: ViewerProgressDto[]) {
 
 async function run() {
   assert.equal(CURRENT_STATE_SCHEMA_VERSION, 3);
-  assert.equal(VIEWER_DIFF_CLASSIFIER_VERSION, "v2");
+  assert.equal(VIEWER_DIFF_CLASSIFIER_VERSION, "v3");
   assert.deepEqual(PROGRESSIVE_DIFF_CONFIG, { defaultBatchSize: 100, reducedBatchSize: 50, targetBatchMs: 250, maxMatchingBytes: 32 * 1024 * 1024 });
   assert.ok(fs.existsSync(workerPath));
   const canonical = classifyViewerDiff({ eventId: "canonical", issueKey: "SYNTH-1", fieldId: "description", fieldName: "Description", before: "null", after: "new", sourceType: "jira_changelog", sourceId: "history:0", jiraNativeSourceId: "history" });
@@ -124,7 +124,7 @@ async function run() {
     const startedAt = performance.now();
     const issueResult = await coordinator.runProgressive("issue-table", "issueChangelog", fixture.databasePath, "issue-changelog-main", (item) => issueProgress.push(item), "SYNTH-1", query) as { rows: Array<Record<string, unknown>>; filteredCount: number; pageCount: number };
     const completionMs = performance.now() - startedAt;
-    assert.equal(issueResult.filteredCount, LARGE_SCOPE_COUNT - fixture.beforeUnavailable);
+    assert.equal(issueResult.filteredCount, DESCRIPTION_COUNT - fixture.beforeUnavailable, "all non-Description rows with unavailable Before must be excluded");
     assert.equal(issueResult.pageCount, Math.ceil(issueResult.filteredCount / 100));
     assert.ok(issueResult.rows.every((row) => row.diffStatus !== "before-unavailable"));
     assert.ok(issueProgress.length > 2);
@@ -137,8 +137,10 @@ async function run() {
     const userEvents = await coordinator.runProgressive("user", "userEvents", fixture.databasePath, "user-events-main", () => {}, { kind: "selected-users", userIds: ["target-user"] }, query) as { filteredCount: number };
     assert.equal(userEvents.filteredCount, issueResult.filteredCount);
 
-    const combined = await coordinator.runProgressive("user", "userEvents", fixture.databasePath, "user-events-combined", () => {}, { kind: "selected-users", userIds: ["target-user"] }, { ...query, diffQuickFilters: { ...query.diffQuickFilters, hideNoChange: true } }) as { filteredCount: number };
-    assert.equal(combined.filteredCount, LARGE_SCOPE_COUNT - fixture.beforeUnavailable - fixture.unchanged);
+    const combinedQuery = { ...query, diffQuickFilters: { ...query.diffQuickFilters, hideNoChange: true } };
+    const directCombined = queryDatabaseIssueChangelog(fixture.databasePath, "SYNTH-1", combinedQuery);
+    const combined = await coordinator.runProgressive("user", "userEvents", fixture.databasePath, "user-events-combined", () => {}, { kind: "selected-users", userIds: ["target-user"] }, combinedQuery) as { filteredCount: number };
+    assert.equal(combined.filteredCount, directCombined.filteredCount, "SQL and progressive canonical predicates must match");
 
     let fakeNow = 0;
     const simulatedProgress: ViewerProgressDto[] = [];

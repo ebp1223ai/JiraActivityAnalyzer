@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import type { DiffHunk } from "./descriptionDiff.js";
 
 export const PENDING_ANALYSIS_SCHEMA_NAME = "jira-activity-analyzer.pending-analysis" as const;
-export const PENDING_ANALYSIS_SCHEMA_VERSION = "0.3.2-draft.1" as const;
+export const PENDING_ANALYSIS_SCHEMA_VERSION = "0.3.3-draft.1" as const;
 export const PENDING_ANALYSIS_CONTRACT_STATUS = "review-draft" as const;
 export const PENDING_ANALYSIS_EXPORT_MODE = "compact-reference" as const;
 
@@ -26,6 +26,7 @@ export type PendingAnalysisIntegrityReason =
   | "RUNTIME_PATH_IN_GENERATED_METADATA"
   | "CREDENTIAL_PATTERN_DETECTED"
   | "FULL_CONTENT_FIELD_FORBIDDEN"
+  | "DIFF_CONTENT_MISSING"
   | "UNKNOWN_FIELD_PROVENANCE";
 
 export type PendingAnalysisRuntimeIdentity = {
@@ -135,7 +136,7 @@ export type PendingAnalysisDocument = {
   exportId: string;
   createdAt: string;
   timezone: "Asia/Taipei";
-  appVersion: "0.3.2";
+  appVersion: "0.3.3";
   exportMetadata: {
     exportMode: typeof PENDING_ANALYSIS_EXPORT_MODE;
     selfContained: false;
@@ -151,7 +152,7 @@ export type PendingAnalysisDocument = {
     databaseGeneration: string;
   };
   querySnapshot: Record<string, unknown> & { filterSnapshotHash: string };
-  counts: { filteredCountAtStart: number; exportedCount: number; skippedCount: 0; failedCount: 0; batchCount: number };
+  counts: { filteredCountAtStart: number; exportedCount: number; skippedCount: 0; failedCount: 0; batchCount: number; changedRecordCount: number; recordsWithDiffContentCount: number; diffHunkCount: number; diffCoverageComplete: boolean };
   records: PendingAnalysisRecord[];
   integrity: { recordsSha256: string; recordCount: number; schemaVersion: string; exportCompletionStatus: "COMPLETED"; algorithm: "SHA-256" };
   diagnostics: string[];
@@ -298,6 +299,14 @@ export function assertPendingAnalysisRecordSafe(record: PendingAnalysisRecord, c
   const { recordSha256, ...integrityBase } = record.integrity;
   const expectedRecordSha256 = sha256Canonical({ reference: record.reference, diff: record.diff, integrity: integrityBase });
   if (recordSha256 !== expectedRecordSha256) throw new PendingAnalysisExportError("EXPORT_INTEGRITY_FAILED", "Compact record digest mismatch.");
+  if (record.diff.diffStatus === "changed" && record.diff.isSubstantiveChange) {
+    const changeLines = record.diff.diffHunks.flatMap((hunk) => hunk.lines).filter((line) => line.kind === "insert" || line.kind === "delete");
+    const inserted = changeLines.filter((line) => line.kind === "insert").length;
+    const deleted = changeLines.filter((line) => line.kind === "delete").length;
+    if (!record.diff.diffHunks.length || !changeLines.length || inserted !== record.diff.addedLineCount || deleted !== record.diff.removedLineCount) {
+      integrityFailure("DIFF_CONTENT_MISSING", "$.diff.diffHunks");
+    }
+  }
   if (!record.reference.sourceDatabaseId || !record.reference.jiraServerFingerprint || !record.reference.activityEventId) {
     throw new PendingAnalysisExportError("SOURCE_IDENTITY_INCOMPLETE", "Compact source reference is incomplete.");
   }
@@ -332,6 +341,12 @@ export function assertPendingAnalysisDocument(document: PendingAnalysisDocument,
   if (document.counts.filteredCountAtStart !== document.counts.exportedCount || document.counts.exportedCount !== document.records.length) {
     throw new PendingAnalysisExportError("COUNT_EXPORT_MISMATCH", "Filtered and exported record counts do not match.");
   }
+  const changedRecords = document.records.filter((record) => record.diff.diffStatus === "changed" && record.diff.isSubstantiveChange);
+  const recordsWithDiffContent = changedRecords.filter((record) => record.diff.diffHunks.some((hunk) => hunk.lines.some((line) => line.kind === "insert" || line.kind === "delete")));
+  const diffHunkCount = document.records.reduce((total, record) => total + record.diff.diffHunks.length, 0);
+  if (!document.counts.diffCoverageComplete || document.counts.changedRecordCount !== changedRecords.length
+      || document.counts.recordsWithDiffContentCount !== recordsWithDiffContent.length || document.counts.diffHunkCount !== diffHunkCount
+      || changedRecords.length !== recordsWithDiffContent.length) integrityFailure("DIFF_CONTENT_MISSING", "$.counts.diffCoverageComplete");
   const digest = sha256Canonical(document.records);
   if (document.integrity.recordsSha256 !== digest) throw new PendingAnalysisExportError("EXPORT_INTEGRITY_FAILED", "Record digest mismatch.");
   const { records, integrity, diagnostics, ...header } = document;

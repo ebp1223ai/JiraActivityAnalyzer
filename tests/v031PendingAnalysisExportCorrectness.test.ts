@@ -54,7 +54,7 @@ function progress(exportId: string, status: PendingAnalysisProgress["status"] = 
 }
 
 async function run() {
-  assert.equal(PENDING_ANALYSIS_SCHEMA_VERSION, "0.3.2-draft.1");
+  assert.equal(PENDING_ANALYSIS_SCHEMA_VERSION, "0.3.3-draft.1");
   assert.equal(PENDING_ANALYSIS_CONTRACT_STATUS, "review-draft");
   const beforeRaw = JSON.stringify({ windows: "C:\\Jira\\evidence.txt", slash: "C:/Jira/evidence.txt", unc: "\\\\server\\share\\evidence.txt" });
   const afterRaw = JSON.stringify({ posix: "/var/jira/evidence.txt", relative: "../jira/evidence.txt" });
@@ -167,7 +167,7 @@ async function run() {
   const coordinatorInput = {
     exportId: "coordinator-run", sourceView: "ISSUE_ACTIVITY_EVENTS" as const, query: {}, issueKey: "SYNTH-31",
     expectedFilteredCount: 10, expectedDatabaseIdentity: "", databasePath: path.join(root, "synthetic.sqlite"),
-    appRoot: runtimeIdentity.appRoot, appVersion: "0.3.2"
+    appRoot: runtimeIdentity.appRoot, appVersion: "0.3.3"
   };
   const firstRun = coordinator.start(coordinatorInput, () => undefined);
   assert.throws(() => coordinator.start({ ...coordinatorInput, exportId: "duplicate-run" }, () => undefined),

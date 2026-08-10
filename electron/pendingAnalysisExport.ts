@@ -65,10 +65,10 @@ export function pendingAnalysisRecord(row: Record<string, unknown>, source: { da
   const descriptionDiff = row.descriptionDiff && typeof row.descriptionDiff === "object" ? row.descriptionDiff as Record<string, unknown> : null;
   const beforeAvailable = descriptionDiff && typeof descriptionDiff.beforeAvailable === "boolean"
     ? descriptionDiff.beforeAvailable && descriptionDiff.beforeComplete !== false
-    : beforeRaw !== null && row.beforeComplete !== 0;
+    : typeof row.beforeAvailable === "boolean" ? row.beforeAvailable : beforeRaw !== null && row.beforeComplete !== 0;
   const afterAvailable = descriptionDiff && typeof descriptionDiff.afterAvailable === "boolean"
     ? descriptionDiff.afterAvailable && descriptionDiff.afterComplete !== false
-    : afterRaw !== null && row.afterComplete !== 0;
+    : typeof row.afterAvailable === "boolean" ? row.afterAvailable : afterRaw !== null && row.afterComplete !== 0;
   const diffBeforeSha256 = nullableText(descriptionDiff?.diffInputBeforeSha256);
   const diffAfterSha256 = nullableText(descriptionDiff?.diffInputAfterSha256);
   const beforeSha256 = beforeAvailable ? diffBeforeSha256 ?? sha256Text(beforeRaw) : null;
@@ -92,7 +92,8 @@ export function pendingAnalysisRecord(row: Record<string, unknown>, source: { da
     actor: { stableIdentity: nullableText(row.userId), displayValue: nullableText(row.displayName) },
     sourceProvenance: nullableText(row.sourceProvenance)
   };
-  const diffHunks = Array.isArray(descriptionDiff?.hunks) ? structuredClone(descriptionDiff.hunks) as PendingAnalysisRecord["diff"]["diffHunks"] : [];
+  const sourceHunks = Array.isArray(descriptionDiff?.hunks) ? descriptionDiff.hunks : Array.isArray(row.diffHunks) ? row.diffHunks : [];
+  const diffHunks = structuredClone(sourceHunks) as PendingAnalysisRecord["diff"]["diffHunks"];
   const diffStatus = nullableText(descriptionDiff?.status) ?? nullableText(row.diffStatus);
   const addedLineCount = Number.isInteger(descriptionDiff?.addedLines) ? Number(descriptionDiff?.addedLines)
     : Number.isInteger(row.addedCount) ? Number(row.addedCount) : null;
@@ -151,6 +152,7 @@ function errorCode(error: unknown, phase: "preparing" | "filtering" | "writing" 
   if (error instanceof PendingAnalysisExportError) return error.code;
   const message = error instanceof Error ? error.message : String(error);
   if (/SOURCE_DATABASE_CHANGED/.test(message)) return "SOURCE_DATABASE_CHANGED";
+  if (/EXPORT_FROZEN_ID_MISMATCH/.test(message)) return "COUNT_EXPORT_MISMATCH";
   if (/INVALID_|UNSUPPORTED_FIELDS|QUERY_OBJECT/.test(message)) return "FILTER_SNAPSHOT_INVALID";
   if (/ENOENT|SQLITE_CANTOPEN|no such table|DATABASE_UNAVAILABLE/.test(message)) return "SOURCE_DATABASE_NOT_READY";
   if (phase === "finalizing") return "EXPORT_FINALIZE_FAILED";
@@ -211,6 +213,9 @@ export async function runPendingAnalysisExport(input: RunInput, control: RunCont
   let jiraServerFingerprint = "";
   let batchCount = 0;
   let firstRecord = true;
+  let changedRecordCount = 0;
+  let recordsWithDiffContentCount = 0;
+  let diffHunkCount = 0;
   const runtimeIdentity = { ...input.runtimeIdentity, appRoot: input.appRoot, databasePath: input.databasePath };
   const emit = (status: Exclude<PendingAnalysisProgress["status"], "idle">, message: string) => control.onProgress?.(pendingAnalysisProgress({
     exportId: input.exportId, status, sourceView: input.sourceView, totalRecords: input.expectedFilteredCount,
@@ -236,7 +241,21 @@ export async function runPendingAnalysisExport(input: RunInput, control: RunCont
         const chunks: string[] = [];
         batchCount += 1;
         for (const row of batch) {
-          const record = pendingAnalysisRecord(row, { databaseId: sourceDatabaseId, jiraServerFingerprint }, runtimeIdentity);
+          let record: PendingAnalysisRecord;
+          try {
+            record = pendingAnalysisRecord(row, { databaseId: sourceDatabaseId, jiraServerFingerprint }, runtimeIdentity);
+          } catch (error) {
+            if (error instanceof PendingAnalysisExportError && error.integrityReason === "DIFF_CONTENT_MISSING") {
+              const identity = ["run=" + input.exportId, "event=" + String(row.eventId ?? "unknown"), "issue=" + String(row.issueKey ?? "unknown"), "field=" + String(row.fieldId ?? row.fieldName ?? "unknown"), "stage=serialization"].join(" ");
+              throw new PendingAnalysisExportError("EXPORT_INTEGRITY_FAILED", "DIFF_CONTENT_MISSING " + identity, "DIFF_CONTENT_MISSING", error.offendingJsonPath);
+            }
+            throw error;
+          }
+          if (record.diff.diffStatus === "changed" && record.diff.isSubstantiveChange) {
+            changedRecordCount += 1;
+            if (record.diff.diffHunks.some((hunk) => hunk.lines.some((line) => line.kind === "insert" || line.kind === "delete"))) recordsWithDiffContentCount += 1;
+          }
+          diffHunkCount += record.diff.diffHunks.length;
           const canonical = canonicalJson(record);
           serializedCount += 1;
           recordsDigest.update(firstRecord ? canonical : `,${canonical}`);
@@ -254,7 +273,8 @@ export async function runPendingAnalysisExport(input: RunInput, control: RunCont
     const jiraServerIdentity = String(scan.metadata.jiraServerIdentity ?? "");
     if (!databaseId || !jiraServerIdentity) throw new PendingAnalysisExportError("SOURCE_IDENTITY_INCOMPLETE", "Database ID or Jira server identity is unavailable.");
     recordsDigest.update("]");
-    const querySnapshot = filterSnapshot(input.query, input.sourceView === "ISSUE_ACTIVITY_EVENTS" ? { issueKey: input.issueKey } : { userScope: input.userScope });
+    if (changedRecordCount !== recordsWithDiffContentCount) throw new PendingAnalysisExportError("EXPORT_INTEGRITY_FAILED", "Compact diff coverage is incomplete.", "DIFF_CONTENT_MISSING", "$.counts.diffCoverageComplete");
+    const querySnapshot = filterSnapshot(scan.normalizedQuery, input.sourceView === "ISSUE_ACTIVITY_EVENTS" ? { issueKey: input.issueKey } : { userScope: input.userScope });
     const header = {
       schemaName: PENDING_ANALYSIS_SCHEMA_NAME, schemaVersion: PENDING_ANALYSIS_SCHEMA_VERSION,
       contractStatus: PENDING_ANALYSIS_CONTRACT_STATUS, exportId: input.exportId, createdAt: timestamp.iso,
@@ -262,7 +282,8 @@ export async function runPendingAnalysisExport(input: RunInput, control: RunCont
       exportMetadata: { exportMode: PENDING_ANALYSIS_EXPORT_MODE, selfContained: false, fullContentIncluded: false, sourceDatabaseRequiredForFullContent: true },
       sourceView: input.sourceView,
       sourceDatabase: { sourceDatabaseId: databaseId, jiraServerFingerprint: jiraServerIdentity, jiraServerHost: hostOnly(scan.metadata.jiraServerUrl), sourceSchemaVersion: Number(scan.metadata.schemaVersion), databaseGeneration: scan.databaseGeneration },
-      querySnapshot, counts: { filteredCountAtStart: scan.filteredCount, exportedCount, skippedCount: 0, failedCount: 0, batchCount }
+      querySnapshot, counts: { filteredCountAtStart: scan.filteredCount, exportedCount, skippedCount: 0, failedCount: 0, batchCount,
+        changedRecordCount, recordsWithDiffContentCount, diffHunkCount, diffCoverageComplete: changedRecordCount === recordsWithDiffContentCount }
     };
     assertPendingAnalysisHeaderSafe(header, runtimeIdentity);
     phase = "finalizing";

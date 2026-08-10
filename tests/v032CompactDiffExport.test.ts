@@ -29,7 +29,7 @@ function forbiddenKeys(value: unknown) {
 }
 
 function run() {
-  assert.equal(PENDING_ANALYSIS_SCHEMA_VERSION, "0.3.2-draft.1");
+  assert.equal(PENDING_ANALYSIS_SCHEMA_VERSION, "0.3.3-draft.1");
   assert.equal(PENDING_ANALYSIS_EXPORT_MODE, "compact-reference");
   const common = Array.from({ length: 320 }, (_, index) => `unchanged line ${index}`);
   const beforeRaw = JSON.stringify({ type: "doc", content: [...common.slice(0, 160), "old substantive line", ...common.slice(160)] });
@@ -83,7 +83,7 @@ function run() {
     eventId: "comment-v032", issueId: "320", issueKey: "SYNTH-320", projectKey: "SYNTH", eventTime: "2026-08-07T01:00:00.000Z",
     eventType: "comment_created", fieldId: "comment", fieldName: "Comment", sourceRecordId: "comment-99",
     jiraNativeSourceId: "comment-99", sourceProvenance: "jira_comment", before: null, after: "new comment body",
-    beforeComplete: 0, afterComplete: 1, diffStatus: "changed", addedCount: 1, deletedCount: 0
+    beforeComplete: 0, afterComplete: 1, diffStatus: "before-unavailable", addedCount: null, deletedCount: null
   }, source);
   assert.equal(comment.diff.beforeAvailability, "UNAVAILABLE");
   assert.equal(comment.diff.afterAvailability, "AVAILABLE");

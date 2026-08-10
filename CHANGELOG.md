@@ -1,3 +1,11 @@
+## 0.3.3 - Compact Diff Export Correctness
+
+- Added deterministic non-Description diff hunks for scalar, collection, ordered-array, attachment/link and custom JSON changes.
+- Enforced changed-record hunk/count invariants with typed `DIFF_CONTENT_MISSING` fail-closed diagnostics.
+- Added deterministic diff coverage counts and upgraded the review-draft schema to `0.3.3-draft.1`.
+- Unified SQL, progressive Viewer and frozen export Quick Filter semantics and added ordered-ID consistency guards.
+- Preserved compact-reference boundaries, SQLite schema v3, ENV format and read-only source evidence.
+
 ## 0.3.2 - Compact Diff Export
 
 - Replaced duplicated full Before/After Pending Analysis payloads with an allowlisted compact reference DTO containing canonical Diff hunks, stable SQLite source identity, provenance, availability, and original content SHA-256 values.

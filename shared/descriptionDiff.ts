@@ -116,6 +116,11 @@ function buildHunks(eventId: string, operations: LineOperation[]) {
   }
   return ranges.map<DiffHunk>((range, index) => { const hunkLines = lines.slice(range.start, range.end + 1); const oldStart = hunkLines.find((line) => line.oldLineNumber !== null)?.oldLineNumber ?? 1; const newStart = hunkLines.find((line) => line.newLineNumber !== null)?.newLineNumber ?? 1; return { id: `${eventId}:hunk:${index + 1}:${oldStart}:${newStart}`, oldStart, oldLines: hunkLines.filter((line) => line.kind !== "insert").length, newStart, newLines: hunkLines.filter((line) => line.kind !== "delete").length, lines: hunkLines }; });
 }
+export function buildCanonicalLineDiff(eventId: string, beforeText: string, afterText: string) {
+  const beforeLines = splitLines(beforeText.replace(/\r\n?/g, "\n"));
+  const afterLines = splitLines(afterText.replace(/\r\n?/g, "\n"));
+  return buildHunks(eventId, myersLineDiff(beforeLines, afterLines));
+}
 function sideRawHash(side: DescriptionDiffSide) { const raw = typeof side.raw === "string" ? side.raw : typeof side.value === "string" ? side.value : null; return side.available && side.complete && raw !== null ? crypto.createHash("sha256").update(Buffer.from(raw, "utf8")).digest("hex") : null; }
 function result(input: DescriptionDiffInput, status: DescriptionDiffStatus, diagnosticsCode: DescriptionDiffDiagnosticsCode | null, beforeLength: number | null, afterLength: number | null, hunks: DiffHunk[] = []): DescriptionDiffResult {
   return { eventId: input.eventId, issueKey: input.issueKey, fieldIdentity: exactDescriptionIdentity(input), sourceType: String(input.sourceType).trim().toLowerCase(), sourceId: input.sourceId, status, hunks, addedLines: hunks.flatMap((hunk) => hunk.lines).filter((line) => line.kind === "insert").length, deletedLines: hunks.flatMap((hunk) => hunk.lines).filter((line) => line.kind === "delete").length, changedHunks: hunks.length, beforeAvailable: input.before.available, afterAvailable: input.after.available, beforeComplete: input.before.complete, afterComplete: input.after.complete, beforeLength, afterLength, diffInputBeforeSha256: sideRawHash(input.before), diffInputAfterSha256: sideRawHash(input.after), diagnosticsCode };

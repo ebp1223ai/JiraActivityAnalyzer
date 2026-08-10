@@ -1,6 +1,17 @@
 # Jira Activity Analyzer
 
+> v0.3.3 修正 Compact Diff correctness：所有實質 changed records 均須包含可分析的 `diffHunks`，Viewer 與 Export 共用同一組 Quick Filter predicate。SQLite schema 與 ENV format 不變。
+
 > v0.3.2 changes Pending Analysis into a compact, non-self-contained Diff reference export. Jira remains read-only and Current-State SQLite schema stays at v3.
+
+## v0.3.3 Compact Diff Correctness
+
+- Pending Analysis schema：`jira-activity-analyzer.pending-analysis / 0.3.3-draft.1 / review-draft`。
+- Export mode 維持 `compact-reference`；完整 Before／After 仍只存在 SQLite，不寫入 JSON。
+- Description 延用既有有限 context hunk；scalar、array、attachment、link 與 custom JSON 使用 deterministic canonical rendering。
+- `changed && isSubstantiveChange` 必須有 insert/delete hunk，counts 必須與 hunk lines 一致；否則以 `DIFF_CONTENT_MISSING` fail closed。
+- 頂層 counts 新增 Diff coverage metadata，Completed export 必須為 `diffCoverageComplete=true`。
+- Viewer SQL、progressive query 與 frozen export 使用同一個 classifier/predicate；Query Snapshot 記錄 normalized effective filters。
 
 ## v0.3.2 Compact Diff Export
 

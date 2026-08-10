@@ -20,8 +20,8 @@ const classify = (before: unknown, after: unknown) => classifyViewerDiff({
 });
 const unchanged = classify("same", "same");
 const whitespace = classify("same value", "same   value");
-const zeroAdded = classify("old", "");
-const zeroDeleted = classify("", "new");
+const zeroAdded = classify("old", null);
+const zeroDeleted = classify(null, "new");
 const unavailable = classify(null, "new");
 const descriptionUnavailable = classifyViewerDiff({ eventId: "synthetic-description", issueKey: "SYNTH-1", fieldId: "description", fieldName: "Description", before: "null", after: "new", sourceType: "jira_changelog", sourceId: "history:0", jiraNativeSourceId: "history" });
 const nonComparison = classify(null, null);
@@ -29,12 +29,12 @@ assert.equal(unchanged.status, "unchanged");
 assert.equal(whitespace.status, "whitespace-only");
 assert.deepEqual([zeroAdded.addedCount, zeroAdded.deletedCount], [0, 1]);
 assert.deepEqual([zeroDeleted.addedCount, zeroDeleted.deletedCount], [1, 0]);
-assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: true }), true);
+assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: true }), false);
 assert.equal(descriptionUnavailable.status, "before-unavailable");
 assert.equal(descriptionUnavailable.descriptionDiff?.status, "before-unavailable");
 assert.equal(viewerDiffPassesFilters(descriptionUnavailable, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: true }), false);
-assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false }), true);
-assert.equal(viewerDiffPassesFilters(nonComparison, { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false }), true);
+assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false }), false);
+assert.equal(viewerDiffPassesFilters(nonComparison, { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false }), false);
 assert.equal(viewerDiffPassesFilters(zeroAdded, { hideNoChange: false, hideZeroAdded: true, hideZeroDeleted: false, hideBeforeUnavailable: false }), false);
 assert.equal(viewerDiffPassesFilters(zeroDeleted, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: true, hideBeforeUnavailable: false }), false);
 
@@ -60,8 +60,8 @@ try {
       ["e-change", "jira:issue:SYNTH-1", "status_changed", "2026-08-01T10:00:00.000Z", "user-a", "Same Name", "status", "Status", "To Do", "Open"],
       ["e-unchanged", "jira:issue:SYNTH-1", "field_changed", "2026-08-01T11:00:00.000Z", "user-a", "Same Name", "priority", "Priority", "High", "High"],
       ["e-whitespace", "jira:issue:SYNTH-1", "field_changed", "2026-08-01T12:00:00.000Z", "user-b", "Same Name", "labels", "Labels", "same value", "same   value"],
-      ["e-zero-add", "jira:issue:SYNTH-1", "field_changed", "2026-08-01T13:00:00.000Z", "user-b", "Same Name", "resolution", "Resolution", "old", ""],
-      ["e-zero-del", "jira:issue:SYNTH-1", "field_changed", "2026-08-01T14:00:00.000Z", "user-a", "Same Name", "assignee", "Assignee", "", "new"],
+      ["e-zero-add", "jira:issue:SYNTH-1", "field_changed", "2026-08-01T13:00:00.000Z", "user-b", "Same Name", "resolution", "Resolution", "old", null],
+      ["e-zero-del", "jira:issue:SYNTH-1", "field_changed", "2026-08-01T14:00:00.000Z", "user-a", "Same Name", "assignee", "Assignee", null, "new"],
       ["e-unavailable", "jira:issue:SYNTH-2", "field_changed", "2026-08-02T10:00:00.000Z", "user-c", "Casey", "status", "Status", null, "Done"],
       ["e-comment", "jira:issue:SYNTH-2", "comment_created", "2026-08-02T11:00:00.000Z", "user-c", "Casey", null, null, null, null]
     ];
@@ -81,11 +81,9 @@ try {
   const deletedRows = queryDatabaseIssueChangelog(databasePath, "SYNTH-1", { ...baseQuery, diffQuickFilters: { ...noQuick, hideZeroDeleted: true } });
   assert.deepEqual(deletedRows.rows.map((row) => row.eventId), ["e-change", "e-zero-add"]);
   const diagnosticRows = queryDatabaseUserEvents(databasePath, { kind: "selected-users", userIds: ["user-c"] }, { ...baseQuery, diffQuickFilters: { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false } });
-  assert.equal(diagnosticRows.filteredCount, 2, "unavailable and non-comparison rows must survive all quick filters except explicit before-hide");
-  assert.ok(diagnosticRows.rows.some((row) => row.eventId === "e-comment" && row.comparisonValidated === 0));
+  assert.equal(diagnosticRows.filteredCount, 0, "unavailable and non-comparison rows must be excluded by canonical AND filters");
   const diagnosticRowsNoBefore = queryDatabaseUserEvents(databasePath, { kind: "selected-users", userIds: ["user-c"] }, { ...baseQuery, diffQuickFilters: { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: true } });
-  assert.equal(diagnosticRowsNoBefore.filteredCount, 2, "Hide Before unavailable applies only to Description comparisons");
-  assert.equal(diagnosticRowsNoBefore.rows.some((row) => row.eventId === "e-unavailable"), true);
+  assert.equal(diagnosticRowsNoBefore.filteredCount, 0, "Hide Before unavailable applies to every unavailable comparison");
 
   const selectedScope = { kind: "selected-users", userIds: ["user-a", "user-b"] } as const;
   const selectedEvents = queryDatabaseUserEvents(databasePath, selectedScope, { ...baseQuery, diffQuickFilters: noQuick });
@@ -139,5 +137,5 @@ for (const relative of ["src/routes/UserViewerPage.tsx", "src/routes/IssueViewer
   assert.doesNotMatch(source, /All Issues by Last Updated Date|LAST_UPDATED_IN_RANGE|Fetch Issues by Last Updated Date/);
 }
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")) as { version: string };
-assert.ok(Number(packageJson.version.split(".")[2]) >= 66, "v0.2.66 regression must run on version 0.2.66 or newer");
+assert.ok(packageJson.version.split(".").map(Number).some((value, index, parts) => value > [0, 2, 66][index] && parts.slice(0, index).every((part, prior) => part === [0, 2, 66][prior])) || packageJson.version.split(".").map(Number).every((value, index) => value === [0, 2, 66][index]), "v0.2.66 regression must run on version 0.2.66 or newer");
 console.log("v0.2.66 viewer efficiency, multi-user union, Diff filters, and preference tests passed.");
