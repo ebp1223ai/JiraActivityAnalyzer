@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "codex_execution_ledger_v1",
+  "version": "0.3.4",
+  "theme": "Description-only Diff Quick Filters Correctness",
+  "startedAt": "2026-08-10T16:44:50.0554597+08:00",
+  "finishedAt": "2026-08-10T17:06:28.5460541+08:00",
+  "wallClockSeconds": 1298.491,
+  "baselineBranch": "fix/v0.3.3-compact-diff-export-correctness",
+  "baselineCommit": "f440a730a6306158e4edccf7a645c44df6bd2fd9",
+  "branch": "fix/v0.3.4-description-only-diff-quick-filters",
+  "sourceCommit": "44f6c368eeac6feed7fccca776d5f5d55ca3e5bb",
+  "entries": [
+    {
+      "phase": "inspection and implementation",
+      "status": "passed",
+      "note": "Traced SQL, progressive, export, preferences and UI; implemented canonical Description-only semantics."
+    },
+    {
+      "command": "npm run test:v0.3.4",
+      "status": "passed",
+      "durationSeconds": 1.4
+    },
+    {
+      "command": "npm run test:v0.3.3 / v0.3.2 / v0.3.1 / v0.3.0",
+      "status": "passed",
+      "durationSeconds": 4.513
+    },
+    {
+      "command": "npm run test:v0.2.67",
+      "status": "passed",
+      "durationSeconds": 24.139
+    },
+    {
+      "command": "npm run test:v0.2.66",
+      "status": "passed",
+      "durationSeconds": 19.3,
+      "note": "Initial assertion expectation corrected, then passed."
+    },
+    {
+      "command": "npm run test:integration",
+      "status": "passed",
+      "durationSeconds": 1
+    },
+    {
+      "command": "npm run test:unit",
+      "status": "blocked",
+      "durationSeconds": 16.7,
+      "note": "Passed through v0.2.44; stopped on pre-existing v0.2.45 Remote Links UI wording assertion."
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "passed",
+      "durationSeconds": 8.7
+    },
+    {
+      "command": "npm run build",
+      "status": "passed",
+      "durationSeconds": 26.5
+    },
+    {
+      "command": "clean npm run dist",
+      "status": "passed",
+      "durationSeconds": 99.8
+    },
+    {
+      "command": "package size audit",
+      "status": "passed",
+      "durationSeconds": 1.2
+    },
+    {
+      "command": "ASAR content/path audit",
+      "status": "passed",
+      "durationSeconds": 0.7
+    },
+    {
+      "command": "Portable hidden short launch",
+      "status": "passed",
+      "durationSeconds": 13.1
+    }
+  ],
+  "constraints": {
+    "overallStatus": "Partial",
+    "sqliteSchemaChanged": false,
+    "envFormatChanged": false,
+    "compactSchemaVersion": "0.3.3-draft.1",
+    "realDatabaseRead": false,
+    "tokenRead": false,
+    "knownRealIssue48User112": "NOT RUN",
+    "pushed": false,
+    "tagged": false,
+    "released": false
+  }
+}
