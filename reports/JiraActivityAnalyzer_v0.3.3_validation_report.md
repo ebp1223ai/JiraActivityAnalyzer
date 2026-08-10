@@ -25,6 +25,25 @@
 - 20,000-event progressive regression 證明 SQL/progressive predicate parity、server-side pagination、checkpoint、取消與 worker queue。
 - 160-record production export regression 證明完整 filtered set、多 batch、cross-view record/hash、normalized snapshot、coverage metadata 與 frozen exported IDs parity。
 
-## 尚待
+## Windows Dist 與 Package Audit
 
-Windows dist、package audit、Portable 短啟動與 artifacts 將在 clean source commit 後回填。真實 SQLite／Windows GUI 內容驗收不由 Codex 偽裝執行，狀態為 Pending。
+| 項目 | 結果 | 證據 |
+|---|---:|---|
+| clean source commit | PASS | `b9ac0dbe9259619cbe8f3ef2109342ebbaeabf04` |
+| npm.cmd run dist | PASS | 75.8 秒；Installer、Portable、win-unpacked |
+| package size audit | PASS | unexpected packaged content = 0 |
+| app.asar forbidden-name scan | PASS | 2,078 entries；0 matches |
+| runtime path contamination | PASS | 0 matches |
+| Portable hidden startup | PASS | 12 秒；標題 `Jira Activity Analyzer v0.3.3`；無殘留程序 |
+| Authenticode | NotSigned | 三個 EXE 均無簽章憑證 |
+
+第一次 dist 呼叫因執行器 5 秒 timeout 中止；確認無程序、無 release/partial 後才重啟，完整 attempt PASS。完整 hashes 與 paths 見 artifact manifest。
+
+## 狀態
+
+- Implementation：Completed。
+- Automated Verification：Completed。
+- Build & Dist：Completed。
+- Package Audit：Completed。
+- Real SQLite & Windows GUI Validation：Pending。
+- Overall：Partial（等待使用者真實資料人工驗收）。

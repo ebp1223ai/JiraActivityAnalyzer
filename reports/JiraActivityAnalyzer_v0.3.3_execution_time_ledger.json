@@ -80,13 +80,39 @@
       "command": "npm.cmd run build",
       "result": "PASS",
       "elapsedMs": 20280
+    },
+    {
+      "command": "npm.cmd run dist",
+      "result": "ABORTED_BY_TOOL_TIMEOUT",
+      "elapsedMs": 5050,
+      "reason": "Execution wrapper timeout; no process or release artifact remained."
+    },
+    {
+      "command": "npm.cmd run dist",
+      "result": "PASS",
+      "elapsedMs": 75800,
+      "sourceCommit": "b9ac0dbe9259619cbe8f3ef2109342ebbaeabf04"
+    },
+    {
+      "command": "node scripts/audit-package-size.cjs v033 ...",
+      "result": "PASS",
+      "elapsedMs": 1200
+    },
+    {
+      "command": "Portable hidden startup sanity (12 seconds)",
+      "result": "PASS",
+      "elapsedMs": 15000
+    },
+    {
+      "command": "Artifact hash/signature/runtime-path scan",
+      "result": "PASS",
+      "elapsedMs": 5300
     }
   ],
   "pending": [
-    "source commit",
-    "one clean Windows dist",
-    "package audit",
-    "short packaged startup",
-    "artifact report finalization"
-  ]
+    "Real SQLite and Windows GUI content validation by user"
+  ],
+  "endedAt": "2026-08-10T05:04:29.172Z",
+  "wallClockFromFirstDurableEvidenceMs": 1104172,
+  "wallClockFromFirstDurableEvidence": "18m 24s"
 }

@@ -33,3 +33,9 @@ v0.3.2 的 Description path 會建立正式 `diffHunks`，但 non-Description cl
 | hideBeforeUnavailable | beforeAvailable != true |
 
 四個條件以 AND 套用；Viewer count、完整 progressive ID set、frozen export 共用同一語意。
+
+## Delivery
+
+- Clean packaged source commit：`b9ac0dbe9259619cbe8f3ef2109342ebbaeabf04`。
+- Windows artifacts 位於 `F:\AI\JAA-v033-dist-b9ac0db\release`。
+- package audit、runtime-path contamination scan 與 Portable 短啟動均通過；Artifacts 未簽章。

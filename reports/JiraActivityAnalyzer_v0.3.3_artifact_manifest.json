@@ -1,8 +1,52 @@
 {
   "version": "0.3.3",
-  "status": "PENDING_DIST",
-  "sourceCommit": null,
-  "buildTime": null,
-  "signingStatus": "unsigned",
-  "artifacts": []
+  "status": "COMPLETED_AUTOMATED_DELIVERY",
+  "sourceCommit": "b9ac0dbe9259619cbe8f3ef2109342ebbaeabf04",
+  "buildTime": "2026/08/10 13:00:31",
+  "buildTimeIso": "2026-08-10T05:00:31.788Z",
+  "buildOs": "Windows_NT 10.0.26100 x64",
+  "electronVersion": "43.0.0",
+  "electronBuilderVersion": "26.15.3",
+  "signingStatus": "NotSigned",
+  "packageAudit": {
+    "reportPath": "F:\\AI\\JAA-v033-dist-b9ac0db\\test-artifacts\\package-size-v033.json",
+    "unexpectedPackagedContentCount": 0,
+    "asarEntryCount": 2078,
+    "forbiddenNameMatches": 0,
+    "runtimePathContaminationMatches": 0
+  },
+  "artifacts": [
+    {
+      "kind": "installer",
+      "path": "F:\\AI\\JAA-v033-dist-b9ac0db\\release\\Jira Activity Analyzer Setup 0.3.3.exe",
+      "bytes": 105404994,
+      "mib": 100.522,
+      "sha256": "45bbf6585bc1a576847ac825371db2134cb19fc5a18061b9f121de4a3d098366",
+      "signingStatus": "NotSigned"
+    },
+    {
+      "kind": "portable",
+      "path": "F:\\AI\\JAA-v033-dist-b9ac0db\\release\\Jira Activity Analyzer Portable 0.3.3.exe",
+      "bytes": 105174886,
+      "mib": 100.303,
+      "sha256": "f9148d426b60438996c0ed4b2c6834ce7bb580d89eb3904b3292dca228289c57",
+      "signingStatus": "NotSigned"
+    },
+    {
+      "kind": "win-unpacked-executable",
+      "path": "F:\\AI\\JAA-v033-dist-b9ac0db\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "mib": 224.787,
+      "sha256": "497151ad7bfc204262767b3aa0a14dd63e79ebac05ee1c2dadd0c542b111f721",
+      "signingStatus": "NotSigned"
+    },
+    {
+      "kind": "app-asar",
+      "path": "F:\\AI\\JAA-v033-dist-b9ac0db\\release\\win-unpacked\\resources\\app.asar",
+      "bytes": 16132255,
+      "mib": 15.385,
+      "sha256": "6aa4883f02d86f8dcc8ae115360fd0e2fc89402600464f96f0657e0b4284ada9",
+      "signingStatus": "not-applicable"
+    }
+  ]
 }
