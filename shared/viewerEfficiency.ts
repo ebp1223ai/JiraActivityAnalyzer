@@ -111,7 +111,7 @@ function substantiveText(value: string) {
   return value.split("\n").map((line) => line.replace(/\t/g, " ").replace(/[ \u00a0]+/g, " ").trim()).filter(Boolean).join("\n");
 }
 
-function isDescription(fieldId: unknown, fieldName: unknown) {
+export function isCanonicalDescriptionField(fieldId: unknown, fieldName: unknown) {
   const id = String(fieldId ?? "").trim().toLowerCase();
   const name = String(fieldName ?? "").trim().toLowerCase();
   return id === "description" || (!id && name === "description");
@@ -144,7 +144,7 @@ export function classifyViewerDiff(input: ViewerDiffInput): ViewerDiffClassifica
   const beforeAvailable = input.before !== null && input.before !== undefined;
   const afterAvailable = input.after !== null && input.after !== undefined;
   if (!beforeAvailable && !afterAvailable) return classification("non-comparison", false, false);
-  if (isDescription(input.fieldId, input.fieldName)) {
+  if (isCanonicalDescriptionField(input.fieldId, input.fieldName)) {
     const result = buildDescriptionDiff(descriptionDiffInputForViewer(input));
     const validated = ["changed", "unchanged", "whitespace-only"].includes(result.status);
     return classification(result.status, result.beforeAvailable && result.beforeComplete, result.afterAvailable && result.afterComplete, {
@@ -179,6 +179,7 @@ export function normalizeDiffQuickFilters(value: unknown): DiffQuickFilters {
 }
 
 export function viewerDiffPassesFilters(diff: ViewerDiffClassification, filters: DiffQuickFilters) {
+  if (diff.descriptionComparison !== true) return true;
   if (filters.hideNoChange && diff.isSubstantiveChange !== true) return false;
   if (filters.hideZeroAdded && (diff.addedCount === null || diff.addedCount <= 0)) return false;
   if (filters.hideZeroDeleted && (diff.deletedCount === null || diff.deletedCount <= 0)) return false;

@@ -1,5 +1,16 @@
 # Jira Activity Analyzer
 
+> v0.3.4 將四個 Diff Quick Filters 限定為 canonical Description 比較；Comment 與所有非 Description 記錄不受這四項篩選影響。SQLite schema、ENV format 與 Compact export schema 均不變。
+
+## v0.3.4 Description-only Diff Quick Filters
+
+- `Hide No Change`、`Hide + = 0`、`Hide - = 0`、`Hide Before unavailable` 只套用到 canonical Description。
+- Description 身分優先使用 normalized `fieldId === "description"`；只有缺少 `fieldId` 時才允許 `fieldName === "description"` fallback。
+- Comment、custom field、Status 與其他非 Description 記錄永遠略過上述四項快速篩選，但仍遵守日期、欄位、使用者、搜尋與排序條件。
+- SQL count/rows、progressive pagination、Issue/User Viewer 與 frozen Pending Analysis export 共用相同判定與 Query Snapshot。
+- UI 標示為 **Description Diff Quick Filters / Description 差異快速篩選**；既有偏好設定仍可還原。
+- Pending Analysis schema 維持 `0.3.3-draft.1`，Current-State SQLite schema 維持 v3。
+
 > v0.3.3 修正 Compact Diff correctness：所有實質 changed records 均須包含可分析的 `diffHunks`，Viewer 與 Export 共用同一組 Quick Filter predicate。SQLite schema 與 ENV format 不變。
 
 > v0.3.2 changes Pending Analysis into a compact, non-self-contained Diff reference export. Jira remains read-only and Current-State SQLite schema stays at v3.

@@ -167,7 +167,7 @@ async function run() {
   const coordinatorInput = {
     exportId: "coordinator-run", sourceView: "ISSUE_ACTIVITY_EVENTS" as const, query: {}, issueKey: "SYNTH-31",
     expectedFilteredCount: 10, expectedDatabaseIdentity: "", databasePath: path.join(root, "synthetic.sqlite"),
-    appRoot: runtimeIdentity.appRoot, appVersion: "0.3.3"
+    appRoot: runtimeIdentity.appRoot, appVersion: "0.3.4"
   };
   const firstRun = coordinator.start(coordinatorInput, () => undefined);
   assert.throws(() => coordinator.start({ ...coordinatorInput, exportId: "duplicate-run" }, () => undefined),

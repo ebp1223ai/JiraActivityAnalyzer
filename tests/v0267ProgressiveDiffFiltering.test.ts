@@ -124,7 +124,7 @@ async function run() {
     const startedAt = performance.now();
     const issueResult = await coordinator.runProgressive("issue-table", "issueChangelog", fixture.databasePath, "issue-changelog-main", (item) => issueProgress.push(item), "SYNTH-1", query) as { rows: Array<Record<string, unknown>>; filteredCount: number; pageCount: number };
     const completionMs = performance.now() - startedAt;
-    assert.equal(issueResult.filteredCount, DESCRIPTION_COUNT - fixture.beforeUnavailable, "all non-Description rows with unavailable Before must be excluded");
+    assert.equal(issueResult.filteredCount, LARGE_SCOPE_COUNT - fixture.beforeUnavailable, "non-Description rows with unavailable Before must remain visible");
     assert.equal(issueResult.pageCount, Math.ceil(issueResult.filteredCount / 100));
     assert.ok(issueResult.rows.every((row) => row.diffStatus !== "before-unavailable"));
     assert.ok(issueProgress.length > 2);

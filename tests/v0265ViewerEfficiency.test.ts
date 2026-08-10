@@ -29,12 +29,12 @@ assert.equal(unchanged.status, "unchanged");
 assert.equal(whitespace.status, "whitespace-only");
 assert.deepEqual([zeroAdded.addedCount, zeroAdded.deletedCount], [0, 1]);
 assert.deepEqual([zeroDeleted.addedCount, zeroDeleted.deletedCount], [1, 0]);
-assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: true }), false);
+assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: true }), true);
 assert.equal(descriptionUnavailable.status, "before-unavailable");
 assert.equal(descriptionUnavailable.descriptionDiff?.status, "before-unavailable");
 assert.equal(viewerDiffPassesFilters(descriptionUnavailable, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: true }), false);
-assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false }), false);
-assert.equal(viewerDiffPassesFilters(nonComparison, { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false }), false);
+assert.equal(viewerDiffPassesFilters(unavailable, { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false }), true);
+assert.equal(viewerDiffPassesFilters(nonComparison, { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false }), true);
 assert.equal(viewerDiffPassesFilters(zeroAdded, { hideNoChange: false, hideZeroAdded: true, hideZeroDeleted: false, hideBeforeUnavailable: false }), false);
 assert.equal(viewerDiffPassesFilters(zeroDeleted, { hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: true, hideBeforeUnavailable: false }), false);
 
@@ -74,16 +74,16 @@ try {
   const allRows = queryDatabaseIssueChangelog(databasePath, "SYNTH-1", { ...baseQuery, diffQuickFilters: noQuick });
   assert.equal(allRows.filteredCount, 5);
   const defaultRows = queryDatabaseIssueChangelog(databasePath, "SYNTH-1", baseQuery);
-  assert.equal(defaultRows.filteredCount, 3);
-  assert.deepEqual(defaultRows.rows.map((row) => row.eventId), ["e-change", "e-zero-add", "e-zero-del"]);
+  assert.equal(defaultRows.filteredCount, 5);
+  assert.deepEqual(defaultRows.rows.map((row) => row.eventId), ["e-change", "e-unchanged", "e-whitespace", "e-zero-add", "e-zero-del"]);
   const addedRows = queryDatabaseIssueChangelog(databasePath, "SYNTH-1", { ...baseQuery, diffQuickFilters: { ...noQuick, hideZeroAdded: true } });
-  assert.deepEqual(addedRows.rows.map((row) => row.eventId), ["e-change", "e-zero-del"]);
+  assert.equal(addedRows.filteredCount, 5);
   const deletedRows = queryDatabaseIssueChangelog(databasePath, "SYNTH-1", { ...baseQuery, diffQuickFilters: { ...noQuick, hideZeroDeleted: true } });
-  assert.deepEqual(deletedRows.rows.map((row) => row.eventId), ["e-change", "e-zero-add"]);
+  assert.equal(deletedRows.filteredCount, 5);
   const diagnosticRows = queryDatabaseUserEvents(databasePath, { kind: "selected-users", userIds: ["user-c"] }, { ...baseQuery, diffQuickFilters: { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: false } });
-  assert.equal(diagnosticRows.filteredCount, 0, "unavailable and non-comparison rows must be excluded by canonical AND filters");
+  assert.equal(diagnosticRows.filteredCount, 2, "non-Description rows bypass Description-only Quick Filters");
   const diagnosticRowsNoBefore = queryDatabaseUserEvents(databasePath, { kind: "selected-users", userIds: ["user-c"] }, { ...baseQuery, diffQuickFilters: { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: true } });
-  assert.equal(diagnosticRowsNoBefore.filteredCount, 0, "Hide Before unavailable applies to every unavailable comparison");
+  assert.equal(diagnosticRowsNoBefore.filteredCount, 2, "Hide Before unavailable applies only to Description comparisons");
 
   const selectedScope = { kind: "selected-users", userIds: ["user-a", "user-b"] } as const;
   const selectedEvents = queryDatabaseUserEvents(databasePath, selectedScope, { ...baseQuery, diffQuickFilters: noQuick });

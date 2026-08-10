@@ -9,7 +9,7 @@ import { buildDescriptionDiff, type DescriptionDiffInput, type DescriptionDiffRe
 import { DESCRIPTION_PREVIEW_LIMITS, comparisonIntegrity, originalContentMetadata, previewFromComparison, type DescriptionComparisonPayload, type DescriptionPreviewBatchResponse } from "../shared/descriptionComparison.js";
 import type { ActivityViewerRow } from "../shared/activityViewerTypes.js";
 import { normalizeUserViewerScope, userViewerScopeKey, type UserViewerScope } from "../shared/userViewerScope.js";
-import { VIEWER_DIFF_CLASSIFIER_VERSION, classifyViewerDiff, descriptionDiffInputForViewer, normalizeDiffQuickFilters, viewerDiffPassesFilters, type DiffQuickFilters, type ViewerDiffInput } from "../shared/viewerEfficiency.js";
+import { VIEWER_DIFF_CLASSIFIER_VERSION, classifyViewerDiff, descriptionDiffInputForViewer, isCanonicalDescriptionField, normalizeDiffQuickFilters, viewerDiffPassesFilters, type DiffQuickFilters, type ViewerDiffInput } from "../shared/viewerEfficiency.js";
 type ViewerSectionStatus = "ready" | "no_records" | "not_collected" | "unavailable" | "error";
 
 interface ViewerSection<T = unknown> {
@@ -710,9 +710,7 @@ function descriptionInputFromEventRow(event: Row): DescriptionDiffInput {
 }
 
 function isDescriptionEventRow(event: Row) {
-  const fieldId = String(event.fieldId ?? "").trim().toLowerCase();
-  const fieldName = String(event.fieldName ?? "").trim().toLowerCase();
-  return fieldId === "description" || (!fieldId && fieldName === "description");
+  return isCanonicalDescriptionField(event.fieldId, event.fieldName);
 }
 
 function attachDescriptionDiffRows(eventRows: Row[]) {
@@ -847,11 +845,12 @@ function diffQuickFilterSql(filters: DiffQuickFilters) {
   const added = `jaa_diff_added(${VIEWER_DIFF_SQL_ARGS})`;
   const deleted = `jaa_diff_deleted(${VIEWER_DIFF_SQL_ARGS})`;
   const beforeAvailable = `jaa_diff_before_available(${VIEWER_DIFF_SQL_ARGS})`;
+  const description = `jaa_diff_description(${VIEWER_DIFF_SQL_ARGS})`;
   const where: string[] = [];
-  if (filters.hideNoChange) where.push(`${status} = 'changed'`);
-  if (filters.hideZeroAdded) where.push(`${added} IS NOT NULL AND ${added} > 0`);
-  if (filters.hideZeroDeleted) where.push(`${deleted} IS NOT NULL AND ${deleted} > 0`);
-  if (filters.hideBeforeUnavailable) where.push(`${beforeAvailable} = 1`);
+  if (filters.hideNoChange) where.push(`(${description} = 0 OR ${status} = 'changed')`);
+  if (filters.hideZeroAdded) where.push(`(${description} = 0 OR (${added} IS NOT NULL AND ${added} > 0))`);
+  if (filters.hideZeroDeleted) where.push(`(${description} = 0 OR (${deleted} IS NOT NULL AND ${deleted} > 0))`);
+  if (filters.hideBeforeUnavailable) where.push(`(${description} = 0 OR ${beforeAvailable} = 1)`);
   return where;
 }
 

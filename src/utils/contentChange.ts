@@ -1,3 +1,5 @@
+import { isCanonicalDescriptionField } from "../../shared/viewerEfficiency";
+
 export type CanonicalContent = {
   text: string;
   available: boolean;
@@ -51,9 +53,7 @@ export function canonicalizeContent(value: unknown, available = value !== undefi
 }
 
 export function isDescriptionField(fieldId: unknown, fieldName: unknown) {
-  const id = String(fieldId ?? "").trim().toLowerCase();
-  const name = String(fieldName ?? "").trim().toLowerCase();
-  return id === "description" || name === "description";
+  return isCanonicalDescriptionField(fieldId, fieldName);
 }
 
 export function classifyContentChange(beforeValue: unknown, afterValue: unknown, beforeAvailable = beforeValue !== undefined && beforeValue !== null, afterAvailable = afterValue !== undefined && afterValue !== null): ContentChangeStatus {

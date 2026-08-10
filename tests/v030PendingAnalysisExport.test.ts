@@ -42,7 +42,7 @@ async function run() {
   assert.equal(userView.filteredCount, 160);
   assert.equal(issueView.filteredCount, 240);
 
-  const userExport = await runPendingAnalysisExport({ exportId: "11111111-2222-4333-8444-555555555555", sourceView: "USER_ALL_ACTIVITY_EVENTS", query, userScope: scope, expectedFilteredCount: userView.filteredCount, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.3" });
+  const userExport = await runPendingAnalysisExport({ exportId: "11111111-2222-4333-8444-555555555555", sourceView: "USER_ALL_ACTIVITY_EVENTS", query, userScope: scope, expectedFilteredCount: userView.filteredCount, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.4" });
   assert.ok(userExport.filePath.startsWith(path.join(appRoot, "exports", "pending-analysis")));
   assert.equal(fs.existsSync(`${userExport.filePath}.partial`), false);
   const userBytes = fs.readFileSync(userExport.filePath);
@@ -51,7 +51,7 @@ async function run() {
   assert.equal(document.schemaName, PENDING_ANALYSIS_SCHEMA_NAME);
   assert.equal(document.schemaVersion, PENDING_ANALYSIS_SCHEMA_VERSION);
   assert.equal(document.contractStatus, PENDING_ANALYSIS_CONTRACT_STATUS);
-  assert.equal(document.appVersion, "0.3.3");
+  assert.equal(document.appVersion, "0.3.4");
   assert.deepEqual(document.exportMetadata, { exportMode: "compact-reference", selfContained: false, fullContentIncluded: false, sourceDatabaseRequiredForFullContent: true });
   assert.equal(document.timezone, "Asia/Taipei");
   assert.equal(document.sourceDatabase.sourceDatabaseId, "synthetic-v030-database");
@@ -76,7 +76,7 @@ async function run() {
 
   const quickQuery = { ...query, page: 1, pageSize: 200, diffQuickFilters: { hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: false, hideBeforeUnavailable: true } };
   const quickView = await queryDatabaseUserEventsProgressive(databasePath, scope, quickQuery, { requestId: "v033-quick-filter-parity" });
-  const quickExport = await runPendingAnalysisExport({ exportId: "33333333-2222-4333-8444-555555555555", sourceView: "USER_ALL_ACTIVITY_EVENTS", query: quickQuery, userScope: scope, expectedFilteredCount: quickView.filteredCount, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.3" });
+  const quickExport = await runPendingAnalysisExport({ exportId: "33333333-2222-4333-8444-555555555555", sourceView: "USER_ALL_ACTIVITY_EVENTS", query: quickQuery, userScope: scope, expectedFilteredCount: quickView.filteredCount, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.4" });
   const quickDocument = JSON.parse(fs.readFileSync(quickExport.filePath, "utf8"));
   assert.deepEqual(quickDocument.records.map((record: any) => record.reference.activityEventId), quickView.rows.map((row: any) => row.eventId), "viewer rows and frozen exported IDs must match");
   assert.deepEqual(quickDocument.querySnapshot.query.diffQuickFilters, quickQuery.diffQuickFilters);
@@ -85,15 +85,15 @@ async function run() {
   const targetQuery = { ...query, filters: { actor: { values: ["測試使用者"] } }, page: 1 };
   const issueTarget = await queryDatabaseIssueEventsProgressive(databasePath, "SYNTH-300", targetQuery, { requestId: "v030-cross-view" });
   assert.equal(issueTarget.filteredCount, userView.filteredCount);
-  const issueExport = await runPendingAnalysisExport({ exportId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", sourceView: "ISSUE_ACTIVITY_EVENTS", query: targetQuery, issueKey: "SYNTH-300", expectedFilteredCount: issueTarget.filteredCount, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.3" });
+  const issueExport = await runPendingAnalysisExport({ exportId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", sourceView: "ISSUE_ACTIVITY_EVENTS", query: targetQuery, issueKey: "SYNTH-300", expectedFilteredCount: issueTarget.filteredCount, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.4" });
   const issueDocument = JSON.parse(fs.readFileSync(issueExport.filePath, "utf8"));
   assert.deepEqual(issueDocument.records.map((record: any) => canonicalJson(record)), document.records.map((record: any) => canonicalJson(record)), "cross-view event evidence must be identical");
 
-  await assert.rejects(runPendingAnalysisExport({ exportId: "cancelled-run", sourceView: "ISSUE_ACTIVITY_EVENTS", query, issueKey: "SYNTH-300", expectedFilteredCount: issueView.filteredCount, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.3" }, { isCancelled: () => true }), (error: Error & { code?: string }) => error.code === "EXPORT_CANCELLED");
-  await assert.rejects(runPendingAnalysisExport({ exportId: "count-mismatch", sourceView: "USER_ALL_ACTIVITY_EVENTS", query, userScope: scope, expectedFilteredCount: userView.filteredCount - 1, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.3" }), (error: Error & { code?: string }) => error.code === "COUNT_EXPORT_MISMATCH");
+  await assert.rejects(runPendingAnalysisExport({ exportId: "cancelled-run", sourceView: "ISSUE_ACTIVITY_EVENTS", query, issueKey: "SYNTH-300", expectedFilteredCount: issueView.filteredCount, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.4" }, { isCancelled: () => true }), (error: Error & { code?: string }) => error.code === "EXPORT_CANCELLED");
+  await assert.rejects(runPendingAnalysisExport({ exportId: "count-mismatch", sourceView: "USER_ALL_ACTIVITY_EVENTS", query, userScope: scope, expectedFilteredCount: userView.filteredCount - 1, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.4" }), (error: Error & { code?: string }) => error.code === "COUNT_EXPORT_MISMATCH");
   let generationTouched = false;
-  await assert.rejects(runPendingAnalysisExport({ exportId: "generation-change", sourceView: "ISSUE_ACTIVITY_EVENTS", query, issueKey: "SYNTH-300", expectedFilteredCount: issueView.filteredCount, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.3" }, { onProgress: (progress) => { if (!generationTouched && progress.status === "filtering") { generationTouched = true; const future = new Date(Date.now() + 10_000); fs.utimesSync(databasePath, future, future); } } }), (error: Error & { code?: string }) => error.code === "SOURCE_DATABASE_CHANGED");
-    await assert.rejects(runPendingAnalysisExport({ exportId: "empty-empty", sourceView: "ISSUE_ACTIVITY_EVENTS", query: { ...query, filters: { actor: { values: ["missing"] } } }, issueKey: "SYNTH-300", expectedFilteredCount: 1, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.3" }), (error: Error & { code?: string }) => error.code === "NO_FILTERED_RECORDS");
+  await assert.rejects(runPendingAnalysisExport({ exportId: "generation-change", sourceView: "ISSUE_ACTIVITY_EVENTS", query, issueKey: "SYNTH-300", expectedFilteredCount: issueView.filteredCount, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.4" }, { onProgress: (progress) => { if (!generationTouched && progress.status === "filtering") { generationTouched = true; const future = new Date(Date.now() + 10_000); fs.utimesSync(databasePath, future, future); } } }), (error: Error & { code?: string }) => error.code === "SOURCE_DATABASE_CHANGED");
+    await assert.rejects(runPendingAnalysisExport({ exportId: "empty-empty", sourceView: "ISSUE_ACTIVITY_EVENTS", query: { ...query, filters: { actor: { values: ["missing"] } } }, issueKey: "SYNTH-300", expectedFilteredCount: 1, expectedDatabaseIdentity: "", databasePath, appRoot, appVersion: "0.3.4" }), (error: Error & { code?: string }) => error.code === "NO_FILTERED_RECORDS");
   assert.equal(fs.readdirSync(path.join(appRoot, "exports", "pending-analysis")).some((name) => name.endsWith(".partial")), false);
   fs.rmSync(root, { recursive: true, force: true });
   console.log("v0.3.0 pending-analysis production-path export tests passed", JSON.stringify({ userRecords: 160, issueRecords: 160, schemaVersion: PENDING_ANALYSIS_SCHEMA_VERSION }));

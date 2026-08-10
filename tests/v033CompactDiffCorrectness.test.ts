@@ -66,13 +66,13 @@ function run() {
   const added = classify("filter-added", "Status", null, '"B"');
   const removed = classify("filter-removed", "Status", '"A"', null);
   const f = (overrides: Partial<DiffQuickFilters>): DiffQuickFilters => ({ hideNoChange: false, hideZeroAdded: false, hideZeroDeleted: false, hideBeforeUnavailable: false, ...overrides });
-  assert.equal(viewerDiffPassesFilters(unchanged, f({ hideNoChange: true })), false);
+  assert.equal(viewerDiffPassesFilters(unchanged, f({ hideNoChange: true })), true);
   assert.equal(viewerDiffPassesFilters(changed, f({ hideNoChange: true })), true);
-  assert.equal(viewerDiffPassesFilters(removed, f({ hideZeroAdded: true })), false);
-  assert.equal(viewerDiffPassesFilters(added, f({ hideZeroDeleted: true })), false);
-  assert.equal(viewerDiffPassesFilters(added, f({ hideBeforeUnavailable: true })), false);
+  assert.equal(viewerDiffPassesFilters(removed, f({ hideZeroAdded: true })), true);
+  assert.equal(viewerDiffPassesFilters(added, f({ hideZeroDeleted: true })), true);
+  assert.equal(viewerDiffPassesFilters(added, f({ hideBeforeUnavailable: true })), true);
   assert.equal(viewerDiffPassesFilters(changed, f({ hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: true })), true);
-  assert.equal(viewerDiffPassesFilters(added, f({ hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: true })), false);
+  assert.equal(viewerDiffPassesFilters(added, f({ hideNoChange: true, hideZeroAdded: true, hideZeroDeleted: true, hideBeforeUnavailable: true })), true);
 
   console.log("v0.3.3 compact Diff correctness tests passed", JSON.stringify({ schemaVersion: PENDING_ANALYSIS_SCHEMA_VERSION, statusHunks: record.diff.diffHunks.length }));
 }

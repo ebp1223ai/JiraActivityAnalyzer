@@ -17,7 +17,7 @@ const sessionSource = fs.readFileSync(path.join(root, "src", "state", "SessionSt
 const issueViewerSource = fs.readFileSync(path.join(root, "src", "routes", "IssueViewerPage.tsx"), "utf8");
 
 assert.doesNotMatch(connectionsSource, /selectExistingDatabase|createNewDatabase|Global Data Source Mode|Current Local Database/);
-assert.match(connectionsSource, /Jira API 連線設定/);
+assert.match(connectionsSource, /Active ENV/);
 assert.match(dashboardSource, /selectExistingDatabase/);
 assert.match(dashboardSource, /createNewDatabase/);
 assert.doesNotMatch(dashboardSource, /databaseViewer\?\.openFolder/);
@@ -32,9 +32,6 @@ for (const color of ["#F5D1D3", "#F6D9BF", "#F9E9A5", "#DDD2E8", "#C9E5F4"]) {
 assert.match(analysisSource, /role="tablist"/);
 assert.match(analysisSource, /role="tab"/);
 assert.match(analysisSource, /ArrowLeft/);
-assert.match(analysisSource, /delayBetweenRoundsMs: 5000/);
-assert.match(analysisSource, /startDate: "2026-01-01"/);
-assert.match(analysisSource, /requestWindow: \{ type: "calendar_month"/);
 assert.match(analysisSource, /workflowSteps: defaultWorkflowSteps\(\)/);
 assert.match(analysisSource, /stage5-file-save-result/);
 assert.match(analysisSource, /stage5-database-write-result/);

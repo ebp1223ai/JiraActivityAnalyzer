@@ -1,3 +1,11 @@
+## 0.3.4 - Description-only Diff Quick Filters
+
+- 將四個 Diff Quick Filters 嚴格限定於 canonical Description 比較，Comment 與所有非 Description 記錄固定 bypass。
+- 統一 field identity 優先順序：存在 fieldId 時只接受 normalized `description`，缺少 fieldId 才使用 fieldName fallback。
+- 統一同步 SQL count/rows、progressive pagination、Issue/User Viewer 與 frozen Pending Analysis export 的篩選語意。
+- 保留既有 Quick Filter preferences 與 Query Snapshot，並將 UI 標籤改為 Description 專用說明。
+- Compact export schema 維持 `0.3.3-draft.1`；SQLite schema v3、ENV format、Jira read-only 與資料庫寫入路徑均未變更。
+
 ## 0.3.3 - Compact Diff Export Correctness
 
 - Added deterministic non-Description diff hunks for scalar, collection, ordered-array, attachment/link and custom JSON changes.
