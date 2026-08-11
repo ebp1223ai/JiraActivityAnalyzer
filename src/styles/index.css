@@ -189,3 +189,8 @@ canvas {
 .workflow-panel-step-3 { background: #f9e9a5; }
 .workflow-panel-step-4 { background: #ddd2e8; }
 .workflow-panel-step-5 { background: #c9e5f4; }
+
+/* v0.3.7 AI Analysis interaction states */
+textarea { font: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+button:disabled, .btn:disabled { cursor: not-allowed; opacity: 0.48; }

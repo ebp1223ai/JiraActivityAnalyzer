@@ -11,9 +11,14 @@ const trackedDirty = execSync("git status --porcelain --untracked-files=no", {
   cwd: projectRoot,
   stdio: ["ignore", "pipe", "inherit"]
 }).toString().trim();
-if (trackedDirty) {
+const allowDirtyPackaging = process.env.JAA_ALLOW_DIRTY_PACKAGE === "1";
+if (trackedDirty && !allowDirtyPackaging) {
   console.error("Packaging requires a clean tracked worktree so packagedSourceCommit is exact.");
+  console.error("Set JAA_ALLOW_DIRTY_PACKAGE=1 only for an explicitly authorized dirty-worktree build.");
   process.exit(1);
+}
+if (trackedDirty) {
+  console.warn("[packaging warning] Building from an authorized dirty tracked worktree; buildInfo.dirtyState=true.");
 }
 
 const packagedSourceCommit = execSync("git rev-parse HEAD", {
@@ -44,7 +49,7 @@ const sourceBranch = process.env.JAA_BUILD_BRANCH
   buildMachine: os.hostname(),
   buildOs: `${os.type()} ${os.release()} ${os.arch()}`,
   gitBranch: sourceBranch,
-  dirtyState: false
+  dirtyState: Boolean(trackedDirty)
 };
 const buildEnvironment = {
   ...process.env,

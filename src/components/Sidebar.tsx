@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   BarChart3, ChevronDown, ChevronRight, Database, DatabaseZap,
-  RadioTower, Settings, ShieldCheck, UserRound, UsersRound
+  RadioTower, Settings, ShieldCheck, Sparkles, UserRound, UsersRound
 } from "lucide-react";
 import { BuildInfo } from "./BuildInfo";
 
@@ -24,6 +24,7 @@ const groups = [
     label: "檢視器 / Viewers",
     items: [
       { to: "/issues", label: "Issue 檢視", sub: "Issue Viewer", icon: BarChart3 },
+      { to: "/ai-analysis", label: "AI 分析", sub: "AI Analysis", icon: Sparkles },
       { to: "/users", label: "使用者檢視", sub: "User Viewer", icon: UsersRound }
     ]
   }

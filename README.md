@@ -1,5 +1,17 @@
 # Jira Activity Analyzer
 
+> v0.3.7 新增 AI Analysis 最後定案版靜態互動 UI。本階段所有 AI 設定、診斷、對話、分析與下載皆為 renderer-only mock，不連接真實 AI、Jira 或 SQLite。
+
+## v0.3.7 AI Analysis Final Static UI
+
+- 新增三個主分頁：AI 連線與診斷、分析工作區、Activity Events 分析結果。
+- 雲端與地端 AI 使用獨立設定／診斷狀態；設定變更會使既有 passed 結果失效。
+- 分析工作區共用一份 Catalog／Rules／Manifest，並提供 Pending Analysis JSON 前端匯入及 mock run。
+- 分析結果以單一 analyzed file state 驅動摘要、統計、逐筆結果與技能報告。
+- Skill Catalog fixture 包含 279 個唯一 Skill ID；缺少 detail description 時顯示「尚待補齊」。
+- 可下載有效 mock JSON、CSV 與無外部 dependency 的自包含 HTML 報告。
+- 本版不新增 backend、IPC、AI/Jira 呼叫、SQLite 寫入或憑證保存。
+
 > v0.3.4 將四個 Diff Quick Filters 限定為 canonical Description 比較；Comment 與所有非 Description 記錄不受這四項篩選影響。SQLite schema、ENV format 與 Compact export schema 均不變。
 
 ## v0.3.4 Description-only Diff Quick Filters

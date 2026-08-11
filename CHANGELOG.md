@@ -1,3 +1,11 @@
+## 0.3.7 - AI Analysis Final Static UI
+
+- Added a three-tab AI Analysis workspace for independent cloud/local settings, seven-step mock diagnostics, sanitized manual chat, and shared analysis-basis status.
+- Added Pending and Analyzed JSON front-end pickers, cross-tab readiness state, frozen mock run snapshots, visible progress, and deterministic analyzed-file naming.
+- Merged per-Diff results and Skill Analysis Report into one result page driven by one selected analyzed dataset.
+- Added 279-entry Skill Catalog lookup, accessible skill tooltips, filtered CSV, valid mock JSON, and self-contained interactive HTML downloads.
+- Kept all AI/Jira/SQLite/backend/IPC behavior mocked; no external request, credential persistence, database write, packaging, or release work was added.
+
 ## 0.3.4 - Description-only Diff Quick Filters
 
 - 將四個 Diff Quick Filters 嚴格限定於 canonical Description 比較，Comment 與所有非 Description 記錄固定 bypass。

@@ -12,6 +12,7 @@ const pageByPath: Record<string, DebugPage> = {
   "/collection": "analysis",
   "/issues": "jira",
   "/users": "timeline",
+  "/ai-analysis": "analysis",
   "/activity-stream-probe": "precision",
   "/jira-probe": "jiraProbe",
   "/settings": "settings"
