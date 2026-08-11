@@ -148,6 +148,27 @@ contextBridge.exposeInMainWorld("desktopApp", {
     openExportFolder: (payload?: { folderPath?: string }) => ipcRenderer.invoke("user-analysis:open-export-folder", payload),
     autoSaveRun: (payload: unknown) => ipcRenderer.invoke("user-analysis:auto-save-run", payload)
   },
+  aiAnalysis: {
+    getSnapshot: () => ipcRenderer.invoke("ai-analysis:snapshot"),
+    reloadEnv: () => ipcRenderer.invoke("ai-analysis:reload-env"),
+    saveSettings: (payload: unknown) => ipcRenderer.invoke("ai-analysis:save-settings", payload),
+    testConnection: (service: "cloud" | "local") => ipcRenderer.invoke("ai-analysis:test-connection", service),
+    diagnose: (service: "cloud" | "local") => ipcRenderer.invoke("ai-analysis:diagnose", service),
+    chat: (payload: unknown) => ipcRenderer.invoke("ai-analysis:chat", payload),
+    chooseRules: () => ipcRenderer.invoke("ai-analysis:choose-rules"),
+    loadRules: (folderPath?: string) => ipcRenderer.invoke("ai-analysis:load-rules", folderPath),
+    choosePending: () => ipcRenderer.invoke("ai-analysis:choose-pending"),
+    start: (payload: unknown) => ipcRenderer.invoke("ai-analysis:start", payload),
+    cancel: (runId: string) => ipcRenderer.invoke("ai-analysis:cancel", runId),
+    review: (payload: unknown) => ipcRenderer.invoke("ai-analysis:review", payload),
+    exportRun: (payload: unknown) => ipcRenderer.invoke("ai-analysis:export", payload),
+    openFolder: (folderPath?: string) => ipcRenderer.invoke("ai-analysis:open-folder", folderPath),
+    onSnapshotChanged: (listener: (snapshot: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, snapshot: unknown) => listener(snapshot);
+      ipcRenderer.on("ai-analysis:snapshot-changed", handler);
+      return () => ipcRenderer.removeListener("ai-analysis:snapshot-changed", handler);
+    }
+  },
   appDebug: {
     saveTextFile: (payload: { defaultFileName: string; content: string }) => ipcRenderer.invoke("debug-log:save-text", payload),
     saveBundle: (payload: { debugLog: string; currentPage: string; fullFetchIdentity?: { attemptId: string; selectedTimelineRunId: string; fullFetchRunId: string; stagingId: string } }) => ipcRenderer.invoke("debug-log:save-bundle", payload),

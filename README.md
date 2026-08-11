@@ -711,3 +711,15 @@ Version 0.2.25 adds Stability, Attempt Comparison, and Raw Results modes inside 
 - renderer does not receive direct Node.js API access
 - production loads `dist/index.html`
 - development loads the local Vite dev server only for the Electron window
+
+## AI Analysis v0.3.8
+
+AI Analysis is implemented as three fixed work areas: AI Diagnostics, Analysis Workspace, and Analysis Results. Provider requests, credentials, rules loading, pending-analysis validation, SQLite persistence, and exports run in the Electron main process through a narrow context-isolated IPC API.
+
+- Copy tracked `.env.version` to local untracked `.env`; the app never creates a credential file automatically. Required format is `ENV_FORMAT_VERSION=3`.
+- Cloud providers support OpenAI Responses; compatible services may use Responses or Chat Completions. Provider tests use real requests and keep Authorization values masked.
+- Rules are loaded as a frozen SHA-256 snapshot from the manifest, Skill Catalog, and Common Rules files.
+- Pending-analysis input must pass the existing compact schema and integrity checks before selected diffs can enter a run.
+- Offline Rule Analyzer is deterministic and field-aware. Every candidate defaults to `PENDING_REVIEW`; confirmation is a human action.
+- Completed runs are written to a separate AI Analysis SQLite database and can be exported as JSON, CSV, or self-contained HTML. Jira and Current-State databases remain read-only.
+- Automated tests use synthetic data and a loopback mock provider. They never call company Jira or a live cloud AI service.

@@ -3,6 +3,7 @@ dist
 dist-electron
 release
 .env
+!.env.version
 /data/
 /app-data/
 /cache/

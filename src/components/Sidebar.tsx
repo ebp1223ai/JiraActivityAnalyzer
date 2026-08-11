@@ -24,11 +24,12 @@ const groups = [
     label: "檢視器 / Viewers",
     items: [
       { to: "/issues", label: "Issue 檢視", sub: "Issue Viewer", icon: BarChart3 },
-      { to: "/ai-analysis", label: "AI 分析", sub: "AI Analysis", icon: Sparkles },
       { to: "/users", label: "使用者檢視", sub: "User Viewer", icon: UsersRound }
     ]
   }
 ];
+
+const aiAnalysisItem = { to: "/ai-analysis", label: "AI 分析", sub: "AI Analysis", icon: Sparkles };
 
 const advancedItems = [
   { to: "/activity-stream-probe", label: "活動串流測試", sub: "Activity Stream Probe", icon: RadioTower },
@@ -75,6 +76,10 @@ export function Sidebar() {
             <div className="space-y-1">{group.items.map((item) => <NavItem key={item.to} item={item} />)}</div>
           </div>
         ))}
+        <div className="mb-4">
+          <div className="mb-1 px-3 text-[10px] font-black uppercase text-slate-400">AI 分析 / AI Analysis</div>
+          <div className="space-y-1"><NavItem item={aiAnalysisItem} /></div>
+        </div>
         <div className="mb-4">
           <button
             type="button"

@@ -1,0 +1,307 @@
+export const AI_ANALYSIS_IPC_VERSION = 1 as const;
+export const AI_ANALYSIS_DB_SCHEMA_VERSION = 1 as const;
+export const AI_ANALYSIS_INPUT_SCHEMA_VERSION = "ai-analysis-input-v1" as const;
+export const AI_ANALYSIS_OUTPUT_SCHEMA_VERSION = "ai-analysis-output-v1" as const;
+export const AI_ANALYZED_FILE_SCHEMA_VERSION = "0.3.8-v1" as const;
+
+export type AiAnalysisErrorCode =
+  | "ENV_NOT_FOUND"
+  | "ENV_FORMAT_UNSUPPORTED"
+  | "ENV_PARSE_ERROR"
+  | "ENV_CONCURRENT_MODIFICATION"
+  | "AI_NOT_CONFIGURED"
+  | "AI_AUTH_FAILED"
+  | "AI_ENDPOINT_UNREACHABLE"
+  | "AI_TLS_ERROR"
+  | "AI_MODEL_NOT_FOUND"
+  | "AI_RATE_LIMITED"
+  | "AI_TIMEOUT"
+  | "AI_RESPONSE_INVALID"
+  | "ANALYSIS_INPUT_INVALID"
+  | "ANALYSIS_RULES_INVALID"
+  | "INPUT_TOO_LARGE"
+  | "SOURCE_MISMATCH"
+  | "RUN_CANCELLED"
+  | "RUN_INTERRUPTED"
+  | "PARTIAL_RESULT_FORBIDDEN"
+  | "AI_DB_MIGRATION_FAILED"
+  | "EXPORT_VALIDATION_FAILED";
+
+export type AiServiceKey = "cloud" | "local";
+export type AiAnalyzerMode = "CLOUD_AI" | "LOCAL_AI" | "OFFLINE_RULE";
+export type AiApiContract = "responses" | "chat_completions";
+export type AiAuthType = "bearer" | "api_key";
+export type AiAnalysisStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED" | "NEEDS_REVIEW" | "UNKNOWN" | "EXCLUDED";
+export type AiRunStatus = "queued" | "running" | "retrying" | "cancelling" | "cancelled" | "completed" | "partial" | "failed" | "interrupted";
+
+export type AiTokenUsage = {
+  inputTokens: number | null;
+  cachedInputTokens: number | null;
+  outputTokens: number | null;
+  reasoningTokens: number | null;
+  totalTokens: number | null;
+  availability: "actual" | "partial" | "unavailable" | "not_applicable";
+  estimatedInputTokens: number | null;
+};
+
+export type AiPublicSettings = {
+  service: AiServiceKey;
+  provider: string;
+  endpoint: string;
+  model: string;
+  apiContract: AiApiContract;
+  authType: AiAuthType;
+  organization: string;
+  project: string;
+  contextWindow: number | null;
+  timeoutMs: number;
+  maxOutputTokens: number | null;
+  maxRetries: number;
+  secretConfigured: boolean;
+  secretMask: string;
+  configFingerprint: string;
+  loadedAt: string | null;
+  savedAt: string | null;
+  testedFingerprint: string | null;
+  connectionStatus: "not_configured" | "not_tested" | "running" | "passed" | "failed";
+  lastErrorCode: AiAnalysisErrorCode | null;
+};
+
+export type AiSettingsUpdate = Omit<AiPublicSettings,
+  "secretConfigured" | "secretMask" | "configFingerprint" | "loadedAt" | "savedAt" | "testedFingerprint" | "connectionStatus" | "lastErrorCode"
+> & { secret?: string; preserveSecret: boolean; expectedEnvSha256: string; expectedEnvMtimeMs: number | null };
+
+export type AiEnvSummary = {
+  found: boolean;
+  envPath: string;
+  templatePath: string;
+  formatVersion: string | null;
+  supported: boolean;
+  sha256: string;
+  mtimeMs: number | null;
+  loadedAt: string;
+  errorCode: AiAnalysisErrorCode | null;
+  message: string;
+  cloud: AiPublicSettings;
+  local: AiPublicSettings;
+  localDatabaseConfigured: boolean;
+  aiDatabaseConfigured: boolean;
+  rulesDirectoryConfigured: boolean;
+};
+
+export type AiDiagnosticStep = {
+  id: "configuration" | "network" | "tls" | "authentication" | "model" | "contract" | "persistence";
+  name: string;
+  status: "pending" | "running" | "passed" | "failed" | "skipped";
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+  errorCode: AiAnalysisErrorCode | null;
+  message: string;
+  requestSummary: Record<string, unknown>;
+  responseSummary: Record<string, unknown>;
+};
+
+export type AiConnectionResult = {
+  ok: boolean;
+  service: AiServiceKey;
+  testedFingerprint: string;
+  statusCode: number | null;
+  requestId: string | null;
+  elapsedMs: number;
+  errorCode: AiAnalysisErrorCode | null;
+  message: string;
+  usage: AiTokenUsage;
+  sanitizedResponse: Record<string, unknown>;
+};
+
+export type AiDiagnosticRun = {
+  runId: string;
+  service: AiServiceKey;
+  status: "running" | "passed" | "failed";
+  startedAt: string;
+  completedAt: string | null;
+  testedFingerprint: string;
+  steps: AiDiagnosticStep[];
+  folderPath: string | null;
+  copySummary: string;
+};
+
+export type AiChatMessage = {
+  id: string;
+  sessionId: string;
+  role: "user" | "assistant";
+  service: AiServiceKey;
+  provider: string;
+  model: string;
+  createdAt: string;
+  elapsedMs: number | null;
+  usage: AiTokenUsage;
+  text: string;
+};
+
+export type AiRulesFile = {
+  kind: "manifest" | "catalog" | "rules";
+  fileName: string;
+  version: string;
+  sha256: string;
+  status: "verified" | "invalid";
+};
+
+export type AiCatalogEntry = {
+  id: string;
+  name: string;
+  group: string;
+  catalogStatus: "review-draft" | "approved";
+  detailDescription: string | null;
+};
+
+export type AiRulesSnapshot = {
+  valid: boolean;
+  rulesDirectoryLabel: string;
+  ruleSetId: string;
+  manifestSchemaVersion: string;
+  catalogVersion: string;
+  commonRulesVersion: string;
+  classificationEngineVersion: "offline-rule-v1";
+  parserVersion: "ai-rules-parser-v1";
+  files: AiRulesFile[];
+  catalogCount: number;
+  catalog: AiCatalogEntry[];
+  commonRulesNormalized: string[];
+  errors: string[];
+};
+
+export type AiPendingDiff = {
+  sourceDiffId: string;
+  sourceContentHash: string;
+  evidenceId: string;
+  activityEventId: string;
+  issueKey: string;
+  projectKey: string;
+  actorId: string;
+  actorDisplayName: string;
+  fieldId: string;
+  fieldName: string;
+  eventTime: string;
+  sourceProvenance: string;
+  diffStatus: string;
+  substantive: boolean;
+  addedLineCount: number;
+  removedLineCount: number;
+  diffHunks: Array<{ oldStart: number; oldLines: number; newStart: number; newLines: number; lines: Array<{ type: string; text: string }> }>;
+};
+
+export type AiPendingDataset = {
+  datasetId: string;
+  fileName: string;
+  schemaVersion: string;
+  sourceFileSha256: string;
+  sourceDatabaseId: string;
+  jiraServerFingerprint: string;
+  jiraServerHost: string;
+  sourceSchemaVersion: number;
+  sourceView: string;
+  createdAt: string;
+  eventCount: number;
+  eligibleCount: number;
+  issues: number;
+  projects: number;
+  integrityStatus: "verified" | "invalid";
+  errors: string[];
+  diffs: AiPendingDiff[];
+};
+
+export type AiAnalysisCandidate = {
+  skillId: string;
+  skillName: string;
+  group: string;
+  score: number | null;
+  confidence: number | null;
+  positiveEvidenceRefs: string[];
+  negativeEvidenceRefs: string[];
+  matchedRuleIds: string[];
+  reason: string;
+  status: AiAnalysisStatus;
+};
+
+export type AiDiffAnalysisResult = {
+  resultId: string;
+  sourceDiffId: string;
+  sourceContentHash: string;
+  evidenceRefs: string[];
+  candidates: AiAnalysisCandidate[];
+  status: AiAnalysisStatus;
+  analyzerVersion: string;
+  requestTraceId: string | null;
+  usage: AiTokenUsage;
+  rawResultAvailable: boolean;
+  reviewNote: string;
+  reviewedAt: string | null;
+};
+
+export type AiRunProgress = {
+  runId: string;
+  status: AiRunStatus;
+  totalBatches: number;
+  completedBatches: number;
+  failedBatches: number;
+  currentBatch: number;
+  totalDiffs: number;
+  completedDiffs: number;
+  requestCount: number;
+  retryCount: number;
+  elapsedMs: number;
+  usage: AiTokenUsage;
+  message: string;
+  errorCode: AiAnalysisErrorCode | null;
+};
+
+export type AiAnalysisRun = {
+  runId: string;
+  revision: number;
+  status: AiRunStatus;
+  analyzerMode: AiAnalyzerMode;
+  sourceDatasetId: string;
+  sourceFileName: string;
+  sourceFileSha256: string;
+  sourceDatabaseId: string;
+  jiraServerFingerprint: string;
+  selectedDiffIds: string[];
+  provider: string;
+  model: string;
+  apiContract: AiApiContract | "offline";
+  configFingerprint: string | null;
+  rules: AiRulesSnapshot;
+  startedAt: string;
+  completedAt: string | null;
+  progress: AiRunProgress;
+  results: AiDiffAnalysisResult[];
+  analyzedFileName: string;
+  analyzedFilePath: string | null;
+  databasePath: string | null;
+};
+
+export type AiAnalysisSnapshot = {
+  ipcVersion: typeof AI_ANALYSIS_IPC_VERSION;
+  env: AiEnvSummary;
+  rules: AiRulesSnapshot | null;
+  pendingDatasets: AiPendingDataset[];
+  selectedPendingDatasetId: string | null;
+  runs: AiAnalysisRun[];
+  selectedRunId: string | null;
+  activeRunId: string | null;
+};
+
+export type AiExportFormat = "json" | "csv" | "html";
+
+export class AiAnalysisError extends Error {
+  constructor(public readonly code: AiAnalysisErrorCode, message: string, public readonly retryable = false) {
+    super(message);
+    this.name = "AiAnalysisError";
+  }
+}
+
+export function emptyTokenUsage(availability: AiTokenUsage["availability"] = "unavailable"): AiTokenUsage {
+  return { inputTokens: null, cachedInputTokens: null, outputTokens: null, reasoningTokens: null, totalTokens: null, availability, estimatedInputTokens: null };
+}

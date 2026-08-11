@@ -1,0 +1,25 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+
+const root = process.cwd();
+const read = (name: string) => fs.readFileSync(path.join(root, name), "utf8");
+const packageJson = JSON.parse(read("package.json")) as { version: string; scripts: Record<string, string> };
+assert.equal(packageJson.version, "0.3.8");
+assert.equal(read("VERSION").trim(), "0.3.8");
+assert.match(read(".env.version"), /ENV_FORMAT_VERSION=3/);
+assert.match(read(".gitignore"), /^\.env$/m);
+assert.match(read(".gitignore"), /^!\.env\.version$/m);
+assert.match(read("electron/preload.ts"), /aiAnalysis:\s*\{/);
+assert.match(read("electron/main.ts"), /registerAiAnalysisIpc\(\)/);
+assert.match(read("electron/aiAnalysisIpc.ts"), /ai-analysis:start/);
+assert.match(read("electron/aiAnalysisCore.ts"), /store:\s*false/);
+assert.match(read("electron/aiAnalysisCore.ts"), /Only completed analysis runs may be persisted/);
+assert.doesNotMatch(read("src/routes/AiAnalysisPage.tsx"), /fixture|mock|setTimeout/i);
+assert.match(read("src/ai-analysis/AiAnalysisFunctionalPage.tsx"), /AI 連線與診斷/);
+assert.match(read("src/ai-analysis/AiAnalysisFunctionalPage.tsx"), /分析工作區/);
+assert.match(read("src/ai-analysis/AiAnalysisFunctionalPage.tsx"), /分析結果/);
+assert.doesNotMatch(read("src/ai-analysis/AiAnalysisFunctionalPage.tsx"), /ANALYSIS DETAIL/i);
+assert.equal(require("node:child_process").execFileSync("git", ["ls-files", ".env.Version"], { cwd: root, encoding: "utf8" }).trim(), "");
+assert.doesNotMatch(read("electron/main.ts"), /ensureDefaultRuntimeEnv/);
+console.log("v0.3.8 architecture integration tests passed");

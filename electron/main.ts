@@ -36,7 +36,7 @@ import { runApiProbe } from "./jira/jiraProbeRunner.js";
 import { sanitizeRawJson, sanitizeResponseText } from "./jira/safeJson.js";
 import type { JiraHttpResult, ProbeRequest } from "./jira/jiraTypes.js";
 import { databasePathForEnv, resolveLocalDatabasePath } from "./appPathResolver.js";
-import { DEFAULT_ENV_TEXT as defaultEnvText, atomicPatchEnv, ensureDefaultRuntimeEnv, loadRuntimeConfig, parseEnvText } from "./runtimeConfig.js";
+import { DEFAULT_ENV_TEXT as defaultEnvText, atomicPatchEnv, loadRuntimeConfig, parseEnvText, runtimeConfigFromValues } from "./runtimeConfig.js";
 import { checkJiraConnection } from "./jiraConnectionCheck.js";
 import {
   checkCurrentStateDatabaseCompatibility as checkDatabaseCompatibility,
@@ -60,6 +60,7 @@ import { filterSnapshot, type PendingAnalysisExportRequest, type PendingAnalysis
 import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
+import { registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -117,6 +118,8 @@ try {
   app.exit(1);
   throw error;
 }
+
+registerAiAnalysisIpc();
 
 type AutoSaveResultType = "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test";
 type AutoSavedRun = { runId: string; resultType: AutoSaveResultType; status: string; savedAt: string; filePath: string; folderPath: string; data: Record<string, unknown> };
@@ -563,7 +566,7 @@ function writeConnectionFile(data: { activeConnectionId: string; connections: Ap
 
 function loadConnectionState() {
   const envState = ensureProbeEnv();
-  const env = parseEnvText(fs.readFileSync(envState.envPath, "utf8"));
+  const env = fs.existsSync(envState.envPath) ? parseEnvText(fs.readFileSync(envState.envPath, "utf8")) : parseEnvText(defaultEnvText);
   const envConnection = connectionFromEnv(
     isUiSmoke && !env.JIRA_BASE_URL
       ? {
@@ -586,13 +589,13 @@ function loadConnectionState() {
   };
 }
 
-function toProbeEnvConfig(env: Record<string, string>, sourcePath: string, status: "loaded" | "created") {
+function toProbeEnvConfig(env: Record<string, string>, sourcePath: string, status: "loaded" | "missing") {
   const token = env.JIRA_API_TOKEN ?? "";
   const timestamp = formatLocalDateTime();
   const appConfig = readAppConfig();
   return {
     found: status === "loaded",
-    created: status === "created",
+    created: false,
     status,
     sourcePath,
     envPath: sourcePath,
@@ -601,7 +604,7 @@ function toProbeEnvConfig(env: Record<string, string>, sourcePath: string, statu
     appConfigPath: getConfigPath(),
     lastEnvLoadedAt: appConfig.lastEnvLoadedAt,
     loadedAt: status === "loaded" ? timestamp : undefined,
-    createdAt: status === "created" ? timestamp : undefined,
+    createdAt: undefined,
     paths: ensureRuntimeFolders(),
     config: {
       baseUrl: env.JIRA_BASE_URL ?? "",
@@ -629,12 +632,16 @@ function ensureProbeEnv() {
     return toProbeEnvConfig(parseEnvText(fs.readFileSync(envPath, "utf8")), envPath, "loaded");
   }
   const defaultEnvPath = getDefaultEnvPath();
-  ensureDefaultRuntimeEnv(defaultEnvPath);
   setCurrentEnvPath(defaultEnvPath);
   return {
-    ...toProbeEnvConfig(parseEnvText(defaultEnvText), defaultEnvPath, "created"),
+    ...toProbeEnvConfig(parseEnvText(defaultEnvText), defaultEnvPath, "missing"),
     paths
   };
+}
+
+function loadEffectiveRuntimeConfig() {
+  const envPath = resolveCurrentEnvPath();
+  return fs.existsSync(envPath) ? loadRuntimeConfig(envPath) : runtimeConfigFromValues(parseEnvText(defaultEnvText));
 }
 
 let runtimeCoordinator: StartupCheckCoordinator | null = null;
@@ -664,7 +671,7 @@ function broadcastRuntimeState(state: RuntimeState) {
 }
 
 function currentJiraSettingsIdentity() {
-  const config = loadRuntimeConfig(resolveCurrentEnvPath());
+  const config = loadEffectiveRuntimeConfig();
   let baseUrlNormalized = config.jiraBaseUrl.trim().replace(/\/+$/, "");
   try { baseUrlNormalized = new URL(config.jiraBaseUrl.trim()).toString().replace(/\/$/, ""); } catch { /* Classified by the connection check. */ }
   const settingsFingerprint = crypto.createHash("sha256").update(JSON.stringify({
@@ -723,7 +730,7 @@ async function runJiraStartupCheck() {
 
 async function runDatabaseStartupCheck() {
   try {
-    const config = loadRuntimeConfig(resolveCurrentEnvPath());
+    const config = loadEffectiveRuntimeConfig();
     const databasePath = resolveLocalDatabasePath(getAppRuntimeDir(), config.localDatabasePath);
     const jiraIdentity = runtimeCoordinator?.snapshot().jira.status === "CONNECTED"
       ? runtimeCoordinator.snapshot().jira.serverIdentity
@@ -966,7 +973,7 @@ ipcMain.handle("connection:choose-env", async () => {
 });
 
 ipcMain.handle("database:check-path", async (_event, payload?: { filePath?: string }) => {
-  const configuredPath = payload?.filePath ?? loadRuntimeConfig(resolveCurrentEnvPath()).localDatabasePath;
+  const configuredPath = payload?.filePath ?? loadEffectiveRuntimeConfig().localDatabasePath;
   const resolved = resolveLocalDatabasePath(getAppRuntimeDir(), configuredPath);
   const jiraIdentity = getRuntimeCoordinator().snapshot().jira.status === "CONNECTED"
     ? getRuntimeCoordinator().snapshot().jira.serverIdentity
@@ -1019,7 +1026,7 @@ ipcMain.handle("database:create-new", async (_event, payload?: { filePath?: stri
   }
   const jira = getRuntimeCoordinator().snapshot().jira;
   const connectionLabel = loadConnectionState().activeConnection.name;
-  const smokeRuntimeConfig = isUiSmoke ? loadRuntimeConfig(resolveCurrentEnvPath()) : null;
+  const smokeRuntimeConfig = isUiSmoke ? loadEffectiveRuntimeConfig() : null;
   const effectiveBaseUrl = jira.baseUrlNormalized || smokeRuntimeConfig?.jiraBaseUrl || "";
   const effectiveServerIdentity = jira.serverIdentity || (isUiSmoke && effectiveBaseUrl
     ? `ui-smoke:${crypto.createHash("sha256").update(effectiveBaseUrl).digest("hex")}`
@@ -1041,7 +1048,7 @@ ipcMain.handle("database:create-new", async (_event, payload?: { filePath?: stri
       binding
     });
     atomicPatchEnv(resolveCurrentEnvPath(), {
-      ENV_FORMAT_VERSION: "2",
+      ENV_FORMAT_VERSION: "3",
       LOCAL_DATABASE_PATH: databasePathForEnv(getAppRuntimeDir(), created.databasePath)
     });
     const state = await getRuntimeCoordinator().retryDatabase();
@@ -3441,7 +3448,7 @@ ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: F
     const savedAt = new Date().toISOString();
     recordStep5Action(resolvedStaging, { action: "full_fetch_json_saved", timestamp: savedAt, runId, outputPath: saved.filePath, fileSize: saved.fileSize, sha256: saved.sha256, issueCount: resolvedStaging.state.total, eligibleCount: resolvedStaging.state.eligible, result: "completed", error: "", generatedAutomatically: false });
 
-    const config = loadRuntimeConfig(resolveCurrentEnvPath());
+    const config = loadEffectiveRuntimeConfig();
     const databasePath = resolveLocalDatabasePath(getAppRuntimeDir(), config.localDatabasePath);
     const currentJira = getRuntimeCoordinator().snapshot().jira;
     const formalDatabaseWriteAllowed = runRecord.attempt.preflightStatus === "eligible"
@@ -5910,7 +5917,7 @@ function startPostRendererStartup() {
       console.error("[full-fetch-staging startup scan failed]", error);
     }
     const envState = ensureProbeEnv();
-    console.log(envState.status === "created" ? "[env] Default env file created" : "[env] Env file loaded", envState.envPath);
+    console.log(envState.status === "missing" ? "[env] Local .env not found; runtime remains unconfigured" : "[env] Env file loaded", envState.envPath);
     void startBackgroundChecks().catch((error) => {
       persistentDiagnostics.write("main", "startup-background-check-failed", {
         error: error instanceof Error ? error.message : String(error)

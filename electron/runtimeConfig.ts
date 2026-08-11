@@ -1,13 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const ENV_FORMAT_VERSION = "2";
+export const ENV_FORMAT_VERSION = "3";
 
 export const DEFAULT_ENV_TEXT = `# Jira Activity Analyzer runtime configuration / Jira Activity Analyzer 執行階段設定
 # This local file may contain credentials. Never commit it. / 此本機檔案可能包含憑證，切勿提交。
 
 # Environment format version / 環境設定格式版本
-ENV_FORMAT_VERSION=2
+ENV_FORMAT_VERSION=3
 
 # Jira base URL / Jira 伺服器網址
 JIRA_BASE_URL=
@@ -28,7 +28,40 @@ JIRA_API_VERSION=2
 JIRA_AUTH_MODE=bearer
 
 # Current local database path, relative to APP_ROOT or absolute / 目前本機資料庫路徑，可相對於 APP_ROOT 或使用絕對路徑
+LOCAL_DB_PATH=
 LOCAL_DATABASE_PATH=
+
+# AI analysis cloud provider (secrets stay in main process)
+AI_CLOUD_PROVIDER=OpenAI
+AI_CLOUD_ENDPOINT=https://api.openai.com/v1
+AI_CLOUD_MODEL=
+AI_CLOUD_API_CONTRACT=responses
+AI_CLOUD_API_KEY=
+AI_CLOUD_AUTH_TYPE=bearer
+AI_CLOUD_ORGANIZATION=
+AI_CLOUD_PROJECT=
+AI_CLOUD_CONTEXT_WINDOW=
+AI_CLOUD_REQUEST_TIMEOUT_MS=120000
+AI_CLOUD_MAX_OUTPUT_TOKENS=4096
+AI_CLOUD_MAX_RETRIES=2
+
+# AI analysis local/OpenAI-compatible provider
+AI_LOCAL_PROVIDER=OpenAI-compatible
+AI_LOCAL_ENDPOINT=
+AI_LOCAL_MODEL=
+AI_LOCAL_API_CONTRACT=chat_completions
+AI_LOCAL_TOKEN=
+AI_LOCAL_AUTH_TYPE=bearer
+AI_LOCAL_ORGANIZATION=
+AI_LOCAL_PROJECT=
+AI_LOCAL_CONTEXT_WINDOW=
+AI_LOCAL_REQUEST_TIMEOUT_MS=180000
+AI_LOCAL_MAX_OUTPUT_TOKENS=4096
+AI_LOCAL_MAX_RETRIES=2
+
+# AI analysis storage and rules, relative to APP_ROOT or absolute
+AI_ANALYSIS_DB_PATH=app-data/ai-analysis/ai-analysis.sqlite3
+AI_ANALYSIS_RULES_DIR=
 
 # Application log level / 應用程式紀錄層級
 LOG_LEVEL=DEBUG
@@ -95,7 +128,7 @@ export function runtimeConfigFromValues(values: Record<string, string>): Runtime
     jiraApiToken: first(values, ["JIRA_API_TOKEN"], "", sources, "jiraApiToken"),
     jiraApiVersion: apiVersionValue === "3" ? "v3" : apiVersionValue === "auto" ? "auto" : "v2",
     jiraAuthMode: authModeValue === "basic" ? "basic" : "bearer",
-    localDatabasePath: first(values, ["LOCAL_DATABASE_PATH"], "", sources, "localDatabasePath"),
+    localDatabasePath: first(values, ["LOCAL_DB_PATH", "LOCAL_DATABASE_PATH"], "", sources, "localDatabasePath"),
     logLevel: first(values, ["LOG_LEVEL", "JIRA_PROBE_LOG_LEVEL"], "DEBUG", sources, "logLevel").toUpperCase(),
     values: { ...values },
     sources

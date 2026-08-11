@@ -91,13 +91,13 @@ build({
   config: { extraMetadata: { jaaBuildInfo: buildInfo } }
 }).then(() => {
   const releaseDir = path.join(projectRoot, "release");
-  fs.copyFileSync(path.join(projectRoot, ".env.Version"), path.join(releaseDir, ".env.Version"));
-  const artifacts = fs.readdirSync(releaseDir).filter((name) => name.endsWith(".exe")).map((name) => {
+  fs.copyFileSync(path.join(projectRoot, ".env.version"), path.join(releaseDir, ".env.version"));
+  const artifacts = fs.readdirSync(releaseDir).filter((name) => name === `Jira Activity Analyzer Setup ${packageJson.version}.exe` || name === `Jira Activity Analyzer Portable ${packageJson.version}.exe`).map((name) => {
     const filePath = path.join(releaseDir, name);
     return { fileName: name, sizeBytes: fs.statSync(filePath).size, sha256: crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex") };
   });
   fs.writeFileSync(path.join(releaseDir, "build-info.json"), `${JSON.stringify({ ...buildInfo, artifacts }, null, 2)}\n`, "utf8");
-  console.log(`  copied versioned environment template  file=${path.join("release", ".env.Version")}`);
+  console.log(`  copied versioned environment template  file=${path.join("release", ".env.version")}`);
   console.log(`  packaged source commit  commit=${packagedSourceCommit}`);
 }).catch((error) => {
   console.error(error);

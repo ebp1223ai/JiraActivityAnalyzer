@@ -1,3 +1,9 @@
+## 0.3.8 - 2026-08-11
+
+- Replaced the v0.3.7 AI Analysis static fixtures with main-process provider diagnostics, validated pending-analysis input, frozen rules snapshots, deterministic offline analysis, queue progress/cancellation, human review, separate SQLite history, and atomic JSON/CSV/HTML exports.
+- Added ENV format v3 and lowercase tracked `.env.version`; runtime `.env` remains local and is not auto-created.
+- Added synthetic core and integration tests for the AI Analysis trust boundary.
+
 ## 0.3.7 - AI Analysis Final Static UI
 
 - Added a three-tab AI Analysis workspace for independent cloud/local settings, seven-step mock diagnostics, sanitized manual chat, and shared analysis-basis status.

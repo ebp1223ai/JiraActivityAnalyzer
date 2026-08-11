@@ -10,6 +10,7 @@ import type { DescriptionFullContextResult } from "../../shared/descriptionDiff"
 import type { DescriptionComparisonPayload, DescriptionPreviewBatchResponse } from "../../shared/descriptionComparison";
 import type { UserViewerScope } from "../../shared/userViewerScope";
 import type { PendingAnalysisExportRequest, PendingAnalysisExportResult, PendingAnalysisProgress } from "../../shared/pendingAnalysisContract";
+import type { AiAnalysisSnapshot, AiAnalyzerMode, AiChatMessage, AiConnectionResult, AiDiagnosticRun, AiExportFormat, AiServiceKey, AiSettingsUpdate } from "../../shared/aiAnalysisContract";
 
 declare global {
   interface Window {
@@ -29,7 +30,7 @@ declare global {
         loadEnv: () => Promise<{
           found: boolean;
           created?: boolean;
-          status?: "loaded" | "created";
+          status?: "loaded" | "missing";
           sourcePath?: string;
           envPath?: string;
           currentEnvPath?: string;
@@ -154,6 +155,23 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         saveFullFetchResult: (payload: { attemptId: string; selectedTimelineRunId: string; fullFetchRunId: string; stagingId: string }) => Promise<{ canceled: boolean; alreadySaved?: boolean; reasonCode?: string; operationId?: string; filePath?: string; folderPath?: string; fileSize?: number; sha256?: string; staging?: Record<string, unknown>; fileSave?: Record<string, unknown>; databaseWrite?: Record<string, unknown>; logs?: string[] }>;
         openExportFolder: (payload?: { folderPath?: string }) => Promise<{ ok: boolean; folderPath?: string; error?: string }>;
         autoSaveRun: (payload: { resultType: "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test"; runId: string; status: string; data: unknown }) => Promise<{ canceled: boolean; runId: string; resultType: string; status: string; savedAt: string; filePath: string; folderPath: string; resultTracking: Record<"latestRunResult" | "lastSuccessfulResult" | "lastParsedResult" | "latestNoEntriesResult", { runId: string; resultType: string; status: string; diagnosis: string; parsedActivityCount: number; savedAt: string; path: string; folderPath: string } | null> }>;
+      };
+      aiAnalysis?: {
+        getSnapshot: () => Promise<AiAnalysisSnapshot>;
+        reloadEnv: () => Promise<AiAnalysisSnapshot>;
+        saveSettings: (payload: AiSettingsUpdate) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
+        testConnection: (service: AiServiceKey) => Promise<AiConnectionResult | { ok: false; errorCode: string; message: string }>;
+        diagnose: (service: AiServiceKey) => Promise<AiDiagnosticRun>;
+        chat: (payload: { service: AiServiceKey; sessionId: string; messages: Array<{ role: "user" | "assistant"; text: string }> }) => Promise<{ ok: boolean; message?: AiChatMessage; errorCode?: string; messageText?: string }>;
+        chooseRules: () => Promise<{ canceled: boolean; snapshot: AiAnalysisSnapshot; ok?: boolean; errorCode?: string; message?: string }>;
+        loadRules: (folderPath?: string) => Promise<{ ok: boolean; snapshot: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
+        choosePending: () => Promise<{ canceled: boolean; snapshot: AiAnalysisSnapshot; ok?: boolean; errorCode?: string; message?: string }>;
+        start: (payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; run?: AiAnalysisSnapshot["runs"][number]; errorCode?: string; message?: string }>;
+        cancel: (runId: string) => Promise<{ ok: boolean; message?: string }>;
+        review: (payload: { runId: string; resultId: string; status: "CONFIRMED" | "REJECTED" | "PENDING_REVIEW"; note: string }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
+        exportRun: (payload: { runId: string; format: AiExportFormat }) => Promise<{ canceled?: boolean; filePath?: string; sizeBytes?: number; sha256?: string; errorCode?: string; message?: string }>;
+        openFolder: (folderPath?: string) => Promise<{ ok: boolean; folderPath: string; error?: string }>;
+        onSnapshotChanged: (listener: (snapshot: AiAnalysisSnapshot) => void) => () => void;
       };
       appDebug?: {
         saveTextFile: (payload: { defaultFileName: string; content: string }) => Promise<{ canceled: boolean; filePath?: string; folderPath?: string; actionLogPath?: string; actionLogAvailable?: boolean }>;
