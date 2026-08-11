@@ -3,20 +3,151 @@
   "timezone": "Asia/Taipei",
   "implementationStartedAt": "2026-08-11T18:17:32.798+08:00",
   "implementationStartedAtUtc": "2026-08-11T10:17:32.798Z",
-  "status": "in_progress",
+  "status": "partial_implementation_complete_live_provider_validation_pending",
   "codexTokenUsage": "Unavailable from execution environment",
-  "packageSourceCommit": null,
-  "finalPushedCommit": null,
+  "packageSourceCommit": "68465ff24dd97bc89d79aa347fe62228e2b6cc46",
+  "finalPushedCommit": "Recorded in Git metadata and final handoff; a commit cannot contain its own final SHA.",
   "phases": [
-    { "name": "v0.3.7 baseline typecheck, test, build, diff check", "durationSeconds": 38.661, "exitCode": 0, "result": "PASS" },
-    { "name": "v0.3.7 baseline commit and push", "result": "PASS", "commit": "414671f75929ad697e5c1c36e23b6ee72ba447bb" },
-    { "name": "v0.3.8 implementation and inspection", "startedAt": "2026-08-11T18:17:32.798+08:00", "completedAt": "2026-08-11T18:34:34.537+08:00", "durationSeconds": 1021.739, "result": "PASS" },
-    { "name": "typecheck first attempt", "durationSeconds": 6.8, "exitCode": 1, "result": "FAIL", "detail": "String.replaceAll not available in renderer target" },
-    { "name": "typecheck after compatibility fix", "durationSeconds": 10.1, "exitCode": 0, "result": "PASS" },
-    { "name": "test:v0.3.8 core", "durationSeconds": 2.0, "exitCode": 0, "result": "PASS" },
-    { "name": "test:v0.3.8 integration first attempt", "exitCode": 1, "result": "FAIL", "detail": "Windows case-insensitive exists check corrected to Git index check" },
-    { "name": "build", "durationSeconds": 16.0, "exitCode": 0, "result": "PASS_WITH_WARNINGS", "detail": "Vite node:crypto externalization and chunk-size warnings" },
-    { "name": "typecheck and integration after fail-closed env fix", "durationSeconds": 10.9, "exitCode": 0, "result": "PASS" },
-    { "name": "typecheck and core tests after contract/retry fix", "durationSeconds": 12.6, "exitCode": 0, "result": "PASS" }
+    {
+      "name": "v0.3.7 baseline typecheck, test, build, diff check",
+      "durationSeconds": 38.661,
+      "exitCode": 0,
+      "result": "PASS"
+    },
+    {
+      "name": "v0.3.7 baseline commit and push",
+      "result": "PASS",
+      "commit": "414671f75929ad697e5c1c36e23b6ee72ba447bb"
+    },
+    {
+      "name": "v0.3.8 implementation and inspection",
+      "startedAt": "2026-08-11T18:17:32.798+08:00",
+      "completedAt": "2026-08-11T18:34:34.537+08:00",
+      "durationSeconds": 1021.739,
+      "result": "PASS"
+    },
+    {
+      "name": "typecheck first attempt",
+      "durationSeconds": 6.8,
+      "exitCode": 1,
+      "result": "FAIL",
+      "detail": "String.replaceAll not available in renderer target"
+    },
+    {
+      "name": "typecheck after compatibility fix",
+      "durationSeconds": 10.1,
+      "exitCode": 0,
+      "result": "PASS"
+    },
+    {
+      "name": "test:v0.3.8 core",
+      "durationSeconds": 2,
+      "exitCode": 0,
+      "result": "PASS"
+    },
+    {
+      "name": "test:v0.3.8 integration first attempt",
+      "exitCode": 1,
+      "result": "FAIL",
+      "detail": "Windows case-insensitive exists check corrected to Git index check"
+    },
+    {
+      "name": "build",
+      "durationSeconds": 16,
+      "exitCode": 0,
+      "result": "PASS_WITH_WARNINGS",
+      "detail": "Vite node:crypto externalization and chunk-size warnings"
+    },
+    {
+      "name": "typecheck and integration after fail-closed env fix",
+      "durationSeconds": 10.9,
+      "exitCode": 0,
+      "result": "PASS"
+    },
+    {
+      "name": "typecheck and core tests after contract/retry fix",
+      "durationSeconds": 12.6,
+      "exitCode": 0,
+      "result": "PASS"
+    },
+    {
+      "name": "v0.3.7 regression",
+      "exitCode": 1,
+      "result": "EXPECTED_VERSION_ASSERTION",
+      "detail": "Legacy test is pinned to package version 0.3.7; expectations were not modified."
+    },
+    {
+      "name": "renderer smoke first attempt",
+      "durationSeconds": 72.1,
+      "exitCode": 1,
+      "result": "FAIL_EXISTING_SELECTOR",
+      "detail": "Existing global smoke timed out on legacy #/precision-probe selector after renderer loaded successfully."
+    },
+    {
+      "name": "dist first attempt",
+      "durationSeconds": 95.7,
+      "exitCode": 0,
+      "result": "PASS_WITH_CASING_FOLLOWUP",
+      "packageSourceCommit": "01e4cf85a10fe21cd6425d31c64074bb40cf7aa1"
+    },
+    {
+      "name": "release template casing verification",
+      "exitCode": 2,
+      "result": "FAIL_FIXED",
+      "detail": "Existing Windows destination preserved .env.Version casing; dist script was corrected."
+    },
+    {
+      "name": "dist final",
+      "durationSeconds": 86.2,
+      "exitCode": 0,
+      "result": "PASS",
+      "packageSourceCommit": "68465ff24dd97bc89d79aa347fe62228e2b6cc46"
+    },
+    {
+      "name": "app.asar environment scan",
+      "exitCode": 0,
+      "result": "PASS",
+      "detail": "4683 entries; no .env or .env.* entries."
+    },
+    {
+      "name": "Portable packaged renderer smoke",
+      "durationSeconds": 58.8,
+      "exitCode": 0,
+      "result": "PASS",
+      "detail": "AI Analysis title, three tabs, nonblank renderer, no horizontal overflow, app-only screenshots."
+    }
+  ],
+  "completedAt": "2026-08-11T10:44:45.884Z",
+  "warnings": [
+    "Live Cloud and internal AI provider validation was not executed because no real credential may be used in automated verification.",
+    "Vite reports the pre-existing node:crypto browser-externalization warning from shared/descriptionDiff.ts.",
+    "The renderer bundle exceeds Vite's 500 kB advisory threshold.",
+    "electron-builder reports duplicate dependency references and uses the default Electron icon.",
+    "A pre-existing local release/.env remains beside the executables; it is ignored, unmodified, not committed, and absent from app.asar."
+  ],
+  "artifacts": [
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.8.exe",
+      "bytes": 106333090,
+      "mib": 101.407,
+      "sha256": "f1ecb9e52f3d7f211bad0e19d17a67ae5714bc46b70591499b45d6df6e77912e"
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.8.exe",
+      "bytes": 106103064,
+      "mib": 101.188,
+      "sha256": "845af2953651c435d798eac9bbf632cca894d057d2583d2e6c9d7c4868c1c4fb"
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "mib": 224.787,
+      "sha256": "ecac5f02cf36b86dc4bdf51465b7993fcf8c17be986e5bde26dab2b566fcf572"
+    }
+  ],
+  "appOnlyScreenshots": [
+    "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v038-packaged-smoke\\ai-analysis-tab-1.png",
+    "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v038-packaged-smoke\\ai-analysis-tab-2.png",
+    "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v038-packaged-smoke\\ai-analysis-tab-3.png"
   ]
 }
