@@ -91,7 +91,10 @@ build({
   config: { extraMetadata: { jaaBuildInfo: buildInfo } }
 }).then(() => {
   const releaseDir = path.join(projectRoot, "release");
-  fs.copyFileSync(path.join(projectRoot, ".env.version"), path.join(releaseDir, ".env.version"));
+  const legacyTemplatePath = path.join(releaseDir, ".env.Version");
+  const lowercaseTemplatePath = path.join(releaseDir, ".env.version");
+  fs.rmSync(legacyTemplatePath, { force: true });
+  fs.copyFileSync(path.join(projectRoot, ".env.version"), lowercaseTemplatePath);
   const artifacts = fs.readdirSync(releaseDir).filter((name) => name === `Jira Activity Analyzer Setup ${packageJson.version}.exe` || name === `Jira Activity Analyzer Portable ${packageJson.version}.exe`).map((name) => {
     const filePath = path.join(releaseDir, name);
     return { fileName: name, sizeBytes: fs.statSync(filePath).size, sha256: crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex") };
