@@ -1,3 +1,10 @@
+## 0.3.12 - 2026-08-12
+
+- Replaced the v0.3.11 unknown/over-capacity hard block with a warn-only confirmation showing one shared, hashed capacity calculation snapshot and complete UTF-8 byte/token/reserve formulas.
+- Added exact App Server provider/model capability lookup with sanitized unavailable/error evidence and no fixed 200,000-token fallback.
+- Added an Electron-main one-shot dispatch guard, actual request/thread/turn counters, no retry/repair/fallback behavior, and primary-error deduplication with occurrence counts.
+- Added permanent APP_ROOT-contained failed-run staging, completed-only JSON/Golden HTML/SQLite gates, precise SQLite non-write reasons, and AI Analysis evidence in the existing Debug Folder.
+- Added v0.3.12 capacity, dispatch, failed-staging, persistence-gate, redaction, and integration tests while preserving the single-payload/single-thread/single-turn contract.
 ## 0.3.11 - 2026-08-12
 
 - Replaced ChatGPT per-record analysis with one deterministic compact payload, one App Server request, one dedicated ephemeral thread, and one turn for all selected Activity Events.

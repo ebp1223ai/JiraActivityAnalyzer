@@ -29,6 +29,8 @@ export type AiAnalysisErrorCode =
   | "ANALYSIS_RULES_DUPLICATE_SKILL_ID"
   | "INPUT_TOO_LARGE"
   | "ANALYSIS_INPUT_CONTEXT_TOO_LARGE"
+  | "ANALYSIS_MODEL_CONTEXT_CAPACITY_UNAVAILABLE"
+  | "ANALYSIS_ESTIMATED_CONTEXT_EXCEEDS_LIMIT"
   | "SOURCE_MISMATCH"
   | "RUN_CANCELLED"
   | "RUN_INTERRUPTED"
@@ -42,7 +44,7 @@ export type AiApiContract = "responses" | "chat_completions";
 export type AiAuthType = "bearer" | "api_key";
 export type AiAnalysisStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED" | "NEEDS_REVIEW" | "UNKNOWN" | "EXCLUDED";
 export type AiRunStatus = "queued" | "running" | "retrying" | "cancelling" | "cancelled" | "completed" | "partial" | "failed" | "interrupted";
-export type AiRunStage = "idle" | "validating_source" | "validating_rules" | "building_payload" | "preflighting_capacity" | "starting_thread" | "starting_turn" | "waiting_response" | "receiving_response" | "validating_response" | "merging_evidence" | "writing_staging" | "validating_artifacts" | "committing_database" | "completed" | "cancelling" | "cancelled" | "failed";
+export type AiRunStage = "idle" | "validating_source" | "validating_rules" | "building_payload" | "preflighting_capacity" | "waiting_capacity_confirmation" | "starting_thread" | "starting_turn" | "waiting_response" | "receiving_response" | "validating_response" | "merging_evidence" | "writing_staging" | "validating_artifacts" | "committing_database" | "completed" | "cancelling" | "cancelled" | "failed";
 export type AiClassificationStatus = "MATCHED" | "EXCLUDED" | "UNKNOWN";
 export type AiReviewStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED";
 export type AiReviewAttention = "STANDARD_REVIEW" | "NEEDS_REVIEW";
@@ -57,6 +59,24 @@ export type AiTokenUsage = {
   estimatedInputTokens: number | null;
 };
 
+export type CapacityWarningCode = "ANALYSIS_MODEL_CONTEXT_CAPACITY_UNAVAILABLE" | "ANALYSIS_ESTIMATED_CONTEXT_EXCEEDS_LIMIT";
+export type CapacityCalculationSnapshot = {
+  providerId: string; providerDisplayName: string; modelId: string; modelDisplayName: string;
+  capacitySource: "app_server_capability" | "provider_model_metadata" | "official_model_reference_only" | "unavailable";
+  capacitySourceStatus: string; capacityTokens: number | null; capacityRawResponseSanitized: unknown;
+  estimatorName: string; estimatorVersion: string; estimatorMethod: string; estimatorFallbackUsed: boolean; roundingRule: string;
+  rulesBytesUtf8: number; pendingPayloadBytesUtf8: number; wrapperInstructionsBytesUtf8: number; finalSerializedPromptBytesUtf8: number;
+  estimatedRulesTokens: number; estimatedPendingPayloadTokens: number; estimatedWrapperTokens: number; estimatedFinalInputTokens: number;
+  outputReserveBaseTokens: number; outputReservePerRecordTokens: number; recordCount: number; estimatedVisibleOutputReserveTokens: number;
+  reasoningReserveTokens: number | null; safetyMarginTokens: number | null; otherReserveTokens: number | null;
+  estimatedOutputAndReasoningReserveTokens: number | null; estimatedRequiredTotalTokens: number | null;
+  remainingAfterInputTokens: number | null; estimatedMarginTokens: number | null; estimatedOverageTokens: number | null;
+  calculationTimestamp: string;
+};
+export type CapacityConfirmation = {
+  analysisRunId: string; warningCode: CapacityWarningCode; capacitySnapshotHash: string;
+  confirmedAt: string | null; confirmationAction: "pending" | "confirmed" | "cancelled";
+};
 export type AiPublicSettings = {
   service: AiServiceKey;
   provider: string;
@@ -378,6 +398,13 @@ export type AiAnalysisRun = {
     safetyMarginTokens: number | null;
     requiredContextTokens: number | null;
   } | null;
+  capacitySnapshot?: CapacityCalculationSnapshot | null;
+  capacityWarningCode?: CapacityWarningCode | null;
+  capacitySnapshotHash?: string | null;
+  capacityConfirmation?: CapacityConfirmation | null;
+  failedStagingPath?: string | null;
+  databaseWriteStatus?: string | null;
+  validationGate?: { passed: boolean; inputCount: number; outputCount: number; missingStableIds: string[]; duplicateStableIds: string[]; unexpectedStableIds: string[]; catalogInvalidSkillIds: string[]; formalJsonAllowed: boolean; goldenHtmlAllowed: boolean; sqliteAllowed: boolean } | null;
   distributionDiagnostics?: {
     candidateCount: number;
     distinctSkillCount: number;

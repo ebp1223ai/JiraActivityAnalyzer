@@ -20,13 +20,13 @@ test("ChatGPT branch issues exactly one runAnalysis and has no repair or per-rec
   assert.match(branch, /turnCount = 1/);
 });
 
-test("capacity failure occurs before ChatGPT thread start", () => {
+test("v0.3.12 capacity warning replaces the v0.3.11 hard block before ChatGPT dispatch", () => {
   const branch = ipc.match(/else if \(payload\.mode === "CHATGPT"\) \{([\s\S]*?)\n      \} else \{/)?.[1] ?? "";
-  const capacity = branch.indexOf("preflightSingleRunCapacity");
-  const failure = branch.indexOf('throw new AiAnalysisError("ANALYSIS_INPUT_CONTEXT_TOO_LARGE"', capacity);
+  const capacity = branch.indexOf("buildCapacityCalculationSnapshot");
+  const warning = branch.indexOf("waiting_capacity_confirmation", capacity);
   const request = branch.indexOf("await chatgpt.runAnalysis", capacity);
-  assert.ok(capacity > 0 && failure > capacity && request > failure);
-  assert.match(module, /modelCapacityTokens === null/);
+  assert.ok(capacity > 0 && warning > capacity && request > warning);
+  assert.doesNotMatch(branch, /throw new AiAnalysisError\("ANALYSIS_INPUT_CONTEXT_TOO_LARGE"/);
 });
 
 test("App Server response exposes real thread and turn identity", () => {

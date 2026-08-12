@@ -1,18 +1,17 @@
 # Jira Activity Analyzer
 
-> v0.3.11 makes ChatGPT Activity Event classification a strict single-run workflow and produces an auditable, self-contained Golden HTML report.
+> v0.3.12 keeps the one-payload, one-thread, one-turn AI Analysis contract while making uncertain capacity an explicit, auditable operator decision.
 
-## v0.3.11 Single-Run Analysis
+## v0.3.12 Capacity Override and Diagnostics
 
-- Every selected Activity Event is compacted into one ordered payload and sent through exactly one App Server request, one dedicated ephemeral thread, and one turn.
-- Capacity is verified before thread creation. Unknown or insufficient model context fails closed with `ANALYSIS_INPUT_CONTEXT_TOO_LARGE`; records are never silently dropped or split.
-- Results must conserve all source identities and use exact Skill IDs from the bound Catalog. Group-first and `_001` fallback behavior is prohibited.
-- The final visible provider response is preserved in verified gzip staging. Completed JSON and Golden HTML carry prompt, runtime, capacity, distribution, rules, source, and artifact metadata.
-- Golden HTML works offline and includes Actor, Issue, Skill Group, classification, and review filters, expandable original Diff evidence, negative checks, near-skill reasons, and print styles.
-- ChatGPT remains read-only through the bundled Codex App Server. AI Nexus and Offline Rule remain available; Jira source databases are read-only and only completed analysis results enter the separate AI Analysis SQLite database.
+- Capacity is read from the exact App Server provider/model capability when available, with exact model metadata as a secondary source. Unsupported or missing data remains `unavailable`; the app does not substitute zero or a fixed 200,000-token limit.
+- Unknown capacity or a known estimated overage opens one confirmation dialog with the complete UTF-8 byte estimator, input/output/reasoning/safety terms, required total, margin, overage, source, and snapshot SHA-256.
+- Cancelling creates zero provider requests, threads, and turns. Confirming atomically permits one dispatch for the same `analysisRunId`; double clicks, re-renders, repeated IPC, route changes, timeout, parse errors, and incomplete responses do not retry.
+- Only a completed provider turn with saved response, valid JSON, exact identity conservation, and exact Catalog validation can produce formal JSON, Golden HTML, or AI Analysis SQLite rows.
+- Failed ChatGPT runs are permanently retained under `<APP_ROOT>/exports/ai-analysis/failed-staging/<analysisRunId>/`. Existing failed evidence is not overwritten or automatically removed, and the global Debug Folder includes the latest sanitized AI Analysis failed evidence.
+- Provider usage remains actual or explicitly unavailable. Estimated prompt tokens are never represented as provider usage.
 
-See [v0.3.11 implementation and verification](docs/v0.3.11-ai-analysis-single-run-golden-report.md).
-
+See [v0.3.12 implementation and verification](docs/v0.3.12-capacity-override-diagnostics.md).
 ## Earlier Releases
 
 > v0.3.7 新增 AI Analysis 最後定案版靜態互動 UI。本階段所有 AI 設定、診斷、對話、分析與下載皆為 renderer-only mock，不連接真實 AI、Jira 或 SQLite。

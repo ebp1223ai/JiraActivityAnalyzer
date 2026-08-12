@@ -178,7 +178,8 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         selectPending: (datasetId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         chooseAnalyzed: () => Promise<{ canceled: boolean; ok?: boolean; snapshot: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         selectRun: (runId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
-        start: (payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; run?: AiAnalysisSnapshot["runs"][number]; errorCode?: string; message?: string }>;
+        start: (payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey; analysisRunId?: string; capacityConfirmation?: boolean }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; run?: AiAnalysisSnapshot["runs"][number]; errorCode?: string; message?: string; requiresCapacityConfirmation?: boolean; warningCode?: string }>;
+        cancelCapacityWarning: (runId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; run?: AiAnalysisSnapshot["runs"][number]; message?: string }>;
         cancel: (runId: string) => Promise<{ ok: boolean; message?: string }>;
         review: (payload: { runId: string; resultId: string; status: "CONFIRMED" | "REJECTED" | "PENDING_REVIEW"; note: string }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         exportRun: (payload: { runId: string; format: AiExportFormat }) => Promise<{ canceled?: boolean; filePath?: string; sizeBytes?: number; sha256?: string; errorCode?: string; message?: string }>;

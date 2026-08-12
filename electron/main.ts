@@ -4015,12 +4015,42 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
       reason: result?.reason ?? "No copy result was produced."
     });
   };
-  for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
+  const aiFailedRoot = path.join(getExportsDir(), "ai-analysis", "failed-staging");
+  const aiStagingRoot = path.join(getAppDataDir(), "ai-analysis", "staging");
+  const aiEvidenceCandidates: Array<{ fullPath: string; mtimeMs: number; kind: "failed" | "run" }> = [];
+  if (fs.existsSync(aiFailedRoot)) for (const entry of fs.readdirSync(aiFailedRoot, { withFileTypes: true })) {
+    if (entry.isDirectory()) { const fullPath = path.join(aiFailedRoot, entry.name); aiEvidenceCandidates.push({ fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs, kind: "failed" }); }
+  }
+  if (fs.existsSync(aiStagingRoot)) for (const entry of fs.readdirSync(aiStagingRoot, { withFileTypes: true })) {
+    const fullPath = path.join(aiStagingRoot, entry.name, "debug");
+    if (entry.isDirectory() && fs.existsSync(fullPath)) aiEvidenceCandidates.push({ fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs, kind: "run" });
+  }
+  const latestAiEvidence = aiEvidenceCandidates.sort((left, right) => right.mtimeMs - left.mtimeMs)[0];
+  if (latestAiEvidence) {
+    const copied = collectDebugFolderSources(folderPath, [{ sourcePath: latestAiEvidence.fullPath, relativePath: "ai-analysis" }]);
+    copiedEntries.push(...copied.entries);
+    evidenceEntries.push({ id: "ai_analysis_latest_run", status: copied.failed.length ? "copy_failed" : "copied", sourcePath: latestAiEvidence.fullPath, relativePath: "ai-analysis", reason: copied.failed.length ? copied.failed.map((entry) => entry.reason).join("; ") : `Latest sanitized AI Analysis ${latestAiEvidence.kind} evidence copied without moving or deleting its source.` });
+  } else evidenceEntries.push({ id: "ai_analysis_latest_run", status: "not_run", sourcePath: aiStagingRoot, relativePath: "ai-analysis", reason: "No AI Analysis run diagnostics or failed staging exists." });  for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
     collectDiagnosticFile(`current_session_${fileName}`, path.join(diagnosticSnapshot.sessionDir, fileName), `sessions/current/${fileName}`);
   }
   if (diagnosticSnapshot.previousSessionId) {
     const previousDir = path.join(diagnosticSnapshot.sessionsDir, diagnosticSnapshot.previousSessionId);
-    for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
+    const aiFailedRoot = path.join(getExportsDir(), "ai-analysis", "failed-staging");
+  const aiStagingRoot = path.join(getAppDataDir(), "ai-analysis", "staging");
+  const aiEvidenceCandidates: Array<{ fullPath: string; mtimeMs: number; kind: "failed" | "run" }> = [];
+  if (fs.existsSync(aiFailedRoot)) for (const entry of fs.readdirSync(aiFailedRoot, { withFileTypes: true })) {
+    if (entry.isDirectory()) { const fullPath = path.join(aiFailedRoot, entry.name); aiEvidenceCandidates.push({ fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs, kind: "failed" }); }
+  }
+  if (fs.existsSync(aiStagingRoot)) for (const entry of fs.readdirSync(aiStagingRoot, { withFileTypes: true })) {
+    const fullPath = path.join(aiStagingRoot, entry.name, "debug");
+    if (entry.isDirectory() && fs.existsSync(fullPath)) aiEvidenceCandidates.push({ fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs, kind: "run" });
+  }
+  const latestAiEvidence = aiEvidenceCandidates.sort((left, right) => right.mtimeMs - left.mtimeMs)[0];
+  if (latestAiEvidence) {
+    const copied = collectDebugFolderSources(folderPath, [{ sourcePath: latestAiEvidence.fullPath, relativePath: "ai-analysis" }]);
+    copiedEntries.push(...copied.entries);
+    evidenceEntries.push({ id: "ai_analysis_latest_run", status: copied.failed.length ? "copy_failed" : "copied", sourcePath: latestAiEvidence.fullPath, relativePath: "ai-analysis", reason: copied.failed.length ? copied.failed.map((entry) => entry.reason).join("; ") : `Latest sanitized AI Analysis ${latestAiEvidence.kind} evidence copied without moving or deleting its source.` });
+  } else evidenceEntries.push({ id: "ai_analysis_latest_run", status: "not_run", sourcePath: aiStagingRoot, relativePath: "ai-analysis", reason: "No AI Analysis run diagnostics or failed staging exists." });  for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
       collectDiagnosticFile(`previous_session_${fileName}`, path.join(previousDir, fileName), `sessions/previous/${fileName}`);
     }
   } else {

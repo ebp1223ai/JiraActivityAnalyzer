@@ -171,6 +171,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
     chooseAnalyzed: () => ipcRenderer.invoke("ai-analysis:choose-analyzed"),
     selectRun: (runId: string) => ipcRenderer.invoke("ai-analysis:select-run", runId),
     start: (payload: unknown) => ipcRenderer.invoke("ai-analysis:start", payload),
+    cancelCapacityWarning: (runId: string) => ipcRenderer.invoke("ai-analysis:cancel-capacity-warning", runId),
     cancel: (runId: string) => ipcRenderer.invoke("ai-analysis:cancel", runId),
     review: (payload: unknown) => ipcRenderer.invoke("ai-analysis:review", payload),
     exportRun: (payload: unknown) => ipcRenderer.invoke("ai-analysis:export", payload),

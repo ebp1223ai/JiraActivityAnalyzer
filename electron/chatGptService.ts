@@ -6,6 +6,7 @@ import {
   CODEX_RUNTIME_VERSION,
   type ChatGptAnalysisRequest,
   type ChatGptAnalysisResponse,
+  type ChatGptCapacityResult,
   type ChatGptModel,
   type ChatGptRateLimitWindow,
   type ChatGptRunEvent,
@@ -23,6 +24,7 @@ const EMPTY_USAGE = { inputTokens: null, cachedInputTokens: null, outputTokens: 
 
 function record(value: unknown): JsonObject { return value && typeof value === "object" ? value as JsonObject : {}; }
 function number(value: unknown) { return typeof value === "number" && Number.isFinite(value) ? value : null; }
+function sanitizedJson(value: unknown): unknown { try { return JSON.parse(redactChatGptText(JSON.stringify(value))); } catch { return { error: "SANITIZATION_FAILED" }; } }
 function rateWindow(value: unknown): ChatGptRateLimitWindow | null {
   const item = record(value);
   if (!Object.keys(item).length) return null;
@@ -99,7 +101,9 @@ export class ChatGptService {
       const id = String(item.model ?? item.id ?? "");
       const isDefault = item.isDefault === true;
       const configApplies = configuredModel ? configuredModel === id : isDefault;
-      return { id, displayName: String(item.displayName ?? item.model ?? "Unknown"), description: String(item.description ?? ""), isDefault, defaultReasoningEffort: typeof item.defaultReasoningEffort === "string" ? item.defaultReasoningEffort : null, contextWindow: configApplies ? configuredContextWindow : null };
+      const metadataContext = number(item.contextWindow ?? item.context_window ?? item.contextWindowTokens);
+      const contextWindow = metadataContext ?? (configApplies ? configuredContextWindow : null);
+      return { id, displayName: String(item.displayName ?? item.model ?? "Unknown"), description: String(item.description ?? ""), isDefault, defaultReasoningEffort: typeof item.defaultReasoningEffort === "string" ? item.defaultReasoningEffort : null, contextWindow, contextWindowSource: contextWindow === null ? "unavailable" : "provider_model_metadata", contextWindowRawSanitized: contextWindow === null ? null : { contextWindow } };
     }).filter((item) => item.id);
     let quota: JsonObject = {};
     try { quota = record(await client.request("account/rateLimits/read")); } catch (error) { this.options.diagnostics?.(`[chatgpt-quota] ${sanitizedError(error)}`); }
@@ -144,6 +148,19 @@ export class ChatGptService {
     return this.getStatus();
   }
 
+  async readSelectedModelCapacity(): Promise<ChatGptCapacityResult> {
+    const selected = this.status.models.find((item) => item.id === this.status.selectedModel) ?? null;
+    const base = { providerId: "chatgpt_codex", providerDisplayName: "ChatGPT (Codex App Server)", modelId: selected?.id ?? this.status.selectedModel ?? "auto", modelDisplayName: selected?.displayName ?? this.status.selectedModel ?? "Automatic" };
+    try {
+      const raw = record(await this.requireClient().request("modelProvider/capabilities/read", { provider: "chatgpt", model: base.modelId }));
+      const capability = record(raw.capabilities ?? raw.capability ?? raw);
+      const tokens = number(capability.contextWindowTokens ?? capability.contextWindow ?? capability.maxContextTokens);
+      if (tokens !== null) return { ...base, capacitySource: "app_server_capability", capacitySourceStatus: "available", capacityTokens: tokens, capacityRawResponseSanitized: sanitizedJson(capability) };
+      return { ...base, capacitySource: selected?.contextWindow === null || selected?.contextWindow === undefined ? "unavailable" : "provider_model_metadata", capacitySourceStatus: "capability_missing_field", capacityTokens: selected?.contextWindow ?? null, capacityRawResponseSanitized: sanitizedJson(raw) };
+    } catch (error) {
+      return { ...base, capacitySource: selected?.contextWindow === null || selected?.contextWindow === undefined ? "unavailable" : "provider_model_metadata", capacitySourceStatus: "capability_method_unavailable", capacityTokens: selected?.contextWindow ?? null, capacityRawResponseSanitized: { error: sanitizedError(error) } };
+    }
+  }
   async runAnalysis(request: ChatGptAnalysisRequest, signal?: AbortSignal): Promise<ChatGptAnalysisResponse> {
     if (this.activeTurn) throw new Error("CHATGPT_TURN_ALREADY_ACTIVE");
     if (this.status.state !== "connected") throw new Error(this.status.state === "usage_limited" ? "CHATGPT_USAGE_LIMITED" : "CHATGPT_SIGN_IN_REQUIRED");
@@ -266,7 +283,7 @@ export class ChatGptService {
     const active = this.activeTurn; if (!active) return;
     this.activeTurn = null;
     if (cancelled) this.emitRun({ type: "cancelled", runId: active.runId });
-    else this.emitRun({ type: "failed", runId: active.runId, errorCode: code, message, outcomeUnknown });
+    else this.emitRun({ type: "failed", runId: active.runId, errorCode: code, message, outcomeUnknown, visibleText: active.text, usage: active.usage });
     active.reject(new Error(`${code}:${message}`));
     void this.client?.request("thread/delete", { threadId: active.threadId }).catch(() => undefined);
   }

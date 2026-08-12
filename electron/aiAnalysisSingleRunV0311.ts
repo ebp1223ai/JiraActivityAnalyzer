@@ -176,21 +176,22 @@ export type CapacityPreflight = {
   promptBytes: number;
   compactPayloadBytes: number;
   compactPayloadSha256: string;
-  errorCode: "ANALYSIS_INPUT_CONTEXT_TOO_LARGE" | null;
+  errorCode: null;
+  warningCode: "ANALYSIS_MODEL_CONTEXT_CAPACITY_UNAVAILABLE" | "ANALYSIS_ESTIMATED_CONTEXT_EXCEEDS_LIMIT" | null;
   message: string;
 };
 
 export function preflightSingleRunCapacity(input: { promptBytes: number; compactPayloadBytes: number; compactPayloadSha256: string; eventCount: number; modelCapacityTokens: number | null; configuredMaxOutputTokens?: number | null }): CapacityPreflight {
   const inputEstimateTokens = Math.ceil(input.promptBytes / 3);
   const reservedOutputTokens = Math.max(input.configuredMaxOutputTokens ?? 0, 8192, input.eventCount * 640);
-  const safetyMarginTokens = input.modelCapacityTokens === null ? null : Math.max(4096, Math.ceil(input.modelCapacityTokens * 0.08));
-  const requiredContextTokens = safetyMarginTokens === null ? null : inputEstimateTokens + reservedOutputTokens + safetyMarginTokens;
-  const ok = input.modelCapacityTokens !== null && requiredContextTokens !== null && requiredContextTokens <= input.modelCapacityTokens;
+  const safetyMarginTokens = Math.max(4096, Math.ceil((input.modelCapacityTokens ?? inputEstimateTokens) * 0.08));
+  const requiredContextTokens = inputEstimateTokens + reservedOutputTokens + safetyMarginTokens;
+  const warningCode = input.modelCapacityTokens === null ? "ANALYSIS_MODEL_CONTEXT_CAPACITY_UNAVAILABLE" as const : requiredContextTokens > input.modelCapacityTokens ? "ANALYSIS_ESTIMATED_CONTEXT_EXCEEDS_LIMIT" as const : null;
   return {
-    ok, inputEstimateTokens, modelCapacityTokens: input.modelCapacityTokens, reservedOutputTokens, safetyMarginTokens, requiredContextTokens,
+    ok: true, inputEstimateTokens, modelCapacityTokens: input.modelCapacityTokens, reservedOutputTokens, safetyMarginTokens, requiredContextTokens,
     promptBytes: input.promptBytes, compactPayloadBytes: input.compactPayloadBytes, compactPayloadSha256: input.compactPayloadSha256,
-    errorCode: ok ? null : "ANALYSIS_INPUT_CONTEXT_TOO_LARGE",
-    message: ok ? "Complete single-run input and reserved output fit the verified model context." : input.modelCapacityTokens === null ? "Model context capacity is unavailable; single-run safety cannot be proven." : "Complete single-run input exceeds the verified model context. Reduce the selected records or choose a larger-context model."
+    errorCode: null, warningCode,
+    message: warningCode === null ? "Complete single-run estimate fits the verified model context." : warningCode === "ANALYSIS_MODEL_CONTEXT_CAPACITY_UNAVAILABLE" ? "Model context capacity is unavailable; operator confirmation is required before the one allowed dispatch." : "Estimated required context exceeds the known capacity; operator confirmation is required before the one allowed dispatch."
   };
 }
 

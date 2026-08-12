@@ -83,11 +83,11 @@ test("compact payload rejects duplicate source identity before provider work", (
   );
   fs.rmSync(root, { recursive: true, force: true });
 });
-test("capacity preflight fails closed without verified capacity or for oversized input", () => {
+test("capacity preflight is warn-only for unavailable or oversized input", () => {
   const base = { promptBytes: 30_000, compactPayloadBytes: 20_000, compactPayloadSha256: "b".repeat(64), eventCount: 117 };
-  assert.equal(preflightSingleRunCapacity({ ...base, modelCapacityTokens: null }).errorCode, "ANALYSIS_INPUT_CONTEXT_TOO_LARGE");
-  assert.equal(preflightSingleRunCapacity({ ...base, promptBytes: 900_000, modelCapacityTokens: 128_000 }).ok, false);
-  assert.equal(preflightSingleRunCapacity({ ...base, modelCapacityTokens: 200_000 }).ok, true);
+  assert.equal(preflightSingleRunCapacity({ ...base, modelCapacityTokens: null }).warningCode, "ANALYSIS_MODEL_CONTEXT_CAPACITY_UNAVAILABLE");
+  assert.equal(preflightSingleRunCapacity({ ...base, promptBytes: 900_000, modelCapacityTokens: 128_000 }).warningCode, "ANALYSIS_ESTIMATED_CONTEXT_EXCEEDS_LIMIT");
+  assert.equal(preflightSingleRunCapacity({ ...base, modelCapacityTokens: 200_000 }).warningCode, null);
 });
 
 test("strict parser conserves 117 identities and performs exact non-first Skill lookup", () => {

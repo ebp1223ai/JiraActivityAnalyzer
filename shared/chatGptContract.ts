@@ -19,6 +19,14 @@ export type ChatGptModel = {
   isDefault: boolean;
   defaultReasoningEffort: string | null;
   contextWindow: number | null;
+  contextWindowSource?: "provider_model_metadata" | "unavailable";
+  contextWindowRawSanitized?: unknown;
+};
+
+export type ChatGptCapacityResult = {
+  providerId: string; providerDisplayName: string; modelId: string; modelDisplayName: string;
+  capacitySource: "app_server_capability" | "provider_model_metadata" | "official_model_reference_only" | "unavailable";
+  capacitySourceStatus: string; capacityTokens: number | null; capacityRawResponseSanitized: unknown;
 };
 
 export type ChatGptRateLimitWindow = {
@@ -50,7 +58,7 @@ export type ChatGptRunEvent =
   | { type: "usage"; runId: string; inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null }
   | { type: "completed"; runId: string; text: string; elapsedMs: number }
   | { type: "cancelled"; runId: string }
-  | { type: "failed"; runId: string; errorCode: string; message: string; outcomeUnknown: boolean };
+  | { type: "failed"; runId: string; errorCode: string; message: string; outcomeUnknown: boolean; visibleText: string; usage: ChatGptAnalysisResponse["usage"] };
 
 export type ChatGptAnalysisRequest = {
   runId?: string;
