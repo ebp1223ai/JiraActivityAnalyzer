@@ -1,0 +1,23 @@
+{
+  "version": "0.3.13",
+  "overallStatus": "Partial",
+  "reason": "Formal Release Portable had no available ChatGPT authentication; the real 117-record run was not executed.",
+  "providerDispatchCount": 0,
+  "threadStartAttemptCount": 0,
+  "threadCreatedCount": 0,
+  "turnStartAttemptCount": 0,
+  "acceptedTurnCount": 0,
+  "turnCompletedCount": 0,
+  "retryCount": 0,
+  "repairCount": 0,
+  "fallbackCount": 0,
+  "inputTokens": null,
+  "outputTokens": null,
+  "totalTokens": null,
+  "usageSource": null,
+  "notes": [
+    "No provider request was sent.",
+    "No token usage was estimated or fabricated.",
+    "Authentication state was not copied, inspected, or committed."
+  ]
+}

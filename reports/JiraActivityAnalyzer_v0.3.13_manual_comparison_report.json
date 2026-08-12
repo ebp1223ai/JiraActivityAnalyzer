@@ -1,0 +1,11 @@
+{
+  "version": "0.3.13",
+  "status": "not_executed",
+  "reason": "The real 117-record provider run was not executed because formal Portable authentication was unavailable.",
+  "softwareResultCount": 0,
+  "manualResultCount": null,
+  "stableIdMatch": null,
+  "catalogMatch": null,
+  "semanticMismatchCount": null,
+  "fabricatedComparison": false
+}

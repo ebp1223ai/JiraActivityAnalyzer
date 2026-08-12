@@ -1,0 +1,44 @@
+{
+  "version": "0.3.13",
+  "status": "passed",
+  "artifactSourceCommit": "4e9045d0773be42732315b948b0b606971cbe6e9",
+  "buildTime": "2026/08/12 19:30:37",
+  "buildTimeIso": "2026-08-12T11:30:37.306Z",
+  "dirtyState": true,
+  "dirtyStateExplanation": "A pre-existing unrelated tracked report remained modified. It was preserved and is excluded from packaged runtime files.",
+  "artifacts": [
+    {
+      "kind": "installer",
+      "path": "F:/AI/JiraActivityAnalyzer/release/Jira Activity Analyzer Setup 0.3.13.exe",
+      "bytes": 190507549,
+      "sha256": "8631e441b71c1cbef0cb039fd86e2be810f0103c97cdc3ddd90c96d04bb60216",
+      "authenticode": "NotSigned"
+    },
+    {
+      "kind": "portable",
+      "path": "F:/AI/JiraActivityAnalyzer/release/Jira Activity Analyzer Portable 0.3.13.exe",
+      "bytes": 190277449,
+      "sha256": "908e7dfe17e42219ae38bb10a37c2787bc9455fd19d4389e9d90eca866f66b62",
+      "authenticode": "NotSigned"
+    },
+    {
+      "kind": "win-unpacked",
+      "path": "F:/AI/JiraActivityAnalyzer/release/win-unpacked/Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "252ff6341f4d80b71f382c157b010a0b81a87d060c033947e75a1dbfeace62f7",
+      "authenticode": "NotSigned"
+    },
+    {
+      "kind": "asar",
+      "path": "F:/AI/JiraActivityAnalyzer/release/win-unpacked/resources/app.asar",
+      "bytes": 24685546,
+      "sha256": "2d8b040945608e65db3df997441081d6324a6bdafeaedc62193db0231293260d"
+    }
+  ],
+  "warnings": [
+    "Existing node:crypto browser externalization warning from shared/descriptionDiff.ts.",
+    "Renderer chunk is 817.33 kB and exceeds Vite's 500 kB warning threshold.",
+    "electron-builder reported duplicate dependency references and used the default Electron icon.",
+    "Windows executables are not Authenticode signed."
+  ]
+}

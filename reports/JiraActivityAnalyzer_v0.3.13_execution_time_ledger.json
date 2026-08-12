@@ -1,0 +1,63 @@
+{
+  "version": "0.3.13",
+  "overallStatus": "Partial",
+  "timezone": "Asia/Taipei",
+  "entries": [
+    {
+      "stage": "build",
+      "command": "npm.cmd run build",
+      "startedAt": "2026-08-12T19:28:56.2467664+08:00",
+      "endedAt": "2026-08-12T19:29:25.2265698+08:00",
+      "durationMs": 28980,
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "stage": "dist",
+      "command": "$env:JAA_ALLOW_DIRTY_PACKAGE='1'; npm.cmd run dist",
+      "startedAt": "2026-08-12T19:30:30.5301496+08:00",
+      "endedAt": "2026-08-12T19:32:44.2809453+08:00",
+      "durationMs": 133751,
+      "exitCode": 0,
+      "result": "passed",
+      "note": "Dirty-package override was required only because a pre-existing unrelated tracked report remained modified. Release packaging excludes reports."
+    },
+    {
+      "stage": "portable_startup",
+      "command": "Start-Process release/Jira Activity Analyzer Portable 0.3.13.exe",
+      "startedAt": "2026-08-12T19:34:30.8793239+08:00",
+      "endedAt": "2026-08-12T19:35:00+08:00",
+      "durationMs": 29121,
+      "exitCode": 0,
+      "result": "passed",
+      "note": "Main window was responsive with title Jira Activity Analyzer v0.3.13 and an active renderer process."
+    },
+    {
+      "stage": "real_117",
+      "command": "Formal Release Portable UI run",
+      "startedAt": null,
+      "endedAt": null,
+      "durationMs": 0,
+      "exitCode": null,
+      "result": "not_executed",
+      "note": "Formal Portable authentication was unavailable; no provider dispatch occurred."
+    }
+  ],
+  "previousTargetedVerification": {
+    "result": "passed",
+    "commands": [
+      "npm.cmd run typecheck",
+      "npm.cmd run test:v0.3.13",
+      "npm.cmd run test:v0.3.12",
+      "node scripts/test-v0311.cjs",
+      "node scripts/test-v0311-integration.cjs",
+      "node scripts/test-v039-integration.cjs",
+      "node scripts/test-v0310-integration.cjs",
+      "node scripts/test-v038-integration.cjs",
+      "node scripts/test-app-root.cjs",
+      "node scripts/test-debug-folder.cjs",
+      "git diff --check"
+    ],
+    "durationNote": "Individual command durations were not retained by the terminal transcript and are intentionally not invented."
+  }
+}
