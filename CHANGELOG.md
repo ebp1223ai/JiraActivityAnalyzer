@@ -1,3 +1,20 @@
+## 0.3.10 - 2026-08-12
+
+- Reconstructed the production AI Analysis route to match the supplied final
+  static UI across AI diagnostics, analysis workspace, and Activity Events
+  analysis results without introducing prototype data.
+- Replaced folder scanning with one canonical Manifest and bound Catalog/Common
+  Rules loader, including absolute-path metadata and actionable duplicate Skill
+  ID diagnostics. The supplied Catalog validates as 279 records, 279 unique IDs,
+  and zero duplicates.
+- Added main-owned Pending and completed Analyzed JSON path handling, immutable
+  run preflight, live progress hydration, cancellation, sanitized chat traces,
+  token aggregation, automatic analyzed JSON creation, and review/report UI.
+- Strengthened completed-only atomic JSON and separate SQLite persistence while
+  preserving ChatGPT App Server, AI Nexus, Offline Rule, ENV v4, and Jira
+  read-only boundaries.
+- Added v0.3.10 contract/integration coverage and renderer-only screenshot audit.
+
 ## 0.3.9 - 2026-08-12
 
 - Replaced the direct OpenAI Platform API provider with ChatGPT subscription

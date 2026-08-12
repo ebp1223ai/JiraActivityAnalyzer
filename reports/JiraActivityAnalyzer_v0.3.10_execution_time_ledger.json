@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "targetVersion": "0.3.10",
+  "theme": "AI Analysis UI Reconstruction & Functional Alignment",
+  "status": "Partial — AI Analysis reconstruction, automated tests, build, packaging and push completed; real ChatGPT account validation pending.",
+  "startedAt": "2026-08-12T13:15:12.8076622+08:00",
+  "endedAt": "2026-08-12T06:02:48.091Z",
+  "wallClockMs": 2855285,
+  "baseline": {
+    "branch": "feat/v0.3.9-chatgpt-provider-functional-replacement",
+    "commit": "f07675f3953d1c8f3c14abe4a2703a60e994241d"
+  },
+  "workingBranch": "feat/v0.3.10-ai-analysis-ui-reconstruction",
+  "implementationCommit": "34ff6636e7975d612f04aad3a2181091dc3808bd",
+  "environment": {
+    "windows": "10.0.26100",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3",
+    "codex": "0.147.0"
+  },
+  "commands": [
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 11400
+    },
+    {
+      "command": "npm.cmd run test:v0.3.10",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 2402
+    },
+    {
+      "command": "npm.cmd run test:v0.3.10:integration",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 2742
+    },
+    {
+      "command": "npm.cmd run test:unit",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 16545
+    },
+    {
+      "command": "npm.cmd run test:integration",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 772
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "pass_with_warnings",
+      "exitCode": 0,
+      "durationMs": 24525
+    },
+    {
+      "command": "npm.cmd run dist (authorized dirty package, pre-commit)",
+      "result": "pass_superseded_by_commit_provenance_build",
+      "exitCode": 0,
+      "durationMs": 134011
+    },
+    {
+      "command": "win-unpacked renderer-only CDP smoke (pre-commit)",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 15021
+    },
+    {
+      "command": "Portable renderer-only CDP smoke (pre-commit)",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 113051
+    },
+    {
+      "command": "npm.cmd run audit:package-size (legacy selector)",
+      "result": "content_pass_but_artifact_name_stale",
+      "exitCode": 0,
+      "durationMs": 14931
+    },
+    {
+      "command": "npm.cmd run audit:package-size -- v0.3.10-final",
+      "result": "pass_after_exact_version_selector_fix",
+      "exitCode": 0,
+      "durationMs": 9200
+    },
+    {
+      "command": "npm.cmd run dist (authorized dirty package, final)",
+      "result": "pass_with_warnings",
+      "exitCode": 0,
+      "durationMs": 129579
+    },
+    {
+      "command": "win-unpacked renderer-only CDP smoke (final)",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 15886
+    },
+    {
+      "command": "npm.cmd run audit:package-size -- v0.3.10-packaged-final",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 12186
+    },
+    {
+      "command": "app.asar forbidden-content audit",
+      "result": "pass_4683_entries_zero_forbidden",
+      "exitCode": 0,
+      "durationMs": null
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": null
+    },
+    {
+      "command": "sensitive-data scan",
+      "result": "pass_no_real_credentials",
+      "exitCode": 0,
+      "durationMs": null
+    }
+  ],
+  "build": {
+    "version": "0.3.10",
+    "buildTime": "2026/08/12 13:57:10",
+    "sourceCommit": "34ff6636e7975d612f04aad3a2181091dc3808bd",
+    "dirtyState": true,
+    "dirtyException": "Pre-existing unrelated tracked report modification and local untracked data were preserved and excluded from both commits. Documentation/provenance files were pending the second commit."
+  },
+  "artifacts": [
+    {
+      "path": "release/Jira Activity Analyzer Setup 0.3.10.exe",
+      "bytes": 190489639,
+      "sha256": "f18a1639c174b39e594f41624a2da71076046317e472c770763c4065852ee3b5"
+    },
+    {
+      "path": "release/Jira Activity Analyzer Portable 0.3.10.exe",
+      "bytes": 190259584,
+      "sha256": "bb878cb089b4b35b1f6def7298a57e7e9edc64a50908dfab0d6e5bb70fcc70c8"
+    },
+    {
+      "path": "release/win-unpacked/Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "fd64fd4ec46ff9ff047d87ca6c9375911598233b665b7ec3d2908ad9514180b8"
+    },
+    {
+      "path": "release/win-unpacked/resources/app.asar",
+      "bytes": 24586168,
+      "sha256": "b9787d0dd229c9f08f67e71bb03aab282a97542952750ca0b7f6059a848818ac"
+    },
+    {
+      "path": "release/win-unpacked/resources/codex-runtime/bin/codex.exe",
+      "bytes": 298668336,
+      "sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d"
+    }
+  ],
+  "rendererOnlyScreenshots": [
+    {
+      "path": "test-artifacts/v0.3.10-packaged-final/1-diagnostics.png",
+      "bytes": 115929,
+      "sha256": "ea6087adad9a28ad3d269854f3de518593073899490deede8304e5b1f098b8d0"
+    },
+    {
+      "path": "test-artifacts/v0.3.10-packaged-final/2-workspace.png",
+      "bytes": 111850,
+      "sha256": "3f76dcfe74294798bf0fc50933eba8b8902be98cd5a0e1e1973003f80e241a7b"
+    },
+    {
+      "path": "test-artifacts/v0.3.10-packaged-final/3-results.png",
+      "bytes": 83889,
+      "sha256": "78be766b96385c581d7483f97a85b12ff60d86a7aef8726ab52d467799aca271"
+    }
+  ],
+  "packageAudit": {
+    "asarEntries": 4683,
+    "forbiddenEntries": 0,
+    "unexpectedPackagedContent": 0,
+    "finalReport": "test-artifacts/package-size-v0.3.10-packaged-final.json"
+  },
+  "warnings": [
+    "Vite externalized node:crypto for browser compatibility.",
+    "Renderer JavaScript chunk exceeds 500 kB.",
+    "electron-builder used the default application icon.",
+    "electron-builder reported duplicate JavaScript dependency references.",
+    "Final package records dirtyState=true because authorized unrelated tracked/user files and the pending documentation commit remained present during packaging.",
+    "Portable renderer smoke passed on the pre-commit package; final source-provenance package was revalidated through win-unpacked renderer smoke."
+  ],
+  "tokenUsage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": null,
+    "reason": "Codex execution token telemetry is unavailable in this environment."
+  },
+  "manualValidationPending": [
+    "Real ChatGPT browser OAuth with a user account",
+    "Real account plan and quota hydration",
+    "Real Jira evidence analysis through ChatGPT"
+  ]
+}

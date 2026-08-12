@@ -743,3 +743,24 @@ supports streamed output and cancellation, and persists completed results only.
 Configuration is now `ENV_FORMAT_VERSION=4`. AI Nexus remains available via
 the `AI_NEXUS_*` settings and Offline Rule Analyzer remains deterministic and
 network-free. See [the v0.3.9 implementation note](docs/v0.3.9-chatgpt-provider-functional-replacement.md).
+
+## AI Analysis v0.3.10
+
+v0.3.10 reconstructs the production AI Analysis route against the supplied
+final static UI while retaining the real v0.3.9 ChatGPT, AI Nexus, Offline Rule,
+SQLite, and export implementation. The three fixed tabs are AI 連線與診斷,
+分析工作區, and Activity Events 分析結果.
+
+Rules now load only from one canonical Manifest and its bound Catalog and Common
+Rules paths. The workspace displays absolute paths, file metadata, SHA-256,
+record counts, and actionable duplicate Skill ID locations. Pending and
+Analyzed JSON paths come from Electron main-process dialogs and remain complete
+through validation, run snapshots, output metadata, and reports.
+
+Analysis preflight revalidates immutable rules and dataset snapshots, provider
+readiness, and the separate AI Analysis SQLite database. Progress and token
+usage use real run events. Completed runs automatically produce an atomic JSON
+and SQLite record; cancelled, failed, partial, interrupted, or unknown-outcome
+runs do not. The results page imports completed analyzed JSON, supports review
+audit plus CSV/HTML reports, and intentionally has no analyzed-JSON download
+button. See [the v0.3.10 implementation note](docs/v0.3.10-ai-analysis-ui-reconstruction.md).
