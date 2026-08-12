@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "ai-analysis-token-ledger-v1",
+  "version": "0.3.12",
+  "overallStatus": "Partial",
+  "artifactSourceCommit": "51f71489ea08a5800a697c76f6caaf5615e94646",
+  "capacitySnapshot": {
+    "status": "regression_fixture_only",
+    "reason": "The final Release Portable had no ChatGPT authentication state, so no real 117-record capacity snapshot or provider request was produced.",
+    "capacitySource": "regression_fixture",
+    "capacityTokens": 200000,
+    "finalSerializedPromptBytesUtf8": 407037,
+    "estimatorName": "utf8-bytes-ratio",
+    "estimatorVersion": "1.0",
+    "estimatorMethod": "ceil(UTF-8 bytes / 3)",
+    "estimatedFinalInputTokens": 135679,
+    "estimatedVisibleOutputReserveTokens": 74880,
+    "reasoningReserveTokens": 0,
+    "safetyMarginTokens": 16000,
+    "otherReserveTokens": 0,
+    "estimatedOutputAndReasoningReserveTokens": 90880,
+    "estimatedRequiredTotalTokens": 226559,
+    "estimatedMarginTokens": -26559,
+    "estimatedOverageTokens": 26559,
+    "capacitySnapshotSha256": null
+  },
+  "providerActualUsage": {
+    "status": "unavailable",
+    "reason": "Not executed: release/app-data/codex-home/auth.json was absent.",
+    "input_tokens": null,
+    "cached_tokens": null,
+    "cache_write_tokens": null,
+    "output_tokens": null,
+    "reasoning_tokens": null,
+    "total_tokens": null
+  },
+  "executionCounts": {
+    "providerRequestCount": 0,
+    "threadCount": 0,
+    "turnCount": 0,
+    "retryCount": 0,
+    "repairTurnCount": 0,
+    "fallbackRequestCount": 0
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "execution-time-ledger-v1",
+  "version": "0.3.12",
+  "overallStatus": "Partial",
+  "startedAt": "2026-08-12T17:22:10.1053611+08:00",
+  "documentedAt": "2026-08-12T17:51:13.1866869+08:00",
+  "wallClockToDocumentationMs": 1743081,
+  "stages": [
+    { "name": "repository_inspection_and_implementation", "startedAt": "2026-08-12T17:22:10.1053611+08:00", "endedAt": "2026-08-12T17:41:00+08:00", "durationMs": 1129895, "status": "passed", "commandOrOperation": "Repository audit, implementation, iterative typecheck and targeted tests", "notes": "Existing unrelated tracked report and untracked files preserved." },
+    { "name": "targeted_tests", "startedAt": "2026-08-12T17:41:00+08:00", "endedAt": "2026-08-12T17:41:14.352+08:00", "durationMs": 14352, "status": "passed", "commandOrOperation": "npm.cmd run typecheck; npm.cmd run test:v0.3.12", "notes": "18/18 v0.3.12 tests passed." },
+    { "name": "required_regressions", "startedAt": "2026-08-12T17:42:50.0191524+08:00", "endedAt": "2026-08-12T17:42:54.396+08:00", "durationMs": 4377, "status": "passed", "commandOrOperation": "v0.3.11/v0.3.10/v0.3.9/v0.3.8, APP_ROOT and Debug Folder scripts", "notes": "All selected fast regressions passed; no long smoke test." },
+    { "name": "precommit_build", "startedAt": "2026-08-12T17:43:57.6769814+08:00", "endedAt": "2026-08-12T17:44:28.3551341+08:00", "durationMs": 30669, "status": "passed", "commandOrOperation": "npm.cmd run build", "notes": "Version, typecheck, Vite and Electron build passed." },
+    { "name": "source_release_commit", "startedAt": "2026-08-12T17:45:14+08:00", "endedAt": "2026-08-12T17:45:14+08:00", "durationMs": 0, "status": "passed", "commandOrOperation": "git commit", "notes": "51f71489ea08a5800a697c76f6caaf5615e94646" },
+    { "name": "final_build", "startedAt": "2026-08-12T17:45:25.6966038+08:00", "endedAt": "2026-08-12T17:45:45.3081774+08:00", "durationMs": 19605, "status": "passed", "commandOrOperation": "npm.cmd run build", "notes": "Built from source release commit." },
+    { "name": "dist_initial", "startedAt": "2026-08-12T17:45:55.4260260+08:00", "endedAt": "2026-08-12T17:46:04.3339439+08:00", "durationMs": 8899, "status": "failed", "commandOrOperation": "npm.cmd run dist", "notes": "Dirty-worktree guard detected the preserved unrelated v0.2.47 report modification." },
+    { "name": "dist_authorized_retry", "startedAt": "2026-08-12T17:46:17.7733095+08:00", "endedAt": "2026-08-12T17:48:27.6412411+08:00", "durationMs": 129849, "status": "passed", "commandOrOperation": "JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist", "notes": "Authorized solely to preserve the pre-existing report modification; packaged source commit remained exact." },
+    { "name": "artifact_verification", "startedAt": "2026-08-12T17:48:30+08:00", "endedAt": "2026-08-12T17:49:00+08:00", "durationMs": 30000, "status": "passed", "commandOrOperation": "Get-FileHash and Get-AuthenticodeSignature", "notes": "Installer, Portable, unpacked EXE and app.asar verified." },
+    { "name": "portable_startup", "startedAt": "2026-08-12T17:49:00+08:00", "endedAt": "2026-08-12T17:50:53+08:00", "durationMs": 113000, "status": "passed", "commandOrOperation": "Start final Release Portable and inspect isolated process tree/logs", "notes": "did-finish-load and renderer_boot readyState=interactive; no crash dump." },
+    { "name": "real_117_provider_validation", "startedAt": "2026-08-12T17:50:53+08:00", "endedAt": "2026-08-12T17:51:13.1866869+08:00", "durationMs": 20187, "status": "blocked", "commandOrOperation": "Release Portable readiness preflight", "notes": "117 input and rules exist, but Portable ChatGPT authentication state is absent. No provider request was sent." },
+    { "name": "provider_diagnostics", "startedAt": null, "endedAt": null, "durationMs": null, "status": "not_executed", "commandOrOperation": "Not executed", "notes": "Authentication unavailable." },
+    { "name": "capacity_calculation_warning_wait_provider_execution_parse_identity_comparison_golden_sqlite", "startedAt": null, "endedAt": null, "durationMs": null, "status": "not_executed", "commandOrOperation": "Not executed", "notes": "Dependent on authenticated real provider execution." }
+  ]
+}

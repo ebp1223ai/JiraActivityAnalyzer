@@ -1,0 +1,11 @@
+{
+  "version": "0.3.12",
+  "overallStatus": "Partial",
+  "artifactSourceCommit": "51f71489ea08a5800a697c76f6caaf5615e94646",
+  "releasePortable": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.12.exe",
+  "portableStartup": { "status": "passed", "didFinishLoad": true, "rendererBoot": true, "rendererReadyState": "interactive", "crashDumpCount": 0 },
+  "inputAvailability": { "pending117FileExists": true, "rulesManifestExists": true, "portableChatGptAuthExists": false },
+  "providerExecution": { "status": "not_executed", "reason": "The final Release Portable had no ChatGPT authentication state. Credentials were not guessed, copied, or read.", "providerRequestCount": 0, "threadCount": 0, "turnCount": 0, "retryCount": 0, "repairTurnCount": 0, "fallbackRequestCount": 0 },
+  "validation": { "inputCount": null, "outputCount": null, "missingStableIds": null, "duplicateStableIds": null, "unexpectedStableIds": null, "catalogInvalidSkillIds": null },
+  "formalPersistence": { "json": "not_written", "goldenHtml": "not_written", "sqlite": "not_written", "reason": "No authenticated provider run was dispatched." }
+}

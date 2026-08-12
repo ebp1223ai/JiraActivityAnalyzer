@@ -1,0 +1,16 @@
+{
+  "version": "0.3.12",
+  "buildTime": "2026/08/12 17:46:19",
+  "buildTimeIso": "2026-08-12T09:46:19.525Z",
+  "artifactSourceCommit": "51f71489ea08a5800a697c76f6caaf5615e94646",
+  "branch": "feat/v0.3.12-capacity-override-real-validation-diagnostics",
+  "dirtyState": true,
+  "dirtyStateReason": "Pre-existing unrelated tracked v0.2.47 report modification was preserved and excluded from the source commit.",
+  "artifacts": [
+    { "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.12.exe", "sizeBytes": 190503861, "sizeMiB": 181.679, "sha256": "f73deaf48c1177602993e209926121ff8800f893839b26a675ab67a17dc543da", "signatureStatus": "NotSigned" },
+    { "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.12.exe", "sizeBytes": 190273772, "sizeMiB": 181.459, "sha256": "9046124526e0ae657f5e15ff5158615a8cf1ccb51d4c0cfa6690848d70e77ebe", "signatureStatus": "NotSigned" },
+    { "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe", "sizeBytes": 235706368, "sizeMiB": 224.787, "sha256": "07027be243de6a1f23ad92a30c167e92f28ae5d4b4d2618deacd6aab7b0855c0", "signatureStatus": "NotSigned" },
+    { "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\resources\\app.asar", "sizeBytes": 24660887, "sizeMiB": 23.518, "sha256": "f349798bb0d108c614cc5da380381a0b7aa5cb1192d24289de4b234a20c968af", "signatureStatus": "not_applicable" }
+  ],
+  "warnings": ["Authorized dirty tracked worktree due solely to preserved unrelated report modification.", "Default Electron icon is used.", "Renderer bundle exceeds Vite's 500 kB advisory threshold.", "Windows artifacts are not code-signed."]
+}
