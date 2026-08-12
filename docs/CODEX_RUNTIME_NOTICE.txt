@@ -1,0 +1,10 @@
+Bundled component: OpenAI Codex CLI / App Server
+Pinned version: 0.147.0
+Package: @openai/codex and @openai/codex-win32-x64
+License: Apache License 2.0
+Source: https://github.com/openai/codex
+License text: https://github.com/openai/codex/blob/main/LICENSE
+
+The bundled runtime is used only through its stdio App Server protocol. ChatGPT
+credentials are owned by the runtime and are not read or copied by Jira Activity
+Analyzer.

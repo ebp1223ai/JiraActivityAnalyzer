@@ -28,23 +28,16 @@ import {
 } from "../shared/pendingAnalysisContract.js";
 import { parseEnvText, patchEnvText } from "./runtimeConfig.js";
 
-export const AI_ENV_FORMAT_VERSION = "3";
+export const AI_ENV_FORMAT_VERSION = "4";
 const MAX_PENDING_BYTES = 64 * 1024 * 1024;
-const SECRET_KEYS = { cloud: "AI_CLOUD_API_KEY", local: "AI_LOCAL_TOKEN" } as const;
+const AI_NEXUS_SECRET_KEY = "AI_NEXUS_TOKEN";
+const DEPRECATED_OPENAI_KEYS = ["AI_CLOUD_PROVIDER", "AI_CLOUD_ENDPOINT", "AI_CLOUD_MODEL", "AI_CLOUD_API_CONTRACT", "AI_CLOUD_API_KEY", "AI_CLOUD_AUTH_TYPE", "AI_CLOUD_ORGANIZATION", "AI_CLOUD_PROJECT", "AI_CLOUD_CONTEXT_WINDOW", "AI_CLOUD_REQUEST_TIMEOUT_MS", "AI_CLOUD_MAX_OUTPUT_TOKENS", "AI_CLOUD_MAX_RETRIES", "OPENAI_API_KEY", "AI_API_KEY"] as const;
 
 const CONFIG_KEYS = {
-  cloud: {
-    provider: "AI_CLOUD_PROVIDER", endpoint: "AI_CLOUD_ENDPOINT", model: "AI_CLOUD_MODEL",
-    apiContract: "AI_CLOUD_API_CONTRACT", authType: "AI_CLOUD_AUTH_TYPE", organization: "AI_CLOUD_ORGANIZATION",
-    project: "AI_CLOUD_PROJECT", contextWindow: "AI_CLOUD_CONTEXT_WINDOW", timeoutMs: "AI_CLOUD_REQUEST_TIMEOUT_MS",
-    maxOutputTokens: "AI_CLOUD_MAX_OUTPUT_TOKENS", maxRetries: "AI_CLOUD_MAX_RETRIES"
-  },
-  local: {
-    provider: "AI_LOCAL_PROVIDER", endpoint: "AI_LOCAL_ENDPOINT", model: "AI_LOCAL_MODEL",
-    apiContract: "AI_LOCAL_API_CONTRACT", authType: "AI_LOCAL_AUTH_TYPE", organization: "AI_LOCAL_ORGANIZATION",
-    project: "AI_LOCAL_PROJECT", contextWindow: "AI_LOCAL_CONTEXT_WINDOW", timeoutMs: "AI_LOCAL_REQUEST_TIMEOUT_MS",
-    maxOutputTokens: "AI_LOCAL_MAX_OUTPUT_TOKENS", maxRetries: "AI_LOCAL_MAX_RETRIES"
-  }
+  provider: "AI_NEXUS_PROVIDER", endpoint: "AI_NEXUS_ENDPOINT", model: "AI_NEXUS_MODEL",
+  apiContract: "AI_NEXUS_API_CONTRACT", authType: "AI_NEXUS_AUTH_TYPE", organization: "AI_NEXUS_ORGANIZATION",
+  project: "AI_NEXUS_PROJECT", contextWindow: "AI_NEXUS_CONTEXT_WINDOW", timeoutMs: "AI_NEXUS_REQUEST_TIMEOUT_MS",
+  maxOutputTokens: "AI_NEXUS_MAX_OUTPUT_TOKENS", maxRetries: "AI_NEXUS_MAX_RETRIES"
 } as const;
 
 export function sha256Text(value: string | Buffer) {
@@ -72,13 +65,13 @@ function fingerprint(settings: Omit<AiPublicSettings, "configFingerprint">) {
   return sha256Canonical(publicValue);
 }
 
-export function publicSettings(service: AiServiceKey, values: Record<string, string>, loadedAt: string | null): AiPublicSettings {
-  const keys = CONFIG_KEYS[service];
-  const secret = values[SECRET_KEYS[service]] ?? (service === "local" ? values.AI_LOCAL_AUTH_TOKEN : "") ?? "";
+export function publicSettings(service: "ai_nexus", values: Record<string, string>, loadedAt: string | null): AiPublicSettings {
+  const keys = CONFIG_KEYS;
+  const secret = values[AI_NEXUS_SECRET_KEY] ?? "";
   const apiContract: AiApiContract = values[keys.apiContract] === "chat_completions" ? "chat_completions" : "responses";
   const base = {
     service,
-    provider: values[keys.provider] || (service === "cloud" ? "OpenAI" : "OpenAI-compatible"),
+    provider: values[keys.provider] || "AI Nexus",
     endpoint: safeEndpoint(values[keys.endpoint] ?? ""),
     model: values[keys.model] ?? "",
     apiContract,
@@ -86,7 +79,7 @@ export function publicSettings(service: AiServiceKey, values: Record<string, str
     organization: values[keys.organization] ?? "",
     project: values[keys.project] ?? "",
     contextWindow: integer(values[keys.contextWindow], null, 1),
-    timeoutMs: integer(values[keys.timeoutMs] ?? values[service === "cloud" ? "AI_CLOUD_TIMEOUT_MS" : "AI_LOCAL_TIMEOUT_MS"], 120000, 1000) ?? 120000,
+    timeoutMs: integer(values[keys.timeoutMs], 120000, 1000) ?? 120000,
     maxOutputTokens: integer(values[keys.maxOutputTokens], null, 1),
     maxRetries: Math.min(integer(values[keys.maxRetries], 2, 0) ?? 2, 5),
     secretConfigured: Boolean(secret),
@@ -103,12 +96,12 @@ export function publicSettings(service: AiServiceKey, values: Record<string, str
 export function loadAiEnvironment(envPath: string, templatePath: string) {
   const loadedAt = new Date().toISOString();
   if (!fs.existsSync(envPath)) {
-    const empty = publicSettings("cloud", {}, null);
+    const empty = publicSettings("ai_nexus", {}, null);
     return {
       found: false, envPath, templatePath, formatVersion: null, supported: false, sha256: "", mtimeMs: null,
       loadedAt, errorCode: "ENV_NOT_FOUND" as const,
       message: "Local .env was not found. Copy .env.version to .env and configure it; the app will not create credentials files automatically.",
-      cloud: empty, local: publicSettings("local", {}, null), localDatabaseConfigured: false, aiDatabaseConfigured: false,
+      aiNexus: empty, deprecatedOpenAiKeysIgnored: false, localDatabaseConfigured: false, aiDatabaseConfigured: false,
       rulesDirectoryConfigured: false, values: {} as Record<string, string>
     };
   }
@@ -121,7 +114,7 @@ export function loadAiEnvironment(envPath: string, templatePath: string) {
     found: true, envPath, templatePath, formatVersion, supported, sha256: sha256Text(text), mtimeMs: stat.mtimeMs,
     loadedAt, errorCode: supported ? null : "ENV_FORMAT_UNSUPPORTED" as const,
     message: supported ? "Configuration loaded." : `ENV_FORMAT_VERSION=${formatVersion ?? "missing"}; version ${AI_ENV_FORMAT_VERSION} is required.`,
-    cloud: publicSettings("cloud", values, loadedAt), local: publicSettings("local", values, loadedAt),
+    aiNexus: publicSettings("ai_nexus", values, loadedAt), deprecatedOpenAiKeysIgnored: DEPRECATED_OPENAI_KEYS.some((key) => key in values),
     localDatabaseConfigured: Boolean(values.LOCAL_DB_PATH || values.LOCAL_DATABASE_PATH), aiDatabaseConfigured: Boolean(values.AI_ANALYSIS_DB_PATH),
     rulesDirectoryConfigured: Boolean(values.AI_ANALYSIS_RULES_DIR), values
   };
@@ -134,7 +127,8 @@ export function saveAiSettings(envPath: string, update: AiSettingsUpdate) {
   if (sha256Text(original) !== update.expectedEnvSha256 || (update.expectedEnvMtimeMs !== null && Math.abs(stat.mtimeMs - update.expectedEnvMtimeMs) > 1)) {
     throw new AiAnalysisError("ENV_CONCURRENT_MODIFICATION", ".env changed after it was loaded. Reload before saving.");
   }
-  const keys = CONFIG_KEYS[update.service];
+  if (update.service !== "ai_nexus") throw new AiAnalysisError("AI_NOT_CONFIGURED", "ChatGPT settings are managed by Codex App Server, not .env.");
+  const keys = CONFIG_KEYS;
   const values: Record<string, string> = {
     ENV_FORMAT_VERSION: AI_ENV_FORMAT_VERSION,
     [keys.provider]: update.provider,
@@ -149,7 +143,7 @@ export function saveAiSettings(envPath: string, update: AiSettingsUpdate) {
     [keys.maxOutputTokens]: update.maxOutputTokens === null ? "" : String(update.maxOutputTokens),
     [keys.maxRetries]: String(update.maxRetries)
   };
-  if (!update.preserveSecret) values[SECRET_KEYS[update.service]] = update.secret ?? "";
+  if (!update.preserveSecret) values[AI_NEXUS_SECRET_KEY] = update.secret ?? "";
   const next = patchEnvText(original, values);
   const temporary = `${envPath}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(temporary, next, { encoding: "utf8", mode: 0o600, flag: "wx" });
@@ -292,7 +286,7 @@ function usageFrom(value: unknown): AiTokenUsage {
     totalTokens: number(usage.total_tokens) ?? (input !== null && output !== null ? input + output : null), availability: input !== null || output !== null ? "actual" : "unavailable", estimatedInputTokens: null };
 }
 
-export async function callAiProvider(settings: AiPublicSettings, secret: string, input: string, signal?: AbortSignal): Promise<AiConnectionResult & { text: string; raw: Record<string, unknown> }> {
+export async function callAiNexus(settings: AiPublicSettings, secret: string, input: string, signal?: AbortSignal): Promise<AiConnectionResult & { text: string; raw: Record<string, unknown> }> {
   if (!settings.endpoint || !settings.model || !secret) throw new AiAnalysisError("AI_NOT_CONFIGURED", "Endpoint, model, and secret are required.");
   const suffix = settings.apiContract === "responses" ? "/responses" : "/chat/completions";
   const url = settings.endpoint.replace(/\/$/, "") + suffix;
@@ -300,8 +294,6 @@ export async function callAiProvider(settings: AiPublicSettings, secret: string,
     ? { model: settings.model, input, store: false, ...(settings.maxOutputTokens ? { max_output_tokens: settings.maxOutputTokens } : {}) }
     : { model: settings.model, messages: [{ role: "user", content: input }], ...(settings.maxOutputTokens ? { max_tokens: settings.maxOutputTokens } : {}) };
   const headers: Record<string, string> = { "content-type": "application/json", authorization: `Bearer ${secret}` };
-  if (settings.organization) headers["openai-organization"] = settings.organization;
-  if (settings.project) headers["openai-project"] = settings.project;
   const started = Date.now();
   let response: Response | undefined;
   for (let attempt = 0; attempt <= settings.maxRetries; attempt += 1) {

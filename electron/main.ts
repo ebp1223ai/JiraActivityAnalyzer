@@ -61,6 +61,7 @@ import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
 import { registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
+import { stopChatGptService } from "./chatGptService.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -6054,6 +6055,7 @@ app.on("child-process-gone", (_event, details) => {
 });
 
 app.on("before-quit", () => {
+  void stopChatGptService();
   void databaseViewerCoordinator.close();
   persistentDiagnostics.close("closed");
 });

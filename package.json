@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Static Electron desktop UI prototype for Jira Activity Analyzer.",
   "author": "COPGEN",
   "type": "module",
@@ -63,9 +63,12 @@
     "test:v0.3.4": "node scripts/test-v034.cjs",
     "test:v0.3.7": "node scripts/test-v037-final-static-ui.cjs",
     "test:v0.3.8": "npm run electron:build && node scripts/test-v038.cjs",
-    "test:v0.3.8:integration": "npm run electron:build && node scripts/test-v038-integration.cjs"
+    "test:v0.3.8:integration": "npm run electron:build && node scripts/test-v038-integration.cjs",
+    "test:v0.3.9": "npm run electron:build && node scripts/test-v039.cjs && node scripts/test-v038.cjs",
+    "test:v0.3.9:integration": "npm run electron:build && node scripts/test-v039-integration.cjs"
   },
   "dependencies": {
+    "@openai/codex": "0.147.0",
     "lucide-react": "^0.469.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -103,7 +106,9 @@
       "package.json",
       "!node_modules/**/*.map",
       "!node_modules/**/{docs,doc,test,tests,example,examples}/**",
-      "!node_modules/**/*.{md,markdown}"
+      "!node_modules/**/*.{md,markdown}",
+      "!node_modules/@openai/codex/**",
+      "!node_modules/@openai/codex-win32-x64/**"
     ],
     "win": {
       "target": [
@@ -121,6 +126,19 @@
     },
     "portable": {
       "artifactName": "${productName} Portable ${version}.${ext}"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc",
+        "to": "codex-runtime",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "docs/CODEX_RUNTIME_NOTICE.txt",
+        "to": "codex-runtime/NOTICE.txt"
+      }
+    ]
   }
 }

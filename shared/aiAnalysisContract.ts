@@ -2,7 +2,9 @@ export const AI_ANALYSIS_IPC_VERSION = 1 as const;
 export const AI_ANALYSIS_DB_SCHEMA_VERSION = 1 as const;
 export const AI_ANALYSIS_INPUT_SCHEMA_VERSION = "ai-analysis-input-v1" as const;
 export const AI_ANALYSIS_OUTPUT_SCHEMA_VERSION = "ai-analysis-output-v1" as const;
-export const AI_ANALYZED_FILE_SCHEMA_VERSION = "0.3.8-v1" as const;
+export const AI_ANALYZED_FILE_SCHEMA_VERSION = "0.3.9-v1" as const;
+export { type ActiveAiProvider, type ChatGptAnalysisRequest, type ChatGptAnalysisResponse, type ChatGptModel, type ChatGptRunEvent, type ChatGptRuntimeState, type ChatGptStatus } from "./chatGptContract.js";
+import type { ActiveAiProvider, ChatGptStatus } from "./chatGptContract.js";
 
 export type AiAnalysisErrorCode =
   | "ENV_NOT_FOUND"
@@ -17,6 +19,10 @@ export type AiAnalysisErrorCode =
   | "AI_RATE_LIMITED"
   | "AI_TIMEOUT"
   | "AI_RESPONSE_INVALID"
+  | "CHATGPT_RUNTIME_UNAVAILABLE"
+  | "CHATGPT_SIGN_IN_REQUIRED"
+  | "CHATGPT_USAGE_LIMITED"
+  | "OUTCOME_UNKNOWN"
   | "ANALYSIS_INPUT_INVALID"
   | "ANALYSIS_RULES_INVALID"
   | "INPUT_TOO_LARGE"
@@ -27,8 +33,8 @@ export type AiAnalysisErrorCode =
   | "AI_DB_MIGRATION_FAILED"
   | "EXPORT_VALIDATION_FAILED";
 
-export type AiServiceKey = "cloud" | "local";
-export type AiAnalyzerMode = "CLOUD_AI" | "LOCAL_AI" | "OFFLINE_RULE";
+export type AiServiceKey = "chatgpt" | "ai_nexus";
+export type AiAnalyzerMode = "CHATGPT" | "AI_NEXUS" | "OFFLINE_RULE";
 export type AiApiContract = "responses" | "chat_completions";
 export type AiAuthType = "bearer" | "api_key";
 export type AiAnalysisStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED" | "NEEDS_REVIEW" | "UNKNOWN" | "EXCLUDED";
@@ -82,8 +88,8 @@ export type AiEnvSummary = {
   loadedAt: string;
   errorCode: AiAnalysisErrorCode | null;
   message: string;
-  cloud: AiPublicSettings;
-  local: AiPublicSettings;
+  aiNexus: AiPublicSettings;
+  deprecatedOpenAiKeysIgnored: boolean;
   localDatabaseConfigured: boolean;
   aiDatabaseConfigured: boolean;
   rulesDirectoryConfigured: boolean;
@@ -268,7 +274,7 @@ export type AiAnalysisRun = {
   sourceDatabaseId: string;
   jiraServerFingerprint: string;
   selectedDiffIds: string[];
-  provider: string;
+  provider: ActiveAiProvider;
   model: string;
   apiContract: AiApiContract | "offline";
   configFingerprint: string | null;
@@ -291,6 +297,7 @@ export type AiAnalysisSnapshot = {
   runs: AiAnalysisRun[];
   selectedRunId: string | null;
   activeRunId: string | null;
+  chatgpt: ChatGptStatus;
 };
 
 export type AiExportFormat = "json" | "csv" | "html";

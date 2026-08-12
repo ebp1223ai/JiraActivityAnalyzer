@@ -1,3 +1,20 @@
+## 0.3.9 - 2026-08-12
+
+- Replaced the direct OpenAI Platform API provider with ChatGPT subscription
+  access through bundled Codex App Server 0.147.0.
+- Added managed browser login, account/model/quota status, streamed test chat,
+  cancellable ephemeral analysis turns, token usage, and crash-safe outcome
+  handling behind narrow Electron IPC.
+- Enforced keyring-only ChatGPT credential storage, ChatGPT-only runtime auth,
+  HTTPS auth URL validation, aggressive diagnostics redaction, read-only
+  sandboxing, and automatic rejection of command/file/tool requests.
+- Preserved AI Nexus and deterministic Offline Rule Analyzer behavior and the
+  completed-only AI Analysis database/export contract.
+- Migrated the configuration template to ENV v4 and removed direct OpenAI API
+  keys from active UI, env, IPC, network, and test paths.
+- Added deterministic fake App Server unit and integration coverage plus Windows
+  runtime packaging metadata and third-party notice.
+
 ## 0.3.8 - 2026-08-11
 
 - Replaced the v0.3.7 AI Analysis static fixtures with main-process provider diagnostics, validated pending-analysis input, frozen rules snapshots, deterministic offline analysis, queue progress/cancellation, human review, separate SQLite history, and atomic JSON/CSV/HTML exports.

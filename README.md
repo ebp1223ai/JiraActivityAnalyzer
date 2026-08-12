@@ -723,3 +723,23 @@ AI Analysis is implemented as three fixed work areas: AI Diagnostics, Analysis W
 - Offline Rule Analyzer is deterministic and field-aware. Every candidate defaults to `PENDING_REVIEW`; confirmation is a human action.
 - Completed runs are written to a separate AI Analysis SQLite database and can be exported as JSON, CSV, or self-contained HTML. Jira and Current-State databases remain read-only.
 - Automated tests use synthetic data and a loopback mock provider. They never call company Jira or a live cloud AI service.
+
+
+## AI Analysis v0.3.9
+
+v0.3.9 replaces the direct OpenAI Platform API provider with **Sign in with
+ChatGPT** through the bundled Codex App Server. Active providers are ChatGPT,
+AI Nexus, and Offline Rule Analyzer. ChatGPT does not use an API key, Base URL,
+organization, project, Responses, or Chat Completions form in the renderer or
+in `.env`.
+
+The Windows package includes pinned Codex runtime 0.147.0. Authentication opens
+in the default browser and is owned by the runtime's OS keyring integration.
+The app uses a dedicated `CODEX_HOME`, refuses plaintext `auth.json`, masks
+account identity, and never sends credentials through renderer IPC. ChatGPT
+analysis uses ephemeral read-only threads, blocks tools and local mutations,
+supports streamed output and cancellation, and persists completed results only.
+
+Configuration is now `ENV_FORMAT_VERSION=4`. AI Nexus remains available via
+the `AI_NEXUS_*` settings and Offline Rule Analyzer remains deterministic and
+network-free. See [the v0.3.9 implementation note](docs/v0.3.9-chatgpt-provider-functional-replacement.md).

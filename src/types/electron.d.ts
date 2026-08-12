@@ -158,6 +158,12 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
       };
       aiAnalysis?: {
         getSnapshot: () => Promise<AiAnalysisSnapshot>;
+        startChatGpt: () => Promise<{ ok: boolean; status: AiAnalysisSnapshot["chatgpt"]; errorCode?: string; message?: string }>;
+        loginChatGpt: () => Promise<{ ok: boolean; status: AiAnalysisSnapshot["chatgpt"]; errorCode?: string; message?: string }>;
+        cancelChatGptLogin: () => Promise<{ ok: boolean; status: AiAnalysisSnapshot["chatgpt"] }>;
+        logoutChatGpt: () => Promise<{ ok: boolean; status: AiAnalysisSnapshot["chatgpt"] }>;
+        refreshChatGpt: () => Promise<{ ok: boolean; status: AiAnalysisSnapshot["chatgpt"]; errorCode?: string; message?: string }>;
+        selectChatGptModel: (model: string | null) => Promise<{ ok: boolean; status: AiAnalysisSnapshot["chatgpt"]; errorCode?: string; message?: string }>;
         reloadEnv: () => Promise<AiAnalysisSnapshot>;
         saveSettings: (payload: AiSettingsUpdate) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         testConnection: (service: AiServiceKey) => Promise<AiConnectionResult | { ok: false; errorCode: string; message: string }>;
