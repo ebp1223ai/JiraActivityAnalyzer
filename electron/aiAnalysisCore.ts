@@ -27,6 +27,7 @@ import {
   type PendingAnalysisDocument
 } from "../shared/pendingAnalysisContract.js";
 import { parseEnvText, patchEnvText } from "./runtimeConfig.js";
+import { loadManifestRulesSnapshot } from "./aiAnalysisRulesV0310.js";
 
 export const AI_ENV_FORMAT_VERSION = "4";
 const MAX_PENDING_BYTES = 64 * 1024 * 1024;
@@ -160,50 +161,7 @@ function extractVersion(text: string, patterns: RegExp[], fallback = "unknown") 
 }
 
 export function loadRulesSnapshot(directory: string, allowedRoots: string[]): AiRulesSnapshot {
-  const root = fs.realpathSync(path.resolve(directory));
-  if (!allowedRoots.some((allowed) => {
-    const resolved = fs.realpathSync(path.resolve(allowed));
-    return root === resolved || root.startsWith(resolved + path.sep);
-  })) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", "Rules folder is outside the approved roots.");
-  const names = fs.readdirSync(root);
-  const find = (pattern: RegExp) => names.find((name) => pattern.test(name));
-  const manifestName = find(/manifest.*\.md$/i);
-  const catalogName = find(/skill_catalog.*\.md$/i);
-  const rulesName = find(/common_rules.*\.md$/i);
-  if (!manifestName || !catalogName || !rulesName) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", "Manifest, catalog, and common rules files are required.");
-  const load = (name: string) => {
-    const filePath = path.join(root, name);
-    const real = fs.realpathSync(filePath);
-    if (!real.startsWith(root + path.sep)) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", "Rules symlink escapes the selected folder.");
-    return fs.readFileSync(real, "utf8");
-  };
-  const manifest = load(manifestName), catalogText = load(catalogName), rulesText = load(rulesName);
-  const catalog: AiCatalogEntry[] = [];
-  for (const line of catalogText.split(/\r?\n/)) {
-    if (!line.trim().startsWith("|")) continue;
-    const cells = line.split("|").slice(1, -1).map((cell) => cell.trim());
-    if (cells.length < 3 || /^[-: ]+$/.test(cells[0]) || /skill.?id/i.test(cells[0])) continue;
-    const id = cells.find((cell) => /^[A-Z][A-Z0-9_-]{2,}$/.test(cell));
-    if (!id) continue;
-    const index = cells.indexOf(id);
-    catalog.push({ id, name: cells[index + 1] || id, group: cells[index + 2] || "General", catalogStatus: "review-draft", detailDescription: cells[index + 3] || null });
-  }
-  const unique = Array.from(new Map(catalog.map((item) => [item.id, item])).values());
-  if (unique.length !== catalog.length) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", "Duplicate catalog skill IDs are not allowed.");
-  if (!unique.length) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", "No catalog entries could be parsed.");
-  const files = [
-    { kind: "manifest" as const, fileName: manifestName, version: extractVersion(manifest, [/schema(?: version)?\s*[:：]\s*`?([^`\s]+)/i]), sha256: sha256Text(manifest), status: "verified" as const },
-    { kind: "catalog" as const, fileName: catalogName, version: extractVersion(catalogText, [/version\s*[:：]\s*`?([^`\s]+)/i]), sha256: sha256Text(catalogText), status: "verified" as const },
-    { kind: "rules" as const, fileName: rulesName, version: extractVersion(rulesText, [/version\s*[:：]\s*`?([^`\s]+)/i]), sha256: sha256Text(rulesText), status: "verified" as const }
-  ];
-  return {
-    valid: true, rulesDirectoryLabel: path.basename(root),
-    ruleSetId: extractVersion(manifest, [/rule.?set(?: id)?\s*[:：]\s*`?([^`\r\n]+)/i], sha256Text(manifest).slice(0, 16)),
-    manifestSchemaVersion: files[0].version, catalogVersion: files[1].version, commonRulesVersion: files[2].version,
-    classificationEngineVersion: "offline-rule-v1", parserVersion: "ai-rules-parser-v1", files,
-    catalogCount: unique.length, catalog: unique,
-    commonRulesNormalized: rulesText.split(/\r?\n/).map((line) => line.trim()).filter((line) => /^#{2,4}\s|^[-*]\s/.test(line)).slice(0, 500), errors: []
-  };
+  return loadManifestRulesSnapshot(directory, allowedRoots);
 }
 
 export function loadPendingDataset(filePath: string): AiPendingDataset {
@@ -233,7 +191,7 @@ export function loadPendingDataset(filePath: string): AiPendingDataset {
     diffHunks: record.diff.diffHunks.map((hunk) => ({ ...hunk, lines: hunk.lines.map((line) => ({ type: line.kind, text: line.text })) }))
   }));
   return {
-    datasetId: `dataset_${sha256Text(raw).slice(0, 20)}`, fileName: path.basename(filePath), schemaVersion: document.schemaVersion,
+    datasetId: `dataset_${sha256Text(raw).slice(0, 20)}`, fileName: path.basename(filePath), sourceFilePath: fs.realpathSync.native(path.resolve(filePath)), sourceFileSizeBytes: stat.size, importedAt: new Date().toISOString(), schemaVersion: document.schemaVersion,
     sourceFileSha256: sha256Text(raw), sourceDatabaseId: document.sourceDatabase.sourceDatabaseId,
     jiraServerFingerprint: document.sourceDatabase.jiraServerFingerprint, jiraServerHost: document.sourceDatabase.jiraServerHost,
     sourceSchemaVersion: document.sourceDatabase.sourceSchemaVersion, sourceView: document.sourceView, createdAt: document.createdAt,
@@ -377,16 +335,33 @@ export function persistCompletedRun(databasePath: string, dataset: AiPendingData
 export function atomicExport(filePath: string, content: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const temporary = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(temporary, content, "utf8");
-  fs.renameSync(temporary, filePath);
+  let descriptor: number | null = null;
+  try {
+    descriptor = fs.openSync(temporary, "wx", 0o600);
+    fs.writeFileSync(descriptor, content, "utf8");
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor);
+    descriptor = null;
+    fs.renameSync(temporary, filePath);
+    try {
+      const directoryDescriptor = fs.openSync(path.dirname(filePath), "r");
+      try { fs.fsyncSync(directoryDescriptor); } finally { fs.closeSync(directoryDescriptor); }
+    } catch { /* Directory fsync is not supported on every Windows filesystem. */ }
+  } catch (error) {
+    if (descriptor !== null) fs.closeSync(descriptor);
+    try { fs.unlinkSync(temporary); } catch { /* Best-effort staging cleanup. */ }
+    throw error;
+  }
   const reopened = fs.readFileSync(filePath, "utf8");
   if (sha256Text(reopened) !== sha256Text(content)) throw new AiAnalysisError("EXPORT_VALIDATION_FAILED", "Reopened export digest does not match.");
   return { filePath, sizeBytes: Buffer.byteLength(reopened), sha256: sha256Text(reopened) };
 }
 
 export function analyzedDocument(run: AiAnalysisRun) {
+  const exportedRun = structuredClone(run);
+  exportedRun.analyzedFilePath = run.analyzedFilePath ?? run.plannedAnalyzedFilePath ?? null;
   return { schemaName: "jira-activity-analyzer.analyzed-analysis", schemaVersion: AI_ANALYZED_FILE_SCHEMA_VERSION,
-    contractVersion: AI_ANALYSIS_OUTPUT_SCHEMA_VERSION, fileType: "ANALYZED", exportedAt: new Date().toISOString(), run };
+    contractVersion: AI_ANALYSIS_OUTPUT_SCHEMA_VERSION, fileType: "ANALYZED", exportedAt: new Date().toISOString(), run: exportedRun };
 }
 
 export function persistReview(databasePath: string, runId: string, resultId: string, priorStatus: string, newStatus: string, note: string) {

@@ -147,7 +147,7 @@ try {
   updateUiPreferences(tempRoot, "issueActivityEvents", { ...defaults.issueActivityEvents, visibleColumns: ["eventTime", "eventType"], pageSize: 100 });
   const persisted = loadUiPreferences(tempRoot);
   assert.equal(persisted.preferences.issueActivityEvents.pageSize, 100);
-  assert.deepEqual(persisted.preferences.issueActivityEvents.visibleColumns, ["eventTime", "eventType"]);
+  assert.deepEqual(persisted.preferences.issueActivityEvents.visibleColumns, ["eventTime", "eventType", "action"]);
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true });
 }

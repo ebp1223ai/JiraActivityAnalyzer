@@ -25,6 +25,7 @@ export type AiAnalysisErrorCode =
   | "OUTCOME_UNKNOWN"
   | "ANALYSIS_INPUT_INVALID"
   | "ANALYSIS_RULES_INVALID"
+  | "ANALYSIS_RULES_DUPLICATE_SKILL_ID"
   | "INPUT_TOO_LARGE"
   | "SOURCE_MISMATCH"
   | "RUN_CANCELLED"
@@ -96,7 +97,7 @@ export type AiEnvSummary = {
 };
 
 export type AiDiagnosticStep = {
-  id: "configuration" | "network" | "tls" | "authentication" | "model" | "contract" | "persistence";
+  id: "configuration" | "network" | "authentication" | "model" | "minimal_request" | "contract" | "persistence";
   name: string;
   status: "pending" | "running" | "passed" | "failed" | "skipped";
   startedAt: string | null;
@@ -144,14 +145,31 @@ export type AiChatMessage = {
   elapsedMs: number | null;
   usage: AiTokenUsage;
   text: string;
+  traceFolderPath?: string;
 };
 
 export type AiRulesFile = {
   kind: "manifest" | "catalog" | "rules";
   fileName: string;
+  fullPath?: string;
   version: string;
   sha256: string;
+  sizeBytes?: number;
+  mtimeMs?: number;
   status: "verified" | "invalid";
+};
+
+export type AiRulesDuplicateDetail = {
+  skillId: string;
+  normalizedId: string;
+  comparison: "exact" | "trimmed" | "unicode_normalized" | "case_insensitive";
+  severity: "error" | "warning";
+  definitions: Array<{
+    fullPath: string;
+    lineNumber: number;
+    recordIndex: number;
+    loadSource: "manifest_reference" | "manual_file";
+  }>;
 };
 
 export type AiCatalogEntry = {
@@ -165,6 +183,9 @@ export type AiCatalogEntry = {
 export type AiRulesSnapshot = {
   valid: boolean;
   rulesDirectoryLabel: string;
+  rulesDirectoryPath?: string;
+  snapshotId?: string;
+  validatedAt?: string;
   ruleSetId: string;
   manifestSchemaVersion: string;
   catalogVersion: string;
@@ -173,9 +194,13 @@ export type AiRulesSnapshot = {
   parserVersion: "ai-rules-parser-v1";
   files: AiRulesFile[];
   catalogCount: number;
+  uniqueSkillIdCount?: number;
+  duplicateSkillIdCount?: number;
+  duplicateDetails?: AiRulesDuplicateDetail[];
   catalog: AiCatalogEntry[];
   commonRulesNormalized: string[];
   errors: string[];
+  warnings?: string[];
 };
 
 export type AiPendingDiff = {
@@ -201,6 +226,9 @@ export type AiPendingDiff = {
 export type AiPendingDataset = {
   datasetId: string;
   fileName: string;
+  sourceFilePath?: string;
+  sourceFileSizeBytes?: number;
+  importedAt?: string;
   schemaVersion: string;
   sourceFileSha256: string;
   sourceDatabaseId: string;
@@ -270,6 +298,7 @@ export type AiAnalysisRun = {
   analyzerMode: AiAnalyzerMode;
   sourceDatasetId: string;
   sourceFileName: string;
+  sourceFilePath?: string;
   sourceFileSha256: string;
   sourceDatabaseId: string;
   jiraServerFingerprint: string;
@@ -284,8 +313,12 @@ export type AiAnalysisRun = {
   progress: AiRunProgress;
   results: AiDiffAnalysisResult[];
   analyzedFileName: string;
+  plannedAnalyzedFilePath?: string | null;
   analyzedFilePath: string | null;
+  analyzedFileSizeBytes?: number | null;
+  analyzedFileSha256?: string | null;
   databasePath: string | null;
+  importedFromFile?: boolean;
 };
 
 export type AiAnalysisSnapshot = {

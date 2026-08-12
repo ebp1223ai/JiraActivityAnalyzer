@@ -1,8 +1,8 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.9",
-  "description": "Static Electron desktop UI prototype for Jira Activity Analyzer.",
+  "version": "0.3.10",
+  "description": "Electron desktop analyzer for Jira activity evidence and AI-assisted skill analysis.",
   "author": "COPGEN",
   "type": "module",
   "main": "dist-electron/main.cjs",
@@ -65,7 +65,9 @@
     "test:v0.3.8": "npm run electron:build && node scripts/test-v038.cjs",
     "test:v0.3.8:integration": "npm run electron:build && node scripts/test-v038-integration.cjs",
     "test:v0.3.9": "npm run electron:build && node scripts/test-v039.cjs && node scripts/test-v038.cjs",
-    "test:v0.3.9:integration": "npm run electron:build && node scripts/test-v039-integration.cjs"
+    "test:v0.3.9:integration": "npm run electron:build && node scripts/test-v039-integration.cjs",
+    "test:v0.3.10": "npm run electron:build && node scripts/test-v0310.cjs && node scripts/test-v039.cjs && node scripts/test-v038.cjs",
+    "test:v0.3.10:integration": "npm run electron:build && node scripts/test-v0310-integration.cjs && node scripts/test-v039-integration.cjs && node scripts/test-v038-integration.cjs"
   },
   "dependencies": {
     "@openai/codex": "0.147.0",

@@ -168,10 +168,16 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         saveSettings: (payload: AiSettingsUpdate) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         testConnection: (service: AiServiceKey) => Promise<AiConnectionResult | { ok: false; errorCode: string; message: string }>;
         diagnose: (service: AiServiceKey) => Promise<AiDiagnosticRun>;
+        cancelDiagnostic: () => Promise<{ ok: boolean; message?: string }>;
         chat: (payload: { service: AiServiceKey; sessionId: string; messages: Array<{ role: "user" | "assistant"; text: string }> }) => Promise<{ ok: boolean; message?: AiChatMessage; errorCode?: string; messageText?: string }>;
+        cancelChat: () => Promise<{ ok: boolean; message?: string }>;
         chooseRules: () => Promise<{ canceled: boolean; snapshot: AiAnalysisSnapshot; ok?: boolean; errorCode?: string; message?: string }>;
-        loadRules: (folderPath?: string) => Promise<{ ok: boolean; snapshot: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
+        loadRules: () => Promise<{ ok: boolean; snapshot: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         choosePending: () => Promise<{ canceled: boolean; snapshot: AiAnalysisSnapshot; ok?: boolean; errorCode?: string; message?: string }>;
+        verifyPending: (datasetId: string) => Promise<{ ok: boolean; snapshot: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
+        selectPending: (datasetId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
+        chooseAnalyzed: () => Promise<{ canceled: boolean; ok?: boolean; snapshot: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
+        selectRun: (runId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         start: (payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; run?: AiAnalysisSnapshot["runs"][number]; errorCode?: string; message?: string }>;
         cancel: (runId: string) => Promise<{ ok: boolean; message?: string }>;
         review: (payload: { runId: string; resultId: string; status: "CONFIRMED" | "REJECTED" | "PENDING_REVIEW"; note: string }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;

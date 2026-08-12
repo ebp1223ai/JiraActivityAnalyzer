@@ -25,7 +25,11 @@ async function main() {
   assert(!redacted.includes("abc.def.ghi") && !redacted.includes("developer@example.test") && !redacted.includes("code=secret") && !redacted.includes("topsecret"));
 
   const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-  assert.equal(pkg.version, "0.3.9"); assert.equal(pkg.dependencies["@openai/codex"], CODEX_RUNTIME_VERSION);
+  const trackedVersion = fs.readFileSync(path.join(root, "VERSION"), "utf8").trim();
+  assert.equal(pkg.version, trackedVersion);
+  const [major, minor, patch] = trackedVersion.split(".").map(Number);
+  assert(major > 0 || minor > 3 || (minor === 3 && patch >= 9));
+  assert.equal(pkg.dependencies["@openai/codex"], CODEX_RUNTIME_VERSION);
   assert(pkg.build.extraResources.some((item: { to: string }) => item.to === "codex-runtime"));
   const env = fs.readFileSync(path.join(root, ".env.version"), "utf8");
   assert(env.includes("ENV_FORMAT_VERSION=4") && env.includes("AI_NEXUS_TOKEN=") && !env.includes("AI_CLOUD_") && !env.includes("OPENAI_API_KEY"));

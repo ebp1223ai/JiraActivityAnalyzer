@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const asar = require("@electron/asar");
+const packageJson = require("../package.json");
 
 const projectRoot = path.resolve(__dirname, "..");
 const releaseDir = path.join(projectRoot, "release");
@@ -76,9 +77,13 @@ function directoryTotals(files) {
   return [...totals].map(([directory, bytes]) => ({ path: directory, bytes, mib: mib(bytes) })).sort((a, b) => b.bytes - a.bytes);
 }
 
-function findArtifact(prefix) {
-  const match = fs.readdirSync(releaseDir).find((name) => name.startsWith(prefix) && name.endsWith(".exe"));
-  return match ? path.join(releaseDir, match) : "";
+function findArtifact(kind) {
+  const fileName = `Jira Activity Analyzer ${kind} ${packageJson.version}.exe`;
+  const artifactPath = path.join(releaseDir, fileName);
+  if (!fs.existsSync(artifactPath)) {
+    throw new Error(`找不到目前版本封裝產物：${fileName}`);
+  }
+  return artifactPath;
 }
 
 function asarFiles() {
@@ -121,8 +126,8 @@ const virtualAsarFiles = asarFiles();
 const combinedFiles = [...physicalFiles, ...virtualAsarFiles].sort((a, b) => b.bytes - a.bytes);
 const unpackedNodeModulesBytes = walkFiles(path.join(appAsarUnpackedDir, "node_modules")).reduce((sum, item) => sum + item.bytes, 0);
 const packedNodeModulesBytes = virtualAsarFiles.filter((item) => item.path.startsWith("resources/app.asar/node_modules/")).reduce((sum, item) => sum + item.bytes, 0);
-const installerPath = findArtifact("Jira Activity Analyzer Setup");
-const portablePath = findArtifact("Jira Activity Analyzer Portable");
+const installerPath = findArtifact("Setup");
+const portablePath = findArtifact("Portable");
 const unexpectedPatterns = virtualAsarFiles.filter((item) => item.category === "Test／Development Artifact").slice(0, 200);
 const report = {
   label,

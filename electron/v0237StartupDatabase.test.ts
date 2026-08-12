@@ -58,7 +58,7 @@ try {
   assert.equal(legacy.sources.jiraUsername, "legacy_alias");
   assert.equal(legacy.jiraAuthMode, "basic");
   assert.equal(legacy.values.UNKNOWN_SETTING, "preserved");
-  assert.match(DEFAULT_ENV_TEXT, /ENV_FORMAT_VERSION=2/);
+  assert.match(DEFAULT_ENV_TEXT, new RegExp(`ENV_FORMAT_VERSION=${ENV_FORMAT_VERSION}`));
   assert.match(DEFAULT_ENV_TEXT, /環境設定格式版本/);
   assert.throws(() => assertRuntimeEnvPath(path.join(tempRoot, ".env.Version")), /cannot be loaded/);
 

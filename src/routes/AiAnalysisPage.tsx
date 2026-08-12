@@ -1,1 +1,1 @@
-export { AiAnalysisFunctionalPage as AiAnalysisPage } from "../ai-analysis/AiAnalysisFunctionalPage";
+export { AiAnalysisReconstructedPage as AiAnalysisPage } from "../ai-analysis/AiAnalysisReconstructedPage";

@@ -21,7 +21,7 @@ assert.match(tableSource, /DATABASE_ISSUE_PAGE_SIZES/);
 assert.match(tableSource, /Filtered/);
 assert.match(analysisSource, /analysis-setup-start-v245/);
 assert.match(analysisSource, /analysis-setup-end-v245/);
-assert.match(analysisSource, /Remote Links \(Locked\)/);
+assert.match(analysisSource, /\["Remote Links", "OFF"\]/);
 assert.doesNotMatch(analysisSource, /title="Timeline Event Filters"/);
 assert.doesNotMatch(analysisSource, /timeline-header-filters/);
 assert.doesNotMatch(viewerSource, /JSON\.stringify\(item\.items|JSON\.stringify\(item\.body/);
@@ -102,7 +102,7 @@ try {
   fs.writeFileSync(persisted.filePath, "{invalid", "utf8");
   const recovered = loadUiPreferences(tempRoot);
   assert.match(recovered.warning, /corrupt|損毀/i);
-  assert.equal(recovered.preferences.databaseIssueList.pageSize, 200);
+  assert.equal(recovered.preferences.databaseIssueList.pageSize, defaultUiPreferences().databaseIssueList.pageSize);
 
   const normalized = normalizeIssueViewerPayload({
     issue: {

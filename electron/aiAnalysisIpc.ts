@@ -4,6 +4,7 @@ import path from "node:path";
 import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import {
   AI_ANALYSIS_IPC_VERSION,
+  AI_ANALYZED_FILE_SCHEMA_VERSION,
   AiAnalysisError,
   emptyTokenUsage,
   type AiAnalysisRun,
@@ -37,10 +38,10 @@ import { getChatGptService } from "./chatGptService.js";
 type Environment = ReturnType<typeof loadAiEnvironment>;
 const handlers = [
   "ai-analysis:snapshot", "ai-analysis:reload-env", "ai-analysis:save-settings", "ai-analysis:test-connection",
-  "ai-analysis:diagnose", "ai-analysis:chat", "ai-analysis:choose-rules", "ai-analysis:load-rules",
-  "ai-analysis:choose-pending", "ai-analysis:start", "ai-analysis:cancel", "ai-analysis:review",
+  "ai-analysis:diagnose", "ai-analysis:cancel-diagnostic", "ai-analysis:chat", "ai-analysis:choose-rules", "ai-analysis:load-rules",
+  "ai-analysis:choose-pending", "ai-analysis:verify-pending", "ai-analysis:select-pending", "ai-analysis:choose-analyzed", "ai-analysis:select-run", "ai-analysis:start", "ai-analysis:cancel", "ai-analysis:review",
   "ai-analysis:export", "ai-analysis:open-folder", "ai-analysis:chatgpt-start", "ai-analysis:chatgpt-login",
-  "ai-analysis:chatgpt-cancel-login", "ai-analysis:chatgpt-logout", "ai-analysis:chatgpt-refresh", "ai-analysis:chatgpt-select-model"
+  "ai-analysis:chatgpt-cancel-login", "ai-analysis:chatgpt-logout", "ai-analysis:chatgpt-refresh", "ai-analysis:chatgpt-select-model", "ai-analysis:cancel-chat"
 ];
 
 function now() { return new Date().toISOString(); }
@@ -65,6 +66,11 @@ function publicEnv(environment: Environment) {
 function resolveConfiguredPath(value: string | undefined, fallback: string) {
   if (!value?.trim()) return fallback;
   return path.isAbsolute(value) ? path.resolve(value) : path.resolve(getAppRuntimeDir(), value);
+}
+
+function safeAnalyzedFileName(sourceFileName: string, runId: string) {
+  const stem = sourceFileName.replace(/^分析-/u, "").replace(/^pending-analysis[-_]?/i, "").replace(/\.json$/i, "").replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/g, "").slice(0, 110) || "activity-events";
+  return `分析-${stem}-${runId.slice(-8)}.json`;
 }
 
 function csvCell(value: unknown) { return `"${String(value ?? "").replace(/"/g, "\"\"")}"`; }
@@ -96,6 +102,8 @@ export function registerAiAnalysisIpc() {
   let selectedRunId: string | null = null;
   let activeRunId: string | null = null;
   const abortControllers = new Map<string, AbortController>();
+  let activeChatController: AbortController | null = null;
+  let activeDiagnosticController: AbortController | null = null;
 
   const snapshot = (): AiAnalysisSnapshot => ({
     ipcVersion: AI_ANALYSIS_IPC_VERSION, env: publicEnv(environment), rules,
@@ -135,10 +143,13 @@ export function registerAiAnalysisIpc() {
     } catch (error) { return errorPayload(error); }
   });
   ipcMain.handle("ai-analysis:diagnose", async (_event, service: AiServiceKey) => {
+    if (activeDiagnosticController) throw new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Another diagnostic is active.");
+    const diagnosticController = new AbortController();
+    activeDiagnosticController = diagnosticController;
     const startedAt = now();
     const stepNames: Array<[AiDiagnosticStep["id"], string]> = [
-      ["configuration", "Configuration"], ["network", "Network"], ["tls", "TLS"], ["authentication", "Authentication"],
-      ["model", "Model"], ["contract", "API contract"], ["persistence", "Diagnostic persistence"]
+      ["configuration", "Configuration"], ["network", "Network and runtime transport"], ["authentication", "Authentication"],
+      ["model", "Model availability"], ["minimal_request", "Minimal non-secret request"], ["contract", "Response contract"], ["persistence", "Diagnostic persistence"]
     ];
     const steps: AiDiagnosticStep[] = stepNames.map(([id, name]) => ({ id, name, status: "pending", startedAt: null, completedAt: null, durationMs: null, errorCode: null, message: "Pending", requestSummary: {}, responseSummary: {} }));
     const diagnostic: AiDiagnosticRun = { runId: `diag_${crypto.randomUUID()}`, service, status: "running", startedAt, completedAt: null, testedFingerprint: service === "chatgpt" ? (chatgpt.getStatus().runtimeSha256 ?? "") : settingsAndSecret(service).settings.configFingerprint, steps, folderPath: null, copySummary: "" };
@@ -153,9 +164,9 @@ export function registerAiAnalysisIpc() {
       }
       const { settings, secret } = settingsAndSecret(service);
       if (!environment.found || !environment.supported) throw new AiAnalysisError(environment.errorCode ?? "ENV_PARSE_ERROR", environment.message);
-      const result = await callAiNexus(settings, secret, "Reply with exactly: DIAGNOSTIC_OK");
+      const result = await callAiNexus(settings, secret, "Reply with exactly: DIAGNOSTIC_OK", diagnosticController.signal);
       const completedAt = now();
-      diagnostic.steps = steps.map((step) => ({ ...step, status: step.id === "tls" && !settings.endpoint.startsWith("https:") ? "skipped" : "passed", startedAt, completedAt, durationMs: result.elapsedMs, message: "Passed", requestSummary: { endpoint: settings.endpoint, model: settings.model, authorization: "[masked]" }, responseSummary: result.sanitizedResponse }));
+      diagnostic.steps = steps.map((step) => ({ ...step, status: step.id === "network" && !settings.endpoint.startsWith("https:") ? "skipped" : "passed", startedAt, completedAt, durationMs: result.elapsedMs, message: "Passed", requestSummary: { endpoint: settings.endpoint, model: settings.model, authorization: "[masked]" }, responseSummary: result.sanitizedResponse }));
       diagnostic.status = "passed"; diagnostic.completedAt = completedAt; diagnostic.folderPath = folder;
       diagnostic.copySummary = `Service: ${service}\nStatus: passed\nModel: ${settings.model}\nAuthorization: [masked]\nRequest ID: ${result.requestId ?? "unavailable"}`;
     } catch (error) {
@@ -172,28 +183,41 @@ export function registerAiAnalysisIpc() {
     atomicExport(path.join(folder, "request-sanitized.json"), JSON.stringify({ service, authorization: "[masked]", fingerprint: diagnostic.testedFingerprint }, null, 2));
     atomicExport(path.join(folder, "response-sanitized.json"), JSON.stringify({ status: diagnostic.status, steps: diagnostic.steps.map((step) => step.responseSummary) }, null, 2));
     atomicExport(path.join(folder, "environment.txt"), `ENV_FORMAT_VERSION=${environment.formatVersion ?? "missing"}\nSecret=[masked]\n`);
+    if (activeDiagnosticController === diagnosticController) activeDiagnosticController = null;
     return diagnostic;
   });
+  ipcMain.handle("ai-analysis:cancel-diagnostic", async () => { if (!activeDiagnosticController) return { ok: false, message: "No diagnostic is active." }; activeDiagnosticController.abort(); return { ok: true }; });
   ipcMain.handle("ai-analysis:chat", async (_event, payload: { service: AiServiceKey; sessionId: string; messages: Array<{ role: "user" | "assistant"; text: string }> }) => {
+    if (activeChatController) return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Another test conversation request is active."));
+    const chatController = new AbortController();
+    activeChatController = chatController;
     try {
       const prompt = payload.messages.slice(-12).map((item) => `${item.role.toUpperCase()}: ${item.text}`).join("\n") + "\nASSISTANT:";
       if (payload.service === "chatgpt") {
-        const result = await chatgpt.runAnalysis({ prompt });
-        return { ok: true, message: { id: crypto.randomUUID(), sessionId: payload.sessionId, role: "assistant", service: payload.service, provider: "chatgpt_codex", model: result.model, createdAt: now(), elapsedMs: result.elapsedMs, usage: { ...result.usage, availability: "actual", estimatedInputTokens: null }, text: result.text } };
+        const result = await chatgpt.runAnalysis({ prompt }, chatController.signal);
+        const traceFolderPath = ensureDir(path.join(getAppDataDir(), "ai-analysis", "diagnostics", "manual-chat", payload.sessionId, crypto.randomUUID()));
+        atomicExport(path.join(traceFolderPath, "request-sanitized.json"), JSON.stringify({ service: payload.service, messages: payload.messages, authorization: "[masked]" }, null, 2));
+        atomicExport(path.join(traceFolderPath, "response-sanitized.json"), JSON.stringify({ model: result.model, text: result.text, usage: result.usage }, null, 2));
+        return { ok: true, message: { id: crypto.randomUUID(), sessionId: payload.sessionId, role: "assistant", service: payload.service, provider: "chatgpt_codex", model: result.model, createdAt: now(), elapsedMs: result.elapsedMs, usage: { ...result.usage, availability: "actual", estimatedInputTokens: null }, text: result.text, traceFolderPath } };
       }
-      const { settings, secret } = settingsAndSecret(payload.service); const result = await callAiNexus(settings, secret, prompt);
-      return { ok: true, message: { id: crypto.randomUUID(), sessionId: payload.sessionId, role: "assistant", service: payload.service, provider: "ai_nexus", model: settings.model, createdAt: now(), elapsedMs: result.elapsedMs, usage: result.usage, text: result.text } };
+      const { settings, secret } = settingsAndSecret(payload.service); const result = await callAiNexus(settings, secret, prompt, chatController.signal);
+      const traceFolderPath = ensureDir(path.join(getAppDataDir(), "ai-analysis", "diagnostics", "manual-chat", payload.sessionId, crypto.randomUUID()));
+      atomicExport(path.join(traceFolderPath, "request-sanitized.json"), JSON.stringify({ service: payload.service, messages: payload.messages, endpoint: settings.endpoint, model: settings.model, authorization: "[masked]" }, null, 2));
+      atomicExport(path.join(traceFolderPath, "response-sanitized.json"), JSON.stringify({ model: settings.model, text: result.text, usage: result.usage, requestId: result.requestId }, null, 2));
+      return { ok: true, message: { id: crypto.randomUUID(), sessionId: payload.sessionId, role: "assistant", service: payload.service, provider: "ai_nexus", model: settings.model, createdAt: now(), elapsedMs: result.elapsedMs, usage: result.usage, text: result.text, traceFolderPath } };
     } catch (error) { return errorPayload(error); }
+    finally { if (activeChatController === chatController) activeChatController = null; }
   });
+  ipcMain.handle("ai-analysis:cancel-chat", async () => { if (!activeChatController) return { ok: false, message: "No test conversation request is active." }; activeChatController.abort(); return { ok: true }; });
   ipcMain.handle("ai-analysis:choose-rules", async () => {
     const choice = await dialog.showOpenDialog({ title: "Select AI analysis rules folder", properties: ["openDirectory"] });
     if (choice.canceled || !choice.filePaths[0]) return { canceled: true, snapshot: snapshot() };
     try { rules = loadRulesSnapshot(choice.filePaths[0], [choice.filePaths[0], getAppRuntimeDir()]); return { canceled: false, snapshot: snapshot() }; }
     catch (error) { return { canceled: false, ...errorPayload(error), snapshot: snapshot() }; }
   });
-  ipcMain.handle("ai-analysis:load-rules", async (_event, folderPath?: string) => {
+  ipcMain.handle("ai-analysis:load-rules", async () => {
     try {
-      const configured = folderPath || environment.values.AI_ANALYSIS_RULES_DIR;
+      const configured = rules?.rulesDirectoryPath || environment.values.AI_ANALYSIS_RULES_DIR;
       if (!configured) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", "AI_ANALYSIS_RULES_DIR is not configured.");
       const resolved = resolveConfiguredPath(configured, "");
       rules = loadRulesSnapshot(resolved, [resolved, getAppRuntimeDir()]);
@@ -211,26 +235,87 @@ export function registerAiAnalysisIpc() {
       return { canceled: false, snapshot: snapshot() };
     } catch (error) { return { canceled: false, ...errorPayload(error), snapshot: snapshot() }; }
   });
+  ipcMain.handle("ai-analysis:verify-pending", async (_event, datasetId: string) => {
+    try {
+      const current = pendingDatasets.find((item) => item.datasetId === datasetId);
+      if (!current?.sourceFilePath) throw new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Pending dataset source path is unavailable.");
+      const refreshed = loadPendingDataset(current.sourceFilePath);
+      const index = pendingDatasets.indexOf(current);
+      pendingDatasets.splice(index, 1, refreshed);
+      selectedPendingDatasetId = refreshed.datasetId;
+      return { ok: true, snapshot: snapshot() };
+    } catch (error) { return { ...errorPayload(error), snapshot: snapshot() }; }
+  });
+  ipcMain.handle("ai-analysis:select-pending", async (_event, datasetId: string) => {
+    if (!pendingDatasets.some((item) => item.datasetId === datasetId)) return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Pending dataset was not found."));
+    selectedPendingDatasetId = datasetId;
+    return { ok: true, snapshot: snapshot() };
+  });
+  ipcMain.handle("ai-analysis:choose-analyzed", async () => {
+    const choice = await dialog.showOpenDialog({ title: "Open analyzed Activity Events JSON", properties: ["openFile"], filters: [{ name: "JSON", extensions: ["json"] }] });
+    if (choice.canceled || !choice.filePaths[0]) return { canceled: true, snapshot: snapshot() };
+    try {
+      const filePath = fs.realpathSync.native(path.resolve(choice.filePaths[0]));
+      const stat = fs.statSync(filePath);
+      if (stat.size > 128 * 1024 * 1024) throw new AiAnalysisError("INPUT_TOO_LARGE", "Analyzed dataset exceeds 128 MiB.");
+      const raw = fs.readFileSync(filePath, "utf8");
+      const document = JSON.parse(raw) as { schemaName?: string; schemaVersion?: string; fileType?: string; run?: AiAnalysisRun };
+      if (document.schemaName !== "jira-activity-analyzer.analyzed-analysis" || document.schemaVersion !== AI_ANALYZED_FILE_SCHEMA_VERSION || document.fileType !== "ANALYZED" || !document.run || document.run.status !== "completed" || document.run.results.length !== document.run.selectedDiffIds.length) {
+        throw new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Only completed analyzed Activity Events datasets are supported.");
+      }
+      const imported = structuredClone(document.run);
+      imported.analyzedFilePath = filePath;
+      imported.analyzedFileName = path.basename(filePath);
+      imported.analyzedFileSizeBytes = stat.size;
+      imported.analyzedFileSha256 = sha256Text(raw);
+      imported.importedFromFile = true;
+      const existing = runs.findIndex((item) => item.runId === imported.runId);
+      if (existing >= 0) runs.splice(existing, 1);
+      runs.unshift(imported);
+      selectedRunId = imported.runId;
+      return { canceled: false, ok: true, snapshot: snapshot() };
+    } catch (error) { return { canceled: false, ...errorPayload(error), snapshot: snapshot() }; }
+  });
+  ipcMain.handle("ai-analysis:select-run", async (_event, runId: string) => {
+    if (!runs.some((item) => item.runId === runId)) return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Analyzed run was not found."));
+    selectedRunId = runId;
+    return { ok: true, snapshot: snapshot() };
+  });
   ipcMain.handle("ai-analysis:start", async (event, payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey }) => {
     if (activeRunId) return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Another analysis run is active."));
-    const dataset = pendingDatasets.find((item) => item.datasetId === payload.datasetId);
+    let dataset = pendingDatasets.find((item) => item.datasetId === payload.datasetId);
     if (!dataset || !rules?.valid || !payload.selectedDiffIds.length) return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "A verified dataset, rules snapshot, and at least one diff are required."));
-    if (payload.selectedDiffIds.some((id) => !dataset.diffs.some((diff) => diff.sourceDiffId === id))) return errorPayload(new AiAnalysisError("SOURCE_MISMATCH", "Selected diff does not belong to the selected dataset."));
+    const selectedDataset = dataset;
+    if (payload.selectedDiffIds.some((id) => !selectedDataset.diffs.some((diff) => diff.sourceDiffId === id))) return errorPayload(new AiAnalysisError("SOURCE_MISMATCH", "Selected diff does not belong to the selected dataset."));
+    try {
+      if (!rules.rulesDirectoryPath || !dataset.sourceFilePath) throw new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Rules and dataset source paths are required for preflight.");
+      const refreshedRules = loadRulesSnapshot(rules.rulesDirectoryPath, [rules.rulesDirectoryPath, getAppRuntimeDir()]);
+      const refreshedDataset = loadPendingDataset(dataset.sourceFilePath);
+      if (!refreshedRules.valid) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", refreshedRules.errors.join(" ") || "Rules validation failed.");
+      if (refreshedDataset.sourceFileSha256 !== dataset.sourceFileSha256) throw new AiAnalysisError("SOURCE_MISMATCH", "Pending Dataset changed after selection; import it again.");
+      rules = refreshedRules; dataset = refreshedDataset;
+    } catch (error) { return errorPayload(error); }
     const service = payload.service ?? (payload.mode === "CHATGPT" ? "chatgpt" : "ai_nexus");
     const provider = payload.mode === "OFFLINE_RULE" ? "offline_rule" : payload.mode === "CHATGPT" ? "chatgpt_codex" : "ai_nexus";
+    if (payload.mode === "CHATGPT" && chatgpt.getStatus().state !== "connected") return errorPayload(new AiAnalysisError("CHATGPT_SIGN_IN_REQUIRED", "ChatGPT must be connected before analysis."));
+    if (payload.mode === "AI_NEXUS") { const current = settingsAndSecret("ai_nexus").settings; if (current.connectionStatus !== "passed" || current.testedFingerprint !== current.configFingerprint) return errorPayload(new AiAnalysisError("AI_NOT_CONFIGURED", "AI Nexus settings must pass connection testing before analysis.")); }
+    const dbPath = resolveConfiguredPath(environment.values.AI_ANALYSIS_DB_PATH, path.join(getAppDataDir(), "ai-analysis", "ai-analysis.sqlite3"));
+    try { initializeAiDatabase(dbPath); } catch (error) { return errorPayload(new AiAnalysisError("AI_DB_MIGRATION_FAILED", error instanceof Error ? error.message : String(error))); }
     const model = payload.mode === "OFFLINE_RULE" ? rules.classificationEngineVersion : payload.mode === "CHATGPT" ? (chatgpt.getStatus().selectedModel ?? "auto") : settingsAndSecret(service).settings.model;
     const runId = `analysis_${crypto.randomUUID()}`;
     const startedAt = now();
     const run: AiAnalysisRun = {
       runId, revision: runs.filter((item) => item.sourceDatasetId === dataset.datasetId).length + 1, status: "running", analyzerMode: payload.mode,
-      sourceDatasetId: dataset.datasetId, sourceFileName: dataset.fileName, sourceFileSha256: dataset.sourceFileSha256,
+      sourceDatasetId: dataset.datasetId, sourceFileName: dataset.fileName, sourceFilePath: dataset.sourceFilePath, sourceFileSha256: dataset.sourceFileSha256,
       sourceDatabaseId: dataset.sourceDatabaseId, jiraServerFingerprint: dataset.jiraServerFingerprint, selectedDiffIds: [...payload.selectedDiffIds],
       provider, model, apiContract: payload.mode === "OFFLINE_RULE" ? "offline" : payload.mode === "CHATGPT" ? "responses" : settingsAndSecret(service).settings.apiContract,
       configFingerprint: payload.mode === "OFFLINE_RULE" ? null : payload.mode === "CHATGPT" ? chatgpt.getStatus().runtimeSha256 : settingsAndSecret(service).settings.configFingerprint,
       rules: structuredClone(rules), startedAt, completedAt: null,
       progress: { runId, status: "running", totalBatches: payload.mode === "OFFLINE_RULE" ? 1 : payload.selectedDiffIds.length, completedBatches: 0, failedBatches: 0, currentBatch: 1, totalDiffs: payload.selectedDiffIds.length, completedDiffs: 0, requestCount: 0, retryCount: 0, elapsedMs: 0, usage: emptyTokenUsage(payload.mode === "OFFLINE_RULE" ? "not_applicable" : "unavailable"), message: "Analysis started.", errorCode: null },
-      results: [], analyzedFileName: `analyzed-${dataset.fileName.replace(/^pending-analysis[-_]?/i, "").replace(/\.json$/i, "")}-${Date.now()}.json`, analyzedFilePath: null, databasePath: null
+      results: [], analyzedFileName: safeAnalyzedFileName(dataset.fileName, runId), plannedAnalyzedFilePath: null, analyzedFilePath: null, analyzedFileSizeBytes: null, analyzedFileSha256: null, databasePath: null
     };
+    const outputDir = ensureDir(path.join(getExportsDir(), "ai-analysis"));
+    run.plannedAnalyzedFilePath = path.join(outputDir, run.analyzedFileName);
     runs.unshift(run); activeRunId = runId; selectedRunId = runId;
     const controller = new AbortController(); abortControllers.set(runId, controller); notify(event);
     try {
@@ -262,14 +347,18 @@ export function registerAiAnalysisIpc() {
             return { skillId: skill.id, skillName: skill.name, group: skill.group, score: typeof item.score === "number" ? item.score : null, confidence: typeof item.confidence === "number" ? item.confidence : null, positiveEvidenceRefs: [diff.evidenceId], negativeEvidenceRefs: [], matchedRuleIds: [], reason: item.reason ?? "Provider candidate", status: "PENDING_REVIEW" as const };
           });
           run.results.push({ resultId: `result_${crypto.randomUUID()}`, sourceDiffId: diff.sourceDiffId, sourceContentHash: diff.sourceContentHash, evidenceRefs: [diff.evidenceId], candidates, status: candidates.length ? "PENDING_REVIEW" : "NEEDS_REVIEW", analyzerVersion: model, requestTraceId: response.requestId, usage: { ...response.usage, availability: "actual", estimatedInputTokens: null }, rawResultAvailable: true, reviewNote: "", reviewedAt: null });
-          run.progress.completedDiffs = index + 1; run.progress.completedBatches = index + 1; run.progress.elapsedMs = Date.now() - Date.parse(startedAt); notify(event);
+          run.progress.completedDiffs = index + 1; run.progress.completedBatches = index + 1; run.progress.elapsedMs = Date.now() - Date.parse(startedAt);
+          const usages = run.results.map((item) => item.usage);
+          const total = (key: "inputTokens" | "cachedInputTokens" | "outputTokens" | "reasoningTokens" | "totalTokens") => usages.some((usage) => usage[key] !== null) ? usages.reduce((sum, usage) => sum + (usage[key] ?? 0), 0) : null;
+          run.progress.usage = { inputTokens: total("inputTokens"), cachedInputTokens: total("cachedInputTokens"), outputTokens: total("outputTokens"), reasoningTokens: total("reasoningTokens"), totalTokens: total("totalTokens"), availability: usages.some((usage) => usage.availability === "actual") ? "actual" : "unavailable", estimatedInputTokens: null };
+          notify(event);
         }
       }
       run.status = "completed"; run.completedAt = now(); run.progress.status = "completed"; run.progress.completedBatches = 1; run.progress.completedDiffs = run.results.length; run.progress.elapsedMs = Date.now() - Date.parse(startedAt); run.progress.message = "Analysis completed. Results require human review.";
-      const dbPath = resolveConfiguredPath(environment.values.AI_ANALYSIS_DB_PATH, path.join(getAppDataDir(), "ai-analysis", "ai-analysis.sqlite3"));
-      initializeAiDatabase(dbPath); persistCompletedRun(dbPath, dataset, run); run.databasePath = dbPath;
-      const outputDir = ensureDir(path.join(getExportsDir(), "ai-analysis"));
-      const exported = atomicExport(path.join(outputDir, run.analyzedFileName), JSON.stringify(analyzedDocument(run), null, 2)); run.analyzedFilePath = exported.filePath;
+      const exported = atomicExport(run.plannedAnalyzedFilePath!, JSON.stringify(analyzedDocument(run), null, 2));
+      run.analyzedFilePath = exported.filePath; run.analyzedFileSizeBytes = exported.sizeBytes; run.analyzedFileSha256 = exported.sha256;
+      try { initializeAiDatabase(dbPath); persistCompletedRun(dbPath, dataset, run); run.databasePath = dbPath; }
+      catch (error) { try { fs.unlinkSync(exported.filePath); } catch {} run.analyzedFilePath = null; run.analyzedFileSizeBytes = null; run.analyzedFileSha256 = null; throw error; }
     } catch (error) {
       const value = asAnalysisError(error);
       run.status = value.code === "RUN_CANCELLED" ? "cancelled" : "failed"; run.completedAt = now(); run.progress.status = run.status; run.progress.errorCode = value.code; run.progress.message = value.message; run.progress.elapsedMs = Date.now() - Date.parse(startedAt);

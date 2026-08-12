@@ -39,7 +39,7 @@ async function run() {
     assert.throws(() => saveAiSettings(envPath, { service: "ai_nexus", provider: "x", endpoint: "http://127.0.0.1/v1", model: "x", apiContract: "responses", authType: "bearer", organization: "", project: "", contextWindow: null, timeoutMs: 1000, maxOutputTokens: null, maxRetries: 0, preserveSecret: true, expectedEnvSha256: "stale", expectedEnvMtimeMs: environment.mtimeMs }), /changed after it was loaded/);
 
     const rulesDir = path.join(root, "rules"); fs.mkdirSync(rulesDir);
-    fs.writeFileSync(path.join(rulesDir, "Skill_Analysis_Rule_Set_Manifest.md"), "# Manifest\nSchema Version: 0.1.0\nRule Set ID: SYNTHETIC-RULESET-1\n");
+    fs.writeFileSync(path.join(rulesDir, "Skill_Analysis_Rule_Set_Manifest.md"), "# Manifest\n- Manifest Schema Version: `0.1.0`\n- Rule Set ID: `SYNTHETIC-RULESET-1`\n- skill_catalog_file: `Skill_Catalog_v0.3.0.md`\n- common_rules_file: `Skill_Classification_Common_Rules_v1.1.0.md`\n");
     fs.writeFileSync(path.join(rulesDir, "Skill_Catalog_v0.3.0.md"), "# Catalog\nVersion: 0.3.0\n| Skill ID | Skill Name | Group | Detail |\n|---|---|---|---|\n| DEV_TYPESCRIPT | TypeScript Development | Engineering | Implements typed TypeScript services |\n| DOC_TECHNICAL | Technical Documentation | Documentation | Writes technical documentation |\n");
     fs.writeFileSync(path.join(rulesDir, "Skill_Classification_Common_Rules_v1.1.0.md"), "# Rules\nVersion: 1.1.0\n## Positive evidence\n- Match field-aware tokens.\n## Negative evidence\n- Never classify from one keyword.\n");
     const rules = loadRulesSnapshot(rulesDir, [root]);
