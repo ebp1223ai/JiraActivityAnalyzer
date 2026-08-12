@@ -90,9 +90,17 @@ export class ChatGptService {
       return this.getStatus();
     }
     const modelResponse = record(await client.request("model/list", { includeHidden: false, limit: 100 }));
-    const models = (Array.isArray(modelResponse.data) ? modelResponse.data : []).map((raw) => record(raw)).filter((item) => !item.hidden).map((item): ChatGptModel => ({
-      id: String(item.model ?? item.id ?? ""), displayName: String(item.displayName ?? item.model ?? "Unknown"), description: String(item.description ?? ""), isDefault: item.isDefault === true, defaultReasoningEffort: typeof item.defaultReasoningEffort === "string" ? item.defaultReasoningEffort : null
-    })).filter((item) => item.id);
+    let effectiveConfig: JsonObject = {};
+    try { effectiveConfig = record(record(await client.request("config/read", { includeLayers: false, cwd: getAppDataDir() })).config); }
+    catch (error) { this.options.diagnostics?.(`[chatgpt-config] ${sanitizedError(error)}`); }
+    const configuredModel = typeof effectiveConfig.model === "string" ? effectiveConfig.model : null;
+    const configuredContextWindow = number(effectiveConfig.model_context_window);
+    const models = (Array.isArray(modelResponse.data) ? modelResponse.data : []).map((raw) => record(raw)).filter((item) => !item.hidden).map((item): ChatGptModel => {
+      const id = String(item.model ?? item.id ?? "");
+      const isDefault = item.isDefault === true;
+      const configApplies = configuredModel ? configuredModel === id : isDefault;
+      return { id, displayName: String(item.displayName ?? item.model ?? "Unknown"), description: String(item.description ?? ""), isDefault, defaultReasoningEffort: typeof item.defaultReasoningEffort === "string" ? item.defaultReasoningEffort : null, contextWindow: configApplies ? configuredContextWindow : null };
+    }).filter((item) => item.id);
     let quota: JsonObject = {};
     try { quota = record(await client.request("account/rateLimits/read")); } catch (error) { this.options.diagnostics?.(`[chatgpt-quota] ${sanitizedError(error)}`); }
     const limits = record(quota.rateLimits);
@@ -148,7 +156,7 @@ export class ChatGptService {
     const thread = record(threadResponse.thread);
     const threadId = String(thread.id ?? "");
     if (!threadId) throw new Error("CHATGPT_THREAD_ID_MISSING");
-    const runId = `chatgpt_${crypto.randomUUID()}`;
+    const runId = request.runId ?? `chatgpt_${crypto.randomUUID()}`;
     const startedAt = Date.now();
     let activeTurn!: ActiveTurn;
     const completion = new Promise<ChatGptAnalysisResponse>((resolve, reject) => {
@@ -177,7 +185,9 @@ export class ChatGptService {
     const active = this.activeTurn;
     if (!active || active.runId !== runId) return false;
     if (active.turnId) await this.requireClient().request("turn/interrupt", { threadId: active.threadId, turnId: active.turnId });
-    this.rejectActive("RUN_CANCELLED", "ChatGPT analysis was cancelled.", false, true);
+    setImmediate(() => {
+      if (this.activeTurn?.runId === runId) this.rejectActive("RUN_CANCELLED", "ChatGPT analysis was cancelled.", false, true);
+    });
     return true;
   }
 
@@ -225,7 +235,7 @@ export class ChatGptService {
       const turn = record(params.turn);
       if (String(turn.id) !== active.turnId) return;
       if (turn.status !== "completed") { this.rejectActive(turn.status === "interrupted" ? "RUN_CANCELLED" : "CHATGPT_TURN_FAILED", redactChatGptText(record(turn.error).message ?? turn.status), false, turn.status === "interrupted"); return; }
-      const result: ChatGptAnalysisResponse = { runId: active.runId, text: active.text, model: this.status.selectedModel ?? "auto", runtimeVersion: CODEX_RUNTIME_VERSION, elapsedMs: Date.now() - active.startedAt, requestId: active.turnId, usage: active.usage };
+      const result: ChatGptAnalysisResponse = { runId: active.runId, text: active.text, model: this.status.selectedModel ?? "auto", runtimeVersion: CODEX_RUNTIME_VERSION, elapsedMs: Date.now() - active.startedAt, requestId: active.turnId, threadId: active.threadId, turnId: active.turnId, usage: active.usage };
       this.activeTurn = null; active.resolve(result); this.emitRun({ type: "completed", runId: result.runId, text: result.text, elapsedMs: result.elapsedMs });
       void this.client?.request("thread/delete", { threadId: active.threadId }).catch(() => undefined);
     }

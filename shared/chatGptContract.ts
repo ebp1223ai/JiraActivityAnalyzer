@@ -18,6 +18,7 @@ export type ChatGptModel = {
   description: string;
   isDefault: boolean;
   defaultReasoningEffort: string | null;
+  contextWindow: number | null;
 };
 
 export type ChatGptRateLimitWindow = {
@@ -52,6 +53,7 @@ export type ChatGptRunEvent =
   | { type: "failed"; runId: string; errorCode: string; message: string; outcomeUnknown: boolean };
 
 export type ChatGptAnalysisRequest = {
+  runId?: string;
   prompt: string;
   model?: string | null;
   outputSchema?: Record<string, unknown> | null;
@@ -64,5 +66,7 @@ export type ChatGptAnalysisResponse = {
   runtimeVersion: typeof CODEX_RUNTIME_VERSION;
   elapsedMs: number;
   requestId: string | null;
+  threadId: string;
+  turnId: string;
   usage: { inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null };
 };

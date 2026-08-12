@@ -5,6 +5,7 @@ import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from "
 import {
   AI_ANALYSIS_IPC_VERSION,
   AI_ANALYZED_FILE_SCHEMA_VERSION,
+  AI_ANALYZED_LEGACY_FILE_SCHEMA_VERSIONS,
   AiAnalysisError,
   emptyTokenUsage,
   type AiAnalysisRun,
@@ -34,7 +35,22 @@ import {
 } from "./aiAnalysisCore.js";
 import { ensureDir, getAppDataDir, getAppRuntimeDir, getExportsDir } from "./appPaths.js";
 import { getChatGptService } from "./chatGptService.js";
+import {
+  adaptLegacyAnalyzedRun,
+  buildCompactPayload,
+  buildDistributionDiagnostics,
+  buildSingleRunPrompt,
+  goldenHtmlForRun,
+  parseSingleRunResponse,
+  preflightSingleRunCapacity,
+  SINGLE_RUN_PROMPT_VERSION,
+  stageVisibleProviderResponse,
+  validateGoldenHtml
+} from "./aiAnalysisSingleRunV0311.js";
 
+declare const __MAIN_APP_VERSION__: string;
+declare const __MAIN_BUILD_TIME__: string;
+declare const __MAIN_GIT_COMMIT__: string;
 type Environment = ReturnType<typeof loadAiEnvironment>;
 const handlers = [
   "ai-analysis:snapshot", "ai-analysis:reload-env", "ai-analysis:save-settings", "ai-analysis:test-connection",
@@ -82,12 +98,6 @@ function csvForRun(run: AiAnalysisRun) {
   return "\ufeff" + [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
 }
 
-function htmlForRun(run: AiAnalysisRun) {
-  const rows = run.results.map((result) => `<tr><td>${escapeHtml(result.sourceDiffId)}</td><td>${escapeHtml(result.status)}</td><td>${result.candidates.map((candidate) => `${escapeHtml(candidate.skillId)} (${candidate.score ?? "-"})`).join("<br>") || "-"}</td></tr>`).join("");
-  return `<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>AI Analysis ${escapeHtml(run.runId)}</title><style>body{font:14px system-ui;margin:32px;color:#172033}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd5e2;padding:8px;text-align:left}th{background:#edf3fa}code{word-break:break-all}</style><h1>AI Analysis Report</h1><p>Run: <code>${escapeHtml(run.runId)}</code></p><p>Mode: ${escapeHtml(run.analyzerMode)} | Status: ${escapeHtml(run.status)}</p><table><thead><tr><th>Source Diff</th><th>Status</th><th>Skill Candidates</th></tr></thead><tbody>${rows}</tbody></table></html>`;
-}
-function escapeHtml(value: unknown) { return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[char]!); }
-
 export function registerAiAnalysisIpc() {
   handlers.forEach((channel) => ipcMain.removeHandler(channel));
   const envPath = path.join(getAppRuntimeDir(), ".env");
@@ -110,6 +120,33 @@ export function registerAiAnalysisIpc() {
     pendingDatasets, selectedPendingDatasetId, runs, selectedRunId, activeRunId, chatgpt: chatgpt.getStatus()
   });
   const notify = (event: IpcMainInvokeEvent) => event.sender.send("ai-analysis:snapshot-changed", snapshot());
+  chatgpt.subscribeRun((providerEvent) => {
+    const run = runs.find((item) => item.runId === providerEvent.runId);
+    if (!run || activeRunId !== run.runId || run.status !== "running") return;
+    if (providerEvent.type === "started") {
+      run.progress.stage = "starting_turn";
+      run.progress.threadCount = 1;
+      run.progress.message = "Dedicated thread created; starting the single analysis turn.";
+    } else if (providerEvent.type === "delta") {
+      run.progress.stage = "receiving_response";
+      run.progress.turnCount = 1;
+      run.progress.message = "Receiving the single structured provider response.";
+    } else if (providerEvent.type === "usage") {
+      run.progress.usage = {
+        inputTokens: providerEvent.inputTokens,
+        cachedInputTokens: providerEvent.cachedInputTokens,
+        outputTokens: providerEvent.outputTokens,
+        reasoningTokens: providerEvent.reasoningTokens,
+        totalTokens: providerEvent.totalTokens,
+        availability: "actual",
+        estimatedInputTokens: run.progress.usage.estimatedInputTokens
+      };
+    } else if (providerEvent.type === "completed") {
+      run.progress.stage = "validating_response";
+      run.progress.message = "Provider turn completed; validating identity conservation and evidence.";
+    }
+    BrowserWindow.getAllWindows().forEach((window) => window.webContents.send("ai-analysis:snapshot-changed", snapshot()));
+  });
   const settingsAndSecret = (service: AiServiceKey) => {
     if (service !== "ai_nexus") throw new AiAnalysisError("AI_NOT_CONFIGURED", "ChatGPT credentials and settings are managed by Codex App Server.");
     return { settings: environment.aiNexus, secret: environment.values.AI_NEXUS_TOKEN ?? "" };
@@ -260,10 +297,10 @@ export function registerAiAnalysisIpc() {
       if (stat.size > 128 * 1024 * 1024) throw new AiAnalysisError("INPUT_TOO_LARGE", "Analyzed dataset exceeds 128 MiB.");
       const raw = fs.readFileSync(filePath, "utf8");
       const document = JSON.parse(raw) as { schemaName?: string; schemaVersion?: string; fileType?: string; run?: AiAnalysisRun };
-      if (document.schemaName !== "jira-activity-analyzer.analyzed-analysis" || document.schemaVersion !== AI_ANALYZED_FILE_SCHEMA_VERSION || document.fileType !== "ANALYZED" || !document.run || document.run.status !== "completed" || document.run.results.length !== document.run.selectedDiffIds.length) {
+      if (document.schemaName !== "jira-activity-analyzer.analyzed-analysis" || !document.schemaVersion || (document.schemaVersion !== AI_ANALYZED_FILE_SCHEMA_VERSION && !(AI_ANALYZED_LEGACY_FILE_SCHEMA_VERSIONS as readonly string[]).includes(document.schemaVersion)) || document.fileType !== "ANALYZED" || !document.run || document.run.status !== "completed" || document.run.results.length !== document.run.selectedDiffIds.length) {
         throw new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Only completed analyzed Activity Events datasets are supported.");
       }
-      const imported = structuredClone(document.run);
+      const imported = document.schemaVersion === AI_ANALYZED_FILE_SCHEMA_VERSION ? structuredClone(document.run) : adaptLegacyAnalyzedRun(document.run, document.schemaVersion);
       imported.analyzedFilePath = filePath;
       imported.analyzedFileName = path.basename(filePath);
       imported.analyzedFileSizeBytes = stat.size;
@@ -310,8 +347,8 @@ export function registerAiAnalysisIpc() {
       sourceDatabaseId: dataset.sourceDatabaseId, jiraServerFingerprint: dataset.jiraServerFingerprint, selectedDiffIds: [...payload.selectedDiffIds],
       provider, model, apiContract: payload.mode === "OFFLINE_RULE" ? "offline" : payload.mode === "CHATGPT" ? "responses" : settingsAndSecret(service).settings.apiContract,
       configFingerprint: payload.mode === "OFFLINE_RULE" ? null : payload.mode === "CHATGPT" ? chatgpt.getStatus().runtimeSha256 : settingsAndSecret(service).settings.configFingerprint,
-      rules: structuredClone(rules), startedAt, completedAt: null,
-      progress: { runId, status: "running", totalBatches: payload.mode === "OFFLINE_RULE" ? 1 : payload.selectedDiffIds.length, completedBatches: 0, failedBatches: 0, currentBatch: 1, totalDiffs: payload.selectedDiffIds.length, completedDiffs: 0, requestCount: 0, retryCount: 0, elapsedMs: 0, usage: emptyTokenUsage(payload.mode === "OFFLINE_RULE" ? "not_applicable" : "unavailable"), message: "Analysis started.", errorCode: null },
+      rules: structuredClone(rules), startedAt, completedAt: null, appVersion: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, packagedSourceCommit: __MAIN_GIT_COMMIT__,
+      progress: { runId, status: "running", stage: "validating_source", totalBatches: payload.mode === "AI_NEXUS" ? payload.selectedDiffIds.length : 1, completedBatches: 0, failedBatches: 0, currentBatch: 1, totalDiffs: payload.selectedDiffIds.length, completedDiffs: 0, requestCount: 0, retryCount: 0, threadCount: 0, turnCount: 0, mainPayloadCount: 0, rulesTransmissionCount: 0, payloadRecordCount: 0, resultRecordCount: 0, elapsedMs: 0, usage: emptyTokenUsage(payload.mode === "OFFLINE_RULE" ? "not_applicable" : "unavailable"), message: "Analysis started.", errorCode: null },
       results: [], analyzedFileName: safeAnalyzedFileName(dataset.fileName, runId), plannedAnalyzedFilePath: null, analyzedFilePath: null, analyzedFileSizeBytes: null, analyzedFileSha256: null, databasePath: null
     };
     const outputDir = ensureDir(path.join(getExportsDir(), "ai-analysis"));
@@ -319,49 +356,122 @@ export function registerAiAnalysisIpc() {
     runs.unshift(run); activeRunId = runId; selectedRunId = runId;
     const controller = new AbortController(); abortControllers.set(runId, controller); notify(event);
     try {
-      if (payload.mode === "OFFLINE_RULE") run.results = classifyOffline(dataset, payload.selectedDiffIds, run.rules);
-      else {
-        const settings = service === "ai_nexus" ? settingsAndSecret(service).settings : null;
-        const secret = service === "ai_nexus" ? settingsAndSecret(service).secret : "";
+      if (payload.mode === "OFFLINE_RULE") {
+        run.progress.stage = "validating_response";
+        run.results = classifyOffline(dataset, payload.selectedDiffIds, run.rules);
+        run.progress.mainPayloadCount = 1;
+        run.progress.payloadRecordCount = payload.selectedDiffIds.length;
+        run.progress.resultRecordCount = run.results.length;
+      } else if (payload.mode === "CHATGPT") {
+        run.progress.stage = "building_payload";
+        run.progress.message = "Building one compact payload for all selected records.";
+        notify(event);
+        const compact = buildCompactPayload(dataset, payload.selectedDiffIds, run.rules);
+        const stagingFolder = ensureDir(path.join(getAppDataDir(), "ai-analysis", "staging", run.runId));
+        const compactArtifact = atomicExport(path.join(stagingFolder, "compact-analysis-payload.json"), compact.json);
+        run.compactPayloadPath = compactArtifact.filePath;
+        run.compactPayloadSha256 = compactArtifact.sha256;
+        run.compactPayloadSizeBytes = compactArtifact.sizeBytes;
+        run.progress.payloadRecordCount = compact.payload.eventCount;
+        run.progress.mainPayloadCount = 1;
+        run.progress.rulesTransmissionCount = 1;
+        const request = buildSingleRunPrompt(compact, run.rules);
+        const selectedModel = chatgpt.getStatus().models.find((item) => item.id === chatgpt.getStatus().selectedModel);
+        run.progress.stage = "preflighting_capacity";
+        const capacity = preflightSingleRunCapacity({
+          promptBytes: request.sizeBytes,
+          compactPayloadBytes: compact.sizeBytes,
+          compactPayloadSha256: compact.sha256,
+          eventCount: compact.payload.eventCount,
+          modelCapacityTokens: selectedModel?.contextWindow ?? null
+        });
+        atomicExport(path.join(stagingFolder, "capacity-preflight.json"), JSON.stringify(capacity, null, 2));
+        run.promptTemplateVersion = SINGLE_RUN_PROMPT_VERSION;
+        run.promptSha256 = request.sha256;
+        run.capacityPreflight = { inputEstimateTokens: capacity.inputEstimateTokens, modelCapacityTokens: capacity.modelCapacityTokens, reservedOutputTokens: capacity.reservedOutputTokens, safetyMarginTokens: capacity.safetyMarginTokens, requiredContextTokens: capacity.requiredContextTokens };
+        if (!capacity.ok) throw new AiAnalysisError("ANALYSIS_INPUT_CONTEXT_TOO_LARGE", capacity.message);
+        run.progress.usage.estimatedInputTokens = capacity.inputEstimateTokens;
+        run.progress.stage = "starting_thread";
+        run.progress.message = "Starting one dedicated read-only ChatGPT thread and one analysis turn.";
+        run.progress.requestCount = 1;
+        notify(event);
+        const response = await chatgpt.runAnalysis({ runId, prompt: request.prompt, model: chatgpt.getStatus().selectedModel, outputSchema: request.outputSchema }, controller.signal);
+        run.threadId = response.threadId;
+        run.providerRuntimeVersion = response.runtimeVersion;
+        run.turnId = response.turnId;
+        run.progress.threadCount = 1;
+        run.progress.turnCount = 1;
+        run.progress.stage = "receiving_response";
+        const usage = { ...response.usage, availability: "actual" as const, estimatedInputTokens: capacity.inputEstimateTokens };
+        run.progress.usage = usage;
+        const raw = stageVisibleProviderResponse(stagingFolder, response.text);
+        run.providerResponseGzipPath = raw.filePath;
+        run.providerResponseSha256 = raw.rawSha256;
+        run.providerResponseGzipSha256 = raw.gzipSha256;
+        run.progress.stage = "validating_response";
+        run.results = parseSingleRunResponse(response.text, compact.payload, run.rules, model, response.requestId, usage);
+        run.progress.resultRecordCount = run.results.length;
+        run.progress.completedDiffs = run.results.length;
+        run.progress.completedBatches = 1;
+        if (run.results.length !== payload.selectedDiffIds.length) throw new AiAnalysisError("AI_RESPONSE_INVALID", "Result record conservation failed.");
+      } else {
+        const settings = settingsAndSecret("ai_nexus").settings;
+        const secret = settingsAndSecret("ai_nexus").secret;
         const selected = dataset.diffs.filter((diff) => payload.selectedDiffIds.includes(diff.sourceDiffId));
         for (let index = 0; index < selected.length; index += 1) {
           if (controller.signal.aborted) throw new AiAnalysisError("RUN_CANCELLED", "Run cancelled.");
           const diff = selected[index];
           run.progress.currentBatch = index + 1;
-          const prompt = `Return one compact JSON object with candidates array. Each candidate: skillId, score 0-100, confidence 0-1, reason. Use only catalog IDs: ${run.rules.catalog.map((item) => item.id).join(",")}. Evidence: ${JSON.stringify(diff)}`;
-          if (settings?.contextWindow && Math.ceil(prompt.length / 4) > settings.contextWindow) throw new AiAnalysisError("INPUT_TOO_LARGE", "A selected diff exceeds the configured context window.");
-          let response = service === "chatgpt"
-            ? await chatgpt.runAnalysis({ prompt, model: chatgpt.getStatus().selectedModel, outputSchema: { type: "object", additionalProperties: false, properties: { candidates: { type: "array", items: { type: "object", additionalProperties: false, properties: { skillId: { type: "string" }, score: { type: "number" }, confidence: { type: "number" }, reason: { type: "string" } }, required: ["skillId", "score", "confidence", "reason"] } } }, required: ["candidates"] } }, controller.signal)
-            : await callAiNexus(settings!, secret, prompt, controller.signal);
+          const prompt = `Return one compact JSON object with candidates array. Each candidate: skillId, score 0-100, confidence 0-1, reason. Use only exact catalog IDs: ${run.rules.catalog.map((item) => item.id).join(",")}. Never choose by group order or _001 fallback. Evidence: ${JSON.stringify(diff)}`;
+          if (settings.contextWindow && Math.ceil(prompt.length / 3) > settings.contextWindow) throw new AiAnalysisError("INPUT_TOO_LARGE", "A selected diff exceeds the configured context window.");
+          const response = await callAiNexus(settings, secret, prompt, controller.signal);
           run.progress.requestCount += 1;
           let parsed: { candidates?: Array<{ skillId?: string; score?: number; confidence?: number; reason?: string }> } = {};
           try { parsed = JSON.parse(response.text.replace(/^```json\s*|\s*```$/g, "")); }
-          catch {
-            if (service !== "chatgpt") throw new AiAnalysisError("AI_RESPONSE_INVALID", "Analyzer returned invalid JSON.");
-            run.progress.retryCount += 1;
-            response = await chatgpt.runAnalysis({ prompt: "Repair this invalid classifier output into the required JSON schema. Do not add evidence or skill IDs. Invalid output: " + response.text, model: chatgpt.getStatus().selectedModel, outputSchema: { type: "object", additionalProperties: false, properties: { candidates: { type: "array", items: { type: "object", additionalProperties: false, properties: { skillId: { type: "string" }, score: { type: "number" }, confidence: { type: "number" }, reason: { type: "string" } }, required: ["skillId", "score", "confidence", "reason"] } } }, required: ["candidates"] } }, controller.signal);
-            try { parsed = JSON.parse(response.text.replace(/^```json\s*|\s*```$/g, "")); } catch { throw new AiAnalysisError("AI_RESPONSE_INVALID", "Analyzer returned invalid JSON after one repair attempt."); }
-          }
+          catch { throw new AiAnalysisError("AI_RESPONSE_INVALID", "AI Nexus returned invalid JSON."); }
           const candidates = (parsed.candidates ?? []).filter((item) => run.rules.catalog.some((skill) => skill.id === item.skillId)).map((item) => {
             const skill = run.rules.catalog.find((value) => value.id === item.skillId)!;
             return { skillId: skill.id, skillName: skill.name, group: skill.group, score: typeof item.score === "number" ? item.score : null, confidence: typeof item.confidence === "number" ? item.confidence : null, positiveEvidenceRefs: [diff.evidenceId], negativeEvidenceRefs: [], matchedRuleIds: [], reason: item.reason ?? "Provider candidate", status: "PENDING_REVIEW" as const };
           });
           run.results.push({ resultId: `result_${crypto.randomUUID()}`, sourceDiffId: diff.sourceDiffId, sourceContentHash: diff.sourceContentHash, evidenceRefs: [diff.evidenceId], candidates, status: candidates.length ? "PENDING_REVIEW" : "NEEDS_REVIEW", analyzerVersion: model, requestTraceId: response.requestId, usage: { ...response.usage, availability: "actual", estimatedInputTokens: null }, rawResultAvailable: true, reviewNote: "", reviewedAt: null });
-          run.progress.completedDiffs = index + 1; run.progress.completedBatches = index + 1; run.progress.elapsedMs = Date.now() - Date.parse(startedAt);
-          const usages = run.results.map((item) => item.usage);
-          const total = (key: "inputTokens" | "cachedInputTokens" | "outputTokens" | "reasoningTokens" | "totalTokens") => usages.some((usage) => usage[key] !== null) ? usages.reduce((sum, usage) => sum + (usage[key] ?? 0), 0) : null;
-          run.progress.usage = { inputTokens: total("inputTokens"), cachedInputTokens: total("cachedInputTokens"), outputTokens: total("outputTokens"), reasoningTokens: total("reasoningTokens"), totalTokens: total("totalTokens"), availability: usages.some((usage) => usage.availability === "actual") ? "actual" : "unavailable", estimatedInputTokens: null };
+          run.progress.completedDiffs = index + 1;
+          run.progress.completedBatches = index + 1;
+          run.progress.elapsedMs = Date.now() - Date.parse(startedAt);
           notify(event);
         }
+        run.progress.mainPayloadCount = selected.length;
+        run.progress.payloadRecordCount = selected.length;
+        run.progress.resultRecordCount = run.results.length;
       }
-      run.status = "completed"; run.completedAt = now(); run.progress.status = "completed"; run.progress.completedBatches = 1; run.progress.completedDiffs = run.results.length; run.progress.elapsedMs = Date.now() - Date.parse(startedAt); run.progress.message = "Analysis completed. Results require human review.";
-      const exported = atomicExport(run.plannedAnalyzedFilePath!, JSON.stringify(analyzedDocument(run), null, 2));
-      run.analyzedFilePath = exported.filePath; run.analyzedFileSizeBytes = exported.sizeBytes; run.analyzedFileSha256 = exported.sha256;
-      try { initializeAiDatabase(dbPath); persistCompletedRun(dbPath, dataset, run); run.databasePath = dbPath; }
-      catch (error) { try { fs.unlinkSync(exported.filePath); } catch {} run.analyzedFilePath = null; run.analyzedFileSizeBytes = null; run.analyzedFileSha256 = null; throw error; }
+      run.progress.stage = "merging_evidence";
+      run.distributionDiagnostics = buildDistributionDiagnostics(run.results, run.rules);
+      run.progress.resultRecordCount = run.results.length;
+      if (run.results.length !== run.selectedDiffIds.length) throw new AiAnalysisError("AI_RESPONSE_INVALID", "Completed result count does not conserve selected records.");
+      run.status = "completed"; run.completedAt = now(); run.progress.status = "completed"; run.progress.stage = "writing_staging"; run.progress.completedBatches = 1; run.progress.completedDiffs = run.results.length; run.progress.elapsedMs = Date.now() - Date.parse(startedAt); run.progress.message = "Analysis completed. Results require human review.";
+      const reportPath = run.plannedAnalyzedFilePath!.replace(/\.json$/i, ".html");
+      run.reportFilePath = reportPath;
+      const html = goldenHtmlForRun(run, dataset);
+      validateGoldenHtml(html, run.results.length);
+      run.reportFileSizeBytes = Buffer.byteLength(html);
+      run.reportFileSha256 = sha256Text(html);
+      let exported: ReturnType<typeof atomicExport> | null = null;
+      let report: ReturnType<typeof atomicExport> | null = null;
+      try {
+        exported = atomicExport(run.plannedAnalyzedFilePath!, JSON.stringify(analyzedDocument(run), null, 2));
+        report = atomicExport(reportPath, html);
+        if (report.sizeBytes !== run.reportFileSizeBytes || report.sha256 !== run.reportFileSha256) throw new AiAnalysisError("EXPORT_VALIDATION_FAILED", "Golden HTML metadata does not match the reopened artifact.");
+        run.analyzedFilePath = exported.filePath; run.analyzedFileSizeBytes = exported.sizeBytes; run.analyzedFileSha256 = exported.sha256;
+        run.reportFilePath = report.filePath;
+        run.progress.stage = "committing_database";
+        initializeAiDatabase(dbPath); persistCompletedRun(dbPath, dataset, run); run.databasePath = dbPath; run.progress.stage = "completed";
+      } catch (error) {
+        if (exported) try { fs.unlinkSync(exported.filePath); } catch {}
+        if (report) try { fs.unlinkSync(report.filePath); } catch {}
+        run.analyzedFilePath = null; run.analyzedFileSizeBytes = null; run.analyzedFileSha256 = null; run.reportFilePath = null; run.reportFileSizeBytes = null; run.reportFileSha256 = null; throw error;
+      }
     } catch (error) {
       const value = asAnalysisError(error);
-      run.status = value.code === "RUN_CANCELLED" ? "cancelled" : "failed"; run.completedAt = now(); run.progress.status = run.status; run.progress.errorCode = value.code; run.progress.message = value.message; run.progress.elapsedMs = Date.now() - Date.parse(startedAt);
+      run.status = value.code === "RUN_CANCELLED" ? "cancelled" : "failed"; run.completedAt = now(); run.progress.status = run.status; run.progress.stage = run.status === "cancelled" ? "cancelled" : "failed"; run.progress.errorCode = value.code; run.progress.message = value.message; run.progress.elapsedMs = Date.now() - Date.parse(startedAt);
     } finally { activeRunId = null; abortControllers.delete(runId); notify(event); }
     return { ok: run.status === "completed", run, snapshot: snapshot() };
   });
@@ -383,7 +493,9 @@ export function registerAiAnalysisIpc() {
     const extension = payload.format; const fileName = run.analyzedFileName.replace(/\.json$/i, `.${extension}`);
     const choice = await dialog.showSaveDialog({ defaultPath: path.join(ensureDir(path.join(getExportsDir(), "ai-analysis")), fileName), filters: [{ name: extension.toUpperCase(), extensions: [extension] }] });
     if (choice.canceled || !choice.filePath) return { canceled: true };
-    const content = payload.format === "json" ? JSON.stringify(analyzedDocument(run), null, 2) : payload.format === "csv" ? csvForRun(run) : htmlForRun(run);
+    const selectedDataset = pendingDatasets.find((item) => item.datasetId === run.sourceDatasetId);
+    const content = payload.format === "json" ? JSON.stringify(analyzedDocument(run), null, 2) : payload.format === "csv" ? csvForRun(run) : goldenHtmlForRun(run, selectedDataset);
+    if (payload.format === "html") validateGoldenHtml(content, run.results.length);
     return { canceled: false, ...atomicExport(choice.filePath, content) };
   });
   ipcMain.handle("ai-analysis:open-folder", async (_event, folderPath?: string) => {

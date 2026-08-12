@@ -1,8 +1,9 @@
 export const AI_ANALYSIS_IPC_VERSION = 1 as const;
 export const AI_ANALYSIS_DB_SCHEMA_VERSION = 1 as const;
 export const AI_ANALYSIS_INPUT_SCHEMA_VERSION = "ai-analysis-input-v1" as const;
-export const AI_ANALYSIS_OUTPUT_SCHEMA_VERSION = "ai-analysis-output-v1" as const;
-export const AI_ANALYZED_FILE_SCHEMA_VERSION = "0.3.9-v1" as const;
+export const AI_ANALYSIS_OUTPUT_SCHEMA_VERSION = "ai-analysis-output-v2" as const;
+export const AI_ANALYZED_FILE_SCHEMA_VERSION = "0.3.11-v1" as const;
+export const AI_ANALYZED_LEGACY_FILE_SCHEMA_VERSIONS = ["0.3.9-v1"] as const;
 export { type ActiveAiProvider, type ChatGptAnalysisRequest, type ChatGptAnalysisResponse, type ChatGptModel, type ChatGptRunEvent, type ChatGptRuntimeState, type ChatGptStatus } from "./chatGptContract.js";
 import type { ActiveAiProvider, ChatGptStatus } from "./chatGptContract.js";
 
@@ -27,6 +28,7 @@ export type AiAnalysisErrorCode =
   | "ANALYSIS_RULES_INVALID"
   | "ANALYSIS_RULES_DUPLICATE_SKILL_ID"
   | "INPUT_TOO_LARGE"
+  | "ANALYSIS_INPUT_CONTEXT_TOO_LARGE"
   | "SOURCE_MISMATCH"
   | "RUN_CANCELLED"
   | "RUN_INTERRUPTED"
@@ -40,6 +42,10 @@ export type AiApiContract = "responses" | "chat_completions";
 export type AiAuthType = "bearer" | "api_key";
 export type AiAnalysisStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED" | "NEEDS_REVIEW" | "UNKNOWN" | "EXCLUDED";
 export type AiRunStatus = "queued" | "running" | "retrying" | "cancelling" | "cancelled" | "completed" | "partial" | "failed" | "interrupted";
+export type AiRunStage = "idle" | "validating_source" | "validating_rules" | "building_payload" | "preflighting_capacity" | "starting_thread" | "starting_turn" | "waiting_response" | "receiving_response" | "validating_response" | "merging_evidence" | "writing_staging" | "validating_artifacts" | "committing_database" | "completed" | "cancelling" | "cancelled" | "failed";
+export type AiClassificationStatus = "MATCHED" | "EXCLUDED" | "UNKNOWN";
+export type AiReviewStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED";
+export type AiReviewAttention = "STANDARD_REVIEW" | "NEEDS_REVIEW";
 
 export type AiTokenUsage = {
   inputTokens: number | null;
@@ -246,14 +252,24 @@ export type AiPendingDataset = {
   diffs: AiPendingDiff[];
 };
 
+export type AiNegativeCheck = { ruleId: string; passed: boolean; detail: string; evidenceRefs: string[] };
+export type AiRejectedNearSkill = { skillId: string; reason: string };
+
 export type AiAnalysisCandidate = {
   skillId: string;
   skillName: string;
   group: string;
   score: number | null;
   confidence: number | null;
+  confidenceLabel?: "High" | "Medium" | "Low";
+  confidenceReason?: string;
+  scoreComponents?: Record<string, number>;
+  positiveSignals?: string[];
   positiveEvidenceRefs: string[];
+  negativeChecks?: AiNegativeCheck[];
   negativeEvidenceRefs: string[];
+  rejectedNearSkills?: AiRejectedNearSkill[];
+  evidenceQuote?: string;
   matchedRuleIds: string[];
   reason: string;
   status: AiAnalysisStatus;
@@ -264,12 +280,25 @@ export type AiDiffAnalysisResult = {
   sourceDiffId: string;
   sourceContentHash: string;
   evidenceRefs: string[];
+  recordIndex?: number;
+  sourceRecordStableId?: string;
+  activityEventId?: string;
+  evidenceId?: string;
+  classificationStatus?: AiClassificationStatus;
+  reviewStatus?: AiReviewStatus;
+  reviewAttention?: AiReviewAttention;
+  dispositionReason?: string;
+  exclusionReason?: string | null;
+  unknownReason?: string | null;
+  matchedRuleIds?: string[];
+  negativeChecks?: AiNegativeCheck[];
   candidates: AiAnalysisCandidate[];
   status: AiAnalysisStatus;
   analyzerVersion: string;
   requestTraceId: string | null;
   usage: AiTokenUsage;
   rawResultAvailable: boolean;
+  legacyCompatibilityWarning?: string | null;
   reviewNote: string;
   reviewedAt: string | null;
 };
@@ -277,6 +306,7 @@ export type AiDiffAnalysisResult = {
 export type AiRunProgress = {
   runId: string;
   status: AiRunStatus;
+  stage?: AiRunStage;
   totalBatches: number;
   completedBatches: number;
   failedBatches: number;
@@ -285,6 +315,12 @@ export type AiRunProgress = {
   completedDiffs: number;
   requestCount: number;
   retryCount: number;
+  threadCount?: number;
+  turnCount?: number;
+  mainPayloadCount?: number;
+  rulesTransmissionCount?: number;
+  payloadRecordCount?: number;
+  resultRecordCount?: number;
   elapsedMs: number;
   usage: AiTokenUsage;
   message: string;
@@ -318,6 +354,39 @@ export type AiAnalysisRun = {
   analyzedFileSizeBytes?: number | null;
   analyzedFileSha256?: string | null;
   databasePath: string | null;
+  reportFilePath?: string | null;
+  reportFileSizeBytes?: number | null;
+  reportFileSha256?: string | null;
+  compactPayloadPath?: string | null;
+  compactPayloadSha256?: string | null;
+  compactPayloadSizeBytes?: number | null;
+  providerResponseGzipPath?: string | null;
+  providerResponseSha256?: string | null;
+  providerResponseGzipSha256?: string | null;
+  threadId?: string | null;
+  turnId?: string | null;
+  appVersion?: string | null;
+  buildTime?: string | null;
+  packagedSourceCommit?: string | null;
+  providerRuntimeVersion?: string | null;
+  promptTemplateVersion?: string | null;
+  promptSha256?: string | null;
+  capacityPreflight?: {
+    inputEstimateTokens: number;
+    modelCapacityTokens: number | null;
+    reservedOutputTokens: number;
+    safetyMarginTokens: number | null;
+    requiredContextTokens: number | null;
+  } | null;
+  distributionDiagnostics?: {
+    candidateCount: number;
+    distinctSkillCount: number;
+    groupFirstCandidateCount: number;
+    suffix001CandidateCount: number;
+    bySkill: Array<{ skillId: string; skillName: string; group: string; count: number }>;
+    byGroup: Array<{ group: string; count: number }>;
+  } | null;
+  legacySchemaVersion?: string | null;
   importedFromFile?: boolean;
 };
 
