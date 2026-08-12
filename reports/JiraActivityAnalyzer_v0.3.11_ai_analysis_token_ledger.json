@@ -1,0 +1,66 @@
+{
+    "schemaVersion":  1,
+    "targetVersion":  "0.3.11",
+    "generatedAt":  "2026-08-12T16:17:42.6387604+08:00",
+    "codexTask":  {
+                      "inputTokens":  null,
+                      "cachedInputTokens":  null,
+                      "outputTokens":  null,
+                      "totalTokens":  null,
+                      "unavailableReason":  "Codex task token telemetry is unavailable in this environment."
+                  },
+    "v0310Baseline":  {
+                          "records":  117,
+                          "appRequests":  117,
+                          "distinctRequestTraceIds":  117,
+                          "retryCount":  1,
+                          "inputTokens":  1390681,
+                          "cachedInputTokens":  326912,
+                          "outputTokens":  25054,
+                          "reasoningTokens":  10632,
+                          "totalTokens":  1415735,
+                          "durationMs":  1276929
+                      },
+    "v0311RealLocalPreflight":  {
+                                    "records":  117,
+                                    "sourceBytes":  1021410,
+                                    "compactBytes":  360974,
+                                    "compactReductionPercent":  64.66,
+                                    "promptBytes":  407037,
+                                    "promptSha256":  "6125fb04ef5269597340fd703e482189c16cb918e0736374205984ea2eeb0571",
+                                    "inputEstimateTokens":  135679,
+                                    "reservedOutputTokens":  74880,
+                                    "safetyMarginTokens":  16000,
+                                    "modelCapacityTokens":  200000,
+                                    "requiredContextTokens":  226559,
+                                    "ok":  false,
+                                    "errorCode":  "ANALYSIS_INPUT_CONTEXT_TOO_LARGE",
+                                    "appRequests":  0,
+                                    "threads":  0,
+                                    "turns":  0,
+                                    "providerTokens":  null,
+                                    "providerDurationMs":  null,
+                                    "reason":  "Capacity failed closed before thread creation; confidential data was not sent."
+                                },
+    "syntheticMock":  {
+                          "mainPayloads":  1,
+                          "rulesTransmissions":  1,
+                          "records":  117,
+                          "appRequests":  1,
+                          "threads":  1,
+                          "turns":  1,
+                          "internalRetries":  0,
+                          "providerTokens":  null,
+                          "reason":  "Fake App Server validates orchestration and schema; it does not report billable provider usage."
+                      },
+    "aiNexus":  {
+                    "run":  false,
+                    "tokens":  null,
+                    "reason":  "Real AI Nexus was outside the validation boundary."
+                },
+    "offlineRule":  {
+                        "tokens":  0,
+                        "availability":  "not_applicable"
+                    },
+    "confidentialContentPersisted":  false
+}

@@ -1,3 +1,10 @@
+## 0.3.11 - 2026-08-12
+
+- Replaced ChatGPT per-record analysis with one deterministic compact payload, one App Server request, one dedicated ephemeral thread, and one turn for all selected Activity Events.
+- Added fail-closed model-capacity preflight, strict record identity conservation, exact Catalog Skill lookup, negative evidence, near-skill rejection, and explicit MATCHED/EXCLUDED/UNKNOWN classification.
+- Preserved the final visible provider response as a verified gzip staging artifact and added prompt, runtime, capacity, distribution, and artifact metadata to analyzed output.
+- Replaced the basic HTML export with a self-contained Golden renderer containing summary metrics, rules snapshot, Skill ranking, Actor/Issue/Group/Status/Review filters, expandable evidence, negative checks, print CSS, and legacy warnings.
+- Added v0.3.11 unit and integration coverage while preserving AI Nexus, Offline Rule, legacy v0.3.10 reading, ENV v4, Jira read-only behavior, and completed-only SQLite persistence.
 ## 0.3.10 - 2026-08-12
 
 - Reconstructed the production AI Analysis route to match the supplied final

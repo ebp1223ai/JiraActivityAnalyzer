@@ -1,0 +1,262 @@
+{
+    "schemaVersion":  1,
+    "targetVersion":  "0.3.11",
+    "theme":  "AI Analysis Single-Run Correctness \u0026 Golden HTML Report",
+    "status":  "Partial - implementation, automated tests, build, packaging, smoke, package audit, and push completed/pending final Git step; real 117-record ChatGPT validation not sent because verified context preflight failed closed",
+    "taskStartAt":  "2026-08-12T15:32:42.0000000+08:00",
+    "taskEndAt":  "2026-08-12T16:17:42.6387604+08:00",
+    "wallClockSeconds":  2700.639,
+    "timezone":  "Asia/Taipei",
+    "environment":  {
+                        "machine":  "PC1-CH_KAO",
+                        "windows":  "10.0.26100",
+                        "node":  "24.18.0",
+                        "npm":  "11.16.0",
+                        "electron":  "43.0.0",
+                        "electronBuilder":  "26.15.3",
+                        "codexRuntime":  "0.147.0"
+                    },
+    "repository":  {
+                       "path":  "F:\\AI\\JiraActivityAnalyzer",
+                       "remote":  "https://github.com/ebp1223ai/JiraActivityAnalyzer.git",
+                       "baseBranch":  "main",
+                       "baseCommit":  "72b45fd92df58828a1885db579fe8aca7054d5e5",
+                       "workingBranch":  "feat/v0.3.11-ai-analysis-single-run-golden-report",
+                       "implementationCommit":  "3bbcb3687b57a0f2f448c8e030cd340c26cb157d",
+                       "documentationCommit":  "commit containing this ledger (see Git history)"
+                   },
+    "build":  {
+                  "version":  "0.3.11",
+                  "buildTime":  "2026/08/12 16:13:34",
+                  "packagedSourceCommit":  "3bbcb3687b57a0f2f448c8e030cd340c26cb157d",
+                  "dirtyState":  true,
+                  "dirtyReason":  "Pre-existing unrelated tracked v0.2.47 report and pending documentation files were excluded from the implementation commit."
+              },
+    "commands":  [
+                     {
+                         "command":  "bundled codex app-server generate-ts/json-schema",
+                         "result":  "pass",
+                         "exitCode":  0,
+                         "durationMs":  18800
+                     },
+                     {
+                         "command":  "real attachment local-only reproduction and compact preflight",
+                         "result":  "pass",
+                         "exitCode":  0,
+                         "durationMs":  1200
+                     },
+                     {
+                         "command":  "npm.cmd run typecheck",
+                         "result":  "pass",
+                         "exitCode":  0,
+                         "durationMs":  10597
+                     },
+                     {
+                         "command":  "npm.cmd run test:v0.3.11 (first attempt)",
+                         "result":  "failed_test_assertion_syntax_then_corrected",
+                         "exitCode":  1,
+                         "durationMs":  1511
+                     },
+                     {
+                         "command":  "npm.cmd run test:v0.3.11 (second attempt)",
+                         "result":  "failed_expected_semantic_count_then_corrected",
+                         "exitCode":  1,
+                         "durationMs":  2082
+                     },
+                     {
+                         "command":  "npm.cmd run test:v0.3.11 (final)",
+                         "result":  "pass",
+                         "exitCode":  0,
+                         "durationMs":  2688
+                     },
+                     {
+                         "command":  "npm.cmd run test:v0.3.11:integration (final)",
+                         "result":  "pass",
+                         "exitCode":  0,
+                         "durationMs":  3181
+                     },
+                     {
+                         "command":  "npm.cmd run build",
+                         "result":  "pass_with_warnings",
+                         "exitCode":  0,
+                         "durationMs":  35264
+                     },
+                     {
+                         "command":  "npm.cmd run dist (pre-commit evidence)",
+                         "result":  "pass_superseded",
+                         "exitCode":  0,
+                         "durationMs":  159210
+                     },
+                     {
+                         "command":  "Electron BrowserWindow.capturePage Golden report (first launcher)",
+                         "result":  "failed_unknown_visualization_launcher",
+                         "exitCode":  1,
+                         "durationMs":  6703
+                     },
+                     {
+                         "command":  "Electron BrowserWindow.capturePage Golden report (direct executable final)",
+                         "result":  "pass",
+                         "exitCode":  0,
+                         "durationMs":  4600
+                     },
+                     {
+                         "command":  "win-unpacked renderer-only CDP smoke",
+                         "result":  "pass",
+                         "exitCode":  0,
+                         "durationMs":  10274
+                     },
+                     {
+                         "command":  "Portable renderer-only CDP smoke (pre-commit evidence)",
+                         "result":  "pass",
+                         "exitCode":  0,
+                         "durationMs":  23899
+                     },
+                     {
+                         "command":  "npm.cmd run audit:package-size (pre-commit evidence)",
+                         "result":  "pass_unexpectedCount_0",
+                         "exitCode":  0,
+                         "durationMs":  15105
+                     },
+                     {
+                         "command":  "npm.cmd run dist (final implementation commit)",
+                         "result":  "pass_with_warnings",
+                         "exitCode":  0,
+                         "durationMs":  149257
+                     },
+                     {
+                         "command":  "Portable renderer-only CDP smoke (final)",
+                         "result":  "pass",
+                         "exitCode":  0,
+                         "durationMs":  22770
+                     },
+                     {
+                         "command":  "npm.cmd run audit:package-size (final)",
+                         "result":  "pass_unexpectedCount_0",
+                         "exitCode":  0,
+                         "durationMs":  11261
+                     },
+                     {
+                         "command":  "git diff --check",
+                         "result":  "pass",
+                         "exitCode":  0,
+                         "durationMs":  null
+                     },
+                     {
+                         "command":  "tracked candidate credential scan",
+                         "result":  "pass_only_existing_replace-with-your-token_placeholder",
+                         "exitCode":  0,
+                         "durationMs":  null
+                     }
+                 ],
+    "artifacts":  [
+                      {
+                          "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.11.exe",
+                          "bytes":  190498255,
+                          "sha256":  "54ee37dbd7da3741c84f1de7c5d3d7e1669c3ed5d74287a85a85485517d8ce5b"
+                      },
+                      {
+                          "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.11.exe",
+                          "bytes":  190268146,
+                          "sha256":  "7c08b50a41efce3f7bc7990f335f68aed60e204897e9d74993ce0d7f96d9d8ed"
+                      },
+                      {
+                          "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+                          "bytes":  235706368,
+                          "sha256":  "1499c10a703e947e53b38a743875cafeac0783f734cb2332e0bd68bdbabc9084"
+                      },
+                      {
+                          "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\resources\\app.asar",
+                          "bytes":  24628896,
+                          "sha256":  "111afeeb30eedf0e8b0a5e13b257de063867795a32625c5542224f0740576333"
+                      },
+                      {
+                          "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\resources\\codex-runtime\\bin\\codex.exe",
+                          "bytes":  298668336,
+                          "sha256":  "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d"
+                      }
+                  ],
+    "rendererOnlyScreenshots":  [
+                                    {
+                                        "path":  "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.11-golden-report\\1-summary.png",
+                                        "bytes":  66217,
+                                        "sha256":  "fb6e8cc3cb792ca0ebc9c3d0c811a9fe56e1a7cb786d0abe295074128f1ce812",
+                                        "capture":  "Electron renderer only"
+                                    },
+                                    {
+                                        "path":  "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.11-golden-report\\2-expanded-evidence.png",
+                                        "bytes":  116576,
+                                        "sha256":  "1bd2a76d1953c3cebf7fbe8668fdf928f5d7f634f8a24efe96b0d33b0ba17672",
+                                        "capture":  "Electron renderer only"
+                                    },
+                                    {
+                                        "path":  "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.11-golden-report\\3-excluded-filter.png",
+                                        "bytes":  48462,
+                                        "sha256":  "bd2f3c144f92060b555a8015ce205d0b8cfc2ddffeb410335ed29e0a94a5cc81",
+                                        "capture":  "Electron renderer only"
+                                    },
+                                    {
+                                        "path":  "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.11-packaged-smoke\\1-tab.png",
+                                        "bytes":  113030,
+                                        "sha256":  "11061419bc048f361d6d82cdd0a0b68ebbfe98d8127bd8e0b3ceb88fe2044c91",
+                                        "capture":  "Electron renderer only"
+                                    },
+                                    {
+                                        "path":  "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.11-packaged-smoke\\2-tab.png",
+                                        "bytes":  111992,
+                                        "sha256":  "7c771c501a0723b701ace183c9d58c69c5bebefd44f1a2727eea823187423613",
+                                        "capture":  "Electron renderer only"
+                                    },
+                                    {
+                                        "path":  "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.11-packaged-smoke\\3-tab.png",
+                                        "bytes":  83898,
+                                        "sha256":  "9536af07bf813be3f08399250d9af9ec7f2f12aaae63e3b03d8dbe17a8ccba45",
+                                        "capture":  "Electron renderer only"
+                                    },
+                                    {
+                                        "path":  "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.11-portable-smoke-final\\1-tab.png",
+                                        "bytes":  113053,
+                                        "sha256":  "bcfbcadb5660346a48cb8277a5411e1777147a97ab925522cf6e658ff07e5491",
+                                        "capture":  "Electron renderer only"
+                                    },
+                                    {
+                                        "path":  "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.11-portable-smoke-final\\2-tab.png",
+                                        "bytes":  112031,
+                                        "sha256":  "1aefd2de66fc11f41a299da1ba9970395c75e2c5a64c91a5fd487362d03af38e",
+                                        "capture":  "Electron renderer only"
+                                    },
+                                    {
+                                        "path":  "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.11-portable-smoke-final\\3-tab.png",
+                                        "bytes":  83949,
+                                        "sha256":  "b93f2d8b073333587192c628c3a7e06770caa84ad66c8a14be791dcc2e597944",
+                                        "capture":  "Electron renderer only"
+                                    }
+                                ],
+    "packageAudit":  {
+                         "path":  "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.11-package-audit-final.json",
+                         "unexpectedCount":  0
+                     },
+    "warnings":  [
+                     "Vite externalized node:crypto for browser compatibility.",
+                     "Renderer JavaScript chunk is 810.89 kB and exceeds 500 kB.",
+                     "electron-builder reported duplicate dependency references.",
+                     "Default Electron icon is used.",
+                     "Packaging was authorized with dirtyState=true because a pre-existing unrelated tracked report was preserved.",
+                     "npm audit previously reported 11 vulnerabilities (1 moderate, 10 high); no automatic fix was applied."
+                 ],
+    "retries":  [
+                    "Two focused test reruns corrected newly added assertion syntax/count, without changing product behavior.",
+                    "The first Electron wrapper capture returned UnknownVizError; direct Electron BrowserWindow.capturePage passed."
+                ],
+    "knownLimitations":  [
+                             "The supplied 117-record prompt requires 226559 tokens under the verified reserve policy and does not fit a 200000-token context.",
+                             "Real ChatGPT account, quota, and confidential 117-record provider validation remain pending."
+                         ],
+    "unexecuted":  [
+                       "Real Jira connectivity",
+                       "Real AI Nexus",
+                       "Source Jira SQLite integration",
+                       "Long multi-size UI smoke",
+                       "Installer installation flow",
+                       "Git tag or GitHub Release"
+                   ]
+}
