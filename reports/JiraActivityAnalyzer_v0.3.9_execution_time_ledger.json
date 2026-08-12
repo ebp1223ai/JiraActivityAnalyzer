@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "targetVersion": "0.3.9",
+  "theme": "ChatGPT Provider Functional Replacement",
+  "status": "Partial — ChatGPT functional implementation, automated contract tests, build, packaging and push completed; real account OAuth/quota/analysis validation pending.",
+  "startedAt": "2026-08-12T10:20:15.1681427+08:00",
+  "endedAt": "2026-08-12T10:58:56.5759776+08:00",
+  "wallClockMs": 2321408,
+  "wallClock": "00:38:41.4078349",
+  "baseline": {
+    "version": "0.3.8",
+    "commit": "fec9ab74d2698604e88e944ceadc7157a9143dea"
+  },
+  "implementationCommit": "fc10c3be7e78b7ee3967e81fc2f07d6fcb30b17c",
+  "environment": {
+    "windows": "10.0.26100",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3",
+    "codex": "0.147.0"
+  },
+  "commands": [
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 9900
+    },
+    {
+      "command": "npm.cmd run test:v0.3.9",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 1922
+    },
+    {
+      "command": "npm.cmd run test:v0.3.9:integration",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 2162
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "pass_with_warnings",
+      "exitCode": 0,
+      "durationMs": 26457
+    },
+    {
+      "command": "npm.cmd run dist",
+      "result": "blocked_by_expected_dirty_worktree_guard",
+      "exitCode": 1,
+      "durationMs": 8179
+    },
+    {
+      "command": "npm.cmd run dist (authorized dirty package, superseded)",
+      "result": "pass_but_superseded_after_duplicate_runtime_audit",
+      "exitCode": 0,
+      "durationMs": 144634
+    },
+    {
+      "command": "npm.cmd run dist (authorized dirty package, final)",
+      "result": "pass_with_warnings",
+      "exitCode": 0,
+      "durationMs": 121796
+    },
+    {
+      "command": "bundled Codex signed-out runtime probe",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 1900
+    },
+    {
+      "command": "Portable renderer-only CDP smoke",
+      "result": "timeout_after_successful_start_and_extraction",
+      "exitCode": 124,
+      "durationMs": 94038
+    },
+    {
+      "command": "win-unpacked renderer-only CDP smoke",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": 13838
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass",
+      "exitCode": 0,
+      "durationMs": null
+    },
+    {
+      "command": "sensitive-data scan",
+      "result": "pass_no_real_credentials",
+      "exitCode": 0,
+      "durationMs": null
+    }
+  ],
+  "build": {
+    "version": "0.3.9",
+    "buildTime": "2026/08/12 10:51:25",
+    "sourceCommit": "fc10c3be7e78b7ee3967e81fc2f07d6fcb30b17c",
+    "dirtyState": true,
+    "dirtyException": "Pre-existing unrelated tracked report modification was preserved and excluded from both commits."
+  },
+  "artifacts": [
+    {
+      "path": "release/Jira Activity Analyzer Setup 0.3.9.exe",
+      "bytes": 190482579,
+      "sha256": "302241c71351ce619cb3e7eb0ac7ddf05fffe5665839bdcb40fc9692cef2860b"
+    },
+    {
+      "path": "release/Jira Activity Analyzer Portable 0.3.9.exe",
+      "bytes": 190252470,
+      "sha256": "9374c2ba21a7bf27c561fd5ec796310d523e577965225713812e37ec054a4710"
+    },
+    {
+      "path": "release/win-unpacked/Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "b5710006dd2e21d3678b885f5065b17be5fecd53c156e3e89bbd571d245ba270"
+    },
+    {
+      "path": "release/win-unpacked/resources/app.asar",
+      "bytes": 24543444,
+      "sha256": "afcf8aa53ff0d1f0947a5844fe2ae82dd10f3bc21bb633e3edd368450fb997dd"
+    },
+    {
+      "path": "release/win-unpacked/resources/codex-runtime/vendor/x86_64-pc-windows-msvc/codex/codex.exe",
+      "bytes": 298668336,
+      "sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d"
+    }
+  ],
+  "rendererOnlyScreenshots": [
+    {
+      "path": "test-artifacts/v0.3.9-packaged-smoke/1-diagnostics.png",
+      "bytes": 104881,
+      "sha256": "ad0bf2d89d46b36dc0465897b375865673917982e1cdd9f32fb0a73c50b92568"
+    },
+    {
+      "path": "test-artifacts/v0.3.9-packaged-smoke/2-workspace.png",
+      "bytes": 92990,
+      "sha256": "5bfb7588d32e402fc43582bec82dee7eea4597d85962b803f86de3b729837dcd"
+    },
+    {
+      "path": "test-artifacts/v0.3.9-packaged-smoke/3-results.png",
+      "bytes": 75508,
+      "sha256": "78679aac70997b62f2ae766d8b80853c1b8d0c85ad081ca17178da529d89ca01"
+    }
+  ],
+  "warnings": [
+    "Vite externalized node:crypto for browser compatibility.",
+    "Renderer JavaScript chunk exceeds 500 kB.",
+    "electron-builder used the default application icon.",
+    "electron-builder reported duplicate JavaScript dependency references.",
+    "npm audit reports 11 vulnerabilities: 1 moderate and 10 high; no automatic fix was applied.",
+    "Portable CDP smoke timed out; win-unpacked renderer-only smoke passed."
+  ],
+  "tokenUsage": {
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": null,
+    "reason": "Codex execution token telemetry is unavailable in this environment."
+  },
+  "manualValidationPending": [
+    "Real ChatGPT browser OAuth with a user account",
+    "Real account plan and quota hydration",
+    "Real Jira evidence analysis through ChatGPT",
+    "Manual Portable renderer inspection after self-extraction"
+  ]
+}
