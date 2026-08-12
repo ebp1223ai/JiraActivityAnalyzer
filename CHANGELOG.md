@@ -1,3 +1,10 @@
+## 0.3.13 - 2026-08-12
+
+- Replaced the Provider wire `scoreComponents` dictionary with a strict-safe fixed object array and synchronized parser, analyzed JSON, Golden HTML, and legacy display adapters.
+- Added deterministic schema canonicalization, SHA-256, deep freeze, recursive Strict Structured Outputs preflight, runtime response schema validation, and schema evidence files.
+- Added separate Provider/thread/turn attempt, accepted, and completed counters with exact preflight/provider/response/identity/Catalog persistence reasons.
+- Fixed repeated terminal error logging at the renderer callback identity source and strengthened dedup identity with a normalized root-cause hash.
+- Preserved v0.3.12 warn-only capacity confirmation, single-dispatch guard, failed staging retention, and completed-only JSON/HTML/SQLite gates.
 ## 0.3.12 - 2026-08-12
 
 - Replaced the v0.3.11 unknown/over-capacity hard block with a warn-only confirmation showing one shared, hashed capacity calculation snapshot and complete UTF-8 byte/token/reserve formulas.

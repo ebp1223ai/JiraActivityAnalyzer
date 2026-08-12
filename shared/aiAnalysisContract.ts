@@ -20,6 +20,16 @@ export type AiAnalysisErrorCode =
   | "AI_RATE_LIMITED"
   | "AI_TIMEOUT"
   | "AI_RESPONSE_INVALID"
+  | "AI_OUTPUT_SCHEMA_BUILD_FAILED"
+  | "AI_OUTPUT_SCHEMA_PREFLIGHT_FAILED"
+  | "AI_OUTPUT_SCHEMA_PROVIDER_REJECTED"
+  | "AI_PROVIDER_RESPONSE_INCOMPLETE"
+  | "AI_PROVIDER_RESPONSE_INVALID_JSON"
+  | "AI_PROVIDER_RESPONSE_SCHEMA_MISMATCH"
+  | "AI_RESULT_IDENTITY_VALIDATION_FAILED"
+  | "AI_RESULT_CATALOG_VALIDATION_FAILED"
+  | "AI_FORMAL_ARTIFACT_WRITE_FAILED"
+  | "AI_SQLITE_TRANSACTION_FAILED"
   | "CHATGPT_RUNTIME_UNAVAILABLE"
   | "CHATGPT_SIGN_IN_REQUIRED"
   | "CHATGPT_USAGE_LIMITED"
@@ -44,7 +54,7 @@ export type AiApiContract = "responses" | "chat_completions";
 export type AiAuthType = "bearer" | "api_key";
 export type AiAnalysisStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED" | "NEEDS_REVIEW" | "UNKNOWN" | "EXCLUDED";
 export type AiRunStatus = "queued" | "running" | "retrying" | "cancelling" | "cancelled" | "completed" | "partial" | "failed" | "interrupted";
-export type AiRunStage = "idle" | "validating_source" | "validating_rules" | "building_payload" | "preflighting_capacity" | "waiting_capacity_confirmation" | "starting_thread" | "starting_turn" | "waiting_response" | "receiving_response" | "validating_response" | "merging_evidence" | "writing_staging" | "validating_artifacts" | "committing_database" | "completed" | "cancelling" | "cancelled" | "failed";
+export type AiRunStage = "idle" | "validating_source" | "validating_rules" | "building_payload" | "building_output_schema" | "validating_output_schema" | "output_schema_ready" | "preflighting_capacity" | "waiting_capacity_confirmation" | "starting_thread" | "starting_turn" | "waiting_response" | "receiving_response" | "validating_response" | "validating_response_schema" | "validating_identity" | "validating_catalog" | "merging_evidence" | "writing_staging" | "writing_formal_artifacts" | "validating_artifacts" | "committing_database" | "completed" | "cancelling" | "cancelled" | "failed";
 export type AiClassificationStatus = "MATCHED" | "EXCLUDED" | "UNKNOWN";
 export type AiReviewStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED";
 export type AiReviewAttention = "STANDARD_REVIEW" | "NEEDS_REVIEW";
@@ -274,6 +284,7 @@ export type AiPendingDataset = {
 
 export type AiNegativeCheck = { ruleId: string; passed: boolean; detail: string; evidenceRefs: string[] };
 export type AiRejectedNearSkill = { skillId: string; reason: string };
+export type AiScoreComponent = { componentKey: string; score: number; explanation: string | null };
 
 export type AiAnalysisCandidate = {
   skillId: string;
@@ -283,7 +294,7 @@ export type AiAnalysisCandidate = {
   confidence: number | null;
   confidenceLabel?: "High" | "Medium" | "Low";
   confidenceReason?: string;
-  scoreComponents?: Record<string, number>;
+  scoreComponents?: AiScoreComponent[];
   positiveSignals?: string[];
   positiveEvidenceRefs: string[];
   negativeChecks?: AiNegativeCheck[];
@@ -334,7 +345,15 @@ export type AiRunProgress = {
   totalDiffs: number;
   completedDiffs: number;
   requestCount: number;
+  providerDispatchCount?: number;
+  threadStartAttemptCount?: number;
+  threadCreatedCount?: number;
+  turnStartAttemptCount?: number;
+  acceptedTurnCount?: number;
+  turnCompletedCount?: number;
   retryCount: number;
+  repairTurnCount?: number;
+  fallbackRequestCount?: number;
   threadCount?: number;
   turnCount?: number;
   mainPayloadCount?: number;
@@ -391,6 +410,15 @@ export type AiAnalysisRun = {
   providerRuntimeVersion?: string | null;
   promptTemplateVersion?: string | null;
   promptSha256?: string | null;
+  outputSchemaName?: string | null;
+  outputSchemaSha256?: string | null;
+  outputSchemaBytesUtf8?: number | null;
+  outputSchemaValidation?: {
+    validatorName: string; validatorVersion: string; validatedAt: string; isValid: boolean; findingCount: number;
+    findings: Array<{ code: string; severity: "error"; jsonPointer: string; message: string; expected: unknown; actual: unknown; keyword: string; key?: string }>;
+    maxObservedDepth: number; totalObjectProperties: number; totalEnumValues: number; totalSchemaStringLength: number;
+    unsupportedKeywords: string[]; requiredPropertyMismatchCount: number; additionalPropertiesViolationCount: number;
+  } | null;
   capacityPreflight?: {
     inputEstimateTokens: number;
     modelCapacityTokens: number | null;

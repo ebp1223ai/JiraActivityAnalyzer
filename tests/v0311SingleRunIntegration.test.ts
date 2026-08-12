@@ -16,8 +16,9 @@ test("ChatGPT branch issues exactly one runAnalysis and has no repair or per-rec
   assert.doesNotMatch(branch, /for\s*\(|Repair this invalid|retryCount\s*\+=|selected\[index\]/);
   assert.match(branch, /mainPayloadCount = 1/);
   assert.match(branch, /rulesTransmissionCount = 1/);
-  assert.match(branch, /threadCount = 1/);
-  assert.match(branch, /turnCount = 1/);
+  assert.match(ipc, /threadCreatedCount/);
+  assert.match(ipc, /acceptedTurnCount/);
+  assert.match(ipc, /turnCompletedCount/);
 });
 
 test("v0.3.12 capacity warning replaces the v0.3.11 hard block before ChatGPT dispatch", () => {
@@ -50,9 +51,9 @@ test("completed artifacts pair JSON and Golden HTML before SQLite commit", () =>
   assert.match(ipc, /validateGoldenHtml\(html, run\.results\.length\)/);
 });
 
-test("UI reports stage and Requests Threads Turns instead of contradictory batch semantics", () => {
+test("UI reports stage and precise Provider lifecycle counts instead of contradictory batch semantics", () => {
   assert.match(ui, /label="Stage"/);
-  assert.match(ui, /Requests \/ Threads \/ Turns/);
+  assert.match(ui, /Dispatch \/ Thread \/ Accepted \/ Completed/);
   assert.doesNotMatch(ui, /label="Batch \/ Stage"/);
 });
 

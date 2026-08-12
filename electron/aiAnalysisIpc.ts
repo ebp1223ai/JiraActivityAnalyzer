@@ -47,6 +47,7 @@ import {
   stageVisibleProviderResponse,
   validateGoldenHtml
 } from "./aiAnalysisSingleRunV0311.js";
+import { prepareSingleRunOutputSchema } from "./aiAnalysisOutputSchemaV0313.js";
 import {
   AnalysisDispatchGuard,
   AnalysisErrorDeduplicator,
@@ -78,6 +79,8 @@ function asAnalysisError(error: unknown) {
   if (message.startsWith("RUN_CANCELLED:")) return new AiAnalysisError("RUN_CANCELLED", message.slice("RUN_CANCELLED:".length));
   if (message.includes("CHATGPT_USAGE_LIMITED")) return new AiAnalysisError("CHATGPT_USAGE_LIMITED", "ChatGPT usage limit has been reached.");
   if (message.includes("CHATGPT_SIGN_IN_REQUIRED")) return new AiAnalysisError("CHATGPT_SIGN_IN_REQUIRED", "Sign in with ChatGPT before analysis.");
+  if (/invalid_json_schema|invalid schema|output schema/i.test(message)) return new AiAnalysisError("AI_OUTPUT_SCHEMA_PROVIDER_REJECTED", message);
+  if (/CHATGPT_TURN_FAILED|incomplete|truncated|refusal/i.test(message)) return new AiAnalysisError("AI_PROVIDER_RESPONSE_INCOMPLETE", message);
   return new AiAnalysisError("AI_RESPONSE_INVALID", message);
 }
 function errorPayload(error: unknown) {
@@ -114,7 +117,7 @@ function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requ
   writeJson("run-manifest.json", { run, artifacts: { formalJson: run.analyzedFilePath ? "written" : run.databaseWriteStatus ?? "not_written", goldenHtml: run.reportFilePath ? "written" : run.databaseWriteStatus ?? "not_written", sqlite: run.databaseWriteStatus ?? "not_started" } });
   if (run.status === "failed") writeJson("failed-run-manifest.json", { runId: run.runId, status: run.status, errorCode: run.progress.errorCode, message: run.progress.message });
   if (run.capacitySnapshot) writeJson("capacity-snapshot.json", run.capacitySnapshot);
-  writeJson("provider-diagnostics.json", { provider: run.provider, model: run.model, runtimeVersion: run.providerRuntimeVersion ?? null, requestCount: run.progress.requestCount, threadCount: run.progress.threadCount ?? 0, turnCount: run.progress.turnCount ?? 0, retryCount: run.progress.retryCount, repairTurnCount: 0, fallbackRequestCount: 0 });
+  writeJson("provider-diagnostics.json", { provider: run.provider, model: run.model, runtimeVersion: run.providerRuntimeVersion ?? null, requestCount: run.progress.requestCount, providerDispatchCount: run.progress.providerDispatchCount ?? run.progress.requestCount, threadStartAttemptCount: run.progress.threadStartAttemptCount ?? 0, threadCreatedCount: run.progress.threadCreatedCount ?? run.progress.threadCount ?? 0, turnStartAttemptCount: run.progress.turnStartAttemptCount ?? 0, acceptedTurnCount: run.progress.acceptedTurnCount ?? run.progress.turnCount ?? 0, turnCompletedCount: run.progress.turnCompletedCount ?? 0, retryCount: run.progress.retryCount, repairTurnCount: run.progress.repairTurnCount ?? 0, fallbackRequestCount: run.progress.fallbackRequestCount ?? 0, outputSchemaSha256: run.outputSchemaSha256 ?? null });
   if (requestSanitized !== undefined) writeJson("request-sanitized.json", requestSanitized);
   if (responseSanitized !== undefined) writeJson("response-sanitized.json", responseSanitized);
   writeJson("validation-result.json", run.validationGate ?? { passed: false, status: "not_run", reason: run.progress.message });
@@ -122,6 +125,10 @@ function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requ
   writeJson("execution-time.json", { startedAt: run.startedAt, completedAt: run.completedAt, durationMs: run.progress.elapsedMs });
   fs.writeFileSync(path.join(folder, "event-log.jsonl"), events.map((item) => redactChatGptText(JSON.stringify(item))).join("\n") + "\n", "utf8");
   fs.writeFileSync(path.join(folder, "user-action-log.txt"), actions.map((item) => redactChatGptText(item)).join("\n") + "\n", "utf8");
+  for (const name of ["output-schema-sanitized.json", "output-schema-canonical.json", "output-schema-validation.json", "output-schema.sha256"]) {
+    const source = path.join(stagingFolder, name);
+    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(folder, name));
+  }
   return folder;
 }
 export function registerAiAnalysisIpc() {
@@ -153,13 +160,26 @@ export function registerAiAnalysisIpc() {
   chatgpt.subscribeRun((providerEvent) => {
     const run = runs.find((item) => item.runId === providerEvent.runId);
     if (!run || activeRunId !== run.runId || run.status !== "running") return;
-    if (providerEvent.type === "started") {
+    if (providerEvent.type === "thread_starting") {
+      run.progress.stage = "starting_thread";
+      run.progress.threadStartAttemptCount = (run.progress.threadStartAttemptCount ?? 0) + 1;
+      run.progress.message = "Starting the single dedicated provider thread.";
+    } else if (providerEvent.type === "thread_created") {
+      run.threadId = providerEvent.threadId;
+      run.progress.threadCreatedCount = (run.progress.threadCreatedCount ?? 0) + 1;
+      run.progress.threadCount = run.progress.threadCreatedCount;
+      run.progress.message = "Dedicated thread created; preparing the single analysis turn.";
+    } else if (providerEvent.type === "turn_starting") {
       run.progress.stage = "starting_turn";
-      run.progress.threadCount = 1;
-      run.progress.message = "Dedicated thread created; starting the single analysis turn.";
+      run.progress.turnStartAttemptCount = (run.progress.turnStartAttemptCount ?? 0) + 1;
+    } else if (providerEvent.type === "turn_started") {
+      run.turnId = providerEvent.turnId;
+      run.progress.acceptedTurnCount = (run.progress.acceptedTurnCount ?? 0) + 1;
+      run.progress.turnCount = run.progress.acceptedTurnCount;
+      run.progress.stage = "waiting_response";
+      run.progress.message = "Provider accepted the single analysis turn.";
     } else if (providerEvent.type === "delta") {
       run.progress.stage = "receiving_response";
-      run.progress.turnCount = 1;
       run.progress.message = "Receiving the single structured provider response.";
     } else if (providerEvent.type === "usage") {
       run.progress.usage = {
@@ -174,8 +194,9 @@ export function registerAiAnalysisIpc() {
     } else if (providerEvent.type === "failed") {
       providerFailureEvidence.set(providerEvent.runId, { visibleText: providerEvent.visibleText, usage: { ...providerEvent.usage, availability: "partial", estimatedInputTokens: run.progress.usage.estimatedInputTokens }, errorCode: providerEvent.errorCode, message: providerEvent.message });
     } else if (providerEvent.type === "completed") {
-      run.progress.stage = "validating_response";
-      run.progress.message = "Provider turn completed; validating identity conservation and evidence.";
+      run.progress.turnCompletedCount = (run.progress.turnCompletedCount ?? 0) + 1;
+      run.progress.stage = "validating_response_schema";
+      run.progress.message = "Provider turn completed; validating the canonical response schema.";
     }
     BrowserWindow.getAllWindows().forEach((window) => window.webContents.send("ai-analysis:snapshot-changed", snapshot()));
   });
@@ -389,7 +410,7 @@ export function registerAiAnalysisIpc() {
       provider, model, apiContract: payload.mode === "OFFLINE_RULE" ? "offline" : payload.mode === "CHATGPT" ? "responses" : settingsAndSecret(service).settings.apiContract,
       configFingerprint: payload.mode === "OFFLINE_RULE" ? null : payload.mode === "CHATGPT" ? chatgpt.getStatus().runtimeSha256 : settingsAndSecret(service).settings.configFingerprint,
       rules: structuredClone(rules), startedAt, completedAt: null, appVersion: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, packagedSourceCommit: __MAIN_GIT_COMMIT__,
-      progress: { runId, status: "running", stage: "validating_source", totalBatches: payload.mode === "AI_NEXUS" ? payload.selectedDiffIds.length : 1, completedBatches: 0, failedBatches: 0, currentBatch: 1, totalDiffs: payload.selectedDiffIds.length, completedDiffs: 0, requestCount: 0, retryCount: 0, threadCount: 0, turnCount: 0, mainPayloadCount: 0, rulesTransmissionCount: 0, payloadRecordCount: 0, resultRecordCount: 0, elapsedMs: 0, usage: emptyTokenUsage(payload.mode === "OFFLINE_RULE" ? "not_applicable" : "unavailable"), message: "Analysis started.", errorCode: null },
+      progress: { runId, status: "running", stage: "validating_source", totalBatches: payload.mode === "AI_NEXUS" ? payload.selectedDiffIds.length : 1, completedBatches: 0, failedBatches: 0, currentBatch: 1, totalDiffs: payload.selectedDiffIds.length, completedDiffs: 0, requestCount: 0, providerDispatchCount: 0, threadStartAttemptCount: 0, threadCreatedCount: 0, turnStartAttemptCount: 0, acceptedTurnCount: 0, turnCompletedCount: 0, retryCount: 0, repairTurnCount: 0, fallbackRequestCount: 0, threadCount: 0, turnCount: 0, mainPayloadCount: 0, rulesTransmissionCount: 0, payloadRecordCount: 0, resultRecordCount: 0, elapsedMs: 0, usage: emptyTokenUsage(payload.mode === "OFFLINE_RULE" ? "not_applicable" : "unavailable"), message: "Analysis started.", errorCode: null },
       results: [], analyzedFileName: safeAnalyzedFileName(dataset.fileName, runId), plannedAnalyzedFilePath: null, analyzedFilePath: null, analyzedFileSizeBytes: null, analyzedFileSha256: null, databasePath: null
     };
     const outputDir = ensureDir(path.join(getExportsDir(), "ai-analysis"));
@@ -424,6 +445,26 @@ export function registerAiAnalysisIpc() {
         run.progress.mainPayloadCount = 1;
         run.progress.rulesTransmissionCount = 1;
         const request = buildSingleRunPrompt(compact, run.rules);
+        run.progress.stage = "building_output_schema";
+        run.progress.message = "Building the canonical strict Provider output schema.";
+        let preparedOutputSchema: ReturnType<typeof prepareSingleRunOutputSchema>;
+        try { preparedOutputSchema = prepareSingleRunOutputSchema(); }
+        catch (error) { throw new AiAnalysisError("AI_OUTPUT_SCHEMA_BUILD_FAILED", error instanceof Error ? error.message : String(error)); }
+        run.progress.stage = "validating_output_schema";
+        run.outputSchemaName = preparedOutputSchema.schemaName;
+        run.outputSchemaSha256 = preparedOutputSchema.sha256;
+        run.outputSchemaBytesUtf8 = preparedOutputSchema.canonicalBytes.length;
+        run.outputSchemaValidation = preparedOutputSchema.validation;
+        atomicExport(path.join(stagingFolder, "output-schema-sanitized.json"), JSON.stringify(preparedOutputSchema.schema, null, 2));
+        atomicExport(path.join(stagingFolder, "output-schema-canonical.json"), preparedOutputSchema.canonicalJson);
+        atomicExport(path.join(stagingFolder, "output-schema-validation.json"), JSON.stringify(preparedOutputSchema.validation, null, 2));
+        atomicExport(path.join(stagingFolder, "output-schema.sha256"), `${preparedOutputSchema.sha256}\n`);
+        if (!preparedOutputSchema.validation.isValid) {
+          const first = preparedOutputSchema.validation.findings[0];
+          throw new AiAnalysisError("AI_OUTPUT_SCHEMA_PREFLIGHT_FAILED", `Output schema validation failed before provider request. No request, thread, or turn was created. ${first?.code ?? "UNKNOWN"} at ${first?.jsonPointer ?? "/"}.`);
+        }
+        run.progress.stage = "output_schema_ready";
+        run.progress.message = `Output schema preflight passed: ${preparedOutputSchema.sha256}.`;
         run.progress.stage = "preflighting_capacity";
         const capability = run.capacitySnapshot ? null : await chatgpt.readSelectedModelCapacity();
         const rulesBytes = run.rules.files.reduce((sum, file) => sum + (file.sizeBytes ?? 0), 0);
@@ -467,16 +508,17 @@ export function registerAiAnalysisIpc() {
         if (!dispatchGuard.begin(runId)) return { ok: false, run, snapshot: snapshot(), alreadyDispatching: true };
         run.status = "running"; run.progress.status = "running"; run.progress.stage = "starting_thread";
         run.progress.message = "Dispatching one dedicated read-only ChatGPT thread and one analysis turn.";
-        requestEvidence = { runId, model: chatgpt.getStatus().selectedModel, promptSha256: request.sha256, promptBytes: request.sizeBytes, outputSchema: "ai-analysis-output-v2", authorization: "[masked]" };
-        run.progress.requestCount += 1;
+        requestEvidence = { runId, model: chatgpt.getStatus().selectedModel, promptSha256: request.sha256, promptBytes: request.sizeBytes, outputSchemaName: run.outputSchemaName, outputSchemaSha256: run.outputSchemaSha256, outputSchemaBytesUtf8: run.outputSchemaBytesUtf8, authorization: "[masked]" };
+        run.progress.providerDispatchCount = (run.progress.providerDispatchCount ?? 0) + 1;
+        run.progress.requestCount = run.progress.providerDispatchCount;
         notify(event);
-        const response = await chatgpt.runAnalysis({ runId, prompt: request.prompt, model: chatgpt.getStatus().selectedModel, outputSchema: request.outputSchema }, controller.signal);
+        const response = await chatgpt.runAnalysis({ runId, prompt: request.prompt, model: chatgpt.getStatus().selectedModel, outputSchema: preparedOutputSchema.schema as Record<string, unknown>, outputSchemaSha256: preparedOutputSchema.sha256 }, controller.signal);
         providerVisibleResponse = response.text;
         run.threadId = response.threadId;
         run.providerRuntimeVersion = response.runtimeVersion;
         run.turnId = response.turnId;
-        run.progress.threadCount = 1;
-        run.progress.turnCount = 1;
+        run.progress.threadCount = run.progress.threadCreatedCount ?? 0;
+        run.progress.turnCount = run.progress.acceptedTurnCount ?? 0;
         run.progress.stage = "receiving_response";
         const usage = { ...response.usage, availability: "actual" as const, estimatedInputTokens: capacitySnapshot.estimatedFinalInputTokens };
         run.progress.usage = usage;
@@ -554,7 +596,16 @@ export function registerAiAnalysisIpc() {
       if (providerFailure) { providerVisibleResponse = providerFailure.visibleText || null; run.progress.usage = providerFailure.usage; }
       const failedStage = run.progress.stage ?? "failed";
       run.status = value.code === "RUN_CANCELLED" ? "cancelled" : "failed"; run.completedAt = now(); run.progress.status = run.status; run.progress.stage = run.status === "cancelled" ? "cancelled" : "failed"; run.progress.errorCode = value.code; run.progress.message = value.message; run.progress.elapsedMs = Date.now() - Date.parse(startedAt);
-      run.databaseWriteStatus = failedStage === "starting_thread" || failedStage === "preflighting_capacity" || failedStage === "building_payload" ? "Not written — failed before provider request" : failedStage === "receiving_response" ? "Not written — provider response incomplete" : "Not written — result validation failed";
+      run.databaseWriteStatus = value.code === "AI_OUTPUT_SCHEMA_PREFLIGHT_FAILED" ? "Not written — local output schema validation failed before provider request"
+        : value.code === "AI_OUTPUT_SCHEMA_PROVIDER_REJECTED" ? "Not written — Provider rejected output schema before turn start"
+        : value.code === "AI_PROVIDER_RESPONSE_INCOMPLETE" ? "Not written — Provider response incomplete"
+        : value.code === "AI_PROVIDER_RESPONSE_INVALID_JSON" ? "Not written — Provider response JSON invalid"
+        : value.code === "AI_PROVIDER_RESPONSE_SCHEMA_MISMATCH" ? "Not written — response schema validation failed"
+        : value.code === "AI_RESULT_IDENTITY_VALIDATION_FAILED" ? "Not written — result identity validation failed"
+        : value.code === "AI_RESULT_CATALOG_VALIDATION_FAILED" ? "Not written — Catalog validation failed"
+        : failedStage === "starting_thread" || failedStage === "preflighting_capacity" || failedStage === "building_payload" || failedStage === "building_output_schema" || failedStage === "validating_output_schema" ? "Not written — failed before provider request"
+        : failedStage === "receiving_response" || failedStage === "waiting_response" ? "Not written — Provider response incomplete"
+        : "Not written — result validation failed";
       const deduped = errorDeduplicator.record(runId, failedStage, value.code, value.message);
       if (payload.mode === "CHATGPT") {
         try {
@@ -570,7 +621,7 @@ export function registerAiAnalysisIpc() {
             runManifest: { run, artifacts, build: { version: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, gitCommit: __MAIN_GIT_COMMIT__ } },
             failedManifest: { runId, status: run.status, failedStage, errorCode: value.code, message: value.message, databaseWriteStatus: run.databaseWriteStatus, artifacts },
             capacitySnapshot: run.capacitySnapshot ?? null,
-            providerDiagnostics: { provider: run.provider, model: run.model, runtimeVersion: chatgpt.getStatus().runtimeVersion, state: chatgpt.getStatus().state },
+            providerDiagnostics: { provider: run.provider, model: run.model, runtimeVersion: chatgpt.getStatus().runtimeVersion, state: chatgpt.getStatus().state, providerDispatchCount: run.progress.providerDispatchCount ?? 0, threadStartAttemptCount: run.progress.threadStartAttemptCount ?? 0, threadCreatedCount: run.progress.threadCreatedCount ?? 0, turnStartAttemptCount: run.progress.turnStartAttemptCount ?? 0, acceptedTurnCount: run.progress.acceptedTurnCount ?? 0, turnCompletedCount: run.progress.turnCompletedCount ?? 0, retryCount: run.progress.retryCount, repairTurnCount: run.progress.repairTurnCount ?? 0, fallbackRequestCount: run.progress.fallbackRequestCount ?? 0, outputSchemaSha256: run.outputSchemaSha256 ?? null },
             requestSanitized: requestEvidence,
             responseSanitized: providerVisibleResponse === null ? undefined : { text: redactChatGptText(providerVisibleResponse) },
             visibleResponse: providerVisibleResponse === null ? null : redactChatGptText(providerVisibleResponse),
@@ -580,6 +631,10 @@ export function registerAiAnalysisIpc() {
             events: [{ at: startedAt, type: "analysis_started", runId }, ...(run.capacityConfirmation ? [{ at: run.capacityConfirmation.confirmedAt, type: `capacity_${run.capacityConfirmation.confirmationAction}`, ...run.capacityConfirmation }] : []), { at: deduped.lastOccurredAt, type: "primary_error", ...deduped }],
             actions: [`${startedAt} Selected rules ${run.rules.snapshotId ?? run.rules.ruleSetId}`, `${startedAt} Selected Pending JSON ${run.sourceFileName}`, `${startedAt} Started analysis ${runId}`, ...(run.capacityConfirmation ? [`${run.capacityConfirmation.confirmedAt ?? startedAt} Capacity warning ${run.capacityConfirmation.confirmationAction}`] : [])]
           });
+          if (runStagingFolder) for (const name of ["output-schema-sanitized.json", "output-schema-canonical.json", "output-schema-validation.json", "output-schema.sha256"]) {
+            const source = path.join(runStagingFolder, name);
+            if (fs.existsSync(source)) fs.copyFileSync(source, path.join(folder, name), fs.constants.COPYFILE_EXCL);
+          }
         } catch (stagingError) { run.progress.message += ` Failed staging error: ${stagingError instanceof Error ? stagingError.message : String(stagingError)}`; }
       }
     } finally { if (run.status !== "queued") dispatchGuard.finish(runId); providerFailureEvidence.delete(runId); activeRunId = null; abortControllers.delete(runId); notify(event); }

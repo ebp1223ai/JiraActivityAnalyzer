@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { DebugLogPanel } from "./DebugLogPanel";
 import { Sidebar } from "./Sidebar";
@@ -35,6 +35,10 @@ export function AppLayout() {
   const [logsByPage, setLogsByPage] = useState(createInitialDebugLogState);
   const allLogs = useMemo(() => Object.entries(logsByPage).flatMap(([source, lines]) =>
     lines.map((line) => `[${source}] ${line}`)), [logsByPage]);
+  const appendDebugLog = useCallback((targetPage: DebugPage, lines: string[]) => {
+    setLogsByPage((current) => appendDebugLogLines(current, targetPage, lines));
+  }, []);
+  const getDebugLogs = useCallback((targetPage: DebugPage) => logsByPage[targetPage] ?? [], [logsByPage]);
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0 });
@@ -48,8 +52,8 @@ export function AppLayout() {
         <div className="mx-auto w-full max-w-[1680px] min-w-0">
           <GlobalRuntimeStatusBar debugCount={warningCount(allLogs)} onOpenDebug={() => setDebugOpen(true)} />
           <Outlet context={{
-            appendDebugLog: (targetPage, lines) => setLogsByPage((current) => appendDebugLogLines(current, targetPage, lines)),
-            getDebugLogs: (targetPage) => logsByPage[targetPage] ?? []
+            appendDebugLog,
+            getDebugLogs
           } satisfies AppOutletContext} />
         </div>
       </main>
@@ -59,9 +63,9 @@ export function AppLayout() {
         currentPage={pathname}
         logs={allLogs}
         onClear={() => setLogsByPage(createInitialDebugLogState())}
-        onAppend={(lines) => setLogsByPage((current) => appendDebugLogLines(current, page, lines))}
+        onAppend={(lines) => appendDebugLog(page, lines)}
         onUserAction={(message) => {
-          setLogsByPage((current) => appendDebugLogLines(current, page, [`[USER_ACTION] ${message}`]));
+          appendDebugLog(page, [`[USER_ACTION] ${message}`]);
           void window.desktopApp?.userAnalysis?.logAction?.({ category: "USER_ACTION", message });
         }}
       />

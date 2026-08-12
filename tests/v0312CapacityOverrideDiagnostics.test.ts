@@ -70,6 +70,13 @@ test("same primary error is deduplicated with occurrence count", () => {
   const logs = new AnalysisErrorDeduplicator(); for (let index = 0; index < 160; index += 1) logs.record("analysis_a", "preflight", "E1", "same");
   assert.equal(logs.list().length, 1); assert.equal(logs.list()[0].occurrenceCount, 160);
 });
+test("same run stage and code but different root causes remain distinct", () => {
+  const logs = new AnalysisErrorDeduplicator();
+  logs.record("run-a", "starting_turn", "AI_OUTPUT_SCHEMA_PROVIDER_REJECTED", "missing scoreComponents");
+  logs.record("run-a", "starting_turn", "AI_OUTPUT_SCHEMA_PROVIDER_REJECTED", "unsupported patternProperties");
+  assert.equal(logs.list().length, 2);
+  assert.notEqual(logs.list()[0].rootCauseHash, logs.list()[1].rootCauseHash);
+});
 test("different run stage and error code remain distinct", () => {
   const logs = new AnalysisErrorDeduplicator(); logs.record("analysis_a", "preflight", "E1", "one"); logs.record("analysis_a", "provider", "E1", "two"); logs.record("analysis_b", "provider", "E1", "three"); logs.record("analysis_b", "provider", "E2", "four");
   assert.equal(logs.list().length, 4);

@@ -1,5 +1,18 @@
 # Jira Activity Analyzer
 
+> v0.3.13 validates and freezes the exact Strict Structured Outputs schema before any Provider request, while preserving one payload, one thread, one turn, and completed-only persistence.
+
+## v0.3.13 Structured Output Schema Validation
+
+- `scoreComponents` is now a canonical array of fixed `{ componentKey, score, explanation }` objects; arbitrary dictionary schemas are prohibited.
+- Electron main canonicalizes, hashes, freezes, and recursively validates the exact outgoing schema before capacity lookup or Provider dispatch.
+- Provider dispatch, thread attempts/creation, turn attempts/acceptance/completion, retry, repair, and fallback are recorded separately.
+- Response JSON must satisfy the canonical schema before identity, Catalog, evidence, artifact, or SQLite gates can pass.
+- Schema evidence and precise failure reasons are retained in staging/Debug evidence without credentials.
+- Renderer debug logging uses a stable callback, removing the terminal-notice render loop that could repeat one error up to the 160-line retention limit.
+
+See [v0.3.13 implementation and schema contract](docs/v0.3.13-structured-output-schema-validation.md).
+
 > v0.3.12 keeps the one-payload, one-thread, one-turn AI Analysis contract while making uncertain capacity an explicit, auditable operator decision.
 
 ## v0.3.12 Capacity Override and Diagnostics

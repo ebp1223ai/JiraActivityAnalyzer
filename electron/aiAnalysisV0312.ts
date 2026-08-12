@@ -89,14 +89,16 @@ export class AnalysisDispatchGuard {
   state(runId: string) { return this.states.get(runId) ?? null; }
 }
 
-export type DedupedLogEntry = { key: string; runId: string; stage: string; errorCode: string; message: string; occurrenceCount: number; firstOccurredAt: string; lastOccurredAt: string };
+export type DedupedLogEntry = { key: string; runId: string; stage: string; errorCode: string; rootCauseHash: string; message: string; occurrenceCount: number; firstOccurredAt: string; lastOccurredAt: string };
 export class AnalysisErrorDeduplicator {
   private readonly entries = new Map<string, DedupedLogEntry>();
   record(runId: string, stage: string, errorCode: string, message: string, at = new Date().toISOString()) {
-    const key = `${runId}|${stage}|${errorCode}`;
+    const normalizedRootCause = message.trim().replace(/\\s+/g, " ");
+    const rootCauseHash = crypto.createHash("sha256").update(normalizedRootCause, "utf8").digest("hex");
+    const key = `${runId}|${stage}|${errorCode}|${rootCauseHash}`;
     const existing = this.entries.get(key);
     if (existing) { existing.occurrenceCount += 1; existing.lastOccurredAt = at; return structuredClone(existing); }
-    const entry = { key, runId, stage, errorCode, message, occurrenceCount: 1, firstOccurredAt: at, lastOccurredAt: at };
+    const entry = { key, runId, stage, errorCode, rootCauseHash, message: normalizedRootCause, occurrenceCount: 1, firstOccurredAt: at, lastOccurredAt: at };
     this.entries.set(key, entry); return structuredClone(entry);
   }
   list(runId?: string) { return [...this.entries.values()].filter((item) => !runId || item.runId === runId).map((item) => structuredClone(item)); }

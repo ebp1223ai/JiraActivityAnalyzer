@@ -53,6 +53,10 @@ export type ChatGptStatus = {
 };
 
 export type ChatGptRunEvent =
+  | { type: "thread_starting"; runId: string; at: string }
+  | { type: "thread_created"; runId: string; at: string; threadId: string }
+  | { type: "turn_starting"; runId: string; at: string; threadId: string }
+  | { type: "turn_started"; runId: string; at: string; threadId: string; turnId: string }
   | { type: "started"; runId: string; at: string }
   | { type: "delta"; runId: string; text: string }
   | { type: "usage"; runId: string; inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null }
@@ -65,6 +69,7 @@ export type ChatGptAnalysisRequest = {
   prompt: string;
   model?: string | null;
   outputSchema?: Record<string, unknown> | null;
+  outputSchemaSha256?: string | null;
 };
 
 export type ChatGptAnalysisResponse = {

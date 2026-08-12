@@ -20,7 +20,7 @@ async function main() {
   const status = await service.start(); assert.equal(status.state, "connected"); assert.equal(status.primaryRateLimit?.usedPercent, 12);
   const events: string[] = []; service.subscribeRun((event) => events.push(event.type));
   const result = await service.runAnalysis({ prompt: "Untrusted Jira evidence. Return JSON.", outputSchema: { type: "object" } });
-  assert.equal(result.text, '{"candidates":[]}'); assert.equal(result.usage.totalTokens, 13); assert.deepEqual(events, ["started", "delta", "usage", "completed"]); await service.stop();
+  assert.equal(result.text, '{"candidates":[]}'); assert.equal(result.usage.totalTokens, 13); assert.deepEqual(events, ["thread_starting", "thread_created", "started", "turn_starting", "turn_started", "delta", "usage", "completed"]); await service.stop();
 
   const cancelling = new ChatGptService({ runtimePath: process.execPath, runtimeArgs: [fake, "cancel"] }); await cancelling.start();
   let cancellingRunId = ""; cancelling.subscribeRun((event) => { if (event.type === "started") cancellingRunId = event.runId; });

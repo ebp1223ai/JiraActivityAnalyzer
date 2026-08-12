@@ -20,9 +20,12 @@ test("main boundary has atomic guard and only one ChatGPT runAnalysis call", () 
 });
 test("request thread and turn counters follow real boundaries", () => {
   const branch = ipc.match(/else if \(payload\.mode === "CHATGPT"\) \{([\s\S]*?)\n      \} else \{/)?.[1] ?? "";
-  assert.ok(branch.indexOf("run.progress.requestCount += 1") < branch.indexOf("await chatgpt.runAnalysis"));
-  assert.match(service, /emitRun\(\{ type: "started"/); assert.match(ipc, /providerEvent\.type === "started"/);
-  assert.match(ipc, /run\.progress\.threadCount = 1/); assert.match(ipc, /run\.progress\.turnCount = 1/);
+  assert.ok(branch.indexOf("run.progress.providerDispatchCount") < branch.indexOf("await chatgpt.runAnalysis"));
+  assert.match(service, /emitRun\(\{ type: "thread_starting"/); assert.match(ipc, /providerEvent\.type === "thread_starting"/);
+  assert.match(service, /emitRun\(\{ type: "thread_created"/); assert.match(ipc, /providerEvent\.type === "thread_created"/);
+  assert.match(service, /emitRun\(\{ type: "turn_starting"/); assert.match(ipc, /providerEvent\.type === "turn_starting"/);
+  assert.match(service, /emitRun\(\{ type: "turn_started"/); assert.match(ipc, /providerEvent\.type === "turn_started"/);
+  assert.match(ipc, /threadCreatedCount/); assert.match(ipc, /acceptedTurnCount/); assert.match(ipc, /turnCompletedCount/);
 });
 test("failed staging and formal output gate precede persistence", () => {
   assert.match(ipc, /createFailedStaging/); assert.match(ipc, /persistFailedRunEvidence/); assert.match(ipc, /evaluateFormalPersistenceGate/);

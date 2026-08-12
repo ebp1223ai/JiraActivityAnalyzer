@@ -6,8 +6,8 @@ traceable AI-assisted skill analysis.
 
 ## Current version
 
-- Version: 0.3.12
-- Theme: Capacity Override, Real 117 Validation & AI Analysis Diagnostics
+- Version: 0.3.13
+- Theme: Structured Output Schema Validation & Real 117 Retry
 - Active AI providers: ChatGPT via bundled Codex App Server, AI Nexus, and
   Offline Rule Analyzer
 - Configuration: ENV format v4
@@ -22,6 +22,6 @@ network calls, dialogs, paths, validation, analysis execution, atomic exports,
 and SQLite persistence. The context-isolated renderer receives sanitized typed
 snapshots through preload IPC.
 
-See [the v0.3.12 implementation note](docs/v0.3.12-capacity-override-diagnostics.md)
+See [the v0.3.13 implementation note](docs/v0.3.13-structured-output-schema-validation.md)
 for warn-only capacity confirmation, the one-shot dispatch guard, strict result gates,
 permanent failed staging, Debug Folder evidence, and verification boundaries.
