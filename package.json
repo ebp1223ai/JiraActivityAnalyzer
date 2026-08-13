@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.13",
+  "version": "0.3.14",
   "description": "Electron desktop analyzer with single-run ChatGPT classification and self-contained Golden HTML reports.",
   "author": "COPGEN",
   "type": "module",
@@ -72,7 +72,8 @@
     "test:v0.3.11:integration": "npm run electron:build && node scripts/test-v0311-integration.cjs && node scripts/test-v0310-integration.cjs && node scripts/test-v039-integration.cjs && node scripts/test-v038-integration.cjs",
     "test:v0.3.12": "node scripts/test-v0312.cjs && node scripts/test-v0312-integration.cjs",
     "test:v0.3.12:integration": "node scripts/test-v0312-integration.cjs",
-    "test:v0.3.13": "node scripts/test-v0313.cjs && node scripts/test-v0312.cjs && node scripts/test-v0312-integration.cjs"
+    "test:v0.3.13": "node scripts/test-v0313.cjs && node scripts/test-v0312.cjs && node scripts/test-v0312-integration.cjs",
+    "test:v0.3.14": "node scripts/test-v0314.cjs && node scripts/test-v0313.cjs && node scripts/test-v0312.cjs && node scripts/test-v0312-integration.cjs"
   },
   "dependencies": {
     "@openai/codex": "0.147.0",

@@ -70,8 +70,9 @@ export type ChatGptAnalysisRequest = {
   model?: string | null;
   outputSchema?: Record<string, unknown> | null;
   outputSchemaSha256?: string | null;
+  deliveryMode?: "INLINE_EXACT_CONTENT";
+  finalProviderPayloadSha256?: string | null;
 };
-
 export type ChatGptAnalysisResponse = {
   runId: string;
   text: string;

@@ -93,7 +93,7 @@ assert.throws(() => canonicalScoreComponentsToLegacyDisplay([
   { componentKey: "evidence", score: 2, explanation: "duplicate" }
 ]));
 
-const minimalResponse = { schemaVersion: "ai-analysis-output-v2", records: [] };
+const minimalResponse = { schemaVersion: "ai-analysis-output-v3", records: [] };
 assert.equal(validateValueAgainstOutputSchema(minimalResponse, schema).isValid, true);
 assert.equal(validateValueAgainstOutputSchema({ ...minimalResponse, unexpected: true }, schema).isValid, false);
 

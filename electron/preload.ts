@@ -176,6 +176,8 @@ contextBridge.exposeInMainWorld("desktopApp", {
     review: (payload: unknown) => ipcRenderer.invoke("ai-analysis:review", payload),
     exportRun: (payload: unknown) => ipcRenderer.invoke("ai-analysis:export", payload),
     openFolder: (folderPath?: string) => ipcRenderer.invoke("ai-analysis:open-folder", folderPath),
+    getConversation: (payload: unknown) => ipcRenderer.invoke("ai-analysis:conversation", payload),
+    deleteRun: (runId: string) => ipcRenderer.invoke("ai-analysis:delete-run", runId),
     onSnapshotChanged: (listener: (snapshot: unknown) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, snapshot: unknown) => listener(snapshot);
       ipcRenderer.on("ai-analysis:snapshot-changed", handler);

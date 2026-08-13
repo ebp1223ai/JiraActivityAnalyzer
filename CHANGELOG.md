@@ -1,3 +1,10 @@
+## 0.3.14 - 2026-08-13
+
+- Added immutable, hash-verified Request Packages containing the exact Pending JSON, three original Markdown rule documents, visible versioned instructions, and Strict Output Schema with honest `INLINE_EXACT_CONTENT` delivery evidence.
+- Added APP_ROOT-contained local-time Run archives with fsynced append-only conversation/provider stream logs, hash chains, restart recovery, paged history, readable conversation Markdown, and confirmed manual deletion.
+- Replaced the global `negativeChecks` rule with one status-aware canonical response contract supporting `CATALOG_DETAIL_MISSING` and `NEEDS_REVIEW` without losing candidate identity or evidence.
+- Removed the 8,192-character canonical evidence truncation, added full raw/canonical/gzip response hashes and Debug copy verification, and separated Provider, parsed, schema-valid, semantic-valid, formal, and SQLite counts.
+- Preserved single dispatch/thread/turn behavior, warn-only capacity confirmation, strict schema preflight, error deduplication, failed staging, secret masking, and completed-only formal persistence.
 ## 0.3.13 - 2026-08-12
 
 - Replaced the Provider wire `scoreComponents` dictionary with a strict-safe fixed object array and synchronized parser, analyzed JSON, Golden HTML, and legacy display adapters.

@@ -34,7 +34,8 @@ test("App Server response exposes real thread and turn identity", () => {
   assert.match(service, /threadId: active\.threadId, turnId: active\.turnId/);
   assert.match(service, /request\.runId \?\?/);
   assert.match(ipc, /runAnalysis\(\{ runId, prompt:/);
-  assert.match(ipc, /promptSha256 = request\.sha256/);
+  assert.match(ipc, /promptSha256 = request\.requestPackage\.finalProviderPayloadSha256/);
+  assert.match(service, /PROVIDER_PAYLOAD_HASH_MISMATCH_BEFORE_PROVIDER/);
   assert.match(ipc, /buildDistributionDiagnostics\(run\.results, run\.rules\)/);
   assert.match(service, /thread\/start/);
   assert.match(service, /turn\/start/);

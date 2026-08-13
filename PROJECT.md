@@ -6,8 +6,8 @@ traceable AI-assisted skill analysis.
 
 ## Current version
 
-- Version: 0.3.13
-- Theme: Structured Output Schema Validation & Real 117 Retry
+- Version: 0.3.14
+- Theme: AI Request Transparency, Conversation Persistence & Response Contract Alignment
 - Active AI providers: ChatGPT via bundled Codex App Server, AI Nexus, and
   Offline Rule Analyzer
 - Configuration: ENV format v4
@@ -22,6 +22,4 @@ network calls, dialogs, paths, validation, analysis execution, atomic exports,
 and SQLite persistence. The context-isolated renderer receives sanitized typed
 snapshots through preload IPC.
 
-See [the v0.3.13 implementation note](docs/v0.3.13-structured-output-schema-validation.md)
-for warn-only capacity confirmation, the one-shot dispatch guard, strict result gates,
-permanent failed staging, Debug Folder evidence, and verification boundaries.
+See [the v0.3.14 implementation note](docs/v0.3.14-ai-request-transparency-conversation-contract.md) for immutable Request Packages, exact inline delivery evidence, durable Run conversations, full response hashes, and the canonical status-aware response contract.

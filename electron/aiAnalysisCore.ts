@@ -325,7 +325,7 @@ export function persistCompletedRun(databasePath: string, dataset: AiPendingData
     const candidate = db.prepare("INSERT INTO classification_candidates VALUES(?,?,?,?)");
     for (const result of run.results) {
       item.run(run.runId, result.sourceDiffId, result.status, canonicalJson(result));
-      for (const value of result.candidates) candidate.run(result.resultId, value.skillId, value.status, canonicalJson(value));
+      for (const value of result.candidates) candidate.run(result.resultId, value.skillId, value.candidateStatus ?? value.status, canonicalJson(value));
     }
     db.exec("COMMIT");
   } catch (error) { try { db.exec("ROLLBACK"); } catch {} throw error; }

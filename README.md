@@ -1,5 +1,16 @@
 # Jira Activity Analyzer
 
+> v0.3.14 freezes and hashes the exact AI Request Package, persists complete ChatGPT-visible and App-only conversation evidence as it arrives, and aligns Structured Output, semantic validation, JSON, Golden HTML, and SQLite around one status-aware contract.
+
+## v0.3.14 Request Transparency and Response Contract
+
+- One Pending JSON, three original Markdown rule files, and the visible immutable instruction are snapshotted under the local Run archive before Provider dispatch.
+- ChatGPT delivery is honestly labeled `INLINE_EXACT_CONTENT`; complete UTF-8 blocks and the final payload are byte-counted and SHA-256 verified before the single thread/turn begins.
+- Conversation and Provider stream events are synchronously appended and flushed in Electron main, survive renderer changes, reload as history after restart, and remain until confirmed manual deletion.
+- `CATALOG_DETAIL_MISSING` and `NEEDS_REVIEW` preserve candidates and evidence. Empty `negativeChecks` are valid only where the centralized status matrix permits them.
+- Full raw, gzip, canonical, manifest, and Debug response evidence is retained without the previous 8,192-character canonical truncation.
+
+See [v0.3.14 request, conversation, and response contract](docs/v0.3.14-ai-request-transparency-conversation-contract.md).
 > v0.3.13 validates and freezes the exact Strict Structured Outputs schema before any Provider request, while preserving one payload, one thread, one turn, and completed-only persistence.
 
 ## v0.3.13 Structured Output Schema Validation

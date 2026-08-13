@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { AI_ANALYSIS_OUTPUT_SCHEMA_VERSION } from "../shared/aiAnalysisContract.js";
 
-export const OUTPUT_SCHEMA_NAME = "jira_activity_analysis_v0313" as const;
+export const OUTPUT_SCHEMA_NAME = "jira_activity_analysis_v0314" as const;
 export const OUTPUT_SCHEMA_VALIDATOR_NAME = "jira-activity-analyzer-strict-output-schema" as const;
 export const OUTPUT_SCHEMA_VALIDATOR_VERSION = "1.0.0" as const;
 
@@ -101,25 +101,25 @@ export function createSingleRunOutputSchema(): Record<string, unknown> {
   });
   const candidate = {
     type: "object", properties: {
-      skillId: { type: "string" }, score: { type: "number" }, confidence: { type: "string", enum: ["High", "Medium", "Low"] },
-      confidenceReason: { type: "string" }, scoreComponents: { type: "array", items: scoreComponent() },
+      skillId: { type: "string" }, candidateStatus: { type: "string", enum: ["MATCHED", "EXCLUDED", "CATALOG_DETAIL_MISSING", "NEEDS_REVIEW"] }, statusReason: { type: "string" }, catalogDetailAvailable: { type: "boolean" },
+      score: { type: "number" }, confidence: { type: "string", enum: ["High", "Medium", "Low"] }, confidenceReason: { type: "string" }, scoreComponents: { type: "array", items: scoreComponent() },
       positiveSignals: stringArray(), positiveEvidenceRefs: stringArray(), negativeChecks: { type: "array", items: negativeCheck() },
       negativeEvidenceRefs: stringArray(), rejectedNearSkills: { type: "array", items: rejectedNearSkill() }, evidenceQuote: { type: "string" }
     },
-    required: ["skillId", "score", "confidence", "confidenceReason", "scoreComponents", "positiveSignals", "positiveEvidenceRefs", "negativeChecks", "negativeEvidenceRefs", "rejectedNearSkills", "evidenceQuote"],
+    required: ["skillId", "candidateStatus", "statusReason", "catalogDetailAvailable", "score", "confidence", "confidenceReason", "scoreComponents", "positiveSignals", "positiveEvidenceRefs", "negativeChecks", "negativeEvidenceRefs", "rejectedNearSkills", "evidenceQuote"],
     additionalProperties: false
   };
   const record = {
     type: "object", properties: {
       recordIndex: { type: "integer" }, sourceRecordStableId: { type: "string" }, activityEventId: { type: "string" },
       evidenceId: { type: "string" }, sourceContentHash: { type: "string" },
-      classificationStatus: { type: "string", enum: ["MATCHED", "EXCLUDED", "UNKNOWN"] },
+      classificationStatus: { type: "string", enum: ["MATCHED", "EXCLUDED", "UNKNOWN", "CATALOG_DETAIL_MISSING", "NEEDS_REVIEW"] },
       reviewStatus: { type: "string", enum: ["PENDING_REVIEW"] },
       reviewAttention: { type: "string", enum: ["STANDARD_REVIEW", "NEEDS_REVIEW"] },
-      dispositionReason: { type: "string" }, exclusionReason: { type: ["string", "null"] }, unknownReason: { type: ["string", "null"] },
+      dispositionReason: { type: "string" }, exclusionReason: { type: ["string", "null"] }, unknownReason: { type: ["string", "null"] }, reviewReason: { type: ["string", "null"] },
       matchedRuleIds: stringArray(), negativeChecks: { type: "array", items: negativeCheck() }, analyses: { type: "array", items: candidate }
     },
-    required: ["recordIndex", "sourceRecordStableId", "activityEventId", "evidenceId", "sourceContentHash", "classificationStatus", "reviewStatus", "reviewAttention", "dispositionReason", "exclusionReason", "unknownReason", "matchedRuleIds", "negativeChecks", "analyses"],
+    required: ["recordIndex", "sourceRecordStableId", "activityEventId", "evidenceId", "sourceContentHash", "classificationStatus", "reviewStatus", "reviewAttention", "dispositionReason", "exclusionReason", "unknownReason", "reviewReason", "matchedRuleIds", "negativeChecks", "analyses"],
     additionalProperties: false
   };
   return {

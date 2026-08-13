@@ -10,7 +10,7 @@ import type { DescriptionFullContextResult } from "../../shared/descriptionDiff"
 import type { DescriptionComparisonPayload, DescriptionPreviewBatchResponse } from "../../shared/descriptionComparison";
 import type { UserViewerScope } from "../../shared/userViewerScope";
 import type { PendingAnalysisExportRequest, PendingAnalysisExportResult, PendingAnalysisProgress } from "../../shared/pendingAnalysisContract";
-import type { AiAnalysisSnapshot, AiAnalyzerMode, AiChatMessage, AiConnectionResult, AiDiagnosticRun, AiExportFormat, AiServiceKey, AiSettingsUpdate } from "../../shared/aiAnalysisContract";
+import type { AiAnalysisConversationEvent, AiAnalysisSnapshot, AiAnalyzerMode, AiChatMessage, AiConnectionResult, AiDiagnosticRun, AiExportFormat, AiServiceKey, AiSettingsUpdate } from "../../shared/aiAnalysisContract";
 
 declare global {
   interface Window {
@@ -178,12 +178,14 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         selectPending: (datasetId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         chooseAnalyzed: () => Promise<{ canceled: boolean; ok?: boolean; snapshot: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         selectRun: (runId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
-        start: (payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey; analysisRunId?: string; capacityConfirmation?: boolean }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; run?: AiAnalysisSnapshot["runs"][number]; errorCode?: string; message?: string; requiresCapacityConfirmation?: boolean; warningCode?: string }>;
+        start: (payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey; supplementalInstruction?: string; analysisRunId?: string; capacityConfirmation?: boolean }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; run?: AiAnalysisSnapshot["runs"][number]; errorCode?: string; message?: string; requiresCapacityConfirmation?: boolean; warningCode?: string }>;
         cancelCapacityWarning: (runId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; run?: AiAnalysisSnapshot["runs"][number]; message?: string }>;
         cancel: (runId: string) => Promise<{ ok: boolean; message?: string }>;
         review: (payload: { runId: string; resultId: string; status: "CONFIRMED" | "REJECTED" | "PENDING_REVIEW"; note: string }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         exportRun: (payload: { runId: string; format: AiExportFormat }) => Promise<{ canceled?: boolean; filePath?: string; sizeBytes?: number; sha256?: string; errorCode?: string; message?: string }>;
         openFolder: (folderPath?: string) => Promise<{ ok: boolean; folderPath: string; error?: string }>;
+        getConversation: (payload: { runId: string; offset?: number; limit?: number }) => Promise<{ ok: boolean; events?: AiAnalysisConversationEvent[]; offset?: number; nextOffset?: number; total?: number; hasMore?: boolean; errorCode?: string; message?: string }>;
+        deleteRun: (runId: string) => Promise<{ ok: boolean; canceled?: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         onSnapshotChanged: (listener: (snapshot: AiAnalysisSnapshot) => void) => () => void;
       };
       appDebug?: {

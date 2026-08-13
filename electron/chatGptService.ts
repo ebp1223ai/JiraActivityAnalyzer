@@ -166,6 +166,9 @@ export class ChatGptService {
     if (this.status.state !== "connected") throw new Error(this.status.state === "usage_limited" ? "CHATGPT_USAGE_LIMITED" : "CHATGPT_SIGN_IN_REQUIRED");
     const client = this.requireClient();
     const model = request.model || this.status.selectedModel || undefined;
+    if (request.deliveryMode !== "INLINE_EXACT_CONTENT") throw new Error("UNSUPPORTED_PROVIDER_DELIVERY_MODE");
+    const outgoingPayloadSha256 = crypto.createHash("sha256").update(request.prompt, "utf8").digest("hex");
+    if (!request.finalProviderPayloadSha256 || outgoingPayloadSha256 !== request.finalProviderPayloadSha256) throw new Error("PROVIDER_PAYLOAD_HASH_MISMATCH_BEFORE_PROVIDER");
     if (request.outputSchema && request.outputSchemaSha256) {
       const outgoingSchemaSha256 = crypto.createHash("sha256").update(JSON.stringify(request.outputSchema), "utf8").digest("hex");
       if (outgoingSchemaSha256 !== request.outputSchemaSha256) throw new Error("OUTPUT_SCHEMA_HASH_MISMATCH_BEFORE_PROVIDER");

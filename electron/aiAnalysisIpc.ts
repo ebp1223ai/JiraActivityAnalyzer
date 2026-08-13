@@ -35,7 +35,10 @@ import {
 } from "./aiAnalysisCore.js";
 import { ensureDir, getAppDataDir, getAppRuntimeDir, getExportsDir } from "./appPaths.js";
 import { getChatGptService } from "./chatGptService.js";
-import { redactChatGptText } from "./chatGptRedactor.js";
+import { redactChatGptText, redactChatGptTextComplete } from "./chatGptRedactor.js";
+import { buildRequestPackage, loadRequestPackage } from "./aiAnalysisRequestPackageV0314.js";
+import { AiAnalysisRunArchive, deleteRunArchive, loadArchivedRuns, readConversationPage } from "./aiAnalysisRunArchiveV0314.js";
+import { validateCanonicalResponseSemantics } from "./aiAnalysisResponseContractV0314.js";
 import {
   adaptLegacyAnalyzedRun,
   buildCompactPayload,
@@ -47,7 +50,7 @@ import {
   stageVisibleProviderResponse,
   validateGoldenHtml
 } from "./aiAnalysisSingleRunV0311.js";
-import { prepareSingleRunOutputSchema } from "./aiAnalysisOutputSchemaV0313.js";
+import { prepareSingleRunOutputSchema, validateValueAgainstOutputSchema } from "./aiAnalysisOutputSchemaV0313.js";
 import {
   AnalysisDispatchGuard,
   AnalysisErrorDeduplicator,
@@ -67,7 +70,7 @@ const handlers = [
   "ai-analysis:snapshot", "ai-analysis:reload-env", "ai-analysis:save-settings", "ai-analysis:test-connection",
   "ai-analysis:diagnose", "ai-analysis:cancel-diagnostic", "ai-analysis:chat", "ai-analysis:choose-rules", "ai-analysis:load-rules",
   "ai-analysis:choose-pending", "ai-analysis:verify-pending", "ai-analysis:select-pending", "ai-analysis:choose-analyzed", "ai-analysis:select-run", "ai-analysis:start", "ai-analysis:cancel-capacity-warning", "ai-analysis:cancel", "ai-analysis:review",
-  "ai-analysis:export", "ai-analysis:open-folder", "ai-analysis:chatgpt-start", "ai-analysis:chatgpt-login",
+  "ai-analysis:export", "ai-analysis:open-folder", "ai-analysis:conversation", "ai-analysis:delete-run", "ai-analysis:chatgpt-start", "ai-analysis:chatgpt-login",
   "ai-analysis:chatgpt-cancel-login", "ai-analysis:chatgpt-logout", "ai-analysis:chatgpt-refresh", "ai-analysis:chatgpt-select-model", "ai-analysis:cancel-chat"
 ];
 
@@ -113,7 +116,7 @@ function csvForRun(run: AiAnalysisRun) {
 
 function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requestSanitized: unknown, responseSanitized: unknown, events: unknown[], actions: string[]) {
   const folder = ensureDir(path.join(stagingFolder, "debug"));
-  const writeJson = (name: string, value: unknown) => fs.writeFileSync(path.join(folder, name), redactChatGptText(JSON.stringify(value, null, 2)), "utf8");
+  const writeJson = (name: string, value: unknown) => fs.writeFileSync(path.join(folder, name), redactChatGptTextComplete(JSON.stringify(value, null, 2)), "utf8");
   writeJson("run-manifest.json", { run, artifacts: { formalJson: run.analyzedFilePath ? "written" : run.databaseWriteStatus ?? "not_written", goldenHtml: run.reportFilePath ? "written" : run.databaseWriteStatus ?? "not_written", sqlite: run.databaseWriteStatus ?? "not_started" } });
   if (run.status === "failed") writeJson("failed-run-manifest.json", { runId: run.runId, status: run.status, errorCode: run.progress.errorCode, message: run.progress.message });
   if (run.capacitySnapshot) writeJson("capacity-snapshot.json", run.capacitySnapshot);
@@ -125,7 +128,14 @@ function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requ
   writeJson("execution-time.json", { startedAt: run.startedAt, completedAt: run.completedAt, durationMs: run.progress.elapsedMs });
   fs.writeFileSync(path.join(folder, "event-log.jsonl"), events.map((item) => redactChatGptText(JSON.stringify(item))).join("\n") + "\n", "utf8");
   fs.writeFileSync(path.join(folder, "user-action-log.txt"), actions.map((item) => redactChatGptText(item)).join("\n") + "\n", "utf8");
-  for (const name of ["output-schema-sanitized.json", "output-schema-canonical.json", "output-schema-validation.json", "output-schema.sha256"]) {
+  if (run.providerResponseRawPath && fs.existsSync(run.providerResponseRawPath)) {
+    const debugCopy = path.join(folder, "provider-response.raw.json");
+    fs.copyFileSync(run.providerResponseRawPath, debugCopy);
+    const debugCopyResponseSha256 = sha256Text(fs.readFileSync(debugCopy, "utf8"));
+    if (debugCopyResponseSha256 !== run.providerResponseSha256) throw new AiAnalysisError("AI_PROVIDER_RESPONSE_EVIDENCE_MISMATCH", "Debug response copy does not match canonical raw response hash.");
+    writeJson("response-evidence.json", { manifestResponseSha256: run.providerResponseSha256, debugCopyResponseSha256, canonicalResponseSha256: run.providerResponseCanonicalSha256 ?? null, gzipResponseSha256: run.providerResponseGzipSha256 ?? null });
+  }
+  for (const name of ["output-schema-sanitized.json", "output-schema-canonical.json", "output-schema-validation.json", "output-schema.sha256", "provider-response.canonical.json", "semantic-validation.json"]) {
     const source = path.join(stagingFolder, name);
     if (fs.existsSync(source)) fs.copyFileSync(source, path.join(folder, name));
   }
@@ -140,7 +150,8 @@ export function registerAiAnalysisIpc() {
   chatgpt.subscribeStatus(() => BrowserWindow.getAllWindows().forEach((window) => window.webContents.send("ai-analysis:snapshot-changed", snapshot())));
   let rules: AiRulesSnapshot | null = null;
   const pendingDatasets: AiPendingDataset[] = [];
-  const runs: AiAnalysisRun[] = [];
+  const runs: AiAnalysisRun[] = loadArchivedRuns();
+  const runArchives = new Map<string, AiAnalysisRunArchive>(runs.filter((run) => run.runDirectory && run.progress.errorCode !== "AI_RUN_ARCHIVE_FAILED").map((run) => [run.runId, AiAnalysisRunArchive.reopen(run.runId, run.runDirectory!)]));
   let selectedPendingDatasetId: string | null = null;
   let selectedRunId: string | null = null;
   let activeRunId: string | null = null;
@@ -160,6 +171,16 @@ export function registerAiAnalysisIpc() {
   chatgpt.subscribeRun((providerEvent) => {
     const run = runs.find((item) => item.runId === providerEvent.runId);
     if (!run || activeRunId !== run.runId || run.status !== "running") return;
+    const archive = runArchives.get(run.runId);
+    try {
+      archive?.appendProviderEvent(providerEvent);
+      if (providerEvent.type === "delta") archive?.append("assistant_delta", "CHATGPT_VISIBLE", providerEvent.text, { providerEvent: providerEvent.type });
+      else if (providerEvent.type === "completed") archive?.append("assistant_message", "CHATGPT_VISIBLE", providerEvent.text, { elapsedMs: providerEvent.elapsedMs });
+      else archive?.append("provider_event", "APP_ONLY", providerEvent.type, { ...providerEvent, ...(providerEvent.type === "failed" ? { visibleText: "[persisted-separately]" } : {}) });
+    } catch (error) {
+      run.progress.errorCode = "AI_RUN_ARCHIVE_FAILED"; run.progress.message = `Run archive persistence failed: ${error instanceof Error ? error.message : String(error)}`;
+      abortControllers.get(run.runId)?.abort(); return;
+    }
     if (providerEvent.type === "thread_starting") {
       run.progress.stage = "starting_thread";
       run.progress.threadStartAttemptCount = (run.progress.threadStartAttemptCount ?? 0) + 1;
@@ -198,6 +219,7 @@ export function registerAiAnalysisIpc() {
       run.progress.stage = "validating_response_schema";
       run.progress.message = "Provider turn completed; validating the canonical response schema.";
     }
+    archive?.writeManifest(run);
     BrowserWindow.getAllWindows().forEach((window) => window.webContents.send("ai-analysis:snapshot-changed", snapshot()));
   });
   const settingsAndSecret = (service: AiServiceKey) => {
@@ -374,7 +396,7 @@ export function registerAiAnalysisIpc() {
     selectedRunId = runId;
     return { ok: true, snapshot: snapshot() };
   });
-  ipcMain.handle("ai-analysis:start", async (event, payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey; analysisRunId?: string; capacityConfirmation?: boolean }) => {
+  ipcMain.handle("ai-analysis:start", async (event, payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey; supplementalInstruction?: string; analysisRunId?: string; capacityConfirmation?: boolean }) => {
     const resumedRun = payload.analysisRunId ? runs.find((item) => item.runId === payload.analysisRunId) ?? null : null;
     if (activeRunId) {
       if (payload.analysisRunId === activeRunId && resumedRun) return { ok: false, run: resumedRun, snapshot: snapshot(), alreadyDispatching: true };
@@ -411,8 +433,12 @@ export function registerAiAnalysisIpc() {
       configFingerprint: payload.mode === "OFFLINE_RULE" ? null : payload.mode === "CHATGPT" ? chatgpt.getStatus().runtimeSha256 : settingsAndSecret(service).settings.configFingerprint,
       rules: structuredClone(rules), startedAt, completedAt: null, appVersion: __MAIN_APP_VERSION__, buildTime: __MAIN_BUILD_TIME__, packagedSourceCommit: __MAIN_GIT_COMMIT__,
       progress: { runId, status: "running", stage: "validating_source", totalBatches: payload.mode === "AI_NEXUS" ? payload.selectedDiffIds.length : 1, completedBatches: 0, failedBatches: 0, currentBatch: 1, totalDiffs: payload.selectedDiffIds.length, completedDiffs: 0, requestCount: 0, providerDispatchCount: 0, threadStartAttemptCount: 0, threadCreatedCount: 0, turnStartAttemptCount: 0, acceptedTurnCount: 0, turnCompletedCount: 0, retryCount: 0, repairTurnCount: 0, fallbackRequestCount: 0, threadCount: 0, turnCount: 0, mainPayloadCount: 0, rulesTransmissionCount: 0, payloadRecordCount: 0, resultRecordCount: 0, elapsedMs: 0, usage: emptyTokenUsage(payload.mode === "OFFLINE_RULE" ? "not_applicable" : "unavailable"), message: "Analysis started.", errorCode: null },
-      results: [], analyzedFileName: safeAnalyzedFileName(dataset.fileName, runId), plannedAnalyzedFilePath: null, analyzedFilePath: null, analyzedFileSizeBytes: null, analyzedFileSha256: null, databasePath: null
+      results: [], supplementalInstruction: payload.supplementalInstruction?.trim() || null, providerReturnedRecordCount: 0, parsedRecordCount: 0, schemaValidRecordCount: 0, semanticValidRecordCount: 0, formalArtifactRecordCount: 0, sqliteCommittedRecordCount: 0, analyzedFileName: safeAnalyzedFileName(dataset.fileName, runId), plannedAnalyzedFilePath: null, analyzedFilePath: null, analyzedFileSizeBytes: null, analyzedFileSha256: null, databasePath: null
     };
+    if (!resumedRun) {
+      try { const archive = new AiAnalysisRunArchive(runId, new Date(startedAt)); runArchives.set(runId, archive); run.runDirectory = archive.directory; archive.append("system_event", "APP_ONLY", "Analysis Run created before Provider dispatch.", { runId, localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }); archive.writeManifest(run); }
+      catch (error) { return errorPayload(new AiAnalysisError("AI_RUN_ARCHIVE_FAILED", error instanceof Error ? error.message : String(error))); }
+    }
     const outputDir = ensureDir(path.join(getExportsDir(), "ai-analysis"));
     run.plannedAnalyzedFilePath = path.join(outputDir, run.analyzedFileName);
     if (!resumedRun) runs.unshift(run);
@@ -433,18 +459,17 @@ export function registerAiAnalysisIpc() {
         run.progress.message = "Building one compact payload for all selected records.";
         notify(event);
         const compact = buildCompactPayload(dataset, payload.selectedDiffIds, run.rules);
-        const stagingFolder = ensureDir(path.join(getAppDataDir(), "ai-analysis", "staging", run.runId));
+        const stagingFolder = run.runDirectory ? ensureDir(run.runDirectory) : ensureDir(path.join(getAppDataDir(), "ai-analysis", "staging", run.runId));
         runStagingFolder = stagingFolder;
         const compactArtifact = resumedRun && run.compactPayloadPath && run.compactPayloadSha256 && run.compactPayloadSizeBytes !== null && run.compactPayloadSizeBytes !== undefined
           ? { filePath: run.compactPayloadPath, sha256: run.compactPayloadSha256, sizeBytes: run.compactPayloadSizeBytes }
-          : atomicExport(path.join(stagingFolder, "compact-analysis-payload.json"), compact.json);
+          : atomicExport(path.join(ensureDir(path.join(stagingFolder, "derived")), "compact-analysis-payload.json"), compact.json);
         run.compactPayloadPath = compactArtifact.filePath;
         run.compactPayloadSha256 = compactArtifact.sha256;
         run.compactPayloadSizeBytes = compactArtifact.sizeBytes;
         run.progress.payloadRecordCount = compact.payload.eventCount;
         run.progress.mainPayloadCount = 1;
         run.progress.rulesTransmissionCount = 1;
-        const request = buildSingleRunPrompt(compact, run.rules);
         run.progress.stage = "building_output_schema";
         run.progress.message = "Building the canonical strict Provider output schema.";
         let preparedOutputSchema: ReturnType<typeof prepareSingleRunOutputSchema>;
@@ -455,6 +480,9 @@ export function registerAiAnalysisIpc() {
         run.outputSchemaSha256 = preparedOutputSchema.sha256;
         run.outputSchemaBytesUtf8 = preparedOutputSchema.canonicalBytes.length;
         run.outputSchemaValidation = preparedOutputSchema.validation;
+        const request = resumedRun ? loadRequestPackage(stagingFolder) : buildRequestPackage({ runId, runDirectory: stagingFolder, dataset, rules: run.rules, selectedRecordCount: compact.payload.eventCount, supplementalInstruction: run.supplementalInstruction ?? undefined, outputSchemaCanonicalJson: preparedOutputSchema.canonicalJson });
+        run.requestPackage = request.requestPackage; run.promptTemplateVersion = request.requestPackage.coreInstructionVersion; run.promptSha256 = request.requestPackage.finalProviderPayloadSha256;
+        const archive = runArchives.get(runId); if (!resumedRun) archive?.append("system_event", "APP_ONLY", "Request Package prepared and verified before Provider dispatch.", { deliveryMode: request.requestPackage.deliveryMode, documentCount: request.requestPackage.documents.length, payloadSha256: request.requestPackage.finalProviderPayloadSha256 }); archive?.writeManifest(run);
         atomicExport(path.join(stagingFolder, "output-schema-sanitized.json"), JSON.stringify(preparedOutputSchema.schema, null, 2));
         atomicExport(path.join(stagingFolder, "output-schema-canonical.json"), preparedOutputSchema.canonicalJson);
         atomicExport(path.join(stagingFolder, "output-schema-validation.json"), JSON.stringify(preparedOutputSchema.validation, null, 2));
@@ -467,17 +495,18 @@ export function registerAiAnalysisIpc() {
         run.progress.message = `Output schema preflight passed: ${preparedOutputSchema.sha256}.`;
         run.progress.stage = "preflighting_capacity";
         const capability = run.capacitySnapshot ? null : await chatgpt.readSelectedModelCapacity();
-        const rulesBytes = run.rules.files.reduce((sum, file) => sum + (file.sizeBytes ?? 0), 0);
+        const rulesBytes = request.requestPackage.documents.filter((item) => ["COMMON_RULES", "SKILL_CATALOG", "RULE_SET_MANIFEST_OR_SCORING_RULES"].includes(item.role)).reduce((sum, item) => sum + item.snapshotByteLength, 0);
+        const pendingBytes = request.requestPackage.documents.find((item) => item.role === "PENDING_ANALYSIS_JSON")?.snapshotByteLength ?? compact.sizeBytes;
         const capacitySnapshot = run.capacitySnapshot ?? buildCapacityCalculationSnapshot({
-          capacity: { providerId: capability!.providerId, providerDisplayName: capability!.providerDisplayName, modelId: capability!.modelId, modelDisplayName: capability!.modelDisplayName, source: capability!.capacitySource, status: capability!.capacitySourceStatus, tokens: capability!.capacityTokens, rawSanitized: capability!.capacityRawResponseSanitized }, rulesBytesUtf8: rulesBytes, pendingPayloadBytesUtf8: compact.sizeBytes,
-          wrapperInstructionsBytesUtf8: Math.max(0, request.sizeBytes - rulesBytes - compact.sizeBytes),
-          finalSerializedPromptBytesUtf8: request.sizeBytes, recordCount: compact.payload.eventCount
+          capacity: { providerId: capability!.providerId, providerDisplayName: capability!.providerDisplayName, modelId: capability!.modelId, modelDisplayName: capability!.modelDisplayName, source: capability!.capacitySource, status: capability!.capacitySourceStatus, tokens: capability!.capacityTokens, rawSanitized: capability!.capacityRawResponseSanitized }, rulesBytesUtf8: rulesBytes, pendingPayloadBytesUtf8: pendingBytes,
+          wrapperInstructionsBytesUtf8: Math.max(0, request.requestPackage.finalProviderPayloadBytes - rulesBytes - pendingBytes),
+          finalSerializedPromptBytesUtf8: request.requestPackage.finalProviderPayloadBytes, recordCount: compact.payload.eventCount
         });
         const warningCode = capacityWarning(capacitySnapshot);
         const snapshotHash = capacitySnapshotHash(capacitySnapshot);
         if (!resumedRun) atomicExport(path.join(stagingFolder, "capacity-snapshot.json"), JSON.stringify(capacitySnapshot, null, 2));
-        run.promptTemplateVersion = SINGLE_RUN_PROMPT_VERSION;
-        run.promptSha256 = request.sha256;
+        run.promptTemplateVersion = run.requestPackage?.coreInstructionVersion ?? SINGLE_RUN_PROMPT_VERSION;
+        run.promptSha256 = request.requestPackage.finalProviderPayloadSha256;
         run.capacitySnapshot = capacitySnapshot;
         run.capacityWarningCode = warningCode;
         run.capacitySnapshotHash = snapshotHash;
@@ -506,13 +535,15 @@ export function registerAiAnalysisIpc() {
           analysisUserActions.push(`${run.capacityConfirmation.confirmedAt} Capacity warning confirmed: ${runId}`);
         }
         if (!dispatchGuard.begin(runId)) return { ok: false, run, snapshot: snapshot(), alreadyDispatching: true };
+        archive?.append("user_message", "CHATGPT_VISIBLE", request.prompt, { dispatchStatus: "sent", deliveryMode: request.requestPackage.deliveryMode, documentCount: request.requestPackage.documents.length, payloadSha256: request.requestPackage.finalProviderPayloadSha256 });
+        archive?.writeManifest(run);
         run.status = "running"; run.progress.status = "running"; run.progress.stage = "starting_thread";
         run.progress.message = "Dispatching one dedicated read-only ChatGPT thread and one analysis turn.";
-        requestEvidence = { runId, model: chatgpt.getStatus().selectedModel, promptSha256: request.sha256, promptBytes: request.sizeBytes, outputSchemaName: run.outputSchemaName, outputSchemaSha256: run.outputSchemaSha256, outputSchemaBytesUtf8: run.outputSchemaBytesUtf8, authorization: "[masked]" };
+        requestEvidence = { runId, model: chatgpt.getStatus().selectedModel, deliveryMode: request.requestPackage.deliveryMode, documents: request.requestPackage.documents.map(({ originalAbsolutePath: _path, ...item }) => item), promptSha256: request.requestPackage.finalProviderPayloadSha256, promptBytes: request.requestPackage.finalProviderPayloadBytes, outputSchemaName: run.outputSchemaName, outputSchemaSha256: run.outputSchemaSha256, outputSchemaBytesUtf8: run.outputSchemaBytesUtf8, authorization: "[masked]" };
         run.progress.providerDispatchCount = (run.progress.providerDispatchCount ?? 0) + 1;
         run.progress.requestCount = run.progress.providerDispatchCount;
         notify(event);
-        const response = await chatgpt.runAnalysis({ runId, prompt: request.prompt, model: chatgpt.getStatus().selectedModel, outputSchema: preparedOutputSchema.schema as Record<string, unknown>, outputSchemaSha256: preparedOutputSchema.sha256 }, controller.signal);
+        const response = await chatgpt.runAnalysis({ runId, prompt: request.prompt, model: chatgpt.getStatus().selectedModel, deliveryMode: "INLINE_EXACT_CONTENT", finalProviderPayloadSha256: request.requestPackage.finalProviderPayloadSha256, outputSchema: preparedOutputSchema.schema as Record<string, unknown>, outputSchemaSha256: preparedOutputSchema.sha256 }, controller.signal);
         providerVisibleResponse = response.text;
         run.threadId = response.threadId;
         run.providerRuntimeVersion = response.runtimeVersion;
@@ -523,11 +554,31 @@ export function registerAiAnalysisIpc() {
         const usage = { ...response.usage, availability: "actual" as const, estimatedInputTokens: capacitySnapshot.estimatedFinalInputTokens };
         run.progress.usage = usage;
         const raw = stageVisibleProviderResponse(stagingFolder, response.text);
+        run.providerResponseRawPath = raw.rawFilePath;
         run.providerResponseGzipPath = raw.filePath;
         run.providerResponseSha256 = raw.rawSha256;
         run.providerResponseGzipSha256 = raw.gzipSha256;
+        fs.copyFileSync(raw.filePath, path.join(stagingFolder, "provider-response-reconstructed.json.gz"), fs.constants.COPYFILE_EXCL);
         run.progress.stage = "validating_response";
-        run.results = parseSingleRunResponse(response.text, compact.payload, run.rules, model, response.requestId, usage);
+        let responseDocument: unknown;
+        try { responseDocument = JSON.parse(response.text.replace(/^```json\s*|\s*```$/g, "")); } catch { throw new AiAnalysisError("AI_PROVIDER_RESPONSE_INVALID_JSON", "Provider response is not valid JSON."); }
+        const returnedRecords = Array.isArray((responseDocument as { records?: unknown[] }).records) ? (responseDocument as { records: unknown[] }).records.length : 0;
+        run.providerReturnedRecordCount = returnedRecords; run.parsedRecordCount = returnedRecords;
+        const responseSchemaValidation = validateValueAgainstOutputSchema(responseDocument, preparedOutputSchema.schema);
+        run.schemaValidRecordCount = responseSchemaValidation.isValid ? returnedRecords : 0;
+        runArchives.get(runId)?.append("validation_event", "APP_ONLY", "Strict response schema validation completed.", { valid: responseSchemaValidation.isValid, recordCount: returnedRecords, findingCount: responseSchemaValidation.findings.length });
+        if (!responseSchemaValidation.isValid) throw new AiAnalysisError("AI_PROVIDER_RESPONSE_SCHEMA_MISMATCH", `${responseSchemaValidation.findings[0]?.jsonPointer ?? "/"}: ${responseSchemaValidation.findings[0]?.message ?? "Schema mismatch"}`);
+        const canonicalResponse = atomicExport(path.join(stagingFolder, "provider-response.canonical.json"), JSON.stringify(responseDocument));
+        run.providerResponseCanonicalPath = canonicalResponse.filePath; run.providerResponseCanonicalSha256 = canonicalResponse.sha256;
+        run.progress.stage = "validating_identity";
+        const parsedResults = parseSingleRunResponse(response.text, compact.payload, run.rules, model, response.requestId, usage);
+        runArchives.get(runId)?.append("validation_event", "APP_ONLY", "Identity, Catalog, and evidence ownership validation completed.", { valid: true, recordCount: parsedResults.length });
+        run.progress.stage = "validating_response";
+        const semanticValidation = validateCanonicalResponseSemantics(responseDocument); run.semanticFindings = semanticValidation.findings; run.semanticValidRecordCount = semanticValidation.semanticValidRecordCount;
+        runArchives.get(runId)?.append("validation_event", "APP_ONLY", "Canonical semantic validation completed.", { valid: semanticValidation.valid, semanticValidRecordCount: semanticValidation.semanticValidRecordCount, findingCount: semanticValidation.findings.length });
+        atomicExport(path.join(stagingFolder, "semantic-validation.json"), JSON.stringify(semanticValidation, null, 2));
+        if (!semanticValidation.valid) { const finding = semanticValidation.findings[0]; throw new AiAnalysisError("AI_RESPONSE_SEMANTIC_VALIDATION_FAILED", `${finding.jsonPath}: ${finding.message}`); }
+        run.results = parsedResults;
         run.progress.resultRecordCount = run.results.length;
         run.progress.completedDiffs = run.results.length;
         run.progress.completedBatches = 1;
@@ -580,10 +631,10 @@ export function registerAiAnalysisIpc() {
         exported = atomicExport(run.plannedAnalyzedFilePath!, JSON.stringify(analyzedDocument(run), null, 2));
         report = atomicExport(reportPath, html);
         if (report.sizeBytes !== run.reportFileSizeBytes || report.sha256 !== run.reportFileSha256) throw new AiAnalysisError("EXPORT_VALIDATION_FAILED", "Golden HTML metadata does not match the reopened artifact.");
-        run.analyzedFilePath = exported.filePath; run.analyzedFileSizeBytes = exported.sizeBytes; run.analyzedFileSha256 = exported.sha256;
+        run.analyzedFilePath = exported.filePath; run.analyzedFileSizeBytes = exported.sizeBytes; run.analyzedFileSha256 = exported.sha256; run.formalArtifactRecordCount = run.results.length;
         run.reportFilePath = report.filePath;
         run.progress.stage = "committing_database";
-        initializeAiDatabase(dbPath); persistCompletedRun(dbPath, dataset, run); run.databasePath = dbPath; run.databaseWriteStatus = `Written — ${run.results.length} validated records`; run.progress.stage = "completed";
+        initializeAiDatabase(dbPath); persistCompletedRun(dbPath, dataset, run); run.databasePath = dbPath; run.databaseWriteStatus = `Written — ${run.results.length} validated records`; run.sqliteCommittedRecordCount = run.results.length; run.progress.stage = "completed";
         if (runStagingFolder) persistRunDebugEvidence(runStagingFolder, run, requestEvidence, { providerResponseSha256: run.providerResponseSha256, providerResponseGzipSha256: run.providerResponseGzipSha256, providerResponseGzipPath: run.providerResponseGzipPath, visibleResponseBytes: providerVisibleResponse === null ? null : Buffer.byteLength(providerVisibleResponse) }, [{ at: run.startedAt, type: "analysis_started" }, { at: run.completedAt, type: "analysis_completed" }], analysisUserActions);
       } catch (error) {
         if (exported) try { fs.unlinkSync(exported.filePath); } catch {}
@@ -623,21 +674,21 @@ export function registerAiAnalysisIpc() {
             capacitySnapshot: run.capacitySnapshot ?? null,
             providerDiagnostics: { provider: run.provider, model: run.model, runtimeVersion: chatgpt.getStatus().runtimeVersion, state: chatgpt.getStatus().state, providerDispatchCount: run.progress.providerDispatchCount ?? 0, threadStartAttemptCount: run.progress.threadStartAttemptCount ?? 0, threadCreatedCount: run.progress.threadCreatedCount ?? 0, turnStartAttemptCount: run.progress.turnStartAttemptCount ?? 0, acceptedTurnCount: run.progress.acceptedTurnCount ?? 0, turnCompletedCount: run.progress.turnCompletedCount ?? 0, retryCount: run.progress.retryCount, repairTurnCount: run.progress.repairTurnCount ?? 0, fallbackRequestCount: run.progress.fallbackRequestCount ?? 0, outputSchemaSha256: run.outputSchemaSha256 ?? null },
             requestSanitized: requestEvidence,
-            responseSanitized: providerVisibleResponse === null ? undefined : { text: redactChatGptText(providerVisibleResponse) },
-            visibleResponse: providerVisibleResponse === null ? null : redactChatGptText(providerVisibleResponse),
+            responseSanitized: providerVisibleResponse === null ? undefined : { text: redactChatGptTextComplete(providerVisibleResponse) },
+            visibleResponse: providerVisibleResponse === null ? null : redactChatGptTextComplete(providerVisibleResponse),
             validationResult: { passed: false, stage: failedStage, errorCode: value.code, inputCount: run.selectedDiffIds.length, outputCount: run.results.length },
             tokenUsage: run.progress.usage,
             executionTime: { startedAt, completedAt: run.completedAt, durationMs: run.progress.elapsedMs },
             events: [{ at: startedAt, type: "analysis_started", runId }, ...(run.capacityConfirmation ? [{ at: run.capacityConfirmation.confirmedAt, type: `capacity_${run.capacityConfirmation.confirmationAction}`, ...run.capacityConfirmation }] : []), { at: deduped.lastOccurredAt, type: "primary_error", ...deduped }],
             actions: [`${startedAt} Selected rules ${run.rules.snapshotId ?? run.rules.ruleSetId}`, `${startedAt} Selected Pending JSON ${run.sourceFileName}`, `${startedAt} Started analysis ${runId}`, ...(run.capacityConfirmation ? [`${run.capacityConfirmation.confirmedAt ?? startedAt} Capacity warning ${run.capacityConfirmation.confirmationAction}`] : [])]
           });
-          if (runStagingFolder) for (const name of ["output-schema-sanitized.json", "output-schema-canonical.json", "output-schema-validation.json", "output-schema.sha256"]) {
+          if (runStagingFolder) for (const name of ["output-schema-sanitized.json", "output-schema-canonical.json", "output-schema-validation.json", "output-schema.sha256", "provider-response.raw.json", "provider-response.canonical.json", "semantic-validation.json"]) {
             const source = path.join(runStagingFolder, name);
             if (fs.existsSync(source)) fs.copyFileSync(source, path.join(folder, name), fs.constants.COPYFILE_EXCL);
           }
         } catch (stagingError) { run.progress.message += ` Failed staging error: ${stagingError instanceof Error ? stagingError.message : String(stagingError)}`; }
       }
-    } finally { if (run.status !== "queued") dispatchGuard.finish(runId); providerFailureEvidence.delete(runId); activeRunId = null; abortControllers.delete(runId); notify(event); }
+    } finally { try { runArchives.get(runId)?.writeManifest(run); } catch (archiveError) { run.progress.errorCode = "AI_RUN_ARCHIVE_FAILED"; run.progress.message += ` Archive finalization failed: ${archiveError instanceof Error ? archiveError.message : String(archiveError)}`; } if (run.status !== "queued") dispatchGuard.finish(runId); providerFailureEvidence.delete(runId); activeRunId = null; abortControllers.delete(runId); notify(event); }
     return { ok: run.status === "completed", run, snapshot: snapshot() };
   });
   ipcMain.handle("ai-analysis:cancel-capacity-warning", async (event, runId: string) => {
@@ -674,6 +725,19 @@ export function registerAiAnalysisIpc() {
     const content = payload.format === "json" ? JSON.stringify(analyzedDocument(run), null, 2) : payload.format === "csv" ? csvForRun(run) : goldenHtmlForRun(run, selectedDataset);
     if (payload.format === "html") validateGoldenHtml(content, run.results.length);
     return { canceled: false, ...atomicExport(choice.filePath, content) };
+  });
+  ipcMain.handle("ai-analysis:conversation", async (_event, payload: { runId: string; offset?: number; limit?: number }) => {
+    const run = runs.find((item) => item.runId === payload.runId);
+    if (!run?.runDirectory) return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Run archive was not found."));
+    try { return { ok: true, ...readConversationPage(run.runDirectory, payload.offset, payload.limit) }; } catch (error) { return errorPayload(new AiAnalysisError("AI_RUN_ARCHIVE_FAILED", error instanceof Error ? error.message : String(error))); }
+  });
+  ipcMain.handle("ai-analysis:delete-run", async (event, runId: string) => {
+    const index = runs.findIndex((item) => item.runId === runId); const run = runs[index];
+    if (!run?.runDirectory || activeRunId === runId || ["running", "queued", "retrying", "cancelling"].includes(run.status)) return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Only a terminal Run archive can be deleted."));
+    const options = { type: "warning" as const, buttons: ["Cancel", "Delete Run Archive"], defaultId: 0, cancelId: 0, title: "Delete Run Archive", message: `Delete local Run archive ${runId}?`, detail: "This removes only the local Run archive. It does not delete formal JSON, HTML, or SQLite records." };
+    const owner = BrowserWindow.fromWebContents(event.sender); const choice = owner ? await dialog.showMessageBox(owner, options) : await dialog.showMessageBox(options);
+    if (choice.response !== 1) return { ok: false, canceled: true, snapshot: snapshot() };
+    try { deleteRunArchive(run.runDirectory); runs.splice(index, 1); runArchives.delete(runId); if (selectedRunId === runId) selectedRunId = runs[0]?.runId ?? null; return { ok: true, canceled: false, snapshot: snapshot() }; } catch (error) { return errorPayload(new AiAnalysisError("AI_RUN_ARCHIVE_FAILED", error instanceof Error ? error.message : String(error))); }
   });
   ipcMain.handle("ai-analysis:open-folder", async (_event, folderPath?: string) => {
     const folder = folderPath || ensureDir(path.join(getExportsDir(), "ai-analysis"));

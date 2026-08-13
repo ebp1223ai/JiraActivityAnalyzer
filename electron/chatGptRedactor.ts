@@ -14,12 +14,16 @@ export function maskEmail(value: unknown) {
   return `${local.slice(0, 1)}***@${match[2]}`;
 }
 
-export function redactChatGptText(value: unknown) {
+export function redactChatGptTextComplete(value: unknown) {
   let text = String(value ?? "");
   for (const pattern of SECRET_PATTERNS) {
     text = text.replace(pattern, (match) => match.includes("@") ? "[masked-email]" : match.startsWith("http") ? "[masked-auth-url]" : "[masked]");
   }
-  return text.slice(0, 8192);
+  return text;
+}
+
+export function redactChatGptText(value: unknown) {
+  return redactChatGptTextComplete(value).slice(0, 8192);
 }
 
 export function sanitizedError(error: unknown) {
