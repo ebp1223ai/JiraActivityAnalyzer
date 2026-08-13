@@ -4015,47 +4015,31 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
       reason: result?.reason ?? "No copy result was produced."
     });
   };
-  const aiFailedRoot = path.join(getExportsDir(), "ai-analysis", "failed-staging");
-  const aiStagingRoot = path.join(getAppDataDir(), "ai-analysis", "staging");
-  const aiEvidenceCandidates: Array<{ fullPath: string; mtimeMs: number; kind: "failed" | "run" }> = [];
-  if (fs.existsSync(aiFailedRoot)) for (const entry of fs.readdirSync(aiFailedRoot, { withFileTypes: true })) {
-    if (entry.isDirectory()) { const fullPath = path.join(aiFailedRoot, entry.name); aiEvidenceCandidates.push({ fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs, kind: "failed" }); }
-  }
-  if (fs.existsSync(aiStagingRoot)) for (const entry of fs.readdirSync(aiStagingRoot, { withFileTypes: true })) {
-    const fullPath = path.join(aiStagingRoot, entry.name, "debug");
-    if (entry.isDirectory() && fs.existsSync(fullPath)) aiEvidenceCandidates.push({ fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs, kind: "run" });
-  }
-  const latestAiEvidence = aiEvidenceCandidates.sort((left, right) => right.mtimeMs - left.mtimeMs)[0];
-  if (latestAiEvidence) {
-    const copied = collectDebugFolderSources(folderPath, [{ sourcePath: latestAiEvidence.fullPath, relativePath: "ai-analysis" }]);
+  const aiRunsRoot = path.join(getExportsDir(), "ai-analysis", "runs");
+  const aiRunCandidates: Array<{ fullPath: string; mtimeMs: number }> = [];
+  const visitAiRuns = (directory: string) => {
+    if (!fs.existsSync(directory)) return;
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      const fullPath = path.join(directory, entry.name);
+      if (fs.existsSync(path.join(fullPath, "run-manifest.json"))) aiRunCandidates.push({ fullPath, mtimeMs: fs.statSync(path.join(fullPath, "run-manifest.json")).mtimeMs });
+      else visitAiRuns(fullPath);
+    }
+  };
+  visitAiRuns(aiRunsRoot);
+  const selectedAiRunPath = aiRunCandidates.sort((left, right) => right.mtimeMs - left.mtimeMs)[0]?.fullPath ?? null;
+  if (selectedAiRunPath) {
+    const copied = collectDebugFolderSources(folderPath, [{ sourcePath: selectedAiRunPath, relativePath: "ai-analysis/canonical-run" }]);
     copiedEntries.push(...copied.entries);
-    evidenceEntries.push({ id: "ai_analysis_latest_run", status: copied.failed.length ? "copy_failed" : "copied", sourcePath: latestAiEvidence.fullPath, relativePath: "ai-analysis", reason: copied.failed.length ? copied.failed.map((entry) => entry.reason).join("; ") : `Latest sanitized AI Analysis ${latestAiEvidence.kind} evidence copied without moving or deleting its source.` });
-  } else evidenceEntries.push({ id: "ai_analysis_latest_run", status: "not_run", sourcePath: aiStagingRoot, relativePath: "ai-analysis", reason: "No AI Analysis run diagnostics or failed staging exists." });  for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
-    collectDiagnosticFile(`current_session_${fileName}`, path.join(diagnosticSnapshot.sessionDir, fileName), `sessions/current/${fileName}`);
+    evidenceEntries.push({ id: "ai_analysis_canonical_run", status: copied.failed.length ? "copy_failed" : "copied", sourcePath: selectedAiRunPath, relativePath: "ai-analysis/canonical-run", reason: copied.failed.length ? copied.failed.map((entry) => entry.reason).join("; ") : "Latest Canonical AI Run copied with source/destination SHA-256 verification." });
+  } else evidenceEntries.push({ id: "ai_analysis_canonical_run", status: "not_run", sourcePath: aiRunsRoot, relativePath: "ai-analysis/canonical-run", reason: "No Canonical AI Analysis run exists." });
+  for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
+    collectDiagnosticFile("current_session_" + fileName, path.join(diagnosticSnapshot.sessionDir, fileName), "sessions/current/" + fileName);
   }
   if (diagnosticSnapshot.previousSessionId) {
     const previousDir = path.join(diagnosticSnapshot.sessionsDir, diagnosticSnapshot.previousSessionId);
-    const aiFailedRoot = path.join(getExportsDir(), "ai-analysis", "failed-staging");
-  const aiStagingRoot = path.join(getAppDataDir(), "ai-analysis", "staging");
-  const aiEvidenceCandidates: Array<{ fullPath: string; mtimeMs: number; kind: "failed" | "run" }> = [];
-  if (fs.existsSync(aiFailedRoot)) for (const entry of fs.readdirSync(aiFailedRoot, { withFileTypes: true })) {
-    if (entry.isDirectory()) { const fullPath = path.join(aiFailedRoot, entry.name); aiEvidenceCandidates.push({ fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs, kind: "failed" }); }
-  }
-  if (fs.existsSync(aiStagingRoot)) for (const entry of fs.readdirSync(aiStagingRoot, { withFileTypes: true })) {
-    const fullPath = path.join(aiStagingRoot, entry.name, "debug");
-    if (entry.isDirectory() && fs.existsSync(fullPath)) aiEvidenceCandidates.push({ fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs, kind: "run" });
-  }
-  const latestAiEvidence = aiEvidenceCandidates.sort((left, right) => right.mtimeMs - left.mtimeMs)[0];
-  if (latestAiEvidence) {
-    const copied = collectDebugFolderSources(folderPath, [{ sourcePath: latestAiEvidence.fullPath, relativePath: "ai-analysis" }]);
-    copiedEntries.push(...copied.entries);
-    evidenceEntries.push({ id: "ai_analysis_latest_run", status: copied.failed.length ? "copy_failed" : "copied", sourcePath: latestAiEvidence.fullPath, relativePath: "ai-analysis", reason: copied.failed.length ? copied.failed.map((entry) => entry.reason).join("; ") : `Latest sanitized AI Analysis ${latestAiEvidence.kind} evidence copied without moving or deleting its source.` });
-  } else evidenceEntries.push({ id: "ai_analysis_latest_run", status: "not_run", sourcePath: aiStagingRoot, relativePath: "ai-analysis", reason: "No AI Analysis run diagnostics or failed staging exists." });  for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
-      collectDiagnosticFile(`previous_session_${fileName}`, path.join(previousDir, fileName), `sessions/previous/${fileName}`);
-    }
-  } else {
-    evidenceEntries.push({ id: "previous_session", status: "source_missing", reason: "No previous diagnostic session is available yet." });
-  }
+    for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) collectDiagnosticFile("previous_session_" + fileName, path.join(previousDir, fileName), "sessions/previous/" + fileName);
+  } else evidenceEntries.push({ id: "previous_session", status: "source_missing", reason: "No previous diagnostic session is available yet." });
   collectDiagnosticFile("latest_session_pointer", diagnosticSnapshot.latestPath, "sessions/latest-session.json", "source_missing");
 
   const diagnosticText = ["main.ndjson", "renderer.ndjson", "transitions.ndjson"]
@@ -4419,6 +4403,36 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     ...finalDebugBundleSummary,
     debugBundleStatus,
     failedFileCount: copyFailures.length
+  });
+  const aiRequiredEvidence = [
+    "run-manifest.json", "conversation.jsonl", "conversation.md", "provider-stream.jsonl",
+    "input-workspace/pending-analysis.json", "input-workspace/common-rules.md", "input-workspace/skill-catalog.md", "input-workspace/rule-set-manifest.md",
+    "control/analysis-instruction.md", "control/output-schema.json", "control/request-package-manifest.json",
+    "provider-response.raw.json", "provider-response.canonical.json", "provider-visible-final-response.json.gz",
+    "debug/response-evidence.json", "debug/validation-result.json",
+    "debug/runtime-diagnostics.json", "debug/execution-time.json", "debug/token-usage.json", "debug/event-log.jsonl"
+  ];
+  const aiCopyPrefix = "ai-analysis/canonical-run/";
+  const aiCopyEntries = copiedEntries.filter((entry) => entry.relativePath.startsWith(aiCopyPrefix));
+  const aiDestinationPaths = new Set(aiCopyEntries.filter((entry) => entry.status === "copied").map((entry) => entry.relativePath.slice(aiCopyPrefix.length)));
+  const aiMissingFiles = selectedAiRunPath ? aiRequiredEvidence.filter((relativePath) => !aiDestinationPaths.has(relativePath)) : [...aiRequiredEvidence];
+  const aiHashMismatches = aiCopyEntries.filter((entry) => entry.status === "copied" && entry.hashMatch !== true);
+  const aiFlushResults = {
+    mainSessionLog: { success: fs.existsSync(path.join(diagnosticSnapshot.sessionDir, "main.ndjson")), mode: "synchronous_append" },
+    rendererSessionLog: { success: fs.existsSync(path.join(diagnosticSnapshot.sessionDir, "renderer.ndjson")), mode: "synchronous_append" },
+    userActionLog: { success: true, mode: "invoke_snapshot" },
+    conversation: { success: !selectedAiRunPath || fs.existsSync(path.join(selectedAiRunPath, "conversation.jsonl")), mode: "fsync_per_event" },
+    providerStream: { success: !selectedAiRunPath || fs.existsSync(path.join(selectedAiRunPath, "provider-stream.jsonl")), mode: "fsync_per_event" }
+  };
+  const aiFlushFailed = Object.values(aiFlushResults).some((result) => !result.success);
+  const aiCompletenessStatus = !selectedAiRunPath ? "incomplete" : aiMissingFiles.length || aiHashMismatches.length || aiFlushFailed ? "incomplete" : "completed";
+  writeBundleJson(folderPath, "debug-completeness-manifest.json", {
+    schemaVersion: "jaa-debug-completeness-manifest-v1", debugFolderId: path.basename(folderPath), generatedAtLocal: new Date(createdAt).toLocaleString("sv-SE"), generatedAtUtc: createdAt,
+    selectedAiRunId: selectedAiRunPath ? path.basename(selectedAiRunPath) : null, canonicalAiRunSourcePath: selectedAiRunPath ? "[APP_ROOT]/exports/ai-analysis/runs/.../" + path.basename(selectedAiRunPath) : null,
+    expectedFileCount: aiRequiredEvidence.length, copiedFileCount: aiCopyEntries.filter((entry) => entry.status === "copied").length, excludedSecretFileCount: 0, missingRequiredFileCount: aiMissingFiles.length, hashMismatchCount: aiHashMismatches.length,
+    flushResults: aiFlushResults, sourceFiles: aiCopyEntries.map((entry) => ({ relativePath: entry.relativePath.slice(aiCopyPrefix.length), size: entry.size, sha256: entry.sourceSha256 ?? null })),
+    destinationFiles: aiCopyEntries.map((entry) => ({ relativePath: entry.relativePath, size: entry.size, sha256: entry.destinationSha256 ?? null, hashMatch: entry.hashMatch ?? false })),
+    excludedFiles: [{ pattern: "credentials/oauth/token/.env", reason: "Secret and managed authentication material are never collected." }], missingFiles: aiMissingFiles, duplicateAliases: [], debugBundleStatus: aiCompletenessStatus
   });
   const manifestEntries = listDebugFolderFiles(folderPath);
   for (const entry of copiedEntries) {

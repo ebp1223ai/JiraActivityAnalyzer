@@ -27,8 +27,8 @@ test("request thread and turn counters follow real boundaries", () => {
   assert.match(service, /emitRun\(\{ type: "turn_started"/); assert.match(ipc, /providerEvent\.type === "turn_started"/);
   assert.match(ipc, /threadCreatedCount/); assert.match(ipc, /acceptedTurnCount/); assert.match(ipc, /turnCompletedCount/);
 });
-test("failed staging and formal output gate precede persistence", () => {
-  assert.match(ipc, /createFailedStaging/); assert.match(ipc, /persistFailedRunEvidence/); assert.match(ipc, /evaluateFormalPersistenceGate/);
+test("canonical failure evidence and formal output gate precede persistence", () => {
+  assert.doesNotMatch(ipc, /createFailedStaging/); assert.match(ipc, /failed-run-manifest\.json/); assert.match(ipc, /evaluateFormalPersistenceGate/);
   assert.ok(ipc.indexOf("if (!run.validationGate.passed)") < ipc.indexOf("JSON.stringify(analyzedDocument(run)"));
   assert.ok(ipc.indexOf("JSON.stringify(analyzedDocument(run)") < ipc.indexOf("persistCompletedRun(dbPath, dataset, run)"));
 });

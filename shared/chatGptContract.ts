@@ -40,6 +40,8 @@ export type ChatGptStatus = {
   runtimeVersion: typeof CODEX_RUNTIME_VERSION;
   runtimeFound: boolean;
   runtimeSha256: string | null;
+  runtimeSource: "bundled";
+  runtimeIntegrity: "unverified" | "verified" | "failed";
   accountEmailMasked: string | null;
   planType: string | null;
   authMode: "chatgpt" | null;
@@ -62,15 +64,19 @@ export type ChatGptRunEvent =
   | { type: "usage"; runId: string; inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null }
   | { type: "completed"; runId: string; text: string; elapsedMs: number }
   | { type: "cancelled"; runId: string }
-  | { type: "failed"; runId: string; errorCode: string; message: string; outcomeUnknown: boolean; visibleText: string; usage: ChatGptAnalysisResponse["usage"] };
+  | { type: "failed"; runId: string; errorCode: string; message: string; outcomeUnknown: boolean; visibleText: string; usage: ChatGptAnalysisResponse["usage"] }
+  | { type: "provider_event"; runId: string; method: string; params: unknown };
 
 export type ChatGptAnalysisRequest = {
   runId?: string;
+  requestPurpose?: "FORMAL_ANALYSIS" | "MANUAL_CHAT";
   prompt: string;
   model?: string | null;
   outputSchema?: Record<string, unknown> | null;
   outputSchemaSha256?: string | null;
-  deliveryMode?: "INLINE_EXACT_CONTENT";
+  deliveryMode?: "LOCAL_FILE_WORKSPACE";
+  workspacePath?: string;
+  allowedReadRoots?: string[];
   finalProviderPayloadSha256?: string | null;
 };
 export type ChatGptAnalysisResponse = {

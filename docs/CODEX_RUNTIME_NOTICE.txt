@@ -8,3 +8,5 @@ License text: https://github.com/openai/codex/blob/main/LICENSE
 The bundled runtime is used only through its stdio App Server protocol. ChatGPT
 credentials are owned by the runtime and are not read or copied by Jira Activity
 Analyzer.
+v0.3.15 packaging policy: BUNDLED_ONLY
+The packaged runtime manifest records the pinned package version, relative executable path, architecture, source, license, and SHA-256. Startup fails closed when the bundled runtime is missing or does not match the manifest. Jira Activity Analyzer does not search PATH, use an external Codex installation, or download a runtime.

@@ -24,7 +24,9 @@ type DiagnosticOptions = {
 
 function safeValue(value: unknown, seen = new WeakSet<object>(), depth = 0): unknown {
   if (depth > 6) return "[max-depth]";
-  if (value instanceof Error) return { name: value.name, message: value.message, stack: value.stack ?? "" };
+  if (value instanceof Error) return { code: value.name || "UNEXPECTED_ERROR", name: value.name || "Error", message: value.message || "An error occurred without a message.", stack: value.stack ?? "", cause: safeValue(value.cause, seen, depth + 1) };
+  if (value === undefined) return "[unavailable]";
+  if (value === null) return null;
   if (typeof value === "bigint") return value.toString();
   if (typeof value === "function") return `[function ${value.name || "anonymous"}]`;
   if (typeof value === "symbol") return value.toString();

@@ -1,5 +1,17 @@
 # Jira Activity Analyzer
 
+> v0.3.15 pins and verifies the bundled official Codex runtime, sends formal analysis through a four-file local workspace, enforces count-aware structured output, and packages canonical Run evidence into Debug Folder exports.
+
+## v0.3.15 Bundled Runtime, Local Workspace, and Debug Evidence
+
+- Formal ChatGPT analysis uses only the bundled Codex 0.147.0 runtime. Version, package identity, path containment, and SHA-256 are verified before startup; there is no PATH lookup, external fallback, or runtime download.
+- Every formal run snapshots exactly one Pending Analysis JSON and three Markdown rule files into its canonical APP_ROOT run workspace. The Provider receives only a short instruction and reads those four local files in one thread and one turn.
+- The strict output schema requires exactly the selected input count, and response validation fails closed on empty, missing, extra, duplicate, or identity-mismatched records.
+- Conversation and sanitized Provider events remain append-only. Debug Folder copies the canonical Run with source/destination hashes and writes a completeness manifest.
+- Interactive managed OAuth and a real 117-record Provider run remain manual verification items; automated tests do not spend cloud quota.
+
+See [v0.3.15 implementation and verification](docs/v0.3.15-bundled-codex-local-workspace-debug-evidence.md).
+
 > v0.3.14 freezes and hashes the exact AI Request Package, persists complete ChatGPT-visible and App-only conversation evidence as it arrives, and aligns Structured Output, semantic validation, JSON, Golden HTML, and SQLite around one status-aware contract.
 
 ## v0.3.14 Request Transparency and Response Contract

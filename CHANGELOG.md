@@ -1,3 +1,10 @@
+## 0.3.15 - 2026-08-13
+
+- Added bundled-only official Codex 0.147.0 runtime discovery with manifest, path, version, package identity, and SHA-256 fail-closed verification; removed external PATH/fallback/download behavior from formal runtime resolution.
+- Replaced inline formal analysis delivery with an exact four-file Local File Workspace under the canonical APP_ROOT run archive and a short single-thread/single-turn Provider instruction.
+- Added count-aware Strict Structured Output constraints and post-response identity/count validation so empty, partial, duplicate, or extra results cannot pass formal persistence gates.
+- Extended append-only conversation/provider evidence, runtime diagnostics, canonical failed-run retention, source/destination copy hashes, and Debug Folder completeness reporting.
+- Preserved Jira read-only boundaries and completed-only SQLite output. Interactive OAuth and a real 117-record Provider run remain Manual Pending.
 ## 0.3.14 - 2026-08-13
 
 - Added immutable, hash-verified Request Packages containing the exact Pending JSON, three original Markdown rule documents, visible versioned instructions, and Strict Output Schema with honest `INLINE_EXACT_CONTENT` delivery evidence.

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { AI_ANALYSIS_OUTPUT_SCHEMA_VERSION } from "../shared/aiAnalysisContract.js";
 
-export const OUTPUT_SCHEMA_NAME = "jira_activity_analysis_v0314" as const;
+export const OUTPUT_SCHEMA_NAME = "jira_activity_analysis_v0315" as const;
 export const OUTPUT_SCHEMA_VALIDATOR_NAME = "jira-activity-analyzer-strict-output-schema" as const;
 export const OUTPUT_SCHEMA_VALIDATOR_VERSION = "1.0.0" as const;
 
@@ -54,7 +54,7 @@ const LIMITS = {
 
 const SUPPORTED_KEYWORDS = new Set([
   "type", "properties", "required", "additionalProperties", "items", "enum", "const",
-  "anyOf", "$defs", "$ref", "description"
+  "anyOf", "$defs", "$ref", "description", "minItems", "maxItems"
 ]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -83,7 +83,8 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-export function createSingleRunOutputSchema(): Record<string, unknown> {
+export function createSingleRunOutputSchema(expectedRecordCount?: number): Record<string, unknown> {
+  if (expectedRecordCount !== undefined && (!Number.isInteger(expectedRecordCount) || expectedRecordCount < 0)) throw new Error("OUTPUT_SCHEMA_RECORD_COUNT_INVALID");
   const stringArray = () => ({ type: "array", items: { type: "string" } });
   const negativeCheck = () => ({
     type: "object", properties: {
@@ -124,7 +125,8 @@ export function createSingleRunOutputSchema(): Record<string, unknown> {
   };
   return {
     type: "object", properties: {
-      schemaVersion: { type: "string", const: AI_ANALYSIS_OUTPUT_SCHEMA_VERSION }, records: { type: "array", items: record }
+      schemaVersion: { type: "string", const: AI_ANALYSIS_OUTPUT_SCHEMA_VERSION },
+      records: { type: "array", items: record, ...(expectedRecordCount === undefined ? {} : { minItems: expectedRecordCount, maxItems: expectedRecordCount }) }
     }, required: ["schemaVersion", "records"], additionalProperties: false
   };
 }
@@ -206,6 +208,9 @@ export function validateStrictOutputSchema(schema: Record<string, unknown>, inpu
       }
     }
     if (types.includes("array")) {
+      if (node.minItems !== undefined && (!Number.isInteger(node.minItems) || (node.minItems as number) < 0)) add({ code: "SCHEMA_MIN_ITEMS_INVALID", severity: "error", jsonPointer: pointer + "/minItems", message: "minItems must be a non-negative integer.", expected: "non-negative integer", actual: node.minItems, keyword: "minItems" });
+      if (node.maxItems !== undefined && (!Number.isInteger(node.maxItems) || (node.maxItems as number) < 0)) add({ code: "SCHEMA_MAX_ITEMS_INVALID", severity: "error", jsonPointer: pointer + "/maxItems", message: "maxItems must be a non-negative integer.", expected: "non-negative integer", actual: node.maxItems, keyword: "maxItems" });
+      if (typeof node.minItems === "number" && typeof node.maxItems === "number" && node.minItems > node.maxItems) add({ code: "SCHEMA_ARRAY_RANGE_INVALID", severity: "error", jsonPointer: pointer || "/", message: "minItems cannot exceed maxItems.", expected: "<=" + node.maxItems, actual: node.minItems, keyword: "minItems" });
       if (!isObject(node.items)) add({ code: "SCHEMA_ARRAY_ITEMS_INVALID", severity: "error", jsonPointer: `${pointer}/items`, message: "Array schema requires one explicit items schema.", expected: "schema object", actual: node.items, keyword: "items" });
       else visit(node.items, `${pointer}/items`, depth + 1, refs);
     }
@@ -272,14 +277,18 @@ export function validateValueAgainstOutputSchema(value: unknown, schema: Record<
         else visit(current[key], properties[key], `${pointer}/${pointerToken(key)}`);
       }
     }
-    if (types.includes("array") && Array.isArray(current)) current.forEach((item, index) => visit(item, node.items, `${pointer}/${index}`));
+    if (types.includes("array") && Array.isArray(current)) {
+      if (typeof node.minItems === "number" && current.length < node.minItems) findings.push({ jsonPointer: pointer || "/", message: "Array has fewer items than required.", expected: ">=" + node.minItems, actual: current.length });
+      if (typeof node.maxItems === "number" && current.length > node.maxItems) findings.push({ jsonPointer: pointer || "/", message: "Array has more items than allowed.", expected: "<=" + node.maxItems, actual: current.length });
+      current.forEach((item, index) => visit(item, node.items, pointer + "/" + index));
+    }
     if (Array.isArray(node.anyOf) && !node.anyOf.some((branch) => validateValueAgainstOutputSchema(current, branch as Record<string, unknown>).isValid)) findings.push({ jsonPointer: pointer || "/", message: "Value does not match anyOf.", expected: "one valid branch", actual: current });
   };
   visit(value, schema, "");
   return { isValid: findings.length === 0, findingCount: findings.length, findings };
 }
-export function prepareSingleRunOutputSchema(): PreparedOutputSchema {
-  const canonicalJson = canonicalizeOutputSchema(createSingleRunOutputSchema());
+export function prepareSingleRunOutputSchema(expectedRecordCount?: number): PreparedOutputSchema {
+  const canonicalJson = canonicalizeOutputSchema(createSingleRunOutputSchema(expectedRecordCount));
   const canonicalBytes = Buffer.from(canonicalJson, "utf8");
   const sha256 = crypto.createHash("sha256").update(canonicalBytes).digest("hex");
   const schema = deepFreeze(JSON.parse(canonicalJson) as Record<string, unknown>);

@@ -1,9 +1,10 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { isPathInsideRoot } from "./appRoot.js";
 
 export type DebugFolderSource = { sourcePath: string; relativePath: string };
-export type DebugFolderEntry = { sourcePath: string; relativePath: string; size: number; status: "copied" | "copy_failed"; reason: string };
+export type DebugFolderEntry = { sourcePath: string; relativePath: string; size: number; status: "copied" | "copy_failed"; reason: string; sourceSha256?: string; destinationSha256?: string; hashMatch?: boolean };
 export type DebugEvidenceStatus = "copied" | "not_observed" | "not_run" | "source_missing" | "copy_failed";
 export type DebugEvidenceEntry = { id: string; status: DebugEvidenceStatus; sourcePath?: string; relativePath?: string; reason: string };
 
@@ -15,6 +16,8 @@ function safeRelativePath(value: string) {
   return normalized;
 }
 
+function sha256File(filePath: string) { return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex"); }
+
 function copyFile(outputRoot: string, sourcePath: string, relativePath: string): DebugFolderEntry {
   try {
     const stat = fs.lstatSync(sourcePath);
@@ -24,8 +27,11 @@ function copyFile(outputRoot: string, sourcePath: string, relativePath: string):
     const root = path.resolve(outputRoot);
     if (!isPathInsideRoot(root, target)) throw new Error("destination escapes debug folder");
     fs.mkdirSync(path.dirname(target), { recursive: true });
+    const sourceSha256 = sha256File(sourcePath);
     fs.copyFileSync(sourcePath, target);
-    return { sourcePath, relativePath, size: stat.size, status: "copied", reason: "" };
+    const destinationSha256 = sha256File(target);
+    if (sourceSha256 !== destinationSha256) throw new Error("copied file hash mismatch");
+    return { sourcePath, relativePath, size: stat.size, status: "copied", reason: "", sourceSha256, destinationSha256, hashMatch: true };
   } catch (error) {
     return { sourcePath, relativePath, size: 0, status: "copy_failed", reason: error instanceof Error ? error.message : String(error) };
   }
