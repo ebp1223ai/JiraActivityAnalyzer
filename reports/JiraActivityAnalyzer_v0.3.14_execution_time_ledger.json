@@ -1,0 +1,171 @@
+{
+    "schemaVersion":  "jira-activity-analyzer-v0.3.14-execution-ledger-v1",
+    "version":  "0.3.14",
+    "overall":  {
+                    "status":  "partial",
+                    "startedAtLocal":  null,
+                    "startedAtUtc":  null,
+                    "endedAtLocal":  null,
+                    "endedAtUtc":  null,
+                    "durationMs":  null,
+                    "notes":  "Overall timing unavailable across context compaction; recorded command timings are exact and no total was fabricated."
+                },
+    "entries":  [
+                    {
+                        "operation":  "pre-compaction implementation and evidence inspection",
+                        "startedAtLocal":  null,
+                        "startedAtUtc":  null,
+                        "endedAtLocal":  null,
+                        "endedAtUtc":  null,
+                        "durationMs":  null,
+                        "status":  "completed_timing_unavailable",
+                        "commandOrOperation":  "Repository/evidence inspection; Request Package, Run archive, response contract and UI implementation",
+                        "exitCode":  null,
+                        "notes":  "Timing was not preserved across context compaction; no fabricated timestamps."
+                    },
+                    {
+                        "operation":  "source gate typecheck",
+                        "startedAtLocal":  "2026-08-13T11:47:12.4199854+08:00",
+                        "startedAtUtc":  "2026-08-13T03:47:12.4199854Z",
+                        "endedAtLocal":  "2026-08-13T11:47:22.2636894+08:00",
+                        "endedAtUtc":  "2026-08-13T03:47:22.2636894Z",
+                        "durationMs":  9835,
+                        "status":  "passed",
+                        "commandOrOperation":  "npm.cmd run typecheck",
+                        "exitCode":  0,
+                        "notes":  "TS renderer and Electron typecheck passed."
+                    },
+                    {
+                        "operation":  "v0.3.14 targeted tests",
+                        "startedAtLocal":  "2026-08-13T11:47:22.4019908+08:00",
+                        "startedAtUtc":  "2026-08-13T03:47:22.4019908Z",
+                        "endedAtLocal":  "2026-08-13T11:47:23.4749148+08:00",
+                        "endedAtUtc":  "2026-08-13T03:47:23.4749148Z",
+                        "durationMs":  1072,
+                        "status":  "passed",
+                        "commandOrOperation":  "npm.cmd run test:v0.3.14",
+                        "exitCode":  0,
+                        "notes":  "v0.3.14 43 assertions; v0.3.13 35; v0.3.12 14; integration 5."
+                    },
+                    {
+                        "operation":  "AI Analysis integration regressions",
+                        "startedAtLocal":  "2026-08-13T11:47:23.4749148+08:00",
+                        "startedAtUtc":  "2026-08-13T03:47:23.4749148Z",
+                        "endedAtLocal":  "2026-08-13T11:47:25.9816917+08:00",
+                        "endedAtUtc":  "2026-08-13T03:47:25.9816917Z",
+                        "durationMs":  2506,
+                        "status":  "passed",
+                        "commandOrOperation":  "npm.cmd run test:v0.3.11:integration",
+                        "exitCode":  0,
+                        "notes":  "v0.3.11, v0.3.10, v0.3.9 fake App Server, v0.3.8 architecture."
+                    },
+                    {
+                        "operation":  "pre-commit build",
+                        "startedAtLocal":  "2026-08-13T11:47:25.9826916+08:00",
+                        "startedAtUtc":  "2026-08-13T03:47:25.9826916Z",
+                        "endedAtLocal":  "2026-08-13T11:47:51.1927956+08:00",
+                        "endedAtUtc":  "2026-08-13T03:47:51.1927956Z",
+                        "durationMs":  25210,
+                        "status":  "passed_with_warnings",
+                        "commandOrOperation":  "npm.cmd run build",
+                        "exitCode":  0,
+                        "notes":  "Vite node:crypto externalization and \u003e500 kB chunk warnings."
+                    },
+                    {
+                        "operation":  "git diff check",
+                        "startedAtLocal":  "2026-08-13T11:47:51.1937953+08:00",
+                        "startedAtUtc":  "2026-08-13T03:47:51.1937953Z",
+                        "endedAtLocal":  "2026-08-13T11:47:51.3847929+08:00",
+                        "endedAtUtc":  "2026-08-13T03:47:51.3847929Z",
+                        "durationMs":  190,
+                        "status":  "passed",
+                        "commandOrOperation":  "git diff --check",
+                        "exitCode":  0,
+                        "notes":  "No whitespace errors."
+                    },
+                    {
+                        "operation":  "source release commit",
+                        "startedAtLocal":  "2026-08-13T11:48:59+08:00",
+                        "startedAtUtc":  "2026-08-13T03:48:59Z",
+                        "endedAtLocal":  "2026-08-13T11:49:01+08:00",
+                        "endedAtUtc":  "2026-08-13T03:49:01Z",
+                        "durationMs":  2000,
+                        "status":  "passed",
+                        "commandOrOperation":  "git commit -m \"feat: add auditable AI request and response lifecycle\"",
+                        "exitCode":  0,
+                        "notes":  "Commit cb395c00a37e267c8bccffc406c79f592511f944."
+                    },
+                    {
+                        "operation":  "final build from source commit",
+                        "startedAtLocal":  "2026-08-13T11:49:12.1987809+08:00",
+                        "startedAtUtc":  "2026-08-13T03:49:12.1987809Z",
+                        "endedAtLocal":  "2026-08-13T11:49:27.2400349+08:00",
+                        "endedAtUtc":  "2026-08-13T03:49:27.2400349Z",
+                        "durationMs":  15038,
+                        "status":  "passed_with_warnings",
+                        "commandOrOperation":  "npm.cmd run build",
+                        "exitCode":  0,
+                        "notes":  "Version 0.3.14 verified."
+                    },
+                    {
+                        "operation":  "dist clean gate",
+                        "startedAtLocal":  "2026-08-13T11:49:39.6598993+08:00",
+                        "startedAtUtc":  "2026-08-13T03:49:39.6598993Z",
+                        "endedAtLocal":  "2026-08-13T11:49:48.0974029+08:00",
+                        "endedAtUtc":  "2026-08-13T03:49:48.0974029Z",
+                        "durationMs":  8435,
+                        "status":  "failed_expected_gate",
+                        "commandOrOperation":  "npm.cmd run dist",
+                        "exitCode":  1,
+                        "notes":  "Blocked by pre-existing tracked v0.2.47 report modification."
+                    },
+                    {
+                        "operation":  "authorized dist preserving existing report",
+                        "startedAtLocal":  "2026-08-13T11:50:00.4648246+08:00",
+                        "startedAtUtc":  "2026-08-13T03:50:00.4648246Z",
+                        "endedAtLocal":  "2026-08-13T11:52:01.3211932+08:00",
+                        "endedAtUtc":  "2026-08-13T03:52:01.3211932Z",
+                        "durationMs":  120854,
+                        "status":  "passed_with_warnings",
+                        "commandOrOperation":  "$env:JAA_ALLOW_DIRTY_PACKAGE=1; npm.cmd run dist",
+                        "exitCode":  0,
+                        "notes":  "Installer, Portable, win-unpacked, app.asar produced from source commit cb395c0; buildInfo dirtyState=true records existing report."
+                    },
+                    {
+                        "operation":  "Portable launch attempt 1",
+                        "startedAtLocal":  "2026-08-13T11:53:24.7616952+08:00",
+                        "startedAtUtc":  "2026-08-13T03:53:24.7616952Z",
+                        "endedAtLocal":  "2026-08-13T11:53:37.7616952+08:00",
+                        "endedAtUtc":  "2026-08-13T03:53:37.7616952Z",
+                        "durationMs":  13000,
+                        "status":  "inconclusive",
+                        "commandOrOperation":  "Start Portable and wait 12 seconds",
+                        "exitCode":  0,
+                        "notes":  "Only self-extracting launcher observed; stopped without claiming UI success."
+                    },
+                    {
+                        "operation":  "Portable renderer verification",
+                        "startedAtLocal":  "2026-08-13T11:53:55.1225535+08:00",
+                        "startedAtUtc":  "2026-08-13T03:53:55.1225535Z",
+                        "endedAtLocal":  "2026-08-13T11:54:15.2902862+08:00",
+                        "endedAtUtc":  "2026-08-13T03:54:15.2902862Z",
+                        "durationMs":  20167,
+                        "status":  "passed",
+                        "commandOrOperation":  "Start Release Portable; poll BrowserWindow; inspect current session logs; stop new app processes",
+                        "exitCode":  0,
+                        "notes":  "renderer_boot readyState=interactive, route #/, did-finish-load, zero renderer crash/load failure matches."
+                    },
+                    {
+                        "operation":  "formal Real 117",
+                        "startedAtLocal":  null,
+                        "startedAtUtc":  null,
+                        "endedAtLocal":  null,
+                        "endedAtUtc":  null,
+                        "durationMs":  null,
+                        "status":  "not_executed",
+                        "commandOrOperation":  "Official Portable Real 117",
+                        "exitCode":  null,
+                        "notes":  "Authentication availability not safely established and GUI source selection requires user interaction; zero Provider dispatch."
+                    }
+                ]
+}

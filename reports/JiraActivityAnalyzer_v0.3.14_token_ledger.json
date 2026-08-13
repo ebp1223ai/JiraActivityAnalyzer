@@ -1,0 +1,78 @@
+{
+    "schemaVersion":  "jira-activity-analyzer-v0.3.14-token-ledger-v1",
+    "version":  "0.3.14",
+    "status":  "partial",
+    "deliveryMode":  "INLINE_EXACT_CONTENT",
+    "formalReal117":  {
+                          "status":  "not_executed",
+                          "reason":  "Authentication availability could not be established without reading protected state; formal Portable GUI input selection requires user interaction.",
+                          "requestPackage":  {
+                                                 "pendingJson":  null,
+                                                 "commonRules":  null,
+                                                 "skillCatalog":  null,
+                                                 "thirdMarkdown":  null,
+                                                 "coreInstruction":  null,
+                                                 "supplementalInstruction":  null,
+                                                 "outputSchema":  null,
+                                                 "finalModelVisiblePayload":  null,
+                                                 "inlineBlockCount":  null,
+                                                 "nativeFileCount":  0,
+                                                 "transformationMetadata":  null
+                                             },
+                          "capacity":  {
+                                           "estimator":  null,
+                                           "estimatedInputTokens":  null,
+                                           "visibleOutputReserve":  null,
+                                           "reasoningReserve":  null,
+                                           "safetyMargin":  null,
+                                           "estimatedRequiredTotal":  null,
+                                           "capacitySource":  null,
+                                           "providerCapacity":  null,
+                                           "marginOrOverage":  null,
+                                           "capacitySnapshotSha256":  null
+                                       },
+                          "providerUsage":  {
+                                                "inputTokens":  null,
+                                                "cachedTokens":  null,
+                                                "cacheWriteTokens":  null,
+                                                "outputTokens":  null,
+                                                "reasoningTokens":  null,
+                                                "totalTokens":  null,
+                                                "source":  "unavailable_no_request"
+                                            },
+                          "lifecycle":  {
+                                            "providerDispatchCount":  0,
+                                            "threadStartAttemptCount":  0,
+                                            "threadCreatedCount":  0,
+                                            "turnStartAttemptCount":  0,
+                                            "acceptedTurnCount":  0,
+                                            "turnCompletedCount":  0,
+                                            "retryCount":  0,
+                                            "repairTurnCount":  0,
+                                            "fallbackRequestCount":  0,
+                                            "inputRecordCount":  null,
+                                            "providerReturnedRecordCount":  null,
+                                            "parsedRecordCount":  null,
+                                            "schemaValidRecordCount":  null,
+                                            "semanticValidRecordCount":  null,
+                                            "formalArtifactRecordCount":  0,
+                                            "sqliteCommittedRecordCount":  0
+                                        }
+                      },
+    "v0313Baseline":  {
+                          "runId":  "analysis_d4b0bbcd-34bb-4721-a5ff-03f238e950b6",
+                          "usageSource":  "existing Provider evidence",
+                          "inputTokens":  144667,
+                          "outputTokens":  24984,
+                          "reasoningTokens":  590,
+                          "totalTokens":  169651,
+                          "rawResponseSha256":  "1c83daa226e32f1cb973d5fabdae35de8302582e4b1914cdfa97bf529c2f7ce3",
+                          "debugTruncatedBytes":  8192,
+                          "debugTruncatedSha256":  "5ff6253e584a1e7f4f64a87009a0a5a2c309259e83aa4873102eb8bf9dc83697",
+                          "note":  "Baseline only; not v0.3.14 actual usage."
+                      },
+    "implementationUsage":  {
+                                "status":  "unavailable",
+                                "reason":  "Codex implementation token usage is not exposed to this workspace session."
+                            }
+}
