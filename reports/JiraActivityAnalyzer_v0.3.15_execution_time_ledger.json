@@ -1,0 +1,179 @@
+{
+    "schemaVersion":  "jaa-execution-time-ledger-v0315",
+    "targetVersion":  "0.3.15",
+    "overallStatus":  "Partial / Manual Validation Pending",
+    "taskStartedAtLocal":  "2026-08-13T13:47:04+08:00",
+    "taskStartedAtUtc":  "2026-08-13T05:47:04Z",
+    "taskStartSource":  "Git branch creation reflog; earlier prompt-reading telemetry is unavailable after context compaction.",
+    "taskEndedAtLocal":  "2026-08-13T14:23:58.384+08:00",
+    "taskEndedAtUtc":  "2026-08-13T06:23:58.384Z",
+    "wallClockDurationMs":  2214384,
+    "repositoryInspection":  {
+                                 "status":  "completed",
+                                 "durationMs":  null,
+                                 "reason":  "Exact standalone phase timing unavailable after context compaction."
+                             },
+    "implementation":  {
+                           "status":  "completed",
+                           "durationMs":  null,
+                           "reason":  "Exact standalone phase timing unavailable after context compaction."
+                       },
+    "documentation":  {
+                          "status":  "completed",
+                          "durationMs":  null,
+                          "reason":  "Exact standalone phase timing unavailable after context compaction."
+                      },
+    "commands":  [
+                     {
+                         "phase":  "typecheck",
+                         "command":  "npm.cmd run typecheck",
+                         "attempt":  1,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  10298
+                     },
+                     {
+                         "phase":  "test",
+                         "command":  "npm.cmd run test:v0.3.15",
+                         "attempt":  1,
+                         "status":  "failed",
+                         "exitCode":  1,
+                         "durationMs":  4565,
+                         "reason":  "Adjacent v0.3.14 test contained an unterminated string after contract migration."
+                     },
+                     {
+                         "phase":  "test",
+                         "command":  "npm.cmd run test:v0.3.15",
+                         "attempt":  2,
+                         "status":  "failed",
+                         "exitCode":  1,
+                         "durationMs":  4173,
+                         "reason":  "Legacy v0.3.12 integration assertion still required removed failed-staging path."
+                     },
+                     {
+                         "phase":  "test",
+                         "command":  "npm.cmd run test:v0.3.15",
+                         "attempt":  3,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  3709
+                     },
+                     {
+                         "phase":  "build",
+                         "command":  "npm.cmd run build",
+                         "attempt":  1,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  22674
+                     },
+                     {
+                         "phase":  "typecheck",
+                         "command":  "npm.cmd run typecheck",
+                         "attempt":  2,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  9048
+                     },
+                     {
+                         "phase":  "test",
+                         "command":  "npm.cmd run test:v0.3.15",
+                         "attempt":  4,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  2520
+                     },
+                     {
+                         "phase":  "build",
+                         "command":  "npm.cmd run build",
+                         "attempt":  2,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  16541
+                     },
+                     {
+                         "phase":  "git",
+                         "command":  "git commit -m feat: implement v0.3.15 bundled Codex workspace evidence",
+                         "attempt":  1,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  3200,
+                         "result":  "90cff22587b4d30cd140a6c5a38aa859ae1ca6ff"
+                     },
+                     {
+                         "phase":  "dist",
+                         "command":  "JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist",
+                         "attempt":  1,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  134432
+                     },
+                     {
+                         "phase":  "artifact_verification",
+                         "command":  "SHA-256 + bundled runtime manifest/hash + ASAR forbidden-entry scan",
+                         "attempt":  1,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  3800
+                     },
+                     {
+                         "phase":  "packaged_launch",
+                         "command":  "win-unpacked short launch",
+                         "attempt":  1,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  7000
+                     },
+                     {
+                         "phase":  "packaged_launch",
+                         "command":  "Portable launch from release directory",
+                         "attempt":  1,
+                         "status":  "blocked_by_existing_instance",
+                         "exitCode":  0,
+                         "durationMs":  10000,
+                         "reason":  "Existing user-owned v0.3.14 Portable held release/app-data single-instance lock."
+                     },
+                     {
+                         "phase":  "packaged_launch",
+                         "command":  "Portable isolated TEMP launch",
+                         "attempt":  1,
+                         "status":  "observation_failed",
+                         "exitCode":  2,
+                         "durationMs":  23000,
+                         "reason":  "Process-name filter missed the titled child window."
+                     },
+                     {
+                         "phase":  "packaged_launch",
+                         "command":  "Portable isolated TEMP diagnostic launch",
+                         "attempt":  2,
+                         "status":  "passed",
+                         "exitCode":  0,
+                         "durationMs":  21000,
+                         "result":  "Window responsive; did-finish-load and renderer_boot recorded."
+                     }
+                 ],
+    "gitCloseout":  {
+                        "packageSourceCommit":  "90cff22587b4d30cd140a6c5a38aa859ae1ca6ff",
+                        "finalDeliveryCommit":  "SELF: commit containing this ledger",
+                        "annotatedTag":  "v0.3.15",
+                        "pushStatus":  "to be executed immediately after final delivery commit and tag creation"
+                    },
+    "codexDevelopmentTokenUsage":  {
+                                       "status":  "unavailable",
+                                       "reason":  "The Codex desktop execution environment does not expose actual per-task input, cached input, output, reasoning, or total token counters.",
+                                       "inputTokens":  null,
+                                       "cachedInputTokens":  null,
+                                       "outputTokens":  null,
+                                       "reasoningTokens":  null,
+                                       "totalTokens":  null
+                                   },
+    "aiAnalysisRuntimeTokenUsage":  {
+                                        "status":  "not_run",
+                                        "reason":  "No real ChatGPT analysis was executed; per-run usage remains separate in debug/token-usage.json."
+                                    },
+    "manualPending":  [
+                          "Fresh Windows machine without external Codex",
+                          "Interactive managed ChatGPT OAuth",
+                          "Real 117-record single-run Provider analysis",
+                          "Installer GUI walkthrough"
+                      ]
+}

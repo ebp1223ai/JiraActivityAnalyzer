@@ -1,0 +1,60 @@
+{
+    "schemaVersion":  "jaa-v0315-artifact-manifest-v1",
+    "targetVersion":  "0.3.15",
+    "overallStatus":  "Partial / Manual Validation Pending",
+    "generatedAtLocal":  "2026-08-13T14:23:58.384+08:00",
+    "generatedAtUtc":  "2026-08-13T06:23:58.384Z",
+    "packageSourceCommit":  "90cff22587b4d30cd140a6c5a38aa859ae1ca6ff",
+    "buildTimeLocal":  "2026/08/13 14:15:57",
+    "buildTimeUtc":  "2026-08-13T06:15:57.750Z",
+    "dirtyState":  true,
+    "dirtyStateReason":  "Authorized pre-existing tracked modification in the v0.2.47 implementation report; excluded from both v0.3.15 commits and packaged ASAR.",
+    "runtime":  {
+                    "source":  "official @openai/codex-win32-x64",
+                    "version":  "0.147.0",
+                    "mode":  "BUNDLED_ONLY",
+                    "sha256":  "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+                    "manifestVerified":  true,
+                    "externalFallback":  false,
+                    "autoDownload":  false
+                },
+    "artifacts":  [
+                      {
+                          "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.15.exe",
+                          "type":  "Windows Installer EXE",
+                          "sizeBytes":  190518227,
+                          "sizeMiB":  181.692,
+                          "sha256":  "2d5960c79586ee7b98d253bd284513142d64b46782bd62c13bbec09645fb7821",
+                          "bundledRuntimeVersion":  "0.147.0",
+                          "bundledRuntimeSha256":  "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+                          "runtimeVerification":  "passed"
+                      },
+                      {
+                          "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.15.exe",
+                          "type":  "Windows Portable EXE",
+                          "sizeBytes":  190288135,
+                          "sizeMiB":  181.473,
+                          "sha256":  "65e27482ddc6f427d701a4a3dba0ead5c77b4f16dda8fecfe571ee5d89c01af9",
+                          "bundledRuntimeVersion":  "0.147.0",
+                          "bundledRuntimeSha256":  "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+                          "runtimeVerification":  "passed"
+                      },
+                      {
+                          "path":  "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+                          "type":  "win-unpacked executable",
+                          "sizeBytes":  235706368,
+                          "sizeMiB":  224.787,
+                          "sha256":  "a28f1f03b721f0f70e4255f2f8f77cb4af18a42a783f148dfe7a5bef05ee141e",
+                          "bundledRuntimeVersion":  "0.147.0",
+                          "bundledRuntimeSha256":  "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+                          "runtimeVerification":  "passed"
+                      }
+                  ],
+    "asarForbiddenEntryScan":  "passed",
+    "manualPending":  [
+                          "Fresh Windows machine without external Codex",
+                          "Interactive managed ChatGPT OAuth",
+                          "Real 117-record single-run Provider analysis",
+                          "Installer GUI walkthrough"
+                      ]
+}
