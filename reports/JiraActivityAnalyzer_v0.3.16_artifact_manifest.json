@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "jaa-v0.3.16-artifact-manifest-v1",
+  "version": "0.3.16",
+  "packageSourceCommit": "00dd14d62a318a2028c44398d4d24bf63537e601",
+  "buildTime": "2026/08/13 18:31:08",
+  "timezone": "Asia/Taipei / UTC+08:00",
+  "buildEnvironment": {
+    "windows": "Microsoft Windows 11 Pro 10.0.26100",
+    "git": "2.52.0.windows.1",
+    "node": "v24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3"
+  },
+  "runtime": {
+    "version": "0.147.0",
+    "path": "F:\\\\AI\\\\JiraActivityAnalyzer\\\\release\\\\win-unpacked\\\\resources\\\\codex-runtime\\\\bin\\\\codex.exe",
+    "bytes": 298668336,
+    "sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+    "manifestHashMatch": true
+  },
+  "artifacts": [
+    {
+      "kind": "installer",
+      "path": "F:\\\\AI\\\\JiraActivityAnalyzer\\\\release\\\\Jira Activity Analyzer Setup 0.3.16.exe",
+      "bytes": 190519846,
+      "sha256": "B7B32624B720457CAF37000DE7B54E2880E095FB9CBC098523F89C4044F018B3"
+    },
+    {
+      "kind": "portable",
+      "path": "F:\\\\AI\\\\JiraActivityAnalyzer\\\\release\\\\Jira Activity Analyzer Portable 0.3.16.exe",
+      "bytes": 190289766,
+      "sha256": "90A50126B6709461439B790D67AF85D9CFB273090FCB69A1A87FD241EEF7F207"
+    },
+    {
+      "kind": "win-unpacked",
+      "path": "F:\\\\AI\\\\JiraActivityAnalyzer\\\\release\\\\win-unpacked\\\\Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "85A66FFF949A864EFA1C83F0949C2F5027083C8A5955ADA85A4F5618E34196AF"
+    }
+  ],
+  "asarScan": {
+    "entryCount": 4684,
+    "sensitiveMatches": [],
+    "status": "passed"
+  },
+  "launchChecks": {
+    "winUnpacked": "passed_renderer_boot_did_finish_load",
+    "portable": "passed_renderer_boot_did_finish_load",
+    "installer": "manual_validation_pending"
+  }
+}

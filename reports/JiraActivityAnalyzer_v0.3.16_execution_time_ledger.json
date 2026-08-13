@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "jaa-execution-time-ledger-v0.3.16",
+  "version": "0.3.16",
+  "overall": {
+    "startLocal": "2026-08-13T17:57:30.000+08:00",
+    "reportSnapshotEndLocal": "2026-08-13T18:36:42.935+08:00",
+    "durationMs": 2352935,
+    "source": "branch reflog start and system clock"
+  },
+  "phases": [
+    {
+      "name": "audit_design_implementation",
+      "status": "completed",
+      "durationMs": 1950000,
+      "note": "Includes source audit, implementation, focused fixes, and retries before final gates."
+    },
+    {
+      "name": "typecheck_final",
+      "command": "npm.cmd run typecheck",
+      "exitCode": 0,
+      "durationMs": 8200
+    },
+    {
+      "name": "test_v0316_final",
+      "command": "npm.cmd run test:v0.3.16",
+      "exitCode": 0,
+      "durationMs": 11600
+    },
+    {
+      "name": "build",
+      "command": "npm.cmd run build",
+      "exitCode": 0,
+      "durationMs": 23600
+    },
+    {
+      "name": "dist_initial",
+      "command": "npm.cmd run dist",
+      "exitCode": 1,
+      "durationMs": 7500,
+      "note": "Expected clean-worktree guard; no package produced by this attempt."
+    },
+    {
+      "name": "implementation_commit",
+      "command": "git commit -m feat(ai-analysis): add artifact output and performance recovery",
+      "exitCode": 0,
+      "durationMs": 600
+    },
+    {
+      "name": "dist_final",
+      "command": "JAA_ALLOW_DIRTY_PACKAGE=1; JAA_PACKAGED_SOURCE_COMMIT=00dd14d...; npm.cmd run dist",
+      "exitCode": 0,
+      "durationMs": 97500,
+      "note": "Existing unrelated v0.2.47 tracked modification preserved and excluded."
+    },
+    {
+      "name": "win_unpacked_launch",
+      "exitCode": 0,
+      "durationMs": 12400,
+      "result": "renderer_boot and did-finish-load"
+    },
+    {
+      "name": "portable_launch",
+      "exitCode": 0,
+      "durationMs": 14700,
+      "result": "renderer_boot and did-finish-load"
+    },
+    {
+      "name": "artifact_hash_runtime_asar",
+      "exitCode": 0,
+      "durationMs": 2800
+    }
+  ],
+  "performanceRegression": {
+    "providerEvents": 44815,
+    "discardedAssistantDeltas": 22295,
+    "semanticConversationEvents": 2,
+    "bufferedLoggingElapsedMs": 6933,
+    "maxDurableFlushIntervalMs": 2000
+  },
+  "true117Run": {
+    "status": "manual_validation_pending",
+    "providerDurationMs": null,
+    "totalDurationMs": null,
+    "localOverheadMs": null,
+    "tokens": {
+      "input": "unavailable",
+      "cachedInput": "unavailable",
+      "output": "unavailable",
+      "reasoning": "unavailable",
+      "total": "unavailable"
+    }
+  },
+  "git": {
+    "implementationCommit": "00dd14d62a318a2028c44398d4d24bf63537e601",
+    "deliveryCommit": "pending_at_report_snapshot",
+    "tag": "pending_at_report_snapshot",
+    "push": "pending_at_report_snapshot"
+  }
+}
