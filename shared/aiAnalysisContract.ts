@@ -44,6 +44,29 @@ export type AiAnalysisErrorCode =
   | "AI_RESULT_ORDER_MISMATCH"
   | "AI_REQUEST_PACKAGE_FAILED"
   | "AI_RUN_ARCHIVE_FAILED"
+  | "AI_DECISION_FILE_MISSING"
+  | "AI_DECISION_FILE_INCOMPLETE"
+  | "AI_DECISION_JSON_INVALID"
+  | "AI_DECISION_SCHEMA_INVALID"
+  | "AI_DECISION_COUNT_MISMATCH"
+  | "AI_DECISION_INDEX_DUPLICATE"
+  | "AI_DECISION_INDEX_MISSING"
+  | "AI_DECISION_SOURCE_HASH_MISMATCH"
+  | "AI_DECISION_RULES_SNAPSHOT_MISMATCH"
+  | "AI_DECISION_SKILL_ID_INVALID"
+  | "AI_DECISION_SEMANTIC_VALIDATION_FAILED"
+  | "AI_ANALYSIS_REPORT_MISSING"
+  | "AI_FINAL_SUMMARY_MISSING"
+  | "ALL_RECORDS_UNKNOWN"
+  | "AI_OUTPUT_PATH_ESCAPE_BLOCKED"
+  | "AI_OUTPUT_PUBLISH_INCOMPLETE"
+  | "AI_PROVIDER_PERFORMANCE_WARNING"
+  | "AI_PROVIDER_TIMEOUT"
+  | "AI_RUN_INTERRUPTED"
+  | "AI_RUN_RECOVERED_INTERRUPTED"
+  | "AI_LOG_FLUSH_FAILED"
+  | "AI_DEBUG_FOLDER_INCOMPLETE"
+  | "AI_DEBUG_HASH_MISMATCH"
   | "AI_FORMAL_ARTIFACT_WRITE_FAILED"
   | "AI_SQLITE_TRANSACTION_FAILED"
   | "CODEX_BUNDLED_RUNTIME_MISSING"
@@ -73,8 +96,8 @@ export type AiAnalyzerMode = "CHATGPT" | "AI_NEXUS" | "OFFLINE_RULE";
 export type AiApiContract = "responses" | "chat_completions";
 export type AiAuthType = "bearer" | "api_key";
 export type AiAnalysisStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED" | "NEEDS_REVIEW" | "UNKNOWN" | "EXCLUDED";
-export type AiRunStatus = "queued" | "running" | "retrying" | "cancelling" | "cancelled" | "completed" | "partial" | "failed" | "interrupted";
-export type AiRunStage = "idle" | "validating_source" | "validating_rules" | "building_payload" | "building_output_schema" | "validating_output_schema" | "output_schema_ready" | "preflighting_capacity" | "waiting_capacity_confirmation" | "starting_thread" | "starting_turn" | "waiting_response" | "receiving_response" | "validating_response" | "validating_response_schema" | "validating_identity" | "validating_catalog" | "merging_evidence" | "writing_staging" | "writing_formal_artifacts" | "validating_artifacts" | "committing_database" | "completed" | "cancelling" | "cancelled" | "failed";
+export type AiRunStatus = "queued" | "preparing" | "running" | "validating" | "retrying" | "cancelling" | "cancelled" | "completed" | "completed_with_warnings" | "partial" | "failed" | "failed_validation" | "provider_failed" | "provider_timeout" | "interrupted" | "recovered_interrupted";
+export type AiRunStage = "idle" | "preparing_artifacts" | "waiting_artifacts" | "validating_artifacts_v0316" | "assembling_canonical" | "flushing_logs" | "validating_source" | "validating_rules" | "building_payload" | "building_output_schema" | "validating_output_schema" | "output_schema_ready" | "preflighting_capacity" | "waiting_capacity_confirmation" | "starting_thread" | "starting_turn" | "waiting_response" | "receiving_response" | "validating_response" | "validating_response_schema" | "validating_identity" | "validating_catalog" | "merging_evidence" | "writing_staging" | "writing_formal_artifacts" | "validating_artifacts" | "committing_database" | "completed" | "cancelling" | "cancelled" | "failed";
 export type AiClassificationStatus = "MATCHED" | "EXCLUDED" | "UNKNOWN" | "CATALOG_DETAIL_MISSING" | "NEEDS_REVIEW";
 export type AiCandidateClassificationStatus = Exclude<AiClassificationStatus, "UNKNOWN">;
 export type AiReviewStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED";
@@ -445,6 +468,20 @@ export type AiAnalysisRun = {
   runtimeSource?: "bundled" | null;
   runtimeIntegrity?: "unverified" | "verified" | "failed" | null;
   observedFileAccess?: string[];
+  artifactPaths?: { input: string; output: string; canonical: string; logs: string } | null;
+  expectedDecisionCount?: number;
+  receivedDecisionCount?: number;
+  canonicalRecordCount?: number;
+  finalAcceptedRecordCount?: number;
+  anomalyWarnings?: string[];
+  warningAcceptance?: { accepted: boolean; acceptedAt: string | null; warnings: string[]; auditFilePath: string | null } | null;
+  analysisReportPath?: string | null;
+  analysisReportContent?: string | null;
+  finalAssistantMessagePath?: string | null;
+  finalAssistantMessage?: string | null;
+  validationReportPath?: string | null;
+  completionManifestPath?: string | null;
+  telemetry?: Record<string, string | number | null>;
   promptTemplateVersion?: string | null;
   promptSha256?: string | null;
   outputSchemaName?: string | null;

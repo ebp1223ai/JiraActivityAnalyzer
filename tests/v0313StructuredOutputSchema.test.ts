@@ -100,13 +100,13 @@ assert.equal(validateValueAgainstOutputSchema({ ...minimalResponse, unexpected: 
 const root = process.cwd();
 const ipc = fs.readFileSync(path.join(root, "electron", "aiAnalysisIpc.ts"), "utf8");
 const startHandler = ipc.slice(ipc.indexOf("ipcMain.handle(\"ai-analysis:start\""));
-assert.ok(startHandler.indexOf("prepareSingleRunOutputSchema()") < startHandler.indexOf("readSelectedModelCapacity()"));
-assert.ok(startHandler.indexOf("readSelectedModelCapacity()") < startHandler.indexOf("await chatgpt.runAnalysis"));
+assert.equal(startHandler.includes("prepareSingleRunOutputSchema()"), false);
+assert.ok(startHandler.indexOf("readSelectedModelCapacity()") < startHandler.indexOf("const providerPromise = chatgpt.runAnalysis"));
 assert.match(ipc, /providerDispatchCount: 0/);
 assert.match(ipc, /threadStartAttemptCount: 0/);
 assert.match(ipc, /acceptedTurnCount: 0/);
 assert.match(ipc, /AI_OUTPUT_SCHEMA_PREFLIGHT_FAILED/);
-assert.match(ipc, /outputSchema: preparedOutputSchema\.schema/);
+assert.match(startHandler, /outputSchema: null/);
 
 const layout = fs.readFileSync(path.join(root, "src", "components", "AppLayout.tsx"), "utf8");
 assert.match(layout, /const appendDebugLog = useCallback/);

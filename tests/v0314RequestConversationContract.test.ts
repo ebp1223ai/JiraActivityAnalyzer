@@ -39,7 +39,7 @@ assert.ok(request.requestPackage.documents.every((item) => item.byteIdentical &&
 assert.ok(!request.prompt.includes(fs.readFileSync(source, "utf8")));
 assert.ok(!request.prompt.includes("manifest exact\n"));
 assert.ok(!request.prompt.includes("BEGIN_FILE"));
-assert.equal(request.prompt, buildCoreAnalysisInstruction(1, "Prefer direct evidence."));
+assert.equal(request.prompt, buildCoreAnalysisInstruction(1, "Prefer direct evidence.", archive.runId, dataset.sourceFileSha256, rules.snapshotId));
 assert.equal(hash(request.prompt), request.requestPackage.finalProviderPayloadSha256);
 assert.equal(fs.readFileSync(path.join(archive.directory, "input-workspace", "pending-analysis.json")).equals(fs.readFileSync(source)), true);
 assert.deepEqual(fs.readdirSync(path.join(archive.directory, "input-workspace")).sort(), ["common-rules.md", "pending-analysis.json", "rule-set-manifest.md", "skill-catalog.md"]);
@@ -52,22 +52,25 @@ const long = "x".repeat(20_000) + " Token: secret-value";
 assert.equal(redactChatGptText(long).length, 8192);
 assert.ok(redactChatGptTextComplete(long).length > 8192);
 assert.equal(redactChatGptTextComplete(long).includes("secret-value"), false);
-const event1 = archive.append("system_event", "APP_ONLY", "Run created");
-const event2 = archive.append("assistant_delta", "CHATGPT_VISIBLE", "a".repeat(12_000));
+const event1 = archive.append("system_event", "APP_ONLY", "Run created")!;
+assert.equal(archive.append("assistant_delta", "CHATGPT_VISIBLE", "a".repeat(12_000)), null);
+const event2 = archive.append("assistant_message", "CHATGPT_VISIBLE", "Artifact summary")!;
 assert.equal(event2.previousHash, event1.hash);
-const logPath = path.join(archive.directory, "conversation.jsonl");
+const logPath = path.join(archive.directory, "logs", "conversation.jsonl");
+archive.flush("test_read");
 assert.deepEqual(verifyConversationLog(logPath), { valid: true, eventCount: 2, terminalHash: event2.hash, invalidSequence: null });
 assert.equal(readConversationPage(archive.directory, 0, 1).hasMore, true);
 
 const run: any = { runId: archive.runId, status: "running", startedAt: "2026-08-13T01:02:03.004Z", progress: { status: "running", stage: "receiving_response", errorCode: null, message: "running" } };
 archive.writeManifest(run);
 const recovered = loadArchivedRuns().find((item) => item.runId === archive.runId)!;
-assert.equal(recovered.status, "interrupted");
-assert.equal(recovered.progress.errorCode, "RUN_INTERRUPTED");
+assert.equal(recovered.status, "recovered_interrupted");
+assert.equal(recovered.progress.errorCode, "AI_RUN_RECOVERED_INTERRUPTED");
 const tamperedArchive = new AiAnalysisRunArchive("analysis_22222222-2222-2222-2222-222222222222", new Date("2026-08-13T01:02:04.005Z"));
 tamperedArchive.append("system_event", "APP_ONLY", "durable event");
-fs.appendFileSync(path.join(tamperedArchive.directory, "conversation.jsonl"), "{truncated", "utf8");
-assert.equal(verifyConversationLog(path.join(tamperedArchive.directory, "conversation.jsonl")).valid, false);
+tamperedArchive.flush("before_tamper");
+fs.appendFileSync(path.join(tamperedArchive.directory, "logs", "conversation.jsonl"), "{truncated", "utf8");
+assert.equal(verifyConversationLog(path.join(tamperedArchive.directory, "logs", "conversation.jsonl")).valid, false);
 
 const responseText = JSON.stringify({ records: Array.from({ length: 400 }, (_, index) => ({ index, text: "完整回覆".repeat(30) })) });
 assert.ok(Buffer.byteLength(responseText) > 8192);
@@ -79,11 +82,8 @@ assert.equal(zlib.gunzipSync(fs.readFileSync(staged.filePath)).toString("utf8"),
 
 const baseRecord = { sourceRecordStableId: "stable-1", classificationStatus: "UNKNOWN", reviewAttention: "STANDARD_REVIEW", dispositionReason: "Unknown", exclusionReason: null, unknownReason: "Evidence insufficient", reviewReason: null, matchedRuleIds: [], analyses: [], negativeChecks: [] };
 const oldConflict = validateCanonicalResponseSemantics({ records: [baseRecord] });
-assert.equal(oldConflict.valid, false);
-assert.equal(oldConflict.findings[0].path, "records[0].negativeChecks");
-assert.equal(oldConflict.findings[0].jsonPath, "$.records[0].negativeChecks");
-assert.equal(oldConflict.findings[0].jsonPointer, "/records/0/negativeChecks");
-assert.equal(oldConflict.findings[0].sourceRecordStableId, "stable-1");
+assert.equal(oldConflict.valid, true);
+assert.equal(oldConflict.semanticValidRecordCount, 1);
 const matched = validateCanonicalResponseSemantics({ records: [{ ...baseRecord, classificationStatus: "MATCHED", matchedRuleIds: ["RULE_DIRECT"], analyses: [{ skillId: "SKILL_1", candidateStatus: "MATCHED", statusReason: "Direct", catalogDetailAvailable: true, positiveEvidenceRefs: ["e1"], negativeChecks: [] }] }] });
 assert.equal(matched.valid, true);
 const detailMissing = validateCanonicalResponseSemantics({ records: [{ ...baseRecord, classificationStatus: "CATALOG_DETAIL_MISSING", reviewAttention: "NEEDS_REVIEW", analyses: [{ skillId: "SKILL_1", candidateStatus: "CATALOG_DETAIL_MISSING", statusReason: "Catalog detail missing", catalogDetailAvailable: false, positiveEvidenceRefs: ["e1"], negativeChecks: [{ ruleId: "CATALOG_DETAIL_REQUIRED", passed: false }] }] }] });

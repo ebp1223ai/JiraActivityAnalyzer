@@ -1,3 +1,10 @@
+# v0.3.16 - Artifact Output, Explainability, Performance Recovery, Crash-safe Debug Evidence
+
+- ChatGPT formal analysis publishes compact Decision JSON and a separate Markdown analysis report; JAA assembles canonical results locally.
+- UNKNOWN records may use empty negative checks when unknown reasons and rationale are present; all-UNKNOWN runs require explicit warning acceptance before SQLite persistence.
+- Provider and conversation logs use buffered append with periodic durable flush, throttled renderer updates, hard timeout, and interrupted-run recovery.
+- Debug Folder exports the Canonical Run after writer flush with completeness and per-file SHA-256 manifests.
+
 ## 0.3.15 - 2026-08-13
 
 - Added bundled-only official Codex 0.147.0 runtime discovery with manifest, path, version, package identity, and SHA-256 fail-closed verification; removed external PATH/fallback/download behavior from formal runtime resolution.

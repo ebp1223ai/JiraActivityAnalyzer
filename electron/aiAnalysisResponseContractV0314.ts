@@ -4,7 +4,7 @@ export const CANONICAL_RESPONSE_CONTRACT_VERSION = "ai-analysis-response-v0.3.14
 export const RECORD_SEMANTIC_POLICY = {
   MATCHED: { analyses: "required", recordChecks: "optional" },
   EXCLUDED: { analyses: "forbidden", recordChecks: "required" },
-  UNKNOWN: { analyses: "forbidden", recordChecks: "required" },
+  UNKNOWN: { analyses: "forbidden", recordChecks: "optional" },
   CATALOG_DETAIL_MISSING: { analyses: "required", recordChecks: "candidate-audit" },
   NEEDS_REVIEW: { analyses: "conditional", recordChecks: "audit-trail" }
 } as const;
@@ -45,7 +45,7 @@ export function validateCanonicalResponseSemantics(value: unknown): { valid: boo
       if (array(record.matchedRuleIds).length === 0) add(index, record, `${recordPath}.matchedRuleIds`, "SEMANTIC_MATCHED_RULE_REQUIRED", "MATCHED requires at least one matched rule.", ">= 1", 0);
     }
     if (["EXCLUDED", "UNKNOWN"].includes(status) && analyses.length !== 0) add(index, record, `${recordPath}.analyses`, "SEMANTIC_CANDIDATE_FORBIDDEN", `${status} must not contain candidates.`, 0, analyses.length);
-    if (["EXCLUDED", "UNKNOWN"].includes(status) && checks.length === 0) add(index, record, `${recordPath}.negativeChecks`, "SEMANTIC_NEGATIVE_CHECK_REQUIRED", `${recordPath}.negativeChecks is empty for ${status} status.`, ">= 1", 0);
+    if (status === "EXCLUDED" && checks.length === 0) add(index, record, `${recordPath}.negativeChecks`, "SEMANTIC_NEGATIVE_CHECK_REQUIRED", `${recordPath}.negativeChecks is empty for EXCLUDED status.`, ">= 1", 0);
     if (status === "EXCLUDED" && !text(record.exclusionReason)) add(index, record, `${recordPath}.exclusionReason`, "SEMANTIC_REASON_REQUIRED", "EXCLUDED requires exclusionReason.", "non-empty string", record.exclusionReason ?? null);
     if (status === "UNKNOWN" && !text(record.unknownReason)) add(index, record, `${recordPath}.unknownReason`, "SEMANTIC_REASON_REQUIRED", "UNKNOWN requires unknownReason.", "non-empty string", record.unknownReason ?? null);
     if (status === "CATALOG_DETAIL_MISSING") {

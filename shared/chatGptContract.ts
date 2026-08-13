@@ -76,6 +76,8 @@ export type ChatGptAnalysisRequest = {
   outputSchemaSha256?: string | null;
   deliveryMode?: "LOCAL_FILE_WORKSPACE";
   workspacePath?: string;
+  outputWorkspacePath?: string;
+  runDirectory?: string;
   allowedReadRoots?: string[];
   finalProviderPayloadSha256?: string | null;
 };

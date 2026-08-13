@@ -181,6 +181,7 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         start: (payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey; supplementalInstruction?: string; analysisRunId?: string; capacityConfirmation?: boolean }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; run?: AiAnalysisSnapshot["runs"][number]; errorCode?: string; message?: string; requiresCapacityConfirmation?: boolean; warningCode?: string }>;
         cancelCapacityWarning: (runId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; run?: AiAnalysisSnapshot["runs"][number]; message?: string }>;
         cancel: (runId: string) => Promise<{ ok: boolean; message?: string }>;
+        acceptWarnings: (payload: { runId: string; accept: boolean }) => Promise<{ ok: boolean; accepted?: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         review: (payload: { runId: string; resultId: string; status: "CONFIRMED" | "REJECTED" | "PENDING_REVIEW"; note: string }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         exportRun: (payload: { runId: string; format: AiExportFormat }) => Promise<{ canceled?: boolean; filePath?: string; sizeBytes?: number; sha256?: string; errorCode?: string; message?: string }>;
         openFolder: (folderPath?: string) => Promise<{ ok: boolean; folderPath: string; error?: string }>;

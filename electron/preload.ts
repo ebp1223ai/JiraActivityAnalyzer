@@ -173,6 +173,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
     start: (payload: unknown) => ipcRenderer.invoke("ai-analysis:start", payload),
     cancelCapacityWarning: (runId: string) => ipcRenderer.invoke("ai-analysis:cancel-capacity-warning", runId),
     cancel: (runId: string) => ipcRenderer.invoke("ai-analysis:cancel", runId),
+    acceptWarnings: (payload: { runId: string; accept: boolean }) => ipcRenderer.invoke("ai-analysis:accept-warnings", payload),
     review: (payload: unknown) => ipcRenderer.invoke("ai-analysis:review", payload),
     exportRun: (payload: unknown) => ipcRenderer.invoke("ai-analysis:export", payload),
     openFolder: (folderPath?: string) => ipcRenderer.invoke("ai-analysis:open-folder", folderPath),

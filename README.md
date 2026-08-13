@@ -1,3 +1,11 @@
+## v0.3.16 AI Analysis artifacts and recovery
+
+- Formal ChatGPT analysis uses one read-only four-file input workspace and one Run-scoped writable `ai-output` directory.
+- ChatGPT publishes compact `ai-analysis-decisions.json` and `analysis-report.md`; Jira Activity Analyzer assembles and validates `canonical-output/analysis-result.json` locally.
+- An all-`UNKNOWN` result is `completed_with_warnings` and cannot write SQLite until the user explicitly accepts the warning.
+- Provider events use buffered append with durable flush at most every two seconds. Interrupted Runs recover as `recovered_interrupted` and never auto-resume.
+- Debug Folder export flushes active writers and includes conversation/provider logs plus completeness and SHA-256 file manifests.
+
 # Jira Activity Analyzer
 
 > v0.3.15 pins and verifies the bundled official Codex runtime, sends formal analysis through a four-file local workspace, enforces count-aware structured output, and packages canonical Run evidence into Debug Folder exports.

@@ -16,11 +16,11 @@ test("capacity warnings are warn-only and require one explicit confirmation", ()
 test("main boundary has atomic guard and only one ChatGPT runAnalysis call", () => {
   const branch = ipc.match(/else if \(payload\.mode === "CHATGPT"\) \{([\s\S]*?)\n      \} else \{/)?.[1] ?? "";
   assert.equal((branch.match(/chatgpt\.runAnalysis\(/g) ?? []).length, 1); assert.match(branch, /dispatchGuard\.begin/);
-  assert.doesNotMatch(branch, /retryCount\s*\+=|repair|fallback request/i);
+  assert.doesNotMatch(branch, /retryCount\s*\+=|repair(?:Run|Turn|Analysis)\s*\(|fallback request/i);
 });
 test("request thread and turn counters follow real boundaries", () => {
   const branch = ipc.match(/else if \(payload\.mode === "CHATGPT"\) \{([\s\S]*?)\n      \} else \{/)?.[1] ?? "";
-  assert.ok(branch.indexOf("run.progress.providerDispatchCount") < branch.indexOf("await chatgpt.runAnalysis"));
+  assert.ok(branch.indexOf("run.progress.providerDispatchCount") < branch.indexOf("const providerPromise = chatgpt.runAnalysis"));
   assert.match(service, /emitRun\(\{ type: "thread_starting"/); assert.match(ipc, /providerEvent\.type === "thread_starting"/);
   assert.match(service, /emitRun\(\{ type: "thread_created"/); assert.match(ipc, /providerEvent\.type === "thread_created"/);
   assert.match(service, /emitRun\(\{ type: "turn_starting"/); assert.match(ipc, /providerEvent\.type === "turn_starting"/);
@@ -29,8 +29,8 @@ test("request thread and turn counters follow real boundaries", () => {
 });
 test("canonical failure evidence and formal output gate precede persistence", () => {
   assert.doesNotMatch(ipc, /createFailedStaging/); assert.match(ipc, /failed-run-manifest\.json/); assert.match(ipc, /evaluateFormalPersistenceGate/);
-  assert.ok(ipc.indexOf("if (!run.validationGate.passed)") < ipc.indexOf("JSON.stringify(analyzedDocument(run)"));
-  assert.ok(ipc.indexOf("JSON.stringify(analyzedDocument(run)") < ipc.indexOf("persistCompletedRun(dbPath, dataset, run)"));
+  assert.ok(ipc.indexOf("if (!run.validationGate.passed)") < ipc.indexOf("persistCompletedRun(dbPath, dataset, run)"));
+  assert.ok(ipc.indexOf("atomicWriteCanonical(artifactPaths.canonicalResult") < ipc.indexOf("persistCompletedRun(dbPath, dataset, run)"));
 });
 test("provider capability lookup is exact and has no fixed capacity fallback", () => {
   assert.match(service, /modelProvider\/capabilities\/read/); assert.match(service, /provider_model_metadata/);

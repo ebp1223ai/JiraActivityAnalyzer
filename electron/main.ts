@@ -61,6 +61,7 @@ import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
 import { registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
+import { flushActiveRunArchives } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
 
 declare const __MAIN_APP_VERSION__: string;
@@ -3965,6 +3966,7 @@ function debugLogTimeline(debugLog: string) {
 
 ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: string; currentPage: string; fullFetchIdentity?: Partial<FullFetchRunIdentity> }) => {
   const createdAt = new Date().toISOString();
+  const aiWriterFlushResults = flushActiveRunArchives("debug_export");
   const outputRoot = ensureDir(getDebugFoldersDir());
   const folderPath = createCollisionSafeDirectory(
     getAppRuntimeDir(),
@@ -4405,12 +4407,10 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     failedFileCount: copyFailures.length
   });
   const aiRequiredEvidence = [
-    "run-manifest.json", "conversation.jsonl", "conversation.md", "provider-stream.jsonl",
+    "run-manifest.json", "logs/conversation.jsonl", "logs/conversation.md", "logs/provider-stream.jsonl", "logs/runtime.log", "logs/application.log",
     "input-workspace/pending-analysis.json", "input-workspace/common-rules.md", "input-workspace/skill-catalog.md", "input-workspace/rule-set-manifest.md",
-    "control/analysis-instruction.md", "control/output-schema.json", "control/request-package-manifest.json",
-    "provider-response.raw.json", "provider-response.canonical.json", "provider-visible-final-response.json.gz",
-    "debug/response-evidence.json", "debug/validation-result.json",
-    "debug/runtime-diagnostics.json", "debug/execution-time.json", "debug/token-usage.json", "debug/event-log.jsonl"
+    "ai-output/ai-analysis-decisions.json", "ai-output/analysis-report.md", "ai-output/final-assistant-message.txt",
+    "canonical-output/analysis-result.json", "canonical-output/validation-report.json", "canonical-output/completion-manifest.json"
   ];
   const aiCopyPrefix = "ai-analysis/canonical-run/";
   const aiCopyEntries = copiedEntries.filter((entry) => entry.relativePath.startsWith(aiCopyPrefix));
@@ -4421,20 +4421,24 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     mainSessionLog: { success: fs.existsSync(path.join(diagnosticSnapshot.sessionDir, "main.ndjson")), mode: "synchronous_append" },
     rendererSessionLog: { success: fs.existsSync(path.join(diagnosticSnapshot.sessionDir, "renderer.ndjson")), mode: "synchronous_append" },
     userActionLog: { success: true, mode: "invoke_snapshot" },
-    conversation: { success: !selectedAiRunPath || fs.existsSync(path.join(selectedAiRunPath, "conversation.jsonl")), mode: "fsync_per_event" },
-    providerStream: { success: !selectedAiRunPath || fs.existsSync(path.join(selectedAiRunPath, "provider-stream.jsonl")), mode: "fsync_per_event" }
+    conversation: { success: !selectedAiRunPath || fs.existsSync(path.join(selectedAiRunPath, "logs", "conversation.jsonl")), mode: "buffered_periodic_fsync" },
+    providerStream: { success: !selectedAiRunPath || fs.existsSync(path.join(selectedAiRunPath, "logs", "provider-stream.jsonl")), mode: "buffered_periodic_fsync" },
+    activeWriters: { success: aiWriterFlushResults.every((result) => result.completed && !result.failed), mode: "forced_before_copy", results: aiWriterFlushResults }
   };
   const aiFlushFailed = Object.values(aiFlushResults).some((result) => !result.success);
   const aiCompletenessStatus = !selectedAiRunPath ? "incomplete" : aiMissingFiles.length || aiHashMismatches.length || aiFlushFailed ? "incomplete" : "completed";
-  writeBundleJson(folderPath, "debug-completeness-manifest.json", {
+  const debugCompleteness = {
     schemaVersion: "jaa-debug-completeness-manifest-v1", debugFolderId: path.basename(folderPath), generatedAtLocal: new Date(createdAt).toLocaleString("sv-SE"), generatedAtUtc: createdAt,
     selectedAiRunId: selectedAiRunPath ? path.basename(selectedAiRunPath) : null, canonicalAiRunSourcePath: selectedAiRunPath ? "[APP_ROOT]/exports/ai-analysis/runs/.../" + path.basename(selectedAiRunPath) : null,
     expectedFileCount: aiRequiredEvidence.length, copiedFileCount: aiCopyEntries.filter((entry) => entry.status === "copied").length, excludedSecretFileCount: 0, missingRequiredFileCount: aiMissingFiles.length, hashMismatchCount: aiHashMismatches.length,
     flushResults: aiFlushResults, sourceFiles: aiCopyEntries.map((entry) => ({ relativePath: entry.relativePath.slice(aiCopyPrefix.length), size: entry.size, sha256: entry.sourceSha256 ?? null })),
     destinationFiles: aiCopyEntries.map((entry) => ({ relativePath: entry.relativePath, size: entry.size, sha256: entry.destinationSha256 ?? null, hashMatch: entry.hashMatch ?? false })),
     excludedFiles: [{ pattern: "credentials/oauth/token/.env", reason: "Secret and managed authentication material are never collected." }], missingFiles: aiMissingFiles, duplicateAliases: [], debugBundleStatus: aiCompletenessStatus
-  });
+  };
+  writeBundleJson(folderPath, "debug-completeness.json", { ...debugCompleteness, completeness: aiCompletenessStatus === "completed" ? "complete" : "incomplete" });
+  writeBundleJson(folderPath, "debug-completeness-manifest.json", debugCompleteness);
   const manifestEntries = listDebugFolderFiles(folderPath);
+  writeBundleJson(folderPath, "debug-file-manifest.json", { schemaVersion: "jaa-debug-file-manifest-v1", runId: selectedAiRunPath ? path.basename(selectedAiRunPath) : null, generatedAtUtc: createdAt, files: manifestEntries.map((entry) => { const absolute = path.join(folderPath, ...entry.relativePath.split("/")); return { ...entry, sha256: crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex") }; }) });
   for (const entry of copiedEntries) {
     if (evidenceEntries.some((evidence) => evidence.relativePath === entry.relativePath)) continue;
     evidenceEntries.push({
