@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "jaa-execution-time-ledger-v1",
+  "targetVersion": "0.3.19",
+  "startedAtLocal": "2026-08-14T14:14:42.6580057+08:00",
+  "startedAtUtc": "2026-08-14T06:14:42.6580057Z",
+  "completedAtLocal": "2026-08-14T14:45:00+08:00",
+  "wallClockDurationSecondsApprox": 1817,
+  "packagingSourceCommit": "81e62f82cd4567d231f7e25a8e2c5b40c896fde4",
+  "finalDeliveryCommit": {
+    "availability": "resolved-by-tag",
+    "command": "git rev-parse v0.3.19^{commit}",
+    "reason": "A commit cannot embed its own SHA without changing that SHA."
+  },
+  "phases": [
+    { "name": "repository_inspection_and_root_cause", "durationSecondsApprox": 280, "result": "PASS" },
+    { "name": "implementation_and_test_authoring", "durationSecondsApprox": 820, "result": "PASS" },
+    { "name": "typecheck", "attempts": 4, "latestExitCode": 0, "latestDurationSecondsApprox": 8.7, "result": "PASS" },
+    { "name": "test_v0_3_19_initial", "command": "npm.cmd run test:v0.3.19", "exitCode": 0, "durationSecondsApprox": 4.4, "result": "PASS" },
+    { "name": "test_v0_3_19_enhanced_first_attempt", "command": "npm.cmd run test:v0.3.19", "exitCode": 1, "durationSecondsApprox": 10.9, "result": "RETRIED", "note": "Test hook scope was too broad; production behavior was not the cause." },
+    { "name": "test_v0_3_19_enhanced_retry", "command": "npm.cmd run test:v0.3.19", "exitCode": 0, "durationSecondsApprox": 2.7, "result": "PASS" },
+    { "name": "build", "command": "npm.cmd run build", "exitCode": 0, "durationSecondsApprox": 18.2, "result": "PASS" },
+    { "name": "dist_dirty_guard", "command": "npm.cmd run dist", "exitCode": 1, "durationSecondsApprox": 5.9, "result": "EXPECTED_GUARD", "note": "Existing unrelated tracked report was dirty; no user file was reverted." },
+    { "name": "dist_authorized_dirty_first", "command": "$env:JAA_ALLOW_DIRTY_PACKAGE='1'; npm.cmd run dist", "exitCode": 0, "durationSecondsApprox": 99.0, "result": "PASS" },
+    { "name": "final_focused_test", "command": "npm.cmd run test:v0.3.19", "exitCode": 0, "durationSeconds": 5.0, "result": "PASS" },
+    { "name": "final_dist", "command": "$env:JAA_ALLOW_DIRTY_PACKAGE='1'; npm.cmd run dist", "exitCode": 0, "durationSeconds": 113.0, "result": "PASS" },
+    { "name": "asar_and_artifact_verification", "exitCode": 0, "durationSeconds": 41.1, "result": "PASS" },
+    { "name": "portable_short_launch_first_attempt", "durationSecondsApprox": 10.7, "result": "INCONCLUSIVE", "note": "Portable extraction had not produced renderer evidence within the first short window." },
+    { "name": "portable_short_launch_retry", "exitCode": 0, "durationSeconds": 47.0, "result": "PASS", "note": "Child process, did-finish-load, and renderer boot were observed." },
+    { "name": "git_diff_check", "command": "git diff --check", "exitCode": 0, "durationSecondsApprox": 1.2, "result": "PASS" }
+  ],
+  "retries": [
+    "Enhanced test hook scope correction",
+    "Authorized dirty-worktree packaging while preserving unrelated user changes",
+    "Portable launch wait extended to include extraction and renderer startup",
+    "ASAR path separators normalized before exact inventory validation"
+  ],
+  "tokenAccounting": {
+    "codexTask": { "availability": "unavailable", "reason": "The Codex desktop task did not expose authoritative token telemetry." },
+    "jaaManagedChatGptRun": { "availability": "unavailable", "reason": "No real Managed OAuth ChatGPT analysis run was executed in this delivery." }
+  }
+}

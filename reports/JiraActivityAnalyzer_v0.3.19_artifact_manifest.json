@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "jaa-artifact-manifest-v1",
+  "targetVersion": "0.3.19",
+  "overallStatus": "Partial / Manual Validation Pending",
+  "branch": "feat/v0.3.19-instruction-modes-verifiable-model-delivery",
+  "packagingSourceCommit": "81e62f82cd4567d231f7e25a8e2c5b40c896fde4",
+  "finalDeliveryCommit": { "resolution": "git rev-parse v0.3.19^{commit}" },
+  "annotatedTag": "v0.3.19",
+  "buildTime": "2026/08/14 14:40:19",
+  "buildTimeIso": "2026-08-14T06:40:19.175Z",
+  "dirtyState": true,
+  "dirtyStateReason": "Pre-existing unrelated tracked report modification was preserved and excluded from v0.3.19 commits.",
+  "toolchain": {
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3"
+  },
+  "codexRuntime": {
+    "version": "0.147.0",
+    "expectedSha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+    "actualSha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+    "status": "Automated PASS"
+  },
+  "analysisBridge": {
+    "version": "0.3.19-bridge-v2",
+    "expectedSha256": "e46efeda10bc36fb79d217db47385a0e59fd11236c9f3f27bb940df0b2d9ebac",
+    "actualSha256": "e46efeda10bc36fb79d217db47385a0e59fd11236c9f3f27bb940df0b2d9ebac",
+    "modelInputTransport": "bridge-resumable-v2",
+    "status": "Automated PASS"
+  },
+  "artifacts": [
+    {
+      "kind": "installer",
+      "path": "release/Jira Activity Analyzer Setup 0.3.19.exe",
+      "bytes": 190534884,
+      "sha256": "d5c7070d17764614ebaecf1b500cdcc6e333b3987121cc9f75421cc43a308658",
+      "status": "Automated PASS"
+    },
+    {
+      "kind": "portable",
+      "path": "release/Jira Activity Analyzer Portable 0.3.19.exe",
+      "bytes": 190304791,
+      "sha256": "558b1d9c89344f4c60b549357bc074d50e8814d05e29fa450dcbf78fffa2d45b",
+      "status": "Automated PASS"
+    },
+    {
+      "kind": "win-unpacked-executable",
+      "path": "release/win-unpacked/Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "abb9a39545356fe5c66a6b79916e113c3f252e7ebf60bac750edf240c4cd93a4",
+      "status": "Automated PASS"
+    },
+    {
+      "kind": "asar",
+      "path": "release/win-unpacked/resources/app.asar",
+      "bytes": 24843686,
+      "sha256": "469efa775b55ecbf351497ec5dcc0e58bcbea0722a273d4ab6da3041ad8bd9a7",
+      "status": "Automated PASS"
+    }
+  ],
+  "asarInspection": {
+    "requiredFilesPresent": true,
+    "staleV0318BridgeAbsent": true,
+    "sensitiveRuntimeDataIncluded": false,
+    "status": "Automated PASS"
+  },
+  "verification": {
+    "typecheck": "Automated PASS",
+    "testV0319": "Automated PASS",
+    "build": "Automated PASS",
+    "dist": "Automated PASS",
+    "gitDiffCheck": "Automated PASS",
+    "portableRendererBoot": "Automated PASS",
+    "realManagedOAuth17Records": "Manual Validation Pending",
+    "realManagedOAuth117Records": "Manual Validation Pending",
+    "realSqlitePersistence": "Not Run",
+    "deepInstallerGuiWalkthrough": "Manual Validation Pending"
+  }
+}
