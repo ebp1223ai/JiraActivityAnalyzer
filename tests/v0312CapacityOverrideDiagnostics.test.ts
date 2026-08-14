@@ -29,12 +29,12 @@ const snapshot = (promptBytes: number, tokens: number | null, records = 117) => 
 test("known capacity within limit dispatches without warning", () => assert.equal(capacityWarning(snapshot(30_000, 200_000, 1)), null));
 test("known capacity overage is warning-only with complete formula", () => {
   const value = snapshot(407_037, 200_000);
-  assert.equal(value.estimatedFinalInputTokens, 135_679);
+  assert.equal(value.estimatedFinalInputTokens, 135_680);
   assert.equal(value.estimatedVisibleOutputReserveTokens, 74_880);
   assert.equal(value.safetyMarginTokens, 16_000);
   assert.equal(value.estimatedOutputAndReasoningReserveTokens, 90_880);
-  assert.equal(value.estimatedRequiredTotalTokens, 226_559);
-  assert.equal(value.estimatedOverageTokens, 26_559);
+  assert.equal(value.estimatedRequiredTotalTokens, 226_560);
+  assert.equal(value.estimatedOverageTokens, 26_560);
   assert.equal(capacityWarning(value), "ANALYSIS_ESTIMATED_CONTEXT_EXCEEDS_LIMIT");
 });
 test("unavailable capacity preserves null margins but complete input and required estimates", () => {
@@ -46,7 +46,7 @@ test("unavailable capacity preserves null margins but complete input and require
 });
 test("bytes fallback exposes divisor, rounding, bytes, and never hardcodes 200000", () => {
   const value = snapshot(300, null, 1);
-  assert.equal(value.estimatedFinalInputTokens, 100); assert.equal(value.roundingRule, "ceil");
+  assert.equal(value.estimatedFinalInputTokens, value.estimatedRulesTokens + value.estimatedPendingPayloadTokens + value.estimatedWrapperTokens); assert.equal(value.estimatedFinalInputTokens, 123_334); assert.equal(value.roundingRule, "ceil");
   assert.match(value.estimatorMethod, /UTF-8 bytes \/ 3/); assert.notEqual(value.capacityTokens, 200_000);
 });
 test("capacity snapshot hash is stable for shared UI manifest debug and ledger value", () => {

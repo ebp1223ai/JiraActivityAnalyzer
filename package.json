@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.16",
+  "version": "0.3.17",
   "description": "Electron desktop analyzer with bundled Codex local-workspace AI analysis and canonical debug evidence.",
   "author": "COPGEN",
   "type": "module",
@@ -75,7 +75,8 @@
     "test:v0.3.13": "node scripts/test-v0313.cjs && node scripts/test-v0312.cjs && node scripts/test-v0312-integration.cjs",
     "test:v0.3.14": "node scripts/test-v0314.cjs && node scripts/test-v0313.cjs && node scripts/test-v0312.cjs && node scripts/test-v0312-integration.cjs",
     "test:v0.3.15": "node scripts/generate-codex-runtime-manifest.cjs && node scripts/test-v0315.cjs && node scripts/test-v0314.cjs && node scripts/test-v0313.cjs && node scripts/test-v0312.cjs && node scripts/test-v0312-integration.cjs",
-    "test:v0.3.16": "node scripts/generate-codex-runtime-manifest.cjs && node scripts/test-v0316.cjs && node scripts/test-v0315.cjs && node scripts/test-v0314.cjs && node scripts/test-v0313.cjs && node scripts/test-v0312.cjs && node scripts/test-v0312-integration.cjs"
+    "test:v0.3.16": "node scripts/generate-codex-runtime-manifest.cjs && node scripts/test-v0316.cjs && node scripts/test-v0315.cjs && node scripts/test-v0314.cjs && node scripts/test-v0313.cjs && node scripts/test-v0312.cjs && node scripts/test-v0312-integration.cjs",
+    "test:v0.3.17": "node scripts/generate-codex-runtime-manifest.cjs && node scripts/test-v0317.cjs && node scripts/test-codex-write-probe-contract-v0317.cjs && node scripts/test-v0316.cjs && node scripts/test-v0315.cjs && node scripts/test-v0314.cjs && node scripts/test-v0313.cjs && node scripts/test-v0312.cjs && node scripts/test-v0312-integration.cjs"
   },
   "dependencies": {
     "@openai/codex": "0.147.0",

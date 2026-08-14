@@ -103,15 +103,15 @@ export function parseAndValidateDecisions(raw: string, expected: { runId: string
 }
 
 export function readPublishedArtifacts(paths: CanonicalRunPaths) {
-  for (const temporary of [paths.decisions + ".tmp", paths.report + ".tmp", paths.decisions + ".partial", paths.report + ".partial"]) if (fs.existsSync(temporary)) throw new AiAnalysisError("AI_OUTPUT_PUBLISH_INCOMPLETE", `Temporary artifact still exists: ${path.basename(temporary)}`);
+  for (const temporary of [paths.decisions + ".tmp", paths.decisions + ".partial"]) if (fs.existsSync(temporary)) throw new AiAnalysisError("AI_OUTPUT_PUBLISH_INCOMPLETE", `Temporary Decision artifact still exists: ${path.basename(temporary)}`);
   if (!fs.existsSync(paths.decisions)) throw new AiAnalysisError("AI_DECISION_FILE_MISSING", "ai-analysis-decisions.json is missing.");
-  if (!fs.existsSync(paths.report)) throw new AiAnalysisError("AI_ANALYSIS_REPORT_MISSING", "analysis-report.md is missing.");
-  if (!fs.existsSync(paths.finalMessage)) throw new AiAnalysisError("AI_FINAL_SUMMARY_MISSING", "final-assistant-message.txt is missing.");
-  const decisions = contained(paths.output, paths.decisions); const report = contained(paths.output, paths.report); const finalMessage = contained(paths.output, paths.finalMessage);
-  const reportText = fs.readFileSync(report, "utf8").trim(); const finalText = fs.readFileSync(finalMessage, "utf8").trim();
-  if (!reportText) throw new AiAnalysisError("AI_ANALYSIS_REPORT_MISSING", "analysis-report.md is empty.");
-  if (!finalText) throw new AiAnalysisError("AI_FINAL_SUMMARY_MISSING", "final-assistant-message.txt is empty.");
-  return { decisionsText: fs.readFileSync(decisions, "utf8"), reportText, finalText, hashes: { decisions: hashFile(decisions), report: hashFile(report), finalMessage: hashFile(finalMessage) } };
+  const decisions = contained(paths.output, paths.decisions);
+  const report = fs.existsSync(paths.report) ? contained(paths.output, paths.report) : null;
+  const finalMessage = fs.existsSync(paths.finalMessage) ? contained(paths.output, paths.finalMessage) : null;
+  const reportText = report ? fs.readFileSync(report, "utf8").trim() || null : null;
+  const finalText = finalMessage ? fs.readFileSync(finalMessage, "utf8").trim() || null : null;
+  const warnings = [...(!reportText ? ["AI_ANALYSIS_REPORT_MISSING"] : []), ...(!finalText ? ["AI_FINAL_SUMMARY_MISSING"] : [])];
+  return { decisionsText: fs.readFileSync(decisions, "utf8"), reportText, finalText, warnings, hashes: { decisions: hashFile(decisions), report: reportText && report ? hashFile(report) : null, finalMessage: finalText && finalMessage ? hashFile(finalMessage) : null } };
 }
 
 export function assembleCanonicalResults(compact: CompactPayload, decisions: AiDecisionDocument, rules: AiRulesSnapshot, analyzerVersion: string, requestTraceId: string | null, usage = emptyTokenUsage("actual")): AiDiffAnalysisResult[] {

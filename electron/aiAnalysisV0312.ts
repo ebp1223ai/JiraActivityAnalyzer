@@ -28,7 +28,10 @@ export function buildCapacityCalculationSnapshot(input: {
   configuredMaxOutputTokens?: number | null;
 }): CapacityCalculationSnapshot {
   const visible = Math.max(input.configuredMaxOutputTokens ?? 0, 8192, input.recordCount * 640);
-  const finalInput = estimate(input.finalSerializedPromptBytesUtf8);
+  const estimatedRulesTokens = estimate(input.rulesBytesUtf8);
+  const estimatedPendingPayloadTokens = estimate(input.pendingPayloadBytesUtf8);
+  const estimatedWrapperTokens = estimate(input.wrapperInstructionsBytesUtf8);
+  const finalInput = estimatedRulesTokens + estimatedPendingPayloadTokens + estimatedWrapperTokens;
   const safety = Math.max(4096, Math.ceil((input.capacity.tokens ?? finalInput) * 0.08));
   const reserve = visible + safety;
   const required = finalInput + reserve;
@@ -37,14 +40,14 @@ export function buildCapacityCalculationSnapshot(input: {
     modelId: input.capacity.modelId, modelDisplayName: input.capacity.modelDisplayName,
     capacitySource: input.capacity.source, capacitySourceStatus: input.capacity.status,
     capacityTokens: input.capacity.tokens, capacityRawResponseSanitized: input.capacity.rawSanitized,
-    estimatorName: "utf8-bytes-ratio", estimatorVersion: "1.0", estimatorMethod: "ceil(UTF-8 bytes / 3)",
+    estimatorName: "utf8-bytes-component-sum", estimatorVersion: "2.0", estimatorMethod: "ceil(UTF-8 bytes / 3)",
     estimatorFallbackUsed: true, roundingRule: "ceil",
     rulesBytesUtf8: input.rulesBytesUtf8, pendingPayloadBytesUtf8: input.pendingPayloadBytesUtf8,
     wrapperInstructionsBytesUtf8: input.wrapperInstructionsBytesUtf8,
     finalSerializedPromptBytesUtf8: input.finalSerializedPromptBytesUtf8,
-    estimatedRulesTokens: estimate(input.rulesBytesUtf8),
-    estimatedPendingPayloadTokens: estimate(input.pendingPayloadBytesUtf8),
-    estimatedWrapperTokens: estimate(input.wrapperInstructionsBytesUtf8),
+    estimatedRulesTokens,
+    estimatedPendingPayloadTokens,
+    estimatedWrapperTokens,
     estimatedFinalInputTokens: finalInput,
     outputReserveBaseTokens: 8192, outputReservePerRecordTokens: 640, recordCount: input.recordCount,
     estimatedVisibleOutputReserveTokens: visible, reasoningReserveTokens: 0,

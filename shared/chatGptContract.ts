@@ -1,5 +1,17 @@
 export const CODEX_RUNTIME_VERSION = "0.147.0" as const;
 
+export type ChatGptTokenBucket = { inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null };
+export type ChatGptTokenTelemetry = {
+  availability: "actual" | "actual_zero_no_model_dispatch" | "unavailable";
+  turnCumulative: ChatGptTokenBucket;
+  lastModelCall: ChatGptTokenBucket;
+  modelContextWindow: number | null;
+  maxObservedSingleCallTokens: number | null;
+  maxObservedContextUtilizationPercent: number | null;
+  usageEventCount: number;
+  anomalies: Array<{ code: "TOKEN_CUMULATIVE_ROLLBACK"; previousTotal: number; observedTotal: number; eventIndex: number }>;
+};
+
 export type ActiveAiProvider = "chatgpt_codex" | "ai_nexus" | "offline_rule";
 
 export type ChatGptRuntimeState =
@@ -55,13 +67,14 @@ export type ChatGptStatus = {
 };
 
 export type ChatGptRunEvent =
+  | { type: "preflight_completed"; runId: string; at: string; evidence: { writeProbe: unknown; policyComparison: unknown; effectivePermissions: unknown } }
   | { type: "thread_starting"; runId: string; at: string }
   | { type: "thread_created"; runId: string; at: string; threadId: string }
   | { type: "turn_starting"; runId: string; at: string; threadId: string }
   | { type: "turn_started"; runId: string; at: string; threadId: string; turnId: string }
   | { type: "started"; runId: string; at: string }
   | { type: "delta"; runId: string; text: string }
-  | { type: "usage"; runId: string; inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null }
+  | { type: "usage"; runId: string; inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null; tokenTelemetry: ChatGptTokenTelemetry }
   | { type: "completed"; runId: string; text: string; elapsedMs: number }
   | { type: "cancelled"; runId: string }
   | { type: "failed"; runId: string; errorCode: string; message: string; outcomeUnknown: boolean; visibleText: string; usage: ChatGptAnalysisResponse["usage"] }
@@ -91,4 +104,6 @@ export type ChatGptAnalysisResponse = {
   threadId: string;
   turnId: string;
   usage: { inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null };
+  tokenTelemetry: ChatGptTokenTelemetry;
+  sandboxEvidence?: { writeProbe: unknown; policyComparison: unknown; effectivePermissions: unknown };
 };

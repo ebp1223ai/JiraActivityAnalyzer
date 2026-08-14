@@ -116,7 +116,7 @@ try {
   const main = fs.readFileSync(path.join(process.cwd(), "electron", "main.ts"), "utf8");
   assert.match(main, /debug-completeness\.json/);
   assert.match(main, /debug-file-manifest\.json/);
-  assert.match(main, /flushActiveRunArchives/);
+  assert.match(main, /flushRunArchive/);
 
   console.log(JSON.stringify({ status: "passed", recordCount, providerEventCount: providerLines.length, conversationEventCount: conversation.eventCount, bufferedLoggingElapsedMs: elapsedMs }, null, 2));
 } finally {

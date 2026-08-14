@@ -44,6 +44,16 @@ export type AiAnalysisErrorCode =
   | "AI_RESULT_ORDER_MISMATCH"
   | "AI_REQUEST_PACKAGE_FAILED"
   | "AI_RUN_ARCHIVE_FAILED"
+  | "AI_CODEX_SANDBOX_CONFIGURATION_REJECTED"
+  | "AI_CODEX_WORKSPACE_WRITE_NOT_ALLOWED"
+  | "AI_SANDBOX_POLICY_MISMATCH"
+  | "AI_OUTPUT_WRITE_PROBE_CREATE_FAILED"
+  | "AI_OUTPUT_WRITE_PROBE_CONTENT_MISMATCH"
+  | "AI_OUTPUT_WRITE_PROBE_RENAME_FAILED"
+  | "AI_OUTPUT_WRITE_PROBE_FAILED"
+  | "AI_OUTPUT_WRITE_BLOCKED_BY_POLICY"
+  | "AI_ARTIFACT_HASH_MISMATCH"
+  | "AI_ARTIFACT_PATH_ESCAPE"
   | "AI_DECISION_FILE_MISSING"
   | "AI_DECISION_FILE_INCOMPLETE"
   | "AI_DECISION_JSON_INVALID"
@@ -109,8 +119,15 @@ export type AiTokenUsage = {
   outputTokens: number | null;
   reasoningTokens: number | null;
   totalTokens: number | null;
-  availability: "actual" | "partial" | "unavailable" | "not_applicable";
+  availability: "actual" | "actual_zero_no_model_dispatch" | "partial" | "unavailable" | "not_applicable";
   estimatedInputTokens: number | null;
+  turnCumulative?: { inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null };
+  lastModelCall?: { inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null };
+  modelContextWindow?: number | null;
+  maxObservedSingleCallTokens?: number | null;
+  maxObservedContextUtilizationPercent?: number | null;
+  usageEventCount?: number;
+  telemetryAnomalies?: Array<{ code: string; previousTotal: number; observedTotal: number; eventIndex: number }>;
 };
 
 export type CapacityWarningCode = "ANALYSIS_MODEL_CONTEXT_CAPACITY_UNAVAILABLE" | "ANALYSIS_ESTIMATED_CONTEXT_EXCEEDS_LIMIT";
@@ -469,6 +486,7 @@ export type AiAnalysisRun = {
   runtimeIntegrity?: "unverified" | "verified" | "failed" | null;
   observedFileAccess?: string[];
   artifactPaths?: { input: string; output: string; canonical: string; logs: string } | null;
+  codexPreflight?: { writeProbe: unknown; policyComparison: unknown; effectivePermissions: unknown } | null;
   expectedDecisionCount?: number;
   receivedDecisionCount?: number;
   canonicalRecordCount?: number;

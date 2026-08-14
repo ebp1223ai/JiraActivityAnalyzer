@@ -1,3 +1,9 @@
+# v0.3.17 - Writable Artifact Pipeline, Accurate Token Telemetry, Canonical Debug Recovery
+
+- Added a zero-model-dispatch Bundled Codex `command/exec` write probe using the same canonical cwd and minimum `ai-output`-only workspace-write policy as the formal Thread and Turn.
+- Separated cumulative Turn token usage from the last model call, added usage-event/anomaly telemetry, and corrected component-based capacity estimates.
+- Preserved valid Decision JSON when optional report or final summary artifacts are missing, with explicit warnings and a durable SQLite acceptance gate.
+- Fixed Debug Folder export to flush the selected Canonical Run only, split export status from content completeness, and retained safe fallback envelopes when provider payload sanitization fails.
 # v0.3.16 - Artifact Output, Explainability, Performance Recovery, Crash-safe Debug Evidence
 
 - ChatGPT formal analysis publishes compact Decision JSON and a separate Markdown analysis report; JAA assembles canonical results locally.
