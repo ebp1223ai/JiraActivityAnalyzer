@@ -1,0 +1,175 @@
+{
+  "schemaVersion": "jira_activity_analyzer_execution_time_ledger_v1",
+  "version": "0.3.17",
+  "timezone": "Asia/Taipei",
+  "collectionStartLocal": "2026-08-14T10:16:56.2249645+08:00",
+  "collectionStartUtc": "2026-08-14T02:16:56.2249645Z",
+  "taskStart": {
+    "status": "unavailable",
+    "reason": "Implementation began before the retained command-timing window; no estimate is presented as Actual."
+  },
+  "taskEnd": {
+    "status": "recorded_in_final_delivery_response",
+    "reason": "Report generation necessarily precedes final commit, tag, and push."
+  },
+  "phases": [
+    {
+      "label": "repository inspection",
+      "command": "repository and prompt inspection",
+      "status": "PASS",
+      "exitCode": 0,
+      "timing": "unavailable"
+    },
+    {
+      "label": "implementation",
+      "command": "v0.3.17 implementation and focused test authoring",
+      "status": "PASS",
+      "exitCode": 0,
+      "timing": "unavailable"
+    },
+    {
+      "label": "typecheck",
+      "command": "npm.cmd run typecheck",
+      "status": "PASS",
+      "exitCode": 0,
+      "startLocal": "2026-08-14T10:16:56.2249645+08:00",
+      "endLocal": "2026-08-14T10:17:04.5874369+08:00",
+      "startUtc": "2026-08-14T02:16:56.2249645Z",
+      "endUtc": "2026-08-14T02:17:04.5874369Z",
+      "durationMs": 8362
+    },
+    {
+      "label": "test:v0.3.17",
+      "command": "npm.cmd run test:v0.3.17",
+      "status": "PASS",
+      "exitCode": 0,
+      "startLocal": "2026-08-14T10:17:15.1108699+08:00",
+      "endLocal": "2026-08-14T10:17:30.3974622+08:00",
+      "startUtc": "2026-08-14T02:17:15.1108699Z",
+      "endUtc": "2026-08-14T02:17:30.3974622Z",
+      "durationMs": 15287
+    },
+    {
+      "label": "build",
+      "command": "npm.cmd run build",
+      "status": "PASS",
+      "exitCode": 0,
+      "startLocal": "2026-08-14T10:18:32.9312551+08:00",
+      "endLocal": "2026-08-14T10:18:58.7125948+08:00",
+      "startUtc": "2026-08-14T02:18:32.9312551Z",
+      "endUtc": "2026-08-14T02:18:58.7125948Z",
+      "durationMs": 25781
+    },
+    {
+      "label": "git diff check",
+      "command": "git diff --check",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 95
+    },
+    {
+      "label": "package source commit",
+      "command": "git commit -m feat(ai-analysis): add writable Codex artifact pipeline for v0.3.17",
+      "status": "PASS",
+      "exitCode": 0,
+      "commit": "fba1b9ef8f79a55c1bca2d6ccf6668d620b1357b",
+      "durationMs": 700
+    },
+    {
+      "label": "dist clean-worktree guard",
+      "command": "npm.cmd run dist",
+      "status": "FAIL",
+      "exitCode": 1,
+      "startLocal": "2026-08-14T10:20:37.2936500+08:00",
+      "endLocal": "2026-08-14T10:20:45.6107281+08:00",
+      "startUtc": "2026-08-14T02:20:37.2936500Z",
+      "endUtc": "2026-08-14T02:20:45.6107281Z",
+      "durationMs": 8317,
+      "reason": "Expected guard rejected preserved pre-existing tracked report modification before packaging."
+    },
+    {
+      "label": "dist",
+      "command": "JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist",
+      "status": "PASS",
+      "exitCode": 0,
+      "startLocal": "2026-08-14T10:21:08.0055666+08:00",
+      "endLocal": "2026-08-14T10:22:57.7090604+08:00",
+      "startUtc": "2026-08-14T02:21:08.0055666Z",
+      "endUtc": "2026-08-14T02:22:57.7090604Z",
+      "durationMs": 109703
+    },
+    {
+      "label": "ASAR scan",
+      "command": "asar list and sensitive path classification",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 2100
+    },
+    {
+      "label": "win-unpacked",
+      "command": "Electron CDP renderer readiness verification",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 6455
+    },
+    {
+      "label": "Portable",
+      "command": "Portable launch plus persistent diagnostics verification",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 31195,
+      "warning": "CDP websocket disconnected after portable wrapper handoff; app-owned diagnostics independently recorded did-finish-load without renderer crash."
+    },
+    {
+      "label": "artifact hash",
+      "command": "Get-FileHash SHA256",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 1400
+    },
+    {
+      "label": "report generation",
+      "command": "create v0.3.17 report, manifest, and ledger",
+      "status": "PASS",
+      "exitCode": 0,
+      "timing": "recorded_by_tool_call"
+    },
+    {
+      "label": "final delivery commit",
+      "command": "git commit",
+      "status": "NOT RUN",
+      "exitCode": null,
+      "reason": "Runs after this ledger is written."
+    },
+    {
+      "label": "tag",
+      "command": "git tag -a v0.3.17",
+      "status": "NOT RUN",
+      "exitCode": null,
+      "reason": "Runs after final delivery commit."
+    },
+    {
+      "label": "push",
+      "command": "git push branch and v0.3.17 tag",
+      "status": "NOT RUN",
+      "exitCode": null,
+      "reason": "Runs after final safety and remote checks."
+    }
+  ],
+  "tokens": {
+    "codexImplementationSession": {
+      "status": "unavailable",
+      "actual": null
+    },
+    "productChatGptRun": {
+      "status": "MANUAL VALIDATION PENDING",
+      "cumulativeActual": null,
+      "lastModelCallActual": null
+    },
+    "bundledCodexWriteProbe": {
+      "status": "PASS",
+      "modelDispatchCount": 0,
+      "totalTokens": 0
+    }
+  }
+}
