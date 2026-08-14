@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "jaa-v0318-execution-time-ledger-v1",
+  "taskStartedAtLocal": "2026-08-14T12:34:44.1411863+08:00",
+  "taskStartedAtUtc": "2026-08-14T04:34:44.1411863Z",
+  "recordingClosedAtLocal": "2026-08-14T13:00:07.0289834+08:00",
+  "recordingClosedAtUtc": "2026-08-14T05:00:07.0289834Z",
+  "recordedWallClockMs": 1522888,
+  "actualDevelopmentSessionTokenTelemetry": {
+    "availability": "unavailable",
+    "reason": "The current Codex development session does not expose authoritative token telemetry to the repository task. No estimate was substituted."
+  },
+  "commands": [
+    { "name": "initial electron build and v0.3.18 test", "exitCode": 1, "durationMs": 5200, "result": "build passed; expected UI assertion exposed unfinished result labels" },
+    { "name": "typecheck/build/v0.3.18 focused retry", "exitCode": 0, "durationMs": 13400, "result": "passed" },
+    { "name": "test:v0.3.18 retry 1", "exitCode": 1, "durationMs": 3666, "result": "old v0.3.17 assertion required removed write-probe text" },
+    { "name": "test:v0.3.18 retry 2", "exitCode": 1, "durationMs": 3818, "result": "old v0.3.17 error ownership assertion" },
+    { "name": "test:v0.3.18 retry 3", "exitCode": 1, "durationMs": 12000, "result": "old v0.3.16 workspace-write assertion" },
+    { "name": "test:v0.3.18 retry 4", "exitCode": 1, "durationMs": 4800, "result": "test newline typo corrected" },
+    { "name": "test:v0.3.18 retry 5", "exitCode": 1, "durationMs": 14700, "result": "old v0.3.15 observed-file assertion" },
+    { "name": "test:v0.3.18 regression chain", "exitCode": 0, "durationMs": 15200, "result": "passed" },
+    { "name": "npm.cmd run typecheck", "exitCode": 0, "durationMs": 9504, "result": "passed" },
+    { "name": "npm.cmd run test:v0.3.18", "exitCode": 0, "durationMs": 15174, "result": "passed" },
+    { "name": "npm.cmd run build", "exitCode": 0, "durationMs": 26297, "result": "passed with documented Vite warnings" },
+    { "name": "Package Source Commit", "exitCode": 0, "durationMs": 1300, "result": "1479ea5e415a6de532c34a844772bbc31560cc69" },
+    { "name": "Package Source rebuild", "exitCode": 0, "durationMs": 14328, "result": "passed" },
+    { "name": "npm.cmd run dist", "exitCode": 1, "durationMs": 7924, "result": "blocked by preserved pre-existing tracked dirty report" },
+    { "name": "JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist", "exitCode": 0, "durationMs": 109263, "result": "passed; exception explicitly recorded" },
+    { "name": "win-unpacked short launch", "exitCode": 0, "durationMs": 4500, "result": "renderer did-finish-load" },
+    { "name": "isolated Portable short launch", "exitCode": 0, "durationMs": 12300, "result": "renderer did-finish-load" },
+    { "name": "ASAR and artifact integrity verification", "exitCode": 0, "durationMs": 2300, "result": "passed" }
+  ]
+}

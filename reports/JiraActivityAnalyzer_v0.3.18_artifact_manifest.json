@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "jaa-v0318-artifact-manifest-v1",
+  "appVersion": "0.3.18",
+  "branch": "feat/v0.3.18-deterministic-analysis-bridge-observable-results",
+  "packageSourceCommit": "1479ea5e415a6de532c34a844772bbc31560cc69",
+  "buildTimeLocal": "2026/08/14 12:56:11",
+  "buildTimeUtc": "2026-08-14T04:56:11.942Z",
+  "dirtyState": true,
+  "dirtyStateReason": "Pre-existing tracked v0.2.47 report preserved and excluded; packaging explicitly authorized with JAA_ALLOW_DIRTY_PACKAGE=1.",
+  "bundledCodex": {
+    "version": "0.147.0",
+    "sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d"
+  },
+  "analysisBridge": {
+    "version": "0.3.18-bridge-v1",
+    "sha256": "6a5ad07c7963692d89ab43c0de141b4fb902b8659b1436da1a95791719cd415c",
+    "transport": "codex_dynamic_tools_stdio",
+    "localOnly": true,
+    "externalFallback": false,
+    "asarHashVerified": true
+  },
+  "artifacts": [
+    {
+      "kind": "installer",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.18.exe",
+      "sizeBytes": 190529224,
+      "sha256": "4b74a3508bd3e25cefffa9ed54aa997d95974aa4c98802f272de6548ea99659c"
+    },
+    {
+      "kind": "portable",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.18.exe",
+      "sizeBytes": 190299139,
+      "sha256": "4d6248671209bbb31a6e03477251f81e57c45f19096b6d4533ecfab187e0a0c2"
+    },
+    {
+      "kind": "win-unpacked",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+      "sizeBytes": 235706368,
+      "sha256": "40dd6934eea7b91e2bfe9e22f81fe9313e1728db75d5e31768d98ab5f6444dd4"
+    }
+  ],
+  "asarScan": {
+    "entryCount": 4686,
+    "forbiddenPathCount": 0,
+    "status": "passed"
+  },
+  "launchChecks": {
+    "winUnpacked": "renderer_did_finish_load",
+    "portableIsolated": "renderer_did_finish_load",
+    "desktopScreenshotUsed": false
+  }
+}
