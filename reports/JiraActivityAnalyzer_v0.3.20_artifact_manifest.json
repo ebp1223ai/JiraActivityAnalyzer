@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "jaa-artifact-manifest-v1",
+  "targetVersion": "0.3.20",
+  "overallStatus": "Partial / Manual Validation Pending",
+  "branch": "feat/v0.3.20-artifact-contract-rule-set-alignment",
+  "packagingSourceCommit": "924c0a546dfee83fe2a661f36e3e15c16f25c686",
+  "finalDeliveryCommit": { "resolution": "git rev-parse v0.3.20^{commit}" },
+  "annotatedTag": "v0.3.20",
+  "buildTime": "2026/08/14 17:45:29",
+  "buildTimeIso": "2026-08-14T09:45:29.539Z",
+  "dirtyState": true,
+  "dirtyStateReason": "A pre-existing unrelated tracked report modification was preserved and excluded from v0.3.20 commits.",
+  "toolchain": {
+    "windows": "Microsoft Windows NT 10.0.26100.0",
+    "git": "2.52.0.windows.1",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3"
+  },
+  "codexRuntime": {
+    "version": "0.147.0",
+    "expectedSha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+    "actualSha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+    "status": "Automated PASS"
+  },
+  "analysisBridge": {
+    "version": "0.3.20-bridge-v3",
+    "expectedSha256": "8466dba29101fd99e47afd329f4b634d084c7765e118610d8cb835e8c442c0a8",
+    "actualSha256": "8466dba29101fd99e47afd329f4b634d084c7765e118610d8cb835e8c442c0a8",
+    "modelInputTransport": "bridge-resumable-v2",
+    "status": "Automated PASS"
+  },
+  "decisionContract": {
+    "schemaId": "jaa-ai-analysis-decisions-v2",
+    "rootType": "array",
+    "recordFieldCount": 8,
+    "exactRecordCountRequired": true,
+    "status": "Automated PASS"
+  },
+  "ruleSet": {
+    "ruleSetId": "JAA-SKILL-RULESET-2026-08-14-DRAFT-02",
+    "manifestVersion": "0.2.0",
+    "commonRulesVersion": "1.2.0",
+    "catalogVersion": "0.3.1",
+    "classificationVersion": "JAA-CLASSIFICATION-1.2.0",
+    "promptVersion": "JAA-CHATGPT-ZH-TW-0.3.20",
+    "pipelineVersion": "JAA-ANALYSIS-PIPELINE-0.3.20",
+    "status": "Automated PASS"
+  },
+  "artifacts": [
+    { "kind": "installer", "path": "release/Jira Activity Analyzer Setup 0.3.20.exe", "bytes": 190561949, "sha256": "0381f5eb2ea756505bf7b5c82a38badeee3c45b002de76d9695ae91eeb4f36b7", "status": "Automated PASS" },
+    { "kind": "portable", "path": "release/Jira Activity Analyzer Portable 0.3.20.exe", "bytes": 190331866, "sha256": "ce6f3072ceaa113012e5e19867af9076872fd8baaf66c7172d04f3696e207121", "status": "Automated PASS" },
+    { "kind": "win-unpacked-executable", "path": "release/win-unpacked/Jira Activity Analyzer.exe", "bytes": 235706368, "sha256": "7b33789865efab684af813de21e328443d8e2844846f6113a652b2a5868fc1d9", "status": "Automated PASS" },
+    { "kind": "asar", "path": "release/win-unpacked/resources/app.asar", "bytes": 24878263, "sha256": "89656dea1113397132b874e4d82ded2b8731d2117ff834a8eb58f5b25c19188a", "status": "Automated PASS" }
+  ],
+  "asarInspection": {
+    "requiredRendererAndMainFilesPresent": true,
+    "v0320BridgePresent": true,
+    "staleV0318AndV0319BridgesAbsent": true,
+    "bridgeManifestHashMatches": true,
+    "sensitiveRuntimeDataIncluded": false,
+    "status": "Automated PASS"
+  },
+  "verification": {
+    "typecheck": "Automated PASS",
+    "testV0320": "Automated PASS",
+    "build": "Automated PASS",
+    "dist": "Automated PASS",
+    "gitDiffCheck": "Automated PASS",
+    "portableRendererBoot": "Automated PASS",
+    "realManagedOAuth17Records": "Manual Validation Pending",
+    "realManagedOAuth117Records": "Not Run",
+    "realJiraOrSqliteIntegration": "Not Run",
+    "longUiSmoke": "Not Run"
+  }
+}

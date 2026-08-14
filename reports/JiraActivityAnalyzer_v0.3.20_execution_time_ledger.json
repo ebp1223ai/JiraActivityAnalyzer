@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "jaa-execution-time-ledger-v1",
+  "targetVersion": "0.3.20",
+  "startedAtLocal": "2026-08-14T17:16:33+08:00",
+  "startedAtBasis": "First v0.3.20 source file creation time; command-level durations are measured values.",
+  "completedAtLocal": "2026-08-14T17:55:00+08:00",
+  "wallClockDurationSecondsApprox": 2307,
+  "packagingSourceCommit": "924c0a546dfee83fe2a661f36e3e15c16f25c686",
+  "finalDeliveryCommit": {
+    "availability": "resolved-by-tag",
+    "command": "git rev-parse v0.3.20^{commit}",
+    "reason": "A commit cannot embed its own SHA without changing that SHA."
+  },
+  "phases": [
+    { "name": "repository_inspection_and_contract_root_cause", "durationSecondsApprox": 260, "result": "PASS" },
+    { "name": "implementation_and_test_authoring", "durationSecondsApprox": 1260, "result": "PASS" },
+    { "name": "typecheck", "command": "npm.cmd run typecheck", "exitCode": 0, "durationSeconds": 9.179, "result": "PASS" },
+    { "name": "focused_regression", "command": "npm.cmd run test:v0.3.20", "exitCode": 0, "durationSeconds": 12.526, "result": "PASS" },
+    { "name": "build", "command": "npm.cmd run build", "exitCode": 0, "durationSeconds": 24.912, "result": "PASS" },
+    { "name": "dist", "command": "$env:JAA_ALLOW_DIRTY_PACKAGE='1'; npm.cmd run dist", "exitCode": 0, "durationSeconds": 117.065, "result": "PASS", "note": "Dirty override was required only because a pre-existing unrelated tracked report modification was preserved." },
+    { "name": "win_unpacked_short_launch", "exitCode": 0, "durationSeconds": 10.0, "result": "PASS", "note": "Four executable processes remained alive after eight seconds; only processes matching this executable path were stopped." },
+    { "name": "portable_short_launch_initial", "exitCode": 0, "durationSeconds": 12.1, "result": "INCONCLUSIVE", "note": "An already-running v0.3.19 Portable instance shared the release app root, so this observation was not used as v0.3.20 renderer evidence." },
+    { "name": "portable_isolated_short_launch", "exitCode": 0, "durationSeconds": 15.8, "result": "PASS", "note": "Five related processes, renderer_boot, and Initial Route Ready were observed; no main crash/load-failure event was found." },
+    { "name": "asar_inventory_and_hash_verification", "exitCode": 0, "durationSecondsApprox": 3.0, "result": "PASS" },
+    { "name": "git_diff_check", "command": "git diff --check", "exitCode": 0, "durationSecondsApprox": 0.5, "result": "PASS" }
+  ],
+  "retries": [
+    "ASAR extract-file verification was retried with absolute paths after the first PowerShell location-variable attempt failed.",
+    "Portable startup was repeated in a unique isolated app root because a pre-existing v0.3.19 instance was running."
+  ],
+  "tokenAccounting": {
+    "codexTask": { "availability": "unavailable", "reason": "The Codex desktop task did not expose authoritative token telemetry." },
+    "jaaManagedChatGptRun": { "availability": "unavailable", "reason": "No real Managed OAuth ChatGPT analysis run was executed in this delivery." }
+  }
+}
