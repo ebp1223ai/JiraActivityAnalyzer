@@ -47,6 +47,19 @@ const common = {
   logLevel: "info"
 };
 
+const bridgeOutput = path.join(outdir, "analysis-bridge-v0318.cjs");
+esbuild.buildSync({
+  ...common,
+  entryPoints: [path.resolve(__dirname, "../electron/analysisBridgeRuntimeV0318.ts")],
+  outfile: bridgeOutput
+});
+const bridgeSha256 = require("node:crypto").createHash("sha256").update(fs.readFileSync(bridgeOutput)).digest("hex");
+fs.writeFileSync(path.join(outdir, "analysis-bridge-manifest.json"), JSON.stringify({
+  schemaVersion: "jaa-analysis-bridge-manifest-v1", version: "0.3.18-bridge-v1", relativePath: "analysis-bridge-v0318.cjs",
+  sha256: bridgeSha256, transport: "codex_dynamic_tools_stdio", localOnly: true, externalFallback: false
+}, null, 2) + "\n", "utf8");
+console.log(`  analysis bridge manifest  version=0.3.18-bridge-v1 sha256=${bridgeSha256}`);
+
 esbuild.buildSync({
   ...common,
   entryPoints: [path.resolve(__dirname, "../electron/main.ts")],

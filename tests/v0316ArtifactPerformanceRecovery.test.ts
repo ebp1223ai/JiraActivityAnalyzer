@@ -112,7 +112,8 @@ try {
   assert.match(ipc, /ai-analysis:accept-warnings/);
   assert.doesNotMatch(ipc, /assistant_delta", "CHATGPT_VISIBLE"/);
   const service = fs.readFileSync(path.join(process.cwd(), "electron", "chatGptService.ts"), "utf8");
-  assert.match(service, /sandbox: isManualChat \? "read-only" : "workspace-write"/);
+  assert.match(service, /sandbox: "read-only"/);
+  assert.match(service, /dynamicTools/);
   const main = fs.readFileSync(path.join(process.cwd(), "electron", "main.ts"), "utf8");
   assert.match(main, /debug-completeness\.json/);
   assert.match(main, /debug-file-manifest\.json/);

@@ -55,7 +55,7 @@ try {
 
   const ipc = fs.readFileSync(path.join(process.cwd(), "electron", "aiAnalysisIpc.ts"), "utf8");
   assert.equal(ipc.includes('deliveryMode: "INLINE_EXACT_CONTENT"'), false); assert.equal(ipc.includes("createFailedStaging"), false); assert.equal(ipc.includes('path.join(getAppDataDir(), "ai-analysis", "staging"'), false);
-  assert.match(ipc, /AI_REQUIRED_FILE_NOT_OBSERVED/); assert.match(ipc, /completedBatches = 0/);
+  assert.match(ipc, /AI_INPUT_RECEIPT_INCOMPLETE/); assert.match(ipc, /completedBatches = 0/);
   const main = fs.readFileSync(path.join(process.cwd(), "electron", "main.ts"), "utf8");
   assert.match(main, /debug-completeness-manifest\.json/); assert.match(main, /ai-analysis\/runs/);
   console.log("v0.3.15 bundled runtime, local workspace, count schema, canonical debug, and error serializer tests passed.");

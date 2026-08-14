@@ -87,14 +87,13 @@ try {
   assert.equal(terminal.requested, false);
 
   const service = fs.readFileSync(path.join(process.cwd(), "electron", "chatGptService.ts"), "utf8");
-  assert.match(service, /configRequirements\/read/);
-  assert.match(service, /command\/exec/);
-  assert.match(service, /runtimeWorkspaceRoots: sandbox\?\.policy\.writableRoots/);
-  assert.match(service, /sandboxPolicy: sandbox\?\.policy/);
-  assert.match(service, /modelDispatchCount: 0/);
+  assert.match(service, /dynamicTools/);
+  assert.match(service, /sandbox: "read-only"/);
+  assert.doesNotMatch(service, /command\/exec|Get-Content|Set-Content|Move-Item/);
+  assert.match(service, /loadAnalysisBridge/);
   const ipc = fs.readFileSync(path.join(process.cwd(), "electron", "aiAnalysisIpc.ts"), "utf8");
   assert.match(ipc, /actual_zero_no_model_dispatch/);
-  assert.match(service, /AI_OUTPUT_WRITE_BLOCKED_BY_POLICY/);
+  assert.match(service, /releaseBridge/);
   const main = fs.readFileSync(path.join(process.cwd(), "electron", "main.ts"), "utf8");
   assert.match(main, /getSelectedCanonicalAiRunDirectory/);
   assert.match(main, /incomplete_expected_for_failed_run/);

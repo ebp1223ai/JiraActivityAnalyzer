@@ -1,3 +1,10 @@
+# v0.3.18 - Deterministic Analysis Bridge, UTF-8 Input, Observable Results
+
+- Replaced model-generated PowerShell file access with a bundled, hash-verified, local-only Analysis Bridge using Codex dynamic tools and a read-only provider sandbox.
+- Added strict UTF-8/hash receipts, exact lifecycle checkpoints, durable atomic artifact publication, and fail-closed canonical/SQLite gates.
+- Added distinct AI analysis result and diagnostic views with durable conversation, lifecycle, Bridge integrity, artifact, token, and duration evidence.
+- Preserved provider event envelopes during sanitizer fallback and expanded Debug Folder completeness for Bridge, control, and progress evidence.
+
 # v0.3.17 - Writable Artifact Pipeline, Accurate Token Telemetry, Canonical Debug Recovery
 
 - Added a zero-model-dispatch Bundled Codex `command/exec` write probe using the same canonical cwd and minimum `ai-output`-only workspace-write policy as the formal Thread and Turn.

@@ -78,6 +78,7 @@ export type ChatGptRunEvent =
   | { type: "completed"; runId: string; text: string; elapsedMs: number }
   | { type: "cancelled"; runId: string }
   | { type: "failed"; runId: string; errorCode: string; message: string; outcomeUnknown: boolean; visibleText: string; usage: ChatGptAnalysisResponse["usage"] }
+  | { type: "bridge_tool"; runId: string; tool: string; callId: string; success: boolean; result: unknown }
   | { type: "provider_event"; runId: string; method: string; params: unknown };
 
 export type ChatGptAnalysisRequest = {
@@ -93,6 +94,9 @@ export type ChatGptAnalysisRequest = {
   runDirectory?: string;
   allowedReadRoots?: string[];
   finalProviderPayloadSha256?: string | null;
+  requestPackage?: import("./aiAnalysisContract.js").AiAnalysisRequestPackage;
+  rulesSnapshotId?: string;
+  catalogSkillIds?: string[];
 };
 export type ChatGptAnalysisResponse = {
   runId: string;
@@ -106,4 +110,5 @@ export type ChatGptAnalysisResponse = {
   usage: { inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null };
   tokenTelemetry: ChatGptTokenTelemetry;
   sandboxEvidence?: { writeProbe: unknown; policyComparison: unknown; effectivePermissions: unknown };
+  bridgeEvidence?: import("./analysisBridgeContract.js").AnalysisBridgeEvidence;
 };

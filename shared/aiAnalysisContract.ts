@@ -44,6 +44,21 @@ export type AiAnalysisErrorCode =
   | "AI_RESULT_ORDER_MISMATCH"
   | "AI_REQUEST_PACKAGE_FAILED"
   | "AI_RUN_ARCHIVE_FAILED"
+  | "AI_BRIDGE_UNAVAILABLE"
+  | "AI_BRIDGE_INTEGRITY_MISMATCH"
+  | "AI_BRIDGE_CONTRACT_MISMATCH"
+  | "AI_INPUT_UTF8_INVALID"
+  | "AI_INPUT_HASH_MISMATCH"
+  | "AI_INPUT_RECEIPT_INCOMPLETE"
+  | "AI_INPUT_TOOL_FAILED"
+  | "AI_ANALYSIS_NOT_STARTED"
+  | "AI_ANALYSIS_INCOMPLETE"
+  | "AI_ARTIFACT_SUBMISSION_MISSING"
+  | "AI_ARTIFACT_PUBLISH_FAILED"
+  | "AI_ARTIFACT_RECEIPT_INVALID"
+  | "AI_DECISION_SEMANTIC_INVALID"
+  | "AI_CANONICAL_ASSEMBLY_FAILED"
+  | "AI_SQLITE_BLOCKED"
   | "AI_CODEX_SANDBOX_CONFIGURATION_REJECTED"
   | "AI_CODEX_WORKSPACE_WRITE_NOT_ALLOWED"
   | "AI_SANDBOX_POLICY_MISMATCH"
@@ -349,7 +364,7 @@ export type AiScoreComponent = { componentKey: string; score: number; explanatio
 export type RequestDocumentRole = "PENDING_ANALYSIS_JSON" | "COMMON_RULES" | "SKILL_CATALOG" | "RULE_SET_MANIFEST_OR_SCORING_RULES" | "ANALYSIS_INSTRUCTION" | "OUTPUT_SCHEMA";
 export type ProviderDeliveryMode = "NATIVE_FILE_INPUT" | "INLINE_EXACT_CONTENT" | "LOCAL_FILE_WORKSPACE";
 export type RequestPackageDocument = { role: RequestDocumentRole; originalFileName: string; originalAbsolutePath: string | null; snapshotRelativePath: string; mimeType: string; encoding: "utf-8" | "binary"; originalByteLength: number; snapshotByteLength: number; originalSha256: string; snapshotSha256: string; byteIdentical: boolean; sourceKind: "USER_FILE" | "APP_GENERATED"; modelVisible: boolean; complete: boolean; truncated: boolean; transformationName: string | null };
-export type AiAnalysisRequestPackage = { requestPackageVersion: string; runId: string; createdAtLocal: string; createdAtUtc: string; localTimeZone: string; deliveryMode: ProviderDeliveryMode; inputRecordCount: number; inputStableIdSetSha256: string; pendingSourceSha256: string; documents: RequestPackageDocument[]; coreInstructionName: string; coreInstructionVersion: string; coreInstructionSha256: string; supplementalInstructionSha256: string | null; outputSchemaSha256: string; finalProviderPayloadSha256: string; finalProviderPayloadBytes: number; inlineBlockCount: number; nativeFileCount: number; workspaceFileCount?: number; inlineFileContentCount?: number; nativeInputFileCount?: number };
+export type AiAnalysisRequestPackage = { requestPackageVersion: string; promptLocale?: "zh-TW"; responseLocale?: "zh-TW"; promptTemplateVersion?: string; runId: string; createdAtLocal: string; createdAtUtc: string; localTimeZone: string; deliveryMode: ProviderDeliveryMode; inputRecordCount: number; inputStableIdSetSha256: string; pendingSourceSha256: string; documents: RequestPackageDocument[]; coreInstructionName: string; coreInstructionVersion: string; coreInstructionSha256: string; supplementalInstructionSha256: string | null; outputSchemaSha256: string; finalProviderPayloadSha256: string; finalProviderPayloadBytes: number; inlineBlockCount: number; nativeFileCount: number; workspaceFileCount?: number; inlineFileContentCount?: number; nativeInputFileCount?: number };
 export type AiAnalysisConversationEvent = { schemaVersion: string; runId: string; sequence: number; eventId: string; messageId: string | null; parentMessageId: string | null; role: "software" | "assistant" | "system"; atLocal: string; atUtc: string; type: "user_message" | "assistant_delta" | "assistant_message" | "system_event" | "provider_event" | "validation_event" | "artifact_event"; visibility: "CHATGPT_VISIBLE" | "APP_ONLY"; visibleToProvider: boolean; contentType: "text" | "json" | "metadata" | "error"; content: string; contentByteLength: number; contentSha256: string; providerRequestId: string | null; threadId: string | null; turnId: string | null; metadata: Record<string, unknown>; previousHash: string | null; hash: string };
 export type AiSemanticFinding = { code: "SEMANTIC_STATUS_INVALID" | "SEMANTIC_CANDIDATE_STATUS_INVALID" | "SEMANTIC_CANDIDATE_REQUIRED" | "SEMANTIC_CANDIDATE_FORBIDDEN" | "SEMANTIC_NEGATIVE_CHECK_REQUIRED" | "SEMANTIC_REASON_REQUIRED" | "SEMANTIC_CATALOG_CANDIDATE_LOST" | "SEMANTIC_CATALOG_CHECK_REQUIRED" | "SEMANTIC_CATALOG_DETAIL_FLAG_INVALID" | "SEMANTIC_REVIEW_REASON_REQUIRED" | "SEMANTIC_REVIEW_ATTENTION_REQUIRED" | "SEMANTIC_CANDIDATE_ID_REQUIRED" | "SEMANTIC_POSITIVE_EVIDENCE_REQUIRED" | "SEMANTIC_MATCHED_RULE_REQUIRED" | "SEMANTIC_AUDIT_TRAIL_REQUIRED"; severity: "error"; path: string; jsonPath: string; jsonPointer: string; recordIndex: number; sourceRecordStableId: string | null; candidateIndex: number | null; skillId: string | null; message: string; expected: unknown; actual: unknown; ruleId: string | null };
 
@@ -487,6 +502,8 @@ export type AiAnalysisRun = {
   observedFileAccess?: string[];
   artifactPaths?: { input: string; output: string; canonical: string; logs: string } | null;
   codexPreflight?: { writeProbe: unknown; policyComparison: unknown; effectivePermissions: unknown } | null;
+  bridgeEvidence?: import("./analysisBridgeContract.js").AnalysisBridgeEvidence | null;
+  lifecycle?: import("./analysisBridgeContract.js").AnalysisLifecycleSummary | null;
   expectedDecisionCount?: number;
   receivedDecisionCount?: number;
   canonicalRecordCount?: number;

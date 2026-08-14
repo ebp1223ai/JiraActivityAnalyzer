@@ -1,0 +1,38 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
+import { ANALYSIS_BRIDGE_VERSION, type AnalysisBridgeToolContext, type AnalysisLifecycleSummary } from "../shared/analysisBridgeContract.js";
+import type { AiAnalysisRequestPackage } from "../shared/aiAnalysisContract.js";
+
+type BridgeInstance = {
+  version: string;
+  transport: "codex_dynamic_tools_stdio";
+  toolSpecs(): unknown[];
+  preflight(): Record<string, unknown>;
+  handle(tool: string, args: unknown, context: AnalysisBridgeToolContext): unknown;
+  setProviderTurnStatus(status: AnalysisLifecycleSummary["providerTurnStatus"]): void;
+  setSqliteStatus(status: AnalysisLifecycleSummary["sqliteStatus"]): void;
+  setPostBridgeStage(stage: "VALIDATION_COMPLETED" | "CANONICAL_ASSEMBLY_COMPLETED" | "RUN_COMPLETED", status: "completed" | "failed"): void;
+  fail(stage: import("../shared/analysisBridgeContract.js").AnalysisLifecycleStage, code: string): void;
+  snapshot(): { inputReceipt: Record<string, unknown> | null; artifactReceipt: Record<string, unknown> | null; lifecycle: AnalysisLifecycleSummary };
+};
+
+type BridgeManifest = { schemaVersion: string; version: string; relativePath: string; sha256: string; transport: string; localOnly: boolean; externalFallback: boolean };
+const requireLocal = createRequire(__filename);
+
+export function loadAnalysisBridge(input: { runId: string; sessionNonce: string; runDirectory: string; requestPackage: AiAnalysisRequestPackage; rulesSnapshotId: string; catalogSkillIds: string[] }) {
+  const bundlePath = path.join(__dirname, "analysis-bridge-v0318.cjs");
+  const manifestPath = path.join(__dirname, "analysis-bridge-manifest.json");
+  if (!fs.existsSync(bundlePath) || !fs.existsSync(manifestPath)) throw new Error("AI_BRIDGE_UNAVAILABLE:Bundled Analysis Bridge is missing.");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as BridgeManifest;
+  const actualHash = crypto.createHash("sha256").update(fs.readFileSync(bundlePath)).digest("hex");
+  if (manifest.version !== ANALYSIS_BRIDGE_VERSION || manifest.relativePath !== "analysis-bridge-v0318.cjs" || manifest.sha256 !== actualHash || manifest.transport !== "codex_dynamic_tools_stdio" || manifest.localOnly !== true || manifest.externalFallback !== false) throw new Error("AI_BRIDGE_INTEGRITY_MISMATCH:Bundled Analysis Bridge manifest or SHA-256 mismatch.");
+  const runtime = requireLocal(bundlePath) as { createAnalysisBridge?: (config: unknown) => BridgeInstance };
+  if (typeof runtime.createAnalysisBridge !== "function") throw new Error("AI_BRIDGE_CONTRACT_MISMATCH:Bridge factory is unavailable.");
+  const bridge = runtime.createAnalysisBridge(input);
+  if (bridge.version !== ANALYSIS_BRIDGE_VERSION || bridge.transport !== "codex_dynamic_tools_stdio" || typeof bridge.handle !== "function" || typeof bridge.preflight !== "function") throw new Error("AI_BRIDGE_CONTRACT_MISMATCH:Bridge runtime contract mismatch.");
+  return { bridge, manifest, bundlePath, manifestPath, sha256: actualHash };
+}
+
+export type LoadedAnalysisBridge = ReturnType<typeof loadAnalysisBridge>;
