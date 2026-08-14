@@ -72,6 +72,7 @@ export type ChatGptRunEvent =
   | { type: "thread_created"; runId: string; at: string; threadId: string }
   | { type: "turn_starting"; runId: string; at: string; threadId: string }
   | { type: "turn_started"; runId: string; at: string; threadId: string; turnId: string }
+  | { type: "provider_turn_completed"; runId: string; at: string; threadId: string; turnId: string; tokenTelemetry: ChatGptTokenTelemetry }
   | { type: "started"; runId: string; at: string }
   | { type: "delta"; runId: string; text: string }
   | { type: "usage"; runId: string; inputTokens: number | null; cachedInputTokens: number | null; outputTokens: number | null; reasoningTokens: number | null; totalTokens: number | null; tokenTelemetry: ChatGptTokenTelemetry }
@@ -83,7 +84,8 @@ export type ChatGptRunEvent =
 
 export type ChatGptAnalysisRequest = {
   runId?: string;
-  requestPurpose?: "FORMAL_ANALYSIS" | "MANUAL_CHAT";
+  requestPurpose?: "FORMAL_ANALYSIS" | "CUSTOM_DIAGNOSTIC" | "MANUAL_CHAT";
+  instructionMode?: import("./analysisInstructionContract.js").AiInstructionMode;
   prompt: string;
   model?: string | null;
   outputSchema?: Record<string, unknown> | null;

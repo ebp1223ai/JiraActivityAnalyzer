@@ -22,6 +22,15 @@ export function redactChatGptTextComplete(value: unknown) {
   return text;
 }
 
+export function sanitizeChatGptValueComplete(value: unknown, seen = new WeakSet<object>()): unknown {
+  if (typeof value === "string") return redactChatGptTextComplete(value);
+  if (value === null || typeof value !== "object") return value;
+  if (seen.has(value)) return "[circular]";
+  seen.add(value);
+  if (Array.isArray(value)) return value.map((item) => sanitizeChatGptValueComplete(item, seen));
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) => [/token|authorization|cookie|secret|password|api.?key/i.test(key) ? key : key, /token|authorization|cookie|secret|password|api.?key/i.test(key) ? "[masked]" : sanitizeChatGptValueComplete(child, seen)]));
+}
+
 export function redactChatGptText(value: unknown) {
   return redactChatGptTextComplete(value).slice(0, 8192);
 }

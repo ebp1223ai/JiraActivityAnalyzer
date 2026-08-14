@@ -1,4 +1,4 @@
-export const ANALYSIS_BRIDGE_VERSION = "0.3.18-bridge-v1" as const;
+export const ANALYSIS_BRIDGE_VERSION = "0.3.19-bridge-v2" as const;
 export const ANALYSIS_BRIDGE_SCHEMA_VERSION = "jaa-analysis-bridge-contract-v1" as const;
 
 export type AnalysisLifecycleStage =
@@ -21,6 +21,8 @@ export type AnalysisLifecycleSummary = {
   runId: string;
   providerTurnStatus: "not_started" | "running" | "completed" | "failed" | "interrupted";
   inputStatus: "not_started" | "reading" | "ready" | "failed";
+  sourceInputStatus?: "not_started" | "validated" | "failed";
+  modelInputStatus?: "not_started" | "delivering" | "delivered" | "failed";
   analysisStatus: "not_started" | "running" | "completed" | "failed" | "interrupted";
   artifactStatus: "not_started" | "submitting" | "published" | "failed";
   validationStatus: "not_started" | "completed" | "failed";
@@ -46,6 +48,9 @@ export type AnalysisBridgeEvidence = {
   localOnly: true;
   preflight: Record<string, unknown>;
   inputReceipt: Record<string, unknown> | null;
+  sourceInputReceipt?: Record<string, unknown> | null;
+  modelDeliveryReceipt?: Record<string, unknown> | null;
+  modelDeliveryFailure?: Record<string, unknown> | null;
   artifactReceipt: Record<string, unknown> | null;
   lifecycle: AnalysisLifecycleSummary;
 };

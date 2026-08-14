@@ -14,21 +14,21 @@ import {
 } from "../shared/chatGptContract.js";
 import { ensureDir, getAppDataDir } from "./appPaths.js";
 import { CodexJsonRpcClient } from "./codexJsonRpcClient.js";
-import { maskEmail, redactChatGptText, sanitizedError } from "./chatGptRedactor.js";
+import { maskEmail, redactChatGptText, redactChatGptTextComplete, sanitizeChatGptValueComplete, sanitizedError } from "./chatGptRedactor.js";
 import { resolveChatGptRuntime, type ChatGptRuntimeResolution } from "./chatGptRuntimeResolver.js";
-import { loadAnalysisBridge, type LoadedAnalysisBridge } from "./analysisBridgeLoaderV0318.js";
+import { loadAnalysisBridge, type LoadedAnalysisBridge } from "./analysisBridgeLoaderV0319.js";
 import type { AnalysisBridgeEvidence, AnalysisLifecycleStage } from "../shared/analysisBridgeContract.js";
 import { canonicalArtifactPaths, createTokenTelemetry, updateTokenTelemetry, type AccurateTokenTelemetry } from "./codexWritableArtifactsV0317.js";
 
 type JsonObject = Record<string, unknown>;
-type ActiveTurn = { runId: string; threadId: string; turnId: string; startedAt: number; text: string; usage: ChatGptAnalysisResponse["usage"]; tokenTelemetry: AccurateTokenTelemetry; bridge: LoadedAnalysisBridge | null; bridgePreflight: Record<string, unknown> | null; sessionNonce: string; resolve: (value: ChatGptAnalysisResponse) => void; reject: (error: Error) => void };
+type ActiveTurn = { runId: string; isCustomDiagnostic: boolean; threadId: string; turnId: string; startedAt: number; text: string; usage: ChatGptAnalysisResponse["usage"]; tokenTelemetry: AccurateTokenTelemetry; bridge: LoadedAnalysisBridge | null; bridgePreflight: Record<string, unknown> | null; sessionNonce: string; resolve: (value: ChatGptAnalysisResponse) => void; reject: (error: Error) => void };
 
 const EMPTY_USAGE = { inputTokens: null, cachedInputTokens: null, outputTokens: null, reasoningTokens: null, totalTokens: null };
 
 function record(value: unknown): JsonObject { return value && typeof value === "object" ? value as JsonObject : {}; }
 function number(value: unknown) { return typeof value === "number" && Number.isFinite(value) ? value : null; }
 function sanitizedJson(value: unknown, envelope: JsonObject = {}): unknown {
-  let original = ""; try { original = JSON.stringify(value); return JSON.parse(redactChatGptText(original)); }
+  let original = ""; try { original = JSON.stringify(value); return sanitizeChatGptValueComplete(value); }
   catch (error) { const source = original || String(value); const item = record(value); return { ...envelope, threadId: typeof item.threadId === "string" ? item.threadId : null, turnId: typeof item.turnId === "string" ? item.turnId : null, itemId: typeof item.itemId === "string" ? item.itemId : null, itemType: typeof record(item.item).type === "string" ? record(item.item).type : null, status: typeof item.status === "string" ? item.status : null, exitCode: number(item.exitCode), originalPayloadBytes: Buffer.byteLength(source), originalPayloadSha256: crypto.createHash("sha256").update(source).digest("hex"), sanitizerStatus: "fallback", sanitizerErrorCode: "SANITIZATION_FAILED", error: sanitizedError(error) }; }
 }
 function rateWindow(value: unknown): ChatGptRateLimitWindow | null {
@@ -180,6 +180,7 @@ export class ChatGptService {
     const client = this.requireClient();
     const model = request.model || this.status.selectedModel || undefined;
     const isManualChat = request.requestPurpose === "MANUAL_CHAT";
+    const isCustomDiagnostic = request.requestPurpose === "CUSTOM_DIAGNOSTIC" || request.instructionMode === "CUSTOM_DIAGNOSTIC";
     let workspacePath: string;
     let formalPaths: { runRoot: string; outputRoot: string } | null = null;
     if (isManualChat) {
@@ -212,7 +213,7 @@ export class ChatGptService {
     let bridge: LoadedAnalysisBridge | null = null;
     let bridgePreflight: Record<string, unknown> | null = null;
     if (!isManualChat && formalPaths) {
-      bridge = loadAnalysisBridge({ runId, sessionNonce, runDirectory: formalPaths.runRoot, requestPackage: request.requestPackage!, rulesSnapshotId: request.rulesSnapshotId!, catalogSkillIds: request.catalogSkillIds! });
+      bridge = loadAnalysisBridge({ runId, sessionNonce, runDirectory: formalPaths.runRoot, requestPackage: request.requestPackage!, rulesSnapshotId: request.rulesSnapshotId!, catalogSkillIds: request.catalogSkillIds!, instructionMode: request.instructionMode });
       bridgePreflight = bridge.bridge.preflight();
       this.bridges.set(runId, { loaded: bridge, preflight: bridgePreflight });
       const debugPath = path.join(formalPaths.runRoot, "debug"); fs.mkdirSync(debugPath, { recursive: true });
@@ -234,7 +235,7 @@ export class ChatGptService {
     let activeTurn!: ActiveTurn;
     const completion = new Promise<ChatGptAnalysisResponse>((resolve, reject) => {
       const modelContextWindow = this.status.models.find((item) => item.id === (model ?? this.status.selectedModel))?.contextWindow ?? null;
-      activeTurn = { runId, threadId, turnId: "", startedAt, text: "", usage: { ...EMPTY_USAGE }, tokenTelemetry: createTokenTelemetry(modelContextWindow), bridge, bridgePreflight, sessionNonce, resolve, reject };
+      activeTurn = { runId, isCustomDiagnostic, threadId, turnId: "", startedAt, text: "", usage: { ...EMPTY_USAGE }, tokenTelemetry: createTokenTelemetry(modelContextWindow), bridge, bridgePreflight, sessionNonce, resolve, reject };
       this.activeTurn = activeTurn;
     });
     this.emitRun({ type: "started", runId, at: new Date().toISOString() });
@@ -313,12 +314,16 @@ export class ChatGptService {
       const turn = record(params.turn);
       if (String(turn.id) !== active.turnId) return;
       if (turn.status !== "completed") { this.rejectActive(turn.status === "interrupted" ? "RUN_CANCELLED" : "CHATGPT_TURN_FAILED", redactChatGptText(record(turn.error).message ?? turn.status), false, turn.status === "interrupted"); return; }
+      active.tokenTelemetry = updateTokenTelemetry(active.tokenTelemetry, turn.tokenUsage ?? params.tokenUsage);
+      active.usage = { ...active.tokenTelemetry.turnCumulative };
       active.bridge?.bridge.setProviderTurnStatus("completed");
+      this.emitRun({ type: "provider_turn_completed", runId: active.runId, at: new Date().toISOString(), threadId: active.threadId, turnId: active.turnId, tokenTelemetry: active.tokenTelemetry });
       const bridgeSnapshot = active.bridge?.bridge.snapshot();
-      if (active.bridge && !bridgeSnapshot?.lifecycle.analysisStarted) { this.rejectActive("AI_ANALYSIS_NOT_STARTED", "Provider turn completed without ANALYSIS_STARTED evidence.", false); return; }
-      if (active.bridge && !bridgeSnapshot?.lifecycle.analysisCompleted) { this.rejectActive("AI_ANALYSIS_INCOMPLETE", "Provider turn completed without authoritative ANALYSIS_COMPLETED evidence.", false); return; }
-      if (active.bridge && bridgeSnapshot?.lifecycle.artifactStatus !== "published") { this.rejectActive("AI_ARTIFACT_SUBMISSION_MISSING", "Provider turn completed without a published Artifact Receipt.", false); return; }
-      const bridgeEvidence = active.bridge && bridgeSnapshot ? { version: active.bridge.manifest.version as "0.3.18-bridge-v1", sha256: active.bridge.sha256, integrity: "verified" as const, transport: "codex_dynamic_tools_stdio" as const, localOnly: true as const, preflight: active.bridgePreflight ?? {}, inputReceipt: bridgeSnapshot.inputReceipt, artifactReceipt: bridgeSnapshot.artifactReceipt, lifecycle: bridgeSnapshot.lifecycle } : undefined;
+      if (active.bridge && !bridgeSnapshot?.modelDeliveryReceipt) { this.rejectActive("AI_MODEL_INPUT_DELIVERY_INCOMPLETE", "Provider turn completed without a Model Delivery Receipt.", false, false, true); return; }
+      if (active.bridge && !active.isCustomDiagnostic && !bridgeSnapshot?.lifecycle.analysisStarted) { this.rejectActive("AI_ANALYSIS_NOT_STARTED", "Provider turn completed without ANALYSIS_STARTED evidence.", false, false, true); return; }
+      if (active.bridge && !bridgeSnapshot?.lifecycle.analysisCompleted) { this.rejectActive("AI_ANALYSIS_INCOMPLETE", "Provider turn completed without authoritative ANALYSIS_COMPLETED evidence.", false, false, true); return; }
+      if (active.bridge && bridgeSnapshot?.lifecycle.artifactStatus !== "published") { this.rejectActive("AI_ARTIFACT_SUBMISSION_MISSING", "Provider turn completed without a published Artifact Receipt.", false, false, true); return; }
+      const bridgeEvidence = active.bridge && bridgeSnapshot ? { version: active.bridge.manifest.version as "0.3.19-bridge-v2", sha256: active.bridge.sha256, integrity: "verified" as const, transport: "codex_dynamic_tools_stdio" as const, localOnly: true as const, preflight: active.bridgePreflight ?? {}, inputReceipt: bridgeSnapshot.inputReceipt, sourceInputReceipt: bridgeSnapshot.sourceInputReceipt, modelDeliveryReceipt: bridgeSnapshot.modelDeliveryReceipt, modelDeliveryFailure: bridgeSnapshot.modelDeliveryFailure, artifactReceipt: bridgeSnapshot.artifactReceipt, lifecycle: bridgeSnapshot.lifecycle } : undefined;
       const result: ChatGptAnalysisResponse = { runId: active.runId, text: active.text, model: this.status.selectedModel ?? "auto", runtimeVersion: CODEX_RUNTIME_VERSION, elapsedMs: Date.now() - active.startedAt, requestId: active.turnId, threadId: active.threadId, turnId: active.turnId, usage: active.usage, tokenTelemetry: active.tokenTelemetry, bridgeEvidence };
       this.activeTurn = null; active.resolve(result); this.emitRun({ type: "completed", runId: result.runId, text: result.text, elapsedMs: result.elapsedMs });
       void this.client?.request("thread/delete", { threadId: active.threadId }).catch(() => undefined);
@@ -345,7 +350,7 @@ export class ChatGptService {
   advanceBridgeLifecycle(runId: string, stage: "VALIDATION_COMPLETED" | "CANONICAL_ASSEMBLY_COMPLETED" | "RUN_COMPLETED", status: "completed" | "failed") { this.bridges.get(runId)?.loaded.bridge.setPostBridgeStage(stage, status); }
   setBridgeSqliteStatus(runId: string, status: import("../shared/analysisBridgeContract.js").AnalysisLifecycleSummary["sqliteStatus"]) { this.bridges.get(runId)?.loaded.bridge.setSqliteStatus(status); }
   failBridgeLifecycle(runId: string, stage: AnalysisLifecycleStage, code: string) { this.bridges.get(runId)?.loaded.bridge.fail(stage, code); }
-  getBridgeEvidence(runId: string): AnalysisBridgeEvidence | null { const entry = this.bridges.get(runId); if (!entry) return null; const snapshot = entry.loaded.bridge.snapshot(); return { version: entry.loaded.manifest.version as "0.3.18-bridge-v1", sha256: entry.loaded.sha256, integrity: "verified", transport: "codex_dynamic_tools_stdio", localOnly: true, preflight: entry.preflight, inputReceipt: snapshot.inputReceipt, artifactReceipt: snapshot.artifactReceipt, lifecycle: snapshot.lifecycle }; }
+  getBridgeEvidence(runId: string): AnalysisBridgeEvidence | null { const entry = this.bridges.get(runId); if (!entry) return null; const snapshot = entry.loaded.bridge.snapshot(); return { version: entry.loaded.manifest.version as "0.3.19-bridge-v2", sha256: entry.loaded.sha256, integrity: "verified", transport: "codex_dynamic_tools_stdio", localOnly: true, preflight: entry.preflight, inputReceipt: snapshot.inputReceipt, sourceInputReceipt: snapshot.sourceInputReceipt, modelDeliveryReceipt: snapshot.modelDeliveryReceipt, modelDeliveryFailure: snapshot.modelDeliveryFailure, artifactReceipt: snapshot.artifactReceipt, lifecycle: snapshot.lifecycle }; }
   releaseBridge(runId: string) { this.bridges.delete(runId); }
 
   private validateAuthUrl(value: unknown) {
@@ -359,12 +364,12 @@ export class ChatGptService {
   private clearAccountState(state: ChatGptStatus["state"]) { this.patch({ state, accountEmailMasked: null, planType: null, authMode: null, models: [], selectedModel: null, primaryRateLimit: null, secondaryRateLimit: null, lastErrorCode: null, lastErrorMessage: null }); }
   private patch(value: Partial<ChatGptStatus>) { this.status = { ...this.status, ...value }; const snapshot = this.getStatus(); for (const listener of this.statusListeners) listener(snapshot); }
   private emitRun(event: ChatGptRunEvent) { for (const listener of this.runListeners) listener(event); }
-  private rejectActive(code: string, message: string, outcomeUnknown: boolean, cancelled = false) {
+  private rejectActive(code: string, message: string, outcomeUnknown: boolean, cancelled = false, preserveProviderCompleted = false) {
     const active = this.activeTurn; if (!active) return;
     this.activeTurn = null;
     if (cancelled) this.emitRun({ type: "cancelled", runId: active.runId });
     else this.emitRun({ type: "failed", runId: active.runId, errorCode: code, message, outcomeUnknown, visibleText: active.text, usage: active.usage });
-    active.bridge?.bridge.setProviderTurnStatus(cancelled ? "interrupted" : "failed");
+    if (!preserveProviderCompleted) active.bridge?.bridge.setProviderTurnStatus(cancelled ? "interrupted" : "failed");
     active.bridge?.bridge.fail(active.bridge.bridge.snapshot().lifecycle.lastSuccessfulStage, code);
     active.reject(new Error(`${code}:${message}`));
     void this.client?.request("thread/delete", { threadId: active.threadId }).catch(() => undefined);

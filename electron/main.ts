@@ -4408,13 +4408,19 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     debugBundleStatus,
     failedFileCount: copyFailures.length
   });
+  let selectedRunStatus: string | null = null; let selectedInstructionMode: string | null = null;
+  if (selectedAiRunPath) try { const selectedManifest = JSON.parse(fs.readFileSync(path.join(selectedAiRunPath, "run-manifest.json"), "utf8")); selectedRunStatus = String(selectedManifest.run?.status ?? "unknown"); selectedInstructionMode = String(selectedManifest.run?.instructionMode ?? "STANDARD_FORMAL"); } catch { selectedRunStatus = "unknown"; selectedInstructionMode = "unknown"; }
   const aiAlwaysRequiredEvidence = [
     "run-manifest.json", "logs/conversation.jsonl", "logs/conversation.md", "logs/provider-stream.jsonl", "logs/runtime.log", "logs/application.log",
     "input-workspace/pending-analysis.json", "input-workspace/common-rules.md", "input-workspace/skill-catalog.md", "input-workspace/rule-set-manifest.md",
-    "control/analysis-instruction.md", "control/request-package-manifest.json", "control/output-schema.json", "control/bridge-contract.json",
-    "progress/lifecycle-summary.json", "debug/token-usage.json", "debug/bridge-diagnostics.json"
+    "control/analysis-instruction.md", "control/instruction-mode.json", "control/system-safety-wrapper.md", "control/default-analysis-instruction.md", "control/user-additional-instruction.md", "control/user-custom-instruction.md", "control/final-effective-instruction.md", "control/final-effective-instruction.sha256", "control/instruction-composition-manifest.json", "control/input-transport-contract.json", "control/request-package-manifest.json", "control/output-schema.json", "control/bridge-contract.json",
+    "progress/source-input-receipt.json", "progress/lifecycle-summary.json", "debug/token-usage.json", "debug/bridge-diagnostics.json"
   ];
-  const aiSuccessfulRunEvidence = ["progress/input-receipt.json", "progress/analysis-progress.jsonl", "progress/artifact-receipt.json", "ai-output/ai-analysis-decisions.json", "ai-output/analysis-report.md", "ai-output/final-assistant-message.txt", "canonical-output/analysis-result.json", "canonical-output/validation-report.json", "canonical-output/completion-manifest.json"];
+  const aiFormalSuccessfulEvidence = ["progress/model-delivery-events.jsonl", "progress/model-delivery-receipt.json", "progress/input-receipt.json", "progress/analysis-progress.jsonl", "progress/artifact-receipt.json", "ai-output/ai-analysis-decisions.json", "ai-output/analysis-report.md", "ai-output/final-assistant-message.txt", "canonical-output/analysis-result.json", "canonical-output/validation-report.json", "canonical-output/completion-manifest.json"];
+  const aiCustomSuccessfulEvidence = ["progress/model-delivery-events.jsonl", "progress/model-delivery-receipt.json", "progress/input-receipt.json", "ai-output/custom-response.md", "ai-output/final-assistant-message.txt"];
+  const customDiagnostic = selectedInstructionMode === "CUSTOM_DIAGNOSTIC";
+  const aiSuccessfulRunEvidence = customDiagnostic ? aiCustomSuccessfulEvidence : aiFormalSuccessfulEvidence;
+  const notApplicableForInstructionMode = customDiagnostic ? aiFormalSuccessfulEvidence.filter((item) => !aiCustomSuccessfulEvidence.includes(item)) : [];
   const aiRequiredEvidence = [...aiAlwaysRequiredEvidence, ...aiSuccessfulRunEvidence];
   const aiCopyPrefix = "ai-analysis/canonical-run/";
   const aiCopyEntries = copiedEntries.filter((entry) => entry.relativePath.startsWith(aiCopyPrefix));
@@ -4431,8 +4437,6 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     activeWriters: { success: aiWriterFlushResults.every((result) => result.completed && !result.failed), mode: "forced_before_copy", results: aiWriterFlushResults }
   };
   const aiFlushFailed = Object.values(aiFlushResults).some((result) => !result.success);
-  let selectedRunStatus: string | null = null;
-  if (selectedAiRunPath) try { selectedRunStatus = String(JSON.parse(fs.readFileSync(path.join(selectedAiRunPath, "run-manifest.json"), "utf8")).run?.status ?? "unknown"); } catch { selectedRunStatus = "unknown"; }
   const failedRun = selectedRunStatus !== null && ["failed", "failed_validation", "provider_failed", "provider_timeout", "cancelled", "interrupted", "recovered_interrupted"].includes(selectedRunStatus);
   const expectedAbsentForFailedRun = failedRun ? aiMissingFiles.filter((relativePath) => aiSuccessfulRunEvidence.includes(relativePath)) : [];
   const trulyMissingFiles = failedRun ? aiMissingAlwaysRequired : aiMissingFiles;
@@ -4444,7 +4448,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     expectedFileCount: aiRequiredEvidence.length, copiedFileCount: aiCopyEntries.filter((entry) => entry.status === "copied").length, excludedSecretFileCount: 0, missingRequiredFileCount: trulyMissingFiles.length, expectedAbsentForFailedRunCount: expectedAbsentForFailedRun.length, hashMismatchCount: aiHashMismatches.length,
     flushResults: aiFlushResults, sourceFiles: aiCopyEntries.map((entry) => ({ relativePath: entry.relativePath.slice(aiCopyPrefix.length), size: entry.size, sha256: entry.sourceSha256 ?? null })),
     destinationFiles: aiCopyEntries.map((entry) => ({ relativePath: entry.relativePath, size: entry.size, sha256: entry.destinationSha256 ?? null, hashMatch: entry.hashMatch ?? false })),
-    excludedFiles: [{ pattern: "credentials/oauth/token/.env", reason: "Secret and managed authentication material are never collected." }], missingFiles: trulyMissingFiles, expectedAbsentForFailedRun: expectedAbsentForFailedRun.map((relativePath) => ({ relativePath, reason: "Not present in the source Run because the Run ended before successful artifact publication." })), duplicateAliases: [], exportStatus, contentCompleteness, debugBundleStatus: exportStatus
+    excludedFiles: [{ pattern: "credentials/oauth/token/.env", reason: "Secret and managed authentication material are never collected." }], instructionMode: selectedInstructionMode, notApplicableForInstructionMode: notApplicableForInstructionMode.map((relativePath) => ({ relativePath, status: "not_applicable_for_instruction_mode" })), missingFiles: trulyMissingFiles, expectedAbsentForFailedRun: expectedAbsentForFailedRun.map((relativePath) => ({ relativePath, reason: "Not present in the source Run because the Run ended before successful artifact publication." })), duplicateAliases: [], exportStatus, contentCompleteness, debugBundleStatus: exportStatus
   };
   writeBundleJson(folderPath, "debug-completeness.json", { ...debugCompleteness, exportStatus, contentCompleteness });
   writeBundleJson(folderPath, "debug-completeness-manifest.json", debugCompleteness);

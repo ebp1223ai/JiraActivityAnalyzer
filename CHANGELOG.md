@@ -1,3 +1,10 @@
+# v0.3.19 - Instruction Modes and Verifiable Model Delivery
+
+- Added Standard Formal, Standard Plus User Instruction, and isolated Custom Diagnostic modes with deterministic effective-instruction archives and SHA-256 evidence.
+- Replaced one-shot model input transfer with UTF-8-safe, resumable, acknowledged segments and separate Source Input and Model Delivery receipts.
+- Fixed the 8,192-byte sanitizer JSON corruption path, provider-completed lifecycle accounting, final assistant response persistence, and cumulative token telemetry parsing.
+- Added focused 17-record, 117-record, large-payload, truncation, resume, UTF-8, sanitizer, lifecycle, and token regression coverage.
+
 # v0.3.18 - Deterministic Analysis Bridge, UTF-8 Input, Observable Results
 
 - Replaced model-generated PowerShell file access with a bundled, hash-verified, local-only Analysis Bridge using Codex dynamic tools and a read-only provider sandbox.

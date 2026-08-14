@@ -33,30 +33,31 @@ export type AccurateTokenTelemetry = {
 
 const EMPTY_BUCKET: TokenBucket = { inputTokens: null, cachedInputTokens: null, outputTokens: null, reasoningTokens: null, totalTokens: null };
 const numeric = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+const valueAt = (value: Record<string, unknown>, keys: string[]) => { for (const key of keys) if (numeric(value[key]) !== null) return numeric(value[key]); return null; };
 const normalized = (value: Record<string, unknown>): TokenBucket => ({
-  inputTokens: numeric(value.inputTokens),
-  cachedInputTokens: numeric(value.cachedInputTokens),
-  outputTokens: numeric(value.outputTokens),
-  reasoningTokens: numeric(value.reasoningTokens ?? value.reasoningOutputTokens),
-  totalTokens: numeric(value.totalTokens)
+  inputTokens: valueAt(value, ["inputTokens", "input_tokens", "promptTokens", "prompt_tokens"]),
+  cachedInputTokens: valueAt(value, ["cachedInputTokens", "cached_input_tokens", "cachedPromptTokens"]),
+  outputTokens: valueAt(value, ["outputTokens", "output_tokens", "completionTokens", "completion_tokens"]),
+  reasoningTokens: valueAt(value, ["reasoningTokens", "reasoning_tokens", "reasoningOutputTokens"]),
+  totalTokens: valueAt(value, ["totalTokens", "total_tokens"])
 });
+function objects(root: unknown, depth = 0): Record<string, unknown>[] { if (!root || typeof root !== "object" || depth > 5) return []; const value = root as Record<string, unknown>; return [value, ...Object.values(value).flatMap((child) => objects(child, depth + 1))]; }
+function bucketByNames(raw: unknown, names: string[]) { const candidates = objects(raw); for (const candidate of candidates) { for (const name of names) { const nested = candidate[name]; if (nested && typeof nested === "object") { const bucket = normalized(nested as Record<string, unknown>); if (bucket.totalTokens !== null || bucket.inputTokens !== null || bucket.outputTokens !== null) return bucket; } } } for (const candidate of candidates) { const bucket = normalized(candidate); if (bucket.totalTokens !== null || bucket.inputTokens !== null || bucket.outputTokens !== null) return bucket; } return { ...EMPTY_BUCKET }; }
 
 export function createTokenTelemetry(modelContextWindow: number | null = null): AccurateTokenTelemetry {
   return { availability: "unavailable", turnCumulative: { ...EMPTY_BUCKET }, lastModelCall: { ...EMPTY_BUCKET }, modelContextWindow, maxObservedSingleCallTokens: null, maxObservedContextUtilizationPercent: null, usageEventCount: 0, anomalies: [] };
 }
 
 export function updateTokenTelemetry(current: AccurateTokenTelemetry, raw: unknown): AccurateTokenTelemetry {
-  const root = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
-  const total = normalized((root.total && typeof root.total === "object" ? root.total : {}) as Record<string, unknown>);
-  const last = normalized((root.last && typeof root.last === "object" ? root.last : {}) as Record<string, unknown>);
-  const eventIndex = current.usageEventCount + 1;
-  const anomalies = [...current.anomalies];
+  const total = bucketByNames(raw, ["total", "totalUsage", "total_usage", "turnCumulative", "cumulative"]);
+  const last = bucketByNames(raw, ["last", "lastUsage", "last_usage", "lastModelCall", "last_model_call"]);
+  const eventIndex = current.usageEventCount + 1; const anomalies = [...current.anomalies];
   if (current.turnCumulative.totalTokens !== null && total.totalTokens !== null && total.totalTokens < current.turnCumulative.totalTokens) anomalies.push({ code: "TOKEN_CUMULATIVE_ROLLBACK", previousTotal: current.turnCumulative.totalTokens, observedTotal: total.totalTokens, eventIndex });
   const keepCurrent = current.turnCumulative.totalTokens !== null && (total.totalTokens === null || total.totalTokens < current.turnCumulative.totalTokens);
-  const turnCumulative = keepCurrent ? current.turnCumulative : total;
-  const maxObservedSingleCallTokens = last.totalTokens === null ? current.maxObservedSingleCallTokens : Math.max(current.maxObservedSingleCallTokens ?? 0, last.totalTokens);
-  const maxObservedContextUtilizationPercent = current.modelContextWindow && maxObservedSingleCallTokens !== null ? Math.min(100, maxObservedSingleCallTokens / current.modelContextWindow * 100) : null;
-  return { ...current, availability: total.totalTokens === null && last.totalTokens === null ? current.availability : "actual", turnCumulative, lastModelCall: last.totalTokens === null ? current.lastModelCall : last, maxObservedSingleCallTokens, maxObservedContextUtilizationPercent, usageEventCount: eventIndex, anomalies };
+  const turnCumulative = keepCurrent ? current.turnCumulative : total; const effectiveLast = last.totalTokens === null ? current.lastModelCall : last;
+  const maxObservedSingleCallTokens = effectiveLast.totalTokens === null ? current.maxObservedSingleCallTokens : Math.max(current.maxObservedSingleCallTokens ?? 0, effectiveLast.totalTokens);
+  const maxObservedContextUtilizationPercent = current.modelContextWindow && turnCumulative.totalTokens !== null ? Math.min(100, turnCumulative.totalTokens / current.modelContextWindow * 100) : null;
+  return { ...current, availability: turnCumulative.totalTokens === null && effectiveLast.totalTokens === null ? current.availability : "actual", turnCumulative, lastModelCall: effectiveLast, maxObservedSingleCallTokens, maxObservedContextUtilizationPercent, usageEventCount: eventIndex, anomalies };
 }
 
 export function zeroDispatchTokenTelemetry(modelContextWindow: number | null = null): AccurateTokenTelemetry {

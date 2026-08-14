@@ -36,7 +36,7 @@ export class CodexJsonRpcClient extends EventEmitter {
       this.failAll(this.stopping ? "CODEX_RUNTIME_STOPPED" : "CODEX_RUNTIME_EXITED", new Error(`exit=${code ?? "null"} signal=${signal ?? "null"}`));
       this.emit("exit", { code, signal, expected: this.stopping });
     });
-    await this.request("initialize", { clientInfo: { name: "jira-activity-analyzer", title: "Jira Activity Analyzer", version: "0.3.18" }, capabilities: { experimentalApi: true } }, DEFAULT_TIMEOUT_MS);
+    await this.request("initialize", { clientInfo: { name: "jira-activity-analyzer", title: "Jira Activity Analyzer", version: "0.3.19" }, capabilities: { experimentalApi: true } }, DEFAULT_TIMEOUT_MS);
     this.notify("initialized");
     this.initialized = true;
   }
