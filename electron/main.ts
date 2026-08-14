@@ -4408,8 +4408,8 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     debugBundleStatus,
     failedFileCount: copyFailures.length
   });
-  let selectedRunStatus: string | null = null; let selectedInstructionMode: string | null = null;
-  if (selectedAiRunPath) try { const selectedManifest = JSON.parse(fs.readFileSync(path.join(selectedAiRunPath, "run-manifest.json"), "utf8")); selectedRunStatus = String(selectedManifest.run?.status ?? "unknown"); selectedInstructionMode = String(selectedManifest.run?.instructionMode ?? "STANDARD_FORMAL"); } catch { selectedRunStatus = "unknown"; selectedInstructionMode = "unknown"; }
+  let selectedRunStatus: string | null = null; let selectedInstructionMode: string | null = null; let selectedArtifactStatus: string | null = null;
+  if (selectedAiRunPath) try { const selectedManifest = JSON.parse(fs.readFileSync(path.join(selectedAiRunPath, "run-manifest.json"), "utf8")); selectedRunStatus = String(selectedManifest.run?.status ?? "unknown"); selectedInstructionMode = String(selectedManifest.run?.instructionMode ?? "STANDARD_FORMAL"); selectedArtifactStatus = String(selectedManifest.run?.lifecycle?.artifactStatus ?? selectedManifest.run?.bridgeEvidence?.lifecycle?.artifactStatus ?? "not_started"); } catch { selectedRunStatus = "unknown"; selectedInstructionMode = "unknown"; selectedArtifactStatus = "unknown"; }
   const aiAlwaysRequiredEvidence = [
     "run-manifest.json", "logs/conversation.jsonl", "logs/conversation.md", "logs/provider-stream.jsonl", "logs/runtime.log", "logs/application.log",
     "input-workspace/pending-analysis.json", "input-workspace/common-rules.md", "input-workspace/skill-catalog.md", "input-workspace/rule-set-manifest.md",
@@ -4425,8 +4425,11 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const aiCopyPrefix = "ai-analysis/canonical-run/";
   const aiCopyEntries = copiedEntries.filter((entry) => entry.relativePath.startsWith(aiCopyPrefix));
   const aiDestinationPaths = new Set(aiCopyEntries.filter((entry) => entry.status === "copied").map((entry) => entry.relativePath.slice(aiCopyPrefix.length)));
+  const artifactAttemptEvidence = [...aiDestinationPaths].filter((relativePath) => /^progress\/artifact-submission-attempts\/artifact-submission-(attempt|result)-\d{3}\.json$/.test(relativePath)).sort();
+  const artifactAttemptExpected = !customDiagnostic && ["submitting", "submission_rejected", "published", "failed"].includes(selectedArtifactStatus ?? "");
+  const artifactAttemptMissing = artifactAttemptExpected ? ["attempt", "result"].filter((kind) => !artifactAttemptEvidence.some((relativePath) => relativePath.includes("/artifact-submission-" + kind + "-"))).map((kind) => "progress/artifact-submission-attempts/artifact-submission-" + kind + "-*.json") : [];
   const aiMissingFiles = selectedAiRunPath ? aiRequiredEvidence.filter((relativePath) => !aiDestinationPaths.has(relativePath)) : [...aiRequiredEvidence];
-  const aiMissingAlwaysRequired = aiMissingFiles.filter((relativePath) => aiAlwaysRequiredEvidence.includes(relativePath));
+  const aiMissingAlwaysRequired = [...aiMissingFiles.filter((relativePath) => aiAlwaysRequiredEvidence.includes(relativePath)), ...artifactAttemptMissing];
   const aiHashMismatches = aiCopyEntries.filter((entry) => entry.status === "copied" && entry.hashMatch !== true);
   const aiFlushResults = {
     mainSessionLog: { success: fs.existsSync(path.join(diagnosticSnapshot.sessionDir, "main.ndjson")), mode: "synchronous_append" },
@@ -4445,7 +4448,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   const debugCompleteness = {
     schemaVersion: "jaa-debug-completeness-manifest-v1", debugFolderId: path.basename(folderPath), generatedAtLocal: new Date(createdAt).toLocaleString("sv-SE"), generatedAtUtc: createdAt,
     selectedAiRunId: selectedAiRunPath ? path.basename(selectedAiRunPath) : null, canonicalAiRunSourcePath: selectedAiRunPath ? "[APP_ROOT]/exports/ai-analysis/runs/.../" + path.basename(selectedAiRunPath) : null,
-    expectedFileCount: aiRequiredEvidence.length, copiedFileCount: aiCopyEntries.filter((entry) => entry.status === "copied").length, excludedSecretFileCount: 0, missingRequiredFileCount: trulyMissingFiles.length, expectedAbsentForFailedRunCount: expectedAbsentForFailedRun.length, hashMismatchCount: aiHashMismatches.length,
+    expectedFileCount: aiRequiredEvidence.length + (artifactAttemptExpected ? 2 : 0), artifactSubmissionAttemptExpected: artifactAttemptExpected, artifactSubmissionAttemptEvidence: artifactAttemptEvidence.map((relativePath) => ({ relativePath, status: "required_and_present" })), copiedFileCount: aiCopyEntries.filter((entry) => entry.status === "copied").length, excludedSecretFileCount: 0, missingRequiredFileCount: trulyMissingFiles.length, expectedAbsentForFailedRunCount: expectedAbsentForFailedRun.length, hashMismatchCount: aiHashMismatches.length,
     flushResults: aiFlushResults, sourceFiles: aiCopyEntries.map((entry) => ({ relativePath: entry.relativePath.slice(aiCopyPrefix.length), size: entry.size, sha256: entry.sourceSha256 ?? null })),
     destinationFiles: aiCopyEntries.map((entry) => ({ relativePath: entry.relativePath, size: entry.size, sha256: entry.destinationSha256 ?? null, hashMatch: entry.hashMatch ?? false })),
     excludedFiles: [{ pattern: "credentials/oauth/token/.env", reason: "Secret and managed authentication material are never collected." }], instructionMode: selectedInstructionMode, notApplicableForInstructionMode: notApplicableForInstructionMode.map((relativePath) => ({ relativePath, status: "not_applicable_for_instruction_mode" })), missingFiles: trulyMissingFiles, expectedAbsentForFailedRun: expectedAbsentForFailedRun.map((relativePath) => ({ relativePath, reason: "Not present in the source Run because the Run ended before successful artifact publication." })), duplicateAliases: [], exportStatus, contentCompleteness, debugBundleStatus: exportStatus

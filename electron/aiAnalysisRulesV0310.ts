@@ -171,6 +171,10 @@ export function loadManifestRulesSnapshot(directory: string, allowedRoots: strin
   const ruleSetId = manifestValue(manifestText, "rule_set_id") || sha256(manifestText).slice(0, 16);
   const catalogVersion = manifestValue(manifestText, "skill_catalog_version") || "unknown";
   const commonRulesVersion = manifestValue(manifestText, "common_rules_version") || "unknown";
+  const classificationEngineVersion = manifestValue(manifestText, "classification_engine_version") || "offline-rule-v1";
+  const promptVersion = manifestValue(manifestText, "prompt_version") || "unknown";
+  const pipelineVersion = manifestValue(manifestText, "pipeline_version") || "unknown";
+  const modelDecisionSchemaVersion = manifestValue(manifestText, "model_decision_schema_version") || "unknown";
   const files = [
     metadata("manifest", manifestPath, manifestSchemaVersion),
     metadata("catalog", catalogPath, catalogVersion),
@@ -188,7 +192,7 @@ export function loadManifestRulesSnapshot(directory: string, allowedRoots: strin
     manifestSchemaVersion,
     catalogVersion,
     commonRulesVersion,
-    classificationEngineVersion: "offline-rule-v1",
+    classificationEngineVersion, promptVersion, pipelineVersion, modelDecisionSchemaVersion,
     parserVersion: "ai-rules-parser-v1",
     files,
     catalogCount: catalog.length,
@@ -202,4 +206,11 @@ export function loadManifestRulesSnapshot(directory: string, allowedRoots: strin
       : [],
     warnings: duplicateDetails.filter((detail) => detail.severity === "warning").map((detail) => `Confusable Skill ID: ${detail.skillId}`)
   };
+}
+
+export function assertV0320RuleSetBinding(snapshot: AiRulesSnapshot) {
+  const expected = { ruleSetId: "JAA-SKILL-RULESET-2026-08-14-DRAFT-02", manifestSchemaVersion: "0.2.0", commonRulesVersion: "1.2.0", catalogVersion: "0.3.1", classificationEngineVersion: "JAA-CLASSIFICATION-1.2.0", promptVersion: "JAA-CHATGPT-ZH-TW-0.3.20", pipelineVersion: "JAA-ANALYSIS-PIPELINE-0.3.20", modelDecisionSchemaVersion: "jaa-ai-analysis-decisions-v2" } as const;
+  const mismatches = Object.entries(expected).filter(([key, value]) => snapshot[key as keyof AiRulesSnapshot] !== value).map(([key, value]) => ({ key, expected: value, observed: snapshot[key as keyof AiRulesSnapshot] ?? null }));
+  if (mismatches.length) throw new AiAnalysisError("AI_RULE_SET_BINDING_MISMATCH", `v0.3.20 Rule Set binding mismatch: ${JSON.stringify(mismatches)}`);
+  return snapshot;
 }

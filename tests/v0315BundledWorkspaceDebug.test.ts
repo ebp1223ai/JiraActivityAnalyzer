@@ -39,7 +39,7 @@ try {
   const rules: any = { files: [metadata("manifest", ruleFiles.manifest), metadata("catalog", ruleFiles.catalog), metadata("rules", ruleFiles.rules)], catalog: [{ id: "SKILL_1" }] };
   const dataset: any = { sourceFilePath: source, sourceFileSha256: sha256(fs.readFileSync(source)), eventCount: 1, diffs: [{ sourceDiffId: "stable-1" }] };
   const runDirectory = path.join(root, "run"); fs.mkdirSync(runDirectory);
-  const schema = prepareSingleRunOutputSchema(1); const request = buildRequestPackage({ runId: "analysis_test", runDirectory, dataset, rules, selectedRecordCount: 1, outputSchemaCanonicalJson: schema.canonicalJson });
+  const schema = prepareSingleRunOutputSchema(1); const request = buildRequestPackage({ runId: "analysis_test", runDirectory, dataset, rules, selectedRecordCount: 1 });
   assert.deepEqual(fs.readdirSync(request.workspace).sort(), ["common-rules.md", "pending-analysis.json", "rule-set-manifest.md", "skill-catalog.md"]);
   assert.equal(request.requestPackage.deliveryMode, "LOCAL_FILE_WORKSPACE"); assert.equal(request.requestPackage.inlineFileContentCount, 0);
   assert.equal(request.prompt.includes(fs.readFileSync(source, "utf8")), false); assert.equal(request.prompt.includes("BEGIN_FILE"), false);

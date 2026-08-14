@@ -28,7 +28,7 @@ const rules: any = { valid: true, rulesDirectoryLabel: "rules", rulesDirectoryPa
 const dataset: any = { datasetId: "dataset-1", fileName: path.basename(source), sourceFilePath: source, sourceFileSha256: hash(fs.readFileSync(source)), eventCount: 1, diffs: [{ sourceDiffId: "stable-1" }] };
 const archive = new AiAnalysisRunArchive("analysis_11111111-1111-1111-1111-111111111111", new Date("2026-08-13T01:02:03.004Z"));
 const schema = prepareSingleRunOutputSchema(1);
-const request = buildRequestPackage({ runId: archive.runId, runDirectory: archive.directory, dataset, rules, selectedRecordCount: 1, supplementalInstruction: "Prefer direct evidence.", outputSchemaCanonicalJson: schema.canonicalJson });
+const request = buildRequestPackage({ runId: archive.runId, runDirectory: archive.directory, dataset, rules, selectedRecordCount: 1, supplementalInstruction: "Prefer direct evidence." });
 assert.equal(request.requestPackage.deliveryMode, PROVIDER_DELIVERY_MODE);
 assert.equal(request.requestPackage.documents.length, 4);
 assert.equal(request.requestPackage.workspaceFileCount, 4);

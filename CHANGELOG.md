@@ -1,3 +1,10 @@
+# v0.3.20 - Artifact Contract and Rule Set Alignment
+
+- Unified the direct-array Decision contract across the dynamic tool schema, Run output schema, instruction, runtime validation, canonical assembly, and synthetic fixtures.
+- Added durable Artifact submission attempt/result evidence, precise root/count/index/schema errors, causal lifecycle preservation, and authoritative report-count warnings.
+- Bundled Common Rules 1.2.0, Skill Catalog 0.3.1, and Manifest 0.2.0 with strict v0.3.20 binding and a UTF-8 Traditional Chinese Standard Formal instruction.
+- Preserved the bridge-resumable-v2 model delivery protocol and added focused v0.3.20 contract and v0.3.19 transport regression coverage.
+
 # v0.3.19 - Instruction Modes and Verifiable Model Delivery
 
 - Added Standard Formal, Standard Plus User Instruction, and isolated Custom Diagnostic modes with deterministic effective-instruction archives and SHA-256 evidence.

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { TextDecoder } from "node:util";
 import { ANALYSIS_BRIDGE_SCHEMA_VERSION, ANALYSIS_BRIDGE_VERSION, type AnalysisBridgeToolContext, type AnalysisLifecycleStage, type AnalysisLifecycleSummary } from "../shared/analysisBridgeContract.js";
+import { AI_ARTIFACT_SUBMISSION_VERSION, AI_DECISION_CONTRACT_VERSION, createArtifactSubmissionSchema, getDecisionContractDescriptor, observeDecisionDocument, primaryDecisionError, validateDecisionArray } from "./aiAnalysisDecisionContractV0320.js";
 
 type JsonObject = Record<string, unknown>;
 type RequestDocument = { role: string; snapshotRelativePath: string; originalFileName: string; mimeType: string; encoding: string; snapshotByteLength: number; snapshotSha256: string; complete: boolean; truncated: boolean; byteIdentical: boolean };
@@ -74,6 +75,16 @@ function appendDurable(filePath: string, value: unknown) {
   try { fs.writeSync(descriptor, JSON.stringify(value) + "\n"); fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
 }
 
+function durableEvidence(filePath: string, value: unknown) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const content = stableJson(value) + "\n";
+  const temporary = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  const descriptor = fs.openSync(temporary, "wx");
+  try { fs.writeFileSync(descriptor, content, "utf8"); fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
+  fs.renameSync(temporary, filePath);
+  if (sha256(fs.readFileSync(filePath)) !== sha256(Buffer.from(content))) fail("AI_ARTIFACT_RECEIPT_INVALID", "Artifact attempt evidence reopen/hash verification failed.");
+}
+
 export class AnalysisBridgeV0318 {
   readonly version = ANALYSIS_BRIDGE_VERSION;
   readonly schemaVersion = ANALYSIS_BRIDGE_SCHEMA_VERSION;
@@ -82,6 +93,7 @@ export class AnalysisBridgeV0318 {
   private inputRead = false;
   private progressIndex = -1;
   private artifactReceipt: JsonObject | null = null;
+  private artifactAttempt = 0;
   private inputReceipt: JsonObject | null = null;
   private readonly progressDirectory: string;
   private readonly outputDirectory: string;
@@ -95,7 +107,7 @@ export class AnalysisBridgeV0318 {
     fs.mkdirSync(this.progressDirectory, { recursive: true });
     fs.mkdirSync(this.outputDirectory, { recursive: true });
     const time = localAndUtc();
-    this.lifecycle = { schemaVersion: "jaa-analysis-lifecycle-v1", runId: config.runId, providerTurnStatus: "not_started", inputStatus: "not_started", analysisStatus: "not_started", artifactStatus: "not_started", validationStatus: "not_started", canonicalAssemblyStatus: "not_started", sqliteStatus: "blocked", overallStatus: "running", lastSuccessfulStage: "INPUT_PREPARED", firstFailedStage: null, rootErrorCode: null, analysisStarted: false, analysisCompleted: false, completedCount: null, decisionPreparedCount: null, updatedAtLocal: time.local, updatedAtUtc: time.utc };
+    this.lifecycle = { schemaVersion: "jaa-analysis-lifecycle-v1", runId: config.runId, providerTurnStatus: "not_started", inputStatus: "not_started", analysisStatus: "not_started", artifactStatus: "not_started", validationStatus: "not_started", canonicalAssemblyStatus: "not_started", sqliteStatus: "blocked", overallStatus: "running", lastSuccessfulStage: "INPUT_PREPARED", firstFailedStage: null, rootErrorCode: null, derivedStatusCodes: [], canonicalStatus: "not_created", analysisStarted: false, analysisCompleted: false, completedCount: null, decisionPreparedCount: null, updatedAtLocal: time.local, updatedAtUtc: time.utc };
     this.writeLifecycle();
   }
 
@@ -103,7 +115,7 @@ export class AnalysisBridgeV0318 {
     return [
       { type: "function", name: "jaa_read_analysis_inputs", description: "完整讀取並驗證本次 Run 固定的 1 個 JSON 與 3 個 UTF-8 Markdown。不得傳入路徑。", inputSchema: { type: "object", additionalProperties: false, required: ["runId"], properties: { runId: { type: "string", description: "本次 Analysis Run ID" } } } },
       { type: "function", name: "jaa_report_analysis_progress", description: "回報受控分析生命週期 checkpoint。只有完成全部資料後才能回報 ANALYSIS_COMPLETED。", inputSchema: { type: "object", additionalProperties: false, required: ["runId", "stage", "expectedCount", "completedCount", "decisionPreparedCount", "message"], properties: { runId: { type: "string" }, stage: { type: "string", enum: [...PROGRESS_STAGES] }, expectedCount: { type: "integer", minimum: 0 }, completedCount: { type: "integer", minimum: 0 }, decisionPreparedCount: { type: "integer", minimum: 0 }, statusDistribution: { type: ["object", "null"], additionalProperties: { type: "integer", minimum: 0 } }, message: { type: "string", minLength: 1, maxLength: 2000 } } } },
-      { type: "function", name: "jaa_publish_analysis_artifacts", description: "一次提交 Decision JSON、繁體中文 Analysis Report 與繁體中文最終摘要；JAA 驗證後以 durable atomic writer 發布。不得傳入輸出路徑。", inputSchema: { type: "object", additionalProperties: false, required: ["schemaVersion", "runId", "sourceSha256", "rulesSnapshotId", "expectedRecordCount", "decisionsDocument", "analysisReportMarkdown", "finalSummaryTraditionalChinese"], properties: { schemaVersion: { const: "jaa-analysis-artifact-submission-v1" }, runId: { type: "string" }, sourceSha256: { type: "string" }, rulesSnapshotId: { type: "string" }, expectedRecordCount: { type: "integer", minimum: 0 }, decisionsDocument: { type: "object" }, analysisReportMarkdown: { type: "string", minLength: 1 }, finalSummaryTraditionalChinese: { type: "string", minLength: 1 } } } }
+      { type: "function", name: "jaa_publish_analysis_artifacts", description: "Submit a direct Decision array bound to jaa-ai-analysis-decisions-v2 plus the human-readable report. Object wrappers and JSON strings are forbidden.", inputSchema: createArtifactSubmissionSchema(this.config.requestPackage.inputRecordCount) }
     ];
   }
 
@@ -136,7 +148,7 @@ export class AnalysisBridgeV0318 {
     if (args.runId !== this.config.runId) fail("AI_BRIDGE_CONTRACT_MISMATCH", "Tool Run ID mismatch.");
     if (tool === "jaa_read_analysis_inputs") return this.readInputs(args);
     if (tool === "jaa_report_analysis_progress") return this.reportProgress(args);
-    if (tool === "jaa_publish_analysis_artifacts") return this.publish(args);
+    if (tool === "jaa_publish_analysis_artifacts") return this.publish(args, context);
     return fail("AI_BRIDGE_CONTRACT_MISMATCH", `Unknown Analysis Bridge tool: ${tool}`);
   }
 
@@ -144,11 +156,11 @@ export class AnalysisBridgeV0318 {
   setSqliteStatus(status: AnalysisLifecycleSummary["sqliteStatus"]) { this.lifecycle.sqliteStatus = status; this.writeLifecycle(); }
   setPostBridgeStage(stage: "VALIDATION_COMPLETED" | "CANONICAL_ASSEMBLY_COMPLETED" | "RUN_COMPLETED", status: "completed" | "failed") {
     if (stage === "VALIDATION_COMPLETED") this.lifecycle.validationStatus = status;
-    if (stage === "CANONICAL_ASSEMBLY_COMPLETED") this.lifecycle.canonicalAssemblyStatus = status;
+    if (stage === "CANONICAL_ASSEMBLY_COMPLETED") { this.lifecycle.canonicalAssemblyStatus = status; this.lifecycle.canonicalStatus = status === "completed" ? "created" : "not_created"; }
     if (stage === "RUN_COMPLETED") this.lifecycle.overallStatus = status;
     if (status === "completed") this.advance(stage); else this.markFailure(stage, stage === "VALIDATION_COMPLETED" ? "AI_DECISION_SEMANTIC_INVALID" : "AI_CANONICAL_ASSEMBLY_FAILED");
   }
-  fail(stage: AnalysisLifecycleStage, code: string) { this.markFailure(stage, code); }
+  fail(stage: AnalysisLifecycleStage, code: string) { if (this.lifecycle.rootErrorCode && this.lifecycle.rootErrorCode !== code) { if (!this.lifecycle.derivedStatusCodes.includes(code)) this.lifecycle.derivedStatusCodes.push(code); } else this.markFailure(stage, code); this.writeLifecycle(); }
   snapshot() { return { inputReceipt: this.inputReceipt, artifactReceipt: this.artifactReceipt, lifecycle: structuredClone(this.lifecycle) }; }
 
   private validateContext(context: AnalysisBridgeToolContext) {
@@ -197,29 +209,62 @@ export class AnalysisBridgeV0318 {
     return { accepted: true, runId: this.config.runId, sequence: this.sequence, stage };
   }
 
-  private publish(args: JsonObject) {
+  private publish(args: JsonObject, context: AnalysisBridgeToolContext) {
     if (this.progressIndex !== PROGRESS_STAGES.indexOf("ARTIFACT_SUBMISSION_STARTED") || !this.lifecycle.analysisCompleted) fail("AI_ANALYSIS_INCOMPLETE", "Artifacts require authoritative ANALYSIS_COMPLETED and submission checkpoint.");
-    if (args.schemaVersion !== "jaa-analysis-artifact-submission-v1" || args.sourceSha256 !== this.config.requestPackage.pendingSourceSha256 || args.rulesSnapshotId !== this.config.rulesSnapshotId || Number(args.expectedRecordCount) !== this.config.requestPackage.inputRecordCount) fail("AI_ARTIFACT_RECEIPT_INVALID", "Artifact submission identity mismatch.");
-    const document = object(args.decisionsDocument); const decisions = Array.isArray(document.decisions) ? document.decisions : [];
-    if (document.schemaVersion !== "ai-analysis-decisions-v1" || document.runId !== this.config.runId || document.sourceSha256 !== this.config.requestPackage.pendingSourceSha256 || document.rulesSnapshotId !== this.config.rulesSnapshotId || Number(document.expectedRecordCount) !== this.config.requestPackage.inputRecordCount || decisions.length !== this.config.requestPackage.inputRecordCount) fail("AI_DECISION_COUNT_MISMATCH", "Decision document root or exact count mismatch.");
-    const catalog = new Set(this.config.catalogSkillIds); const seen = new Set<number>();
-    decisions.forEach((raw, outputIndex) => { const decision = object(raw); const recordIndex = Number(decision.recordIndex); if (!Number.isInteger(recordIndex) || recordIndex !== outputIndex || seen.has(recordIndex)) fail("AI_DECISION_SCHEMA_INVALID", `recordIndex ${recordIndex} is missing, duplicate, or out of order.`); seen.add(recordIndex); if (Array.isArray(decision.skillIds) && decision.skillIds.some((id) => typeof id !== "string" || !catalog.has(id))) fail("AI_DECISION_SEMANTIC_INVALID", `recordIndex ${recordIndex} contains an unknown Skill ID.`); if (decision.status === "UNKNOWN" && (!Array.isArray(decision.unknownReasons) || decision.unknownReasons.length === 0)) fail("AI_DECISION_SEMANTIC_INVALID", `recordIndex ${recordIndex} UNKNOWN requires unknownReasons.`); });
-    const report = String(args.analysisReportMarkdown ?? "").trim(); const summary = String(args.finalSummaryTraditionalChinese ?? "").trim();
-    if (!report || !summary) fail("AI_ARTIFACT_RECEIPT_INVALID", "Analysis Report and final Traditional Chinese summary are required.");
-    const decisionText = stableJson(document) + "\n";
-    if (Buffer.byteLength(decisionText) + Buffer.byteLength(report) + Buffer.byteLength(summary) > MAX_ARTIFACT_SUBMISSION_BYTES) fail("AI_ARTIFACT_PUBLISH_FAILED", "Artifact submission exceeds the documented engineering safety limit.");
+    this.artifactAttempt += 1;
+    const attemptNumber = this.artifactAttempt;
+    const attemptLabel = String(attemptNumber).padStart(3, "0");
+    const attemptDirectory = path.join(this.progressDirectory, "artifact-submission-attempts");
+    const rawArguments = stableJson(args);
+    const descriptor = getDecisionContractDescriptor(this.config.requestPackage.inputRecordCount);
+    const observed = observeDecisionDocument(args.decisionsDocument, this.config.requestPackage.inputRecordCount);
+    const attempt = {
+      schemaVersion: "jaa-artifact-submission-attempt-v1", runId: this.config.runId, attemptNumber, toolCallId: context.callId, receivedAt: new Date().toISOString(),
+      rawArgumentsBytes: Buffer.byteLength(rawArguments), rawArgumentsSha256: sha256(rawArguments), topLevelKeys: Object.keys(args).sort(), decisionsDocument: observed,
+      decisionContractVersion: AI_DECISION_CONTRACT_VERSION, decisionContractSha256: descriptor.sha256, decodeStatus: observed.runtimeType === "array" ? "decoded_direct_array" : "rejected",
+      normalizationSteps: ["none: strict direct-array-v2"], validationStage: "artifact_submission_validation"
+    };
+    durableEvidence(path.join(attemptDirectory, `artifact-submission-attempt-${attemptLabel}.json`), attempt);
+    const reject = (code: string, message: string, findingValue: unknown) => {
+      const result = { schemaVersion: "jaa-artifact-submission-result-v1", runId: this.config.runId, attemptNumber, toolCallId: context.callId, accepted: false, artifactStatus: "submission_rejected", errorCode: code, message, finding: findingValue, observed, decisionContractVersion: AI_DECISION_CONTRACT_VERSION, decisionContractSha256: descriptor.sha256, completedAt: new Date().toISOString() };
+      durableEvidence(path.join(attemptDirectory, `artifact-submission-result-${attemptLabel}.json`), result);
+      this.lifecycle.artifactStatus = "submission_rejected";
+      this.markFailure("ARTIFACT_SUBMISSION_VALIDATION", code);
+      throw new Error(`${code}:${message}`);
+    };
+    if (args.schemaVersion !== AI_ARTIFACT_SUBMISSION_VERSION || args.decisionContractVersion !== AI_DECISION_CONTRACT_VERSION || args.decisionContractSha256 !== descriptor.sha256) {
+      return reject("AI_ARTIFACT_CONTRACT_VERSION_MISMATCH", "Artifact submission contract version or SHA-256 mismatch.", { jsonPointer: "/decisionContractVersion", expected: { submissionVersion: AI_ARTIFACT_SUBMISSION_VERSION, contractVersion: AI_DECISION_CONTRACT_VERSION, contractSha256: descriptor.sha256 }, observed: { submissionVersion: args.schemaVersion ?? null, contractVersion: args.decisionContractVersion ?? null, contractSha256: args.decisionContractSha256 ?? null } });
+    }
+    if (args.runId !== this.config.runId || args.sourceSha256 !== this.config.requestPackage.pendingSourceSha256 || args.rulesSnapshotId !== this.config.rulesSnapshotId || Number(args.expectedRecordCount) !== this.config.requestPackage.inputRecordCount) {
+      return reject("AI_ARTIFACT_RECEIPT_INVALID", "Artifact submission Run identity binding mismatch.", { jsonPointer: "/", expected: { runId: this.config.runId, sourceSha256: this.config.requestPackage.pendingSourceSha256, rulesSnapshotId: this.config.rulesSnapshotId, expectedRecordCount: this.config.requestPackage.inputRecordCount } });
+    }
+    const validation = validateDecisionArray(args.decisionsDocument, { recordCount: this.config.requestPackage.inputRecordCount, catalogSkillIds: this.config.catalogSkillIds });
+    if (!validation.valid) {
+      const root = primaryDecisionError(validation)!;
+      return reject(root.code, `${root.jsonPointer}: ${root.message}`, root);
+    }
+    const report = String(args.analysisReportMarkdown ?? "").trim();
+    const summary = String(args.finalSummaryTraditionalChinese ?? "").trim();
+    if (!report || !summary) return reject("AI_ARTIFACT_RECEIPT_INVALID", "Analysis Report and final Traditional Chinese summary are required.", { jsonPointer: report ? "/finalSummaryTraditionalChinese" : "/analysisReportMarkdown", expected: "non-empty string" });
+    const decisionText = stableJson(validation.decisions) + "\n";
+    if (Buffer.byteLength(decisionText) + Buffer.byteLength(report) + Buffer.byteLength(summary) > MAX_ARTIFACT_SUBMISSION_BYTES) return reject("AI_ARTIFACT_PUBLISH_FAILED", "Artifact submission exceeds the documented engineering safety limit.", { jsonPointer: "/", expected: `<=${MAX_ARTIFACT_SUBMISSION_BYTES} bytes` });
     try {
       const artifacts = [
         { role: "DECISIONS_JSON", ...durableWrite(path.join(this.outputDirectory, "ai-analysis-decisions.json"), decisionText, this.config.testHooks) },
         { role: "ANALYSIS_REPORT", ...durableWrite(path.join(this.outputDirectory, "analysis-report.md"), report + "\n", this.config.testHooks) },
         { role: "FINAL_ASSISTANT_MESSAGE", ...durableWrite(path.join(this.outputDirectory, "final-assistant-message.txt"), summary + "\n", this.config.testHooks) }
       ];
-      const receipt = { schemaVersion: "jaa-analysis-artifact-receipt-v1", runId: this.config.runId, status: "published", decisionCount: decisions.length, artifacts, publishedAt: new Date().toISOString() };
+      const receipt = { schemaVersion: "jaa-analysis-artifact-receipt-v2", runId: this.config.runId, status: "published", decisionCount: validation.actualCount, authoritativeDistribution: validation.distribution, warnings: validation.warnings, decisionContractVersion: AI_DECISION_CONTRACT_VERSION, decisionContractSha256: descriptor.sha256, attemptNumber, artifacts, publishedAt: new Date().toISOString() };
       durableWrite(path.join(this.progressDirectory, "artifact-receipt.json"), stableJson(receipt) + "\n");
+      durableEvidence(path.join(attemptDirectory, `artifact-submission-result-${attemptLabel}.json`), { schemaVersion: "jaa-artifact-submission-result-v1", runId: this.config.runId, attemptNumber, toolCallId: context.callId, accepted: true, artifactStatus: "published", decisionCount: validation.actualCount, decisionContractVersion: AI_DECISION_CONTRACT_VERSION, decisionContractSha256: descriptor.sha256, receiptSha256: sha256(stableJson(receipt)), completedAt: new Date().toISOString() });
       this.artifactReceipt = receipt; this.lifecycle.artifactStatus = "published"; this.advance("ARTIFACT_PUBLISHED");
       return receipt;
     } catch (error) {
-      this.lifecycle.artifactStatus = "failed"; this.markFailure("ARTIFACT_SUBMISSION_STARTED", /^AI_[A-Z_]+/.exec(String(error))?.[0] ?? "AI_ARTIFACT_PUBLISH_FAILED"); throw error;
+      const code = /^AI_[A-Z_]+/.exec(String(error))?.[0] ?? "AI_ARTIFACT_PUBLISH_FAILED";
+      this.lifecycle.artifactStatus = "failed";
+      durableEvidence(path.join(attemptDirectory, `artifact-submission-result-${attemptLabel}.json`), { schemaVersion: "jaa-artifact-submission-result-v1", runId: this.config.runId, attemptNumber, toolCallId: context.callId, accepted: false, artifactStatus: "failed", errorCode: code, message: String(error), completedAt: new Date().toISOString() });
+      this.markFailure("ARTIFACT_SUBMISSION_STARTED", code);
+      throw error;
     }
   }
 

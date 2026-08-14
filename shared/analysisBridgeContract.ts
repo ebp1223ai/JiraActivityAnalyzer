@@ -1,4 +1,4 @@
-export const ANALYSIS_BRIDGE_VERSION = "0.3.19-bridge-v2" as const;
+export const ANALYSIS_BRIDGE_VERSION = "0.3.20-bridge-v3" as const;
 export const ANALYSIS_BRIDGE_SCHEMA_VERSION = "jaa-analysis-bridge-contract-v1" as const;
 
 export type AnalysisLifecycleStage =
@@ -11,6 +11,7 @@ export type AnalysisLifecycleStage =
   | "ANALYSIS_STARTED"
   | "ANALYSIS_COMPLETED"
   | "ARTIFACT_SUBMISSION_STARTED"
+  | "ARTIFACT_SUBMISSION_VALIDATION"
   | "ARTIFACT_PUBLISHED"
   | "VALIDATION_COMPLETED"
   | "CANONICAL_ASSEMBLY_COMPLETED"
@@ -24,7 +25,7 @@ export type AnalysisLifecycleSummary = {
   sourceInputStatus?: "not_started" | "validated" | "failed";
   modelInputStatus?: "not_started" | "delivering" | "delivered" | "failed";
   analysisStatus: "not_started" | "running" | "completed" | "failed" | "interrupted";
-  artifactStatus: "not_started" | "submitting" | "published" | "failed";
+  artifactStatus: "not_started" | "submitting" | "submission_rejected" | "published" | "failed";
   validationStatus: "not_started" | "completed" | "failed";
   canonicalAssemblyStatus: "not_started" | "completed" | "failed";
   sqliteStatus: "blocked" | "eligible" | "committed";
@@ -32,6 +33,8 @@ export type AnalysisLifecycleSummary = {
   lastSuccessfulStage: AnalysisLifecycleStage;
   firstFailedStage: AnalysisLifecycleStage | null;
   rootErrorCode: string | null;
+  derivedStatusCodes: string[];
+  canonicalStatus: "not_created" | "created";
   analysisStarted: boolean;
   analysisCompleted: boolean;
   completedCount: number | null;

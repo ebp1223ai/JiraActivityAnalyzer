@@ -30,12 +30,13 @@ import {
   loadAiEnvironment,
   loadPendingDataset,
   loadRulesSnapshot,
+  loadV0320RulesSnapshot,
   persistCompletedRun,
   persistReview,
   saveAiSettings,
   sha256Text
 } from "./aiAnalysisCore.js";
-import { ensureDir, getAppDataDir, getAppRuntimeDir, getExportsDir } from "./appPaths.js";
+import { ensureDir, getAppDataDir, getAppRuntimeDir, getBundledAnalysisRulesDir, getExportsDir } from "./appPaths.js";
 import { getChatGptService } from "./chatGptService.js";
 import { redactChatGptText, redactChatGptTextComplete, sanitizeChatGptValueComplete } from "./chatGptRedactor.js";
 import { buildRequestPackage, loadRequestPackage } from "./aiAnalysisRequestPackageV0314.js";
@@ -58,6 +59,7 @@ import {
   assembleCanonicalResults,
   atomicWriteCanonical,
   buildCompletionManifest,
+  compareAnalysisReportCounts,
   createArtifactWorkspaces,
   parseAndValidateDecisions,
   readPublishedArtifacts,
@@ -166,7 +168,9 @@ export function registerAiAnalysisIpc() {
   let environment = loadAiEnvironment(envPath, templatePath);
   const chatgpt = getChatGptService();
   chatgpt.subscribeStatus(() => BrowserWindow.getAllWindows().forEach((window) => window.webContents.send("ai-analysis:snapshot-changed", snapshot())));
+  const bundledRulesDirectory = getBundledAnalysisRulesDir();
   let rules: AiRulesSnapshot | null = null;
+  try { if (fs.existsSync(bundledRulesDirectory)) rules = loadV0320RulesSnapshot(bundledRulesDirectory, [bundledRulesDirectory]); } catch { /* surfaced in UI */ }
   const pendingDatasets: AiPendingDataset[] = [];
   const runs: AiAnalysisRun[] = loadArchivedRuns();
   const runArchives = new Map<string, AiAnalysisRunArchive>(runs.filter((run) => run.runDirectory && run.progress.errorCode !== "AI_RUN_ARCHIVE_FAILED").map((run) => [run.runId, AiAnalysisRunArchive.reopen(run.runId, run.runDirectory!)]));
@@ -364,15 +368,14 @@ export function registerAiAnalysisIpc() {
     analysisUserActions.push(`${now()} Select rules requested`);
     const choice = await dialog.showOpenDialog({ title: "Select AI analysis rules folder", properties: ["openDirectory"] });
     if (choice.canceled || !choice.filePaths[0]) return { canceled: true, snapshot: snapshot() };
-    try { rules = loadRulesSnapshot(choice.filePaths[0], [choice.filePaths[0], getAppRuntimeDir()]); return { canceled: false, snapshot: snapshot() }; }
+    try { rules = loadV0320RulesSnapshot(choice.filePaths[0], [choice.filePaths[0], getAppRuntimeDir(), bundledRulesDirectory]); return { canceled: false, snapshot: snapshot() }; }
     catch (error) { return { canceled: false, ...errorPayload(error), snapshot: snapshot() }; }
   });
   ipcMain.handle("ai-analysis:load-rules", async () => {
     try {
-      const configured = rules?.rulesDirectoryPath || environment.values.AI_ANALYSIS_RULES_DIR;
-      if (!configured) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", "AI_ANALYSIS_RULES_DIR is not configured.");
+      const configured = rules?.rulesDirectoryPath || environment.values.AI_ANALYSIS_RULES_DIR || bundledRulesDirectory;
       const resolved = resolveConfiguredPath(configured, "");
-      rules = loadRulesSnapshot(resolved, [resolved, getAppRuntimeDir()]);
+      rules = loadV0320RulesSnapshot(resolved, [resolved, getAppRuntimeDir(), bundledRulesDirectory]);
       return { ok: true, snapshot: snapshot() };
     } catch (error) { return { ...errorPayload(error), snapshot: snapshot() }; }
   });
@@ -448,7 +451,7 @@ export function registerAiAnalysisIpc() {
     if (payload.selectedDiffIds.some((id) => !selectedDataset.diffs.some((diff) => diff.sourceDiffId === id))) return errorPayload(new AiAnalysisError("SOURCE_MISMATCH", "Selected diff does not belong to the selected dataset."));
     try {
       if (!rules.rulesDirectoryPath || !dataset.sourceFilePath) throw new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Rules and dataset source paths are required for preflight.");
-      const refreshedRules = loadRulesSnapshot(rules.rulesDirectoryPath, [rules.rulesDirectoryPath, getAppRuntimeDir()]);
+      const refreshedRules = loadV0320RulesSnapshot(rules.rulesDirectoryPath, [rules.rulesDirectoryPath, getAppRuntimeDir(), bundledRulesDirectory]);
       const refreshedDataset = loadPendingDataset(dataset.sourceFilePath);
       if (!refreshedRules.valid) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", refreshedRules.errors.join(" ") || "Rules validation failed.");
       if (refreshedDataset.sourceFileSha256 !== dataset.sourceFileSha256) throw new AiAnalysisError("SOURCE_MISMATCH", "Pending Dataset changed after selection; import it again.");
@@ -513,12 +516,11 @@ export function registerAiAnalysisIpc() {
         run.progress.rulesTransmissionCount = 1;
         run.progress.stage = "preparing_artifacts";
         run.progress.message = "Preparing the Decision JSON and Analysis Report artifact contract.";
-        const decisionContract = stableJson({ schemaVersion: "ai-analysis-decisions-v1", expectedRecordCount: compact.payload.eventCount, fields: ["recordIndex", "status", "skillIds", "confidence", "positiveEvidence", "negativeChecks", "unknownReasons", "rationale"], finalAssistantMessage: "brief natural-language summary; never JSON" });
-        const request = resumedRun ? loadRequestPackage(stagingFolder) : buildRequestPackage({ runId, runDirectory: stagingFolder, dataset, rules: run.rules, selectedRecordCount: compact.payload.eventCount, supplementalInstruction: run.supplementalInstruction ?? undefined, instructionMode: run.instructionMode, userAdditionalInstruction: run.userAdditionalInstruction ?? undefined, userCustomInstruction: run.userCustomInstruction ?? undefined, outputSchemaCanonicalJson: decisionContract });
+        const request = resumedRun ? loadRequestPackage(stagingFolder) : buildRequestPackage({ runId, runDirectory: stagingFolder, dataset, rules: run.rules, selectedRecordCount: compact.payload.eventCount, supplementalInstruction: run.supplementalInstruction ?? undefined, instructionMode: run.instructionMode, userAdditionalInstruction: run.userAdditionalInstruction ?? undefined, userCustomInstruction: run.userCustomInstruction ?? undefined });
         const artifactPaths = createArtifactWorkspaces(stagingFolder);
         run.artifactPaths = { input: artifactPaths.input, output: artifactPaths.output, canonical: artifactPaths.canonical, logs: artifactPaths.logs };
         run.expectedDecisionCount = compact.payload.eventCount; run.receivedDecisionCount = 0; run.canonicalRecordCount = 0; run.finalAcceptedRecordCount = 0;
-        run.requestPackage = request.requestPackage; run.instructionComposition = request.requestPackage.instructionComposition ?? null; run.promptTemplateVersion = request.requestPackage.coreInstructionVersion; run.promptSha256 = request.requestPackage.finalProviderPayloadSha256; run.outputSchemaName = null; run.outputSchemaSha256 = null; run.outputSchemaBytesUtf8 = null; run.outputSchemaValidation = null;
+        run.requestPackage = request.requestPackage; run.instructionComposition = request.requestPackage.instructionComposition ?? null; run.promptTemplateVersion = request.requestPackage.coreInstructionVersion; run.promptSha256 = request.requestPackage.finalProviderPayloadSha256; run.outputSchemaName = request.requestPackage.decisionContractVersion ?? "unknown"; run.outputSchemaSha256 = request.requestPackage.outputSchemaSha256; run.outputSchemaBytesUtf8 = Buffer.byteLength(fs.readFileSync(path.join(stagingFolder, "control", "output-schema.json"))); run.outputSchemaValidation = null;
         const archive = runArchives.get(runId); if (!resumedRun) archive?.append("system_event", "APP_ONLY", "Artifact Request Package prepared before Provider dispatch.", { deliveryMode: request.requestPackage.deliveryMode, documentCount: request.requestPackage.documents.length, outputWorkspace: "ai-output", finalResponseMode: "brief_text" }); archive?.writeManifest(run);
         run.progress.stage = "preflighting_capacity";
         const capability = run.capacitySnapshot ? null : await chatgpt.readSelectedModelCapacity();
@@ -575,11 +577,12 @@ export function registerAiAnalysisIpc() {
         const validated = parseAndValidateDecisions(artifacts.decisionsText, { runId, sourceSha256: dataset.sourceFileSha256, rulesSnapshotId: run.rules.snapshotId ?? run.rules.ruleSetId, recordCount: compact.payload.eventCount, catalogSkillIds: run.rules.catalog.map((item) => item.id) });
         run.receivedDecisionCount = validated.validation.actualCount; run.providerReturnedRecordCount = validated.validation.actualCount; run.parsedRecordCount = validated.validation.actualCount; run.schemaValidRecordCount = validated.validation.valid ? validated.validation.actualCount : 0; run.semanticValidRecordCount = validated.validation.semanticValidCount; run.progress.resultRecordCount = validated.validation.actualCount; run.progress.completedDiffs = validated.validation.actualCount; notify(event);
         atomicWriteCanonical(artifactPaths.validationReport, { schemaVersion: "ai-analysis-validation-report-v1", runId, sourceSha256: dataset.sourceFileSha256, rulesSnapshotId: run.rules.snapshotId ?? run.rules.ruleSetId, decisionSha256: artifacts.hashes.decisions, expectedCount: compact.payload.eventCount, actualCount: validated.validation.actualCount, findings: validated.validation.findings, warnings: validated.validation.warnings, distribution: validated.validation.distribution, evidenceCoverage: validated.validation.evidenceCoverage, reportPresent: Boolean(artifacts.reportText), finalMessagePresent: Boolean(artifacts.finalText), validatedAt: now(), validationDurationMs: Date.now() - validationStarted }); run.validationReportPath = artifactPaths.validationReport;
-        if (!validated.validation.valid) { chatgpt.advanceBridgeLifecycle(runId, "VALIDATION_COMPLETED", "failed"); const finding = validated.validation.findings[0]; throw new AiAnalysisError(finding.code as AiAnalysisErrorCode, `${finding.path}: ${finding.message} expected=${JSON.stringify(finding.expected)} actual=${JSON.stringify(finding.actual)}`); }
+        if (!validated.validation.valid) { chatgpt.advanceBridgeLifecycle(runId, "VALIDATION_COMPLETED", "failed"); const finding = validated.validation.findings[0]; throw new AiAnalysisError(finding.code as AiAnalysisErrorCode, `${finding.jsonPointer}: ${finding.message} expected=${JSON.stringify(finding.expected)} observed=${JSON.stringify(finding.observed)}`); }
         chatgpt.advanceBridgeLifecycle(runId, "VALIDATION_COMPLETED", "completed"); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null;
         run.telemetry.validationMs = Date.now() - validationStarted; const assemblyStarted = Date.now(); run.progress.stage = "assembling_canonical";
         run.results = assembleCanonicalResults(compact.payload, validated.document, run.rules, model, response.requestId, run.progress.usage); run.canonicalRecordCount = run.results.length; run.progress.resultRecordCount = run.results.length; run.progress.completedDiffs = run.results.length;
 
+        validated.validation.warnings.push(...compareAnalysisReportCounts(artifacts.reportText, validated.validation.distribution));
         run.anomalyWarnings = [...new Set([...(run.anomalyWarnings ?? []), ...validated.validation.warnings, ...artifacts.warnings])]; const warningGate = warningPersistenceGate({ structuralValidationPassed: true, warnings: run.anomalyWarnings });
         run.status = warningGate.requiresHumanAcceptance ? "completed_with_warnings" : "completed"; run.progress.status = run.status; run.finalAcceptedRecordCount = warningGate.sqliteEligible ? run.results.length : 0; run.databaseWriteStatus = warningGate.sqliteEligible ? "Eligible - awaiting local commit" : `Not written - manual acceptance required for ${warningGate.pendingWarnings.join(", ")}`;
         const canonicalArtifact = atomicWriteCanonical(artifactPaths.canonicalResult, analyzedDocument(run)); run.analyzedFilePath = canonicalArtifact.filePath; run.analyzedFileSizeBytes = canonicalArtifact.sizeBytes; run.analyzedFileSha256 = canonicalArtifact.sha256; run.formalArtifactRecordCount = run.results.length; run.telemetry.canonicalAssemblyMs = Date.now() - assemblyStarted; run.telemetry.canonicalOutputCompletedAt = now(); chatgpt.advanceBridgeLifecycle(runId, "CANONICAL_ASSEMBLY_COMPLETED", "completed"); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null;
@@ -646,11 +649,14 @@ export function registerAiAnalysisIpc() {
       if (providerFailure) { providerVisibleResponse = providerFailure.visibleText || null; run.progress.usage = providerFailure.usage; }
       const zeroDispatchFailure = ["AI_BRIDGE_UNAVAILABLE", "AI_BRIDGE_INTEGRITY_MISMATCH", "AI_BRIDGE_CONTRACT_MISMATCH", "AI_INPUT_UTF8_INVALID", "AI_INPUT_HASH_MISMATCH", "AI_INPUT_RECEIPT_INCOMPLETE", "AI_INPUT_TOOL_FAILED"].includes(value.code) && (run.progress.providerDispatchCount ?? 0) === 0;
       if (zeroDispatchFailure) run.progress.usage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0, availability: "actual_zero_no_model_dispatch", estimatedInputTokens: run.progress.usage.estimatedInputTokens, turnCumulative: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0 }, lastModelCall: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0 }, usageEventCount: 0 };
-      const failedStage = run.progress.stage ?? "failed";
-      const lifecycleStage = failedStage.includes("input") ? "INPUT_READING" : failedStage.includes("artifact") || failedStage.includes("waiting") ? "ARTIFACT_SUBMISSION_STARTED" : failedStage.includes("validat") ? "VALIDATION_COMPLETED" : failedStage.includes("assembl") ? "CANONICAL_ASSEMBLY_COMPLETED" : "PROVIDER_DISPATCHED";
-      chatgpt.failBridgeLifecycle(runId, lifecycleStage, value.code); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null;
-      const validationFailure = value.code.startsWith("AI_DECISION_") || ["AI_ANALYSIS_REPORT_MISSING", "AI_FINAL_SUMMARY_MISSING", "AI_OUTPUT_PATH_ESCAPE_BLOCKED", "AI_OUTPUT_PUBLISH_INCOMPLETE", "AI_RESULT_COUNT_MISMATCH", "AI_RESULT_IDENTITY_VALIDATION_FAILED"].includes(value.code);
-      run.status = value.code === "RUN_CANCELLED" ? "cancelled" : value.code === "AI_PROVIDER_TIMEOUT" ? "provider_timeout" : zeroDispatchFailure ? "failed" : validationFailure ? "failed_validation" : "provider_failed"; run.completedAt = now(); run.progress.status = run.status; run.progress.stage = run.status === "cancelled" ? "cancelled" : "failed"; run.progress.errorCode = value.code; run.progress.message = value.message; run.progress.elapsedMs = Date.now() - Date.parse(startedAt);
+      const initialBridgeEvidence = chatgpt.getBridgeEvidence(runId);
+      const rootErrorCode = (initialBridgeEvidence?.lifecycle.rootErrorCode ?? value.code) as AiAnalysisErrorCode;
+      const failedLifecycleStage = initialBridgeEvidence?.lifecycle.firstFailedStage ?? null;
+      const failedStage = failedLifecycleStage?.toLowerCase() ?? run.progress.stage ?? "failed";
+      const lifecycleStage = failedLifecycleStage ?? (failedStage.includes("input") ? "INPUT_READING" : failedStage.includes("artifact") || failedStage.includes("waiting") ? "ARTIFACT_SUBMISSION_STARTED" : failedStage.includes("validat") ? "VALIDATION_COMPLETED" : failedStage.includes("assembl") ? "CANONICAL_ASSEMBLY_COMPLETED" : "PROVIDER_DISPATCHED");
+      chatgpt.failBridgeLifecycle(runId, lifecycleStage, rootErrorCode); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null;
+      const validationFailure = rootErrorCode.startsWith("AI_DECISION_") || ["AI_ARTIFACT_RECEIPT_INVALID", "AI_ARTIFACT_PUBLISH_FAILED", "AI_ANALYSIS_REPORT_MISSING", "AI_FINAL_SUMMARY_MISSING", "AI_OUTPUT_PATH_ESCAPE_BLOCKED", "AI_OUTPUT_PUBLISH_INCOMPLETE", "AI_RESULT_COUNT_MISMATCH", "AI_RESULT_IDENTITY_VALIDATION_FAILED"].includes(rootErrorCode);
+      run.status = rootErrorCode === "RUN_CANCELLED" ? "cancelled" : rootErrorCode === "AI_PROVIDER_TIMEOUT" ? "provider_timeout" : zeroDispatchFailure ? "failed" : validationFailure ? "failed_validation" : "provider_failed"; run.completedAt = now(); run.progress.status = run.status; run.progress.stage = run.status === "cancelled" ? "cancelled" : "failed"; run.progress.errorCode = rootErrorCode; run.progress.message = value.message; run.progress.elapsedMs = Date.now() - Date.parse(startedAt);
       run.databaseWriteStatus = value.code.startsWith("AI_BRIDGE_") || value.code.startsWith("AI_INPUT_") ? "Not written - Bridge or input verification failed"
         : value.code === "AI_OUTPUT_SCHEMA_PREFLIGHT_FAILED" ? "Not written — local output schema validation failed before provider request"
         : value.code === "AI_OUTPUT_SCHEMA_PROVIDER_REJECTED" ? "Not written — Provider rejected output schema before turn start"
@@ -662,13 +668,13 @@ export function registerAiAnalysisIpc() {
         : failedStage === "starting_thread" || failedStage === "preflighting_capacity" || failedStage === "building_payload" || failedStage === "building_output_schema" || failedStage === "validating_output_schema" ? "Not written — failed before provider request"
         : failedStage === "receiving_response" || failedStage === "waiting_response" ? "Not written — Provider response incomplete"
         : "Not written — result validation failed";
-      const deduped = errorDeduplicator.record(runId, failedStage, value.code, value.message);
+      const deduped = errorDeduplicator.record(runId, String(failedStage), rootErrorCode, value.message);
       if (payload.mode === "CHATGPT" && runStagingFolder) {
         try {
           run.failedStagingPath = null;
-          if (run.artifactPaths) { const failedValidationPath = path.join(run.artifactPaths.canonical, "validation-report.json"); atomicWriteCanonical(failedValidationPath, { schemaVersion: "ai-analysis-validation-report-v1", runId, finalStatus: run.status, failedStage, rootErrorCode: value.code, message: value.message, aiTurnCompleted: (run.progress.turnCompletedCount ?? 0) > 0, aiReportedCount: run.providerReturnedRecordCount ?? 0, authoritativeDecisionCount: run.receivedDecisionCount ?? 0, canonicalRecordCount: run.canonicalRecordCount ?? 0, assemblyAllowed: false, sqliteAllowed: false, generatedAt: now() }); run.validationReportPath = failedValidationPath; }
+          if (run.artifactPaths) { const failedValidationPath = path.join(run.artifactPaths.canonical, "validation-report.json"); atomicWriteCanonical(failedValidationPath, { schemaVersion: "ai-analysis-validation-report-v1", runId, finalStatus: run.status, failedStage, rootErrorCode, derivedStatusCodes: run.lifecycle?.derivedStatusCodes ?? [], message: value.message, aiTurnCompleted: (run.progress.turnCompletedCount ?? 0) > 0, aiReportedCount: run.providerReturnedRecordCount ?? 0, authoritativeDecisionCount: run.receivedDecisionCount ?? 0, canonicalRecordCount: run.canonicalRecordCount ?? 0, assemblyAllowed: false, sqliteAllowed: false, generatedAt: now() }); run.validationReportPath = failedValidationPath; }
           persistRunDebugEvidence(runStagingFolder, run, requestEvidence, providerVisibleResponse === null ? undefined : { text: redactChatGptTextComplete(providerVisibleResponse) }, [{ at: startedAt, type: "analysis_started", runId }, { at: deduped.lastOccurredAt, type: "primary_error", ...deduped }], analysisUserActions);
-          atomicExport(path.join(runStagingFolder, "failed-run-manifest.json"), JSON.stringify({ runId, status: run.status, failedStage, errorCode: value.code, message: value.message, databaseWriteStatus: run.databaseWriteStatus, completedAt: run.completedAt }, null, 2));
+          atomicExport(path.join(runStagingFolder, "failed-run-manifest.json"), JSON.stringify({ runId, status: run.status, failedStage, errorCode: rootErrorCode, derivedStatusCodes: run.lifecycle?.derivedStatusCodes ?? [], message: value.message, databaseWriteStatus: run.databaseWriteStatus, completedAt: run.completedAt }, null, 2));
         } catch (stagingError) { run.progress.message += " Canonical evidence finalization failed: " + (stagingError instanceof Error ? stagingError.message : String(stagingError)); }
       }
     } finally { run.bridgeEvidence = chatgpt.getBridgeEvidence(runId) ?? run.bridgeEvidence ?? null; run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null; const archive = runArchives.get(runId); try { archive?.writeManifest(run); if (!["queued", "running", "validating", "retrying", "cancelling"].includes(run.status)) archive?.close("terminal"); } catch (archiveError) { run.progress.errorCode = "AI_RUN_ARCHIVE_FAILED"; run.progress.message += ` Archive finalization failed: ${archiveError instanceof Error ? archiveError.message : String(archiveError)}`; } if (run.status !== "queued") dispatchGuard.finish(runId); providerFailureEvidence.delete(runId); activeRunId = null; abortControllers.delete(runId); observedWorkspaceFiles.delete(runId); lastProviderUiNotifyAt.delete(runId); chatgpt.releaseBridge(runId); notify(event); }
@@ -744,7 +750,7 @@ export function registerAiAnalysisIpc() {
   });
 
   if (environment.supported && environment.values.AI_ANALYSIS_RULES_DIR) {
-    try { const resolved = resolveConfiguredPath(environment.values.AI_ANALYSIS_RULES_DIR, ""); rules = loadRulesSnapshot(resolved, [resolved, getAppRuntimeDir()]); } catch { /* surfaced in UI */ }
+    try { const resolved = resolveConfiguredPath(environment.values.AI_ANALYSIS_RULES_DIR, ""); rules = loadV0320RulesSnapshot(resolved, [resolved, getAppRuntimeDir(), bundledRulesDirectory]); } catch { /* surfaced in UI */ }
   }
   if (environment.supported && environment.values.AI_ANALYSIS_DB_PATH) {
     try { initializeAiDatabase(resolveConfiguredPath(environment.values.AI_ANALYSIS_DB_PATH, "")); } catch { /* fail closed on use */ }

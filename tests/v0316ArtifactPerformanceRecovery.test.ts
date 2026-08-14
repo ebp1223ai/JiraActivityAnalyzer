@@ -20,7 +20,7 @@ const records = Array.from({ length: recordCount }, (_, recordIndex) => ({
 const compact: any = { schemaVersion: "compact-v1", eventCount: recordCount, records };
 const rules: any = { snapshotId: rulesSnapshotId, ruleSetId: rulesSnapshotId, catalog: [{ id: "SKILL_1", name: "Skill One", group: "Synthetic" }] };
 const decisionDocument = {
-  schemaVersion: AI_DECISION_SCHEMA_VERSION, runId, sourceSha256, rulesSnapshotId, expectedRecordCount: recordCount,
+  schemaVersion: "ai-analysis-decisions-v1", runId, sourceSha256, rulesSnapshotId, expectedRecordCount: recordCount,
   decisions: records.map(({ recordIndex }) => ({ recordIndex, status: "UNKNOWN", skillIds: [], confidence: 0.2, positiveEvidence: [], negativeChecks: [], unknownReasons: [`Insufficient technical evidence for record ${recordIndex}`], rationale: `Rules were checked for record ${recordIndex}, but reliable classification evidence was unavailable.` }))
 };
 
@@ -37,7 +37,7 @@ try {
     [{ ...decisionDocument, decisions: decisionDocument.decisions.slice(1) }, "AI_DECISION_COUNT_MISMATCH"],
     [{ ...decisionDocument, sourceSha256: "b".repeat(64) }, "AI_DECISION_SOURCE_HASH_MISMATCH"],
     [{ ...decisionDocument, rulesSnapshotId: "wrong" }, "AI_DECISION_RULES_SNAPSHOT_MISMATCH"],
-    [{ ...decisionDocument, decisions: decisionDocument.decisions.map((item, index) => index === 0 ? { ...item, recordIndex: 1 } : item) }, "AI_DECISION_INDEX_DUPLICATE"],
+    [{ ...decisionDocument, decisions: decisionDocument.decisions.map((item, index) => index === 0 ? { ...item, recordIndex: 1 } : item) }, "AI_DECISION_INDEX_SET_MISMATCH"],
     [{ ...decisionDocument, decisions: decisionDocument.decisions.map((item, index) => index === 0 ? { ...item, unknownReasons: [] } : item) }, "AI_DECISION_SEMANTIC_VALIDATION_FAILED"],
     [{ ...decisionDocument, decisions: decisionDocument.decisions.map((item, index) => index === 0 ? { ...item, rationale: "" } : item) }, "AI_DECISION_SEMANTIC_VALIDATION_FAILED"],
     [{ ...decisionDocument, decisions: decisionDocument.decisions.map((item, index) => index === 0 ? { ...item, confidence: 2 } : item) }, "AI_DECISION_SEMANTIC_VALIDATION_FAILED"],

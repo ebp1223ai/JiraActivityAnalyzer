@@ -14,6 +14,10 @@ export function getAppRuntimeDir() {
   return getConfiguredAppRoot();
 }
 
+export function getBundledAnalysisRulesDir() {
+  return process.defaultApp ? path.resolve(process.cwd(), "rules", "v0.3.20") : path.join(process.resourcesPath, "bundled-rules", "v0.3.20");
+}
+
 export function getAppDataDir() {
   return appRootDirectories(getConfiguredAppRoot()).appData;
 }

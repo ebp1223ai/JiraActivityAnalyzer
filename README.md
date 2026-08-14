@@ -1,3 +1,10 @@
+## v0.3.20 Artifact Contract and Rule Set Alignment
+
+- Formal ChatGPT analysis now uses one versioned `jaa-ai-analysis-decisions-v2` direct-array contract for tool registration, Run schema evidence, validation, and canonical assembly.
+- Every Artifact submission attempt records metadata-only type, count, index coverage, schema hash, and precise failure evidence; secrets and raw arguments are not persisted.
+- JAA-computed Decision counts remain authoritative. Analysis Report count disagreements create `AI_REPORT_COUNT_MISMATCH` warnings and never override canonical results.
+- Bundled rules are Common Rules 1.2.0, Skill Catalog 0.3.1, and Manifest 0.2.0. Formal model delivery remains `bridge-resumable-v2`.
+
 ## v0.3.16 AI Analysis artifacts and recovery
 
 - Formal ChatGPT analysis uses one read-only four-file input workspace and one Run-scoped writable `ai-output` directory.
