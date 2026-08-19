@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "jaa-v0321-html-renderer-validation-v1",
+  "status": "passed",
+  "template": {
+    "fileName": "Skill_Analysis_HTML_Report_Template_v1.0.0.md",
+    "templateId": "JAA-SKILL-ANALYSIS-GOLDEN-HTML",
+    "version": "1.0.0",
+    "sha256": "aa3c7c0d4d919a7923eac3c3f43b2aad4f55ae4d39d4a4d407a63e0bce826ad9",
+    "providerVisible": false
+  },
+  "renderer": {
+    "version": "JAA-LOCAL-HTML-RENDERER-1.0.0",
+    "sourceSha256": "029f328237b0b52135c1d9b0aa85c7283fe9331b172d7315e66b0963bc18afe1"
+  },
+  "recordCountsTested": [
+    0,
+    17,
+    117
+  ],
+  "deterministicBytes": true,
+  "canonicalOnly": true,
+  "selfContained": true,
+  "networkAccess": false,
+  "xssAndScriptBreakoutEscaped": true,
+  "csvFormulaProtection": true,
+  "actions": [
+    "filters",
+    "details",
+    "copy authoritative summary",
+    "filtered CSV",
+    "print"
+  ],
+  "rerenderDispatchesProvider": false
+}

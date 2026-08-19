@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "jaa-v0321-artifact-manifest-v1",
+  "version": "0.3.21",
+  "generatedAtUtc": "2026-08-19T05:13:22.092Z",
+  "deliveryStatus": "automated_completed_manual_validation_pending",
+  "branch": "feat/v0.3.21-manifest-html-renderer-run-safe-sqlite",
+  "packageSourceCommit": "3230f6f68ff1810d43c94666bb97c81934f5d396",
+  "finalDeliveryCommit": "annotated tag v0.3.21 target",
+  "buildTime": "2026/08/19 13:04:13",
+  "buildTimeIso": "2026-08-19T05:04:13.656Z",
+  "dirtyState": true,
+  "dirtyStateReason": "Pre-existing unrelated tracked report preserved and excluded from package inputs.",
+  "artifacts": [
+    {
+      "fullPath": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.21.exe",
+      "fileName": "Jira Activity Analyzer Setup 0.3.21.exe",
+      "sizeBytes": 190578518,
+      "sha256": "c85ae432aab9e6692ee3700513cc2a4e91fe2b204e9bc1734d9d139e8f4b09f7"
+    },
+    {
+      "fullPath": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.21.exe",
+      "fileName": "Jira Activity Analyzer Portable 0.3.21.exe",
+      "sizeBytes": 190348416,
+      "sha256": "e10359e3df73db867e9cf8c4025896334e35388fd06d0d9d5757d6e320c6a479"
+    },
+    {
+      "fullPath": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+      "fileName": "Jira Activity Analyzer.exe",
+      "sizeBytes": 235706368,
+      "sha256": "fafb42c30ddf16ee9e8d4f1d1462bed62081aabd7c4dc616dde8780b06afb82f"
+    }
+  ],
+  "bundledCodex": {
+    "schemaVersion": "jaa-codex-runtime-manifest-v1",
+    "source": "bundled",
+    "runtimeMode": "BUNDLED_ONLY",
+    "version": "0.147.0",
+    "packageVersion": "0.147.0-win32-x64",
+    "platform": "win32",
+    "arch": "x64",
+    "relativeExecutablePath": "bin/codex.exe",
+    "sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+    "license": "Apache-2.0",
+    "licenseSource": "docs/CODEX_RUNTIME_NOTICE.txt",
+    "packageSource": "git+https://github.com/openai/codex.git",
+    "systemPathDiscovery": false,
+    "externalFallback": false,
+    "autoDownload": false
+  },
+  "bridge": {
+    "version": "0.3.21-bridge-v4",
+    "bundlePath": "F:\\AI\\JiraActivityAnalyzer\\dist-electron\\analysis-bridge-v0321.cjs",
+    "sizeBytes": 63490,
+    "sha256": "43c3da79fdb6f82c6693c19c551f774a560963999c16e2391ca98fe7cfe60ae7"
+  },
+  "htmlRenderer": {
+    "version": "JAA-LOCAL-HTML-RENDERER-1.0.0",
+    "sourcePath": "F:\\AI\\JiraActivityAnalyzer\\electron\\aiAnalysisHtmlRendererV0321.ts",
+    "sourceSizeBytes": 22292,
+    "sourceSha256": "029f328237b0b52135c1d9b0aa85c7283fe9331b172d7315e66b0963bc18afe1"
+  },
+  "rules": [
+    {
+      "fileName": "Skill_Analysis_HTML_Report_Template_v1.0.0.md",
+      "sizeBytes": 9001,
+      "sha256": "aa3c7c0d4d919a7923eac3c3f43b2aad4f55ae4d39d4a4d407a63e0bce826ad9"
+    },
+    {
+      "fileName": "Skill_Analysis_Rule_Set_Manifest.md",
+      "sizeBytes": 21488,
+      "sha256": "750284a585e45d50416236cceaafaba5b1bd0f328c086da243a4be9d1b654d3b"
+    },
+    {
+      "fileName": "Skill_Catalog_v0.3.1.md",
+      "sizeBytes": 24636,
+      "sha256": "dd1b4a366e4f7fdc3232776a7a6ff54070eae00cc41102c195de5b0deb749d7d"
+    },
+    {
+      "fileName": "Skill_Classification_Common_Rules_v1.2.1.md",
+      "sizeBytes": 18274,
+      "sha256": "ad2bc33e9f519f7b752b130a6c73bed6eeddb928083d8a2e28732b306de2fa07"
+    }
+  ],
+  "asar": {
+    "entryCount": 4686,
+    "sensitiveFilenameHits": 0,
+    "staleBridgeOrRulesHits": 0,
+    "requiredBridgeEntries": [
+      "\\dist-electron\\analysis-bridge-manifest.json",
+      "\\dist-electron\\analysis-bridge-v0321.cjs"
+    ]
+  },
+  "manualValidationPending": [
+    "Managed OAuth real 17/117 analysis",
+    "real production SQLite and Debug Folder end-to-end",
+    "clean Windows Installer GUI walkthrough"
+  ]
+}

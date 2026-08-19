@@ -1,0 +1,182 @@
+{
+  "schemaVersion": "jaa-v0321-execution-ledger-v1",
+  "version": "0.3.21",
+  "generatedAtUtc": "2026-08-19T05:13:22.092Z",
+  "observableExecutionWindow": {
+    "startedAtLocal": "2026-08-19 12:52:10",
+    "completedAtLocal": "2026-08-19 13:13:22",
+    "durationMs": 1272107,
+    "scope": "Retained evidence window only"
+  },
+  "preCompactionTiming": {
+    "availability": "unavailable",
+    "reason": "Context transition did not preserve phase timer state; no estimate reported."
+  },
+  "tokenTelemetry": {
+    "availability": "unavailable",
+    "reason": "Codex desktop did not expose actual per-task token counters."
+  },
+  "phases": [
+    {
+      "phase": "initial_audit",
+      "command_or_action": "pre-compaction repository/reference audit",
+      "startedAtLocal": null,
+      "startedAtUtc": null,
+      "completedAtLocal": null,
+      "completedAtUtc": null,
+      "durationMs": null,
+      "status": "completed_evidence_preserved",
+      "exitCode": 0,
+      "notes": "Timer unavailable after context transition; no estimate substituted."
+    },
+    {
+      "phase": "reference_hash_validation",
+      "command_or_action": "SHA-256 validation for four authoritative MD files",
+      "startedAtLocal": null,
+      "startedAtUtc": null,
+      "completedAtLocal": null,
+      "completedAtUtc": null,
+      "durationMs": null,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "All exact expected hashes matched; timer unavailable."
+    },
+    {
+      "phase": "implementation",
+      "command_or_action": "contract, renderer, IPC/UI, SQLite, debug evidence",
+      "startedAtLocal": null,
+      "startedAtUtc": null,
+      "completedAtLocal": null,
+      "completedAtUtc": null,
+      "durationMs": null,
+      "status": "completed",
+      "exitCode": 0,
+      "notes": "Began before retained timer window; no estimate substituted."
+    },
+    {
+      "phase": "typecheck",
+      "command_or_action": "npm.cmd run typecheck",
+      "startedAtLocal": "2026-08-19 12:56:06",
+      "startedAtUtc": "2026-08-19T04:56:06.000Z",
+      "completedAtLocal": "2026-08-19 12:56:18",
+      "completedAtUtc": "2026-08-19T04:56:18.200Z",
+      "durationMs": 12200,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "Standalone measured wall time."
+    },
+    {
+      "phase": "test",
+      "command_or_action": "npm.cmd run test:v0.3.21",
+      "startedAtLocal": "2026-08-19 13:02:35",
+      "startedAtUtc": "2026-08-19T05:02:35.000Z",
+      "completedAtLocal": "2026-08-19 13:02:41",
+      "completedAtUtc": "2026-08-19T05:02:41.000Z",
+      "durationMs": 6000,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "v0.3.21 focused + v0.3.20 contract + v0.3.19 transport."
+    },
+    {
+      "phase": "build",
+      "command_or_action": "npm.cmd run build",
+      "startedAtLocal": "2026-08-19 13:03:01",
+      "startedAtUtc": "2026-08-19T05:03:01.000Z",
+      "completedAtLocal": "2026-08-19 13:03:15",
+      "completedAtUtc": "2026-08-19T05:03:15.886Z",
+      "durationMs": 14886,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "Final source build."
+    },
+    {
+      "phase": "source_commit",
+      "command_or_action": "git commit feat: add manifest-bound HTML and run-safe SQLite",
+      "startedAtLocal": "2026-08-19 13:03:54",
+      "startedAtUtc": "2026-08-19T05:03:54.000Z",
+      "completedAtLocal": "2026-08-19 13:03:58",
+      "completedAtUtc": "2026-08-19T05:03:58.300Z",
+      "durationMs": 4300,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "3230f6f68ff1810d43c94666bb97c81934f5d396"
+    },
+    {
+      "phase": "dist",
+      "command_or_action": "JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist",
+      "startedAtLocal": "2026-08-19 13:04:05",
+      "startedAtUtc": "2026-08-19T05:04:05.000Z",
+      "completedAtLocal": "2026-08-19 13:05:57",
+      "completedAtUtc": "2026-08-19T05:05:57.351Z",
+      "durationMs": 112351,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "Authorized because unrelated pre-existing tracked report remained dirty."
+    },
+    {
+      "phase": "asar_security",
+      "command_or_action": "ASAR inventory and sensitive filename scan",
+      "startedAtLocal": "2026-08-19 13:06:54",
+      "startedAtUtc": "2026-08-19T05:06:54.000Z",
+      "completedAtLocal": "2026-08-19 13:06:59",
+      "completedAtUtc": "2026-08-19T05:06:59.700Z",
+      "durationMs": 5700,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "4686 entries; zero sensitive filenames; zero stale bridge/rules."
+    },
+    {
+      "phase": "win_unpacked_launch",
+      "command_or_action": "win-unpacked short launch",
+      "startedAtLocal": "2026-08-19 13:08:08",
+      "startedAtUtc": "2026-08-19T05:08:08.130Z",
+      "completedAtLocal": "2026-08-19 13:08:16",
+      "completedAtUtc": "2026-08-19T05:08:16.415Z",
+      "durationMs": 8285,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "4 owned processes; 6 logs; zero failure patterns."
+    },
+    {
+      "phase": "portable_attempt_1",
+      "command_or_action": "Portable 7-second launch",
+      "startedAtLocal": "2026-08-19 13:08:16",
+      "startedAtUtc": "2026-08-19T05:08:16.425Z",
+      "completedAtLocal": "2026-08-19 13:08:24",
+      "completedAtUtc": "2026-08-19T05:08:24.548Z",
+      "durationMs": 8123,
+      "status": "inconclusive",
+      "exitCode": 0,
+      "notes": "Launcher still extracting; no Electron child."
+    },
+    {
+      "phase": "portable_attempt_2",
+      "command_or_action": "Portable 18-second launch",
+      "startedAtLocal": "2026-08-19 13:08:41",
+      "startedAtUtc": "2026-08-19T05:08:41.590Z",
+      "completedAtLocal": "2026-08-19 13:08:59",
+      "completedAtUtc": "2026-08-19T05:08:59.974Z",
+      "durationMs": 18384,
+      "status": "inconclusive",
+      "exitCode": 0,
+      "notes": "Only launcher observed; not counted as App success."
+    },
+    {
+      "phase": "portable_attempt_3",
+      "command_or_action": "Portable bounded child-process launch",
+      "startedAtLocal": "2026-08-19 13:09:20",
+      "startedAtUtc": "2026-08-19T05:09:20.748Z",
+      "completedAtLocal": "2026-08-19 13:09:34",
+      "completedAtUtc": "2026-08-19T05:09:34.965Z",
+      "durationMs": 14217,
+      "status": "passed",
+      "exitCode": 0,
+      "notes": "Actual Jira Activity Analyzer.exe process tree; 6 logs; zero failure patterns."
+    }
+  ],
+  "postReportActions": [
+    "Final Delivery Commit",
+    "annotated tag v0.3.21",
+    "push branch and tag"
+  ]
+}

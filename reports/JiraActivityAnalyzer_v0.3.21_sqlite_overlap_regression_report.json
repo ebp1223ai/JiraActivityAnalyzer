@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "jaa-v0321-sqlite-overlap-regression-v1",
+  "status": "passed",
+  "databaseSchemaVersion": 2,
+  "syntheticOnly": true,
+  "firstRunRecords": 17,
+  "sameRunRetry": "already_committed",
+  "differentRunRecords": 117,
+  "secondDifferentRunRecords": 117,
+  "coexistingRawResultCount": 251,
+  "sameRunChildSetReplacement": "passed",
+  "forcedChildFailureRollback": "passed",
+  "productionDatabaseTouched": false,
+  "identityFields": [
+    "analysisRunId",
+    "sourceRecordStableId",
+    "sourceContentHash",
+    "rulesSnapshotId"
+  ],
+  "failureLifecycle": "completed_with_persistence_error"
+}

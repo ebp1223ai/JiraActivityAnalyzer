@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "jaa-v0321-contract-alignment-report-v1",
+  "status": "passed",
+  "decisionContract": "jaa-ai-analysis-decisions-v2",
+  "sources": [
+    "Dynamic Tool schema",
+    "control/output-schema.json",
+    "Standard Formal",
+    "TypeScript types/decode",
+    "semantic validator",
+    "Canonical assembler",
+    "fixtures"
+  ],
+  "statusMatrixStatuses": [
+    "CLASSIFIED",
+    "UNKNOWN",
+    "NEEDS_REVIEW",
+    "EXCLUDED",
+    "CATALOG_DETAIL_MISSING",
+    "FAILED"
+  ],
+  "legacyRegressionFindingCount": 28,
+  "providerInput": {
+    "pendingJson": 1,
+    "referenceMarkdown": 3,
+    "templateMarkdownLocal": 1,
+    "templateSent": false
+  },
+  "singleThread": true,
+  "singlePrimaryTurn": true,
+  "singleArtifactSubmission": true,
+  "batchCount": 0,
+  "repairTurnCount": 0,
+  "fallbackRequestCount": 0,
+  "fixedDistributionForbidden": true
+}
