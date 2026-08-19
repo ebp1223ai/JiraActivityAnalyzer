@@ -3,13 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { AiAnalysisError, type AiPendingDataset, type AiRulesSnapshot, type AiAnalysisRequestPackage, type RequestPackageDocument, type RequestDocumentRole, type AiAnalysisErrorCode } from "../shared/aiAnalysisContract.js";
 import { atomicExport } from "./aiAnalysisCore.js";
-import { composeEffectiveInstruction, DEFAULT_ANALYSIS_INSTRUCTION, SYSTEM_SAFETY_WRAPPER } from "./aiAnalysisInstructionV0321.js";
+import { composeEffectiveInstruction, DEFAULT_ANALYSIS_INSTRUCTION, SYSTEM_SAFETY_WRAPPER } from "./aiAnalysisInstructionV0322.js";
 import type { AiInstructionMode } from "../shared/analysisInstructionContract.js";
-import { getDecisionContractDescriptor } from "./aiAnalysisDecisionContractV0321.js";
+import { getDecisionContractDescriptor } from "./aiAnalysisDecisionContractV0322.js";
 
 export const REQUEST_PACKAGE_VERSION = "ai-analysis-request-package-v5" as const;
 export const CORE_INSTRUCTION_NAME = "jira-activity-analysis-local-workspace-instruction" as const;
-export const CORE_INSTRUCTION_VERSION = "0.3.21-zh-TW-v4" as const;
+export const CORE_INSTRUCTION_VERSION = "0.3.22-zh-TW-v5" as const;
 export const PROVIDER_DELIVERY_MODE = "LOCAL_FILE_WORKSPACE" as const;
 
 function sha256(value: Buffer | string) { return crypto.createHash("sha256").update(value).digest("hex"); }

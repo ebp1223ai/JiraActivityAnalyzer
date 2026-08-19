@@ -1,3 +1,10 @@
+# v0.3.22 - Decision v3, Readable Evidence and Advanced HTML
+
+- Added strict Decision v3 per-skill findings with numeric confidence and exact evidence traceability.
+- Added deterministic Evidence Normalizer 1.0.0 and run-scoped Current-State Issue Snapshot receipts.
+- Added Schema, Semantic and Quality gates with durable warning acceptance and run-safe SQLite enforcement.
+- Upgraded the offline HTML renderer to 1.2.0 with Event/Unique-Issue statistics, multi-select filters, sorting, pagination, field visibility and data dictionary.
+- Added canonical debug completeness evidence and truthful HTML/SQLite lifecycle separation.
 # v0.3.21 - Manifest-bound Golden HTML and Run-safe SQLite
 
 - Bound the local Golden HTML template to the verified Rule Set Manifest while keeping Provider delivery at one Pending JSON plus three Markdown references.

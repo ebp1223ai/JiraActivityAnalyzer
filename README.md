@@ -1,3 +1,8 @@
+## v0.3.22 Decision v3、Readable Evidence 與 Advanced HTML
+
+v0.3.22 將正式 ChatGPT Artifact 升級為 direct-array Decision v3，每個 Skill Finding 具備獨立 Evidence Quote、Explanation、Negative Checks、Rationale 與 numeric confidence。JAA 本機負責 deterministic Evidence Normalization、Schema／Semantic／Quality Gate、Run-scoped Issue Snapshot、Canonical Result、離線 HTML 1.2.0 與 run-safe SQLite。Quality WARNING 必須經 durable 人工接受，BLOCKED 不可繞過；HTML 或 SQLite 失敗不會抹除已建立的 Canonical Result。
+
+正式模型輸入仍為 1 JSON + 3 MD；HTML Template 不送給 ChatGPT。歷史 Decision v2 僅能以 `LEGACY_UNVERIFIED` 預覽。
 ## v0.3.21 Manifest-bound Golden HTML and Run-safe SQLite
 
 - The verified Rule Set Manifest binds the local HTML template. ChatGPT still receives exactly one Pending JSON and three analysis-reference Markdown files; the template is local-only.

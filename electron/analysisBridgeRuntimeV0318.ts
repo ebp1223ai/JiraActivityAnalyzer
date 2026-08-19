@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { TextDecoder } from "node:util";
 import { ANALYSIS_BRIDGE_SCHEMA_VERSION, ANALYSIS_BRIDGE_VERSION, type AnalysisBridgeToolContext, type AnalysisLifecycleStage, type AnalysisLifecycleSummary } from "../shared/analysisBridgeContract.js";
-import { AI_ARTIFACT_SUBMISSION_VERSION, AI_DECISION_CONTRACT_VERSION, createArtifactSubmissionSchema, getDecisionContractDescriptor, observeDecisionDocument, primaryDecisionError, validateDecisionArray } from "./aiAnalysisDecisionContractV0321.js";
+import { AI_ARTIFACT_SUBMISSION_VERSION, AI_DECISION_CONTRACT_VERSION, createArtifactSubmissionSchema, getDecisionContractDescriptor, observeDecisionDocument, primaryDecisionError, validateDecisionArray } from "./aiAnalysisDecisionContractV0322.js";
 
 type JsonObject = Record<string, unknown>;
 type RequestDocument = { role: string; snapshotRelativePath: string; originalFileName: string; mimeType: string; encoding: string; snapshotByteLength: number; snapshotSha256: string; complete: boolean; truncated: boolean; byteIdentical: boolean };

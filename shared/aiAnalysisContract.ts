@@ -143,7 +143,7 @@ export type AiAnalyzerMode = "CHATGPT" | "AI_NEXUS" | "OFFLINE_RULE";
 export type AiApiContract = "responses" | "chat_completions";
 export type AiAuthType = "bearer" | "api_key";
 export type AiAnalysisStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED" | "NEEDS_REVIEW" | "UNKNOWN" | "EXCLUDED";
-export type AiRunStatus = "queued" | "preparing" | "running" | "validating" | "retrying" | "cancelling" | "cancelled" | "completed" | "completed_with_warnings" | "completed_with_persistence_error" | "partial" | "failed" | "failed_validation" | "provider_failed" | "provider_timeout" | "interrupted" | "recovered_interrupted";
+export type AiRunStatus = "queued" | "preparing" | "running" | "validating" | "retrying" | "cancelling" | "cancelled" | "completed" | "completed_with_warnings" | "completed_with_quality_warnings" | "completed_with_artifact_error" | "completed_with_persistence_error" | "partial" | "failed" | "failed_validation" | "provider_failed" | "provider_timeout" | "interrupted" | "recovered_interrupted";
 export type AiRunStage = "idle" | "preparing_artifacts" | "waiting_artifacts" | "validating_artifacts_v0316" | "assembling_canonical" | "flushing_logs" | "validating_source" | "validating_rules" | "building_payload" | "building_output_schema" | "validating_output_schema" | "output_schema_ready" | "preflighting_capacity" | "waiting_capacity_confirmation" | "starting_thread" | "starting_turn" | "waiting_response" | "receiving_response" | "validating_response" | "validating_response_schema" | "validating_identity" | "validating_catalog" | "merging_evidence" | "writing_staging" | "writing_formal_artifacts" | "validating_artifacts" | "rendering_html" | "committing_database" | "completed" | "cancelling" | "cancelled" | "failed";
 export type AiClassificationStatus = "MATCHED" | "EXCLUDED" | "UNKNOWN" | "CATALOG_DETAIL_MISSING" | "NEEDS_REVIEW";
 export type AiCandidateClassificationStatus = Exclude<AiClassificationStatus, "UNKNOWN">;
@@ -411,6 +411,9 @@ export type AiAnalysisCandidate = {
   negativeEvidenceRefs: string[];
   rejectedNearSkills?: AiRejectedNearSkill[];
   evidenceQuote?: string;
+  evidenceQuotes?: Array<{ evidenceRef: string; quote: string }>;
+  evidenceExplanation?: string;
+  skillRationale?: string;
   matchedRuleIds: string[];
   reason: string;
   status: AiAnalysisStatus;
@@ -429,6 +432,11 @@ export type AiDiffAnalysisResult = {
   sourceRecordStableId?: string;
   activityEventId?: string;
   evidenceId?: string;
+  decisionConfidence?: number;
+  decisionRationale?: string;
+  recordNegativeChecks?: string[];
+  derivedSkillIds?: string[];
+  issueSnapshot?: { issueId: string | null; issueKey: string; projectKey: string; issueType: { id: string | null; name: string } | null; priority: { id: string | null; name: string } | null; jiraStatus: { id: string | null; name: string } | null };
   classificationStatus?: AiClassificationStatus;
   reviewStatus?: AiReviewStatus;
   reviewAttention?: AiReviewAttention;
@@ -538,6 +546,7 @@ export type AiAnalysisRun = {
   canonicalRecordCount?: number;
   finalAcceptedRecordCount?: number;
   anomalyWarnings?: string[];
+  reportEnrichmentWarnings?: string[];
   warningAcceptance?: { accepted: boolean; acceptedAt: string | null; warnings: string[]; auditFilePath: string | null } | null;
   analysisReportPath?: string | null;
   analysisReportContent?: string | null;
@@ -592,6 +601,14 @@ export type AiAnalysisRun = {
   htmlRenderDiagnosticsPath?: string | null;
   databaseCommitReceiptPath?: string | null;
   databaseCommitFailurePath?: string | null;
+  decisionContractVersion?: string | null;
+  evidenceNormalizerVersion?: string | null;
+  qualityGate?: { contractVersion: string; status: "PASSED" | "WARNING" | "BLOCKED" | "LEGACY_UNVERIFIED"; warnings: string[]; blockers: string[]; metrics: Record<string, unknown> } | null;
+  qualityGateReportPath?: string | null;
+  evidenceNormalizationReceiptPath?: string | null;
+  issueSnapshotPath?: string | null;
+  issueSnapshotReceiptPath?: string | null;
+  uniqueIssueCount?: number;
   validationGate?: { passed: boolean; inputCount: number; outputCount: number; missingStableIds: string[]; duplicateStableIds: string[]; unexpectedStableIds: string[]; catalogInvalidSkillIds: string[]; formalJsonAllowed: boolean; goldenHtmlAllowed: boolean; sqliteAllowed: boolean } | null;
   distributionDiagnostics?: {
     candidateCount: number;

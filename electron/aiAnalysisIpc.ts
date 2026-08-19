@@ -30,7 +30,7 @@ import {
   loadAiEnvironment,
   loadPendingDataset,
   loadRulesSnapshot,
-  loadV0321RulesSnapshot,
+  loadV0322RulesSnapshot,
   persistCompletedRun,
   persistReview,
   saveAiSettings,
@@ -42,8 +42,11 @@ import { redactChatGptText, redactChatGptTextComplete, sanitizeChatGptValueCompl
 import { buildRequestPackage, loadRequestPackage } from "./aiAnalysisRequestPackageV0314.js";
 import { AiAnalysisRunArchive, deleteRunArchive, loadArchivedRuns, readConversationPage, updateArchivedLifecycle } from "./aiAnalysisRunArchiveV0314.js";
 import { validateCanonicalResponseSemantics } from "./aiAnalysisResponseContractV0314.js";
-import { freezeBoundHtmlTemplate, HTML_RENDERER_VERSION, renderCanonicalHtml } from "./aiAnalysisHtmlRendererV0321.js";
-import { persistCompletedRunV0321, type DatabaseCommitFailure } from "./aiAnalysisSqliteV0321.js";
+import { freezeBoundHtmlTemplate, HTML_RENDERER_VERSION, renderCanonicalHtml } from "./aiAnalysisHtmlRendererV0322.js";
+import { persistCompletedRunV0322, type DatabaseCommitFailure } from "./aiAnalysisSqliteV0322.js";
+import { EVIDENCE_NORMALIZER_VERSION, normalizeEvidenceSet } from "./aiAnalysisEvidenceNormalizerV0322.js";
+import { buildRunIssueSnapshots, calculateIssueStatistics, loadRunIssueSnapshotsFromSqlite } from "./aiAnalysisIssueSnapshotV0322.js";
+import { evaluateDecisionQuality } from "./aiAnalysisQualityV0322.js";
 import {
   adaptLegacyAnalyzedRun,
   buildCompactPayload,
@@ -68,7 +71,7 @@ import {
   stableJson,
   verifyInputWorkspaceUnchanged,
   warningPersistenceGate
-} from "./aiAnalysisArtifactsV0316.js";
+} from "./aiAnalysisArtifactsV0322.js";
 import {
   AnalysisDispatchGuard,
   AnalysisErrorDeduplicator,
@@ -145,6 +148,8 @@ function renderExistingCanonical(run: AiAnalysisRun) {
     return result;
   } catch (error) {
     run.htmlRenderStatus = "failed"; getChatGptService().setBridgeHtmlRenderStatus(run.runId, "failed"); if (run.lifecycle) run.lifecycle.htmlRenderStatus = "failed";
+    const failedReceipt = { schemaVersion: "jaa-html-render-receipt-v2", runId: run.runId, canonicalResultPath: run.analyzedFilePath, canonicalResultSha256: run.analyzedFileSha256 ?? null, templateFileName: path.basename(run.htmlTemplateSnapshotPath), rendererVersion: HTML_RENDERER_VERSION, attemptNumber, renderStartedAt: null, renderCompletedAt: now(), atomicWrite: false, reopenVerified: false, status: "failed", errorCode: error instanceof AiAnalysisError ? error.code : "AI_HTML_RENDER_FAILED", errorDetail: error instanceof Error ? error.message : String(error) };
+    atomicExport(priorReceipt, JSON.stringify(failedReceipt, null, 2) + "\n"); run.htmlRenderReceiptPath = priorReceipt;
     const diagnostics = path.join(run.runDirectory, "debug", "html-render-diagnostics.json"); fs.mkdirSync(path.dirname(diagnostics), { recursive: true }); atomicExport(diagnostics, JSON.stringify({ schemaVersion: "jaa-html-render-diagnostics-v1", runId: run.runId, status: "failed", errorCode: error instanceof AiAnalysisError ? error.code : "AI_HTML_RENDER_FAILED", message: error instanceof Error ? error.message : String(error), providerTurnStatus: run.lifecycle?.providerTurnStatus ?? null, canonicalStatus: run.lifecycle?.canonicalStatus ?? "created" }, null, 2)); run.htmlRenderDiagnosticsPath = diagnostics;
     throw error;
   }
@@ -157,7 +162,8 @@ function commitExistingCanonical(databasePath: string, dataset: AiPendingDataset
   let attemptNumber = 1;
   for (const candidate of [receiptPath, failurePath]) try { attemptNumber = Math.max(attemptNumber, Number(JSON.parse(fs.readFileSync(candidate, "utf8")).attemptNumber ?? 0) + 1); } catch { /* No prior evidence. */ }
   try {
-    const receipt = persistCompletedRunV0321(databasePath, dataset, run, { attemptNumber });
+    const warningAcceptance = run.warningAcceptance?.accepted && run.warningAcceptance.acceptedAt && run.analyzedFileSha256 ? { accepted: true, runId: run.runId, acceptedAt: run.warningAcceptance.acceptedAt, canonicalSha256: run.analyzedFileSha256 } : undefined;
+    const receipt = persistCompletedRunV0322(databasePath, dataset, run, { attemptNumber, qualityReport: run.qualityGate as any, warningAcceptance });
     atomicExport(receiptPath, JSON.stringify(receipt, null, 2) + "\n");
     run.databasePath = databasePath; run.databaseCommitReceiptPath = receiptPath; run.databaseCommitFailurePath = null; run.databaseWriteStatus = receipt.status === "already_committed" ? "Already committed - " + receipt.committedRecordCount + " validated records" : "Written - " + receipt.committedRecordCount + " validated records"; run.sqliteCommittedRecordCount = receipt.committedRecordCount; getChatGptService().setBridgeSqliteStatus(run.runId, "committed"); if (run.lifecycle) run.lifecycle.sqliteStatus = "committed";
     return { ok: true as const, receipt };
@@ -196,6 +202,23 @@ function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requ
     const source = path.join(stagingFolder, name);
     if (fs.existsSync(source)) fs.copyFileSync(source, path.join(folder, name));
   }
+  const canonicalEvidence: Array<{ source: string | null | undefined; target: string; role: string; expected: boolean; reason: string }> = [
+    { source: run.qualityGateReportPath, target: "quality-gate-report.json", role: "quality_gate", expected: Boolean(run.canonicalRecordCount), reason: "canonical validation completed" },
+    { source: run.evidenceNormalizationReceiptPath, target: "evidence-normalization-receipt.json", role: "normalization_receipt", expected: Boolean(run.requestPackage), reason: "formal input prepared" },
+    { source: run.issueSnapshotPath, target: "issue-snapshots.json", role: "issue_snapshot", expected: Boolean(run.requestPackage), reason: "formal input prepared" },
+    { source: run.issueSnapshotReceiptPath, target: "issue-snapshot-receipt.json", role: "issue_snapshot_receipt", expected: Boolean(run.requestPackage), reason: "formal input prepared" },
+    { source: run.htmlTemplateSnapshotPath, target: run.htmlTemplateSnapshotPath ? path.basename(run.htmlTemplateSnapshotPath) : "html-template.md", role: "html_template", expected: Boolean(run.requestPackage), reason: "template frozen before dispatch" },
+    { source: run.htmlRenderReceiptPath, target: "html-render-receipt.json", role: "html_receipt", expected: run.lifecycle?.canonicalStatus === "created", reason: "canonical created" },
+    { source: run.reportFilePath, target: "analysis-result.html", role: "rendered_html", expected: run.htmlRenderStatus === "completed", reason: run.htmlRenderStatus === "completed" ? "HTML completed" : "not produced due to render lifecycle" },
+    { source: run.databaseCommitReceiptPath ?? run.databaseCommitFailurePath, target: run.databaseCommitReceiptPath ? "database-commit-receipt.json" : "database-commit-failure.json", role: "sqlite_evidence", expected: run.lifecycle?.sqliteStatus === "committed" || run.lifecycle?.sqliteStatus === "commit_failed", reason: "SQLite attempted" }
+  ];
+  const completeness = canonicalEvidence.map((entry) => {
+    const present = Boolean(entry.source && fs.existsSync(entry.source));
+    if (present) fs.copyFileSync(entry.source!, path.join(folder, entry.target));
+    return { relativePath: entry.target, role: entry.role, classification: present ? "expected_and_present" : entry.expected ? "expected_but_missing" : run.lifecycle?.canonicalStatus !== "created" ? "not_produced_due_to_prior_failure" : "not_expected_due_to_lifecycle", expectedReason: entry.reason, bytes: present ? fs.statSync(entry.source!).size : 0, sha256: present ? crypto.createHash("sha256").update(fs.readFileSync(entry.source!)).digest("hex") : null, flushStatus: "flushed", collectionSource: entry.source ?? null };
+  });
+  writeJson("debug-completeness.json", { schemaVersion: "jaa-debug-completeness-v2", runId: run.runId, entries: completeness, flushStatus: "completed" });
+  writeJson("debug-file-manifest.json", { schemaVersion: "jaa-debug-file-manifest-v2", runId: run.runId, generatedAt: now(), files: completeness });
   return folder;
 }
 let selectedCanonicalAiRunDirectory: string | null = null;
@@ -209,7 +232,7 @@ export function registerAiAnalysisIpc() {
   chatgpt.subscribeStatus(() => BrowserWindow.getAllWindows().forEach((window) => window.webContents.send("ai-analysis:snapshot-changed", snapshot())));
   const bundledRulesDirectory = getBundledAnalysisRulesDir();
   let rules: AiRulesSnapshot | null = null;
-  try { if (fs.existsSync(bundledRulesDirectory)) rules = loadV0321RulesSnapshot(bundledRulesDirectory, [bundledRulesDirectory]); } catch { /* surfaced in UI */ }
+  try { if (fs.existsSync(bundledRulesDirectory)) rules = loadV0322RulesSnapshot(bundledRulesDirectory, [bundledRulesDirectory]); } catch { /* surfaced in UI */ }
   const pendingDatasets: AiPendingDataset[] = [];
   const runs: AiAnalysisRun[] = loadArchivedRuns();
   const runArchives = new Map<string, AiAnalysisRunArchive>(runs.filter((run) => run.runDirectory && run.progress.errorCode !== "AI_RUN_ARCHIVE_FAILED").map((run) => [run.runId, AiAnalysisRunArchive.reopen(run.runId, run.runDirectory!)]));
@@ -407,14 +430,14 @@ export function registerAiAnalysisIpc() {
     analysisUserActions.push(`${now()} Select rules requested`);
     const choice = await dialog.showOpenDialog({ title: "Select AI analysis rules folder", properties: ["openDirectory"] });
     if (choice.canceled || !choice.filePaths[0]) return { canceled: true, snapshot: snapshot() };
-    try { rules = loadV0321RulesSnapshot(choice.filePaths[0], [choice.filePaths[0], getAppRuntimeDir(), bundledRulesDirectory]); return { canceled: false, snapshot: snapshot() }; }
+    try { rules = loadV0322RulesSnapshot(choice.filePaths[0], [choice.filePaths[0], getAppRuntimeDir(), bundledRulesDirectory]); return { canceled: false, snapshot: snapshot() }; }
     catch (error) { return { canceled: false, ...errorPayload(error), snapshot: snapshot() }; }
   });
   ipcMain.handle("ai-analysis:load-rules", async () => {
     try {
       const configured = rules?.rulesDirectoryPath || environment.values.AI_ANALYSIS_RULES_DIR || bundledRulesDirectory;
       const resolved = resolveConfiguredPath(configured, "");
-      rules = loadV0321RulesSnapshot(resolved, [resolved, getAppRuntimeDir(), bundledRulesDirectory]);
+      rules = loadV0322RulesSnapshot(resolved, [resolved, getAppRuntimeDir(), bundledRulesDirectory]);
       return { ok: true, snapshot: snapshot() };
     } catch (error) { return { ...errorPayload(error), snapshot: snapshot() }; }
   });
@@ -490,7 +513,7 @@ export function registerAiAnalysisIpc() {
     if (payload.selectedDiffIds.some((id) => !selectedDataset.diffs.some((diff) => diff.sourceDiffId === id))) return errorPayload(new AiAnalysisError("SOURCE_MISMATCH", "Selected diff does not belong to the selected dataset."));
     try {
       if (!rules.rulesDirectoryPath || !dataset.sourceFilePath) throw new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Rules and dataset source paths are required for preflight.");
-      const refreshedRules = loadV0321RulesSnapshot(rules.rulesDirectoryPath, [rules.rulesDirectoryPath, getAppRuntimeDir(), bundledRulesDirectory]);
+      const refreshedRules = loadV0322RulesSnapshot(rules.rulesDirectoryPath, [rules.rulesDirectoryPath, getAppRuntimeDir(), bundledRulesDirectory]);
       const refreshedDataset = loadPendingDataset(dataset.sourceFilePath);
       if (!refreshedRules.valid) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", refreshedRules.errors.join(" ") || "Rules validation failed.");
       if (refreshedDataset.sourceFileSha256 !== dataset.sourceFileSha256) throw new AiAnalysisError("SOURCE_MISMATCH", "Pending Dataset changed after selection; import it again.");
@@ -541,8 +564,23 @@ export function registerAiAnalysisIpc() {
         run.progress.message = "Preparing the run-scoped read-only local file workspace.";
         notify(event);
         const compact = buildCompactPayload(dataset, payload.selectedDiffIds, run.rules);
+        const normalization = normalizeEvidenceSet(compact.payload.records.map((record) => ({ evidenceRef: record.evidenceId, rawText: [...record.addedText, ...record.removedText].join("\n"), sourceProvenance: record.sourceProvenance, fieldName: record.fieldName })));
+        const evidenceByRecord = normalization.records.map((record) => [{ evidenceRef: record.evidenceRef, normalizedText: record.normalizedText }]);
+        run.decisionContractVersion = "jaa-ai-analysis-decisions-v3";
+        run.evidenceNormalizerVersion = EVIDENCE_NORMALIZER_VERSION;
         if (!run.runDirectory) throw new AiAnalysisError("AI_RUN_ARCHIVE_FAILED", "Canonical Run directory is unavailable.");
         const stagingFolder = ensureDir(run.runDirectory);
+        const normalizationReceipt = atomicExport(path.join(ensureDir(path.join(stagingFolder, "derived")), "evidence-normalization-receipt.json"), JSON.stringify(normalization.receipt, null, 2) + "\n");
+        run.evidenceNormalizationReceiptPath = normalizationReceipt.filePath;
+        const enrichmentFolder = ensureDir(path.join(stagingFolder, "report-enrichment"));
+        const issueKeys = compact.payload.records.map((record) => record.issueKey);
+        const currentStateSetting = environment.values.LOCAL_DB_PATH || environment.values.LOCAL_DATABASE_PATH;
+        let enrichment = buildRunIssueSnapshots(issueKeys, () => null, { sourceDatabaseIdentity: null });
+        if (currentStateSetting) try { enrichment = loadRunIssueSnapshotsFromSqlite(resolveConfiguredPath(currentStateSetting, ""), issueKeys); }
+        catch (snapshotError) { enrichment.receipt.diagnostics.push(`ISSUE_SNAPSHOT_DATABASE_READ_FAILED:${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`); }
+        const issueSnapshotArtifact = atomicExport(path.join(enrichmentFolder, "issue-snapshots.json"), JSON.stringify({ schemaVersion: "jaa-run-issue-snapshots-v1", snapshots: enrichment.snapshots }, null, 2) + "\n");
+        const issueSnapshotReceiptArtifact = atomicExport(path.join(enrichmentFolder, "issue-snapshot-receipt.json"), JSON.stringify(enrichment.receipt, null, 2) + "\n");
+        run.issueSnapshotPath = issueSnapshotArtifact.filePath; run.issueSnapshotReceiptPath = issueSnapshotReceiptArtifact.filePath; run.reportEnrichmentWarnings = enrichment.warning ? [enrichment.warning] : [];
         runStagingFolder = stagingFolder;
         const compactArtifact = resumedRun && run.compactPayloadPath && run.compactPayloadSha256 && run.compactPayloadSizeBytes !== null && run.compactPayloadSizeBytes !== undefined
           ? { filePath: run.compactPayloadPath, sha256: run.compactPayloadSha256, sizeBytes: run.compactPayloadSizeBytes }
@@ -614,17 +652,24 @@ export function registerAiAnalysisIpc() {
         run.analysisReportContent = artifacts.reportText; run.finalAssistantMessage = artifacts.finalText; run.finalAssistantMessagePath = artifacts.finalText ? artifactPaths.finalMessage : null;
         const raw = stageVisibleProviderResponse(stagingFolder, response.text); run.providerResponseRawPath = raw.rawFilePath; run.providerResponseGzipPath = raw.filePath; run.providerResponseSha256 = raw.rawSha256; run.providerResponseGzipSha256 = raw.gzipSha256;
         const validationStarted = Date.now(); run.status = "validating"; run.progress.status = "validating"; run.progress.stage = "validating_artifacts_v0316";
-        const validated = parseAndValidateDecisions(artifacts.decisionsText, { runId, sourceSha256: dataset.sourceFileSha256, rulesSnapshotId: run.rules.snapshotId ?? run.rules.ruleSetId, recordCount: compact.payload.eventCount, catalogSkillIds: run.rules.catalog.map((item) => item.id) });
+        const validated = parseAndValidateDecisions(artifacts.decisionsText, { runId, sourceSha256: dataset.sourceFileSha256, rulesSnapshotId: run.rules.snapshotId ?? run.rules.ruleSetId, recordCount: compact.payload.eventCount, catalogSkillIds: run.rules.catalog.map((item) => item.id), evidenceByRecord });
         run.receivedDecisionCount = validated.validation.actualCount; run.providerReturnedRecordCount = validated.validation.actualCount; run.parsedRecordCount = validated.validation.actualCount; run.schemaValidRecordCount = validated.validation.valid ? validated.validation.actualCount : 0; run.semanticValidRecordCount = validated.validation.semanticValidCount; run.progress.resultRecordCount = validated.validation.actualCount; run.progress.completedDiffs = validated.validation.actualCount; notify(event);
         atomicWriteCanonical(artifactPaths.validationReport, { schemaVersion: "ai-analysis-validation-report-v1", runId, sourceSha256: dataset.sourceFileSha256, rulesSnapshotId: run.rules.snapshotId ?? run.rules.ruleSetId, decisionSha256: artifacts.hashes.decisions, expectedCount: compact.payload.eventCount, actualCount: validated.validation.actualCount, findings: validated.validation.findings, warnings: validated.validation.warnings, distribution: validated.validation.distribution, evidenceCoverage: validated.validation.evidenceCoverage, reportPresent: Boolean(artifacts.reportText), finalMessagePresent: Boolean(artifacts.finalText), validatedAt: now(), validationDurationMs: Date.now() - validationStarted }); run.validationReportPath = artifactPaths.validationReport;
         if (!validated.validation.valid) { chatgpt.advanceBridgeLifecycle(runId, "VALIDATION_COMPLETED", "failed"); const finding = validated.validation.findings[0]; throw new AiAnalysisError(finding.code as AiAnalysisErrorCode, `${finding.jsonPointer}: ${finding.message} expected=${JSON.stringify(finding.expected)} observed=${JSON.stringify(finding.observed)}`); }
         chatgpt.advanceBridgeLifecycle(runId, "VALIDATION_COMPLETED", "completed"); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null;
         run.telemetry.validationMs = Date.now() - validationStarted; const assemblyStarted = Date.now(); run.progress.stage = "assembling_canonical";
         run.results = assembleCanonicalResults(compact.payload, validated.document, run.rules, model, response.requestId, run.progress.usage); run.canonicalRecordCount = run.results.length; run.progress.resultRecordCount = run.results.length; run.progress.completedDiffs = run.results.length;
+        const snapshotByKey = new Map(enrichment.snapshots.map((snapshot) => [snapshot.issueKey, snapshot]));
+        for (const result of run.results) if (result.sourceEvidenceSnapshot) result.issueSnapshot = snapshotByKey.get(result.sourceEvidenceSnapshot.issueKey.trim().toUpperCase());
+        const issueStatistics = calculateIssueStatistics(run.results.map((result) => ({ issueKey: result.sourceEvidenceSnapshot?.issueKey ?? "" })), enrichment.snapshots); run.uniqueIssueCount = issueStatistics.uniqueIssueCount;
+        const quality = evaluateDecisionQuality(validated.document.decisions);
+        run.qualityGate = { contractVersion: quality.contractVersion, status: quality.status, warnings: quality.warnings, blockers: quality.blockers, metrics: quality.metrics };
+        const qualityArtifact = atomicExport(path.join(artifactPaths.canonical, "quality-gate-report.json"), JSON.stringify({ ...quality, runId, generatedAt: now() }, null, 2) + "\n"); run.qualityGateReportPath = qualityArtifact.filePath;
+        if (quality.status === "BLOCKED") throw new AiAnalysisError("AI_RESPONSE_SEMANTIC_VALIDATION_FAILED", `Quality Gate blocked Canonical assembly: ${quality.blockers.join(", ")}`);
 
         validated.validation.warnings.push(...compareAnalysisReportCounts(artifacts.reportText, validated.validation.distribution));
-        run.anomalyWarnings = [...new Set([...(run.anomalyWarnings ?? []), ...validated.validation.warnings, ...artifacts.warnings])]; const warningGate = warningPersistenceGate({ structuralValidationPassed: true, warnings: run.anomalyWarnings });
-        run.status = warningGate.requiresHumanAcceptance ? "completed_with_warnings" : "completed"; run.progress.status = run.status; run.finalAcceptedRecordCount = warningGate.sqliteEligible ? run.results.length : 0; run.databaseWriteStatus = warningGate.sqliteEligible ? "Eligible - awaiting local commit" : `Not written - manual acceptance required for ${warningGate.pendingWarnings.join(", ")}`;
+        run.anomalyWarnings = [...new Set([...(run.anomalyWarnings ?? []), ...validated.validation.warnings, ...quality.warnings, ...artifacts.warnings])]; const warningGate = warningPersistenceGate({ structuralValidationPassed: true, warnings: run.anomalyWarnings });
+        run.status = warningGate.requiresHumanAcceptance ? "completed_with_quality_warnings" : "completed"; run.progress.status = run.status; run.finalAcceptedRecordCount = warningGate.sqliteEligible ? run.results.length : 0; run.databaseWriteStatus = warningGate.sqliteEligible ? "Eligible - awaiting local commit" : `Not written - manual acceptance required for ${warningGate.pendingWarnings.join(", ")}`;
         run.completedAt ??= now();
         const canonicalArtifact = atomicWriteCanonical(artifactPaths.canonicalResult, analyzedDocument(run)); run.analyzedFilePath = canonicalArtifact.filePath; run.analyzedFileSizeBytes = canonicalArtifact.sizeBytes; run.analyzedFileSha256 = canonicalArtifact.sha256; run.formalArtifactRecordCount = run.results.length; run.telemetry.canonicalAssemblyMs = Date.now() - assemblyStarted; run.telemetry.canonicalOutputCompletedAt = now(); chatgpt.advanceBridgeLifecycle(runId, "CANONICAL_ASSEMBLY_COMPLETED", "completed"); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null;
         atomicWriteCanonical(artifactPaths.validationReport, { schemaVersion: "ai-analysis-validation-report-v1", runId, finalStatus: run.status, finalValidationStatus: "passed", sourceSha256: dataset.sourceFileSha256, rulesSnapshotId: run.rules.snapshotId ?? run.rules.ruleSetId, decisionSha256: artifacts.hashes.decisions, reportSha256: artifacts.hashes.report, finalAssistantMessageSha256: artifacts.hashes.finalMessage, canonicalOutputSha256: canonicalArtifact.sha256, expectedCount: compact.payload.eventCount, actualDecisionCount: validated.validation.actualCount, canonicalRecordCount: run.results.length, indexCompleteUniqueOrdered: validated.validation.findings.every((finding) => !["AI_DECISION_INDEX_DUPLICATE", "AI_DECISION_INDEX_MISSING"].includes(finding.code)), schemaValidationPassed: validated.validation.valid, semanticValidationPassed: validated.validation.valid, semanticValidCount: validated.validation.semanticValidCount, findings: validated.validation.findings, warnings: run.anomalyWarnings, distribution: validated.validation.distribution, evidenceCoverage: validated.validation.evidenceCoverage, rationaleDuplicateRatio: validated.validation.rationaleDuplicateRatio, unknownReasonDuplicateRatio: validated.validation.unknownReasonDuplicateRatio, reportPresent: Boolean(artifacts.reportText), finalMessagePresent: Boolean(artifacts.finalText), sqliteEligibility: warningGate, validatedAt: now(), validationDurationMs: Date.now() - validationStarted, canonicalAssemblyMs: run.telemetry.canonicalAssemblyMs });
@@ -670,10 +715,10 @@ export function registerAiAnalysisIpc() {
       run.completedAt ??= now(); run.progress.completedBatches = payload.mode === "CHATGPT" ? 0 : 1; run.progress.completedDiffs = run.results.length; run.progress.elapsedMs = Date.now() - Date.parse(startedAt);
       if (payload.mode === "CHATGPT") {
         run.progress.stage = "writing_formal_artifacts";
-        if (run.status === "completed_with_warnings") {
-          run.progress.status = "completed_with_warnings"; run.progress.stage = "completed"; run.validationGate.sqliteAllowed = false; run.validationGate.goldenHtmlAllowed = run.htmlRenderStatus === "completed"; run.databasePath = null; run.sqliteCommittedRecordCount = 0; run.finalAcceptedRecordCount = 0;
+        if (run.status === "completed_with_quality_warnings") {
+          run.progress.status = "completed_with_quality_warnings"; run.progress.stage = "completed"; run.validationGate.sqliteAllowed = false; run.validationGate.goldenHtmlAllowed = run.htmlRenderStatus === "completed"; run.databasePath = null; run.sqliteCommittedRecordCount = 0; run.finalAcceptedRecordCount = 0;
           run.warningAcceptance = { accepted: false, acceptedAt: null, warnings: run.anomalyWarnings ?? [], auditFilePath: null };
-          run.progress.message = `Completed with warnings (${(run.anomalyWarnings ?? []).join(", ")}). SQLite requires explicit warning acceptance; Canonical Result and Golden HTML remain viewable.`; chatgpt.advanceBridgeLifecycle(runId, "RUN_COMPLETED", "completed"); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); if (run.bridgeEvidence) { run.bridgeEvidence.lifecycle.overallStatus = "completed_with_warnings"; run.lifecycle = run.bridgeEvidence.lifecycle; }
+          run.progress.message = `Completed with warnings (${(run.anomalyWarnings ?? []).join(", ")}). SQLite requires explicit warning acceptance; Canonical Result and Golden HTML remain viewable.`; chatgpt.advanceBridgeLifecycle(runId, "RUN_COMPLETED", "completed"); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); if (run.bridgeEvidence) { run.bridgeEvidence.lifecycle.overallStatus = "completed_with_quality_warnings"; run.lifecycle = run.bridgeEvidence.lifecycle; }
         } else {
           const sqliteStarted = Date.now(); run.progress.stage = "committing_database"; const databaseCommit = commitExistingCanonical(dbPath, dataset, run); run.telemetry = { ...(run.telemetry ?? {}), sqliteWriteMs: Date.now() - sqliteStarted, sqliteCompletedAt: now() }; run.finalAcceptedRecordCount = databaseCommit.ok ? run.results.length : 0; run.progress.stage = "completed"; run.progress.status = databaseCommit.ok ? "completed" : "completed_with_persistence_error"; run.status = run.progress.status; run.progress.errorCode = databaseCommit.ok ? null : databaseCommit.failure.errorCode as AiAnalysisErrorCode; run.progress.message = databaseCommit.ok ? "Analysis artifacts, canonical output, Golden HTML, and SQLite commit completed." : "Analysis artifacts are valid and viewable, but the SQLite commit failed."; chatgpt.advanceBridgeLifecycle(runId, "RUN_COMPLETED", "completed"); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null; if (run.lifecycle) { run.lifecycle.htmlRenderStatus = run.htmlRenderStatus ?? "not_started"; run.lifecycle.sqliteStatus = databaseCommit.ok ? "committed" : "commit_failed"; run.lifecycle.overallStatus = databaseCommit.ok ? "completed" : "completed_with_persistence_error"; run.lifecycle.rootErrorCode = databaseCommit.ok ? null : databaseCommit.failure.errorCode; }
         }
@@ -719,11 +764,11 @@ export function registerAiAnalysisIpc() {
         } catch (stagingError) { run.progress.message += " Canonical evidence finalization failed: " + (stagingError instanceof Error ? stagingError.message : String(stagingError)); }
       }
     } finally { run.bridgeEvidence = chatgpt.getBridgeEvidence(runId) ?? run.bridgeEvidence ?? null; run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null; const archive = runArchives.get(runId); try { archive?.writeManifest(run); if (!["queued", "running", "validating", "retrying", "cancelling"].includes(run.status)) archive?.close("terminal"); } catch (archiveError) { run.progress.errorCode = "AI_RUN_ARCHIVE_FAILED"; run.progress.message += ` Archive finalization failed: ${archiveError instanceof Error ? archiveError.message : String(archiveError)}`; } if (run.status !== "queued") dispatchGuard.finish(runId); providerFailureEvidence.delete(runId); activeRunId = null; abortControllers.delete(runId); observedWorkspaceFiles.delete(runId); lastProviderUiNotifyAt.delete(runId); chatgpt.releaseBridge(runId); notify(event); }
-    return { ok: run.status === "completed" || run.status === "completed_with_warnings" || run.status === "completed_with_persistence_error", run, snapshot: snapshot() };
+    return { ok: run.status === "completed" || run.status === "completed_with_quality_warnings" || run.status === "completed_with_persistence_error", run, snapshot: snapshot() };
   });
   ipcMain.handle("ai-analysis:accept-warnings", async (event, payload: { runId: string; accept: boolean }) => {
     const run = runs.find((item) => item.runId === payload.runId); const dataset = run ? pendingDatasets.find((item) => item.datasetId === run.sourceDatasetId) : null;
-    if (!run || !dataset || !run.runDirectory || run.status !== "completed_with_warnings" || !run.validationGate?.passed || !run.anomalyWarnings?.length) return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Only a structurally valid completed_with_warnings Run can be accepted."));
+    if (!run || !dataset || !run.runDirectory || run.status !== "completed_with_quality_warnings" || !run.validationGate?.passed || !run.anomalyWarnings?.length) return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Only a structurally valid completed_with_quality_warnings Run can be accepted."));
     if (payload.accept) { const options = { type: "warning" as const, buttons: ["Cancel", "Accept Warnings and Write"], defaultId: 0, cancelId: 0, title: "Accept AI Analysis Warnings", message: `Accept warnings for ${run.runId}?`, detail: `Warnings: ${run.anomalyWarnings.join(", ")}\nThis does not bypass schema, count, hash, identity, or semantic validation.` }; const owner = BrowserWindow.fromWebContents(event.sender); const choice = owner ? await dialog.showMessageBox(owner, options) : await dialog.showMessageBox(options); if (choice.response !== 1) return { ok: false, canceled: true, snapshot: snapshot() }; }
     const acceptedAt = now(); const auditPath = path.join(run.runDirectory, "canonical-output", "warning-acceptance-audit.jsonl"); const audit = { schemaVersion: "ai-warning-acceptance-v1", runId: run.runId, accepted: payload.accept, warnings: run.anomalyWarnings, acceptedAtLocal: new Date().toLocaleString("sv-SE"), acceptedAtUtc: acceptedAt };
     const descriptor = fs.openSync(auditPath, "a"); try { fs.writeSync(descriptor, JSON.stringify(audit) + "\n"); fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
@@ -799,7 +844,7 @@ export function registerAiAnalysisIpc() {
   });
 
   if (environment.supported && environment.values.AI_ANALYSIS_RULES_DIR) {
-    try { const resolved = resolveConfiguredPath(environment.values.AI_ANALYSIS_RULES_DIR, ""); rules = loadV0321RulesSnapshot(resolved, [resolved, getAppRuntimeDir(), bundledRulesDirectory]); } catch { /* surfaced in UI */ }
+    try { const resolved = resolveConfiguredPath(environment.values.AI_ANALYSIS_RULES_DIR, ""); rules = loadV0322RulesSnapshot(resolved, [resolved, getAppRuntimeDir(), bundledRulesDirectory]); } catch { /* surfaced in UI */ }
   }
   if (environment.supported && environment.values.AI_ANALYSIS_DB_PATH) {
     try { initializeAiDatabase(resolveConfiguredPath(environment.values.AI_ANALYSIS_DB_PATH, "")); } catch { /* fail closed on use */ }

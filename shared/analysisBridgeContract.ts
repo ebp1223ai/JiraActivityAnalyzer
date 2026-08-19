@@ -1,4 +1,4 @@
-export const ANALYSIS_BRIDGE_VERSION = "0.3.21-bridge-v4" as const;
+export const ANALYSIS_BRIDGE_VERSION = "0.3.22-bridge-v5" as const;
 export const ANALYSIS_BRIDGE_SCHEMA_VERSION = "jaa-analysis-bridge-contract-v1" as const;
 
 export type AnalysisLifecycleStage =
@@ -30,7 +30,7 @@ export type AnalysisLifecycleSummary = {
   canonicalAssemblyStatus: "not_started" | "completed" | "failed";
   htmlRenderStatus: "not_started" | "rendering" | "completed" | "failed";
   sqliteStatus: "blocked" | "eligible" | "committed" | "commit_failed";
-  overallStatus: "running" | "completed" | "completed_with_warnings" | "completed_with_persistence_error" | "failed" | "interrupted";
+  overallStatus: "running" | "completed" | "completed_with_warnings" | "completed_with_quality_warnings" | "completed_with_artifact_error" | "completed_with_persistence_error" | "failed" | "interrupted";
   lastSuccessfulStage: AnalysisLifecycleStage;
   firstFailedStage: AnalysisLifecycleStage | null;
   rootErrorCode: string | null;
