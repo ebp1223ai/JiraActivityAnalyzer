@@ -1,3 +1,10 @@
+## v0.3.21 Manifest-bound Golden HTML and Run-safe SQLite
+
+- The verified Rule Set Manifest binds the local HTML template. ChatGPT still receives exactly one Pending JSON and three analysis-reference Markdown files; the template is local-only.
+- Validated canonical JSON is the authority for deterministic, self-contained Golden HTML. Re-rendering HTML and retrying SQLite never dispatches the Provider.
+- Results become viewable when canonical assembly succeeds. A SQLite failure is reported separately as completed_with_persistence_error.
+- Result identity is scoped to the analysis Run, while same-run commits are idempotent and transactional.
+
 ## v0.3.20 Artifact Contract and Rule Set Alignment
 
 - Formal ChatGPT analysis now uses one versioned `jaa-ai-analysis-decisions-v2` direct-array contract for tool registration, Run schema evidence, validation, and canonical assembly.

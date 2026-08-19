@@ -13,7 +13,8 @@ type BridgeInstance = {
   preflight(): Record<string, unknown>;
   handle(tool: string, args: unknown, context: AnalysisBridgeToolContext): unknown;
   setProviderTurnStatus(status: AnalysisLifecycleSummary["providerTurnStatus"]): void;
-  setSqliteStatus(status: AnalysisLifecycleSummary["sqliteStatus"]): void;
+  setHtmlRenderStatus(status: AnalysisLifecycleSummary["htmlRenderStatus"]): void;
+  setSqliteStatus(status: AnalysisLifecycleSummary["sqliteStatus"], errorCode?: string): void;
   setPostBridgeStage(stage: "VALIDATION_COMPLETED" | "CANONICAL_ASSEMBLY_COMPLETED" | "RUN_COMPLETED", status: "completed" | "failed"): void;
   fail(stage: import("../shared/analysisBridgeContract.js").AnalysisLifecycleStage, code: string): void;
   snapshot(): { inputReceipt: Record<string, unknown> | null; sourceInputReceipt?: Record<string, unknown> | null; modelDeliveryReceipt?: Record<string, unknown> | null; modelDeliveryFailure?: Record<string, unknown> | null; artifactReceipt: Record<string, unknown> | null; lifecycle: AnalysisLifecycleSummary };
@@ -23,12 +24,12 @@ type BridgeManifest = { schemaVersion: string; version: string; relativePath: st
 const requireLocal = createRequire(__filename);
 
 export function loadAnalysisBridge(input: { runId: string; sessionNonce: string; runDirectory: string; requestPackage: AiAnalysisRequestPackage; rulesSnapshotId: string; catalogSkillIds: string[]; instructionMode?: AiInstructionMode }) {
-  const bundlePath = path.join(__dirname, "analysis-bridge-v0320.cjs");
+  const bundlePath = path.join(__dirname, "analysis-bridge-v0321.cjs");
   const manifestPath = path.join(__dirname, "analysis-bridge-manifest.json");
   if (!fs.existsSync(bundlePath) || !fs.existsSync(manifestPath)) throw new Error("AI_BRIDGE_UNAVAILABLE:Bundled Analysis Bridge is missing.");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as BridgeManifest;
   const actualHash = crypto.createHash("sha256").update(fs.readFileSync(bundlePath)).digest("hex");
-  if (manifest.version !== ANALYSIS_BRIDGE_VERSION || manifest.relativePath !== "analysis-bridge-v0320.cjs" || manifest.sha256 !== actualHash || manifest.transport !== "codex_dynamic_tools_stdio" || manifest.localOnly !== true || manifest.externalFallback !== false || manifest.modelInputTransport !== "bridge-resumable-v2") throw new Error("AI_BRIDGE_INTEGRITY_MISMATCH:Bundled Analysis Bridge manifest or SHA-256 mismatch.");
+  if (manifest.version !== ANALYSIS_BRIDGE_VERSION || manifest.relativePath !== "analysis-bridge-v0321.cjs" || manifest.sha256 !== actualHash || manifest.transport !== "codex_dynamic_tools_stdio" || manifest.localOnly !== true || manifest.externalFallback !== false || manifest.modelInputTransport !== "bridge-resumable-v2") throw new Error("AI_BRIDGE_INTEGRITY_MISMATCH:Bundled Analysis Bridge manifest or SHA-256 mismatch.");
   const runtime = requireLocal(bundlePath) as { createAnalysisBridge?: (config: unknown) => BridgeInstance };
   if (typeof runtime.createAnalysisBridge !== "function") throw new Error("AI_BRIDGE_CONTRACT_MISMATCH:Bridge factory is unavailable.");
   const bridge = runtime.createAnalysisBridge(input);

@@ -177,6 +177,9 @@ contextBridge.exposeInMainWorld("desktopApp", {
     review: (payload: unknown) => ipcRenderer.invoke("ai-analysis:review", payload),
     exportRun: (payload: unknown) => ipcRenderer.invoke("ai-analysis:export", payload),
     openFolder: (folderPath?: string) => ipcRenderer.invoke("ai-analysis:open-folder", folderPath),
+    openHtml: (runId: string) => ipcRenderer.invoke("ai-analysis:open-html", runId),
+    rerenderHtml: (runId: string) => ipcRenderer.invoke("ai-analysis:rerender-html", runId),
+    retryDatabase: (runId: string) => ipcRenderer.invoke("ai-analysis:retry-database", runId),
     getConversation: (payload: unknown) => ipcRenderer.invoke("ai-analysis:conversation", payload),
     deleteRun: (runId: string) => ipcRenderer.invoke("ai-analysis:delete-run", runId),
     onSnapshotChanged: (listener: (snapshot: unknown) => void) => {

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { TextDecoder } from "node:util";
 import { ANALYSIS_BRIDGE_SCHEMA_VERSION, ANALYSIS_BRIDGE_VERSION, type AnalysisBridgeToolContext, type AnalysisLifecycleStage, type AnalysisLifecycleSummary } from "../shared/analysisBridgeContract.js";
-import { AI_ARTIFACT_SUBMISSION_VERSION, AI_DECISION_CONTRACT_VERSION, createArtifactSubmissionSchema, getDecisionContractDescriptor, observeDecisionDocument, primaryDecisionError, validateDecisionArray } from "./aiAnalysisDecisionContractV0320.js";
+import { AI_ARTIFACT_SUBMISSION_VERSION, AI_DECISION_CONTRACT_VERSION, createArtifactSubmissionSchema, getDecisionContractDescriptor, observeDecisionDocument, primaryDecisionError, validateDecisionArray } from "./aiAnalysisDecisionContractV0321.js";
 
 type JsonObject = Record<string, unknown>;
 type RequestDocument = { role: string; snapshotRelativePath: string; originalFileName: string; mimeType: string; encoding: string; snapshotByteLength: number; snapshotSha256: string; complete: boolean; truncated: boolean; byteIdentical: boolean };
@@ -107,7 +107,7 @@ export class AnalysisBridgeV0318 {
     fs.mkdirSync(this.progressDirectory, { recursive: true });
     fs.mkdirSync(this.outputDirectory, { recursive: true });
     const time = localAndUtc();
-    this.lifecycle = { schemaVersion: "jaa-analysis-lifecycle-v1", runId: config.runId, providerTurnStatus: "not_started", inputStatus: "not_started", analysisStatus: "not_started", artifactStatus: "not_started", validationStatus: "not_started", canonicalAssemblyStatus: "not_started", sqliteStatus: "blocked", overallStatus: "running", lastSuccessfulStage: "INPUT_PREPARED", firstFailedStage: null, rootErrorCode: null, derivedStatusCodes: [], canonicalStatus: "not_created", analysisStarted: false, analysisCompleted: false, completedCount: null, decisionPreparedCount: null, updatedAtLocal: time.local, updatedAtUtc: time.utc };
+    this.lifecycle = { schemaVersion: "jaa-analysis-lifecycle-v1", runId: config.runId, providerTurnStatus: "not_started", inputStatus: "not_started", analysisStatus: "not_started", artifactStatus: "not_started", validationStatus: "not_started", canonicalAssemblyStatus: "not_started", htmlRenderStatus: "not_started", sqliteStatus: "blocked", overallStatus: "running", lastSuccessfulStage: "INPUT_PREPARED", firstFailedStage: null, rootErrorCode: null, derivedStatusCodes: [], canonicalStatus: "not_created", analysisStarted: false, analysisCompleted: false, completedCount: null, decisionPreparedCount: null, updatedAtLocal: time.local, updatedAtUtc: time.utc };
     this.writeLifecycle();
   }
 
@@ -153,11 +153,12 @@ export class AnalysisBridgeV0318 {
   }
 
   setProviderTurnStatus(status: AnalysisLifecycleSummary["providerTurnStatus"]) { this.lifecycle.providerTurnStatus = status; this.writeLifecycle(); }
-  setSqliteStatus(status: AnalysisLifecycleSummary["sqliteStatus"]) { this.lifecycle.sqliteStatus = status; this.writeLifecycle(); }
+  setHtmlRenderStatus(status: AnalysisLifecycleSummary["htmlRenderStatus"]) { this.lifecycle.htmlRenderStatus = status; this.writeLifecycle(); }
+  setSqliteStatus(status: AnalysisLifecycleSummary["sqliteStatus"], errorCode?: string) { this.lifecycle.sqliteStatus = status; if (status === "commit_failed") { this.lifecycle.overallStatus = "completed_with_persistence_error"; this.lifecycle.rootErrorCode = errorCode ?? "AI_SQLITE_COMMIT_FAILED"; } this.writeLifecycle(); }
   setPostBridgeStage(stage: "VALIDATION_COMPLETED" | "CANONICAL_ASSEMBLY_COMPLETED" | "RUN_COMPLETED", status: "completed" | "failed") {
     if (stage === "VALIDATION_COMPLETED") this.lifecycle.validationStatus = status;
     if (stage === "CANONICAL_ASSEMBLY_COMPLETED") { this.lifecycle.canonicalAssemblyStatus = status; this.lifecycle.canonicalStatus = status === "completed" ? "created" : "not_created"; }
-    if (stage === "RUN_COMPLETED") this.lifecycle.overallStatus = status;
+    if (stage === "RUN_COMPLETED") this.lifecycle.overallStatus = this.lifecycle.sqliteStatus === "commit_failed" ? "completed_with_persistence_error" : status;
     if (status === "completed") this.advance(stage); else this.markFailure(stage, stage === "VALIDATION_COMPLETED" ? "AI_DECISION_SEMANTIC_INVALID" : "AI_CANONICAL_ASSEMBLY_FAILED");
   }
   fail(stage: AnalysisLifecycleStage, code: string) { if (this.lifecycle.rootErrorCode && this.lifecycle.rootErrorCode !== code) { if (!this.lifecycle.derivedStatusCodes.includes(code)) this.lifecycle.derivedStatusCodes.push(code); } else this.markFailure(stage, code); this.writeLifecycle(); }

@@ -1,3 +1,10 @@
+# v0.3.21 - Manifest-bound Golden HTML and Run-safe SQLite
+
+- Bound the local Golden HTML template to the verified Rule Set Manifest while keeping Provider delivery at one Pending JSON plus three Markdown references.
+- Aligned the six-status Decision matrix across Standard Formal, JSON Schema, TypeScript validation, canonical assembly, and regression fixtures.
+- Added deterministic canonical-only self-contained HTML rendering, durable receipts, local re-render, and canonical-gated Results UI independent of SQLite success.
+- Added run-scoped result identity, idempotent same-run SQLite retry, transactional child replacement, rollback evidence, and honest persistence-error lifecycle status.
+
 # v0.3.20 - Artifact Contract and Rule Set Alignment
 
 - Unified the direct-array Decision contract across the dynamic tool schema, Run output schema, instruction, runtime validation, canonical assembly, and synthetic fixtures.

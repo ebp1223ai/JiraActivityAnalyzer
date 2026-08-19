@@ -28,6 +28,7 @@ import {
 } from "../shared/pendingAnalysisContract.js";
 import { parseEnvText, patchEnvText } from "./runtimeConfig.js";
 import { assertV0320RuleSetBinding, loadManifestRulesSnapshot } from "./aiAnalysisRulesV0310.js";
+import { loadV0321RulesSnapshot as loadBoundV0321RulesSnapshot } from "./aiAnalysisRulesV0321.js";
 
 export const AI_ENV_FORMAT_VERSION = "4";
 const MAX_PENDING_BYTES = 64 * 1024 * 1024;
@@ -166,6 +167,10 @@ export function loadRulesSnapshot(directory: string, allowedRoots: string[]): Ai
 
 export function loadV0320RulesSnapshot(directory: string, allowedRoots: string[]): AiRulesSnapshot {
   return assertV0320RuleSetBinding(loadManifestRulesSnapshot(directory, allowedRoots));
+}
+
+export function loadV0321RulesSnapshot(directory: string, allowedRoots: string[]): AiRulesSnapshot {
+  return loadBoundV0321RulesSnapshot(directory, allowedRoots);
 }
 
 export function loadPendingDataset(filePath: string): AiPendingDataset {

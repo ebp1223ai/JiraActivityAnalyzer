@@ -1,5 +1,5 @@
 export const AI_ANALYSIS_IPC_VERSION = 1 as const;
-export const AI_ANALYSIS_DB_SCHEMA_VERSION = 1 as const;
+export const AI_ANALYSIS_DB_SCHEMA_VERSION = 2 as const;
 export const AI_ANALYSIS_INPUT_SCHEMA_VERSION = "ai-analysis-input-v1" as const;
 export const AI_ANALYSIS_OUTPUT_SCHEMA_VERSION = "ai-analysis-output-v3" as const;
 export const AI_ANALYZED_FILE_SCHEMA_VERSION = "0.3.11-v1" as const;
@@ -108,6 +108,14 @@ export type AiAnalysisErrorCode =
   | "AI_DEBUG_HASH_MISMATCH"
   | "AI_FORMAL_ARTIFACT_WRITE_FAILED"
   | "AI_SQLITE_TRANSACTION_FAILED"
+  | "AI_SQLITE_UNIQUE_CONSTRAINT"
+  | "AI_SQLITE_COMMIT_FAILED"
+  | "AI_HTML_TEMPLATE_MISSING"
+  | "AI_HTML_TEMPLATE_INVALID"
+  | "AI_HTML_TEMPLATE_HASH_MISMATCH"
+  | "AI_HTML_TEMPLATE_BINDING_MISMATCH"
+  | "AI_HTML_RENDERER_INCOMPATIBLE"
+  | "AI_HTML_RENDER_FAILED"
   | "CODEX_BUNDLED_RUNTIME_MISSING"
   | "CODEX_BUNDLED_RUNTIME_VERSION_MISMATCH"
   | "CODEX_BUNDLED_RUNTIME_HASH_MISMATCH"
@@ -135,8 +143,8 @@ export type AiAnalyzerMode = "CHATGPT" | "AI_NEXUS" | "OFFLINE_RULE";
 export type AiApiContract = "responses" | "chat_completions";
 export type AiAuthType = "bearer" | "api_key";
 export type AiAnalysisStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED" | "NEEDS_REVIEW" | "UNKNOWN" | "EXCLUDED";
-export type AiRunStatus = "queued" | "preparing" | "running" | "validating" | "retrying" | "cancelling" | "cancelled" | "completed" | "completed_with_warnings" | "partial" | "failed" | "failed_validation" | "provider_failed" | "provider_timeout" | "interrupted" | "recovered_interrupted";
-export type AiRunStage = "idle" | "preparing_artifacts" | "waiting_artifacts" | "validating_artifacts_v0316" | "assembling_canonical" | "flushing_logs" | "validating_source" | "validating_rules" | "building_payload" | "building_output_schema" | "validating_output_schema" | "output_schema_ready" | "preflighting_capacity" | "waiting_capacity_confirmation" | "starting_thread" | "starting_turn" | "waiting_response" | "receiving_response" | "validating_response" | "validating_response_schema" | "validating_identity" | "validating_catalog" | "merging_evidence" | "writing_staging" | "writing_formal_artifacts" | "validating_artifacts" | "committing_database" | "completed" | "cancelling" | "cancelled" | "failed";
+export type AiRunStatus = "queued" | "preparing" | "running" | "validating" | "retrying" | "cancelling" | "cancelled" | "completed" | "completed_with_warnings" | "completed_with_persistence_error" | "partial" | "failed" | "failed_validation" | "provider_failed" | "provider_timeout" | "interrupted" | "recovered_interrupted";
+export type AiRunStage = "idle" | "preparing_artifacts" | "waiting_artifacts" | "validating_artifacts_v0316" | "assembling_canonical" | "flushing_logs" | "validating_source" | "validating_rules" | "building_payload" | "building_output_schema" | "validating_output_schema" | "output_schema_ready" | "preflighting_capacity" | "waiting_capacity_confirmation" | "starting_thread" | "starting_turn" | "waiting_response" | "receiving_response" | "validating_response" | "validating_response_schema" | "validating_identity" | "validating_catalog" | "merging_evidence" | "writing_staging" | "writing_formal_artifacts" | "validating_artifacts" | "rendering_html" | "committing_database" | "completed" | "cancelling" | "cancelled" | "failed";
 export type AiClassificationStatus = "MATCHED" | "EXCLUDED" | "UNKNOWN" | "CATALOG_DETAIL_MISSING" | "NEEDS_REVIEW";
 export type AiCandidateClassificationStatus = Exclude<AiClassificationStatus, "UNKNOWN">;
 export type AiReviewStatus = "PENDING_REVIEW" | "CONFIRMED" | "REJECTED";
@@ -285,6 +293,8 @@ export type AiRulesFile = {
   status: "verified" | "invalid";
 };
 
+export type AiHtmlReportTemplateFile = { kind: "html_template"; fileName: string; fullPath: string; version: string; templateId: string; schemaVersion: string; minimumRendererVersion: string; sha256: string; sizeBytes: number; mtimeMs: number; status: "verified" | "invalid"; manifestBound: true; providerVisible: false };
+
 export type AiRulesDuplicateDetail = {
   skillId: string;
   normalizedId: string;
@@ -322,6 +332,7 @@ export type AiRulesSnapshot = {
   modelDecisionSchemaVersion?: string;
   parserVersion: "ai-rules-parser-v1";
   files: AiRulesFile[];
+  htmlReportTemplate?: AiHtmlReportTemplateFile;
   catalogCount: number;
   uniqueSkillIdCount?: number;
   duplicateSkillIdCount?: number;
@@ -412,6 +423,7 @@ export type AiDiffAnalysisResult = {
   resultId: string;
   sourceDiffId: string;
   sourceContentHash: string;
+  sourceEvidenceSnapshot?: { issueKey: string; actor: string; eventTimestamp: string; fieldName: string; sourceProvenance: string; addedText: string[]; removedText: string[] };
   evidenceRefs: string[];
   recordIndex?: number;
   sourceRecordStableId?: string;
@@ -573,6 +585,13 @@ export type AiAnalysisRun = {
   formalArtifactRecordCount?: number;
   sqliteCommittedRecordCount?: number;
   databaseWriteStatus?: string | null;
+  htmlRenderStatus?: "not_started" | "rendering" | "completed" | "failed";
+  htmlTemplateSnapshotPath?: string | null;
+  htmlRendererVersion?: string | null;
+  htmlRenderReceiptPath?: string | null;
+  htmlRenderDiagnosticsPath?: string | null;
+  databaseCommitReceiptPath?: string | null;
+  databaseCommitFailurePath?: string | null;
   validationGate?: { passed: boolean; inputCount: number; outputCount: number; missingStableIds: string[]; duplicateStableIds: string[]; unexpectedStableIds: string[]; catalogInvalidSkillIds: string[]; formalJsonAllowed: boolean; goldenHtmlAllowed: boolean; sqliteAllowed: boolean } | null;
   distributionDiagnostics?: {
     candidateCount: number;

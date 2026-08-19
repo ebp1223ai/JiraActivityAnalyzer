@@ -3,13 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { AiAnalysisError, type AiPendingDataset, type AiRulesSnapshot, type AiAnalysisRequestPackage, type RequestPackageDocument, type RequestDocumentRole, type AiAnalysisErrorCode } from "../shared/aiAnalysisContract.js";
 import { atomicExport } from "./aiAnalysisCore.js";
-import { composeEffectiveInstruction, DEFAULT_ANALYSIS_INSTRUCTION, SYSTEM_SAFETY_WRAPPER } from "./aiAnalysisInstructionV0320.js";
+import { composeEffectiveInstruction, DEFAULT_ANALYSIS_INSTRUCTION, SYSTEM_SAFETY_WRAPPER } from "./aiAnalysisInstructionV0321.js";
 import type { AiInstructionMode } from "../shared/analysisInstructionContract.js";
-import { getDecisionContractDescriptor } from "./aiAnalysisDecisionContractV0320.js";
+import { getDecisionContractDescriptor } from "./aiAnalysisDecisionContractV0321.js";
 
 export const REQUEST_PACKAGE_VERSION = "ai-analysis-request-package-v5" as const;
 export const CORE_INSTRUCTION_NAME = "jira-activity-analysis-local-workspace-instruction" as const;
-export const CORE_INSTRUCTION_VERSION = "0.3.20-zh-TW-v3" as const;
+export const CORE_INSTRUCTION_VERSION = "0.3.21-zh-TW-v4" as const;
 export const PROVIDER_DELIVERY_MODE = "LOCAL_FILE_WORKSPACE" as const;
 
 function sha256(value: Buffer | string) { return crypto.createHash("sha256").update(value).digest("hex"); }
@@ -86,7 +86,7 @@ export function buildRequestPackage(input: { runId: string; runDirectory: string
   atomicExport(path.join(control, "instruction-composition-manifest.json"), JSON.stringify(composition, null, 2));
   atomicExport(path.join(control, "input-transport-contract.json"), JSON.stringify({ schemaVersion: "jaa-input-transport-contract-v2", protocol: "bridge-resumable-v2", sourceReceipt: "progress/source-input-receipt.json", modelDeliveryReceipt: "progress/model-delivery-receipt.json", segmentByteLimit: 4096, maxSegmentAttempts: 3, utf8BoundarySafe: true, resumeMissingOnly: true }, null, 2));
   atomicExport(path.join(control, "output-schema.json"), decisionContract.canonicalJson);
-  atomicExport(path.join(control, "bridge-contract.json"), JSON.stringify({ schemaVersion: "jaa-analysis-bridge-contract-v1", version: "0.3.20-bridge-v3", transport: "codex_dynamic_tools_stdio", modelInputTransport: "bridge-resumable-v2", localOnly: true, tools: ["jaa_get_input_manifest", "jaa_read_input_segment", "jaa_ack_input_segment", "jaa_get_delivery_status", "jaa_finalize_input_delivery", "jaa_report_analysis_progress", "jaa_publish_analysis_artifacts"], arbitraryPath: false, arbitraryCommand: false, externalFallback: false }, null, 2));
+  atomicExport(path.join(control, "bridge-contract.json"), JSON.stringify({ schemaVersion: "jaa-analysis-bridge-contract-v1", version: "0.3.21-bridge-v4", transport: "codex_dynamic_tools_stdio", modelInputTransport: "bridge-resumable-v2", localOnly: true, tools: ["jaa_get_input_manifest", "jaa_read_input_segment", "jaa_ack_input_segment", "jaa_get_delivery_status", "jaa_finalize_input_delivery", "jaa_report_analysis_progress", "jaa_publish_analysis_artifacts"], arbitraryPath: false, arbitraryCommand: false, externalFallback: false }, null, 2));
   const requestPackage: AiAnalysisRequestPackage = {
     requestPackageVersion: REQUEST_PACKAGE_VERSION, instructionMode, instructionComposition: composition, modelInputTransport: "bridge-resumable-v2", promptLocale: "zh-TW", responseLocale: "zh-TW", promptTemplateVersion: CORE_INSTRUCTION_VERSION, decisionContractVersion: decisionContract.schemaVersion, decisionContractSha256: decisionContract.sha256, runId: input.runId, createdAtLocal: created.toLocaleString("sv-SE", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }), createdAtUtc: created.toISOString(), localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     deliveryMode: PROVIDER_DELIVERY_MODE, inputRecordCount: pendingRecords.length, inputStableIdSetSha256, pendingSourceSha256, documents,

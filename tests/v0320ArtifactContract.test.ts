@@ -12,7 +12,7 @@ import {
   primaryDecisionError,
   stableDecisionJson,
   validateDecisionArray
-} from "../electron/aiAnalysisDecisionContractV0320.js";
+} from "../electron/aiAnalysisDecisionContractV0321.js";
 import { compareAnalysisReportCounts } from "../electron/aiAnalysisArtifactsV0316.js";
 import { composeEffectiveInstruction, DEFAULT_ANALYSIS_INSTRUCTION } from "../electron/aiAnalysisInstructionV0320.js";
 import { loadV0320RulesSnapshot } from "../electron/aiAnalysisCore.js";

@@ -185,6 +185,9 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         review: (payload: { runId: string; resultId: string; status: "CONFIRMED" | "REJECTED" | "PENDING_REVIEW"; note: string }) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         exportRun: (payload: { runId: string; format: AiExportFormat }) => Promise<{ canceled?: boolean; filePath?: string; sizeBytes?: number; sha256?: string; errorCode?: string; message?: string }>;
         openFolder: (folderPath?: string) => Promise<{ ok: boolean; folderPath: string; error?: string }>;
+        openHtml: (runId: string) => Promise<{ ok: boolean; filePath?: string; errorCode?: string; message?: string; error?: string }>;
+        rerenderHtml: (runId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; receipt?: Record<string, unknown>; errorCode?: string; message?: string }>;
+        retryDatabase: (runId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; receipt?: Record<string, unknown>; failure?: Record<string, unknown>; errorCode?: string; message?: string }>;
         getConversation: (payload: { runId: string; offset?: number; limit?: number }) => Promise<{ ok: boolean; events?: AiAnalysisConversationEvent[]; offset?: number; nextOffset?: number; total?: number; hasMore?: boolean; errorCode?: string; message?: string }>;
         deleteRun: (runId: string) => Promise<{ ok: boolean; canceled?: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;
         onSnapshotChanged: (listener: (snapshot: AiAnalysisSnapshot) => void) => () => void;
