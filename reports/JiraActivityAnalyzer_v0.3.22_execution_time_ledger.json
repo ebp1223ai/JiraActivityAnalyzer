@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "jaa-release-execution-ledger-v1",
+  "appVersion": "0.3.22",
+  "timezone": "Asia/Taipei",
+  "packageSourceCommit": "9e2ad9af9084f92139ee58296133de069cc1c08d",
+  "phases": [
+    { "name": "preflight", "status": "completed_before_context_resume", "wallTimeMs": null },
+    { "name": "implementation", "status": "completed_before_context_resume", "wallTimeMs": null },
+    { "name": "typecheck_final", "command": "npm.cmd run typecheck", "exitCode": 0, "wallTimeMs": 12629 },
+    { "name": "focused_tests_final", "command": "npm.cmd run test:v0.3.22", "exitCode": 0, "wallTimeMs": 1666 },
+    { "name": "build_final", "command": "npm.cmd run build", "exitCode": 0, "wallTimeMs": 16010 },
+    { "name": "package_source_commit", "command": "git commit", "exitCode": 0, "wallTimeMs": 730 },
+    { "name": "package_source_rebuild", "command": "npm.cmd run build", "exitCode": 0, "wallTimeMs": 15651 },
+    { "name": "dist", "command": "npm.cmd run dist", "exitCode": 0, "wallTimeMs": 131892 },
+    { "name": "asar_and_artifact_audit", "status": "passed", "wallTimeMs": 19900 },
+    { "name": "win_unpacked_short_launch", "status": "passed", "exitCode": 0, "wallTimeMs": 4205 },
+    { "name": "portable_short_launch", "status": "passed", "exitCode": 0, "wallTimeMs": 11834 },
+    { "name": "fixture_117_read_only_regression", "status": "passed", "exitCode": 0, "wallTimeMs": 3300 },
+    { "name": "reports", "status": "completed", "wallTimeMs": null },
+    { "name": "final_commit_tag_push", "status": "pending_at_report_generation", "wallTimeMs": null }
+  ],
+  "retries": [
+    { "phase": "staged_secret_scan", "count": 2, "reason": "PowerShell quoting and leading-hyphen grep option were corrected; final added-line scan passed." },
+    { "phase": "fixture_117_identity", "count": 1, "reason": "Fixture identity fields are nested under records[].reference; corrected read-only query passed." }
+  ],
+  "actualTokenTelemetry": { "status": "unavailable", "estimated": false }
+}

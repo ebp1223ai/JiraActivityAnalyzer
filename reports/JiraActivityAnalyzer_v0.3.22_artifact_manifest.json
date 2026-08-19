@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "jaa-release-artifact-manifest-v1",
+  "appVersion": "0.3.22",
+  "buildTime": "2026/08/19 16:01:33",
+  "buildTimeIso": "2026-08-19T08:01:33.081Z",
+  "packageSourceCommit": "9e2ad9af9084f92139ee58296133de069cc1c08d",
+  "finalDeliveryCommit": "SELF_RESOLVED_BY_ANNOTATED_TAG_v0.3.22",
+  "dirtyState": true,
+  "artifacts": [
+    {
+      "kind": "installer",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.22.exe",
+      "bytes": 190589539,
+      "sha256": "0a710a81b8b588a8369512fe098afaa6f2ad82606e2307c40b54e1b2f3e7e399"
+    },
+    {
+      "kind": "portable",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.22.exe",
+      "bytes": 190359442,
+      "sha256": "caa5d36105794be02fb32a4981165617fe6f1a37627ef57d103620676f7e2b4e"
+    },
+    {
+      "kind": "win-unpacked",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "025985f5c304383eec7d4295afdbef15bffa56e294424ebb0ca7b3dd71876234"
+    }
+  ],
+  "asar": {
+    "entryCount": 4686,
+    "distIndexCount": 1,
+    "bridgeV0322Count": 1,
+    "bridgeV0321Count": 0,
+    "sensitiveFilenameCount": 0
+  },
+  "bundledRulesVerified": true,
+  "actualTokenTelemetry": "unavailable"
+}
