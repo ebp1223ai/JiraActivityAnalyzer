@@ -24,12 +24,12 @@ type BridgeManifest = { schemaVersion: string; version: string; relativePath: st
 const requireLocal = createRequire(__filename);
 
 export function loadAnalysisBridge(input: { runId: string; sessionNonce: string; runDirectory: string; requestPackage: AiAnalysisRequestPackage; rulesSnapshotId: string; catalogSkillIds: string[]; instructionMode?: AiInstructionMode }) {
-  const bundlePath = path.join(__dirname, "analysis-bridge-v0322.cjs");
+  const bundlePath = path.join(__dirname, "analysis-bridge-v0324.cjs");
   const manifestPath = path.join(__dirname, "analysis-bridge-manifest.json");
   if (!fs.existsSync(bundlePath) || !fs.existsSync(manifestPath)) throw new Error("AI_BRIDGE_UNAVAILABLE:Bundled Analysis Bridge is missing.");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as BridgeManifest;
   const actualHash = crypto.createHash("sha256").update(fs.readFileSync(bundlePath)).digest("hex");
-  if (manifest.version !== ANALYSIS_BRIDGE_VERSION || manifest.relativePath !== "analysis-bridge-v0322.cjs" || manifest.sha256 !== actualHash || manifest.transport !== "codex_dynamic_tools_stdio" || manifest.localOnly !== true || manifest.externalFallback !== false || manifest.modelInputTransport !== "bridge-resumable-v2") throw new Error("AI_BRIDGE_INTEGRITY_MISMATCH:Bundled Analysis Bridge manifest or SHA-256 mismatch.");
+  if (manifest.version !== ANALYSIS_BRIDGE_VERSION || manifest.relativePath !== "analysis-bridge-v0324.cjs" || manifest.sha256 !== actualHash || manifest.transport !== "codex_dynamic_tools_stdio" || manifest.localOnly !== true || manifest.externalFallback !== false || manifest.modelInputTransport !== "bridge-resumable-v2") throw new Error("AI_BRIDGE_INTEGRITY_MISMATCH:Bundled Analysis Bridge manifest or SHA-256 mismatch.");
   const runtime = requireLocal(bundlePath) as { createAnalysisBridge?: (config: unknown) => BridgeInstance };
   if (typeof runtime.createAnalysisBridge !== "function") throw new Error("AI_BRIDGE_CONTRACT_MISMATCH:Bridge factory is unavailable.");
   const bridge = runtime.createAnalysisBridge(input);

@@ -12,7 +12,7 @@ type BridgeConfig = {
   runId: string;
   sessionNonce: string;
   runDirectory: string;
-  requestPackage: { runId: string; pendingSourceSha256: string; inputRecordCount: number; documents: RequestDocument[] };
+  requestPackage: { runId: string; pendingSourceSha256: string; inputRecordCount: number; decisionContractVersion?: string; documents: RequestDocument[] };
   rulesSnapshotId: string;
   catalogSkillIds: string[];
   instructionMode?: AiInstructionMode;

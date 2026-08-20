@@ -1,3 +1,10 @@
+# v0.3.24 - Evidence-first Report Data Package and Template Rendering
+
+- Added Decision v4 with deterministic evidence segments, exact quote/role validation, aggregated schema/semantic/evidence findings, and Quality Gate v2.
+- Added unique Issue Snapshot Profile v1 and canonical Report Data Package v1, separating event analysis from current-state Jira snapshots without duplicating snapshots per result.
+- Bound four explicit versioned rule roles to verified SHA-256 identities; the HTML template remains local-only and can re-render a compatible package without Provider or database access.
+- Added self-contained HTML Renderer 1.4.0 with local filters, pagination, field visibility, filtered CSV, print, field dictionary, formal/diagnostic modes, and fail-closed compatibility checks.
+- Real Managed OAuth, Jira, production SQLite, and clean Windows GUI validation remain Manual Validation Pending.
 # v0.3.22 - Decision v3, Readable Evidence and Advanced HTML
 
 - Added strict Decision v3 per-skill findings with numeric confidence and exact evidence traceability.

@@ -186,7 +186,8 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         exportRun: (payload: { runId: string; format: AiExportFormat }) => Promise<{ canceled?: boolean; filePath?: string; sizeBytes?: number; sha256?: string; errorCode?: string; message?: string }>;
         openFolder: (folderPath?: string) => Promise<{ ok: boolean; folderPath: string; error?: string }>;
         openHtml: (runId: string) => Promise<{ ok: boolean; filePath?: string; errorCode?: string; message?: string; error?: string }>;
-        rerenderHtml: (runId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; receipt?: Record<string, unknown>; errorCode?: string; message?: string }>;
+        rerenderHtml: (runId: string) => Promise<{ ok: boolean; canceled?: boolean; snapshot?: AiAnalysisSnapshot; receipt?: Record<string, unknown>; errorCode?: string; message?: string }>;
+        renderExternalPackage: () => Promise<{ ok: boolean; canceled?: boolean; externalViewOnly?: boolean; sqliteEligible?: false; receipt?: Record<string, unknown>; filePath?: string; errorCode?: string; message?: string }>;
         retryDatabase: (runId: string) => Promise<{ ok: boolean; snapshot?: AiAnalysisSnapshot; receipt?: Record<string, unknown>; failure?: Record<string, unknown>; errorCode?: string; message?: string }>;
         getConversation: (payload: { runId: string; offset?: number; limit?: number }) => Promise<{ ok: boolean; events?: AiAnalysisConversationEvent[]; offset?: number; nextOffset?: number; total?: number; hasMore?: boolean; errorCode?: string; message?: string }>;
         deleteRun: (runId: string) => Promise<{ ok: boolean; canceled?: boolean; snapshot?: AiAnalysisSnapshot; errorCode?: string; message?: string }>;

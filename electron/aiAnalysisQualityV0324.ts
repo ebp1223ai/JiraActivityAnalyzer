@@ -1,0 +1,26 @@
+import type { DecisionValidationV0324, ValidationFindingV0324 } from "./aiAnalysisDecisionContractV0324.js";
+
+export const QUALITY_CONTRACT_VERSION_V0324 = "jaa-ai-analysis-quality-v2" as const;
+export type QualityReportV0324 = { contractVersion: typeof QUALITY_CONTRACT_VERSION_V0324; status: "PASSED" | "WARNING" | "BLOCKED"; warnings: string[]; blockers: string[]; metrics: Record<string, number>; findings: ValidationFindingV0324[] };
+const generic = /^(已處理|完成|修改|更新|修正|調整|implement(ed)?|fix(ed)?|update(d)?|done|ok)[.!。\s]*$/i;
+const boilerplate = /(same as above|依規則處理|請參考前述|一般性修改|generic evidence|placeholder|todo|n\/?a)/i;
+
+export function evaluateDecisionQualityV0324(validation: DecisionValidationV0324): QualityReportV0324 {
+  const findings: ValidationFindingV0324[] = []; const explanations: string[] = [], rationales: string[] = [], unknownReasons: string[] = []; let multiSkillRecordCount = 0, multiSkillMissingIndependentFindingCount = 0, nonSubstantiveEvidenceCount = 0, boilerplateEvidencePatternCount = 0;
+  for (const decision of validation.decisions) {
+    rationales.push(decision.rationale); unknownReasons.push(...decision.unknownReasons); if (decision.skillFindings.length > 1) multiSkillRecordCount += 1;
+    const primaryOwners = new Map<string, Set<string>>();
+    for (const skill of decision.skillFindings) {
+      explanations.push(skill.evidenceExplanation); rationales.push(skill.rationale); const primary = skill.evidenceQuotes.filter((quote) => quote.evidenceRole === "PRIMARY_CHANGE"); primary.forEach((quote) => primaryOwners.set(quote.evidenceSegmentId, new Set([...(primaryOwners.get(quote.evidenceSegmentId) ?? []), skill.skillId])));
+      for (const quote of skill.evidenceQuotes) {
+        if (!quote.quote.trim() || generic.test(quote.quote.trim())) { nonSubstantiveEvidenceCount += 1; findings.push({ code: "NON_SUBSTANTIVE_EVIDENCE", severity: "ERROR", stage: "QUALITY", recordIndex: decision.recordIndex, sourceRecordStableId: null, skillId: skill.skillId, evidenceSegmentId: quote.evidenceSegmentId, jsonPointer: `/records/${decision.recordIndex}/skillFindings`, expected: "具體且可辨識的技術變更證據", observed: quote.quote, message: "證據內容不具實質性，不能支持技能判定。" }); }
+        if (boilerplate.test(quote.quote) || boilerplate.test(skill.evidenceExplanation) || boilerplate.test(skill.rationale)) { boilerplateEvidencePatternCount += 1; findings.push({ code: "BOILERPLATE_EVIDENCE_PATTERN", severity: "WARNING", stage: "QUALITY", recordIndex: decision.recordIndex, sourceRecordStableId: null, skillId: skill.skillId, evidenceSegmentId: quote.evidenceSegmentId, jsonPointer: `/records/${decision.recordIndex}/skillFindings`, expected: "記錄與技能專屬說明", observed: quote.quote, message: "偵測到樣板式或過度泛化的證據文案。" }); }
+      }
+    }
+    if (decision.skillFindings.length > 1 && decision.skillFindings.some((skill) => !skill.evidenceQuotes.some((quote) => quote.evidenceRole === "PRIMARY_CHANGE") || skill.evidenceQuotes.filter((quote) => quote.evidenceRole === "PRIMARY_CHANGE").every((quote) => (primaryOwners.get(quote.evidenceSegmentId)?.size ?? 0) > 1))) { multiSkillMissingIndependentFindingCount += 1; findings.push({ code: "MULTI_SKILL_INDEPENDENT_FINDINGS_MISSING", severity: "ERROR", stage: "QUALITY", recordIndex: decision.recordIndex, sourceRecordStableId: null, skillId: null, evidenceSegmentId: null, jsonPointer: `/records/${decision.recordIndex}/skillFindings`, expected: "每個 Skill 有獨立 PRIMARY_CHANGE finding", observed: decision.skillFindings.map((skill) => skill.skillId), message: "多技能記錄缺少可獨立追溯的技能證據。" }); }
+  }
+  const duplicateRatio = (items: string[]) => items.length ? (items.length - new Set(items.map((item) => item.trim().toLocaleLowerCase("en-US"))).size) / items.length : 0;
+  const blockers = [...new Set([...validation.findings.filter((item) => item.severity === "ERROR").map((item) => item.code), ...findings.filter((item) => item.severity === "ERROR").map((item) => item.code)])]; const warnings = [...new Set(findings.filter((item) => item.severity === "WARNING").map((item) => item.code))];
+  const metrics = { evidenceExplanationExactDuplicateRatio: duplicateRatio(explanations), skillRationaleExactDuplicateRatio: duplicateRatio(rationales), unknownReasonExactDuplicateRatio: duplicateRatio(unknownReasons), multiSkillRecordCount, multiSkillMissingIndependentFindingCount, excessiveSkillFindingCount: validation.decisions.filter((decision) => decision.skillFindings.length > 5).length, untraceableEvidenceQuoteCount: validation.evidenceFindings.filter((finding) => ["EVIDENCE_SEGMENT_NOT_FOUND", "EVIDENCE_QUOTE_NOT_EXACT"].includes(finding.code)).length, genericEvidenceExplanationCount: explanations.filter((item) => generic.test(item)).length, legacyUnverifiedRecordCount: 0, primaryChangeRequiredCount: validation.evidenceFindings.filter((finding) => finding.code === "PRIMARY_CHANGE_REQUIRED").length, contextOnlyClassificationCount: validation.evidenceFindings.filter((finding) => finding.code === "CONTEXT_ONLY_CLASSIFICATION").length, nonSubstantiveEvidenceCount, boilerplateEvidencePatternCount };
+  return { contractVersion: QUALITY_CONTRACT_VERSION_V0324, status: blockers.length ? "BLOCKED" : warnings.length ? "WARNING" : "PASSED", warnings, blockers, metrics, findings };
+}

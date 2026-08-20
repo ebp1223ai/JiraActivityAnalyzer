@@ -1,3 +1,10 @@
+## v0.3.24 Evidence-first Report Data Package 與離線 Template Renderer
+
+v0.3.24 將模型輸出升級為 Decision v4，使用 deterministic Evidence Segment、PRIMARY_CHANGE／SUPPORTING_CONTEXT role 與 exact quote equality 驗證。JAA 本機聚合 Schema、Semantic、Evidence 與 Quality findings；可解析但不合格的輸出只產生 Diagnostic Package／HTML，不得寫入正式 SQLite。
+
+分析結果只保留 Issue Snapshot reference；Unique Issue Snapshot Profile 與 Report Data Package v1 分離保存 current-state Jira 欄位及六種 field state。四份規則文件以明確 role、版本與 SHA-256 綁定，HTML Template 不送給 Provider。Renderer 1.4.0 只讀 Package + Template，即可離線篩選、分頁、控制欄位、匯出目前篩選 CSV、列印及用另一份相容 Template 重繪，不呼叫 Provider 或資料庫。
+
+本版本自動測試只使用 synthetic 17／117 筆資料。真實 Managed OAuth、真實 Jira、production SQLite 與乾淨 Windows GUI 驗證狀態為 `Manual Validation Pending`。
 ## v0.3.22 Decision v3、Readable Evidence 與 Advanced HTML
 
 v0.3.22 將正式 ChatGPT Artifact 升級為 direct-array Decision v3，每個 Skill Finding 具備獨立 Evidence Quote、Explanation、Negative Checks、Rationale 與 numeric confidence。JAA 本機負責 deterministic Evidence Normalization、Schema／Semantic／Quality Gate、Run-scoped Issue Snapshot、Canonical Result、離線 HTML 1.2.0 與 run-safe SQLite。Quality WARNING 必須經 durable 人工接受，BLOCKED 不可繞過；HTML 或 SQLite 失敗不會抹除已建立的 Canonical Result。

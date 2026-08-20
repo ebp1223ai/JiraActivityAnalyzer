@@ -2,8 +2,8 @@ export const AI_ANALYSIS_IPC_VERSION = 1 as const;
 export const AI_ANALYSIS_DB_SCHEMA_VERSION = 2 as const;
 export const AI_ANALYSIS_INPUT_SCHEMA_VERSION = "ai-analysis-input-v1" as const;
 export const AI_ANALYSIS_OUTPUT_SCHEMA_VERSION = "ai-analysis-output-v3" as const;
-export const AI_ANALYZED_FILE_SCHEMA_VERSION = "0.3.11-v1" as const;
-export const AI_ANALYZED_LEGACY_FILE_SCHEMA_VERSIONS = ["0.3.9-v1"] as const;
+export const AI_ANALYZED_FILE_SCHEMA_VERSION = "0.3.24-v1" as const;
+export const AI_ANALYZED_LEGACY_FILE_SCHEMA_VERSIONS = ["0.3.11-v1", "0.3.9-v1"] as const;
 export { type ActiveAiProvider, type ChatGptAnalysisRequest, type ChatGptAnalysisResponse, type ChatGptModel, type ChatGptRunEvent, type ChatGptRuntimeState, type ChatGptStatus } from "./chatGptContract.js";
 import type { ActiveAiProvider, ChatGptStatus } from "./chatGptContract.js";
 import type { AiInstructionComposition, AiInstructionMode } from "./analysisInstructionContract.js";
@@ -295,6 +295,10 @@ export type AiRulesFile = {
 
 export type AiHtmlReportTemplateFile = { kind: "html_template"; fileName: string; fullPath: string; version: string; templateId: string; schemaVersion: string; minimumRendererVersion: string; sha256: string; sizeBytes: number; mtimeMs: number; status: "verified" | "invalid"; manifestBound: true; providerVisible: false };
 
+export type AiRuleDocumentRole = "manifest" | "catalog" | "common_rules" | "html_template";
+export type AiRuleSelectionMode = "BUNDLED_DEFAULT" | "MANUAL_EXPLICIT";
+export type AiRuleRoleDocument = { role: AiRuleDocumentRole; fileName: string; fullPath: string; version: string; sha256: string; sizeBytes: number; status: "verified" | "invalid"; providerVisible: boolean };
+
 export type AiRulesDuplicateDetail = {
   skillId: string;
   normalizedId: string;
@@ -341,6 +345,15 @@ export type AiRulesSnapshot = {
   commonRulesNormalized: string[];
   errors: string[];
   warnings?: string[];
+  selectionMode?: AiRuleSelectionMode;
+  roleDocuments?: AiRuleRoleDocument[];
+  qualityContractVersion?: string;
+  evidenceNormalizerVersion?: string;
+  evidenceSegmenterVersion?: string;
+  issueSnapshotContractVersion?: string;
+  canonicalResultContractVersion?: string;
+  reportDataPackageContractVersion?: string;
+  rendererVersion?: string;
 };
 
 export type AiPendingDiff = {
@@ -411,7 +424,7 @@ export type AiAnalysisCandidate = {
   negativeEvidenceRefs: string[];
   rejectedNearSkills?: AiRejectedNearSkill[];
   evidenceQuote?: string;
-  evidenceQuotes?: Array<{ evidenceRef: string; quote: string }>;
+  evidenceQuotes?: Array<{ evidenceRef: string; evidenceSegmentId?: string; quote: string; evidenceRole?: "PRIMARY_CHANGE" | "SUPPORTING_CONTEXT" }>;
   evidenceExplanation?: string;
   skillRationale?: string;
   matchedRuleIds: string[];
@@ -437,6 +450,7 @@ export type AiDiffAnalysisResult = {
   recordNegativeChecks?: string[];
   derivedSkillIds?: string[];
   issueSnapshot?: { issueId: string | null; issueKey: string; projectKey: string; issueType: { id: string | null; name: string } | null; priority: { id: string | null; name: string } | null; jiraStatus: { id: string | null; name: string } | null };
+  issueSnapshotReference?: { snapshotId: string; snapshotSha256: string; jiraServerIdentity: string; normalizedIssueKey: string } | null;
   classificationStatus?: AiClassificationStatus;
   reviewStatus?: AiReviewStatus;
   reviewAttention?: AiReviewAttention;
@@ -608,6 +622,14 @@ export type AiAnalysisRun = {
   evidenceNormalizationReceiptPath?: string | null;
   issueSnapshotPath?: string | null;
   issueSnapshotReceiptPath?: string | null;
+  evidenceSegmentCatalogPath?: string | null;
+  evidenceSegmentCatalogSha256?: string | null;
+  reportDataPackagePath?: string | null;
+  reportDataPackageSha256?: string | null;
+  reportPackageMode?: "FORMAL_CANONICAL" | "DIAGNOSTIC_NON_CANONICAL" | null;
+  diagnosticReportDataPackagePath?: string | null;
+  diagnosticReportFilePath?: string | null;
+  ruleRoleManifestPath?: string | null;
   uniqueIssueCount?: number;
   validationGate?: { passed: boolean; inputCount: number; outputCount: number; missingStableIds: string[]; duplicateStableIds: string[]; unexpectedStableIds: string[]; catalogInvalidSkillIds: string[]; formalJsonAllowed: boolean; goldenHtmlAllowed: boolean; sqliteAllowed: boolean } | null;
   distributionDiagnostics?: {
