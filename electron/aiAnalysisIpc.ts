@@ -37,7 +37,8 @@ import {
   sha256Text
 } from "./aiAnalysisCore.js";
 import { ensureDir, getAppDataDir, getAppRuntimeDir, getBundledAnalysisRulesDir, getExportsDir } from "./appPaths.js";
-import { bundledRuleSelectionV0324, loadExplicitRulesSnapshotV0324, type RuleSelectionV0324 } from "./aiAnalysisRulesV0324.js";
+import { RuleSelectionTransactionServiceV0325, normalizeRuleSelectionErrorV0325 } from "./aiAnalysisRulesV0325.js";
+import { ActiveResultRegistryV0325, AnalysisAttemptStoreV0325, navigationDecisionV0325 } from "./aiAnalysisResultStateV0325.js";
 import { buildEvidenceSegmentCatalogV0324, modelPayloadWithSegmentsV0324, EVIDENCE_SEGMENTER_VERSION, type EvidenceSegmentCatalogV0324 } from "./aiAnalysisEvidenceSegmenterV0324.js";
 import { parseAndValidateDecisionsV0324, type ValidationFindingV0324 } from "./aiAnalysisDecisionContractV0324.js";
 import { evaluateDecisionQualityV0324 } from "./aiAnalysisQualityV0324.js";
@@ -94,8 +95,8 @@ declare const __MAIN_GIT_COMMIT__: string;
 type Environment = ReturnType<typeof loadAiEnvironment>;
 const handlers = [
   "ai-analysis:snapshot", "ai-analysis:reload-env", "ai-analysis:save-settings", "ai-analysis:test-connection",
-  "ai-analysis:diagnose", "ai-analysis:cancel-diagnostic", "ai-analysis:chat", "ai-analysis:choose-rules", "ai-analysis:load-rules",
-  "ai-analysis:choose-pending", "ai-analysis:verify-pending", "ai-analysis:select-pending", "ai-analysis:choose-analyzed", "ai-analysis:select-run", "ai-analysis:start", "ai-analysis:accept-warnings", "ai-analysis:cancel-capacity-warning", "ai-analysis:cancel", "ai-analysis:review",
+  "ai-analysis:diagnose", "ai-analysis:cancel-diagnostic", "ai-analysis:chat", "ai-analysis:choose-rules", "ai-analysis:choose-rule-role", "ai-analysis:cancel-rule-draft", "ai-analysis:use-bundled-rules", "ai-analysis:load-rules",
+  "ai-analysis:choose-pending", "ai-analysis:verify-pending", "ai-analysis:select-pending", "ai-analysis:choose-analyzed", "ai-analysis:select-run", "ai-analysis:activate-result", "ai-analysis:start", "ai-analysis:accept-warnings", "ai-analysis:cancel-capacity-warning", "ai-analysis:cancel", "ai-analysis:review",
   "ai-analysis:export", "ai-analysis:open-folder", "ai-analysis:open-html", "ai-analysis:rerender-html", "ai-analysis:render-external-package", "ai-analysis:retry-database", "ai-analysis:conversation", "ai-analysis:delete-run", "ai-analysis:chatgpt-start", "ai-analysis:chatgpt-login",
   "ai-analysis:chatgpt-cancel-login", "ai-analysis:chatgpt-logout", "ai-analysis:chatgpt-refresh", "ai-analysis:chatgpt-select-model", "ai-analysis:cancel-chat"
 ];
@@ -224,7 +225,9 @@ function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requ
   return folder;
 }
 let selectedCanonicalAiRunDirectory: string | null = null;
+let selectedAiAnalysisAttemptDirectory: string | null = null;
 export function getSelectedCanonicalAiRunDirectory() { return selectedCanonicalAiRunDirectory; }
+export function getSelectedAiAnalysisAttemptDirectory() { return selectedAiAnalysisAttemptDirectory; }
 export function registerAiAnalysisIpc() {
   handlers.forEach((channel) => ipcMain.removeHandler(channel));
   const envPath = path.join(getAppRuntimeDir(), ".env");
@@ -233,8 +236,12 @@ export function registerAiAnalysisIpc() {
   const chatgpt = getChatGptService();
   chatgpt.subscribeStatus(() => BrowserWindow.getAllWindows().forEach((window) => window.webContents.send("ai-analysis:snapshot-changed", snapshot())));
   const bundledRulesDirectory = getBundledAnalysisRulesDir();
-  let rules: AiRulesSnapshot | null = null;
-  try { if (fs.existsSync(bundledRulesDirectory)) rules = loadExplicitRulesSnapshotV0324(bundledRuleSelectionV0324(bundledRulesDirectory)); } catch { /* surfaced in UI */ }
+  const aiStateDirectory = ensureDir(path.join(getAppDataDir(), "ai-analysis", "v0.3.25-state"));
+  const ruleSelection = new RuleSelectionTransactionServiceV0325(bundledRulesDirectory, path.join(aiStateDirectory, "rule-selection"));
+  let rules: AiRulesSnapshot | null = ruleSelection.rules;
+  const attemptStore = new AnalysisAttemptStoreV0325(path.join(aiStateDirectory, "attempts"));
+  const resultRegistry = new ActiveResultRegistryV0325(path.join(aiStateDirectory, "results"));
+  let lastNavigationDecision = null as import("../shared/aiAnalysisContract.js").AiNavigationDecisionV0325 | null;
   const pendingDatasets: AiPendingDataset[] = [];
   const runs: AiAnalysisRun[] = loadArchivedRuns();
   const runArchives = new Map<string, AiAnalysisRunArchive>(runs.filter((run) => run.runDirectory && run.progress.errorCode !== "AI_RUN_ARCHIVE_FAILED").map((run) => [run.runId, AiAnalysisRunArchive.reopen(run.runId, run.runDirectory!)]));
@@ -254,7 +261,9 @@ export function registerAiAnalysisIpc() {
 
   const snapshot = (): AiAnalysisSnapshot => ({
     ipcVersion: AI_ANALYSIS_IPC_VERSION, env: publicEnv(environment), rules,
-    pendingDatasets, selectedPendingDatasetId, runs, selectedRunId, activeRunId, chatgpt: chatgpt.getStatus()
+    pendingDatasets, selectedPendingDatasetId, runs, selectedRunId, activeRunId, chatgpt: chatgpt.getStatus(),
+    ruleSelection: ruleSelection.transaction, analysisAttempts: attemptStore.attempts, activeResult: resultRegistry.active,
+    successfulResults: resultRegistry.successful, lastNavigationDecision
   });
   const notify = (event: IpcMainInvokeEvent) => event.sender.send("ai-analysis:snapshot-changed", snapshot());
   chatgpt.subscribeRun((providerEvent) => {
@@ -428,33 +437,21 @@ export function registerAiAnalysisIpc() {
     finally { if (activeChatController === chatController) activeChatController = null; }
   });
   ipcMain.handle("ai-analysis:cancel-chat", async () => { if (!activeChatController) return { ok: false, message: "No test conversation request is active." }; activeChatController.abort(); return { ok: true }; });
-  ipcMain.handle("ai-analysis:choose-rules", async () => {
-    analysisUserActions.push(`${now()} Explicit four-role Rule/Template selection requested`);
-    const roles = [
-      { key: "manifest", title: "1/4 Select Rule Set Manifest", expected: "Skill_Analysis_Rule_Set_Manifest_v0.6.0.md" },
-      { key: "catalog", title: "2/4 Select Skill Catalog", expected: "Skill_Catalog_v0.3.1.md" },
-      { key: "commonRules", title: "3/4 Select Common Rules", expected: "Skill_Classification_Common_Rules_v1.5.0.md" },
-      { key: "htmlTemplate", title: "4/4 Select HTML Report Template", expected: "Skill_Analysis_HTML_Report_Template_v1.4.0.md" }
-    ] as const;
-    const selection: Partial<RuleSelectionV0324> = { mode: "MANUAL_EXPLICIT" };
-    for (const role of roles) {
-      const choice = await dialog.showOpenDialog({ title: role.title, buttonLabel: `Select ${role.expected}`, properties: ["openFile"], filters: [{ name: "Markdown", extensions: ["md"] }] });
-      if (choice.canceled || !choice.filePaths[0]) return { canceled: true, snapshot: snapshot() };
-      selection[role.key] = choice.filePaths[0];
-    }
-    try { rules = loadExplicitRulesSnapshotV0324(selection as RuleSelectionV0324); return { canceled: false, ok: true, snapshot: snapshot() }; }
-    catch (error) { return { canceled: false, ...errorPayload(error), snapshot: snapshot() }; }
+  ipcMain.handle("ai-analysis:choose-rules", async () => ({ ...errorPayload(new AiAnalysisError("AI_RULE_SELECTION_TRANSACTION_INCOMPLETE", "v0.3.25 請使用四個角色各自的選取按鈕。")), canceled: false, snapshot: snapshot() }));
+  ipcMain.handle("ai-analysis:choose-rule-role", async (event, role: import("../shared/aiAnalysisContract.js").AiRuleDocumentRole) => {
+    const labels = { manifest: "Rule Set Manifest", common_rules: "Classification Common Rules", catalog: "Skill Catalog", html_template: "HTML Report Template" } as const;
+    if (!(role in labels)) return { ...errorPayload(new AiAnalysisError("AI_RULE_FILE_NOT_SELECTED", "未知的 Rule role。")), canceled: false, snapshot: snapshot() };
+    analysisUserActions.push(`${now()} Rule role selection requested: ${role}`);
+    const owner = BrowserWindow.fromWebContents(event.sender); const options = { title: `Select ${labels[role]}`, buttonLabel: `Select ${labels[role]}`, properties: ["openFile"] as Array<"openFile">, filters: [{ name: "Markdown", extensions: ["md"] }] };
+    const choice = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options);
+    if (choice.canceled || !choice.filePaths[0]) return { canceled: true, snapshot: snapshot() };
+    const result = ruleSelection.selectRole(role, choice.filePaths[0]); rules = ruleSelection.rules;
+    notify(event);
+    return result.error ? { canceled: false, ...errorPayload(result.error), activated: false, snapshot: snapshot() } : { canceled: false, ok: true, activated: result.activated, snapshot: snapshot() };
   });
-  ipcMain.handle("ai-analysis:load-rules", async () => {
-    try {
-      if (rules?.selectionMode === "MANUAL_EXPLICIT" && rules.roleDocuments?.length === 4) {
-        const byRole = new Map(rules.roleDocuments.map((document) => [document.role, document.fullPath]));
-        rules = loadExplicitRulesSnapshotV0324({ mode: "MANUAL_EXPLICIT", manifest: byRole.get("manifest")!, catalog: byRole.get("catalog")!, commonRules: byRole.get("common_rules")!, htmlTemplate: byRole.get("html_template")! });
-      } else rules = loadExplicitRulesSnapshotV0324(bundledRuleSelectionV0324(bundledRulesDirectory));
-      return { ok: true, snapshot: snapshot() };
-    } catch (error) { return { ...errorPayload(error), snapshot: snapshot() }; }
-  });
-  ipcMain.handle("ai-analysis:choose-pending", async () => {
+  ipcMain.handle("ai-analysis:cancel-rule-draft", async (event) => { ruleSelection.cancelDraft(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; });
+  ipcMain.handle("ai-analysis:use-bundled-rules", async (event) => { try { ruleSelection.useBundled(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0325(error)), snapshot: snapshot() }; } });
+  ipcMain.handle("ai-analysis:load-rules", async (event) => { try { rules = ruleSelection.revalidate(); notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0325(error)), snapshot: snapshot() }; } });  ipcMain.handle("ai-analysis:choose-pending", async () => {
     analysisUserActions.push(`${now()} Select Pending JSON requested`);
     const choice = await dialog.showOpenDialog({ title: "Open pending-analysis JSON", properties: ["openFile"], filters: [{ name: "JSON", extensions: ["json"] }] });
     if (choice.canceled || !choice.filePaths[0]) return { canceled: true, snapshot: snapshot() };
@@ -491,7 +488,7 @@ export function registerAiAnalysisIpc() {
       if (stat.size > 128 * 1024 * 1024) throw new AiAnalysisError("INPUT_TOO_LARGE", "Analyzed dataset exceeds 128 MiB.");
       const raw = fs.readFileSync(filePath, "utf8");
       const document = JSON.parse(raw) as { schemaName?: string; schemaVersion?: string; fileType?: string; run?: AiAnalysisRun };
-      if (document.schemaName !== "jira-activity-analyzer.analyzed-analysis" || !document.schemaVersion || (document.schemaVersion !== AI_ANALYZED_FILE_SCHEMA_VERSION && !(AI_ANALYZED_LEGACY_FILE_SCHEMA_VERSIONS as readonly string[]).includes(document.schemaVersion)) || document.fileType !== "ANALYZED" || !document.run || document.run.status !== "completed" || document.run.results.length !== document.run.selectedDiffIds.length) {
+      if (document.schemaName !== "jira-activity-analyzer.analyzed-analysis" || !document.schemaVersion || (document.schemaVersion !== AI_ANALYZED_FILE_SCHEMA_VERSION && !(AI_ANALYZED_LEGACY_FILE_SCHEMA_VERSIONS as readonly string[]).includes(document.schemaVersion)) || document.fileType !== "ANALYZED" || !document.run || !["completed", "completed_with_quality_warnings", "completed_with_persistence_error"].includes(document.run.status) || document.run.results.length === 0 || document.run.results.length !== document.run.selectedDiffIds.length) {
         throw new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Only completed analyzed Activity Events datasets are supported.");
       }
       const imported = document.schemaVersion === AI_ANALYZED_FILE_SCHEMA_VERSION ? structuredClone(document.run) : adaptLegacyAnalyzedRun(document.run, document.schemaVersion);
@@ -503,8 +500,11 @@ export function registerAiAnalysisIpc() {
       const existing = runs.findIndex((item) => item.runId === imported.runId);
       if (existing >= 0) runs.splice(existing, 1);
       runs.unshift(imported);
+      const importId = `import_${crypto.randomUUID()}`;
+      const activeResult = resultRegistry.activateRun(imported, "MANUAL_IMPORT", importId);
       selectedRunId = imported.runId;
-      return { canceled: false, ok: true, snapshot: snapshot() };
+      selectedCanonicalAiRunDirectory = null;
+      return { canceled: false, ok: true, activeResult, snapshot: snapshot() };
     } catch (error) { return { canceled: false, ...errorPayload(error), snapshot: snapshot() }; }
   });
   ipcMain.handle("ai-analysis:select-run", async (_event, runId: string) => {
@@ -513,31 +513,55 @@ export function registerAiAnalysisIpc() {
     selectedCanonicalAiRunDirectory = runs.find((item) => item.runId === runId)?.runDirectory ?? null;
     return { ok: true, snapshot: snapshot() };
   });
+  ipcMain.handle("ai-analysis:activate-result", async (event, activeResultId: string) => {
+    try { const activeResult = resultRegistry.activateExisting(activeResultId); if (activeResult.runId) { selectedRunId = activeResult.runId; selectedCanonicalAiRunDirectory = runs.find((item) => item.runId === activeResult.runId)?.runDirectory ?? null; } notify(event); return { ok: true, activeResult, snapshot: snapshot() }; }
+    catch (error) { return { ...errorPayload(error), snapshot: snapshot() }; }
+  });
   ipcMain.handle("ai-analysis:start", async (event, payload: { mode: AiAnalyzerMode; datasetId: string; selectedDiffIds: string[]; service?: AiServiceKey; supplementalInstruction?: string; instructionMode?: AiInstructionMode; userAdditionalInstruction?: string; userCustomInstruction?: string; analysisRunId?: string; capacityConfirmation?: boolean }) => {
     const resumedRun = payload.analysisRunId ? runs.find((item) => item.runId === payload.analysisRunId) ?? null : null;
+    const requestedDataset = pendingDatasets.find((item) => item.datasetId === payload.datasetId) ?? null;
+    const attempt = resumedRun?.analysisAttemptId
+      ? attemptStore.find(resumedRun.analysisAttemptId) ?? attemptStore.begin({ pendingDatasetSha256: requestedDataset?.sourceFileSha256 ?? null, activeRuleSetId: ruleSelection.transaction.activeSet?.activeSetId ?? null, instructionMode: payload.instructionMode ?? "STANDARD_FORMAL" })
+      : attemptStore.begin({ pendingDatasetSha256: requestedDataset?.sourceFileSha256 ?? null, activeRuleSetId: ruleSelection.transaction.activeSet?.activeSetId ?? null, instructionMode: payload.instructionMode ?? "STANDARD_FORMAL" });
+    selectedCanonicalAiRunDirectory = null;
+    selectedAiAnalysisAttemptDirectory = attempt.archivePath;
+    const rejectAttempt = (error: unknown) => {
+      const normalized = asAnalysisError(error);
+      attemptStore.preflightFailed(attempt, normalized.code, normalized.message);
+      lastNavigationDecision = attemptStore.navigation(attempt, navigationDecisionV0325({ attempt, run: null, active: resultRegistry.active }));
+      notify(event);
+      return { ...errorPayload(normalized), analysisAttemptId: attempt.analysisAttemptId, navigationDecision: lastNavigationDecision, snapshot: snapshot() };
+    };
     if (activeRunId) {
       if (payload.analysisRunId === activeRunId && resumedRun) return { ok: false, run: resumedRun, snapshot: snapshot(), alreadyDispatching: true };
-      return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Another analysis run is active."));
+      return rejectAttempt(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Another analysis run is active."));
     }
-    if (payload.analysisRunId && (!resumedRun || resumedRun.progress.stage !== "waiting_capacity_confirmation")) return resumedRun ? { ok: resumedRun.status === "completed", run: resumedRun, snapshot: snapshot(), alreadyTerminal: true } : errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Prepared analysis run was not found."));
-    let dataset = pendingDatasets.find((item) => item.datasetId === payload.datasetId);
-    if (!dataset || !rules?.valid || !payload.selectedDiffIds.length) return errorPayload(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "A verified dataset, rules snapshot, and at least one diff are required."));
+    if (payload.analysisRunId && (!resumedRun || resumedRun.progress.stage !== "waiting_capacity_confirmation")) {
+      if (resumedRun) {
+        const navigationDecision = attemptStore.navigation(attempt, navigationDecisionV0325({ attempt, run: resumedRun, active: resultRegistry.active }));
+        lastNavigationDecision = navigationDecision;
+        return { ok: resumedRun.status === "completed", run: resumedRun, navigationDecision, snapshot: snapshot(), alreadyTerminal: true };
+      }
+      return rejectAttempt(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Prepared analysis run was not found."));
+    }
+    let dataset = requestedDataset;
+    if (!dataset || !rules?.valid || !payload.selectedDiffIds.length) return rejectAttempt(new AiAnalysisError("ANALYSIS_INPUT_INVALID", "A verified dataset, Active Rule Set, and at least one diff are required."));
     const selectedDataset = dataset;
-    if (payload.selectedDiffIds.some((id) => !selectedDataset.diffs.some((diff) => diff.sourceDiffId === id))) return errorPayload(new AiAnalysisError("SOURCE_MISMATCH", "Selected diff does not belong to the selected dataset."));
+    if (payload.selectedDiffIds.some((id) => !selectedDataset.diffs.some((diff) => diff.sourceDiffId === id))) return rejectAttempt(new AiAnalysisError("SOURCE_MISMATCH", "Selected diff does not belong to the selected dataset."));
     try {
-      if (!rules.rulesDirectoryPath || !dataset.sourceFilePath) throw new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Rules and dataset source paths are required for preflight.");
-      const refreshedRules = loadV0322RulesSnapshot(rules.rulesDirectoryPath, [rules.rulesDirectoryPath, getAppRuntimeDir(), bundledRulesDirectory]);
+      if (!dataset.sourceFilePath) throw new AiAnalysisError("ANALYSIS_INPUT_INVALID", "Dataset source path is required for preflight.");
+      const refreshedRules = ruleSelection.revalidate();
       const refreshedDataset = loadPendingDataset(dataset.sourceFilePath);
       if (!refreshedRules.valid) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", refreshedRules.errors.join(" ") || "Rules validation failed.");
       if (refreshedDataset.sourceFileSha256 !== dataset.sourceFileSha256) throw new AiAnalysisError("SOURCE_MISMATCH", "Pending Dataset changed after selection; import it again.");
       rules = refreshedRules; dataset = refreshedDataset;
-    } catch (error) { return errorPayload(error); }
+    } catch (error) { return rejectAttempt(normalizeRuleSelectionErrorV0325(error)); }
     const service = payload.service ?? (payload.mode === "CHATGPT" ? "chatgpt" : "ai_nexus");
     const provider = payload.mode === "OFFLINE_RULE" ? "offline_rule" : payload.mode === "CHATGPT" ? "chatgpt_codex" : "ai_nexus";
-    if (payload.mode === "CHATGPT" && chatgpt.getStatus().state !== "connected") return errorPayload(new AiAnalysisError("CHATGPT_SIGN_IN_REQUIRED", "ChatGPT must be connected before analysis."));
-    if (payload.mode === "AI_NEXUS") { const current = settingsAndSecret("ai_nexus").settings; if (current.connectionStatus !== "passed" || current.testedFingerprint !== current.configFingerprint) return errorPayload(new AiAnalysisError("AI_NOT_CONFIGURED", "AI Nexus settings must pass connection testing before analysis.")); }
+    if (payload.mode === "CHATGPT" && chatgpt.getStatus().state !== "connected") return rejectAttempt(new AiAnalysisError("CHATGPT_SIGN_IN_REQUIRED", "ChatGPT must be connected before analysis."));
+    if (payload.mode === "AI_NEXUS") { const current = settingsAndSecret("ai_nexus").settings; if (current.connectionStatus !== "passed" || current.testedFingerprint !== current.configFingerprint) return rejectAttempt(new AiAnalysisError("AI_NOT_CONFIGURED", "AI Nexus settings must pass connection testing before analysis.")); }
     const dbPath = resolveConfiguredPath(environment.values.AI_ANALYSIS_DB_PATH, path.join(getAppDataDir(), "ai-analysis", "ai-analysis.sqlite3"));
-    if (payload.mode !== "CHATGPT") try { initializeAiDatabase(dbPath); } catch (error) { return errorPayload(new AiAnalysisError("AI_DB_MIGRATION_FAILED", error instanceof Error ? error.message : String(error))); }
+    if (payload.mode !== "CHATGPT") try { initializeAiDatabase(dbPath); } catch (error) { return rejectAttempt(new AiAnalysisError("AI_DB_MIGRATION_FAILED", error instanceof Error ? error.message : String(error))); }
     const model = payload.mode === "OFFLINE_RULE" ? rules.classificationEngineVersion : payload.mode === "CHATGPT" ? (chatgpt.getStatus().selectedModel ?? "auto") : settingsAndSecret(service).settings.model;
     const runId = resumedRun?.runId ?? `analysis_${crypto.randomUUID()}`;
     analysisUserActions.push(`${now()} ${resumedRun ? "Capacity confirmation resumed" : "Start analysis requested"}: ${runId}`);
@@ -552,10 +576,12 @@ export function registerAiAnalysisIpc() {
       progress: { runId, status: "running", stage: "validating_source", totalBatches: payload.mode === "AI_NEXUS" ? payload.selectedDiffIds.length : payload.mode === "CHATGPT" ? 0 : 1, completedBatches: 0, failedBatches: 0, currentBatch: 1, totalDiffs: payload.selectedDiffIds.length, completedDiffs: 0, requestCount: 0, providerDispatchCount: 0, threadStartAttemptCount: 0, threadCreatedCount: 0, turnStartAttemptCount: 0, acceptedTurnCount: 0, turnCompletedCount: 0, retryCount: 0, repairTurnCount: 0, fallbackRequestCount: 0, threadCount: 0, turnCount: 0, mainPayloadCount: 0, rulesTransmissionCount: 0, payloadRecordCount: 0, resultRecordCount: 0, elapsedMs: 0, usage: emptyTokenUsage(payload.mode === "OFFLINE_RULE" ? "not_applicable" : "unavailable"), message: "Analysis started.", errorCode: null },
       results: [], supplementalInstruction: payload.supplementalInstruction?.trim() || null, instructionMode: payload.instructionMode ?? "STANDARD_FORMAL", userAdditionalInstruction: payload.userAdditionalInstruction?.trim() || payload.supplementalInstruction?.trim() || null, userCustomInstruction: payload.userCustomInstruction?.trim() || null, instructionComposition: null, providerReturnedRecordCount: 0, parsedRecordCount: 0, schemaValidRecordCount: 0, semanticValidRecordCount: 0, formalArtifactRecordCount: 0, sqliteCommittedRecordCount: 0, analyzedFileName: safeAnalyzedFileName(dataset.fileName, runId), plannedAnalyzedFilePath: null, analyzedFilePath: null, analyzedFileSizeBytes: null, analyzedFileSha256: null, databasePath: null
     };
+    run.analysisAttemptId = attempt.analysisAttemptId;
     if (!resumedRun) {
       try { const archive = new AiAnalysisRunArchive(runId, new Date(startedAt)); runArchives.set(runId, archive); run.runDirectory = archive.directory; archive.append("system_event", "APP_ONLY", "Analysis Run created before Provider dispatch.", { runId, localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }); archive.writeManifest(run); }
-      catch (error) { return errorPayload(new AiAnalysisError("AI_RUN_ARCHIVE_FAILED", error instanceof Error ? error.message : String(error))); }
+      catch (error) { return rejectAttempt(new AiAnalysisError("AI_RUN_ARCHIVE_FAILED", error instanceof Error ? error.message : String(error))); }
     }
+    attemptStore.linkRun(attempt, runId);
     const outputDir = ensureDir(path.join(getExportsDir(), "ai-analysis"));
     run.plannedAnalyzedFilePath = path.join(outputDir, run.analyzedFileName);
     if (!resumedRun) runs.unshift(run);
@@ -692,6 +718,8 @@ export function registerAiAnalysisIpc() {
         run.anomalyWarnings = [...new Set([...(run.anomalyWarnings ?? []), ...validated.validation.warnings, ...quality.warnings, ...artifacts.warnings])]; const warningGate = warningPersistenceGate({ structuralValidationPassed: true, warnings: run.anomalyWarnings });
         run.status = warningGate.requiresHumanAcceptance ? "completed_with_quality_warnings" : "completed"; run.progress.status = run.status; run.finalAcceptedRecordCount = warningGate.sqliteEligible ? run.results.length : 0; run.databaseWriteStatus = warningGate.sqliteEligible ? "Eligible - awaiting local commit" : `Not written - manual acceptance required for ${warningGate.pendingWarnings.join(", ")}`; run.completedAt ??= now();
         const canonicalDocument = { schemaName: "JiraActivityAnalyzerAnalyzedActivityEvents", schemaVersion: "0.3.24-v1", canonicalContractVersion: "jaa-canonical-analysis-result-v5", run }; const canonicalArtifact = atomicWriteCanonical(artifactPaths.canonicalResult, canonicalDocument); run.analyzedFilePath = canonicalArtifact.filePath; run.analyzedFileSizeBytes = canonicalArtifact.sizeBytes; run.analyzedFileSha256 = canonicalArtifact.sha256; run.formalArtifactRecordCount = run.results.length; run.telemetry.canonicalAssemblyMs = Date.now() - assemblyStarted; run.telemetry.canonicalOutputCompletedAt = now(); chatgpt.advanceBridgeLifecycle(runId, "CANONICAL_ASSEMBLY_COMPLETED", "completed"); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null;
+        resultRegistry.activateRun(run, "ANALYSIS_RUN");
+        selectedCanonicalAiRunDirectory = run.runDirectory ?? null;
         const formalPackage = buildReportDataPackageV0324({ mode: "FORMAL_CANONICAL", run, rules: run.rules, results: run.results, segments: segmentCatalog.segments, issueSnapshots: snapshotProfiles, validationFindings: allFindings, quality, canonicalSha256: canonicalArtifact.sha256, inputReceipts: [run.bridgeEvidence?.sourceInputReceipt, run.bridgeEvidence?.modelDeliveryReceipt].filter(Boolean) }); const formalPackagePath = path.join(artifactPaths.canonical, "report-data-package.json"); const formalWritten = durableJsonWriteV0324(formalPackagePath, formalPackage); run.reportDataPackagePath = formalWritten.filePath; run.reportDataPackageSha256 = formalPackage.packageSha256; run.reportPackageMode = "FORMAL_CANONICAL";
         try { run.progress.stage = "rendering_html"; const rendered = renderReportDataPackageHtmlV0324({ reportDataPackagePath: formalPackagePath, templatePath: run.htmlTemplateSnapshotPath!, outputDirectory: artifactPaths.canonical }); run.reportFilePath = rendered.receipt.outputHtmlPath; run.reportFileSizeBytes = rendered.receipt.outputHtmlSizeBytes; run.reportFileSha256 = rendered.receipt.outputHtmlSha256; run.htmlRenderReceiptPath = rendered.receiptPath; run.htmlRendererVersion = HTML_RENDERER_VERSION_V0324; run.htmlRenderStatus = "completed"; getChatGptService().setBridgeHtmlRenderStatus(run.runId, "completed"); if (run.lifecycle) run.lifecycle.htmlRenderStatus = "completed"; } catch (htmlError) { run.htmlRenderStatus = "failed"; run.anomalyWarnings = [...new Set([...(run.anomalyWarnings ?? []), `AI_HTML_RENDER_FAILED:${htmlError instanceof Error ? htmlError.message : String(htmlError)}`])]; }
         atomicWriteCanonical(artifactPaths.validationReport, { schemaVersion: "jaa-aggregated-validation-report-v1", runId, finalStatus: run.status, sourceSha256: dataset.sourceFileSha256, rulesSnapshotId: run.rules.snapshotId ?? run.rules.ruleSetId, decisionSha256: artifacts.hashes.decisions, canonicalOutputSha256: canonicalArtifact.sha256, reportDataPackageSha256: formalPackage.packageSha256, expectedCount: compact.payload.eventCount, actualDecisionCount: validated.validation.actualCount, canonicalRecordCount: run.results.length, schemaValidationPassed: validated.validation.schemaValid, semanticValidationPassed: validated.validation.semanticValid, evidenceValidationPassed: validated.validation.evidenceValid, attributionValidationPassed: validated.validation.attributionValid, qualityStatus: quality.status, findings: allFindings, warnings: run.anomalyWarnings, distribution: validated.validation.distribution, sqliteEligibility: warningGate, validatedAt: now(), validationDurationMs: Date.now() - validationStarted, canonicalAssemblyMs: run.telemetry.canonicalAssemblyMs });
@@ -750,6 +778,9 @@ export function registerAiAnalysisIpc() {
         try { exported = atomicExport(run.plannedAnalyzedFilePath!, JSON.stringify(analyzedDocument(run), null, 2)); report = atomicExport(reportPath, html); run.analyzedFilePath = exported.filePath; run.analyzedFileSizeBytes = exported.sizeBytes; run.analyzedFileSha256 = exported.sha256; run.formalArtifactRecordCount = run.results.length; run.reportFilePath = report.filePath; run.reportFileSizeBytes = report.sizeBytes; run.reportFileSha256 = report.sha256; run.progress.stage = "committing_database"; initializeAiDatabase(dbPath); persistCompletedRun(dbPath, dataset, run); run.databasePath = dbPath; run.databaseWriteStatus = `Written - ${run.results.length} validated records`; run.sqliteCommittedRecordCount = run.results.length; run.progress.stage = "completed"; }
         catch (error) { if (exported) try { fs.unlinkSync(exported.filePath); } catch {} if (report) try { fs.unlinkSync(report.filePath); } catch {} throw error; }
       }
+      if (resultRegistry.active?.analyzedResultSha256 !== run.analyzedFileSha256) resultRegistry.activateRun(run, "ANALYSIS_RUN");
+      resultRegistry.refreshDownstream(run);
+      selectedCanonicalAiRunDirectory = run.runDirectory ?? null;
     } catch (error) {
       const value = asAnalysisError(error);
       const providerFailure = providerFailureEvidence.get(runId);
@@ -784,8 +815,8 @@ export function registerAiAnalysisIpc() {
           atomicExport(path.join(runStagingFolder, "failed-run-manifest.json"), JSON.stringify({ runId, status: run.status, failedStage, errorCode: rootErrorCode, derivedStatusCodes: run.lifecycle?.derivedStatusCodes ?? [], message: value.message, databaseWriteStatus: run.databaseWriteStatus, completedAt: run.completedAt }, null, 2));
         } catch (stagingError) { run.progress.message += " Canonical evidence finalization failed: " + (stagingError instanceof Error ? stagingError.message : String(stagingError)); }
       }
-    } finally { run.bridgeEvidence = chatgpt.getBridgeEvidence(runId) ?? run.bridgeEvidence ?? null; run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null; const archive = runArchives.get(runId); try { archive?.writeManifest(run); if (!["queued", "running", "validating", "retrying", "cancelling"].includes(run.status)) archive?.close("terminal"); } catch (archiveError) { run.progress.errorCode = "AI_RUN_ARCHIVE_FAILED"; run.progress.message += ` Archive finalization failed: ${archiveError instanceof Error ? archiveError.message : String(archiveError)}`; } if (run.status !== "queued") dispatchGuard.finish(runId); providerFailureEvidence.delete(runId); activeRunId = null; abortControllers.delete(runId); observedWorkspaceFiles.delete(runId); lastProviderUiNotifyAt.delete(runId); chatgpt.releaseBridge(runId); notify(event); }
-    return { ok: run.status === "completed" || run.status === "completed_with_quality_warnings" || run.status === "completed_with_persistence_error", run, snapshot: snapshot() };
+    } finally { const successful = ["completed", "completed_with_quality_warnings", "completed_with_persistence_error"].includes(run.status) && resultRegistry.active?.runId === run.runId; if (run.status !== "queued") attemptStore.finish(attempt, successful ? "COMPLETED" : "FAILED"); if (run.status !== "queued") { lastNavigationDecision = attemptStore.navigation(attempt, navigationDecisionV0325({ attempt, run, active: resultRegistry.active })); run.navigationDecision = lastNavigationDecision; } run.bridgeEvidence = chatgpt.getBridgeEvidence(runId) ?? run.bridgeEvidence ?? null; run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null; const archive = runArchives.get(runId); try { archive?.writeManifest(run); if (!["queued", "running", "validating", "retrying", "cancelling"].includes(run.status)) archive?.close("terminal"); } catch (archiveError) { run.progress.errorCode = "AI_RUN_ARCHIVE_FAILED"; run.progress.message += ` Archive finalization failed: ${archiveError instanceof Error ? archiveError.message : String(archiveError)}`; } if (run.status !== "queued") dispatchGuard.finish(runId); providerFailureEvidence.delete(runId); activeRunId = null; abortControllers.delete(runId); observedWorkspaceFiles.delete(runId); lastProviderUiNotifyAt.delete(runId); chatgpt.releaseBridge(runId); notify(event); }
+    return { ok: run.status === "completed" || run.status === "completed_with_quality_warnings" || run.status === "completed_with_persistence_error", run, navigationDecision: run.navigationDecision ?? null, snapshot: snapshot() };
   });
   ipcMain.handle("ai-analysis:accept-warnings", async (event, payload: { runId: string; accept: boolean }) => {
     const run = runs.find((item) => item.runId === payload.runId); const dataset = run ? pendingDatasets.find((item) => item.datasetId === run.sourceDatasetId) : null;
@@ -871,9 +902,7 @@ export function registerAiAnalysisIpc() {
     const error = await shell.openPath(folder); return { ok: !error, folderPath: folder, error: error || undefined };
   });
 
-  if (environment.supported && environment.values.AI_ANALYSIS_RULES_DIR) {
-    try { rules = loadExplicitRulesSnapshotV0324(bundledRuleSelectionV0324(bundledRulesDirectory)); } catch { /* surfaced in UI */ }
-  }
+  try { rules = ruleSelection.revalidate(); } catch { rules = null; }
   if (environment.supported && environment.values.AI_ANALYSIS_DB_PATH) {
     try { initializeAiDatabase(resolveConfiguredPath(environment.values.AI_ANALYSIS_DB_PATH, "")); } catch { /* fail closed on use */ }
   }

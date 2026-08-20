@@ -1,3 +1,11 @@
+# v0.3.25 - Per-file Rule Selection and Gated Active Results
+
+- Added independent four-role Draft/Active rule selection with atomic Manifest-bound activation and restart revalidation.
+- Added durable Analysis Attempts, explicit navigation receipts, and fail-closed Results routing.
+- Unified automatic analysis and manual import through a durable, hash-verified Active Result registry.
+- Simplified Results to successful Active Datasets while keeping diagnostics and conversations in Workspace.
+- Added attempt-aware Debug Folder collection without falling back to a prior latest Run.
+- Real Managed OAuth, Jira, production SQLite, 117-record analysis, and clean Windows GUI validation remain Manual Validation Pending.
 # v0.3.24 - Evidence-first Report Data Package and Template Rendering
 
 - Added Decision v4 with deterministic evidence segments, exact quote/role validation, aggregated schema/semantic/evidence findings, and Quality Gate v2.

@@ -116,6 +116,15 @@ export type AiAnalysisErrorCode =
   | "AI_HTML_TEMPLATE_BINDING_MISMATCH"
   | "AI_HTML_RENDERER_INCOMPATIBLE"
   | "AI_HTML_RENDER_FAILED"
+  | "AI_RULE_FILE_NOT_SELECTED"
+  | "AI_RULE_FILE_NOT_FOUND"
+  | "AI_RULE_FILE_READ_FAILED"
+  | "AI_RULE_FILE_UTF8_INVALID"
+  | "AI_RULE_FILE_VERSION_MISMATCH"
+  | "AI_RULE_FILE_HASH_MISMATCH"
+  | "AI_RULE_SET_BINDING_FAILED"
+  | "AI_RULE_SELECTION_TRANSACTION_INCOMPLETE"
+  | "AI_RULE_SELECTION_ACTIVATION_FAILED"
   | "CODEX_BUNDLED_RUNTIME_MISSING"
   | "CODEX_BUNDLED_RUNTIME_VERSION_MISMATCH"
   | "CODEX_BUNDLED_RUNTIME_HASH_MISMATCH"
@@ -505,6 +514,8 @@ export type AiRunProgress = {
 
 export type AiAnalysisRun = {
   runId: string;
+  analysisAttemptId?: string | null;
+  navigationDecision?: AiNavigationDecisionV0325 | null;
   revision: number;
   status: AiRunStatus;
   analyzerMode: AiAnalyzerMode;
@@ -644,6 +655,101 @@ export type AiAnalysisRun = {
   importedFromFile?: boolean;
 };
 
+export type AiRuleSelectionFindingV0325 = {
+  errorCode: AiAnalysisErrorCode;
+  messageZhTw: string;
+  selectionMode: AiRuleSelectionMode;
+  attemptId: string;
+  role: AiRuleDocumentRole | null;
+  actualPath: string | null;
+  actualBasename: string | null;
+  actualBytes: number | null;
+  actualSha256: string | null;
+  expectedBasename: string | null;
+  expectedBytes: number | null;
+  expectedSha256: string | null;
+  expectedSource: string;
+  manifestRuleSetId: string;
+  activeSetId: string | null;
+  draftState: string;
+  occurredAtUtc: string;
+  cause: string;
+};
+export type AiRuleDraftRoleV0325 = {
+  role: AiRuleDocumentRole;
+  state: "EMPTY" | "SELECTED" | "VALID" | "INVALID";
+  selectedPath: string | null;
+  receipt: AiRuleRoleDocument | null;
+  finding: AiRuleSelectionFindingV0325 | null;
+};
+export type AiRuleActiveSetV0325 = {
+  mode: AiRuleSelectionMode;
+  roles: AiRuleRoleDocument[];
+  activatedAtUtc: string;
+  activeSetId: string;
+  manifestBindingReceiptPath: string | null;
+};
+export type AiRuleSelectionTransactionV0325 = {
+  schemaVersion: "jaa-rule-set-selection-transaction-v1";
+  activeSet: AiRuleActiveSetV0325 | null;
+  draftSet: { attemptId: string; roles: AiRuleDraftRoleV0325[]; aggregateBindingState: "INCOMPLETE" | "VALIDATING" | "VALID" | "INVALID"; createdAtUtc: string; updatedAtUtc: string } | null;
+  activeFindings: AiRuleSelectionFindingV0325[];
+  auditPath: string | null;
+};
+export type AiNavigationDecisionV0325 = {
+  schemaVersion: "jaa-analysis-navigation-decision-v1";
+  analysisAttemptId: string;
+  runId: string | null;
+  fromRoute: string;
+  requestedTargetRoute: string;
+  decision: "ALLOW" | "DENY" | "DEFER";
+  reasonCode: string;
+  analyzedResultReceiptId: string | null;
+  activeResultId: string | null;
+  evaluatedAtUtc: string;
+  receiptPath?: string | null;
+};
+export type AiAnalysisAttemptV0325 = {
+  schemaVersion: "jaa-analysis-attempt-v1";
+  analysisAttemptId: string;
+  requestedAtUtc: string;
+  requestedAtLocal: string;
+  pendingDatasetSha256: string | null;
+  activeRuleSetId: string | null;
+  instructionMode: string;
+  effectiveInstructionSha256: string | null;
+  preflightFindings: Array<{ errorCode: string; message: string }>;
+  dispatchDecision: "PENDING" | "ALLOW" | "DENY";
+  linkedRunId: string | null;
+  navigationDecisions: AiNavigationDecisionV0325[];
+  terminalStatus: "PREFLIGHT" | "PREFLIGHT_FAILED" | "DISPATCHED" | "COMPLETED" | "FAILED";
+  archivePath: string;
+};
+export type AiActiveAnalysisResultV0325 = {
+  schemaVersion: "jaa-active-analysis-result-v1";
+  activeResultId: string;
+  sourceKind: "ANALYSIS_RUN" | "MANUAL_IMPORT";
+  analyzedResultPath: string;
+  analyzedResultSha256: string;
+  analyzedResultBytes: number;
+  recordCount: number;
+  sourceDatasetSha256: string;
+  ruleSetId: string;
+  runId: string | null;
+  importId: string | null;
+  authoritativeCompletedAtUtc: string;
+  activatedAtUtc: string;
+  packageState: "NOT_STARTED" | "READY" | "FAILED";
+  htmlState: "NOT_STARTED" | "READY" | "FAILED";
+  sqliteState: "NOT_STARTED" | "COMMITTED" | "FAILED" | "NOT_ALLOWED";
+  reportDataPackagePath: string | null;
+  reportDataPackageSha256: string | null;
+  htmlPath: string | null;
+  htmlSha256: string | null;
+  validationState: string;
+  qualityState: string;
+  statistics: { source: "REPORT_DATA_PACKAGE"; calculatedAtUtc: string | null; packageId: string | null; eventCount: number | null; uniqueIssueCount: number | null; skillFindingCount: number | null; validationFindingCount: number | null };
+};
 export type AiAnalysisSnapshot = {
   ipcVersion: typeof AI_ANALYSIS_IPC_VERSION;
   env: AiEnvSummary;
@@ -654,6 +760,11 @@ export type AiAnalysisSnapshot = {
   selectedRunId: string | null;
   activeRunId: string | null;
   chatgpt: ChatGptStatus;
+  ruleSelection?: AiRuleSelectionTransactionV0325;
+  analysisAttempts?: AiAnalysisAttemptV0325[];
+  activeResult?: AiActiveAnalysisResultV0325 | null;
+  successfulResults?: AiActiveAnalysisResultV0325[];
+  lastNavigationDecision?: AiNavigationDecisionV0325 | null;
 };
 
 export type AiExportFormat = "json" | "csv" | "html";

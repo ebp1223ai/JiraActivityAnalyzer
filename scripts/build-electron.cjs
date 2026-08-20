@@ -9,8 +9,8 @@ fs.rmSync(path.join(outdir, "analysis-bridge-v0318.cjs"), { force: true });
 fs.rmSync(path.join(outdir, "analysis-bridge-v0319.cjs"), { force: true });
 fs.rmSync(path.join(outdir, "analysis-bridge-v0320.cjs"), { force: true });
 fs.rmSync(path.join(outdir, "analysis-bridge-v0321.cjs"), { force: true });
-fs.rmSync(path.join(outdir, "analysis-bridge-v0324.cjs"), { force: true });
-fs.rmSync(path.join(outdir, "analysis-bridge-v0324.cjs"), { force: true });
+fs.rmSync(path.join(outdir, "analysis-bridge-v0325.cjs"), { force: true });
+fs.rmSync(path.join(outdir, "analysis-bridge-v0325.cjs"), { force: true });
 const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf8"));
 const buildTimeParts = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Taipei",
@@ -53,7 +53,7 @@ const common = {
   logLevel: "info"
 };
 
-const bridgeOutput = path.join(outdir, "analysis-bridge-v0324.cjs");
+const bridgeOutput = path.join(outdir, "analysis-bridge-v0325.cjs");
 esbuild.buildSync({
   ...common,
   entryPoints: [path.resolve(__dirname, "../electron/analysisBridgeRuntimeV0319.ts")],
@@ -61,10 +61,10 @@ esbuild.buildSync({
 });
 const bridgeSha256 = require("node:crypto").createHash("sha256").update(fs.readFileSync(bridgeOutput)).digest("hex");
 fs.writeFileSync(path.join(outdir, "analysis-bridge-manifest.json"), JSON.stringify({
-  schemaVersion: "jaa-analysis-bridge-manifest-v1", version: "0.3.24-bridge-v6", relativePath: "analysis-bridge-v0324.cjs",
+  schemaVersion: "jaa-analysis-bridge-manifest-v1", version: "0.3.25-bridge-v7", relativePath: "analysis-bridge-v0325.cjs",
   sha256: bridgeSha256, transport: "codex_dynamic_tools_stdio", modelInputTransport: "bridge-resumable-v2", localOnly: true, externalFallback: false
 }, null, 2) + "\n", "utf8");
-console.log(`  analysis bridge manifest  version=0.3.24-bridge-v6 sha256=${bridgeSha256}`);
+console.log(`  analysis bridge manifest  version=0.3.25-bridge-v7 sha256=${bridgeSha256}`);
 
 esbuild.buildSync({
   ...common,

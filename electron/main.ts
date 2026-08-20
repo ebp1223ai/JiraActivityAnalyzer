@@ -60,7 +60,7 @@ import { filterSnapshot, type PendingAnalysisExportRequest, type PendingAnalysis
 import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
-import { getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
+import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
 import { flushRunArchive } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
 
@@ -4030,13 +4030,17 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   };
   visitAiRuns(aiRunsRoot);
   const requestedAiRunPath = getSelectedCanonicalAiRunDirectory();
-  const selectedAiRunPath = requestedAiRunPath && aiRunCandidates.some((item) => path.resolve(item.fullPath) === path.resolve(requestedAiRunPath)) ? requestedAiRunPath : aiRunCandidates.sort((left, right) => right.mtimeMs - left.mtimeMs)[0]?.fullPath ?? null;
+  const selectedAiRunPath = requestedAiRunPath && aiRunCandidates.some((item) => path.resolve(item.fullPath) === path.resolve(requestedAiRunPath)) ? requestedAiRunPath : null;
   aiWriterFlushResults = selectedAiRunPath ? [flushRunArchive(path.basename(selectedAiRunPath), "debug_export_selected_canonical_run")] : [];
   if (selectedAiRunPath) {
     const copied = collectDebugFolderSources(folderPath, [{ sourcePath: selectedAiRunPath, relativePath: "ai-analysis/canonical-run" }]);
     copiedEntries.push(...copied.entries);
     evidenceEntries.push({ id: "ai_analysis_canonical_run", status: copied.failed.length ? "copy_failed" : "copied", sourcePath: selectedAiRunPath, relativePath: "ai-analysis/canonical-run", reason: copied.failed.length ? copied.failed.map((entry) => entry.reason).join("; ") : "Latest Canonical AI Run copied with source/destination SHA-256 verification." });
-  } else evidenceEntries.push({ id: "ai_analysis_canonical_run", status: "not_run", sourcePath: aiRunsRoot, relativePath: "ai-analysis/canonical-run", reason: "No Canonical AI Analysis run exists." });
+  } else {
+    const attemptPath = getSelectedAiAnalysisAttemptDirectory();
+    if (attemptPath && fs.existsSync(attemptPath)) { const copied = collectDebugFolderSources(folderPath, [{ sourcePath: attemptPath, relativePath: "ai-analysis/current-attempt" }]); copiedEntries.push(...copied.entries); evidenceEntries.push({ id: "ai_analysis_current_attempt", status: copied.failed.length ? "copy_failed" : "copied", sourcePath: attemptPath, relativePath: "ai-analysis/current-attempt", reason: copied.failed.length ? copied.failed.map((entry) => entry.reason).join("; ") : "Current attempt evidence copied; no prior Run fallback was used." }); }
+    else evidenceEntries.push({ id: "ai_analysis_canonical_run", status: "not_run", sourcePath: aiRunsRoot, relativePath: "ai-analysis/canonical-run", reason: "Current attempt has no Run; prior latest Run fallback is intentionally disabled." });
+  }
   for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
     collectDiagnosticFile("current_session_" + fileName, path.join(diagnosticSnapshot.sessionDir, fileName), "sessions/current/" + fileName);
   }

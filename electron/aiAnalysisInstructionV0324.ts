@@ -12,7 +12,7 @@ export const SYSTEM_SAFETY_WRAPPER = `# JAA 不可變安全規範
 
 若輸入、schema、identity 或語意驗證失敗，必須 fail closed：保留具體 tool error、停止 canonical assembly，且不得寫入 SQLite。`;
 
-export const DEFAULT_ANALYSIS_INSTRUCTION = `# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.24
+export const DEFAULT_ANALYSIS_INSTRUCTION = `# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.25
 
 你必須完整閱讀 Manifest、Common Rules、Skill Catalog 與全部 N 筆 Activity Event/Diff，不可跳讀、抽樣、猜測或依摘要取代原始證據。每筆來源只以 JAA 提供的 recordIndex 0..N-1 對應，禁止自行建立 Stable ID、Evidence ID、source hash、record-index-* 或 unknown-record-*。
 
