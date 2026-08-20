@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "jaa-execution-time-ledger-v1",
+  "targetVersion": "0.3.25",
+  "actualTokenTelemetry": "unavailable",
+  "steps": [
+    {
+      "step": "npm.cmd run typecheck",
+      "startedAt": "2026-08-20T17:45:56.2685696+08:00",
+      "finishedAt": "2026-08-20T17:46:05.6958955+08:00",
+      "durationMs": 9421,
+      "exitCode": 0,
+      "result": "PASS",
+      "evidencePath": "reports/JiraActivityAnalyzer_v0.3.25_test_and_verification_report.md"
+    },
+    {
+      "step": "npm.cmd run test:v0.3.25",
+      "startedAt": "2026-08-20T17:46:29.2862825+08:00",
+      "finishedAt": "2026-08-20T17:46:33.7727718+08:00",
+      "durationMs": 4481,
+      "exitCode": 0,
+      "result": "PASS",
+      "evidencePath": "tests/v0325RuleSelectionActiveResult.test.ts"
+    },
+    {
+      "step": "npm.cmd run build",
+      "startedAt": "2026-08-20T17:46:33.7778040+08:00",
+      "finishedAt": "2026-08-20T17:46:52.4391874+08:00",
+      "durationMs": 18660,
+      "exitCode": 0,
+      "result": "PASS",
+      "evidencePath": "dist/index.html"
+    },
+    {
+      "step": "npm.cmd run dist initial",
+      "startedAt": "2026-08-20T17:36:00+08:00",
+      "finishedAt": "2026-08-20T17:36:09+08:00",
+      "durationMs": 9244,
+      "exitCode": 1,
+      "result": "EXPECTED_BLOCK_EXISTING_DIRTY_TRACKED_FILE",
+      "evidencePath": "reports/JiraActivityAnalyzer_v0.3.25_test_and_verification_report.md"
+    },
+    {
+      "step": "npm.cmd run dist authorized final",
+      "startedAt": "2026-08-20T17:40:42.659+08:00",
+      "finishedAt": "2026-08-20T17:42:18.1761181+08:00",
+      "durationMs": 120030,
+      "exitCode": 0,
+      "result": "PASS",
+      "evidencePath": "release/build-info.json"
+    },
+    {
+      "step": "win-unpacked isolated short launch",
+      "startedAt": "2026-08-20T17:43:45+08:00",
+      "finishedAt": "2026-08-20T17:43:52+08:00",
+      "durationMs": 7000,
+      "exitCode": 0,
+      "result": "PASS_DID_FINISH_LOAD",
+      "evidencePath": "test-artifacts/launch-v0325/win-unpacked-root/logs"
+    },
+    {
+      "step": "Portable isolated short launch",
+      "startedAt": "2026-08-20T17:44:44+08:00",
+      "finishedAt": "2026-08-20T17:44:59+08:00",
+      "durationMs": 15000,
+      "exitCode": 0,
+      "result": "PASS_DID_FINISH_LOAD",
+      "evidencePath": "test-artifacts/launch-v0325/portable-root/logs"
+    }
+  ]
+}

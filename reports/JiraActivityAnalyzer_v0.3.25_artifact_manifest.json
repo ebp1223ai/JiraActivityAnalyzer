@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "jaa-v0.3.25-artifact-manifest-v1",
+  "targetVersion": "0.3.25",
+  "overallStatus": "Partial / Manual Validation Pending",
+  "packageSourceCommit": "771fe6dc0f0f16e674fc65c987ce4a86ce16b550",
+  "buildTime": "2026/08/20 17:40:42",
+  "dirtyStateReason": "Authorized existing user-owned tracked report modification; excluded from commits and package source identity.",
+  "artifacts": [
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.25.exe",
+      "bytes": 190602008,
+      "sha256": "336fde5a0293030e05352e864af27dc931aa8ee551a208505aeed6d7acafc84a"
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.25.exe",
+      "bytes": 190371911,
+      "sha256": "c31429abb1df87f03af0ad60ca37bb04e8f3f78d56508d075ffc4c3f01f14e9f"
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "df81c60edd03c555524f0f2c0c9943c95575013728ab33f281360e595603807f"
+    }
+  ],
+  "bridge": {
+    "version": "0.3.25-bridge-v7",
+    "relativePath": "dist-electron/analysis-bridge-v0325.cjs",
+    "sha256": "62953adefd18786addb82eaa33636ebaf9a80d77be745219e7256aa300ebf685"
+  },
+  "codex": {
+    "version": "0.147.0",
+    "sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d"
+  },
+  "rules": [
+    {
+      "fileName": "Skill_Analysis_HTML_Report_Template_v1.4.0.md",
+      "bytes": 34465,
+      "sha256": "a2370c1a92bf3b504e23764ef8fdba54ca073f084b4c50605b7250f08a27c5d4"
+    },
+    {
+      "fileName": "Skill_Analysis_Rule_Set_Manifest_v0.7.0.md",
+      "bytes": 15754,
+      "sha256": "d430c8b722d7feb8dd5b98eea904210e9c3db929a5ec01f4ae3d8bfbb93ff99a"
+    },
+    {
+      "fileName": "Skill_Catalog_v0.3.1.md",
+      "bytes": 24636,
+      "sha256": "dd1b4a366e4f7fdc3232776a7a6ff54070eae00cc41102c195de5b0deb749d7d"
+    },
+    {
+      "fileName": "Skill_Classification_Common_Rules_v1.5.0.md",
+      "bytes": 32639,
+      "sha256": "779f7afa569834535cd200895412097dbee13a775d588555deacae1ce8c47ccc"
+    }
+  ],
+  "actualTokenTelemetry": "unavailable"
+}
