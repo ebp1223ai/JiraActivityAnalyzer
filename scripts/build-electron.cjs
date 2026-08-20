@@ -5,12 +5,9 @@ const { execSync } = require("node:child_process");
 
 const outdir = path.resolve(__dirname, "../dist-electron");
 fs.mkdirSync(outdir, { recursive: true });
-fs.rmSync(path.join(outdir, "analysis-bridge-v0318.cjs"), { force: true });
-fs.rmSync(path.join(outdir, "analysis-bridge-v0319.cjs"), { force: true });
-fs.rmSync(path.join(outdir, "analysis-bridge-v0320.cjs"), { force: true });
-fs.rmSync(path.join(outdir, "analysis-bridge-v0321.cjs"), { force: true });
-fs.rmSync(path.join(outdir, "analysis-bridge-v0325.cjs"), { force: true });
-fs.rmSync(path.join(outdir, "analysis-bridge-v0325.cjs"), { force: true });
+for (const fileName of fs.readdirSync(outdir)) {
+  if (/^analysis-bridge-v[0-9]+[.]cjs$/.test(fileName)) fs.rmSync(path.join(outdir, fileName), { force: true });
+}
 const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf8"));
 const buildTimeParts = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Taipei",
