@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "jaa-v0.3.24-artifact-manifest-v1",
+  "targetVersion": "0.3.24",
+  "overallStatus": "Partial / Manual Validation Pending",
+  "branch": "feat/v0.3.24-evidence-report-data-template-rendering",
+  "packageSourceCommit": "7cbb7291f85d4e4f10cf9bf79da026e7dc917ae3",
+  "buildTime": "2026/08/20 15:34:38",
+  "dirtyState": true,
+  "dirtyStateReason": "Preserved pre-existing tracked v0.2.47 report modification; excluded from source commit and package inputs.",
+  "artifacts": [
+    {
+      "role": "windows-installer",
+      "path": "release/Jira Activity Analyzer Setup 0.3.24.exe",
+      "sizeBytes": 190607206,
+      "sha256": "e50826d273678db3722c3c96b026228c34ded463ee5ae3b19fc1c871162d5c56"
+    },
+    {
+      "role": "windows-portable",
+      "path": "release/Jira Activity Analyzer Portable 0.3.24.exe",
+      "sizeBytes": 190377114,
+      "sha256": "73a3eeafc2d57559e860b8c75851b054205614d5f416be7c19a24d88aa33eac7"
+    },
+    {
+      "role": "win-unpacked-executable",
+      "path": "release/win-unpacked/Jira Activity Analyzer.exe",
+      "sizeBytes": 235706368,
+      "sha256": "efd06745c9f623a48010913fce67826ff8b8f4914a19eab7c02664164d7c1ac4"
+    },
+    {
+      "role": "asar",
+      "path": "release/win-unpacked/resources/app.asar",
+      "sizeBytes": 25086043,
+      "sha256": "8e7ff1a4443168def3e66bf046ef35eafae8af3eed93401f7811d5dfb0255d27"
+    }
+  ],
+  "rules": [
+    {
+      "role": "html_template",
+      "fileName": "Skill_Analysis_HTML_Report_Template_v1.4.0.md",
+      "sha256": "a2370c1a92bf3b504e23764ef8fdba54ca073f084b4c50605b7250f08a27c5d4"
+    },
+    {
+      "role": "rule_set_manifest",
+      "fileName": "Skill_Analysis_Rule_Set_Manifest_v0.6.0.md",
+      "sha256": "96dbdc78ee97f50c6025fbf21d4efb11a24c7973100edfd0bf72c1825c947d76"
+    },
+    {
+      "role": "skill_catalog",
+      "fileName": "Skill_Catalog_v0.3.1.md",
+      "sha256": "dd1b4a366e4f7fdc3232776a7a6ff54070eae00cc41102c195de5b0deb749d7d"
+    },
+    {
+      "role": "common_rules",
+      "fileName": "Skill_Classification_Common_Rules_v1.5.0.md",
+      "sha256": "779f7afa569834535cd200895412097dbee13a775d588555deacae1ce8c47ccc"
+    }
+  ],
+  "warnings": [
+    "Vite externalized existing shared node:crypto browser import.",
+    "Renderer bundle exceeds Vite 500 kB advisory threshold.",
+    "electron-builder used default Electron icon.",
+    "Authorized dirty packaging flag was required solely for preserved pre-existing tracked modification."
+  ],
+  "manualValidationPending": [
+    "Real Managed OAuth and ChatGPT run",
+    "Real Jira 17/117 records",
+    "Production SQLite write and rollback",
+    "Clean Windows installer walkthrough"
+  ]
+}

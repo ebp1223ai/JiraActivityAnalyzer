@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "jaa-v0.3.24-execution-ledger-v1",
+  "targetVersion": "0.3.24",
+  "timezone": "Asia/Taipei",
+  "entries": [
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 8.858,
+      "note": "Final focused pre-source-commit run"
+    },
+    {
+      "command": "npm.cmd run test:v0.3.24",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 2.071,
+      "note": "Synthetic 17/117 plus v0.3.22 regression"
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "PASS_WITH_WARNINGS",
+      "exitCode": 0,
+      "durationSeconds": 14.223
+    },
+    {
+      "command": "npm.cmd run dist",
+      "result": "EXPECTED_GUARD_BLOCK",
+      "exitCode": 1,
+      "durationSeconds": 5.659,
+      "note": "Clean tracked worktree guard saw preserved user report modification"
+    },
+    {
+      "command": "$env:JAA_ALLOW_DIRTY_PACKAGE=1; npm.cmd run dist",
+      "result": "PASS_WITH_WARNINGS",
+      "exitCode": 0,
+      "durationSeconds": 96.156
+    },
+    {
+      "command": "Portable isolated startup / DOM check attempt 1",
+      "result": "STARTUP_PASS_ROUTE_CHECK_INCOMPLETE",
+      "exitCode": 1,
+      "durationSeconds": 24.298,
+      "note": "Renderer complete, nonblank, Build Time visible; navigation selector missed target"
+    },
+    {
+      "command": "Portable isolated startup / direct #/ai-analysis DOM check",
+      "result": "FUNCTIONAL_ASSERTIONS_PASS_WRAPPER_OUTPUT_ERROR",
+      "exitCode": 1,
+      "durationSeconds": 17.013,
+      "note": "All three tabs, Build Time, complete renderer, nonempty root passed; final PowerShell Write-Output typo only"
+    }
+  ],
+  "actualTokenTelemetry": "unavailable",
+  "notRun": [
+    "Real provider",
+    "Real Jira",
+    "Production SQLite",
+    "Long-running multi-size UI smoke",
+    "Clean installer GUI walkthrough"
+  ]
+}
