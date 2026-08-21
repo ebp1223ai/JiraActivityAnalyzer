@@ -1,3 +1,10 @@
+# v0.3.27 - Host-owned Bridge Context and Debug Correctness
+
+- Removed all JAA-owned Run, Attempt, Request, Thread, Turn, source, and rules identities from model-visible dynamic tool schemas; `jaa_get_input_manifest({})` now resolves an isolated host-owned context.
+- Added delayed Provider Thread/Turn binding, opaque scoped delivery handles, safe bridge tool-call evidence, and separate root versus derived error propagation.
+- Unified non-standard error normalization and lifecycle-aware Debug completeness without changing Decision v5, Evidence Quote Catalog, Canonical v5, Report Package v1, HTML renderer, or SQLite gates.
+- Bundled the byte-identical Manifest v0.8.0, Common Rules v1.6.0, Catalog v0.3.1, and HTML Template v1.5.0 Active Set under the v0.3.27 application runtime.
+- Real Managed OAuth, real Jira, production SQLite, 17/117-record Provider analysis, and clean Windows GUI verification remain Manual Validation Pending.
 # v0.3.25 - Per-file Rule Selection and Gated Active Results
 
 - Added independent four-role Draft/Active rule selection with atomic Manifest-bound activation and restart revalidation.

@@ -1,4 +1,4 @@
-export const ANALYSIS_BRIDGE_VERSION = "0.3.26-bridge-v8" as const;
+export const ANALYSIS_BRIDGE_VERSION = "0.3.27-bridge-v9" as const;
 export const ANALYSIS_BRIDGE_SCHEMA_VERSION = "jaa-analysis-bridge-contract-v1" as const;
 
 export type AnalysisLifecycleStage =
@@ -34,6 +34,9 @@ export type AnalysisLifecycleSummary = {
   lastSuccessfulStage: AnalysisLifecycleStage;
   firstFailedStage: AnalysisLifecycleStage | null;
   rootErrorCode: string | null;
+  rootErrorStage?: string | null;
+  rootErrorMessage?: string | null;
+  derivedErrorCodes?: string[];
   derivedStatusCodes: string[];
   canonicalStatus: "not_created" | "created";
   analysisStarted: boolean;
@@ -57,6 +60,9 @@ export type AnalysisBridgeEvidence = {
   modelDeliveryFailure?: Record<string, unknown> | null;
   artifactReceipt: Record<string, unknown> | null;
   lifecycle: AnalysisLifecycleSummary;
+  bridgeExecutionContext?: Record<string, unknown> | null;
+  rootError?: Record<string, unknown> | null;
+  derivedErrors?: Array<Record<string, unknown>>;
 };
 
-export type AnalysisBridgeToolContext = { runId: string; sessionNonce: string; threadId: string; turnId: string; callId: string };
+export type AnalysisBridgeToolContext = { runId: string; sessionNonce: string; threadId: string; turnId: string; callId: string; toolRegistrationId?: string };

@@ -8,7 +8,7 @@ export const SYSTEM_SAFETY_WRAPPER=`# JAA 不可變安全規範
 禁止 Shell、PowerShell、CMD、Python、外部 Codex、網路、MCP、Plugin、Skill、PATH 或替代檔案工具。禁止取得或輸出 OAuth Token、Cookie、Authorization、密碼或其他憑證。Run、Attempt、Request、Thread、Turn、source hash、Rule Snapshot 與 contract identity 全由 JAA 持有，模型不得提交、猜測或覆寫。
 
 必須以 bridge-resumable-v3 完成所有 files、bytes、segments、EOF、hash 與 ACK，取得 Model Delivery Receipt 後才能分類。模型不負責檔案 I/O、HTML、Package、SQLite 或正式 identity。任何驗證失敗均 fail closed。`;
-export const DEFAULT_ANALYSIS_INSTRUCTION=`# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.26
+export const DEFAULT_ANALYSIS_INSTRUCTION=`# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.27
 
 完整閱讀 Manifest v0.8.0、Common Rules v1.6.0、Catalog v0.3.1 與全部 N 筆資料，不可跳讀、抽樣、猜測或用摘要取代原文。只使用 JAA frozen Evidence Quote Catalog 的 evidenceQuoteId，不得自造 ID、重打 quote 或提交 evidenceRef、segment、role、source hash、Stable ID。
 
@@ -19,7 +19,7 @@ CLASSIFIED 與 CATALOG_DETAIL_MISSING 必須有 skillFindings 且 unknownReasons
 提交前檢查 count、index、status matrix、Catalog membership、quote IDs、PRIMARY_CHANGE 與 multi-skill。只呼叫 jaa_publish_analysis_artifacts_v5 一次，提交 artifactSubmissionToken、decisions、完整繁中 analysisReportMarkdown、簡短 finalSummaryZhTw。Tool 成功只代表 submission 接受；Canonical、Active Result、HTML 與 SQLite 由 JAA 分層驗證決定。`;
 const DELIVERY=`# Model Input Delivery Protocol
 
-先呼叫 jaa_get_input_manifest。依 manifest 順序重複呼叫 jaa_read_and_ack_next_segment；首次 previousAck=null，之後每次帶回上一段完整 ACK。核對 cursor、bytes、SHA-256、EOF；不得跳號、退回、重複或漏 ACK。最後一段必須 final ACK，取得 4/4 files、N/N records 與 modelInputDelivered=true 後才可分析。`;
+第一個工具固定呼叫 jaa_get_input_manifest({})，不得傳入、猜測、轉換或要求 JAA 提供 Run、Attempt、Request、Thread 或 Turn identity。只使用回傳的 opaque deliveryHandle；依 manifest 順序重複呼叫 jaa_read_and_ack_next_segment，首次 previousAck=null，之後帶回上一段完整 ACK。核對 cursor、bytes、SHA-256、EOF，不得跳號、退回、重複或漏 ACK。最後以 jaa_finalize_input_delivery 提交 handle 與 finalAck；取得 4/4 files、N/N records 與 modelInputDelivered=true 後才可分析。`;
 const FINAL=`# Final Response Contract
 
 最終回覆使用繁體中文，如實說明 4/4 輸入完整度、已分析筆數、結果分布、限制與是否已提交。不得宣稱不存在的 Canonical、Active Result、HTML 或 SQLite receipt。`;
@@ -28,9 +28,9 @@ export function composeEffectiveInstruction(input:{mode:AiInstructionMode;runId:
 
 expectedRecordCount=${input.recordCount}
 decisionContract=${contract.schemaVersion}
-Prompt Identity=JAA-CHATGPT-ZH-TW-0.3.26
-Prompt Template=0.3.26-zh-TW-v7
-Bridge=0.3.26-bridge-v8
+Prompt Identity=JAA-CHATGPT-ZH-TW-0.3.27
+Prompt Template=0.3.27-zh-TW-v8
+Bridge=0.3.27-bridge-v9
 Transport=bridge-resumable-v3
 
 JAA-owned identity 不提供給模型，也不得出現在 submission。`;const mode=input.mode==="CUSTOM_DIAGNOSTIC"?`# Custom Diagnostic Mode

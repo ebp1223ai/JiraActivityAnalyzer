@@ -1,3 +1,8 @@
+## v0.3.27 Host-owned Bridge Context 與 Debug 正確性
+
+v0.3.27 將所有 Run／Attempt／Request／Thread／Turn identity 留在 Electron host，模型可見的第一個工具固定為 `jaa_get_input_manifest({})`。Provider Thread／Turn 以有界 barrier 延後綁定，後續輸入傳輸只使用一次性 opaque delivery handle；Debug evidence 僅保存 hash、短 prefix 與安全狀態，不保存完整 handle、artifact token 或憑證。
+
+本版維持 Decision v5、Evidence Quote Catalog、14 層驗證、Canonical v5、Report Package v1、HTML Renderer 1.5.0 與 SQLite gate。Root error 與 derived consequence 分開保存，Error Normalizer 不再產生 `undefined: undefined`。四份受控規則／Template 與 v0.3.26 Active Set 位元組完全相同；真實 Managed OAuth、真實 Jira、production SQLite 與 17／117 筆 Provider Run 仍為 `Manual Validation Pending`。
 ## v0.3.24 Evidence-first Report Data Package 與離線 Template Renderer
 
 v0.3.24 將模型輸出升級為 Decision v4，使用 deterministic Evidence Segment、PRIMARY_CHANGE／SUPPORTING_CONTEXT role 與 exact quote equality 驗證。JAA 本機聚合 Schema、Semantic、Evidence 與 Quality findings；可解析但不合格的輸出只產生 Diagnostic Package／HTML，不得寫入正式 SQLite。

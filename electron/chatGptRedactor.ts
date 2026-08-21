@@ -28,7 +28,7 @@ export function sanitizeChatGptValueComplete(value: unknown, seen = new WeakSet<
   if (seen.has(value)) return "[circular]";
   seen.add(value);
   if (Array.isArray(value)) return value.map((item) => sanitizeChatGptValueComplete(item, seen));
-  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) => [/token|authorization|cookie|secret|password|api.?key/i.test(key) ? key : key, /token|authorization|cookie|secret|password|api.?key/i.test(key) ? "[masked]" : sanitizeChatGptValueComplete(child, seen)]));
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) => [/token|authorization|cookie|secret|password|api.?key|delivery.?handle|artifact.?handle/i.test(key) ? key : key, /token|authorization|cookie|secret|password|api.?key|delivery.?handle|artifact.?handle/i.test(key) ? "[masked]" : sanitizeChatGptValueComplete(child, seen)]));
 }
 
 export function redactChatGptText(value: unknown) {
@@ -36,5 +36,11 @@ export function redactChatGptText(value: unknown) {
 }
 
 export function sanitizedError(error: unknown) {
-  return redactChatGptText(error instanceof Error ? error.message : error);
+  if (error === null || error === undefined) return "UNEXPECTED_ERROR_SHAPE:收到非標準錯誤物件。";
+  if (error instanceof Error) return redactChatGptText(error.message || "UNEXPECTED_ERROR_SHAPE:收到沒有訊息的 Error。");
+  if (typeof error === "object") {
+    const value = error as Record<string, unknown>;
+    return redactChatGptText(`${String(value.errorCode ?? value.code ?? "UNEXPECTED_ERROR_SHAPE")}:${String(value.messageZhTw ?? value.message ?? "收到非標準錯誤物件。")}`);
+  }
+  return redactChatGptText(String(error) || "UNEXPECTED_ERROR_SHAPE:收到非標準錯誤物件。");
 }

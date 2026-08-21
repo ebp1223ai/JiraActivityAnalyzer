@@ -37,7 +37,7 @@ import {
   sha256Text
 } from "./aiAnalysisCore.js";
 import { ensureDir, getAppDataDir, getAppRuntimeDir, getBundledAnalysisRulesDir, getExportsDir } from "./appPaths.js";
-import { RuleSelectionTransactionServiceV0326, normalizeRuleSelectionErrorV0326 } from "./aiAnalysisRulesV0326.js";
+import { RuleSelectionTransactionServiceV0327, normalizeRuleSelectionErrorV0327 } from "./aiAnalysisRulesV0327.js";
 import { ActiveResultRegistryV0325, AnalysisAttemptStoreV0325, navigationDecisionV0325 } from "./aiAnalysisResultStateV0325.js";
 import { buildEvidenceSegmentCatalogV0324, modelPayloadWithSegmentsV0324, EVIDENCE_SEGMENTER_VERSION, type EvidenceSegmentCatalogV0324 } from "./aiAnalysisEvidenceSegmenterV0324.js";
 import { buildEvidenceQuoteCatalog, quoteCatalogJsonl } from "./evidenceQuoteCatalogV0326.js";
@@ -48,6 +48,7 @@ import { buildIssueSnapshotProfilesV0324, buildReportDataPackageV0324, durableJs
 import { renderReportDataPackageHtmlV0324, HTML_RENDERER_VERSION_V0324 } from "./aiAnalysisHtmlRendererV0324.js";
 import { getChatGptService } from "./chatGptService.js";
 import { redactChatGptText, redactChatGptTextComplete, sanitizeChatGptValueComplete } from "./chatGptRedactor.js";
+import { normalizeJaaError } from "./jaaErrorNormalizerV0327.js";
 import { buildRequestPackage, loadRequestPackage } from "./aiAnalysisRequestPackageV0324.js";
 import { AiAnalysisRunArchive, deleteRunArchive, loadArchivedRuns, readConversationPage, updateArchivedLifecycle } from "./aiAnalysisRunArchiveV0314.js";
 import { validateCanonicalResponseSemantics } from "./aiAnalysisResponseContractV0314.js";
@@ -105,20 +106,12 @@ const handlers = [
 function now() { return new Date().toISOString(); }
 function asAnalysisError(error: unknown) {
   if (error instanceof AiAnalysisError) return error;
-  const message = error instanceof Error ? error.message : String(error);
-  if (message.startsWith("OUTCOME_UNKNOWN:")) return new AiAnalysisError("OUTCOME_UNKNOWN", message.slice("OUTCOME_UNKNOWN:".length));
-  if (message.startsWith("RUN_CANCELLED:")) return new AiAnalysisError("RUN_CANCELLED", message.slice("RUN_CANCELLED:".length));
-  const directCode = /^(AI_[A-Z_]+|CODEX_BUNDLED_RUNTIME_[A-Z_]+)/.exec(message)?.[1] as AiAnalysisErrorCode | undefined;
-  if (directCode) return new AiAnalysisError(directCode, message);
-  if (message.includes("CHATGPT_USAGE_LIMITED")) return new AiAnalysisError("CHATGPT_USAGE_LIMITED", "ChatGPT usage limit has been reached.");
-  if (message.includes("CHATGPT_SIGN_IN_REQUIRED")) return new AiAnalysisError("CHATGPT_SIGN_IN_REQUIRED", "Sign in with ChatGPT before analysis.");
-  if (/invalid_json_schema|invalid schema|output schema/i.test(message)) return new AiAnalysisError("AI_OUTPUT_SCHEMA_PROVIDER_REJECTED", message);
-  if (/CHATGPT_TURN_FAILED|incomplete|truncated|refusal/i.test(message)) return new AiAnalysisError("AI_PROVIDER_RESPONSE_INCOMPLETE", message);
-  return new AiAnalysisError("AI_RESPONSE_INVALID", message);
+  const normalized = normalizeJaaError(error, { stage: "IPC", source: "aiAnalysisIpc", fallbackCode: "AI_RESPONSE_INVALID" });
+  return new AiAnalysisError(normalized.errorCode as AiAnalysisErrorCode, normalized.messageZhTw);
 }
 function errorPayload(error: unknown) {
-  const value = asAnalysisError(error);
-  return { ok: false, errorCode: value.code, message: value.message };
+  const normalized = normalizeJaaError(error, { stage: "IPC", source: "aiAnalysisIpc", fallbackCode: "AI_RESPONSE_INVALID" });
+  return { ok: false, errorCode: normalized.errorCode, message: normalized.messageZhTw, normalizedError: normalized };
 }
 function publicEnv(environment: Environment) {
   const { values: _values, ...summary } = environment;
@@ -203,11 +196,13 @@ function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requ
     const source = path.join(stagingFolder, name);
     if (fs.existsSync(source)) fs.copyFileSync(source, path.join(folder, name));
   }
+  const modelDeliveryObserved = run.lifecycle?.modelInputStatus === "delivered" || Boolean(run.bridgeEvidence?.modelDeliveryReceipt);
+  const submissionObserved = ["submitting", "submission_rejected", "published", "failed"].includes(run.lifecycle?.artifactStatus ?? "not_started");
   const canonicalEvidence: Array<{ source: string | null | undefined; target: string; role: string; expected: boolean; reason: string }> = [
     { source: run.qualityGateReportPath, target: "quality-gate-report.json", role: "quality_gate", expected: Boolean(run.canonicalRecordCount), reason: "canonical validation completed" },
     { source: run.ruleRoleManifestPath, target: "rule-template-role-manifest.json", role: "rule_template_role_manifest", expected: Boolean(run.requestPackage), reason: "four explicit roles frozen" },
     { source: run.evidenceSegmentCatalogPath, target: "evidence-segment-catalog.json", role: "evidence_segment_catalog", expected: Boolean(run.requestPackage), reason: "segmented model package prepared" },
-    { source: run.reportDataPackagePath ?? run.diagnosticReportDataPackagePath, target: run.reportDataPackagePath ? "report-data-package.json" : "diagnostic-report-data-package.json", role: run.reportDataPackagePath ? "formal_report_data_package" : "diagnostic_report_data_package", expected: Boolean(run.requestPackage), reason: "package produced after validation" },
+    { source: run.reportDataPackagePath ?? run.diagnosticReportDataPackagePath, target: run.reportDataPackagePath ? "report-data-package.json" : "diagnostic-report-data-package.json", role: run.reportDataPackagePath ? "formal_report_data_package" : "diagnostic_report_data_package", expected: run.reportDataPackagePath ? run.lifecycle?.canonicalStatus === "created" : submissionObserved, reason: run.reportDataPackagePath ? "formal package produced after canonical validation" : "diagnostic package is expected only after a decodable AI submission" },
     { source: run.evidenceNormalizationReceiptPath, target: "evidence-normalization-receipt.json", role: "normalization_receipt", expected: Boolean(run.requestPackage), reason: "formal input prepared" },
     { source: run.issueSnapshotPath, target: "issue-snapshots.json", role: "issue_snapshot", expected: Boolean(run.requestPackage), reason: "formal input prepared" },
     { source: run.issueSnapshotReceiptPath, target: "issue-snapshot-receipt.json", role: "issue_snapshot_receipt", expected: Boolean(run.requestPackage), reason: "formal input prepared" },
@@ -228,6 +223,10 @@ function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requ
   collectFile(path.join(stagingFolder, "diagnostic-report-data-package.json"), "diagnostic-report-data-package.json", "diagnostic_report_data_package");
   collectFile(path.join(stagingFolder, "diagnostic-analysis-report.html"), "diagnostic-analysis-report.html", "diagnostic_html");
   collectFile(path.join(stagingFolder, "progress", "model-delivery-receipt.json"), "model-delivery-receipt.json", "model_delivery_receipt");
+  collectFile(path.join(stagingFolder, "progress", "bridge-execution-context-receipt.json"), "bridge-execution-context-receipt.json", "bridge_execution_context");
+  collectFile(path.join(stagingFolder, "progress", "model-delivery-handle-receipt.json"), "model-delivery-handle-receipt.json", "model_delivery_handle");
+  collectFile(path.join(stagingFolder, "progress", "bridge-tool-calls.jsonl"), "bridge-tool-calls.jsonl", "bridge_tool_calls");
+  collectFile(path.join(stagingFolder, "progress", "artifact-submission-token-receipt.json"), "artifact-submission-token-receipt.json", "artifact_submission_token");
   collectFile(path.join(stagingFolder, "conversation.jsonl"), "conversation.jsonl", "conversation");
   collectFile(path.join(stagingFolder, "provider-stream.jsonl"), "provider-stream.jsonl", "provider_stream");
   if (run.navigationDecision?.receiptPath) collectFile(run.navigationDecision.receiptPath, "navigation-decisions.jsonl", "navigation_decision");
@@ -235,7 +234,8 @@ function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requ
   const completeness = canonicalEvidence.map((entry) => {
     const present = Boolean(entry.source && fs.existsSync(entry.source));
     if (present) { const target = path.join(folder, entry.target); fs.mkdirSync(path.dirname(target), { recursive: true }); if (path.resolve(entry.source!) !== path.resolve(target)) fs.copyFileSync(entry.source!, target); }
-    return { relativePath: entry.target, role: entry.role, classification: present ? "expected_and_present" : entry.expected ? "expected_but_missing" : run.lifecycle?.canonicalStatus !== "created" ? "not_produced_due_to_prior_failure" : "not_expected_due_to_lifecycle", expectedReason: entry.reason, bytes: present ? fs.statSync(entry.source!).size : 0, sha256: present ? crypto.createHash("sha256").update(fs.readFileSync(entry.source!)).digest("hex") : null, flushStatus: "flushed", collectionSource: entry.source ?? null };
+    const classification = present ? "expected_and_present" : entry.expected ? "expected_but_missing" : entry.role.includes("diagnostic") ? modelDeliveryObserved ? "not_applicable_no_submission" : "not_applicable_no_model_delivery" : run.instructionMode === "CUSTOM_DIAGNOSTIC" ? "not_applicable_instruction_mode" : "not_produced_due_to_prior_failure";
+    return { relativePath: entry.target, role: entry.role, classification, expectedReason: entry.reason, bytes: present ? fs.statSync(entry.source!).size : 0, sha256: present ? crypto.createHash("sha256").update(fs.readFileSync(entry.source!)).digest("hex") : null, flushStatus: "flushed", collectionSource: entry.source ?? null };
   });
   writeJson("debug-completeness.json", { schemaVersion: "jaa-debug-completeness-v2", runId: run.runId, entries: completeness, flushStatus: "completed" });
   writeJson("flush-completeness.json", { schemaVersion: "jaa-debug-flush-completeness-v1", runId: run.runId, flushStatus: "completed", completedAt: now() });
@@ -255,7 +255,7 @@ export function registerAiAnalysisIpc() {
   chatgpt.subscribeStatus(() => BrowserWindow.getAllWindows().forEach((window) => window.webContents.send("ai-analysis:snapshot-changed", snapshot())));
   const bundledRulesDirectory = getBundledAnalysisRulesDir();
   const aiStateDirectory = ensureDir(path.join(getAppDataDir(), "ai-analysis", "v0.3.26-state"));
-  const ruleSelection = new RuleSelectionTransactionServiceV0326(bundledRulesDirectory, path.join(aiStateDirectory, "rule-selection"));
+  const ruleSelection = new RuleSelectionTransactionServiceV0327(bundledRulesDirectory, path.join(aiStateDirectory, "rule-selection"));
   let rules: AiRulesSnapshot | null = ruleSelection.rules;
   const attemptStore = new AnalysisAttemptStoreV0325(path.join(aiStateDirectory, "attempts"));
   const resultRegistry = new ActiveResultRegistryV0325(path.join(aiStateDirectory, "results"));
@@ -468,8 +468,8 @@ export function registerAiAnalysisIpc() {
     return result.error ? { canceled: false, ...errorPayload(result.error), activated: false, snapshot: snapshot() } : { canceled: false, ok: true, activated: result.activated, snapshot: snapshot() };
   });
   ipcMain.handle("ai-analysis:cancel-rule-draft", async (event) => { ruleSelection.cancelDraft(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; });
-  ipcMain.handle("ai-analysis:use-bundled-rules", async (event) => { try { ruleSelection.useBundled(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0326(error)), snapshot: snapshot() }; } });
-  ipcMain.handle("ai-analysis:load-rules", async (event) => { try { rules = ruleSelection.revalidate(); notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0326(error)), snapshot: snapshot() }; } });  ipcMain.handle("ai-analysis:choose-pending", async () => {
+  ipcMain.handle("ai-analysis:use-bundled-rules", async (event) => { try { ruleSelection.useBundled(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0327(error)), snapshot: snapshot() }; } });
+  ipcMain.handle("ai-analysis:load-rules", async (event) => { try { rules = ruleSelection.revalidate(); notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0327(error)), snapshot: snapshot() }; } });  ipcMain.handle("ai-analysis:choose-pending", async () => {
     analysisUserActions.push(`${now()} Select Pending JSON requested`);
     const choice = await dialog.showOpenDialog({ title: "Open pending-analysis JSON", properties: ["openFile"], filters: [{ name: "JSON", extensions: ["json"] }] });
     if (choice.canceled || !choice.filePaths[0]) return { canceled: true, snapshot: snapshot() };
@@ -573,7 +573,7 @@ export function registerAiAnalysisIpc() {
       if (!refreshedRules.valid) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", refreshedRules.errors.join(" ") || "Rules validation failed.");
       if (refreshedDataset.sourceFileSha256 !== dataset.sourceFileSha256) throw new AiAnalysisError("SOURCE_MISMATCH", "Pending Dataset changed after selection; import it again.");
       rules = refreshedRules; dataset = refreshedDataset;
-    } catch (error) { return rejectAttempt(normalizeRuleSelectionErrorV0326(error)); }
+    } catch (error) { return rejectAttempt(normalizeRuleSelectionErrorV0327(error)); }
     const service = payload.service ?? (payload.mode === "CHATGPT" ? "chatgpt" : "ai_nexus");
     const provider = payload.mode === "OFFLINE_RULE" ? "offline_rule" : payload.mode === "CHATGPT" ? "chatgpt_codex" : "ai_nexus";
     if (payload.mode === "CHATGPT" && chatgpt.getStatus().state !== "connected") return rejectAttempt(new AiAnalysisError("CHATGPT_SIGN_IN_REQUIRED", "ChatGPT must be connected before analysis."));
