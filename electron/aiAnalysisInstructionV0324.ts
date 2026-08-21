@@ -7,10 +7,10 @@ export const SYSTEM_SAFETY_WRAPPER=`# JAA 不可變安全規範
 
 禁止 Shell、PowerShell、CMD、Python、外部 Codex、網路、MCP、Plugin、Skill、PATH 或替代檔案工具。禁止取得或輸出 OAuth Token、Cookie、Authorization、密碼或其他憑證。Run、Attempt、Request、Thread、Turn、source hash、Rule Snapshot 與 contract identity 全由 JAA 持有，模型不得提交、猜測或覆寫。
 
-必須以 bridge-resumable-v3 完成所有 files、bytes、segments、EOF、hash 與 ACK，取得 Model Delivery Receipt 後才能分類。模型不負責檔案 I/O、HTML、Package、SQLite 或正式 identity。任何驗證失敗均 fail closed。`;
-export const DEFAULT_ANALYSIS_INSTRUCTION=`# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.30
+必須以 bridge-resumable-v4 完成所有 files、bytes、segments、EOF、hash 與 ACK，取得 Model Delivery Receipt 後才能分類。模型不負責檔案 I/O、HTML、Package、SQLite 或正式 identity。任何驗證失敗均 fail closed。`;
+export const DEFAULT_ANALYSIS_INSTRUCTION=`# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.31
 
-完整閱讀 Manifest v0.8.0、Common Rules v1.6.0、Catalog v0.3.1 與全部 N 筆資料，不可跳讀、抽樣、猜測或用摘要取代原文。只使用 JAA frozen Evidence Quote Catalog 的 evidenceQuoteId，不得自造 ID、重打 quote 或提交 evidenceRef、segment、role、source hash、Stable ID。 每筆 record 的 evidenceQuotes 是唯一可引用的 model-visible Quote Map；evidenceQuoteId 只能從同筆 evidenceQuotes 選取，不得以 Segment ID、Evidence Ref 或 Stable ID 代替。若 quote 不足，必須使用該筆特有且可驗證的 UNKNOWN／FAILED 理由，不得複製同一模板理由至全部 records。
+完整閱讀 Manifest v0.8.0、Common Rules v1.6.0、Catalog v0.3.1 與全部 N 筆資料，不可跳讀、抽樣、猜測或用摘要取代原文。只使用 JAA frozen Evidence Quote Catalog 的 evidenceQuoteId，不得自造 ID、重打 quote 或提交 evidenceRef、segment、role、source hash、Stable ID。 每筆 record 的 evidenceQuotes 是唯一可引用的 model-visible Quote Map；evidenceQuoteId 只能從同筆 evidenceQuotes 選取，不得以 Segment ID、Evidence Ref 或 Stable ID 代替。 每個 Evidence Quote ID 已保證完整存在於單一 segment；只能逐字使用完整 evidenceQuoteId 欄位值，不得使用前綴、截斷值、Segment ID 或自行重建 ID。即使文字看似相同，也必須使用同筆 record 提供的完整 Quote ID。若 quote 不足，必須使用該筆特有且可驗證的 UNKNOWN／FAILED 理由，不得複製同一模板理由至全部 records。
 
 Decision v5 必須是 exact N 筆 direct JSON array，recordIndex 唯一依序覆蓋 0..N-1。每筆只有 recordIndex、status、confidence、skillFindings、recordNegativeChecks、unknownReasons、rationale。每個 Skill Finding 只有 skillId、confidence、evidenceQuoteIds、evidenceExplanation、negativeChecks、rationale。confidence 只允許 0、0.3、0.6、0.9。
 
@@ -28,10 +28,10 @@ export function composeEffectiveInstruction(input:{mode:AiInstructionMode;runId:
 
 expectedRecordCount=${input.recordCount}
 decisionContract=${contract.schemaVersion}
-Prompt Identity=JAA-CHATGPT-ZH-TW-0.3.30
-Prompt Template=0.3.30-zh-TW-v11
-Bridge=0.3.30-bridge-v12
-Transport=bridge-resumable-v3
+Prompt Identity=JAA-CHATGPT-ZH-TW-0.3.31
+Prompt Template=0.3.31-zh-TW-v12
+Bridge=0.3.31-bridge-v13
+Transport=bridge-resumable-v4
 
 JAA-owned identity 不提供給模型，也不得出現在 submission。`;const mode=input.mode==="CUSTOM_DIAGNOSTIC"?`# Custom Diagnostic Mode
 
@@ -39,4 +39,4 @@ JAA-owned identity 不提供給模型，也不得出現在 submission。`;const 
 
 補充指令不可覆寫 token、Decision v5、count、Quote ID、一次 submission 與 formal gate：\n${additional||"未提供。"}`:"# Standard Formal Mode\n\n不得加入額外使用者指令。";const tool=`# Artifact Tool Contract
 
-jaa_publish_analysis_artifacts_v5 只接受 token、decisions、analysisReportMarkdown、finalSummaryZhTw。exact count=${input.recordCount}；status=${DECISION_STATUSES_V0326.join(" | ")}；confidence=${CONFIDENCE_VALUES_V0326.join(" | ")}。`;const sections=[["system-safety-wrapper",SYSTEM_SAFETY_WRAPPER,true],["approved-scope",scope,true],["model-input-delivery",DELIVERY,true],["selected-mode",mode,true],["standard-formal-contract",DEFAULT_ANALYSIS_INSTRUCTION,input.mode!=="CUSTOM_DIAGNOSTIC"],["artifact-tool-contract",tool,input.mode!=="CUSTOM_DIAGNOSTIC"],["final-response-contract",FINAL,true]] as const;const effectiveInstruction=sections.filter(x=>x[2]).map(x=>x[1]).join("\n\n").trim()+"\n";return {schemaVersion:"jaa-instruction-composition-v1",mode:input.mode,effectiveInstruction,effectiveInstructionSha256:sha(effectiveInstruction),effectiveInstructionBytes:Buffer.byteLength(effectiveInstruction),formalArtifactEligible:input.mode!=="CUSTOM_DIAGNOSTIC",sqliteEligible:input.mode!=="CUSTOM_DIAGNOSTIC",transportProtocol:"bridge-resumable-v3",sections:sections.map(([id,text,applicable])=>({id,applicable,sha256:sha(text),bytes:Buffer.byteLength(text)}))};}
+jaa_publish_analysis_artifacts_v5 只接受 token、decisions、analysisReportMarkdown、finalSummaryZhTw。exact count=${input.recordCount}；status=${DECISION_STATUSES_V0326.join(" | ")}；confidence=${CONFIDENCE_VALUES_V0326.join(" | ")}。`;const sections=[["system-safety-wrapper",SYSTEM_SAFETY_WRAPPER,true],["approved-scope",scope,true],["model-input-delivery",DELIVERY,true],["selected-mode",mode,true],["standard-formal-contract",DEFAULT_ANALYSIS_INSTRUCTION,input.mode!=="CUSTOM_DIAGNOSTIC"],["artifact-tool-contract",tool,input.mode!=="CUSTOM_DIAGNOSTIC"],["final-response-contract",FINAL,true]] as const;const effectiveInstruction=sections.filter(x=>x[2]).map(x=>x[1]).join("\n\n").trim()+"\n";return {schemaVersion:"jaa-instruction-composition-v1",mode:input.mode,effectiveInstruction,effectiveInstructionSha256:sha(effectiveInstruction),effectiveInstructionBytes:Buffer.byteLength(effectiveInstruction),formalArtifactEligible:input.mode!=="CUSTOM_DIAGNOSTIC",sqliteEligible:input.mode!=="CUSTOM_DIAGNOSTIC",transportProtocol:"bridge-resumable-v4",sections:sections.map(([id,text,applicable])=>({id,applicable,sha256:sha(text),bytes:Buffer.byteLength(text)}))};}

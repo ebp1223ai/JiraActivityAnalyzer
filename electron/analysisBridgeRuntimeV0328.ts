@@ -79,7 +79,7 @@ const ackSchema = {
 } as const;
 
 export class AnalysisBridgeV0328 {
-  readonly version = "0.3.30-bridge-v12";
+  readonly version = "0.3.31-bridge-v13";
   readonly schemaVersion = "jaa-analysis-bridge-v10";
   readonly transport = "codex_dynamic_tools_stdio" as const;
   readonly executionContext: BridgeExecutionContextV0327;
@@ -139,6 +139,7 @@ export class AnalysisBridgeV0328 {
   }
 
   preflight() {
+    if (!/^[a-f0-9]{64}$/i.test(this.config.outputSchemaSha256 ?? "")) fail("AI_OUTPUT_SCHEMA_PREFLIGHT_FAILED", "Verified output schema SHA-256 is required before provider dispatch.");
     const legacy = this.legacy.preflight();
     const probe = new AnalysisBridgeV0319({ ...this.config, requestPackage: { ...this.config.requestPackage, decisionContractVersion: "jaa-ai-analysis-decisions-v4" } });
     const probeContext = { runId: this.config.runId, sessionNonce: this.config.sessionNonce, threadId: "provider-dispatch-gate", turnId: "provider-dispatch-gate", callId: "provider-dispatch-gate" };
@@ -178,7 +179,7 @@ export class AnalysisBridgeV0328 {
       manifestSha256: this.config.manifestSha256 ?? "unavailable",
       commonRulesSha256: this.config.commonRulesSha256 ?? "unavailable",
       catalogSha256: this.config.catalogSha256 ?? "unavailable",
-      outputSchemaSha256: this.config.outputSchemaSha256 ?? "unavailable"
+      outputSchemaSha256: this.config.outputSchemaSha256!
     });
     this.artifactToken = crypto.randomBytes(32).toString("base64url");
     this.artifactTokenHash = sha256(this.artifactToken);
@@ -392,7 +393,8 @@ export class AnalysisBridgeV0328 {
       rootErrorMessage: this.rootError?.messageZhTw ?? null,
       derivedErrorCodes: this.derivedErrors.map((entry) => entry.errorCode),
       derivedStatusCodes: [...new Set([...(snapshot.lifecycle.derivedStatusCodes ?? []), ...this.derivedErrors.map((entry) => entry.errorCode)])],
-      artifactStatus: this.submissionRejectedCode ? "submission_rejected" as const : snapshot.lifecycle.artifactStatus,
+      artifactStatus: this.submissionRejectedCode ? "rejected" as const : snapshot.lifecycle.artifactStatus,
+      artifactAttemptStatus: this.artifactAttempt > 0 ? "received" as const : "not_started" as const,
       overallStatus: this.rootError || this.submissionRejectedCode ? "failed" as const : snapshot.lifecycle.overallStatus
     };
     return {

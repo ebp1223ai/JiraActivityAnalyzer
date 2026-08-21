@@ -2,7 +2,7 @@ import { app } from "electron";
 import { ANALYSIS_BRIDGE_VERSION, type AnalysisBridgeToolContext, type AnalysisLifecycleSummary } from "../shared/analysisBridgeContract.js";
 import type { AiAnalysisRequestPackage } from "../shared/aiAnalysisContract.js";
 import type { AiInstructionMode } from "../shared/analysisInstructionContract.js";
-import { resolveAnalysisBridgeArtifactV0330, type BridgePreflightReceiptV0330 } from "./analysisBridgeResolverV0330.js";
+import { resolveAnalysisBridgeArtifactV0331, type BridgePreflightReceiptV0331 } from "./analysisBridgeResolverV0331.js";
 
 type BridgeInstance = {
   version: string;
@@ -21,17 +21,17 @@ type BridgeInstance = {
   setSqliteStatus(status: AnalysisLifecycleSummary["sqliteStatus"], errorCode?: string): void;
   setPostBridgeStage(stage: "VALIDATION_COMPLETED" | "CANONICAL_ASSEMBLY_COMPLETED" | "RUN_COMPLETED", status: "completed" | "failed"): void;
   fail(stage: import("../shared/analysisBridgeContract.js").AnalysisLifecycleStage, code: string, message?: string): void;
-  snapshot(): { inputReceipt: Record<string, unknown> | null; sourceInputReceipt?: Record<string, unknown> | null; modelDeliveryReceipt?: Record<string, unknown> | null; modelDeliveryFailure?: Record<string, unknown> | null; artifactReceipt: Record<string, unknown> | null; lifecycle: AnalysisLifecycleSummary; bridgeExecutionContext?: Record<string, unknown>; rootError?: Record<string, unknown> | null; derivedErrors?: Array<Record<string, unknown>>; runtimeContract?: Record<string, unknown>; providerDispatchGate?: Record<string, unknown> | null };
+  snapshot(): { inputReceipt: Record<string, unknown> | null; sourceInputReceipt?: Record<string, unknown> | null; boundarySafetyReceipt?: Record<string, unknown> | null; modelDeliveryReceipt?: Record<string, unknown> | null; modelDeliveryFailure?: Record<string, unknown> | null; artifactReceipt: Record<string, unknown> | null; lifecycle: AnalysisLifecycleSummary; bridgeExecutionContext?: Record<string, unknown>; rootError?: Record<string, unknown> | null; derivedErrors?: Array<Record<string, unknown>>; runtimeContract?: Record<string, unknown>; providerDispatchGate?: Record<string, unknown> | null };
 };
 
 type BridgeInput = { runId: string; sessionNonce: string; runDirectory: string; requestPackage: AiAnalysisRequestPackage; rulesSnapshotId: string; catalogSkillIds: string[]; instructionMode?: AiInstructionMode; analysisAttemptId?: string; requestId?: string; provider?: string; model?: string; manifestSha256?: string; commonRulesSha256?: string; catalogSha256?: string; outputSchemaSha256?: string; quoteCatalog?: unknown; evidenceSegments?: unknown[] };
 
-export function preflightAnalysisBridgeV0330(phase: BridgePreflightReceiptV0330["phase"], attemptId?: string | null) {
-  return resolveAnalysisBridgeArtifactV0330({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase, attemptId });
+export function preflightAnalysisBridgeV0331(phase: BridgePreflightReceiptV0331["phase"], attemptId?: string | null) {
+  return resolveAnalysisBridgeArtifactV0331({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase, attemptId });
 }
 
 export function loadAnalysisBridge(input: BridgeInput) {
-  const resolution = preflightAnalysisBridgeV0330("analysis_start", input.analysisAttemptId);
+  const resolution = preflightAnalysisBridgeV0331("analysis_start", input.analysisAttemptId);
   if (resolution.receipt.status !== "ready" || !resolution.runtime || !resolution.manifest) {
     const code = resolution.receipt.rootErrorCode ?? "AI_BRIDGE_LOADABILITY_FAILED";
     throw Object.assign(new Error(`${code}:${resolution.receipt.rootErrorMessage ?? "Analysis Bridge preflight failed."}`), { code, bridgePreflightReceipt: resolution.receipt });

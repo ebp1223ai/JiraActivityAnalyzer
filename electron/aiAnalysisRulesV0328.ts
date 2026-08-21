@@ -11,9 +11,9 @@ import {
 
 export const V0328_APPLICATION_BINDING = {
   applicationVersion: "0.3.28",
-  promptVersion: "JAA-CHATGPT-ZH-TW-0.3.30",
+  promptVersion: "JAA-CHATGPT-ZH-TW-0.3.31",
   pipelineVersion: "JAA-ANALYSIS-PIPELINE-0.3.28",
-  bridgeVersion: "0.3.30-bridge-v12"
+  bridgeVersion: "0.3.31-bridge-v13"
 } as const;
 
 export const V0328_RULE_DOCUMENT_BINDING = V0327_RULE_DOCUMENT_BINDING;

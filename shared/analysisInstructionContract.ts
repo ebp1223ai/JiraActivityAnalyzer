@@ -14,6 +14,6 @@ export type AiInstructionComposition = {
   effectiveInstructionBytes: number;
   formalArtifactEligible: boolean;
   sqliteEligible: boolean;
-  transportProtocol: "bridge-resumable-v2" | "bridge-resumable-v3";
+  transportProtocol: "bridge-resumable-v2" | "bridge-resumable-v3" | "bridge-resumable-v4";
   sections: Array<{ id: string; applicable: boolean; sha256: string; bytes: number }>;
 };

@@ -9,6 +9,9 @@ type ManifestFile = { fileId: string; role: string; fileName: string; expectedBy
 export type ModelInputManifestV0328 = {
   schemaVersion: string;
   transportProtocol: string;
+  segmentSchemaVersion: string;
+  segmentPlannerVersion: string;
+  boundaryReceiptVersion: string;
   runtimeContractRegistry: string;
   runtimeContractHash: string;
   manifestFactoryVersion: string;
@@ -78,6 +81,9 @@ export function createModelInputManifestV3(
   return {
     schemaVersion: runtimeContract.modelInputManifestSchema,
     transportProtocol: runtimeContract.providerTransport,
+    segmentSchemaVersion: runtimeContract.modelInputSegmentSchema,
+    segmentPlannerVersion: runtimeContract.segmentPlanner,
+    boundaryReceiptVersion: runtimeContract.segmentBoundaryReceipt,
     runtimeContractRegistry: runtimeContract.schemaVersion,
     runtimeContractHash: runtimeContract.registryHash,
     manifestFactoryVersion: runtimeContract.manifestFactoryVersion,
@@ -96,6 +102,7 @@ export function createModelInputManifestV3(
 export function validateModelInputManifestV3(value: unknown, runtimeContract: RuntimeContractV0328 = RUNTIME_CONTRACT_V0328) {
   const manifest = object(value);
   if (manifest.schemaVersion !== runtimeContract.modelInputManifestSchema) fail("AI_RUNTIME_MANIFEST_SCHEMA_MISMATCH", `Expected ${runtimeContract.modelInputManifestSchema}, observed ${String(manifest.schemaVersion ?? "missing")}.`);
+  if (manifest.segmentSchemaVersion !== runtimeContract.modelInputSegmentSchema || manifest.segmentPlannerVersion !== runtimeContract.segmentPlanner || manifest.boundaryReceiptVersion !== runtimeContract.segmentBoundaryReceipt) fail("AI_RUNTIME_CONTRACT_REGISTRY_MISMATCH", "Segment schema, planner, or boundary receipt identity mismatch.");
   if (manifest.transportProtocol !== runtimeContract.providerTransport) fail("AI_RUNTIME_MANIFEST_PROTOCOL_MISMATCH", `Expected ${runtimeContract.providerTransport}, observed ${String(manifest.transportProtocol ?? "missing")}.`);
   if (manifest.runtimeContractHash !== runtimeContract.registryHash || manifest.runtimeContractRegistry !== runtimeContract.schemaVersion || manifest.manifestFactoryVersion !== runtimeContract.manifestFactoryVersion) fail("AI_RUNTIME_CONTRACT_REGISTRY_MISMATCH", "Runtime Manifest registry or factory identity mismatch.");
   if (manifest.deliveryHandleContract !== runtimeContract.modelDeliveryHandleContract || manifest.artifactSubmissionTokenContract !== runtimeContract.artifactSubmissionTokenContract) fail("AI_RUNTIME_MANIFEST_HANDLE_CONTRACT_MISMATCH", "Delivery handle or artifact token contract mismatch.");

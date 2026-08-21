@@ -1,4 +1,4 @@
-export const ANALYSIS_BRIDGE_VERSION = "0.3.30-bridge-v12" as const;
+export const ANALYSIS_BRIDGE_VERSION = "0.3.31-bridge-v13" as const;
 export const ANALYSIS_BRIDGE_SCHEMA_VERSION = "jaa-analysis-bridge-contract-v1" as const;
 
 export type AnalysisLifecycleStage =
@@ -26,8 +26,10 @@ export type AnalysisLifecycleSummary = {
   sourceInputStatus?: "not_started" | "validated" | "failed";
   modelInputStatus?: "not_started" | "delivering" | "delivered" | "failed";
   analysisStatus: "not_started" | "running" | "completed" | "failed" | "interrupted";
-  artifactStatus: "not_started" | "submitting" | "submission_rejected" | "published" | "failed";
-  validationStatus: "not_started" | "completed" | "failed";
+  artifactStatus: "not_started" | "submitting" | "received" | "accepted" | "rejected" | "submission_rejected" | "published" | "failed";
+  artifactAttemptStatus?: "not_started" | "received";
+  validationStatus: "not_started" | "running" | "passed" | "completed" | "failed" | "blocked";
+  firstFailedValidationStage?: string | null;
   canonicalAssemblyStatus: "not_started" | "completed" | "failed";
   htmlRenderStatus: "not_started" | "rendering" | "completed" | "failed";
   sqliteStatus: "blocked" | "eligible" | "committed" | "commit_failed";
@@ -40,6 +42,15 @@ export type AnalysisLifecycleSummary = {
   derivedErrorCodes?: string[];
   derivedStatusCodes: string[];
   canonicalStatus: "not_created" | "created";
+  analyzedResultStatus?: "not_created" | "created";
+  activeResultStatus?: "unchanged" | "changed";
+  formalReportPackageStatus?: "not_created" | "created";
+  formalHtmlStatus?: "not_started" | "created";
+  diagnosticReportPackageStatus?: "not_created" | "created";
+  diagnosticHtmlStatus?: "not_created" | "created";
+  terminalState?: string;
+  terminalIdempotencyKey?: string;
+  terminalSnapshotHash?: string;
   analysisStarted: boolean;
   analysisCompleted: boolean;
   completedCount: number | null;
@@ -57,6 +68,7 @@ export type AnalysisBridgeEvidence = {
   preflight: Record<string, unknown>;
   inputReceipt: Record<string, unknown> | null;
   sourceInputReceipt?: Record<string, unknown> | null;
+  boundarySafetyReceipt?: Record<string, unknown> | null;
   modelDeliveryReceipt?: Record<string, unknown> | null;
   modelDeliveryFailure?: Record<string, unknown> | null;
   artifactReceipt: Record<string, unknown> | null;

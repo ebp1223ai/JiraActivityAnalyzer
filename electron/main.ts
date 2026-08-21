@@ -63,7 +63,7 @@ import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } f
 import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
 import { flushRunArchive } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
-import { resolveAnalysisBridgeArtifactV0330 } from "./analysisBridgeResolverV0330.js";
+import { resolveAnalysisBridgeArtifactV0331 } from "./analysisBridgeResolverV0331.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -6136,7 +6136,7 @@ app.on("before-quit", () => {
 
 app.whenReady().then(() => {
   if (shouldVerifyAnalysisBridge) {
-    const resolution = resolveAnalysisBridgeArtifactV0330({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase: "diagnostic" });
+    const resolution = resolveAnalysisBridgeArtifactV0331({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase: "diagnostic" });
     const output = JSON.stringify(resolution.receipt);
     console.log(`JAA_ANALYSIS_BRIDGE_DIAGNOSTIC=${output}`);
     const receiptPath = process.env.JAA_BRIDGE_DIAGNOSTIC_RECEIPT_PATH;

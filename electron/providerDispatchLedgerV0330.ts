@@ -24,9 +24,11 @@ export class ProviderDispatchLedgerV0330 {
   };
   constructor(readonly filePath: string) { fs.mkdirSync(path.dirname(filePath), { recursive: true }); }
   append(state: ProviderDispatchStateV0330, metadata: Record<string, unknown> = {}) {
-    const idempotencyKey = String(metadata.idempotencyKey ?? state);
+    const idempotencyKey = state === "failed" ? String(metadata.runId ?? path.basename(path.dirname(this.filePath))) + ":failed:" + String(metadata.rootErrorCode ?? "UNKNOWN") : String(metadata.idempotencyKey ?? state);
+    if (state === "failed" && this.lastState === "failed") return this.projection;
     if (this.seen.has(idempotencyKey)) return this.projection;
     if (state !== "failed" && this.lastState && order.indexOf(state) < order.indexOf(this.lastState)) throw new Error("PROVIDER_DISPATCH_STATE_REGRESSION");
+    const previousState = this.lastState;
     const at = String(metadata.at ?? new Date().toISOString());
     const base = { schemaVersion: PROVIDER_DISPATCH_LEDGER_SCHEMA, sequence: ++this.sequence, state, atUtc: at, previousHash: this.previousHash, metadata: { ...metadata, idempotencyKey } };
     const eventHash = crypto.createHash("sha256").update(JSON.stringify(base)).digest("hex");
@@ -36,7 +38,7 @@ export class ProviderDispatchLedgerV0330 {
     if (countKey) this.projectionValue[countKey] = Number(this.projectionValue[countKey] ?? 0) + 1;
     if (state === "dispatch_attempted") this.projectionValue.threadStartAttemptCount = Number(this.projectionValue.threadStartAttemptCount ?? 0) + 1;
     if (timestampKey && this.projectionValue[timestampKey] === null) this.projectionValue[timestampKey] = at;
-    this.projectionValue = { ...this.projectionValue, lastState: state, terminalHash: eventHash, ...(state === "failed" ? { rootErrorCode: metadata.rootErrorCode ?? "UNKNOWN", lastSuccessfulState: metadata.lastSuccessfulState ?? this.lastState } : {}) };
+    this.projectionValue = { ...this.projectionValue, lastState: state, terminalHash: eventHash, ...(state === "failed" ? { rootErrorCode: metadata.rootErrorCode ?? "UNKNOWN", lastSuccessfulState: metadata.lastSuccessfulState ?? previousState } : {}) };
     return this.projection;
   }
   get projection() { return structuredClone(this.projectionValue); }

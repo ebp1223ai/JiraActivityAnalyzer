@@ -53,7 +53,7 @@ const common = {
   logLevel: "info"
 };
 
-const bridgeOutput = path.join(bridgeResourceDir, "analysis-bridge-v0330.cjs");
+const bridgeOutput = path.join(bridgeResourceDir, "analysis-bridge-v0331.cjs");
 esbuild.buildSync({
   ...common,
   entryPoints: [path.resolve(__dirname, "../electron/analysisBridgeRuntimeV0328.ts")],
@@ -61,12 +61,12 @@ esbuild.buildSync({
 });
 const bridgeSha256 = require("node:crypto").createHash("sha256").update(fs.readFileSync(bridgeOutput)).digest("hex");
 const bridgeBytes = fs.statSync(bridgeOutput).size;
-fs.writeFileSync(path.join(bridgeResourceDir, "analysis-bridge-manifest-v0330.json"), JSON.stringify({
-  schemaVersion: "jaa-packaged-analysis-bridge-manifest-v1", bridgeIdentity: "0.3.30-bridge-v12", artifactFileName: "analysis-bridge-v0330.cjs",
+fs.writeFileSync(path.join(bridgeResourceDir, "analysis-bridge-manifest-v0331.json"), JSON.stringify({
+  schemaVersion: "jaa-packaged-analysis-bridge-manifest-v1", bridgeIdentity: "0.3.31-bridge-v13", artifactFileName: "analysis-bridge-v0331.cjs",
   artifactBytes: bridgeBytes, artifactSha256: bridgeSha256, runtimeContractRegistry: "jaa-runtime-contract-registry-v1",
-  transport: "bridge-resumable-v3", decisionContract: "jaa-ai-analysis-decisions-v5", localOnly: true, externalFallback: false
+  transport: "bridge-resumable-v4", segmentSchema: "jaa-model-input-segment-v3", segmentPlanner: "jaa-protected-token-safe-segment-planner-v1", boundaryReceipt: "jaa-segment-boundary-safety-receipt-v1", decisionContract: "jaa-ai-analysis-decisions-v5", localOnly: true, externalFallback: false
 }, null, 2) + "\n", "utf8");
-console.log(`  analysis bridge manifest  identity=0.3.30-bridge-v12 bytes=${bridgeBytes} sha256=${bridgeSha256}`);
+console.log(`  analysis bridge manifest  identity=0.3.31-bridge-v13 bytes=${bridgeBytes} sha256=${bridgeSha256}`);
 common.define.__JAA_ANALYSIS_BRIDGE_BYTES__ = JSON.stringify(bridgeBytes);
 common.define.__JAA_ANALYSIS_BRIDGE_SHA256__ = JSON.stringify(bridgeSha256);
 

@@ -49,8 +49,9 @@ import { assembleCanonicalResultsV0324 } from "./aiAnalysisArtifactsV0324.js";
 import { buildIssueSnapshotProfilesV0324, buildReportDataPackageV0324, durableJsonWriteV0324 } from "./aiAnalysisReportDataPackageV0324.js";
 import { renderReportDataPackageHtmlV0324, HTML_RENDERER_VERSION_V0324 } from "./aiAnalysisHtmlRendererV0324.js";
 import { getChatGptService } from "./chatGptService.js";
-import { preflightAnalysisBridgeV0330 } from "./analysisBridgeLoaderV0319.js";
+import { preflightAnalysisBridgeV0331 } from "./analysisBridgeLoaderV0319.js";
 import { ProviderDispatchLedgerV0330 } from "./providerDispatchLedgerV0330.js";
+import { convergeTerminalLifecycleV0331, firstFailedValidationStageV0331, persistTerminalLifecycleSnapshotV0331 } from "./analysisLifecycleV0331.js";
 import { redactChatGptText, redactChatGptTextComplete, sanitizeChatGptValueComplete } from "./chatGptRedactor.js";
 import { normalizeJaaError } from "./jaaErrorNormalizerV0327.js";
 import { buildRequestPackage, loadRequestPackage } from "./aiAnalysisRequestPackageV0324.js";
@@ -262,7 +263,7 @@ export function registerAiAnalysisIpc() {
   const ruleSelection = new RuleSelectionTransactionServiceV0328(bundledRulesDirectory, path.join(aiStateDirectory, "rule-selection"));
   let rules: AiRulesSnapshot | null = ruleSelection.rules;
   const attemptStore = new AnalysisAttemptStoreV0325(path.join(aiStateDirectory, "attempts"));
-  const startupBridgeReceipt = preflightAnalysisBridgeV0330("startup", null).receipt;
+  const startupBridgeReceipt = preflightAnalysisBridgeV0331("startup", null).receipt;
   const resultRegistry = new ActiveResultRegistryV0325(path.join(aiStateDirectory, "results"));
   let lastNavigationDecision = null as import("../shared/aiAnalysisContract.js").AiNavigationDecisionV0325 | null;
   const pendingDatasets: AiPendingDataset[] = [];
@@ -600,9 +601,9 @@ export function registerAiAnalysisIpc() {
     const provider = payload.mode === "OFFLINE_RULE" ? "offline_rule" : payload.mode === "CHATGPT" ? "chatgpt_codex" : "ai_nexus";
     if (payload.mode === "CHATGPT" && chatgpt.getStatus().state !== "connected") return rejectAttempt(new AiAnalysisError("CHATGPT_SIGN_IN_REQUIRED", "ChatGPT must be connected before analysis."));
     if (payload.mode === "AI_NEXUS") { const current = settingsAndSecret("ai_nexus").settings; if (current.connectionStatus !== "passed" || current.testedFingerprint !== current.configFingerprint) return rejectAttempt(new AiAnalysisError("AI_NOT_CONFIGURED", "AI Nexus settings must pass connection testing before analysis.")); }
-    let bridgePreflightReceipt: ReturnType<typeof preflightAnalysisBridgeV0330>["receipt"] | null = null;
+    let bridgePreflightReceipt: ReturnType<typeof preflightAnalysisBridgeV0331>["receipt"] | null = null;
     if (payload.mode === "CHATGPT") {
-      const bridgeResolution = preflightAnalysisBridgeV0330("analysis_start", attempt.analysisAttemptId);
+      const bridgeResolution = preflightAnalysisBridgeV0331("analysis_start", attempt.analysisAttemptId);
       bridgePreflightReceipt = bridgeResolution.receipt;
       fs.writeFileSync(path.join(attempt.archivePath, "bridge-preflight-receipt.json"), JSON.stringify(bridgeResolution.receipt, null, 2) + "\n", "utf8");
       const attemptLedger = new ProviderDispatchLedgerV0330(path.join(attempt.archivePath, "provider-dispatch-ledger.jsonl"));
@@ -717,7 +718,7 @@ export function registerAiAnalysisIpc() {
         requestEvidence = { runId, model: chatgpt.getStatus().selectedModel, deliveryMode: request.requestPackage.deliveryMode, workspaceFileCount: 4, outputWorkspace: "ai-output", inlineFileContentCount: 0, nativeInputFileCount: 0, instructionSha256: request.requestPackage.finalProviderPayloadSha256, instructionBytes: request.requestPackage.finalProviderPayloadBytes, finalAssistantResponse: "brief_text", authorization: "[masked]" };
         notify(event);
         let timeout: ReturnType<typeof setTimeout> | null = null;
-        const providerPromise = chatgpt.runAnalysis({ runId, requestPurpose: run.instructionMode === "CUSTOM_DIAGNOSTIC" ? "CUSTOM_DIAGNOSTIC" : "FORMAL_ANALYSIS", instructionMode: run.instructionMode, prompt: request.prompt, model: chatgpt.getStatus().selectedModel, deliveryMode: "LOCAL_FILE_WORKSPACE", runDirectory: stagingFolder, workspacePath: request.workspace, outputWorkspacePath: request.output, allowedReadRoots: [request.workspace], finalProviderPayloadSha256: request.requestPackage.finalProviderPayloadSha256, outputSchema: null, outputSchemaSha256: null, requestPackage: request.requestPackage, rulesSnapshotId: run.rules.snapshotId ?? run.rules.ruleSetId, catalogSkillIds: run.rules.catalog.map((item) => item.id), analysisAttemptId: attempt.analysisAttemptId, requestId: runId, manifestSha256: run.rules.roleDocuments?.find((item) => item.role === "manifest")?.sha256, commonRulesSha256: run.rules.roleDocuments?.find((item) => item.role === "common_rules")?.sha256, catalogSha256: run.rules.roleDocuments?.find((item) => item.role === "catalog")?.sha256, quoteCatalog, evidenceSegments: segmentCatalog.segments }, controller.signal);
+        const providerPromise = chatgpt.runAnalysis({ runId, requestPurpose: run.instructionMode === "CUSTOM_DIAGNOSTIC" ? "CUSTOM_DIAGNOSTIC" : "FORMAL_ANALYSIS", instructionMode: run.instructionMode, prompt: request.prompt, model: chatgpt.getStatus().selectedModel, deliveryMode: "LOCAL_FILE_WORKSPACE", runDirectory: stagingFolder, workspacePath: request.workspace, outputWorkspacePath: request.output, allowedReadRoots: [request.workspace], finalProviderPayloadSha256: request.requestPackage.finalProviderPayloadSha256, outputSchema: null, outputSchemaSha256: request.requestPackage.outputSchemaSha256, requestPackage: request.requestPackage, rulesSnapshotId: run.rules.snapshotId ?? run.rules.ruleSetId, catalogSkillIds: run.rules.catalog.map((item) => item.id), analysisAttemptId: attempt.analysisAttemptId, requestId: runId, manifestSha256: run.rules.roleDocuments?.find((item) => item.role === "manifest")?.sha256, commonRulesSha256: run.rules.roleDocuments?.find((item) => item.role === "common_rules")?.sha256, catalogSha256: run.rules.roleDocuments?.find((item) => item.role === "catalog")?.sha256, quoteCatalog, evidenceSegments: segmentCatalog.segments }, controller.signal);
         const timeoutPromise = new Promise<never>((_resolve, reject) => { timeout = setTimeout(() => { controller.abort(); reject(new AiAnalysisError("AI_PROVIDER_TIMEOUT", `Provider exceeded the ${PROVIDER_HARD_TIMEOUT_MS} ms hard timeout. No retry or repair was started.`)); }, PROVIDER_HARD_TIMEOUT_MS); timeout.unref?.(); });
         let response: Awaited<typeof providerPromise>; try { response = await Promise.race([providerPromise, timeoutPromise]); } finally { if (timeout) clearTimeout(timeout); }
         providerVisibleResponse = response.text; run.threadId = response.threadId; run.providerRuntimeVersion = response.runtimeVersion; run.turnId = response.turnId; run.progress.threadCount = run.progress.threadCreatedCount ?? 0; run.progress.turnCount = run.progress.acceptedTurnCount ?? 0; run.bridgeEvidence = response.bridgeEvidence ?? chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? null;
@@ -876,7 +877,25 @@ export function registerAiAnalysisIpc() {
           atomicExport(path.join(runStagingFolder, "failed-run-manifest.json"), JSON.stringify({ runId, status: run.status, failedStage, errorCode: rootErrorCode, derivedStatusCodes: run.lifecycle?.derivedStatusCodes ?? [], message: value.message, databaseWriteStatus: run.databaseWriteStatus, completedAt: run.completedAt }, null, 2));
         } catch (stagingError) { run.progress.message += " Canonical evidence finalization failed: " + (stagingError instanceof Error ? stagingError.message : String(stagingError)); }
       }
-    } finally { const successful = ["completed", "completed_with_quality_warnings", "completed_with_persistence_error"].includes(run.status) && resultRegistry.active?.runId === run.runId; if (run.status !== "queued") attemptStore.finish(attempt, successful ? "COMPLETED" : "FAILED"); if (run.status !== "queued") { lastNavigationDecision = attemptStore.navigation(attempt, navigationDecisionV0325({ attempt, run, active: resultRegistry.active })); run.navigationDecision = lastNavigationDecision; } run.bridgeEvidence = chatgpt.getBridgeEvidence(runId) ?? run.bridgeEvidence ?? null; run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null; const archive = runArchives.get(runId); try { archive?.writeManifest(run); if (!["queued", "running", "validating", "retrying", "cancelling"].includes(run.status)) archive?.close("terminal"); } catch (archiveError) { run.progress.errorCode = "AI_RUN_ARCHIVE_FAILED"; run.progress.message += ` Archive finalization failed: ${archiveError instanceof Error ? archiveError.message : String(archiveError)}`; } if (run.status !== "queued") dispatchGuard.finish(runId); providerFailureEvidence.delete(runId); activeRunId = null; abortControllers.delete(runId); observedWorkspaceFiles.delete(runId); lastProviderUiNotifyAt.delete(runId); chatgpt.releaseBridge(runId); notify(event); }
+      if (run.runDirectory && run.lifecycle) {
+        const artifactDirectory = path.join(run.runDirectory, "artifact-attempts");
+        const artifactReceived = fs.existsSync(artifactDirectory) && fs.readdirSync(artifactDirectory).some((name) => /^ai-submitted-artifact-attempt-\d+[.]json$/i.test(name));
+        const firstFailedValidationStage = firstFailedValidationStageV0331(run.runDirectory);
+        const terminalLifecycle = convergeTerminalLifecycleV0331(run.lifecycle, {
+          terminalState: rootErrorCode === "RUN_CANCELLED" ? "cancelled" : rootErrorCode === "AI_PROVIDER_TIMEOUT" ? "timed_out" : "failed",
+          rootErrorCode, artifactReceived, artifactAccepted: false,
+          validationStarted: Boolean(firstFailedValidationStage) || validationFailure,
+          validationPassed: false, firstFailedValidationStage,
+          canonicalCreated: false, analyzedResultCreated: false, activeResultChanged: false,
+          formalReportPackageCreated: false, formalHtmlCreated: false,
+          diagnosticReportPackageCreated: Boolean(run.diagnosticReportDataPackagePath),
+          diagnosticHtmlCreated: Boolean(run.diagnosticReportFilePath),
+          sqliteStatus: "blocked", updatedAtUtc: run.completedAt
+        });
+        run.lifecycle = terminalLifecycle;
+        persistTerminalLifecycleSnapshotV0331(run.runDirectory, terminalLifecycle);
+      }
+    } finally { const successful = ["completed", "completed_with_quality_warnings", "completed_with_persistence_error"].includes(run.status) && resultRegistry.active?.runId === run.runId; if (run.status !== "queued") attemptStore.finish(attempt, successful ? "COMPLETED" : "FAILED"); if (run.status !== "queued") { lastNavigationDecision = attemptStore.navigation(attempt, navigationDecisionV0325({ attempt, run, active: resultRegistry.active })); run.navigationDecision = lastNavigationDecision; } run.bridgeEvidence = chatgpt.getBridgeEvidence(runId) ?? run.bridgeEvidence ?? null; if (!run.lifecycle?.terminalSnapshotHash) run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null; const archive = runArchives.get(runId); try { archive?.writeManifest(run); if (!["queued", "running", "validating", "retrying", "cancelling"].includes(run.status)) archive?.close("terminal"); } catch (archiveError) { run.progress.errorCode = "AI_RUN_ARCHIVE_FAILED"; run.progress.message += ` Archive finalization failed: ${archiveError instanceof Error ? archiveError.message : String(archiveError)}`; } if (run.status !== "queued") dispatchGuard.finish(runId); providerFailureEvidence.delete(runId); activeRunId = null; abortControllers.delete(runId); observedWorkspaceFiles.delete(runId); lastProviderUiNotifyAt.delete(runId); chatgpt.releaseBridge(runId); notify(event); }
     return { ok: run.status === "completed" || run.status === "completed_with_quality_warnings" || run.status === "completed_with_persistence_error", run, navigationDecision: run.navigationDecision ?? null, snapshot: snapshot() };
   });
   ipcMain.handle("ai-analysis:accept-warnings", async (event, payload: { runId: string; accept: boolean }) => {

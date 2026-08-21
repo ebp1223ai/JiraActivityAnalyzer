@@ -19,8 +19,8 @@ export type ApprovedArtifactIdentityV0328 = Readonly<{
   catalogSha256: string;
   decisionContract: "jaa-ai-analysis-decisions-v5";
   outputSchemaSha256: string;
-  promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.30";
-  bridgeIdentity: "0.3.30-bridge-v12";
+  promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.31";
+  bridgeIdentity: "0.3.31-bridge-v13";
   createdAtUtc: string;
 }>;
 
@@ -31,8 +31,8 @@ export function createApprovedArtifactIdentityV0328(input: Omit<ApprovedArtifact
     identityVersion: "jaa-approved-artifact-identity-v1",
     ...input,
     decisionContract: "jaa-ai-analysis-decisions-v5",
-    promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.30",
-    bridgeIdentity: "0.3.30-bridge-v12",
+    promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.31",
+    bridgeIdentity: "0.3.31-bridge-v13",
     createdAtUtc: input.createdAtUtc ?? new Date().toISOString()
   }) as ApprovedArtifactIdentityV0328;
 }

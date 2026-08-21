@@ -29,7 +29,7 @@ type HandleRecord = {
   turnId: string;
   manifestHash: string;
   sourceInputReceiptHash: string;
-  transportVersion: "bridge-resumable-v3";
+  transportVersion: "bridge-resumable-v4";
   createdAtMs: number;
   expiresAtMs: number;
   completedAtUtc: string | null;
@@ -123,7 +123,7 @@ export class BridgeExecutionContextV0327 {
     this.handleRecord = {
       handleHash: sha256(handle), handlePrefix: handle.slice(0, 8), contextId: this.contextId,
       threadId: this.providerThreadId!, turnId: this.providerTurnId!, manifestHash, sourceInputReceiptHash,
-      transportVersion: "bridge-resumable-v3", createdAtMs: now, expiresAtMs: Math.min(this.expiresAtMs, now + 30 * 60_000), completedAtUtc: null
+      transportVersion: "bridge-resumable-v4", createdAtMs: now, expiresAtMs: Math.min(this.expiresAtMs, now + 30 * 60_000), completedAtUtc: null
     };
     this.state = "DELIVERY_ACTIVE";
     this.writeHandleReceipt("issued");

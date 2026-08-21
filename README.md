@@ -1,3 +1,9 @@
+## v0.3.31 Protected-token-safe Segmentation 與 Terminal Lifecycle
+
+v0.3.31 將模型輸入 transport 升級為 `bridge-resumable-v4`，以 byte-based protected spans 與 deterministic variable-length segment planner 保護 Evidence Quote ID、Catalog Skill ID、SHA-256 及其他需逐字提交的契約識別碼。Provider dispatch 前必須通過 UTF-8、CRLF、JSON escape、coverage、reassembly 與 protected-token boundary preflight，並保存 `jaa-segment-boundary-safety-receipt-v1`；任何不安全邊界皆 fail closed。
+
+Terminal lifecycle 現在以單一冪等 terminal event 收斂，明確區分 Artifact received/rejected、Validation failed、Formal output 未建立與 Diagnostic output 已建立。正式 Bridge 為 `0.3.31-bridge-v13`／`analysis-bridge-v0331.cjs`，仍維持 external-only 封裝、Decision v5、嚴格 Evidence Quote 驗證、Systemic Gate、HTML 與 SQLite gate。真實 Managed OAuth、Installer GUI 與乾淨 Windows 驗證仍為 `Manual Validation Pending`。
+
 ## v0.3.30 Packaged Bridge 與 Provider Dispatch Truth
 
 v0.3.30 將正式 Analysis Bridge 封裝為 `resources/jaa-analysis-bridge/analysis-bridge-v0330.cjs` 實體外部資源，啟動與分析前均使用同一 resolver 驗證 manifest、bytes、SHA-256、runtime contract 與 loadability。Bridge 未就緒時只建立 failed Attempt，不建立 Canonical Run，也不接觸 ChatGPT。

@@ -1,3 +1,11 @@
+# v0.3.31 - Protected-token-safe Segmentation and Terminal Lifecycle Convergence
+
+- Upgraded model delivery to `bridge-resumable-v4` with `jaa-model-input-segment-v3` and deterministic protected-token-safe byte segmentation.
+- Added pre-dispatch boundary safety validation and receipts covering UTF-8, CRLF, JSON escapes, token cuts, continuous coverage, per-segment hashes, and byte-exact reassembly.
+- Replayed the supplied v0.3.30 Debug archive and proved the truncated Evidence Quote ID crossed the old 4,096-byte boundary while the v4 plan keeps it intact.
+- Converged duplicate terminal failures into one idempotent outcome and truthfully projects rejected Artifact, failed Validation, separate Formal/Diagnostic states, and blocked SQLite.
+- Bound approved Artifact identity to the verified output-schema SHA-256 and advanced the external packaged Bridge to `0.3.31-bridge-v13`.
+
 # v0.3.30 - Packaged Analysis Bridge Resolution and Provider Dispatch Truth
 
 - Packaged the single current Analysis Bridge as a verified external resource under `resources/jaa-analysis-bridge`.

@@ -1,0 +1,20 @@
+const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
+const { artifacts, archiveBuffer, archiveText, catalogSkillIds, debugArchive, moduleApi } = require("./v0331-test-helpers.cjs");
+const api = moduleApi(); const archive = debugArchive(); assert.ok(fs.existsSync(archive));
+const pending = archiveBuffer(archive, "ai-analysis/canonical-run/input-workspace/pending-analysis.json");
+const quoteMapText = archiveText(archive, "ai-analysis/canonical-run/derived/model-visible-evidence-quote-map.json");
+const artifactText = archiveText(archive, "ai-analysis/canonical-run/artifact-attempts/ai-submitted-artifact-attempt-001.json");
+const delivery = JSON.parse(archiveText(archive, "ai-analysis/canonical-run/debug/model-delivery-receipt.json"));
+const completeId = "eq_1597081fd3c35b7879094f429849d371"; const truncatedId = "eq_1597081fd3c35b78";
+function oldSplit(bytes) { const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); const output=[]; let current=""; let length=0; for(const point of text){const size=Buffer.byteLength(point);if(length&&length+size>4096){output.push(Buffer.from(current));current="";length=0;}current+=point;length+=size;}if(length)output.push(Buffer.from(current));return output; }
+const old = oldSplit(pending); assert.equal(delivery.transportProtocol, "bridge-resumable-v3"); assert.equal(pending.length, 218769); assert.equal(old.length, 54);
+const boundaryIndex = old.findIndex((part, index) => part.toString("utf8").endsWith(truncatedId) && old[index + 1]?.toString("utf8").startsWith(completeId.slice(truncatedId.length)));
+assert.equal(boundaryIndex, 38); assert.match(quoteMapText, new RegExp(completeId)); assert.match(artifactText, new RegExp(truncatedId));
+const spans = api.extractProtectedTokenSpansV0331(pending, { fileId: "pending-analysis", catalogSkillIds: catalogSkillIds(), requireJson: true });
+const plan = api.planProtectedTokenSafeSegmentsV1(pending, spans, 4096); const containing = plan.segments.find((segment) => segment.bytes.includes(Buffer.from(completeId)));
+assert.ok(containing); assert.equal(plan.protectedTokenCutCount, 0); assert.equal(plan.reassemblyBytes, pending.length); assert.equal(plan.reassemblySha256, crypto.createHash("sha256").update(pending).digest("hex"));
+const result = { schemaVersion: "jaa-v0331-v0330-segment-boundary-replay-v1", status: "PASS", archive: path.basename(archive), historicalTransport: delivery.transportProtocol, pendingBytes: pending.length, historicalSegmentCount: old.length, historicalBoundarySegmentIndex: boundaryIndex, historicalSegmentTail: truncatedId, nextSegmentHead: completeId.slice(truncatedId.length), completeQuoteId: completeId, modelSubmittedQuoteId: truncatedId, v4Transport: api.PROVIDER_TRANSPORT_V0331, v4SegmentCount: plan.segments.length, v4ContainingSegmentIndex: containing.index, v4ContainingSegmentStartByte: containing.startByte, v4ContainingSegmentEndByteExclusive: containing.endByteExclusive, protectedTokenCount: spans.length, protectedTokenCutCount: plan.protectedTokenCutCount, sourceSha256: plan.sourceSha256, reassemblySha256: plan.reassemblySha256, segmentPlanSha256: plan.segmentPlanSha256 };
+fs.mkdirSync(artifacts,{recursive:true});fs.writeFileSync(path.join(artifacts,"v0330-segment-boundary-replay.json"),JSON.stringify(result,null,2)+"\n");console.log(JSON.stringify(result,null,2));
