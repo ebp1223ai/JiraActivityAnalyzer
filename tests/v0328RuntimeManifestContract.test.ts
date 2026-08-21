@@ -3,31 +3,35 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { AnalysisBridgeV0327 } from "../electron/analysisBridgeRuntimeV0327.js";
+import { createRequire } from "node:module";
+import { AnalysisBridgeV0328 } from "../electron/analysisBridgeRuntimeV0328.js";
+import { createRuntimeManifestReceiptV0328 } from "../electron/runtimeManifestV0328.js";
 import { BridgeExecutionContextV0327 } from "../electron/bridgeExecutionContextV0327.js";
 import { buildEvidenceQuoteCatalog } from "../electron/evidenceQuoteCatalogV0326.js";
 import { normalizeJaaError } from "../electron/jaaErrorNormalizerV0327.js";
-import { loadExplicitRulesSnapshotV0327, V0327_APPLICATION_BINDING, V0327_RULE_FILES } from "../electron/aiAnalysisRulesV0327.js";
+import { loadExplicitRulesSnapshotV0328, V0328_APPLICATION_BINDING, V0328_RULE_FILES } from "../electron/aiAnalysisRulesV0328.js";
 import type { EvidenceSegmentV0324 } from "../electron/aiAnalysisEvidenceSegmenterV0324.js";
 
 async function run() {
-const root = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0327-"));
-const controlledRulesRoot = path.resolve(process.cwd(), "rules", "v0.3.27");
+const requireLocal = createRequire(path.join(process.cwd(), "package.json"));
+const BridgeClass: typeof AnalysisBridgeV0328 = process.env.JAA_PACKAGED_BRIDGE ? requireLocal(process.env.JAA_PACKAGED_BRIDGE).AnalysisBridgeV0328 : AnalysisBridgeV0328;
+const root = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0328-"));
+const controlledRulesRoot = path.resolve(process.cwd(), "rules", "v0.3.28");
 const controlledRuleHashes = {
   manifest: "f3bf59d9d99f42307f89b8eeffd270715a4523e26277f19cb32f51e6031850e3",
   common_rules: "0093db6b189da6bc6d78ecb498ac81c8a867deca5b18b26dffbebbd12aa505e0",
   catalog: "dd1b4a366e4f7fdc3232776a7a6ff54070eae00cc41102c195de5b0deb749d7d",
   html_template: "aa896e0d9a627aaff129739b16b56331132a5f4b08ad8f442c84e06fbe999182"
 } as const;
-const rules = loadExplicitRulesSnapshotV0327({
+const rules = loadExplicitRulesSnapshotV0328({
   mode: "BUNDLED_DEFAULT",
-  manifest: path.join(controlledRulesRoot, V0327_RULE_FILES.manifest.fileName),
-  commonRules: path.join(controlledRulesRoot, V0327_RULE_FILES.common_rules.fileName),
-  catalog: path.join(controlledRulesRoot, V0327_RULE_FILES.catalog.fileName),
-  htmlTemplate: path.join(controlledRulesRoot, V0327_RULE_FILES.html_template.fileName)
+  manifest: path.join(controlledRulesRoot, V0328_RULE_FILES.manifest.fileName),
+  commonRules: path.join(controlledRulesRoot, V0328_RULE_FILES.common_rules.fileName),
+  catalog: path.join(controlledRulesRoot, V0328_RULE_FILES.catalog.fileName),
+  htmlTemplate: path.join(controlledRulesRoot, V0328_RULE_FILES.html_template.fileName)
 });
-assert.equal(rules.promptVersion, V0327_APPLICATION_BINDING.promptVersion);
-assert.equal(rules.pipelineVersion, V0327_APPLICATION_BINDING.pipelineVersion);
+assert.equal(rules.promptVersion, V0328_APPLICATION_BINDING.promptVersion);
+assert.equal(rules.pipelineVersion, V0328_APPLICATION_BINDING.pipelineVersion);
 for (const document of rules.roleDocuments ?? []) assert.equal(document.sha256, controlledRuleHashes[document.role]);
 const segments: EvidenceSegmentV0324[] = [
   { evidenceSegmentId: "seg_a", recordIndex: 0, sourceRecordStableId: "stable_0", evidenceRef: "ev_0", hunkId: null, lineType: "ADDED", oldLineNumber: null, newLineNumber: 1, exactText: '"第一行\\r\\n第二行\\t\\"quoted\\" 中文"', evidenceRoleEligibility: "PRIMARY_CHANGE", sourceJsonPointer: "/records/0/comment", segmentSha256: "x" },
@@ -50,13 +54,17 @@ function createBridge(name: string) {
   });
   const id = crypto.createHash("sha256").update(name).digest("hex");
   const runId = `analysis_${id.slice(0, 8)}-${id.slice(8, 12)}-4${id.slice(13, 16)}-8${id.slice(17, 20)}-${id.slice(20, 32)}`;
-  const bridge = new AnalysisBridgeV0327({ runId, sessionNonce: "0123456789abcdef0123456789abcdef", runDirectory: runRoot, requestPackage: { runId, pendingSourceSha256: "a".repeat(64), inputRecordCount: 2, decisionContractVersion: "jaa-ai-analysis-decisions-v5", documents }, rulesSnapshotId: "rules", catalogSkillIds: ["GC_006"], quoteCatalog, evidenceSegments: segments, analysisAttemptId: `attempt_${name}`, requestId: `request_${name}`, provider: "chatgpt_codex", model: "gpt-test", manifestSha256: "b".repeat(64), commonRulesSha256: "c".repeat(64), catalogSha256: "d".repeat(64), outputSchemaSha256: "e".repeat(64) });
+  const bridge = new BridgeClass({ runId, sessionNonce: "0123456789abcdef0123456789abcdef", runDirectory: runRoot, requestPackage: { runId, pendingSourceSha256: "a".repeat(64), inputRecordCount: 2, decisionContractVersion: "jaa-ai-analysis-decisions-v5", documents }, rulesSnapshotId: "rules", catalogSkillIds: ["GC_006"], quoteCatalog, evidenceSegments: segments, analysisAttemptId: `attempt_${name}`, requestId: `request_${name}`, provider: "chatgpt_codex", model: "gpt-test", manifestSha256: "b".repeat(64), commonRulesSha256: "c".repeat(64), catalogSha256: "d".repeat(64), outputSchemaSha256: "e".repeat(64) });
   return { bridge, runRoot, runId };
 }
 
 const primary = createBridge("primary");
 const secondary = createBridge("secondary");
 const specs = primary.bridge.toolSpecs() as any[];
+const preflight = primary.bridge.preflight() as any;
+assert.equal(preflight.providerDispatchGate.selfValidationPassed, true);
+assert.equal(preflight.providerDispatchGate.providerDispatchAllowed, true);
+assert.equal(preflight.transportProtocol, "bridge-resumable-v3");
 const secondarySpecs = secondary.bridge.toolSpecs() as any[];
 assert.notEqual(primary.bridge.toolRegistrationId, secondary.bridge.toolRegistrationId);
 assert.equal(specs.find((spec) => spec.name === "jaa_get_input_manifest").inputSchema.additionalProperties, false);
@@ -73,6 +81,17 @@ const pendingManifest = primary.bridge.handle("jaa_get_input_manifest", {}, host
 setTimeout(() => primary.bridge.bindProviderTurn("thread-primary", "turn-primary"), 20);
 const manifest = await pendingManifest;
 assert.equal(manifest.schemaVersion, "jaa-model-input-manifest-v3");
+assert.equal(manifest.transportProtocol, "bridge-resumable-v3");
+const serialized = primary.bridge.serializeToolResponse("jaa_get_input_manifest", manifest);
+const decodedManifest = JSON.parse(serialized.contentItems[0].text);
+assert.equal(decodedManifest.schemaVersion, "jaa-model-input-manifest-v3");
+assert.equal(decodedManifest.transportProtocol, "bridge-resumable-v3");
+assert.equal(decodedManifest.expectedFileCount, 4);
+assert.equal(decodedManifest.expectedRecordCount, 2);
+const staleReceipt = createRuntimeManifestReceiptV0328({ ...manifest, transportProtocol: "bridge-resumable-v2" }, true);
+assert.equal(staleReceipt.selfValidationPassed, false);
+assert.equal(staleReceipt.providerDispatchAllowed, false);
+assert.equal(staleReceipt.errorCode, "AI_RUNTIME_MANIFEST_PROTOCOL_MISMATCH");
 assert.equal(typeof manifest.deliveryHandle, "string");
 assert.equal(typeof manifest.artifactSubmissionToken, "string");
 assert(!JSON.stringify(manifest).includes(primary.runId));
@@ -144,7 +163,7 @@ direct.completeDeliveryHandle(handle, { threadId: "thread", turnId: "turn" });
 assert.throws(() => direct.validateDeliveryHandle(handle, { threadId: "thread", turnId: "turn" }), /AI_MODEL_DELIVERY_HANDLE_REPLAYED/);
 
 for (const value of [new Error("boom"), "broken", { errorCode: "STRUCTURED", messageZhTw: "結構錯誤", stage: "IPC" }, { message: undefined }, null, undefined, 42]) {
-  const normalized = normalizeJaaError(value, { stage: "TEST", source: "v0327-test" });
+  const normalized = normalizeJaaError(value, { stage: "TEST", source: "v0328-test" });
   assert(normalized.errorCode);
   assert(normalized.messageZhTw);
   assert.notEqual(`${normalized.errorCode}: ${normalized.messageZhTw}`, "undefined: undefined");
@@ -161,7 +180,7 @@ const debugSource = fs.readFileSync(path.resolve("electron/main.ts"), "utf8") + 
 assert(!debugSource.includes('"render-workspace/html-report-template.md"'));
 for (const classification of ["expected_and_present", "expected_but_missing", "not_produced_due_to_prior_failure", "not_applicable_no_model_delivery", "not_applicable_no_submission", "not_applicable_instruction_mode"]) assert(debugSource.includes(classification));
 
-console.log(JSON.stringify({ status: "PASS", bridge: "0.3.27-bridge-v9", manifestZeroIdentity: true, independentToolRegistrations: true, delayedTurnBinding: true, deliveredSegments, combinedCalls, v2EquivalentCalls: 104, handleCases: 5, artifactTokenReplayRejected: true, rootError: failedLifecycle.rootErrorCode, derivedErrorCodes: failedLifecycle.derivedErrorCodes, errorShapes: 7, debugLifecycleVocabulary: true, tempRoot: root }, null, 2));
+console.log(JSON.stringify({ status: "PASS", runtime: process.env.JAA_PACKAGED_BRIDGE ? "packaged" : "source", bridge: "0.3.28-bridge-v10", manifestZeroIdentity: true, independentToolRegistrations: true, delayedTurnBinding: true, deliveredSegments, combinedCalls, v2EquivalentCalls: 104, handleCases: 5, artifactTokenReplayRejected: true, rootError: failedLifecycle.rootErrorCode, derivedErrorCodes: failedLifecycle.derivedErrorCodes, errorShapes: 7, debugLifecycleVocabulary: true, tempRoot: root }, null, 2));
 }
 
 export const completed = run();

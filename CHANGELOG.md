@@ -1,3 +1,11 @@
+# v0.3.28 - Runtime Manifest Contract Preflight and Root Error
+
+- Added one immutable runtime contract registry and a unique Manifest v3 factory.
+- Added pre-dispatch and post-serialization validation; stale v2 transport now fails closed before ChatGPT is contacted.
+- Preserved the manifest protocol mismatch as the host root error while delivery, analysis, and artifact states remain derived consequences.
+- Fixed the choose-pending success response that produced undefined: undefined in v0.3.27.
+- Added source and packaged handler contract tests plus a read-only v0.3.27 failure replay.
+
 # v0.3.27 - Host-owned Bridge Context and Debug Correctness
 
 - Removed all JAA-owned Run, Attempt, Request, Thread, Turn, source, and rules identities from model-visible dynamic tool schemas; `jaa_get_input_manifest({})` now resolves an isolated host-owned context.

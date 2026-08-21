@@ -1,3 +1,7 @@
+## v0.3.28 Runtime Manifest Contract Preflight
+
+v0.3.28 以單一 immutable Runtime Contract Registry 建立 Manifest v3，並在建立 Provider Thread 前完成 serialize/decode 自我驗證。若 schema、transport、file/record/segment/hash 或 handle contract 不一致，Provider Dispatch Gate 會 fail closed，UI 顯示「尚未聯絡 ChatGPT」，delivery、analysis 與 artifact 狀態只列為衍生結果。pre-run IPC 錯誤統一產生穩定 code 與繁中訊息。
+
 ## v0.3.27 Host-owned Bridge Context 與 Debug 正確性
 
 v0.3.27 將所有 Run／Attempt／Request／Thread／Turn identity 留在 Electron host，模型可見的第一個工具固定為 `jaa_get_input_manifest({})`。Provider Thread／Turn 以有界 barrier 延後綁定，後續輸入傳輸只使用一次性 opaque delivery handle；Debug evidence 僅保存 hash、短 prefix 與安全狀態，不保存完整 handle、artifact token 或憑證。
