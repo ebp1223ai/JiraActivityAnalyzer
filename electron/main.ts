@@ -123,6 +123,14 @@ try {
   throw error;
 }
 
+if (shouldVerifyAnalysisBridge) {
+  const resolution = resolveAnalysisBridgeArtifactV0331({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase: "diagnostic" });
+  const output = JSON.stringify(resolution.receipt);
+  console.log(`JAA_ANALYSIS_BRIDGE_DIAGNOSTIC=${output}`);
+  const receiptPath = process.env.JAA_BRIDGE_DIAGNOSTIC_RECEIPT_PATH;
+  if (receiptPath) { fs.mkdirSync(path.dirname(path.resolve(receiptPath)), { recursive: true }); fs.writeFileSync(path.resolve(receiptPath), JSON.stringify(resolution.receipt, null, 2) + "\n", "utf8"); }
+  process.exit(resolution.receipt.status === "ready" ? 0 : 2);
+}
 registerAiAnalysisIpc();
 
 type AutoSaveResultType = "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test";
@@ -6135,15 +6143,6 @@ app.on("before-quit", () => {
 });
 
 app.whenReady().then(() => {
-  if (shouldVerifyAnalysisBridge) {
-    const resolution = resolveAnalysisBridgeArtifactV0331({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase: "diagnostic" });
-    const output = JSON.stringify(resolution.receipt);
-    console.log(`JAA_ANALYSIS_BRIDGE_DIAGNOSTIC=${output}`);
-    const receiptPath = process.env.JAA_BRIDGE_DIAGNOSTIC_RECEIPT_PATH;
-    if (receiptPath) { fs.mkdirSync(path.dirname(path.resolve(receiptPath)), { recursive: true }); fs.writeFileSync(path.resolve(receiptPath), JSON.stringify(resolution.receipt, null, 2) + "\n", "utf8"); }
-    app.exit(resolution.receipt.status === "ready" ? 0 : 2);
-    return;
-  }
   if (app.isPackaged || isUiSmoke) {
     Menu.setApplicationMenu(null);
   }
