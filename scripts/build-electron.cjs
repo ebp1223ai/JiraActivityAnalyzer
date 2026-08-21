@@ -5,6 +5,9 @@ const { execSync } = require("node:child_process");
 
 const outdir = path.resolve(__dirname, "../dist-electron");
 fs.mkdirSync(outdir, { recursive: true });
+const bridgeResourceDir = path.join(outdir, "jaa-analysis-bridge");
+fs.rmSync(bridgeResourceDir, { recursive: true, force: true });
+fs.mkdirSync(bridgeResourceDir, { recursive: true });
 for (const fileName of fs.readdirSync(outdir)) {
   if (/^analysis-bridge-v[0-9]+[.]cjs$/.test(fileName)) fs.rmSync(path.join(outdir, fileName), { force: true });
 }
@@ -50,18 +53,22 @@ const common = {
   logLevel: "info"
 };
 
-const bridgeOutput = path.join(outdir, "analysis-bridge-v0329.cjs");
+const bridgeOutput = path.join(bridgeResourceDir, "analysis-bridge-v0330.cjs");
 esbuild.buildSync({
   ...common,
   entryPoints: [path.resolve(__dirname, "../electron/analysisBridgeRuntimeV0328.ts")],
   outfile: bridgeOutput
 });
 const bridgeSha256 = require("node:crypto").createHash("sha256").update(fs.readFileSync(bridgeOutput)).digest("hex");
-fs.writeFileSync(path.join(outdir, "analysis-bridge-manifest.json"), JSON.stringify({
-  schemaVersion: "jaa-analysis-bridge-manifest-v1", version: "0.3.29-bridge-v11", relativePath: "analysis-bridge-v0329.cjs",
-  sha256: bridgeSha256, transport: "codex_dynamic_tools_stdio", modelInputTransport: "bridge-resumable-v3", localOnly: true, externalFallback: false
+const bridgeBytes = fs.statSync(bridgeOutput).size;
+fs.writeFileSync(path.join(bridgeResourceDir, "analysis-bridge-manifest-v0330.json"), JSON.stringify({
+  schemaVersion: "jaa-packaged-analysis-bridge-manifest-v1", bridgeIdentity: "0.3.30-bridge-v12", artifactFileName: "analysis-bridge-v0330.cjs",
+  artifactBytes: bridgeBytes, artifactSha256: bridgeSha256, runtimeContractRegistry: "jaa-runtime-contract-registry-v1",
+  transport: "bridge-resumable-v3", decisionContract: "jaa-ai-analysis-decisions-v5", localOnly: true, externalFallback: false
 }, null, 2) + "\n", "utf8");
-console.log(`  analysis bridge manifest  version=0.3.29-bridge-v11 sha256=${bridgeSha256}`);
+console.log(`  analysis bridge manifest  identity=0.3.30-bridge-v12 bytes=${bridgeBytes} sha256=${bridgeSha256}`);
+common.define.__JAA_ANALYSIS_BRIDGE_BYTES__ = JSON.stringify(bridgeBytes);
+common.define.__JAA_ANALYSIS_BRIDGE_SHA256__ = JSON.stringify(bridgeSha256);
 
 esbuild.buildSync({
   ...common,

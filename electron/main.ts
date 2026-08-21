@@ -63,6 +63,7 @@ import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } f
 import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
 import { flushRunArchive } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
+import { resolveAnalysisBridgeArtifactV0330 } from "./analysisBridgeResolverV0330.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -80,6 +81,7 @@ const shouldOpenDevTools = process.env.OPEN_DEVTOOLS === "1";
 const isUiSmoke = process.env.ELECTRON_UI_SMOKE === "1";
 const shouldCaptureUi = process.env.ELECTRON_UI_CAPTURE === "1";
 const shouldSimulateCrashDiagnostic = process.env.JAA_SIMULATE_CRASH_DIAGNOSTIC === "1";
+const shouldVerifyAnalysisBridge = process.argv.includes("--verify-analysis-bridge");
 const appSessionId = `app-session-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 const databaseViewerCoordinator = new DatabaseViewerCoordinator(path.join(__dirname, "database-viewer-worker.cjs"));
 const pendingAnalysisExportCoordinator = new PendingAnalysisExportCoordinator(path.join(__dirname, "pending-analysis-export-worker.cjs"));
@@ -6133,6 +6135,15 @@ app.on("before-quit", () => {
 });
 
 app.whenReady().then(() => {
+  if (shouldVerifyAnalysisBridge) {
+    const resolution = resolveAnalysisBridgeArtifactV0330({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase: "diagnostic" });
+    const output = JSON.stringify(resolution.receipt);
+    console.log(`JAA_ANALYSIS_BRIDGE_DIAGNOSTIC=${output}`);
+    const receiptPath = process.env.JAA_BRIDGE_DIAGNOSTIC_RECEIPT_PATH;
+    if (receiptPath) { fs.mkdirSync(path.dirname(path.resolve(receiptPath)), { recursive: true }); fs.writeFileSync(path.resolve(receiptPath), JSON.stringify(resolution.receipt, null, 2) + "\n", "utf8"); }
+    app.exit(resolution.receipt.status === "ready" ? 0 : 2);
+    return;
+  }
   if (app.isPackaged || isUiSmoke) {
     Menu.setApplicationMenu(null);
   }

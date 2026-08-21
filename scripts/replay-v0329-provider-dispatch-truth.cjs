@@ -1,0 +1,12 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const { artifacts, archiveText, debugArchive } = require("./v0330-test-helpers.cjs");
+const archive = debugArchive(); assert.ok(fs.existsSync(archive), `Supplied Debug archive missing: ${archive}`);
+const diagnostics = JSON.parse(archiveText(archive, "ai-analysis/canonical-run/debug/provider-diagnostics.json"));
+const events = archiveText(archive, "ai-analysis/canonical-run/logs/conversation.jsonl").split(/\r?\n/).filter(Boolean).map(JSON.parse);
+const manifest = JSON.parse(archiveText(archive, "ai-analysis/canonical-run/debug/run-manifest.json"));
+const inconsistent = events.find((event) => event.visibility === "CHATGPT_VISIBLE" && event.metadata?.dispatchStatus === "sent");
+assert.ok(inconsistent); assert.equal(inconsistent.threadId, null); assert.equal(inconsistent.turnId, null); assert.equal(diagnostics.providerDispatchCount, 0); assert.equal(diagnostics.acceptedTurnCount, 0); assert.ok(manifest.run.telemetry.providerDispatchAt);
+const projection = { schemaVersion: "jaa-provider-dispatch-ledger-v1", historicalEvidence: "prepared_but_not_sent", lastState: "prepared", providerDispatchPreparationCount: 1, providerDispatchAttemptCount: 0, providerContactCount: 0, threadCreatedCount: 0, acceptedTurnCount: 0, turnCompletedCount: 0, providerRequestPreparedAt: manifest.run.telemetry.inputPreparedAt, providerDispatchAttemptedAt: null, providerContactedAt: null, threadCreatedAt: null, turnAcceptedAt: null, turnCompletedAt: null, instructionSent: false, chatGptContacted: false, status: "PASS" };
+fs.mkdirSync(artifacts, { recursive: true }); fs.writeFileSync(path.join(artifacts, "v0329-provider-dispatch-truth-replay.json"), JSON.stringify(projection, null, 2) + "\n"); console.log(JSON.stringify(projection, null, 2));

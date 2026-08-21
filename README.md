@@ -1,3 +1,8 @@
+## v0.3.30 Packaged Bridge 與 Provider Dispatch Truth
+
+v0.3.30 將正式 Analysis Bridge 封裝為 `resources/jaa-analysis-bridge/analysis-bridge-v0330.cjs` 實體外部資源，啟動與分析前均使用同一 resolver 驗證 manifest、bytes、SHA-256、runtime contract 與 loadability。Bridge 未就緒時只建立 failed Attempt，不建立 Canonical Run，也不接觸 ChatGPT。
+
+Provider dispatch 以 append-only ledger 分開記錄 prepared、attempted、contacted、thread created、turn accepted 與 completed。只有 Provider 接受真實 Turn 後，conversation 才會標記為 `CHATGPT_VISIBLE` 與 `sent`。Diagnostic mode `--verify-analysis-bridge --json` 不讀取 OAuth、不建立 Run、不呼叫 Provider、不寫 SQLite。
 ## v0.3.28 Runtime Manifest Contract Preflight
 
 v0.3.28 以單一 immutable Runtime Contract Registry 建立 Manifest v3，並在建立 Provider Thread 前完成 serialize/decode 自我驗證。若 schema、transport、file/record/segment/hash 或 handle contract 不一致，Provider Dispatch Gate 會 fail closed，UI 顯示「尚未聯絡 ChatGPT」，delivery、analysis 與 artifact 狀態只列為衍生結果。pre-run IPC 錯誤統一產生穩定 code 與繁中訊息。

@@ -4,10 +4,10 @@ export const RUNTIME_CONTRACT_REGISTRY_VERSION_V0328 = "jaa-runtime-contract-reg
 
 const registryValue = {
   schemaVersion: RUNTIME_CONTRACT_REGISTRY_VERSION_V0328,
-  applicationVersion: "0.3.29",
-  promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.29",
-  promptTemplateVersion: "0.3.29-zh-TW-v10",
-  bridgeIdentity: "0.3.29-bridge-v11",
+  applicationVersion: "0.3.30",
+  promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.30",
+  promptTemplateVersion: "0.3.30-zh-TW-v11",
+  bridgeIdentity: "0.3.30-bridge-v12",
   bridgeSchemaVersion: "jaa-analysis-bridge-v10",
   providerTransport: "bridge-resumable-v3",
   modelInputManifestSchema: "jaa-model-input-manifest-v3",

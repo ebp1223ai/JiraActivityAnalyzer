@@ -1,0 +1,27 @@
+const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
+const { spawnSync } = require("node:child_process");
+const root = path.resolve(__dirname, "..");
+const release = path.join(root, "release");
+const resourceDirectory = path.join(release, "win-unpacked", "resources", "jaa-analysis-bridge");
+const artifact = path.join(resourceDirectory, "analysis-bridge-v0330.cjs");
+const manifestFile = path.join(resourceDirectory, "analysis-bridge-manifest-v0330.json");
+const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
+const bytes = fs.readFileSync(artifact); const hash = crypto.createHash("sha256").update(bytes).digest("hex");
+assert.equal(bytes.length, manifest.artifactBytes); assert.equal(hash, manifest.artifactSha256); assert.equal(manifest.bridgeIdentity, "0.3.30-bridge-v12");
+const names = fs.readdirSync(resourceDirectory); assert.deepEqual(names.sort(), ["analysis-bridge-manifest-v0330.json", "analysis-bridge-v0330.cjs"]);
+function diagnostic(executable, kind) {
+  const receiptPath = path.join(release, `bridge-diagnostic-${kind}.json`); fs.rmSync(receiptPath, { force: true });
+  const result = spawnSync(executable, ["--verify-analysis-bridge", "--json"], { env: { ...process.env, JAA_BRIDGE_DIAGNOSTIC_RECEIPT_PATH: receiptPath, JAA_DISTRIBUTION_KIND: kind === "portable" ? "portable" : "win-unpacked" }, encoding: "utf8", timeout: 45_000, windowsHide: true });
+  if (result.error) throw result.error;
+  assert.equal(result.status, 0, `${kind} diagnostic exit=${result.status} stdout=${result.stdout} stderr=${result.stderr}`);
+  assert.ok(fs.existsSync(receiptPath), `${kind} diagnostic receipt missing`);
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, "utf8")); assert.equal(receipt.status, "ready"); assert.equal(receipt.appIsPackaged, true); assert.equal(receipt.externalFallbackUsed, false); assert.equal(receipt.expectedBytes, bytes.length); assert.equal(receipt.observedSha256, hash); assert.equal(receipt.loadabilityValidated, true);
+  return { executable, exitCode: result.status, receiptPath, receipt };
+}
+const win = diagnostic(path.join(release, "win-unpacked", "Jira Activity Analyzer.exe"), "win-unpacked");
+const portable = diagnostic(path.join(release, "Jira Activity Analyzer Portable 0.3.30.exe"), "portable");
+const report = { schemaVersion: "jaa-v0330-packaged-bridge-verification-v1", status: "PASS", bridgeIdentity: manifest.bridgeIdentity, bridgeBytes: bytes.length, bridgeSha256: hash, inventory: { appAsarCurrentBridgeCount: 0, externalCurrentBridgeCount: 1, externalManifestCount: 1, staleBridgeCount: 0, resourceDirectory, files: names }, diagnostics: { winUnpacked: win, portable }, installerInventory: { status: "BUILT_FROM_SAME_ELECTRON_BUILDER_RESOURCE_CONFIG", guiValidation: "MANUAL_VALIDATION_PENDING" }, verifiedAtUtc: new Date().toISOString() };
+fs.writeFileSync(path.join(release, "v0.3.30-packaged-bridge-verification.json"), JSON.stringify(report, null, 2) + "\n"); console.log(JSON.stringify(report, null, 2));

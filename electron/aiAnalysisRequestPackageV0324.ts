@@ -9,7 +9,7 @@ import { getDecisionContractDescriptorV0326 } from "./aiAnalysisDecisionContract
 
 export const REQUEST_PACKAGE_VERSION = "ai-analysis-request-package-v6" as const;
 export const CORE_INSTRUCTION_NAME = "jira-activity-analysis-local-workspace-instruction" as const;
-export const CORE_INSTRUCTION_VERSION = "0.3.29-zh-TW-v10" as const;
+export const CORE_INSTRUCTION_VERSION = "0.3.30-zh-TW-v11" as const;
 export const PROVIDER_DELIVERY_MODE = "LOCAL_FILE_WORKSPACE" as const;
 
 function sha256(value: Buffer | string) { return crypto.createHash("sha256").update(value).digest("hex"); }
@@ -86,7 +86,7 @@ export function buildRequestPackage(input: { runId: string; runDirectory: string
   atomicExport(path.join(control, "instruction-composition-manifest.json"), JSON.stringify(composition, null, 2));
   atomicExport(path.join(control, "input-transport-contract.json"), JSON.stringify({ schemaVersion: "jaa-input-transport-contract-v2", protocol: "bridge-resumable-v3", sourceReceipt: "progress/source-input-receipt.json", modelDeliveryReceipt: "progress/model-delivery-receipt.json", segmentByteLimit: 4096, maxSegmentAttempts: 3, utf8BoundarySafe: true, resumeMissingOnly: true }, null, 2));
   atomicExport(path.join(control, "output-schema.json"), decisionContract.canonicalJson);
-  atomicExport(path.join(control, "bridge-contract.json"), JSON.stringify({ schemaVersion: "jaa-analysis-bridge-contract-v1", version: "0.3.29-bridge-v11", executionContext: "jaa-bridge-execution-context-v1", modelDeliveryHandle: "jaa-model-delivery-handle-v1", modelVisibleIdentityFields: [], transport: "codex_dynamic_tools_stdio", modelInputTransport: "bridge-resumable-v3", localOnly: true, tools: ["jaa_get_input_manifest", "jaa_read_and_ack_next_segment", "jaa_get_delivery_status", "jaa_finalize_input_delivery", "jaa_report_analysis_progress", "jaa_publish_analysis_artifacts_v5"], arbitraryPath: false, arbitraryCommand: false, externalFallback: false }, null, 2));
+  atomicExport(path.join(control, "bridge-contract.json"), JSON.stringify({ schemaVersion: "jaa-analysis-bridge-contract-v1", version: "0.3.30-bridge-v12", executionContext: "jaa-bridge-execution-context-v1", modelDeliveryHandle: "jaa-model-delivery-handle-v1", modelVisibleIdentityFields: [], transport: "codex_dynamic_tools_stdio", modelInputTransport: "bridge-resumable-v3", localOnly: true, tools: ["jaa_get_input_manifest", "jaa_read_and_ack_next_segment", "jaa_get_delivery_status", "jaa_finalize_input_delivery", "jaa_report_analysis_progress", "jaa_publish_analysis_artifacts_v5"], arbitraryPath: false, arbitraryCommand: false, externalFallback: false }, null, 2));
   const requestPackage: AiAnalysisRequestPackage = {
     requestPackageVersion: REQUEST_PACKAGE_VERSION, instructionMode, instructionComposition: composition, modelInputTransport: "bridge-resumable-v3", promptLocale: "zh-TW", responseLocale: "zh-TW", promptTemplateVersion: CORE_INSTRUCTION_VERSION, decisionContractVersion: decisionContract.schemaVersion, decisionContractSha256: decisionContract.sha256, runId: input.runId, createdAtLocal: created.toLocaleString("sv-SE", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }), createdAtUtc: created.toISOString(), localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     deliveryMode: PROVIDER_DELIVERY_MODE, inputRecordCount: pendingRecords.length, inputStableIdSetSha256, pendingSourceSha256, documents,

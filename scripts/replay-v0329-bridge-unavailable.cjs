@@ -1,0 +1,16 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const { artifacts, archiveText, debugArchive } = require("./v0330-test-helpers.cjs");
+const archive = debugArchive(); assert.ok(fs.existsSync(archive), `Supplied Debug archive missing: ${archive}`);
+const failure = JSON.parse(archiveText(archive, "ai-analysis/canonical-run/debug/failed-run-manifest.json"));
+const diagnostics = JSON.parse(archiveText(archive, "ai-analysis/canonical-run/debug/provider-diagnostics.json"));
+const quote = JSON.parse(archiveText(archive, "ai-analysis/canonical-run/progress/model-visible-evidence-quote-receipt.json"));
+const providerStream = archiveText(archive, "ai-analysis/canonical-run/logs/provider-stream.jsonl");
+const manifest = JSON.parse(archiveText(archive, "ai-analysis/canonical-run/debug/run-manifest.json"));
+assert.equal(failure.errorCode, "AI_BRIDGE_UNAVAILABLE"); assert.equal(manifest.run.progress.stage, "failed");
+for (const key of ["requestCount", "providerDispatchCount", "threadStartAttemptCount", "threadCreatedCount", "turnStartAttemptCount", "acceptedTurnCount", "turnCompletedCount"]) assert.equal(diagnostics[key], 0, key);
+assert.equal(Buffer.byteLength(providerStream), 0); assert.equal(manifest.run.progress.usage.availability, "actual_zero_no_model_dispatch");
+assert.equal(quote.sourceCatalogQuoteCount, 282); assert.equal(quote.modelVisibleQuoteCount, 282); assert.equal(quote.recordCount, 17); assert.equal(quote.recordsWithPrimaryQuotes, 17); assert.equal(quote.coveragePassed, true); assert.equal(quote.providerDispatchAllowed, true);
+const report = { schemaVersion: "jaa-v0329-bridge-unavailable-replay-v1", source: path.basename(archive), runId: failure.runId, historicalRootError: failure.errorCode, failedStage: "starting_thread", providerContacted: false, instructionSent: false, v0330Classification: "LOCAL_PACKAGED_BRIDGE_FAILURE_PRE_PROVIDER", chatGptAnalysisFailure: false, quoteCoverage: { sourceCatalogQuoteCount: 282, modelVisibleQuoteCount: 282, recordsWithPrimaryQuotes: 17, recordCount: 17 }, status: "PASS" };
+fs.mkdirSync(artifacts, { recursive: true }); fs.writeFileSync(path.join(artifacts, "v0329-bridge-unavailable-replay.json"), JSON.stringify(report, null, 2) + "\n"); console.log(JSON.stringify(report, null, 2));

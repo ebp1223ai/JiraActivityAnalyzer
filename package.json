@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.29",
+  "version": "0.3.30",
   "description": "Electron desktop analyzer with bundled Codex local-workspace AI analysis and canonical debug evidence.",
   "author": "COPGEN",
   "type": "module",
@@ -95,7 +95,10 @@
     "test:v0.3.29": "node scripts/test-v0329.cjs && node scripts/test-runtime-manifest-contract-v0328.cjs",
     "replay:v0.3.28-quote-map": "node scripts/replay-v0328-quote-map.cjs",
     "replay:v0.3.28-no-result-gate": "node scripts/replay-v0328-no-result-gate.cjs",
-    "replay:v0.3.28-manifest-eperm": "node scripts/replay-v0328-manifest-eperm.cjs"
+    "replay:v0.3.28-manifest-eperm": "node scripts/replay-v0328-manifest-eperm.cjs",
+    "test:v0.3.30": "npm run electron:build && node scripts/test-v0330.cjs",
+    "replay:v0.3.29-bridge-unavailable": "node scripts/replay-v0329-bridge-unavailable.cjs",
+    "replay:v0.3.29-provider-dispatch-truth": "node scripts/replay-v0329-provider-dispatch-truth.cjs"
   },
   "dependencies": {
     "@openai/codex": "0.147.0",
@@ -178,6 +181,14 @@
         "to": "bundled-rules/v0.3.28",
         "filter": [
           "**/*"
+        ]
+      },
+      {
+        "from": "dist-electron/jaa-analysis-bridge",
+        "to": "jaa-analysis-bridge",
+        "filter": [
+          "analysis-bridge-v0330.cjs",
+          "analysis-bridge-manifest-v0330.json"
         ]
       }
     ]

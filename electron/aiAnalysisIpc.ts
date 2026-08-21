@@ -49,6 +49,8 @@ import { assembleCanonicalResultsV0324 } from "./aiAnalysisArtifactsV0324.js";
 import { buildIssueSnapshotProfilesV0324, buildReportDataPackageV0324, durableJsonWriteV0324 } from "./aiAnalysisReportDataPackageV0324.js";
 import { renderReportDataPackageHtmlV0324, HTML_RENDERER_VERSION_V0324 } from "./aiAnalysisHtmlRendererV0324.js";
 import { getChatGptService } from "./chatGptService.js";
+import { preflightAnalysisBridgeV0330 } from "./analysisBridgeLoaderV0319.js";
+import { ProviderDispatchLedgerV0330 } from "./providerDispatchLedgerV0330.js";
 import { redactChatGptText, redactChatGptTextComplete, sanitizeChatGptValueComplete } from "./chatGptRedactor.js";
 import { normalizeJaaError } from "./jaaErrorNormalizerV0327.js";
 import { buildRequestPackage, loadRequestPackage } from "./aiAnalysisRequestPackageV0324.js";
@@ -260,6 +262,7 @@ export function registerAiAnalysisIpc() {
   const ruleSelection = new RuleSelectionTransactionServiceV0328(bundledRulesDirectory, path.join(aiStateDirectory, "rule-selection"));
   let rules: AiRulesSnapshot | null = ruleSelection.rules;
   const attemptStore = new AnalysisAttemptStoreV0325(path.join(aiStateDirectory, "attempts"));
+  const startupBridgeReceipt = preflightAnalysisBridgeV0330("startup", null).receipt;
   const resultRegistry = new ActiveResultRegistryV0325(path.join(aiStateDirectory, "results"));
   let lastNavigationDecision = null as import("../shared/aiAnalysisContract.js").AiNavigationDecisionV0325 | null;
   const pendingDatasets: AiPendingDataset[] = [];
@@ -274,6 +277,8 @@ export function registerAiAnalysisIpc() {
   const analysisUserActions: string[] = [];
   const providerFailureEvidence = new Map<string, { visibleText: string; usage: ReturnType<typeof emptyTokenUsage>; errorCode: string; message: string }>();
   const observedWorkspaceFiles = new Map<string, Set<string>>();
+  const dispatchLedgers = new Map<string, ProviderDispatchLedgerV0330>();
+  const preparedProviderMessages = new Map<string, { prompt: string; payloadSha256: string; deliveryMode: string }>();
   const requiredWorkspaceFiles = ["pending-analysis.json", "common-rules.md", "skill-catalog.md", "rule-set-manifest.md"] as const;
   const lastProviderUiNotifyAt = new Map<string, number>();
   let activeChatController: AbortController | null = null;
@@ -283,13 +288,14 @@ export function registerAiAnalysisIpc() {
     ipcVersion: AI_ANALYSIS_IPC_VERSION, env: publicEnv(environment), rules,
     pendingDatasets, selectedPendingDatasetId, runs, selectedRunId, activeRunId, chatgpt: chatgpt.getStatus(),
     ruleSelection: ruleSelection.transaction, analysisAttempts: attemptStore.attempts, activeResult: resultRegistry.active && !runs.some((run) => run.runId === resultRegistry.active?.runId && run.quarantineStatus === "QUARANTINED_SYSTEMIC_NO_RESULT") ? resultRegistry.active : null,
-    successfulResults: resultRegistry.successful.filter((result) => !runs.some((run) => run.runId === result.runId && run.quarantineStatus === "QUARANTINED_SYSTEMIC_NO_RESULT")), lastNavigationDecision
+    successfulResults: resultRegistry.successful.filter((result) => !runs.some((run) => run.runId === result.runId && run.quarantineStatus === "QUARANTINED_SYSTEMIC_NO_RESULT")), lastNavigationDecision, analysisBridge: startupBridgeReceipt
   });
   const notify = (event: IpcMainInvokeEvent) => event.sender.send("ai-analysis:snapshot-changed", snapshot());
   chatgpt.subscribeRun((providerEvent) => {
     const run = runs.find((item) => item.runId === providerEvent.runId);
     if (!run || activeRunId !== run.runId || run.status !== "running") return;
     const archive = runArchives.get(run.runId);
+    const dispatchLedger = dispatchLedgers.get(run.runId);
     try {
       if (providerEvent.type === "provider_event") archive?.appendProviderEvent(providerEvent);
       else if (providerEvent.type === "bridge_tool") archive?.append("system_event", "APP_ONLY", `Analysis Bridge tool ${providerEvent.tool} ${providerEvent.success ? "completed" : "failed"}.`, { tool: providerEvent.tool, callId: providerEvent.callId, success: providerEvent.success, result: providerEvent.result });
@@ -310,20 +316,31 @@ export function registerAiAnalysisIpc() {
       run.codexPreflight = providerEvent.evidence;
       run.progress.message = "Bundled Codex write probe passed with matching Probe / Thread / Turn policy.";
     } else if (providerEvent.type === "thread_starting") {
+      dispatchLedger?.append("dispatch_attempted", { at: providerEvent.at, idempotencyKey: "single_provider_dispatch_attempt" });
+      run.telemetry = { ...(run.telemetry ?? {}), providerDispatchAttemptedAt: providerEvent.at };
       run.progress.providerDispatchCount = (run.progress.providerDispatchCount ?? 0) + 1;
       run.progress.requestCount = run.progress.providerDispatchCount;
       run.progress.stage = "starting_thread";
       run.progress.threadStartAttemptCount = (run.progress.threadStartAttemptCount ?? 0) + 1;
       run.progress.message = "Starting the single dedicated provider thread.";
     } else if (providerEvent.type === "thread_created") {
+      dispatchLedger?.append("provider_contacted", { at: providerEvent.at, idempotencyKey: "provider_contacted" });
+      dispatchLedger?.append("thread_created", { at: providerEvent.at, threadId: providerEvent.threadId, idempotencyKey: "thread_created:" + providerEvent.threadId });
+      run.telemetry = { ...(run.telemetry ?? {}), providerContactedAt: providerEvent.at, threadCreatedAt: providerEvent.at };
       run.threadId = providerEvent.threadId;
       run.progress.threadCreatedCount = (run.progress.threadCreatedCount ?? 0) + 1;
       run.progress.threadCount = run.progress.threadCreatedCount;
       run.progress.message = "Dedicated thread created; preparing the single analysis turn.";
     } else if (providerEvent.type === "turn_starting") {
+      dispatchLedger?.append("turn_start_attempted", { at: providerEvent.at, threadId: providerEvent.threadId, idempotencyKey: "turn_start_attempted" });
+      run.telemetry = { ...(run.telemetry ?? {}), turnStartAttemptedAt: providerEvent.at };
       run.progress.stage = "starting_turn";
       run.progress.turnStartAttemptCount = (run.progress.turnStartAttemptCount ?? 0) + 1;
     } else if (providerEvent.type === "turn_started") {
+      dispatchLedger?.append("turn_accepted", { at: providerEvent.at, threadId: providerEvent.threadId, turnId: providerEvent.turnId, idempotencyKey: "turn_accepted:" + providerEvent.turnId });
+      run.telemetry = { ...(run.telemetry ?? {}), turnAcceptedAt: providerEvent.at };
+      const prepared = preparedProviderMessages.get(run.runId);
+      if (prepared) { archive?.append("user_message", "CHATGPT_VISIBLE", prepared.prompt, { dispatchStatus: "sent", providerRequestId: run.runId, threadId: providerEvent.threadId, turnId: providerEvent.turnId, deliveryMode: prepared.deliveryMode, payloadSha256: prepared.payloadSha256 }); preparedProviderMessages.delete(run.runId); }
       run.turnId = providerEvent.turnId;
       run.progress.acceptedTurnCount = (run.progress.acceptedTurnCount ?? 0) + 1;
       run.progress.turnCount = run.progress.acceptedTurnCount;
@@ -343,10 +360,13 @@ export function registerAiAnalysisIpc() {
         estimatedInputTokens: run.progress.usage.estimatedInputTokens
       };
     } else if (providerEvent.type === "provider_turn_completed") {
+      dispatchLedger?.append("turn_completed", { at: providerEvent.at, threadId: providerEvent.threadId, turnId: providerEvent.turnId, idempotencyKey: "turn_completed:" + providerEvent.turnId });
+      run.telemetry = { ...(run.telemetry ?? {}), turnCompletedAt: providerEvent.at };
       run.progress.turnCompletedCount = (run.progress.turnCompletedCount ?? 0) + 1;
       run.progress.usage = { ...run.progress.usage, ...providerEvent.tokenTelemetry.turnCumulative, availability: providerEvent.tokenTelemetry.availability, turnCumulative: providerEvent.tokenTelemetry.turnCumulative, lastModelCall: providerEvent.tokenTelemetry.lastModelCall, usageEventCount: providerEvent.tokenTelemetry.usageEventCount };
       run.progress.message = "Provider turn completed; validating model delivery and analysis evidence.";
     } else if (providerEvent.type === "failed") {
+      dispatchLedger?.append("failed", { rootErrorCode: providerEvent.errorCode, rootErrorMessage: providerEvent.message, lastSuccessfulState: dispatchLedger.projection.lastState, idempotencyKey: "failed:" + providerEvent.errorCode });
       providerFailureEvidence.set(providerEvent.runId, { visibleText: providerEvent.visibleText, usage: { ...providerEvent.usage, availability: "partial", estimatedInputTokens: run.progress.usage.estimatedInputTokens }, errorCode: providerEvent.errorCode, message: providerEvent.message });
     } else if (providerEvent.type === "completed") {
       run.progress.stage = "validating_response_schema";
@@ -580,6 +600,17 @@ export function registerAiAnalysisIpc() {
     const provider = payload.mode === "OFFLINE_RULE" ? "offline_rule" : payload.mode === "CHATGPT" ? "chatgpt_codex" : "ai_nexus";
     if (payload.mode === "CHATGPT" && chatgpt.getStatus().state !== "connected") return rejectAttempt(new AiAnalysisError("CHATGPT_SIGN_IN_REQUIRED", "ChatGPT must be connected before analysis."));
     if (payload.mode === "AI_NEXUS") { const current = settingsAndSecret("ai_nexus").settings; if (current.connectionStatus !== "passed" || current.testedFingerprint !== current.configFingerprint) return rejectAttempt(new AiAnalysisError("AI_NOT_CONFIGURED", "AI Nexus settings must pass connection testing before analysis.")); }
+    let bridgePreflightReceipt: ReturnType<typeof preflightAnalysisBridgeV0330>["receipt"] | null = null;
+    if (payload.mode === "CHATGPT") {
+      const bridgeResolution = preflightAnalysisBridgeV0330("analysis_start", attempt.analysisAttemptId);
+      bridgePreflightReceipt = bridgeResolution.receipt;
+      fs.writeFileSync(path.join(attempt.archivePath, "bridge-preflight-receipt.json"), JSON.stringify(bridgeResolution.receipt, null, 2) + "\n", "utf8");
+      const attemptLedger = new ProviderDispatchLedgerV0330(path.join(attempt.archivePath, "provider-dispatch-ledger.jsonl"));
+      if (bridgeResolution.receipt.status !== "ready") {
+        attemptLedger.append("failed", { rootErrorCode: bridgeResolution.receipt.rootErrorCode, rootErrorMessage: bridgeResolution.receipt.rootErrorMessage, lastSuccessfulState: null, idempotencyKey: "bridge_preflight_failed" });
+        return rejectAttempt(Object.assign(new Error(`${bridgeResolution.receipt.rootErrorCode}:${bridgeResolution.receipt.rootErrorMessage}`), { code: bridgeResolution.receipt.rootErrorCode }));
+      }
+    }
     const dbPath = resolveConfiguredPath(environment.values.AI_ANALYSIS_DB_PATH, path.join(getAppDataDir(), "ai-analysis", "ai-analysis.sqlite3"));
     if (payload.mode !== "CHATGPT") try { initializeAiDatabase(dbPath); } catch (error) { return rejectAttempt(new AiAnalysisError("AI_DB_MIGRATION_FAILED", error instanceof Error ? error.message : String(error))); }
     const model = payload.mode === "OFFLINE_RULE" ? rules.classificationEngineVersion : payload.mode === "CHATGPT" ? (chatgpt.getStatus().selectedModel ?? "auto") : settingsAndSecret(service).settings.model;
@@ -598,7 +629,7 @@ export function registerAiAnalysisIpc() {
     };
     run.analysisAttemptId = attempt.analysisAttemptId;
     if (!resumedRun) {
-      try { const archive = new AiAnalysisRunArchive(runId, new Date(startedAt)); runArchives.set(runId, archive); run.runDirectory = archive.directory; archive.append("system_event", "APP_ONLY", "Analysis Run created before Provider dispatch.", { runId, localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }); archive.writeManifest(run); }
+      try { const archive = new AiAnalysisRunArchive(runId, new Date(startedAt)); runArchives.set(runId, archive); run.runDirectory = archive.directory; archive.append("system_event", "APP_ONLY", "Analysis Run created after Bridge preflight passed.", { runId, localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }); if (bridgePreflightReceipt) { const debugDirectory = ensureDir(path.join(archive.directory, "debug")); fs.writeFileSync(path.join(debugDirectory, "bridge-preflight-receipt.json"), JSON.stringify(bridgePreflightReceipt, null, 2) + "\n", "utf8"); dispatchLedgers.set(runId, new ProviderDispatchLedgerV0330(path.join(archive.directory, "logs", "provider-dispatch-ledger.jsonl"))); } archive.writeManifest(run); }
       catch (error) { return rejectAttempt(new AiAnalysisError("AI_RUN_ARCHIVE_FAILED", error instanceof Error ? error.message : String(error))); }
     }
     attemptStore.linkRun(attempt, runId);
@@ -680,9 +711,9 @@ export function registerAiAnalysisIpc() {
         }
         if (warningCode) { dispatchGuard.confirm(runId); run.capacityConfirmation = { analysisRunId: runId, warningCode, capacitySnapshotHash: snapshotHash, confirmedAt: now(), confirmationAction: "confirmed" }; analysisUserActions.push(`${run.capacityConfirmation.confirmedAt} Capacity warning confirmed: ${runId}`); }
         if (!dispatchGuard.begin(runId)) return { ok: false, run, snapshot: snapshot(), alreadyDispatching: true };
-        archive?.append("user_message", "CHATGPT_VISIBLE", request.prompt, { dispatchStatus: "sent", deliveryMode: request.requestPackage.deliveryMode, workspaceFileCount: 4, outputWorkspace: "ai-output", inlineFileContentCount: 0, nativeInputFileCount: 0, payloadSha256: request.requestPackage.finalProviderPayloadSha256 }); archive?.writeManifest(run);
+        archive?.append("prepared_message", "APP_ONLY", request.prompt, { dispatchStatus: "prepared", visibleToProvider: false, deliveryMode: request.requestPackage.deliveryMode, workspaceFileCount: 4, outputWorkspace: "ai-output", inlineFileContentCount: 0, nativeInputFileCount: 0, payloadSha256: request.requestPackage.finalProviderPayloadSha256 }); dispatchLedgers.get(runId)?.append("prepared", { at: now(), instructionSha256: request.requestPackage.finalProviderPayloadSha256, idempotencyKey: "provider_request_prepared" }); preparedProviderMessages.set(runId, { prompt: request.prompt, payloadSha256: request.requestPackage.finalProviderPayloadSha256, deliveryMode: request.requestPackage.deliveryMode }); archive?.writeManifest(run);
         run.status = "running"; run.progress.status = "running"; run.progress.stage = "starting_thread"; run.progress.message = "Dispatching one artifact-producing ChatGPT thread and one turn.";
-        const providerDispatchAt = Date.now(); run.telemetry = { runCreatedAt: startedAt, inputPreparedAt: now(), providerDispatchAt: new Date(providerDispatchAt).toISOString(), providerDurationMs: null, localOrchestrationMs: null, durableLoggingMs: null, validationMs: null, canonicalAssemblyMs: null, sqliteWriteMs: null };
+        run.telemetry = { runCreatedAt: startedAt, inputPreparedAt: now(), providerRequestPreparedAt: now(), providerDispatchAttemptedAt: null, providerContactedAt: null, threadCreatedAt: null, turnStartAttemptedAt: null, turnAcceptedAt: null, turnCompletedAt: null, providerDurationMs: null, localOrchestrationMs: null, durableLoggingMs: null, validationMs: null, canonicalAssemblyMs: null, sqliteWriteMs: null };
         requestEvidence = { runId, model: chatgpt.getStatus().selectedModel, deliveryMode: request.requestPackage.deliveryMode, workspaceFileCount: 4, outputWorkspace: "ai-output", inlineFileContentCount: 0, nativeInputFileCount: 0, instructionSha256: request.requestPackage.finalProviderPayloadSha256, instructionBytes: request.requestPackage.finalProviderPayloadBytes, finalAssistantResponse: "brief_text", authorization: "[masked]" };
         notify(event);
         let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -811,6 +842,8 @@ export function registerAiAnalysisIpc() {
       selectedCanonicalAiRunDirectory = run.runDirectory ?? null;
     } catch (error) {
       const value = asAnalysisError(error);
+      dispatchLedgers.get(runId)?.append("failed", { rootErrorCode: value.code, rootErrorMessage: value.message, lastSuccessfulState: dispatchLedgers.get(runId)?.projection.lastState ?? null, idempotencyKey: "terminal_failed:" + value.code });
+      preparedProviderMessages.delete(runId);
       const providerFailure = providerFailureEvidence.get(runId);
       if (providerFailure) { providerVisibleResponse = providerFailure.visibleText || null; run.progress.usage = providerFailure.usage; }
       const zeroDispatchFailure = (["AI_BRIDGE_UNAVAILABLE", "AI_BRIDGE_INTEGRITY_MISMATCH", "AI_BRIDGE_CONTRACT_MISMATCH", "AI_INPUT_UTF8_INVALID", "AI_INPUT_HASH_MISMATCH", "AI_INPUT_RECEIPT_INCOMPLETE", "AI_INPUT_TOOL_FAILED", "AI_PROVIDER_DISPATCH_BLOCKED"].includes(value.code) || value.code.startsWith("AI_RUNTIME_")) && (run.progress.providerDispatchCount ?? 0) === 0;

@@ -1,3 +1,10 @@
+# v0.3.30 - Packaged Analysis Bridge Resolution and Provider Dispatch Truth
+
+- Packaged the single current Analysis Bridge as a verified external resource under `resources/jaa-analysis-bridge`.
+- Added one fail-closed resolver, startup/analysis preflight receipts, and packaged diagnostic mode with byte, SHA-256, contract, and loadability checks.
+- Moved ChatGPT Bridge readiness ahead of Canonical Run creation and preserved failed Attempt evidence without replacing the Active Result.
+- Added an append-only Provider Dispatch Ledger; conversations are marked `CHATGPT_VISIBLE/sent` only after a real Turn is accepted.
+- Added supplied v0.3.29 Debug archive replays and packaged win-unpacked/Portable verification without changing Decision v5, Quote Map, Systemic Gate, HTML, SQLite, or the four controlled Markdown files.
 # v0.3.28 - Runtime Manifest Contract Preflight and Root Error
 
 - Added one immutable runtime contract registry and a unique Manifest v3 factory.

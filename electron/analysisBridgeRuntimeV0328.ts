@@ -79,7 +79,7 @@ const ackSchema = {
 } as const;
 
 export class AnalysisBridgeV0328 {
-  readonly version = "0.3.29-bridge-v11";
+  readonly version = "0.3.30-bridge-v12";
   readonly schemaVersion = "jaa-analysis-bridge-v10";
   readonly transport = "codex_dynamic_tools_stdio" as const;
   readonly executionContext: BridgeExecutionContextV0327;
