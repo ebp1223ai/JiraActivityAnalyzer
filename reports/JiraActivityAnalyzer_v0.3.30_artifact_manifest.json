@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "jaa-v0330-artifact-manifest-v1",
+  "appVersion": "0.3.30",
+  "buildTime": "2026/08/21 18:22:28",
+  "packageSourceCommit": "201d1730580594b508047026f56158cf041e4525",
+  "bridge": { "identity": "0.3.30-bridge-v12", "bytes": 160994, "sha256": "1226b592500c2ae2ec5ef497586c030845e998f8046304845641cd31ef6a8a61" },
+  "bundledCodex": { "version": "0.147.0", "bytes": 298668336, "sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d" },
+  "artifacts": [
+    { "kind": "installer", "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.30.exe", "bytes": 190633847, "sha256": "40c8e85f3b1ca9fa0541cdd2418bed4e4444cf9cd26aee7e329bb6f8955bb376" },
+    { "kind": "portable", "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.30.exe", "bytes": 190403764, "sha256": "287af1694583899137604993839cb12cbbd19e543bf8fa61cfc084ac21f3f994" },
+    { "kind": "win-unpacked", "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe", "bytes": 235706368, "sha256": "cca18feb12c84ac031756f1af48057c704881fefe4d758592a20e595d073f494" }
+  ],
+  "overallStatus": "Partial / Manual Validation Pending"
+}

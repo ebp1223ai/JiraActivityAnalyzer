@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "jaa-v0330-execution-time-ledger-v1",
+  "startedAt": "2026-08-21T17:53:21+08:00",
+  "recordedAt": "2026-08-21T18:28:46+08:00",
+  "wallClockSecondsToReport": 2125,
+  "entries": [
+    {
+      "name": "repository_inspection_and_root_cause",
+      "result": "PASS",
+      "durationSeconds": 360,
+      "basis": "wall-clock segment"
+    },
+    {
+      "name": "bridge_resolver_and_dispatch_implementation",
+      "result": "PASS",
+      "durationSeconds": 600,
+      "basis": "wall-clock segment"
+    },
+    {
+      "name": "formal_typecheck",
+      "command": "npm.cmd run typecheck",
+      "exitCode": 0,
+      "durationSeconds": 14.136
+    },
+    {
+      "name": "formal_test_v0330",
+      "command": "npm.cmd run test:v0.3.30",
+      "exitCode": 0,
+      "durationSeconds": 3.93
+    },
+    {
+      "name": "two_supplied_debug_replays",
+      "exitCode": 0,
+      "durationSeconds": 8.5
+    },
+    {
+      "name": "source_build",
+      "command": "npm.cmd run build",
+      "exitCode": 0,
+      "durationSeconds": 31.4
+    },
+    {
+      "name": "dist_dirty_guard_first_attempt",
+      "command": "npm.cmd run dist",
+      "exitCode": 1,
+      "durationSeconds": 28.7
+    },
+    {
+      "name": "dist_authorized_dirty_retry_and_post_package_diagnostics",
+      "command": "JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist",
+      "exitCode": 0,
+      "durationSeconds": 164.9
+    },
+    {
+      "name": "win_unpacked_short_launch",
+      "exitCode": 0,
+      "durationSeconds": 13.2
+    },
+    {
+      "name": "portable_short_launch_first_insufficient_wait",
+      "result": "INCONCLUSIVE_RETRIED",
+      "durationSeconds": 21.5
+    },
+    {
+      "name": "portable_short_launch_retry",
+      "exitCode": 0,
+      "durationSeconds": 36.8
+    },
+    {
+      "name": "external_only_inventory_correction_typecheck",
+      "command": "npm.cmd run typecheck",
+      "exitCode": 0,
+      "durationSeconds": 13.049
+    },
+    {
+      "name": "external_only_inventory_correction_test",
+      "command": "npm.cmd run test:v0.3.30",
+      "exitCode": 0,
+      "durationSeconds": 4.268
+    },
+    {
+      "name": "final_dist_external_only_and_post_package_diagnostics",
+      "command": "JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist",
+      "exitCode": 0,
+      "durationSeconds": 143.322
+    },
+    {
+      "name": "final_win_unpacked_short_launch",
+      "exitCode": 0,
+      "durationSeconds": 12,
+      "result": "PASS_FROM_SESSION_DIAGNOSTICS"
+    },
+    {
+      "name": "final_portable_short_launch",
+      "exitCode": 0,
+      "durationSeconds": 35,
+      "result": "PASS"
+    },
+    {
+      "name": "external_only_inventory_correction_typecheck",
+      "command": "npm.cmd run typecheck",
+      "exitCode": 0,
+      "durationSeconds": 13.049
+    },
+    {
+      "name": "external_only_inventory_correction_test",
+      "command": "npm.cmd run test:v0.3.30",
+      "exitCode": 0,
+      "durationSeconds": 4.268
+    },
+    {
+      "name": "final_dist_external_only_and_post_package_diagnostics",
+      "command": "JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist",
+      "exitCode": 0,
+      "durationSeconds": 143.322
+    },
+    {
+      "name": "final_win_unpacked_short_launch",
+      "exitCode": 0,
+      "durationSeconds": 12,
+      "result": "PASS_FROM_SESSION_DIAGNOSTICS"
+    },
+    {
+      "name": "final_portable_short_launch",
+      "exitCode": 0,
+      "durationSeconds": 35,
+      "result": "PASS"
+    }
+  ],
+  "actualTokenTelemetry": "not_applicable_no_model_call",
+  "notes": [
+    "Durations not emitted by a command are recorded as wall-clock observations and are not token estimates.",
+    "The pre-existing tracked dirty report caused the expected first dist guard failure and remained untouched.",
+    "Final package inventory directly inspected app.asar: current Bridge 0, stale Bridge 0; external current Bridge 1.",
+    "Final package inventory directly inspected app.asar: current Bridge 0, stale Bridge 0; external current Bridge 1."
+  ]
+}
