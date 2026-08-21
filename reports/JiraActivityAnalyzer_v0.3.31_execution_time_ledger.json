@@ -1,0 +1,109 @@
+{
+  "wallClockSeconds": 3057.596,
+  "entries": [
+    {
+      "command": "git/source/archive inspection",
+      "durationSeconds": null,
+      "exitCode": 0,
+      "note": "Pre-compaction sub-phase duration unavailable; evidence preserved in task log.",
+      "phase": "repository inspection"
+    },
+    {
+      "command": "npm.cmd run replay:v0.3.30-segment-boundary",
+      "durationSeconds": 1.453,
+      "exitCode": 0,
+      "phase": "supplied Debug replay"
+    },
+    {
+      "command": "npm.cmd run replay:v0.3.30-artifact-validation",
+      "durationSeconds": 0.833,
+      "exitCode": 0,
+      "phase": "supplied Debug replay"
+    },
+    {
+      "command": "four-file supplied archive measurement",
+      "durationSeconds": 0.061592,
+      "exitCode": 0,
+      "phase": "protected token extraction"
+    },
+    {
+      "command": "four-file supplied archive measurement",
+      "durationSeconds": 0.209234,
+      "exitCode": 0,
+      "phase": "segment planner"
+    },
+    {
+      "command": "four-file supplied archive measurement",
+      "durationSeconds": 0.001161,
+      "exitCode": 0,
+      "phase": "boundary receipt"
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "durationSeconds": 9.471,
+      "exitCode": 0,
+      "phase": "typecheck final"
+    },
+    {
+      "command": "npm.cmd run test:v0.3.31",
+      "durationSeconds": 4.702,
+      "exitCode": 0,
+      "phase": "test:v0.3.31 final"
+    },
+    {
+      "command": "npm.cmd run build",
+      "durationSeconds": 15.203,
+      "exitCode": 0,
+      "phase": "build final"
+    },
+    {
+      "command": "npm.cmd run dist",
+      "durationSeconds": 185.239,
+      "exitCode": 1,
+      "note": "Packaged diagnostic timeout.",
+      "phase": "dist attempt 1"
+    },
+    {
+      "command": "npm.cmd run dist",
+      "durationSeconds": 123.19,
+      "exitCode": 0,
+      "note": "Superseded after startup Manifest alignment regression.",
+      "phase": "dist attempt 2"
+    },
+    {
+      "command": "npm.cmd run dist",
+      "durationSeconds": 119.273,
+      "exitCode": 0,
+      "phase": "dist final"
+    },
+    {
+      "command": "node scripts/verify-packaged-bridge-v0331.cjs",
+      "durationSeconds": 10.2,
+      "exitCode": 0,
+      "phase": "packaged diagnostic final"
+    },
+    {
+      "command": "isolated hidden app launch",
+      "durationSeconds": 15.031,
+      "exitCode": 0,
+      "phase": "win-unpacked short launch"
+    },
+    {
+      "command": "isolated copied Portable launch",
+      "durationSeconds": 37.833,
+      "exitCode": 0,
+      "phase": "Portable short launch"
+    },
+    {
+      "command": "Package Source commits",
+      "durationSeconds": null,
+      "exitCode": 0,
+      "note": "Final source commit recorded; report/tag/push follows.",
+      "phase": "Git operations"
+    }
+  ],
+  "startedAt": "2026-08-21T19:24:32.5945198+08:00",
+  "completedAt": "2026-08-21T20:15:30.1903432+08:00",
+  "targetVersion": "0.3.31",
+  "schemaVersion": "jaa-v0331-execution-time-ledger-v1"
+}

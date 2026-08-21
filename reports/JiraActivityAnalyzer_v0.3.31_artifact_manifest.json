@@ -1,0 +1,95 @@
+{
+  "deliverables": [
+    {
+      "bytes": 190637557,
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.31.exe",
+      "sha256": "69068ff46fa12f9a20c1fea59736ba1af3d778d7a931b367f01ead0d6d2e1456"
+    },
+    {
+      "bytes": 190407449,
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.31.exe",
+      "sha256": "c7bb8c85a999afc5845c9d2cfb456dc43b787703ad6847193fb242cd3114998a"
+    },
+    {
+      "bytes": 235706368,
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+      "sha256": "22edd733c7fe10f5e0a8b95433350852e60f5a0042eb80fe52659b7995906663"
+    }
+  ],
+  "buildVersion": "0.3.31",
+  "packageSourceCommit": "9048161883c602d9efb34fe40a22a9aae353dc39",
+  "dirtyStateReason": "Pre-existing user tracked report modification was preserved and excluded from commits.",
+  "reports": [
+    "JiraActivityAnalyzer_v0.3.31_test_and_verification_report.md",
+    "JiraActivityAnalyzer_v0.3.31_artifact_manifest.json",
+    "JiraActivityAnalyzer_v0.3.31_execution_time_ledger.json",
+    "JiraActivityAnalyzer_v0.3.31_v0330_segment_boundary_replay_report.md",
+    "JiraActivityAnalyzer_v0.3.31_protected_token_extraction_report.md",
+    "JiraActivityAnalyzer_v0.3.31_segment_planner_report.md",
+    "JiraActivityAnalyzer_v0.3.31_boundary_safety_receipt_report.md",
+    "JiraActivityAnalyzer_v0.3.31_terminal_lifecycle_report.md",
+    "JiraActivityAnalyzer_v0.3.31_artifact_identity_report.md",
+    "JiraActivityAnalyzer_v0.3.31_packaged_runtime_verification_report.md",
+    "JiraActivityAnalyzer_v0.3.31_rule_template_alignment_report.md"
+  ],
+  "overallStatus": "Partial / Manual Validation Pending",
+  "dirtyState": true,
+  "branch": "feat/v0.3.31-protected-token-safe-segmentation-terminal-lifecycle",
+  "schemaVersion": "jaa-v0331-artifact-manifest-v1",
+  "manualValidationPending": [
+    "Real Managed OAuth 17-record Provider run",
+    "Installer GUI",
+    "Clean Windows machine"
+  ],
+  "targetVersion": "0.3.31",
+  "buildTime": "2026/08/21 20:07:02",
+  "bridge": {
+    "bytes": 173352,
+    "staleCount": 0,
+    "asarCurrentCount": 0,
+    "externalCurrentCount": 1,
+    "sha256": "42f5034b75efbfa37af4876edf53d84d5ebedf29bf520323dd392462467567e2"
+  },
+  "bundledCodex": {
+    "version": "0.147.0",
+    "sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d"
+  },
+  "contracts": {
+    "renderer": "JAA-LOCAL-HTML-RENDERER-1.5.0",
+    "decision": "jaa-ai-analysis-decisions-v5",
+    "promptTemplate": "0.3.31-zh-TW-v12",
+    "transport": "bridge-resumable-v4",
+    "bridgeArtifact": "analysis-bridge-v0331.cjs",
+    "promptIdentity": "JAA-CHATGPT-ZH-TW-0.3.31",
+    "segmentPlanner": "jaa-protected-token-safe-segment-planner-v1",
+    "bridge": "0.3.31-bridge-v13",
+    "segmentSchema": "jaa-model-input-segment-v3",
+    "boundaryReceipt": "jaa-segment-boundary-safety-receipt-v1"
+  },
+  "controlledDocuments": [
+    {
+      "bytes": 20101,
+      "name": "Skill_Analysis_Rule_Set_Manifest_v0.8.0.md",
+      "version": "0.8.0",
+      "sha256": "f3bf59d9d99f42307f89b8eeffd270715a4523e26277f19cb32f51e6031850e3"
+    },
+    {
+      "bytes": 34468,
+      "name": "Skill_Classification_Common_Rules_v1.6.0.md",
+      "version": "1.6.0",
+      "sha256": "0093db6b189da6bc6d78ecb498ac81c8a867deca5b18b26dffbebbd12aa505e0"
+    },
+    {
+      "bytes": 24636,
+      "name": "Skill_Catalog_v0.3.1.md",
+      "version": "0.3.1",
+      "sha256": "dd1b4a366e4f7fdc3232776a7a6ff54070eae00cc41102c195de5b0deb749d7d"
+    },
+    {
+      "bytes": 36937,
+      "name": "Skill_Analysis_HTML_Report_Template_v1.5.0.md",
+      "version": "1.5.0",
+      "sha256": "aa896e0d9a627aaff129739b16b56331132a5f4b08ad8f442c84e06fbe999182"
+    }
+  ]
+}
