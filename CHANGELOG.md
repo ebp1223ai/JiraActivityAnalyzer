@@ -61,6 +61,13 @@
 - Provider and conversation logs use buffered append with periodic durable flush, throttled renderer updates, hard timeout, and interrupted-run recovery.
 - Debug Folder exports the Canonical Run after writer flush with completeness and per-file SHA-256 manifests.
 
+## [0.3.26] - 2026-08-21
+
+- 將 Artifact identity 改由 JAA main/Bridge 單一持有，模型只提交一次性 256-bit opaque token、Decision v5、報告與摘要。
+- 新增 persist-before-validate AI submission、逐欄 identity receipt、分層 validation receipts 與 non-canonical diagnostic Package/HTML。
+- 新增 deterministic Evidence Quote Catalog 1.0.0；Decision v5 僅接受 `evidenceQuoteIds[]`。
+- Provider transport 進版為 `bridge-resumable-v3` combined read/ACK，保留 durable resume 與 fail-closed integrity。
+- 綁定 Manifest v0.8.0、Common Rules v1.6.0、Catalog v0.3.1、Template v1.5.0 與 Renderer 1.5.0。
 ## 0.3.15 - 2026-08-13
 
 - Added bundled-only official Codex 0.147.0 runtime discovery with manifest, path, version, package identity, and SHA-256 fail-closed verification; removed external PATH/fallback/download behavior from formal runtime resolution.

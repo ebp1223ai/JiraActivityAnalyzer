@@ -5,11 +5,11 @@ import { AiAnalysisError, type AiPendingDataset, type AiRulesSnapshot, type AiAn
 import { atomicExport } from "./aiAnalysisCore.js";
 import { composeEffectiveInstruction, DEFAULT_ANALYSIS_INSTRUCTION, SYSTEM_SAFETY_WRAPPER } from "./aiAnalysisInstructionV0324.js";
 import type { AiInstructionMode } from "../shared/analysisInstructionContract.js";
-import { getDecisionContractDescriptorV0324 } from "./aiAnalysisDecisionContractV0324.js";
+import { getDecisionContractDescriptorV0326 } from "./aiAnalysisDecisionContractV0326.js";
 
 export const REQUEST_PACKAGE_VERSION = "ai-analysis-request-package-v6" as const;
 export const CORE_INSTRUCTION_NAME = "jira-activity-analysis-local-workspace-instruction" as const;
-export const CORE_INSTRUCTION_VERSION = "0.3.24-zh-TW-v6" as const;
+export const CORE_INSTRUCTION_VERSION = "0.3.26-zh-TW-v7" as const;
 export const PROVIDER_DELIVERY_MODE = "LOCAL_FILE_WORKSPACE" as const;
 
 function sha256(value: Buffer | string) { return crypto.createHash("sha256").update(value).digest("hex"); }
@@ -47,7 +47,7 @@ export function buildRequestPackage(input: { runId: string; runDirectory: string
   const datasetStableIds = input.dataset.diffs.map((record) => record.sourceDiffId);
   if (datasetStableIds.length !== stableIds.length || stableIds.some((id) => !datasetStableIds.includes(id))) requestPackageError("AI_INPUT_PACKAGE_INVALID:STABLE_ID_MISMATCH");
   const inputStableIdSetSha256 = sha256([...stableIds].sort().join("\n"));
-  const decisionContract = getDecisionContractDescriptorV0324(pendingRecords.length);
+  const decisionContract = getDecisionContractDescriptorV0326(pendingRecords.length);
   const commonSource = validateSourceFile(common.fullPath!, "COMMON_RULES");
   const catalogSource = validateSourceFile(catalog.fullPath!, "SKILL_CATALOG");
   const manifestSource = validateSourceFile(manifest.fullPath!, "RULE_SET_MANIFEST_OR_SCORING_RULES");
@@ -84,11 +84,11 @@ export function buildRequestPackage(input: { runId: string; runDirectory: string
   atomicExport(path.join(control, "final-effective-instruction.md"), prompt);
   atomicExport(path.join(control, "final-effective-instruction.sha256"), composition.effectiveInstructionSha256 + "\n");
   atomicExport(path.join(control, "instruction-composition-manifest.json"), JSON.stringify(composition, null, 2));
-  atomicExport(path.join(control, "input-transport-contract.json"), JSON.stringify({ schemaVersion: "jaa-input-transport-contract-v2", protocol: "bridge-resumable-v2", sourceReceipt: "progress/source-input-receipt.json", modelDeliveryReceipt: "progress/model-delivery-receipt.json", segmentByteLimit: 4096, maxSegmentAttempts: 3, utf8BoundarySafe: true, resumeMissingOnly: true }, null, 2));
+  atomicExport(path.join(control, "input-transport-contract.json"), JSON.stringify({ schemaVersion: "jaa-input-transport-contract-v2", protocol: "bridge-resumable-v3", sourceReceipt: "progress/source-input-receipt.json", modelDeliveryReceipt: "progress/model-delivery-receipt.json", segmentByteLimit: 4096, maxSegmentAttempts: 3, utf8BoundarySafe: true, resumeMissingOnly: true }, null, 2));
   atomicExport(path.join(control, "output-schema.json"), decisionContract.canonicalJson);
-  atomicExport(path.join(control, "bridge-contract.json"), JSON.stringify({ schemaVersion: "jaa-analysis-bridge-contract-v1", version: "0.3.25-bridge-v7", transport: "codex_dynamic_tools_stdio", modelInputTransport: "bridge-resumable-v2", localOnly: true, tools: ["jaa_get_input_manifest", "jaa_read_input_segment", "jaa_ack_input_segment", "jaa_get_delivery_status", "jaa_finalize_input_delivery", "jaa_report_analysis_progress", "jaa_publish_analysis_artifacts"], arbitraryPath: false, arbitraryCommand: false, externalFallback: false }, null, 2));
+  atomicExport(path.join(control, "bridge-contract.json"), JSON.stringify({ schemaVersion: "jaa-analysis-bridge-contract-v1", version: "0.3.26-bridge-v8", transport: "codex_dynamic_tools_stdio", modelInputTransport: "bridge-resumable-v3", localOnly: true, tools: ["jaa_get_input_manifest", "jaa_read_and_ack_next_segment", "jaa_get_delivery_status", "jaa_finalize_input_delivery", "jaa_report_analysis_progress", "jaa_publish_analysis_artifacts_v5"], arbitraryPath: false, arbitraryCommand: false, externalFallback: false }, null, 2));
   const requestPackage: AiAnalysisRequestPackage = {
-    requestPackageVersion: REQUEST_PACKAGE_VERSION, instructionMode, instructionComposition: composition, modelInputTransport: "bridge-resumable-v2", promptLocale: "zh-TW", responseLocale: "zh-TW", promptTemplateVersion: CORE_INSTRUCTION_VERSION, decisionContractVersion: decisionContract.schemaVersion, decisionContractSha256: decisionContract.sha256, runId: input.runId, createdAtLocal: created.toLocaleString("sv-SE", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }), createdAtUtc: created.toISOString(), localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    requestPackageVersion: REQUEST_PACKAGE_VERSION, instructionMode, instructionComposition: composition, modelInputTransport: "bridge-resumable-v3", promptLocale: "zh-TW", responseLocale: "zh-TW", promptTemplateVersion: CORE_INSTRUCTION_VERSION, decisionContractVersion: decisionContract.schemaVersion, decisionContractSha256: decisionContract.sha256, runId: input.runId, createdAtLocal: created.toLocaleString("sv-SE", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }), createdAtUtc: created.toISOString(), localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     deliveryMode: PROVIDER_DELIVERY_MODE, inputRecordCount: pendingRecords.length, inputStableIdSetSha256, pendingSourceSha256, documents,
     coreInstructionName: CORE_INSTRUCTION_NAME, coreInstructionVersion: CORE_INSTRUCTION_VERSION, coreInstructionSha256: sha256(prompt), supplementalInstructionSha256: supplemental ? sha256(supplemental) : null, outputSchemaSha256: decisionContract.sha256,
     finalProviderPayloadSha256: sha256(prompt), finalProviderPayloadBytes: Buffer.byteLength(prompt), inlineBlockCount: 0, nativeFileCount: 0, workspaceFileCount: 4, inlineFileContentCount: 0, nativeInputFileCount: 0
@@ -101,7 +101,7 @@ export function buildRequestPackage(input: { runId: string; runDirectory: string
 export function loadRequestPackage(runDirectory: string) {
   const folder = path.join(runDirectory, "control"); const workspace = path.join(runDirectory, "input-workspace");
   const requestPackage = JSON.parse(fs.readFileSync(path.join(folder, "request-package-manifest.json"), "utf8")) as AiAnalysisRequestPackage;
-  const decisionContract = getDecisionContractDescriptorV0324(requestPackage.inputRecordCount);
+  const decisionContract = getDecisionContractDescriptorV0326(requestPackage.inputRecordCount);
   if (requestPackage.deliveryMode !== PROVIDER_DELIVERY_MODE || requestPackage.documents.length !== 4 || requestPackage.inlineBlockCount !== 0 || requestPackage.decisionContractVersion !== decisionContract.schemaVersion || requestPackage.decisionContractSha256 !== decisionContract.sha256 || requestPackage.outputSchemaSha256 !== decisionContract.sha256) requestPackageError("AI_INPUT_PACKAGE_INVALID:MANIFEST");
   const schemaBytes = fs.readFileSync(path.join(folder, "output-schema.json"));
   if (sha256(schemaBytes) !== decisionContract.sha256 || schemaBytes.toString("utf8") !== decisionContract.canonicalJson) requestPackageError("AI_INPUT_PACKAGE_INVALID:OUTPUT_SCHEMA_CONTRACT_MISMATCH");

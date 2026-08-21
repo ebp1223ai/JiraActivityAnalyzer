@@ -99,6 +99,13 @@ export type ChatGptAnalysisRequest = {
   requestPackage?: import("./aiAnalysisContract.js").AiAnalysisRequestPackage;
   rulesSnapshotId?: string;
   catalogSkillIds?: string[];
+  analysisAttemptId?: string;
+  requestId?: string;
+  manifestSha256?: string;
+  commonRulesSha256?: string;
+  catalogSha256?: string;
+  quoteCatalog?: unknown;
+  evidenceSegments?: unknown[];
 };
 export type ChatGptAnalysisResponse = {
   runId: string;

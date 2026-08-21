@@ -89,7 +89,20 @@ export type AiAnalysisErrorCode =
   | "AI_DECISION_ROOT_TYPE_MISMATCH"
   | "AI_DECISION_INDEX_SET_MISMATCH"
   | "AI_DECISION_SCHEMA_MISMATCH"
-  | "AI_ARTIFACT_SUBMISSION_REJECTED"
+  | "AI_ARTIFACT_TOKEN_MISSING"
+  | "AI_ARTIFACT_TOKEN_INVALID"
+  | "AI_ARTIFACT_TOKEN_EXPIRED"
+  | "AI_ARTIFACT_TOKEN_REPLAYED"
+  | "AI_ARTIFACT_TOKEN_SCOPE_MISMATCH"
+  | "AI_ARTIFACT_IDENTITY_INTERNAL_MISMATCH"
+  | "AI_ARTIFACT_SUBMISSION_DUPLICATE"
+  | "EVIDENCE_QUOTE_ID_NOT_FOUND"
+  | "EVIDENCE_QUOTE_RECORD_MISMATCH"
+  | "EVIDENCE_QUOTE_SOURCE_MISMATCH"
+  | "EVIDENCE_QUOTE_ROLE_INELIGIBLE"
+  | "EVIDENCE_QUOTE_HASH_MISMATCH"
+  | "EVIDENCE_QUOTE_RAW_TRACE_FAILED"
+  | "PRIMARY_CHANGE_QUOTE_REQUIRED"  | "AI_ARTIFACT_SUBMISSION_REJECTED"
   | "AI_ARTIFACT_CONTRACT_VERSION_MISMATCH"
   | "AI_RULE_SET_BINDING_MISMATCH"
   | "AI_REPORT_COUNT_MISMATCH"
@@ -414,7 +427,7 @@ export type AiScoreComponent = { componentKey: string; score: number; explanatio
 export type RequestDocumentRole = "PENDING_ANALYSIS_JSON" | "COMMON_RULES" | "SKILL_CATALOG" | "RULE_SET_MANIFEST_OR_SCORING_RULES" | "ANALYSIS_INSTRUCTION" | "OUTPUT_SCHEMA";
 export type ProviderDeliveryMode = "NATIVE_FILE_INPUT" | "INLINE_EXACT_CONTENT" | "LOCAL_FILE_WORKSPACE";
 export type RequestPackageDocument = { role: RequestDocumentRole; originalFileName: string; originalAbsolutePath: string | null; snapshotRelativePath: string; mimeType: string; encoding: "utf-8" | "binary"; originalByteLength: number; snapshotByteLength: number; originalSha256: string; snapshotSha256: string; byteIdentical: boolean; sourceKind: "USER_FILE" | "APP_GENERATED"; modelVisible: boolean; complete: boolean; truncated: boolean; transformationName: string | null };
-export type AiAnalysisRequestPackage = { requestPackageVersion: string; instructionMode?: AiInstructionMode; instructionComposition?: AiInstructionComposition; modelInputTransport?: "bridge-resumable-v2"; promptLocale?: "zh-TW"; responseLocale?: "zh-TW"; promptTemplateVersion?: string; decisionContractVersion?: string; decisionContractSha256?: string; runId: string; createdAtLocal: string; createdAtUtc: string; localTimeZone: string; deliveryMode: ProviderDeliveryMode; inputRecordCount: number; inputStableIdSetSha256: string; pendingSourceSha256: string; documents: RequestPackageDocument[]; coreInstructionName: string; coreInstructionVersion: string; coreInstructionSha256: string; supplementalInstructionSha256: string | null; outputSchemaSha256: string; finalProviderPayloadSha256: string; finalProviderPayloadBytes: number; inlineBlockCount: number; nativeFileCount: number; workspaceFileCount?: number; inlineFileContentCount?: number; nativeInputFileCount?: number };
+export type AiAnalysisRequestPackage = { requestPackageVersion: string; instructionMode?: AiInstructionMode; instructionComposition?: AiInstructionComposition; modelInputTransport?: "bridge-resumable-v2" | "bridge-resumable-v3"; promptLocale?: "zh-TW"; responseLocale?: "zh-TW"; promptTemplateVersion?: string; decisionContractVersion?: string; decisionContractSha256?: string; runId: string; createdAtLocal: string; createdAtUtc: string; localTimeZone: string; deliveryMode: ProviderDeliveryMode; inputRecordCount: number; inputStableIdSetSha256: string; pendingSourceSha256: string; documents: RequestPackageDocument[]; coreInstructionName: string; coreInstructionVersion: string; coreInstructionSha256: string; supplementalInstructionSha256: string | null; outputSchemaSha256: string; finalProviderPayloadSha256: string; finalProviderPayloadBytes: number; inlineBlockCount: number; nativeFileCount: number; workspaceFileCount?: number; inlineFileContentCount?: number; nativeInputFileCount?: number };
 export type AiAnalysisConversationEvent = { schemaVersion: string; runId: string; sequence: number; eventId: string; messageId: string | null; parentMessageId: string | null; role: "software" | "assistant" | "system"; atLocal: string; atUtc: string; type: "user_message" | "assistant_delta" | "assistant_message" | "system_event" | "provider_event" | "validation_event" | "artifact_event"; visibility: "CHATGPT_VISIBLE" | "APP_ONLY"; visibleToProvider: boolean; contentType: "text" | "json" | "metadata" | "error"; content: string; contentByteLength: number; contentSha256: string; providerRequestId: string | null; threadId: string | null; turnId: string | null; metadata: Record<string, unknown>; previousHash: string | null; hash: string };
 export type AiSemanticFinding = { code: "SEMANTIC_STATUS_INVALID" | "SEMANTIC_CANDIDATE_STATUS_INVALID" | "SEMANTIC_CANDIDATE_REQUIRED" | "SEMANTIC_CANDIDATE_FORBIDDEN" | "SEMANTIC_NEGATIVE_CHECK_REQUIRED" | "SEMANTIC_REASON_REQUIRED" | "SEMANTIC_CATALOG_CANDIDATE_LOST" | "SEMANTIC_CATALOG_CHECK_REQUIRED" | "SEMANTIC_CATALOG_DETAIL_FLAG_INVALID" | "SEMANTIC_REVIEW_REASON_REQUIRED" | "SEMANTIC_REVIEW_ATTENTION_REQUIRED" | "SEMANTIC_CANDIDATE_ID_REQUIRED" | "SEMANTIC_POSITIVE_EVIDENCE_REQUIRED" | "SEMANTIC_MATCHED_RULE_REQUIRED" | "SEMANTIC_AUDIT_TRAIL_REQUIRED"; severity: "error"; path: string; jsonPath: string; jsonPointer: string; recordIndex: number; sourceRecordStableId: string | null; candidateIndex: number | null; skillId: string | null; message: string; expected: unknown; actual: unknown; ruleId: string | null };
 

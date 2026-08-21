@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.25",
+  "version": "0.3.26",
   "description": "Electron desktop analyzer with bundled Codex local-workspace AI analysis and canonical debug evidence.",
   "author": "COPGEN",
   "type": "module",
@@ -83,7 +83,9 @@
     "test:v0.3.21": "node scripts/test-v0321.cjs && node scripts/test-v0320.cjs && node scripts/test-v0319.cjs",
     "test:v0.3.22": "node scripts/test-v0322.cjs && node scripts/test-v0321.cjs",
     "test:v0.3.24": "npm run electron:build && node scripts/test-v0324.cjs && node scripts/test-v0322.cjs",
-    "test:v0.3.25": "npm run electron:build && node scripts/test-v0325.cjs && node scripts/test-v0324.cjs && node scripts/test-v0322.cjs"
+    "test:v0.3.25": "npm run electron:build && node scripts/test-v0325.cjs && node scripts/test-v0324.cjs && node scripts/test-v0322.cjs",
+    "test:v0.3.26": "npm run electron:build && node scripts/test-v0326.cjs && node scripts/test-v0325.cjs",
+    "replay:v0.3.25": "node scripts/replay-v0325-submission.cjs"
   },
   "dependencies": {
     "@openai/codex": "0.147.0",
@@ -162,8 +164,8 @@
         "to": "codex-runtime/NOTICE.txt"
       },
       {
-        "from": "rules/v0.3.25",
-        "to": "bundled-rules/v0.3.25",
+        "from": "rules/v0.3.26",
+        "to": "bundled-rules/v0.3.26",
         "filter": [
           "**/*"
         ]

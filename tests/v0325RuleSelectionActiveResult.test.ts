@@ -76,7 +76,8 @@ try {
   assert.equal(registry.active?.activeResultId, active.activeResultId, "failed result must not replace Active");
 
   const bridgeFiles = fs.readdirSync(path.join(root, "dist-electron")).filter((name) => /^analysis-bridge-v[0-9]+[.]cjs$/.test(name));
-  assert.deepEqual(bridgeFiles, ["analysis-bridge-v0325.cjs"], "electron build must remove stale Bridge bundles");
+  assert.equal(bridgeFiles.length, 1, "electron build must remove stale Bridge bundles");
+  assert.match(bridgeFiles[0] ?? "", /^analysis-bridge-v0326[.]cjs$/, "electron build must package only the current v0.3.26 Bridge");
   const ui = fs.readFileSync(path.join(root, "src", "ai-analysis", "AiAnalysisReconstructedPage.tsx"), "utf8");
   assert.ok(ui.includes('result.navigationDecision?.decision === "ALLOW"'));
   assert.match(ui, /snapshot.activeResult/);

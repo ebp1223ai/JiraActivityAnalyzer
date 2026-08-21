@@ -848,3 +848,11 @@ and SQLite record; cancelled, failed, partial, interrupted, or unknown-outcome
 runs do not. The results page imports completed analyzed JSON, supports review
 audit plus CSV/HTML reports, and intentionally has no analyzed-JSON download
 button. See [the v0.3.10 implementation note](docs/v0.3.10-ai-analysis-ui-reconstruction.md).
+
+### v0.3.26 Artifact Identity 與診斷產物
+
+- JAA 在本機持有 immutable Approved Artifact Identity；模型不提交 Run、source hash、Rule Snapshot、Thread 或 Turn identity。
+- Formal submission 使用 256-bit、單次、限 Run/Attempt/Thread/Turn 的 opaque token；UI、Debug、conversation 與輸出只保存 hash/prefix，不保存完整 token。
+- 可解碼 submission 先原子持久化，再執行 Decision v5、Evidence Quote ID、semantic 與 quality validation。
+- 驗證失敗會建立 `DIAGNOSTIC_NON_CANONICAL` Package/HTML；不建立 Canonical、不取代 Active Result、不導向 Results、不寫 SQLite。
+- `npm.cmd run replay:v0.3.25 -- <Debug Folder>` 可做 local-only 唯讀 submission replay；不呼叫 Provider、不修改來源、不寫 production SQLite。
