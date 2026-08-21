@@ -136,6 +136,7 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
+      "!dist-electron/jaa-analysis-bridge/**/*",
       "package.json",
       "!node_modules/**/*.map",
       "!node_modules/**/{docs,doc,test,tests,example,examples}/**",

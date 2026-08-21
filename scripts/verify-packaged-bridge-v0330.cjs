@@ -3,6 +3,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const asar = require("@electron/asar");
 const root = path.resolve(__dirname, "..");
 const release = path.join(root, "release");
 const resourceDirectory = path.join(release, "win-unpacked", "resources", "jaa-analysis-bridge");
@@ -12,6 +13,13 @@ const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
 const bytes = fs.readFileSync(artifact); const hash = crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(bytes.length, manifest.artifactBytes); assert.equal(hash, manifest.artifactSha256); assert.equal(manifest.bridgeIdentity, "0.3.30-bridge-v12");
 const names = fs.readdirSync(resourceDirectory); assert.deepEqual(names.sort(), ["analysis-bridge-manifest-v0330.json", "analysis-bridge-v0330.cjs"]);
+const appAsar = path.join(release, "win-unpacked", "resources", "app.asar");
+const asarEntries = asar.listPackage(appAsar);
+const asarBridgeEntries = asarEntries.filter((entry) => /(?:^|[\\/])jaa-analysis-bridge(?:[\\/]|$)/i.test(entry));
+const appAsarCurrentBridgeCount = asarBridgeEntries.filter((entry) => /analysis-bridge-v0330\.cjs$/i.test(entry)).length;
+const staleAsarBridgeEntries = asarEntries.filter((entry) => /analysis-bridge-v\d+\.cjs$/i.test(entry) && !/analysis-bridge-v0330\.cjs$/i.test(entry));
+assert.equal(appAsarCurrentBridgeCount, 0, `current Bridge must remain external-only; found ${JSON.stringify(asarBridgeEntries)}`);
+assert.equal(staleAsarBridgeEntries.length, 0, `stale Bridge artifacts found in app.asar: ${JSON.stringify(staleAsarBridgeEntries)}`);
 function diagnostic(executable, kind) {
   const receiptPath = path.join(release, `bridge-diagnostic-${kind}.json`); fs.rmSync(receiptPath, { force: true });
   const result = spawnSync(executable, ["--verify-analysis-bridge", "--json"], { env: { ...process.env, JAA_BRIDGE_DIAGNOSTIC_RECEIPT_PATH: receiptPath, JAA_DISTRIBUTION_KIND: kind === "portable" ? "portable" : "win-unpacked" }, encoding: "utf8", timeout: 45_000, windowsHide: true });
@@ -23,5 +31,5 @@ function diagnostic(executable, kind) {
 }
 const win = diagnostic(path.join(release, "win-unpacked", "Jira Activity Analyzer.exe"), "win-unpacked");
 const portable = diagnostic(path.join(release, "Jira Activity Analyzer Portable 0.3.30.exe"), "portable");
-const report = { schemaVersion: "jaa-v0330-packaged-bridge-verification-v1", status: "PASS", bridgeIdentity: manifest.bridgeIdentity, bridgeBytes: bytes.length, bridgeSha256: hash, inventory: { appAsarCurrentBridgeCount: 0, externalCurrentBridgeCount: 1, externalManifestCount: 1, staleBridgeCount: 0, resourceDirectory, files: names }, diagnostics: { winUnpacked: win, portable }, installerInventory: { status: "BUILT_FROM_SAME_ELECTRON_BUILDER_RESOURCE_CONFIG", guiValidation: "MANUAL_VALIDATION_PENDING" }, verifiedAtUtc: new Date().toISOString() };
+const report = { schemaVersion: "jaa-v0330-packaged-bridge-verification-v1", status: "PASS", bridgeIdentity: manifest.bridgeIdentity, bridgeBytes: bytes.length, bridgeSha256: hash, inventory: { appAsarCurrentBridgeCount, appAsarBridgeEntries: asarBridgeEntries, externalCurrentBridgeCount: 1, externalManifestCount: 1, staleBridgeCount: staleAsarBridgeEntries.length, staleAsarBridgeEntries, resourceDirectory, files: names }, diagnostics: { winUnpacked: win, portable }, installerInventory: { status: "BUILT_FROM_SAME_ELECTRON_BUILDER_RESOURCE_CONFIG", guiValidation: "MANUAL_VALIDATION_PENDING" }, verifiedAtUtc: new Date().toISOString() };
 fs.writeFileSync(path.join(release, "v0.3.30-packaged-bridge-verification.json"), JSON.stringify(report, null, 2) + "\n"); console.log(JSON.stringify(report, null, 2));
