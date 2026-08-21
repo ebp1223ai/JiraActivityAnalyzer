@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "jaa-v0327-artifact-manifest-v1",
+  "appVersion": "0.3.27",
+  "buildTime": "2026/08/21 13:52:38",
+  "buildTimeIso": "2026-08-21T05:52:38.967Z",
+  "packageSourceCommit": "0697921f5298a4b779b8645456fa9aa250d33d1c",
+  "dirtyState": true,
+  "dirtyStateReason": "pre-existing user-owned tracked report modification retained and excluded from package files",
+  "artifacts": [
+    { "path": "release/Jira Activity Analyzer Setup 0.3.27.exe", "bytes": 190616264, "sha256": "0d509d95afedaca7ca0912d7dfb7b8f5c1baf055130342f3f77d091fdc2968d4" },
+    { "path": "release/Jira Activity Analyzer Portable 0.3.27.exe", "bytes": 190386177, "sha256": "503a4e36faa00ecd079a4cb3cd06b38066f6d956e2b7602e340457c2e227b9b6" },
+    { "path": "release/win-unpacked/Jira Activity Analyzer.exe", "bytes": 235706368, "sha256": "0d51e3728c5c7556c99bb7feeb9c083ca865966944a4ec624a2394555312ff60" }
+  ],
+  "bridge": { "version": "0.3.27-bridge-v9", "sha256": "af4296b17c4a11929b3eabbe6b0d06de9d81a7290d04178b6844eeefdf3856bf" },
+  "bundledCodex": { "version": "0.147.0", "sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d" }
+}

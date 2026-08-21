@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "jaa-v0327-execution-ledger-v1",
+  "entries": [
+    { "step": "typecheck", "startedAt": "2026-08-21T06:02:40.0408608Z", "finishedAt": "2026-08-21T06:02:51.9297012Z", "durationMs": 11885, "exitCode": 0, "result": "PASS" },
+    { "step": "test:v0.3.27", "startedAt": "2026-08-21T06:02:51.9382918Z", "finishedAt": "2026-08-21T06:02:57.4227724Z", "durationMs": 5484, "exitCode": 0, "result": "PASS" },
+    { "step": "build", "durationMs": 16608, "exitCode": 0, "result": "PASS" },
+    { "step": "dist dirty guard", "startedAt": "2026-08-21T05:52:08.1828225Z", "finishedAt": "2026-08-21T05:52:24.5249486Z", "durationMs": 16477, "exitCode": 1, "result": "EXPECTED_GUARD_REJECTION" },
+    { "step": "dist authorized retained dirty", "startedAt": "2026-08-21T05:52:38.967Z", "finishedAt": "2026-08-21T05:55:15.1457346Z", "durationMs": 156179, "exitCode": 0, "result": "PASS", "evidence": "release/build-info.json and both EXE artifacts" },
+    { "step": "replay:v0.3.26", "durationMs": 638, "exitCode": 2, "result": "MANUAL_VALIDATION_PENDING_SOURCE_MISSING" },
+    { "step": "git diff --check", "startedAt": "2026-08-21T06:02:57.4232728Z", "finishedAt": "2026-08-21T06:02:57.5018701Z", "durationMs": 78, "exitCode": 0, "result": "PASS" }
+  ],
+  "actualTokenTelemetry": "unavailable"
+}
