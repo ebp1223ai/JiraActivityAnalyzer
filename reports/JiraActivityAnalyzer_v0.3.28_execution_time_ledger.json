@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "jaa-execution-time-ledger-v1",
+  "version": "0.3.28",
+  "entries": [
+    { "step": "typecheck-final", "durationMs": 15100, "exitCode": 0, "result": "PASS" },
+    { "step": "test-v0.3.28-final", "durationMs": 11700, "exitCode": 0, "result": "PASS" },
+    { "step": "replay-v0.3.27", "durationMs": 9100, "exitCode": 0, "result": "PASS", "evidence": "test-artifacts/replay-v0327-failure/replay-receipt.json" },
+    { "step": "source-runtime-manifest-contract", "durationMs": 6300, "exitCode": 0, "result": "PASS" },
+    { "step": "build-from-source-commit", "durationMs": 20700, "exitCode": 0, "result": "PASS_WITH_WARNINGS" },
+    { "step": "dist-clean-guard", "durationMs": 18800, "exitCode": 1, "result": "EXPECTED_GUARD_BLOCK" },
+    { "step": "dist-locked-file-retry", "exitCode": 1, "result": "DXCOMPILER_LOCK_FROM_OLD_TEST_PROCESS" },
+    { "step": "dist-authorized-dirty-retry", "exitCode": 0, "result": "PASS" },
+    { "step": "packaged-runtime-manifest-contract", "durationMs": 6300, "exitCode": 0, "result": "PASS", "evidence": "test-artifacts/packaged-runtime-manifest-v0328/packaged-bridge-contract-test.json" },
+    { "step": "win-unpacked-short-startup", "durationMs": 2893, "exitCode": 0, "result": "PASS" },
+    { "step": "portable-short-startup", "durationMs": 13572, "exitCode": 0, "result": "PASS" }
+  ],
+  "actualProviderTokenTelemetry": "unavailable"
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "jaa-v0328-artifact-manifest-v1",
+  "appVersion": "0.3.28",
+  "packageSourceCommit": "7638882ea0c84264b20ec19fa71198c78eb5f3a4",
+  "buildTime": "2026/08/21 15:19:18",
+  "dirtyState": true,
+  "artifacts": [
+    { "path": "release/Jira Activity Analyzer Setup 0.3.28.exe", "bytes": 190618807, "sha256": "ed22ae888026ca7f115979ecbfaf271a315db6d431992d6bedc165c0eec1dbd4" },
+    { "path": "release/Jira Activity Analyzer Portable 0.3.28.exe", "bytes": 190388726, "sha256": "cf7e43ea8211e9d6aa92070024823bf03d45da82150805dd4c30c91eea41235f" },
+    { "path": "release/win-unpacked/Jira Activity Analyzer.exe", "bytes": 235706368, "sha256": "46974de8bf0edcb9c06456148fd9c9a02b71a07807bb517dac6110cd4390eec9" }
+  ],
+  "identities": {
+    "prompt": "JAA-CHATGPT-ZH-TW-0.3.28",
+    "promptTemplate": "0.3.28-zh-TW-v9",
+    "bridge": "0.3.28-bridge-v10",
+    "transport": "bridge-resumable-v3",
+    "decision": "jaa-ai-analysis-decisions-v5",
+    "renderer": "JAA-LOCAL-HTML-RENDERER-1.5.0",
+    "codex": "0.147.0",
+    "codexSha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d"
+  }
+}
