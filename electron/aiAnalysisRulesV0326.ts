@@ -15,7 +15,7 @@ export const V0326_RULE_BINDING = {
   promptVersion: "JAA-CHATGPT-ZH-TW-0.3.26",
   pipelineVersion: "JAA-ANALYSIS-PIPELINE-0.3.26",
   bridgeVersion: "0.3.26-bridge-v8",
-  providerTransport: "bridge-resumable-v4",
+  providerTransport: "bridge-resumable-v3",
   modelDecisionSchemaVersion: "jaa-ai-analysis-decisions-v5",
   qualityContractVersion: "jaa-ai-analysis-quality-v2",
   evidenceNormalizerVersion: "JAA-EVIDENCE-NORMALIZER-1.0.0",
