@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "jaa-execution-time-ledger-v1",
+  "targetVersion": "0.3.26",
+  "timezone": "Asia/Taipei / UTC+08:00",
+  "note": "Durations are actual command wall times reported by the command runner. Early command start/finish timestamps were not durably captured and are explicitly unavailable rather than reconstructed.",
+  "entries": [
+    {
+      "step": "typecheck",
+      "command": "npm.cmd run typecheck",
+      "startedAt": "unavailable",
+      "finishedAt": "unavailable",
+      "durationMs": 10570,
+      "exitCode": 0,
+      "result": "PASS",
+      "evidencePath": "reports/JiraActivityAnalyzer_v0.3.26_test_and_verification_report.md"
+    },
+    {
+      "step": "focused-test",
+      "command": "npm.cmd run test:v0.3.26",
+      "startedAt": "unavailable",
+      "finishedAt": "unavailable",
+      "durationMs": 3087,
+      "exitCode": 0,
+      "result": "PASS",
+      "evidencePath": "scripts/test-v0326.cjs"
+    },
+    {
+      "step": "build",
+      "command": "npm.cmd run build",
+      "startedAt": "unavailable",
+      "finishedAt": "unavailable",
+      "durationMs": 25094,
+      "exitCode": 0,
+      "result": "PASS_WITH_WARNINGS",
+      "evidencePath": "dist/"
+    },
+    {
+      "step": "dist-initial",
+      "command": "npm.cmd run dist",
+      "startedAt": "unavailable",
+      "finishedAt": "unavailable",
+      "durationMs": 6399,
+      "exitCode": 1,
+      "result": "EXPECTED_FAIL_DIRTY_GUARD",
+      "evidencePath": "reports/JiraActivityAnalyzer_v0.3.26_test_and_verification_report.md"
+    },
+    {
+      "step": "dist-authorized-retry",
+      "command": "$env:JAA_ALLOW_DIRTY_PACKAGE='1'; $env:JAA_PACKAGED_SOURCE_COMMIT='19b6458cde9ce55562e281ab2473319f2eee5261'; npm.cmd run dist",
+      "startedAt": "unavailable",
+      "finishedAt": "2026-08-21T03:17:11.203Z",
+      "durationMs": 107641,
+      "exitCode": 0,
+      "result": "PASS_WITH_AUTHORIZED_PREEXISTING_DIRTY_WARNING",
+      "evidencePath": "release/build-info.json"
+    },
+    {
+      "step": "package-audit",
+      "command": "ASAR, hash, controlled-document, bundled-Codex audit",
+      "startedAt": "unavailable",
+      "finishedAt": "unavailable",
+      "durationMs": 1412,
+      "exitCode": 0,
+      "result": "PASS",
+      "evidencePath": "reports/JiraActivityAnalyzer_v0.3.26_artifact_manifest.json"
+    },
+    {
+      "step": "win-unpacked-isolated-launch",
+      "command": "Jira Activity Analyzer.exe --user-data-dir=<isolated-profile>",
+      "startedAt": "2026-08-21T03:20:37.580Z",
+      "finishedAt": "2026-08-21T03:20:45.580Z",
+      "durationMs": 8000,
+      "exitCode": 0,
+      "result": "PASS_RENDERER_BOOT",
+      "evidencePath": "release/win-unpacked/logs/sessions/app-session-1787282437580-055ece"
+    },
+    {
+      "step": "portable-isolated-launch",
+      "command": "Jira Activity Analyzer Portable 0.3.26.exe --user-data-dir=<isolated-profile>",
+      "startedAt": "2026-08-21T03:21:43.993Z",
+      "finishedAt": "2026-08-21T03:22:32.384Z",
+      "durationMs": 48391,
+      "exitCode": 0,
+      "result": "PASS_DID_FINISH_LOAD_AND_RENDERER_BOOT",
+      "evidencePath": "release/logs/sessions/app-session-1787282501951-023471"
+    }
+  ],
+  "actualProviderTokenTelemetry": "unavailable"
+}

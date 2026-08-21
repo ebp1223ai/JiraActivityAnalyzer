@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "jaa-delivery-artifact-manifest-v1",
+  "targetVersion": "0.3.26",
+  "overallStatus": "Partial / Manual Validation Pending",
+  "branch": "feat/v0.3.26-artifact-identity-evidence-quote-diagnostics",
+  "packageSourceCommit": "19b6458cde9ce55562e281ab2473319f2eee5261",
+  "buildTime": "2026/08/21 11:17:11",
+  "buildTimeIso": "2026-08-21T03:17:11.203Z",
+  "dirtyState": true,
+  "dirtyStateReason": "Pre-existing user-owned tracked modification in the v0.2.47 implementation report; v0.3.26 source was clean at package source commit.",
+  "identities": {
+    "prompt": "0.3.26-zh-TW-v7",
+    "bridge": "0.3.26-bridge-v8",
+    "transport": "bridge-resumable-v3",
+    "decision": "v5",
+    "canonicalContract": "jaa-canonical-analysis-result-v5",
+    "reportDataPackage": "jaa-analysis-report-data-package-v1",
+    "htmlTemplateContract": "jaa-html-report-template-v6",
+    "htmlRenderer": "JAA-LOCAL-HTML-RENDERER-1.5.0",
+    "bundledCodex": "0.147.0"
+  },
+  "artifacts": [
+    {
+      "role": "portable",
+      "path": "F:/AI/JiraActivityAnalyzer/release/Jira Activity Analyzer Portable 0.3.26.exe",
+      "bytes": 190380663,
+      "sha256": "FCE476B1A47A2C56AB573E0778406701159E6416C8E4A8A150278F0F68FFE9CD"
+    },
+    {
+      "role": "installer",
+      "path": "F:/AI/JiraActivityAnalyzer/release/Jira Activity Analyzer Setup 0.3.26.exe",
+      "bytes": 190610754,
+      "sha256": "A87125367982E264F7DA016366FBB5B2896F92ED596D13EA82BE76929F7327F9"
+    },
+    {
+      "role": "win-unpacked",
+      "path": "F:/AI/JiraActivityAnalyzer/release/win-unpacked/Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "F0C2CEA2C67949396AE53295F6B0541529E07D71939683EE0862D7D61F59E445"
+    },
+    {
+      "role": "analysis-bridge",
+      "path": "F:/AI/JiraActivityAnalyzer/dist-electron/analysis-bridge-v0326.cjs",
+      "bytes": 118905,
+      "sha256": "2A627C7EB6E548B7570B96B4DFC80C2A6CB83333A9B8BBE8D13E798F51FE5FF8"
+    }
+  ],
+  "controlledDocuments": [
+    {
+      "role": "html-template",
+      "basename": "Skill_Analysis_HTML_Report_Template_v1.5.0.md",
+      "version": "1.5.0",
+      "bytes": 36937,
+      "sha256": "AA896E0D9A627AAFF129739B16B56331132A5F4B08AD8F442C84E06FBE999182"
+    },
+    {
+      "role": "manifest",
+      "basename": "Skill_Analysis_Rule_Set_Manifest_v0.8.0.md",
+      "version": "0.8.0",
+      "bytes": 20101,
+      "sha256": "F3BF59D9D99F42307F89B8EEFFD270715A4523E26277F19CB32F51E6031850E3"
+    },
+    {
+      "role": "catalog",
+      "basename": "Skill_Catalog_v0.3.1.md",
+      "version": "0.3.1",
+      "bytes": 24636,
+      "sha256": "DD1B4A366E4F7FDC3232776A7A6FF54070EAE00CC41102C195DE5B0DEB749D7D"
+    },
+    {
+      "role": "common-rules",
+      "basename": "Skill_Classification_Common_Rules_v1.6.0.md",
+      "version": "1.6.0",
+      "bytes": 34468,
+      "sha256": "0093DB6B189DA6BC6D78ECB498AC81C8A867DECA5B18B26DFFBEBBD12AA505E0"
+    }
+  ],
+  "bundledCodex": {
+    "version": "0.147.0",
+    "sha256": "935A1911ED2556E4FFCEC995F4886AC2AC425863BA26FED264DF62E30272AD9D",
+    "externalFallback": false
+  }
+}
