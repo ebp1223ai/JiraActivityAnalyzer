@@ -175,12 +175,12 @@ assert(!toolEvidence.includes(manifest.artifactSubmissionToken));
 assert(toolEvidence.includes("jaa-bridge-tool-call-evidence-v1"));
 const prompt = fs.readFileSync(path.resolve("electron/aiAnalysisInstructionV0324.ts"), "utf8");
 assert(prompt.includes("jaa_get_input_manifest({})"));
-assert(prompt.includes("JAA-CHATGPT-ZH-TW-0.3.28"));
+assert(prompt.includes("JAA-CHATGPT-ZH-TW-0.3.29"));
 const debugSource = fs.readFileSync(path.resolve("electron/main.ts"), "utf8") + fs.readFileSync(path.resolve("electron/aiAnalysisIpc.ts"), "utf8");
 assert(!debugSource.includes('"render-workspace/html-report-template.md"'));
 for (const classification of ["expected_and_present", "expected_but_missing", "not_produced_due_to_prior_failure", "not_applicable_no_model_delivery", "not_applicable_no_submission", "not_applicable_instruction_mode"]) assert(debugSource.includes(classification));
 
-console.log(JSON.stringify({ status: "PASS", runtime: process.env.JAA_PACKAGED_BRIDGE ? "packaged" : "source", bridge: "0.3.28-bridge-v10", manifestZeroIdentity: true, independentToolRegistrations: true, delayedTurnBinding: true, deliveredSegments, combinedCalls, v2EquivalentCalls: 104, handleCases: 5, artifactTokenReplayRejected: true, rootError: failedLifecycle.rootErrorCode, derivedErrorCodes: failedLifecycle.derivedErrorCodes, errorShapes: 7, debugLifecycleVocabulary: true, tempRoot: root }, null, 2));
+console.log(JSON.stringify({ status: "PASS", runtime: process.env.JAA_PACKAGED_BRIDGE ? "packaged" : "source", bridge: "0.3.29-bridge-v11", manifestZeroIdentity: true, independentToolRegistrations: true, delayedTurnBinding: true, deliveredSegments, combinedCalls, v2EquivalentCalls: 104, handleCases: 5, artifactTokenReplayRejected: true, rootError: failedLifecycle.rootErrorCode, derivedErrorCodes: failedLifecycle.derivedErrorCodes, errorShapes: 7, debugLifecycleVocabulary: true, tempRoot: root }, null, 2));
 }
 
 export const completed = run();

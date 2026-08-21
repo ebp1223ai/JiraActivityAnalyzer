@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.28",
+  "version": "0.3.29",
   "description": "Electron desktop analyzer with bundled Codex local-workspace AI analysis and canonical debug evidence.",
   "author": "COPGEN",
   "type": "module",
@@ -91,7 +91,11 @@
     "test:v0.3.28": "npm run electron:build && node scripts/test-v0328.cjs && node scripts/test-v0328-stale-transport.cjs",
     "replay:v0.3.27": "node scripts/replay-v0327-failure.cjs",
     "test:runtime-manifest-contract": "npm run electron:build && node scripts/test-runtime-manifest-contract-v0328.cjs",
-    "test:packaged-runtime-manifest-contract": "node scripts/test-packaged-runtime-manifest-contract-v0328.cjs"
+    "test:packaged-runtime-manifest-contract": "node scripts/test-packaged-runtime-manifest-contract-v0328.cjs",
+    "test:v0.3.29": "node scripts/test-v0329.cjs && node scripts/test-runtime-manifest-contract-v0328.cjs",
+    "replay:v0.3.28-quote-map": "node scripts/replay-v0328-quote-map.cjs",
+    "replay:v0.3.28-no-result-gate": "node scripts/replay-v0328-no-result-gate.cjs",
+    "replay:v0.3.28-manifest-eperm": "node scripts/replay-v0328-manifest-eperm.cjs"
   },
   "dependencies": {
     "@openai/codex": "0.147.0",

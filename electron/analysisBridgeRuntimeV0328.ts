@@ -79,7 +79,7 @@ const ackSchema = {
 } as const;
 
 export class AnalysisBridgeV0328 {
-  readonly version = "0.3.28-bridge-v10";
+  readonly version = "0.3.29-bridge-v11";
   readonly schemaVersion = "jaa-analysis-bridge-v10";
   readonly transport = "codex_dynamic_tools_stdio" as const;
   readonly executionContext: BridgeExecutionContextV0327;
@@ -99,6 +99,9 @@ export class AnalysisBridgeV0328 {
   private rootError: NormalizedJaaError | null = null;
   private readonly derivedErrors: NormalizedJaaError[] = [];
   private providerDispatchGateReceipt: RuntimeManifestReceiptV0328 | null = null;
+  private recoverableCursorError: NormalizedJaaError | null = null;
+  private readonly recoveredWarnings: NormalizedJaaError[] = [];
+  private htmlRenderStatus: AnalysisLifecycleSummary["htmlRenderStatus"] | null = null;
 
   constructor(private readonly config: Config) {
     this.legacy = new AnalysisBridgeV0319({ ...config, requestPackage: { ...config.requestPackage, decisionContractVersion: "jaa-ai-analysis-decisions-v4" } });
@@ -201,11 +204,12 @@ export class AnalysisBridgeV0328 {
       else if (tool === "jaa_report_analysis_progress") result = this.progress(args, context);
       else if (tool === ARTIFACT_TOOL) result = this.publish(args, context);
       else fail("AI_BRIDGE_CONTRACT_MISMATCH", `Unknown Analysis Bridge tool: ${tool}`);
+      if (this.recoverableCursorError && ["jaa_read_and_ack_next_segment", "jaa_get_delivery_status", "jaa_finalize_input_delivery"].includes(tool)) { this.recoveredWarnings.push(this.recoverableCursorError); this.recoverableCursorError = null; }
       this.writeToolEvidence(tool, args, context, started, true, null);
       return modelSafe(result);
     } catch (error) {
       normalized = normalizeJaaError(error, { stage: this.stageForTool(tool), source: "AnalysisBridgeV0328", fallbackCode: "AI_INPUT_TOOL_FAILED", safeDetails: { callId: context.callId, toolName: tool, argumentNames: Object.keys(args).sort() } });
-      this.captureRootError(normalized);
+      if (normalized.errorCode === "AI_MODEL_INPUT_CURSOR_MISMATCH") this.recoverableCursorError = normalized; else this.captureRootError(normalized);
       this.writeToolEvidence(tool, args, context, started, false, normalized);
       throw Object.assign(new Error(`${normalized.errorCode}:${normalized.technicalMessage}`), { code: normalized.errorCode, normalized });
     }
@@ -217,7 +221,7 @@ export class AnalysisBridgeV0328 {
     this.legacy.fail(stage, code);
   }
 
-  terminate() { this.executionContext.terminate(); }
+  terminate() { if (this.recoverableCursorError) { this.captureRootError(this.recoverableCursorError); this.recoverableCursorError = null; } this.executionContext.terminate(); }
 
   private hostContext(context: AnalysisBridgeToolContext): AnalysisBridgeToolContext {
     return { ...context, runId: this.config.runId, sessionNonce: this.config.sessionNonce, toolRegistrationId: this.executionContext.toolRegistrationId };
@@ -278,7 +282,9 @@ export class AnalysisBridgeV0328 {
     this.validateHandle(args, context);
     const host = this.hostContext(context);
     if (args.finalAck) this.legacy.handle("jaa_ack_input_segment", { runId: this.config.runId, ...object(args.finalAck) }, host);
-    const receipt = this.legacy.handle("jaa_finalize_input_delivery", { runId: this.config.runId }, host);
+    const legacyReceipt = this.legacy.handle("jaa_finalize_input_delivery", { runId: this.config.runId }, host) as JsonObject;
+    const receipt = { ...legacyReceipt, transportProtocol: RUNTIME_CONTRACT_V0328.providerTransport };
+    durableJson(path.join(this.config.runDirectory, "progress", "model-delivery-receipt.json"), receipt);
     this.executionContext.completeDeliveryHandle(args.deliveryHandle, { threadId: context.threadId, turnId: context.turnId });
     return receipt;
   }
@@ -324,7 +330,8 @@ export class AnalysisBridgeV0328 {
       return { ...rest, evidenceQuotes: evidenceQuoteIds.map((id) => { const quote = this.quoteCatalog.entries.find((entry) => entry.evidenceQuoteId === id)!; const segment = segmentById.get(quote.containerEvidenceSegmentId); return { evidenceRef: quote.evidenceRef, evidenceSegmentId: quote.containerEvidenceSegmentId, quote: segment?.exactText ?? quote.exactSourceSubstring, evidenceRole: quote.evidenceRoleEligibility.includes("PRIMARY_CHANGE") ? "PRIMARY_CHANGE" : "SUPPORTING_CONTEXT" }; }) };
     }) }));
     const legacyReceipt = this.legacy.handle("jaa_publish_analysis_artifacts", { schemaVersion: "jaa-analysis-artifact-submission-v4", runId: identity.runId, sourceSha256: identity.sourceDatasetSha256, rulesSnapshotId: identity.rulesSnapshotId, expectedRecordCount: identity.sourceRecordCount, decisionContractVersion: "jaa-ai-analysis-decisions-v4", decisionContractSha256: getDecisionContractDescriptorV0324(identity.sourceRecordCount).sha256, decisionsDocument: v4, analysisReportMarkdown: submission.analysisReportMarkdown, finalSummaryTraditionalChinese: submission.finalSummaryZhTw }, this.hostContext(context)) as JsonObject;
-    this.artifactReceipt = { ...legacyReceipt, schemaVersion: "jaa-analysis-artifact-receipt-v3", decisionContractVersion: "jaa-ai-analysis-decisions-v5", approvedArtifactIdentity: identity, aiSubmittedArtifactSha256: persisted.artifact.sha256, identityReceiptPath: identityPath };
+    this.artifactReceipt = { ...legacyReceipt, schemaVersion: "jaa-analysis-artifact-receipt-v4", decisionContractVersion: RUNTIME_CONTRACT_V0328.decisionContract, approvedArtifactIdentity: identity, aiSubmittedArtifactSha256: persisted.artifact.sha256, identityReceiptPath: identityPath };
+    durableJson(path.join(this.config.runDirectory, "progress", "artifact-receipt.json"), this.artifactReceipt);
     return this.artifactReceipt;
   }
 
@@ -370,7 +377,7 @@ export class AnalysisBridgeV0328 {
   }
 
   setProviderTurnStatus(status: AnalysisLifecycleSummary["providerTurnStatus"]) { this.legacy.setProviderTurnStatus(status); }
-  setHtmlRenderStatus(status: AnalysisLifecycleSummary["htmlRenderStatus"]) { (this.legacy as unknown as { setHtmlRenderStatus(value: unknown): void }).setHtmlRenderStatus(status); }
+  setHtmlRenderStatus(status: AnalysisLifecycleSummary["htmlRenderStatus"]) { this.htmlRenderStatus = status; }
   setSqliteStatus(status: AnalysisLifecycleSummary["sqliteStatus"], code?: string) { this.legacy.setSqliteStatus(status); if (status === "commit_failed" && code) this.markDerivedError(code, "SQLite commit failed after analysis.", "RUN_COMPLETED"); }
   setPostBridgeStage(stage: "VALIDATION_COMPLETED" | "CANONICAL_ASSEMBLY_COMPLETED" | "RUN_COMPLETED", status: "completed" | "failed") { this.legacy.setPostBridgeStage(stage, status); }
   fail(stage: AnalysisLifecycleStage, code: string, message = code) { const normalized = normalizeJaaError(Object.assign(new Error(`${code}:${message}`), { code }), { stage, source: "AnalysisBridgeV0328", fallbackCode: code }); this.captureRootError(normalized); }
@@ -379,6 +386,7 @@ export class AnalysisBridgeV0328 {
     const snapshot = this.legacy.snapshot();
     const lifecycle = {
       ...snapshot.lifecycle,
+      htmlRenderStatus: this.htmlRenderStatus ?? snapshot.lifecycle.htmlRenderStatus,
       rootErrorCode: this.rootError?.errorCode ?? snapshot.lifecycle.rootErrorCode,
       rootErrorStage: this.rootError?.stage ?? null,
       rootErrorMessage: this.rootError?.messageZhTw ?? null,
@@ -399,6 +407,7 @@ export class AnalysisBridgeV0328 {
       toolCallEvidencePath: this.toolCallEvidencePath,
       rootError: this.rootError,
       derivedErrors: structuredClone(this.derivedErrors),
+      recoveredWarnings: structuredClone(this.recoveredWarnings),
       artifactToken: this.artifactTokenHash ? { schemaVersion: "jaa-artifact-submission-token-v1", tokenHash: this.artifactTokenHash, tokenPrefix: this.artifactTokenPrefix, fullTokenPersisted: false, consumed: this.artifactTokenConsumed } : null
     };
   }

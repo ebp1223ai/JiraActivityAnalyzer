@@ -31,6 +31,16 @@ export type AiAnalysisErrorCode =
   | "AI_RESULT_IDENTITY_VALIDATION_FAILED"
   | "AI_RESULT_CATALOG_VALIDATION_FAILED"
   | "AI_RESPONSE_SEMANTIC_VALIDATION_FAILED"
+  | "AI_MODEL_VISIBLE_QUOTE_MAP_MISSING"
+  | "AI_MODEL_VISIBLE_QUOTE_COVERAGE_INCOMPLETE"
+  | "AI_MODEL_VISIBLE_QUOTE_ID_DUPLICATE"
+  | "AI_MODEL_VISIBLE_QUOTE_CROSS_RECORD"
+  | "AI_MODEL_VISIBLE_QUOTE_TEXT_MISMATCH"
+  | "AI_MODEL_VISIBLE_QUOTE_ROLE_MISMATCH"
+  | "AI_MODEL_VISIBLE_QUOTE_SEGMENT_MISMATCH"
+  | "AI_MODEL_VISIBLE_QUOTE_PROJECTION_HASH_MISMATCH"
+  | "AI_SYSTEMIC_ALL_FAILED_RESULT"
+  | "AI_SYSTEMIC_GENERIC_UNKNOWN_RESULT"
   | "AI_REQUIRED_INPUT_FILE_MISSING"
   | "AI_INPUT_FILE_HASH_MISMATCH"
   | "AI_INPUT_PACKAGE_INVALID"
@@ -672,6 +682,15 @@ export type AiAnalysisRun = {
   issueSnapshotReceiptPath?: string | null;
   evidenceSegmentCatalogPath?: string | null;
   evidenceSegmentCatalogSha256?: string | null;
+  modelVisibleQuoteMapPath?: string | null;
+  modelVisibleQuoteCoverageReceiptPath?: string | null;
+  modelVisibleQuoteCount?: number;
+  modelVisibleQuoteCoveragePassed?: boolean;
+  systemicNoResultGateReportPath?: string | null;
+  quarantineStatus?: "QUARANTINED_SYSTEMIC_NO_RESULT" | null;
+  quarantineReasonCode?: string | null;
+  quarantineGateReportSha256?: string | null;
+  systemicNoResultGate?: { schemaVersion: string; threshold: number; decision: "PASS" | "WARNING_REVIEW" | "BLOCKED"; reasonCode: string | null; formalAllowed: boolean; diagnosticAllowed: boolean; activeResultAllowed: boolean; sqliteAllowed: boolean; metrics: Record<string, number>; inputHashes: Record<string, string | null>; evaluatedAtUtc: string; reportSha256: string } | null;
   reportDataPackagePath?: string | null;
   reportDataPackageSha256?: string | null;
   reportPackageMode?: "FORMAL_CANONICAL" | "DIAGNOSTIC_NON_CANONICAL" | null;

@@ -1,4 +1,4 @@
-export const ANALYSIS_BRIDGE_VERSION = "0.3.28-bridge-v10" as const;
+export const ANALYSIS_BRIDGE_VERSION = "0.3.29-bridge-v11" as const;
 export const ANALYSIS_BRIDGE_SCHEMA_VERSION = "jaa-analysis-bridge-contract-v1" as const;
 
 export type AnalysisLifecycleStage =

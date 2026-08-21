@@ -15,7 +15,7 @@ import {
 import { createSingleRunOutputSchema, validateValueAgainstOutputSchema } from "./aiAnalysisOutputSchemaV0313.js";
 import { validateCanonicalResponseSemantics } from "./aiAnalysisResponseContractV0314.js";
 
-export const COMPACT_PAYLOAD_SCHEMA_VERSION = "ai-analysis-compact-payload-v1" as const;
+export const COMPACT_PAYLOAD_SCHEMA_VERSION = "ai-analysis-compact-payload-v2" as const;
 export const SINGLE_RUN_PROMPT_VERSION = "single-run-prompt-v1" as const;
 export const GOLDEN_REPORT_RENDERER_VERSION = "golden-html-v1" as const;
 
@@ -64,7 +64,7 @@ export type CompactAnalysisRecord = {
 
 export type CompactPayload = {
   schemaVersion: typeof COMPACT_PAYLOAD_SCHEMA_VERSION;
-  buildAlgorithmVersion: "compact-builder-v1";
+  buildAlgorithmVersion: "compact-builder-v2";
   maskingPolicy: "stable-identifiers-and-selected-diff-only";
   sourceDatasetSha256: string;
   rulesSnapshotId: string;
@@ -107,7 +107,7 @@ export function buildCompactPayload(dataset: AiPendingDataset, selectedDiffIds: 
   }
   const payload: CompactPayload = {
     schemaVersion: COMPACT_PAYLOAD_SCHEMA_VERSION,
-    buildAlgorithmVersion: "compact-builder-v1",
+    buildAlgorithmVersion: "compact-builder-v2",
     maskingPolicy: "stable-identifiers-and-selected-diff-only",
     sourceDatasetSha256: dataset.sourceFileSha256,
     rulesSnapshotId: rules.snapshotId ?? rules.ruleSetId,
