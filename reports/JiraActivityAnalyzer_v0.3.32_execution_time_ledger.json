@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "jaa-v0332-execution-time-ledger-v1",
+  "targetVersion": "0.3.32",
+  "sourceCommit": "3b3f5b8662344254f3cc7168ab6a51520413d643",
+  "startedAtUtc": null,
+  "completedAtUtc": null,
+  "actualTokenTelemetry": "unavailable",
+  "notes": [
+    "The task crossed a context compaction boundary; exact whole-task timestamps and wall-clock are unavailable and were not estimated.",
+    "Durations below are measured command durations preserved in execution output.",
+    "The user's pre-existing tracked report modification and all untracked content were preserved."
+  ],
+  "entries": [
+    {"command":"npm.cmd run typecheck","phase":"typecheck","startedAtUtc":null,"completedAtUtc":null,"durationMs":9455,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":null,"actualTokenTelemetry":"unavailable"},
+    {"command":"npm.cmd run test:v0.3.32","phase":"unit and focused replay","startedAtUtc":null,"completedAtUtc":null,"durationMs":1384,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":"17 decisions, 38 findings; expected false-positive and true-positive sets matched.","actualTokenTelemetry":"unavailable"},
+    {"command":"npm.cmd run replay:v0.3.31-quality-gate","phase":"real Debug replay","startedAtUtc":null,"completedAtUtc":null,"durationMs":870,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":null,"actualTokenTelemetry":"unavailable"},
+    {"command":"npm.cmd run replay:v0.3.31-validation-receipts","phase":"real Debug replay","startedAtUtc":null,"completedAtUtc":null,"durationMs":633,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":null,"actualTokenTelemetry":"unavailable"},
+    {"command":"npm.cmd run replay:v0.3.31-terminal-lifecycle","phase":"real Debug replay","startedAtUtc":null,"completedAtUtc":null,"durationMs":600,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":null,"actualTokenTelemetry":"unavailable"},
+    {"command":"npm.cmd run test:v0.3.32 (final rules-load regression)","phase":"focused regression","startedAtUtc":null,"completedAtUtc":null,"durationMs":1481,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":"DRAFT-081, 279 catalog entries and v0.3.32 identities loaded.","actualTokenTelemetry":"unavailable"},
+    {"command":"npm.cmd run test:v0.3.31","phase":"transport regression","startedAtUtc":null,"completedAtUtc":null,"durationMs":3266,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":"Frozen Bridge hash remained unchanged.","actualTokenTelemetry":"unavailable"},
+    {"command":"npm.cmd run build","phase":"source build","startedAtUtc":null,"completedAtUtc":null,"durationMs":30623,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":"Vite node:crypto externalization and >500 kB chunk warnings.","actualTokenTelemetry":"unavailable"},
+    {"command":"npm.cmd run dist","phase":"package attempt 1","startedAtUtc":null,"completedAtUtc":null,"durationMs":16923,"exitCode":1,"status":"EXPECTED_BLOCK","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":"Clean guard detected the preserved user-owned tracked report modification.","actualTokenTelemetry":"unavailable"},
+    {"command":"JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist","phase":"package final","startedAtUtc":null,"completedAtUtc":null,"durationMs":161915,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":"Recorded dirtyState=true and fixed Package Source Commit; default Electron icon and duplicate dependency warnings.","actualTokenTelemetry":"unavailable"},
+    {"command":"node scripts/verify-packaged-bridge-v0331.cjs","phase":"packaged Bridge diagnostic","startedAtUtc":"2026-08-24T03:15:43.708Z","completedAtUtc":"2026-08-24T03:15:54.273Z","durationMs":10565,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":"Both win-unpacked and Portable Bridge diagnostics passed.","actualTokenTelemetry":"unavailable"},
+    {"command":"isolated hidden win-unpacked short launch","phase":"short startup","startedAtUtc":null,"completedAtUtc":null,"durationMs":null,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":"did-finish-load and initial route actions; empty stderr; no crash marker.","actualTokenTelemetry":"unavailable"},
+    {"command":"isolated copied Portable regular launch","phase":"short startup","startedAtUtc":null,"completedAtUtc":null,"durationMs":24000,"exitCode":null,"status":"MANUAL_VALIDATION_PENDING","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":"A pre-existing v0.3.31 Portable instance held the application single-instance lock; it was not terminated.","actualTokenTelemetry":"unavailable"},
+    {"command":"app.asar/resources sensitive-name and controlled-resource audit","phase":"package audit","startedAtUtc":null,"completedAtUtc":null,"durationMs":8100,"exitCode":0,"status":"PASS","sourceCommit":"3b3f5b8662344254f3cc7168ab6a51520413d643","notes":"4685 ASAR entries; zero sensitive-name hits; controlled hashes matched.","actualTokenTelemetry":"unavailable"}
+  ]
+}

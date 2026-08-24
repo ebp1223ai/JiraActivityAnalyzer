@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "jaa-v0332-artifact-manifest-v1",
+  "targetVersion": "0.3.32",
+  "buildVersion": "0.3.32",
+  "buildTime": "2026/08/24 11:12:08",
+  "branch": "feat/v0.3.32-quote-level-multiskill-quality-gate-truth",
+  "packageSourceCommit": "3b3f5b8662344254f3cc7168ab6a51520413d643",
+  "finalDeliveryCommit": null,
+  "overallStatus": "Partial / Manual Validation Pending",
+  "dirtyState": true,
+  "dirtyStateReason": "Pre-existing user tracked v0.2.47 report modification was preserved and excluded from commits.",
+  "deliverables": [
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.32.exe",
+      "bytes": 190642253,
+      "sha256": "5ce4ebb37d02b02f76de710932f20c6f3f8396647177865f5ff59397bc6097ba"
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.32.exe",
+      "bytes": 190412150,
+      "sha256": "9ee1f0a08a455624a63da5e43e2169bc8f0480d447ad8c24303e8e91d331c37d"
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "845a3ede95a3bc2ee95e493f7eb0b39bc6b4b00c97217a1c3ecc2c846627d82e"
+    }
+  ],
+  "contracts": {
+    "promptIdentity": "JAA-CHATGPT-ZH-TW-0.3.32",
+    "promptTemplate": "0.3.32-zh-TW-v13",
+    "classificationEngine": "JAA-CLASSIFICATION-1.6.1",
+    "pipeline": "JAA-ANALYSIS-PIPELINE-0.3.32",
+    "decision": "jaa-ai-analysis-decisions-v5",
+    "decisionSchemaSha256": "19721fa527b12d776c0d7a1e51ada59c873eaa5a777d13f46ff8b7a10bd0f945",
+    "quality": "jaa-ai-analysis-quality-v3",
+    "multiSkill": "jaa-multi-skill-quote-independence-v1",
+    "validationReceipt": "jaa-validation-stage-receipt-v2",
+    "artifactSubmission": "jaa-artifact-submission-result-v2",
+    "terminalEvent": "jaa-run-terminal-event-v1",
+    "canonical": "jaa-canonical-analysis-result-v5",
+    "renderer": "JAA-LOCAL-HTML-RENDERER-1.5.0",
+    "transport": "bridge-resumable-v4",
+    "segmentSchema": "jaa-model-input-segment-v3",
+    "segmentPlanner": "jaa-protected-token-safe-segment-planner-v1"
+  },
+  "bridge": {
+    "identity": "0.3.31-bridge-v13",
+    "artifact": "analysis-bridge-v0331.cjs",
+    "bytes": 173352,
+    "sha256": "42f5034b75efbfa37af4876edf53d84d5ebedf29bf520323dd392462467567e2",
+    "asarCurrentCount": 0,
+    "externalCurrentCount": 1,
+    "staleCount": 0,
+    "loadabilityValidated": true
+  },
+  "controlledDocuments": [
+    {"name":"Skill_Analysis_Rule_Set_Manifest_v0.8.1.md","version":"0.8.1","bytes":23192,"sha256":"ba235bb316b3e137dafe53ba65e289db6d84de672ae95d09c12477f372065735"},
+    {"name":"Skill_Classification_Common_Rules_v1.6.1.md","version":"1.6.1","bytes":38785,"sha256":"b0ff832fbcc9d9f8e5f02903ed7351c7922ae746d04631ccb4334f5c70124659"},
+    {"name":"Skill_Catalog_v0.3.1.md","version":"0.3.1","bytes":24636,"sha256":"dd1b4a366e4f7fdc3232776a7a6ff54070eae00cc41102c195de5b0deb749d7d"},
+    {"name":"Skill_Analysis_HTML_Report_Template_v1.5.0.md","version":"1.5.0","bytes":36937,"sha256":"aa896e0d9a627aaff129739b16b56331132a5f4b08ad8f442c84e06fbe999182"}
+  ],
+  "packageInventory": {
+    "asarEntryCount": 4685,
+    "sensitiveNameHitCount": 0,
+    "currentDecisionContract": "jaa-ai-analysis-decisions-v5",
+    "legacyV4CompatibilityAdaptersPresent": true
+  },
+  "manualValidationPending": [
+    "Real Managed OAuth 17-record Provider run",
+    "Portable regular GUI short launch after closing the pre-existing v0.3.31 instance",
+    "Installer GUI",
+    "Clean Windows machine"
+  ]
+}
