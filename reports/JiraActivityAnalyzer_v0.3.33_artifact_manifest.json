@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "jaa-v0333-artifact-manifest-v1",
+  "overallStatus": "Partial / Manual Validation Pending",
+  "appVersion": "0.3.33",
+  "buildTime": "2026/08/24 14:57:22",
+  "buildTimeIso": "2026-08-24T06:57:22.716Z",
+  "packageSourceCommit": "9a72a6ef5d5e526fab859b8fa1846d94b8ece23e",
+  "branch": "feat/v0.3.33-multiskill-quality-html-lifecycle-consistency",
+  "dirtyStateAtPackageTime": true,
+  "artifacts": [
+    {
+      "kind": "installer",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.33.exe",
+      "bytes": 190648639,
+      "sha256": "795f9ca158ba2015a11ec9b1f3a77600f7a358b2dad9239dbbd58b50185af91e"
+    },
+    {
+      "kind": "portable",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.33.exe",
+      "bytes": 190418488,
+      "sha256": "452ae5fbbe7085038b5f0fee8aa5e6c1074174a0030a0e2329f9334739bfd60a"
+    },
+    {
+      "kind": "win-unpacked",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "f14a5ec24686d5ad3675ba6051fb7260c62a360fbb1670015aa3ab3323dc227c"
+    }
+  ],
+  "bridge": {
+    "identity": "0.3.31-bridge-v13",
+    "bytes": 173352,
+    "sha256": "42f5034b75efbfa37af4876edf53d84d5ebedf29bf520323dd392462467567e2",
+    "asarCount": 0,
+    "externalCount": 1,
+    "staleCount": 0
+  },
+  "actualTokenTelemetry": "unavailable"
+}

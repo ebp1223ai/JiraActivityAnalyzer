@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "jaa-v0333-execution-time-ledger-v1",
+  "overallStatus": "Partial / Manual Validation Pending",
+  "timingNote": "Durations are command wall-clock observations. Exact timestamps for commands before context compaction are unavailable and are not fabricated.",
+  "entries": [
+    {"stage":"typecheck-final","command":"npm.cmd run typecheck","startedAtUtc":"unavailable_after_context_compaction","completedAtUtc":"unavailable_after_context_compaction","durationSeconds":17.36,"exitCode":0,"result":"PASS"},
+    {"stage":"v0333-focused-test","command":"npm.cmd run test:v0.3.33","startedAtUtc":"unavailable_after_context_compaction","completedAtUtc":"unavailable_after_context_compaction","durationSeconds":3.62,"exitCode":0,"result":"PASS"},
+    {"stage":"v032-regression","command":"node scripts/test-v0332.cjs","startedAtUtc":"unavailable_after_context_compaction","completedAtUtc":"unavailable_after_context_compaction","durationSeconds":0.98,"exitCode":0,"result":"PASS"},
+    {"stage":"build","command":"npm.cmd run build","startedAtUtc":"unavailable_after_context_compaction","completedAtUtc":"unavailable_after_context_compaction","durationSeconds":46.9,"exitCode":0,"result":"PASS"},
+    {"stage":"real-debug-offline-replay","command":"npm.cmd run replay:v0.3.32:17 && npm.cmd run replay:v0.3.32:117","startedAtUtc":"unavailable_after_context_compaction","completedAtUtc":"unavailable_after_context_compaction","durationSeconds":6.1,"exitCode":0,"result":"PASS","providerCalled":false},
+    {"stage":"final-dist","command":"JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist","startedAtUtc":"2026-08-24T06:57:22.716Z","completedAtUtc":"2026-08-24T07:01:00.939Z","durationSeconds":218.223,"exitCode":0,"result":"PASS"},
+    {"stage":"packaged-runtime-security","command":"node test-artifacts/v0333/verify-packaged-v0333.cjs","startedAtUtc":"2026-08-24T07:01:19.880Z","completedAtUtc":"2026-08-24T07:01:20.386Z","durationSeconds":0.506,"exitCode":0,"result":"PASS"},
+    {"stage":"isolated-renderer-startup","command":"win-unpacked isolated app-root startup","startedAtUtc":"2026-08-24T07:01:38.395Z","completedAtUtc":"2026-08-24T07:02:03.845Z","durationSeconds":25.45,"exitCode":0,"result":"PASS"}
+  ],
+  "actualTokenTelemetry": "unavailable",
+  "realManagedOAuthExecuted": false,
+  "realJiraExecuted": false,
+  "productionSqliteExecuted": false
+}
