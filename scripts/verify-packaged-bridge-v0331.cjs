@@ -6,6 +6,7 @@ const { spawnSync } = require("node:child_process");
 const asar = require("@electron/asar");
 const root = path.resolve(__dirname, "..");
 const release = path.join(root, "release");
+const packageVersion = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version;
 const resourceDirectory = path.join(release, "win-unpacked", "resources", "jaa-analysis-bridge");
 const artifact = path.join(resourceDirectory, "analysis-bridge-v0331.cjs");
 const manifestFile = path.join(resourceDirectory, "analysis-bridge-manifest-v0331.json");
@@ -34,6 +35,6 @@ function diagnostic(executable, kind) {
   return { executable, exitCode: result.status, receiptPath, receipt };
 }
 const win = diagnostic(path.join(release, "win-unpacked", "Jira Activity Analyzer.exe"), "win-unpacked");
-const portable = diagnostic(path.join(release, "Jira Activity Analyzer Portable 0.3.32.exe"), "portable");
-const report = { schemaVersion: "jaa-v0332-packaged-bridge-verification-v1", status: "PASS", bridgeIdentity: manifest.bridgeIdentity, bridgeBytes: bytes.length, bridgeSha256: hash, inventory: { appAsarCurrentBridgeCount, appAsarBridgeEntries: asarBridgeEntries, externalCurrentBridgeCount: 1, externalManifestCount: 1, staleBridgeCount: staleAsarBridgeEntries.length, staleAsarBridgeEntries, resourceDirectory, files: names }, diagnostics: { winUnpacked: win, portable }, installerInventory: { status: "BUILT_FROM_SAME_ELECTRON_BUILDER_RESOURCE_CONFIG", guiValidation: "MANUAL_VALIDATION_PENDING" }, verifiedAtUtc: new Date().toISOString() };
-fs.writeFileSync(path.join(release, "v0.3.32-packaged-bridge-verification.json"), JSON.stringify(report, null, 2) + "\n"); console.log(JSON.stringify(report, null, 2));
+const portable = diagnostic(path.join(release, "Jira Activity Analyzer Portable " + packageVersion + ".exe"), "portable");
+const report = { schemaVersion: "jaa-v0333-packaged-bridge-verification-v1", status: "PASS", bridgeIdentity: manifest.bridgeIdentity, bridgeBytes: bytes.length, bridgeSha256: hash, inventory: { appAsarCurrentBridgeCount, appAsarBridgeEntries: asarBridgeEntries, externalCurrentBridgeCount: 1, externalManifestCount: 1, staleBridgeCount: staleAsarBridgeEntries.length, staleAsarBridgeEntries, resourceDirectory, files: names }, diagnostics: { winUnpacked: win, portable }, installerInventory: { status: "BUILT_FROM_SAME_ELECTRON_BUILDER_RESOURCE_CONFIG", guiValidation: "MANUAL_VALIDATION_PENDING" }, verifiedAtUtc: new Date().toISOString() };
+fs.writeFileSync(path.join(release, "v0.3.33-packaged-bridge-verification.json"), JSON.stringify(report, null, 2) + "\n"); console.log(JSON.stringify(report, null, 2));
