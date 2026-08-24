@@ -52,15 +52,29 @@ const common = {
   },
   logLevel: "info"
 };
-
+const frozenBridgeIdentitySource = path.resolve(__dirname, "frozen-bridge-v0331/aiArtifactIdentityV0328.ts");
+const frozenBridgeSourceDirectory = path.join(outdir, ".frozen-bridge-v0331-source");
 const bridgeOutput = path.join(bridgeResourceDir, "analysis-bridge-v0331.cjs");
-esbuild.buildSync({
-  ...common,
-  entryPoints: [path.resolve(__dirname, "../electron/analysisBridgeRuntimeV0328.ts")],
-  outfile: bridgeOutput
-});
+fs.rmSync(frozenBridgeSourceDirectory, { recursive: true, force: true });
+fs.mkdirSync(frozenBridgeSourceDirectory, { recursive: true });
+fs.cpSync(path.resolve(__dirname, "../electron"), path.join(frozenBridgeSourceDirectory, "electron"), { recursive: true });
+fs.cpSync(path.resolve(__dirname, "../shared"), path.join(frozenBridgeSourceDirectory, "shared"), { recursive: true });
+fs.copyFileSync(frozenBridgeIdentitySource, path.join(frozenBridgeSourceDirectory, "electron", "aiArtifactIdentityV0328.ts"));
+try {
+  esbuild.buildSync({
+    ...common,
+    absWorkingDir: frozenBridgeSourceDirectory,
+    entryPoints: ["electron/analysisBridgeRuntimeV0328.ts"],
+    outfile: bridgeOutput
+  });
+} finally {
+  fs.rmSync(frozenBridgeSourceDirectory, { recursive: true, force: true });
+}
 const bridgeSha256 = require("node:crypto").createHash("sha256").update(fs.readFileSync(bridgeOutput)).digest("hex");
 const bridgeBytes = fs.statSync(bridgeOutput).size;
+if (bridgeBytes !== 173352 || bridgeSha256 !== "42f5034b75efbfa37af4876edf53d84d5ebedf29bf520323dd392462467567e2") {
+  throw new Error(`Frozen Bridge v0.3.31 mismatch: bytes=${bridgeBytes} sha256=${bridgeSha256}`);
+}
 fs.writeFileSync(path.join(bridgeResourceDir, "analysis-bridge-manifest-v0331.json"), JSON.stringify({
   schemaVersion: "jaa-packaged-analysis-bridge-manifest-v1", bridgeIdentity: "0.3.31-bridge-v13", artifactFileName: "analysis-bridge-v0331.cjs",
   artifactBytes: bridgeBytes, artifactSha256: bridgeSha256, runtimeContractRegistry: "jaa-runtime-contract-registry-v1",
