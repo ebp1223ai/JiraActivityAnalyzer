@@ -8,7 +8,7 @@ const m = api();
 const hash = (value) => crypto.createHash("sha256").update(value).digest("hex");
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0334-"));
 
-assert.equal(m.ANALYSIS_BRIDGE_VERSION, "0.3.34-bridge-v14");
+assert.equal(m.ANALYSIS_BRIDGE_VERSION, "0.3.35-bridge-v15");
 assert.equal(m.RUNTIME_CONTRACT_V0334.applicationVersion, "0.3.34");
 assert.equal(m.RUNTIME_CONTRACT_V0334.promptTemplateVersion, "0.3.34-zh-TW-v15");
 assert.equal(m.RUNTIME_CONTRACT_V0334.bridgeIdentity, "0.3.34-bridge-v14");

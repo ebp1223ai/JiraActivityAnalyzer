@@ -8,9 +8,9 @@ export const SYSTEM_SAFETY_WRAPPER=`# JAA 不可變安全規範
 禁止 Shell、PowerShell、CMD、Python、外部 Codex、網路、MCP、Plugin、Skill、PATH 或替代檔案工具。禁止取得或輸出 OAuth Token、Cookie、Authorization、密碼或其他憑證。Run、Attempt、Request、Thread、Turn、source hash、Rule Snapshot 與 contract identity 全由 JAA 持有，模型不得提交、猜測或覆寫。
 
 必須以 bridge-resumable-v4 完成所有 files、bytes、segments、EOF、hash 與 ACK，取得 Model Delivery Receipt 後才能分類。模型不負責檔案 I/O、HTML、Package、SQLite 或正式 identity。任何驗證失敗均 fail closed。`;
-export const DEFAULT_ANALYSIS_INSTRUCTION=`# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.34
+export const DEFAULT_ANALYSIS_INSTRUCTION=`# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.35
 
-完整閱讀 Manifest v0.8.2、Common Rules v1.6.2、Catalog v0.3.1 與全部 N 筆資料；必須驗證 4/4 files 與 N/N records，不可跳讀、抽樣、猜測或用摘要取代原文。只使用 JAA frozen Evidence Quote Catalog 的完整 evidenceQuoteId，不得自造、截斷、跨 record 引用，或提交 evidenceRef、segment、role、source hash、Stable ID。Quote 不足時必須使用該筆特有且可驗證的 UNKNOWN／FAILED 理由。
+完整閱讀 Manifest v0.8.4、Common Rules v1.6.4、Catalog v0.3.1 與全部 N 筆資料；必須驗證 4/4 files 與 N/N records，不可跳讀、抽樣、猜測或用摘要取代原文。只使用 JAA frozen Evidence Quote Catalog 的完整 evidenceQuoteId，不得自造、截斷、跨 record 引用，或提交 evidenceRef、segment、role、source hash、Stable ID。Quote 不足時必須使用該筆特有且可驗證的 UNKNOWN／FAILED 理由。
 
 Decision v5 必須是 exact N 筆 direct JSON array，recordIndex 唯一依序覆蓋 0..N-1。每筆只允許 recordIndex、status、confidence、skillFindings、recordNegativeChecks、unknownReasons、rationale。每個 Skill Finding 只允許 skillId、confidence、evidenceQuoteIds、evidenceExplanation、negativeChecks、rationale。confidence 只允許 0、0.3、0.6、0.9。
 
@@ -22,7 +22,7 @@ CLASSIFIED 與 CATALOG_DETAIL_MISSING 必須有 skillFindings 且 unknownReasons
 
 提交前逐筆檢查 count、index、status matrix、Catalog membership/detail、quote existence、record binding、PRIMARY_CHANGE、多技能候選完整性、shared Quote 技術面向可區分性與 single submission。只呼叫 jaa_publish_analysis_artifacts_v5 一次，提交 artifactSubmissionToken、decisions、完整繁中 analysisReportMarkdown、簡短 finalSummaryZhTw。模型不產生 HTML、不寫檔、不執行 shell，也不得宣稱 Canonical、Active Result、HTML 或 SQLite 已成功；正式產物由 JAA 分層驗證決定。`;const DELIVERY=`# Model Input Delivery Protocol
 
-第一個工具固定呼叫 jaa_get_input_manifest({})，不得傳入、猜測、轉換或要求 JAA 提供 Run、Attempt、Request、Thread 或 Turn identity。只使用回傳的 opaque deliveryHandle；依 manifest 順序重複呼叫 jaa_read_and_ack_next_segment，首次 previousAck=null，之後帶回上一段完整 ACK。核對 cursor、bytes、SHA-256、EOF，不得跳號、退回、重複或漏 ACK。最後以 jaa_finalize_input_delivery 提交 handle 與 finalAck；取得 4/4 files、N/N records 與 modelInputDelivered=true 後才可分析。`;
+第一個工具固定呼叫 jaa_get_input_manifest({})，不得傳入、猜測、轉換或要求 JAA 提供 Run、Attempt、Request、Thread 或 Turn identity。只使用回傳的 opaque deliveryHandle；依 manifest 順序重複呼叫 jaa_read_and_ack_next_segment，首次 previousAck=null，之後帶回上一段完整 ACK。核對 cursor、bytes、SHA-256、EOF，不得跳號、退回、重複或漏 ACK。最後以 jaa_finalize_input_delivery 提交 handle 與 finalAck；取得 4/4 files、N/N records、modelInputDelivered=true 與 Host control state=INPUT_READY 後才可分析。Progress 回報僅供觀測且為選填；recoverable progress warning 不得中止分析或阻止提交。Artifact submission 本身是分析完成的權威交付。`;
 const FINAL=`# Final Response Contract
 
 最終回覆使用繁體中文，如實說明 4/4 輸入完整度、已分析筆數、結果分布、限制與是否已提交。不得宣稱不存在的 Canonical、Active Result、HTML 或 SQLite receipt。`;
@@ -31,9 +31,9 @@ export function composeEffectiveInstruction(input:{mode:AiInstructionMode;runId:
 
 expectedRecordCount=${input.recordCount}
 decisionContract=${contract.schemaVersion}
-Prompt Identity=JAA-CHATGPT-ZH-TW-0.3.34
-Prompt Template=0.3.34-zh-TW-v15
-Bridge=0.3.34-bridge-v14
+Prompt Identity=JAA-CHATGPT-ZH-TW-0.3.35
+Prompt Template=0.3.35-zh-TW-v16
+Bridge=0.3.35-bridge-v15
 Transport=bridge-resumable-v4
 
 JAA-owned identity 不提供給模型，也不得出現在 submission。`;const mode=input.mode==="CUSTOM_DIAGNOSTIC"?`# Custom Diagnostic Mode

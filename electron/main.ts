@@ -63,7 +63,7 @@ import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } f
 import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
 import { flushRunArchive } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
-import { resolveAnalysisBridgeArtifactV0334 } from "./analysisBridgeResolverV0334.js";
+import { resolveAnalysisBridgeArtifactV0335 } from "./analysisBridgeResolverV0335.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -124,7 +124,7 @@ try {
 }
 
 if (shouldVerifyAnalysisBridge) {
-  const resolution = resolveAnalysisBridgeArtifactV0334({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase: "diagnostic" });
+  const resolution = resolveAnalysisBridgeArtifactV0335({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase: "diagnostic" });
   const output = JSON.stringify(resolution.receipt);
   console.log(`JAA_ANALYSIS_BRIDGE_DIAGNOSTIC=${output}`);
   const receiptPath = process.env.JAA_BRIDGE_DIAGNOSTIC_RECEIPT_PATH;
@@ -4426,7 +4426,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   if (selectedAiRunPath) try { const selectedManifest = JSON.parse(fs.readFileSync(path.join(selectedAiRunPath, "run-manifest.json"), "utf8")); selectedRunStatus = String(selectedManifest.run?.status ?? "unknown"); selectedInstructionMode = String(selectedManifest.run?.instructionMode ?? "STANDARD_FORMAL"); selectedArtifactStatus = String(selectedManifest.run?.lifecycle?.artifactStatus ?? selectedManifest.run?.bridgeEvidence?.lifecycle?.artifactStatus ?? "not_started"); selectedHtmlStatus = String(selectedManifest.run?.lifecycle?.htmlRenderStatus ?? selectedManifest.run?.htmlRenderStatus ?? "not_started"); selectedSqliteStatus = String(selectedManifest.run?.lifecycle?.sqliteStatus ?? "blocked"); } catch { selectedRunStatus = "unknown"; selectedInstructionMode = "unknown"; selectedArtifactStatus = "unknown"; }
   const aiAlwaysRequiredEvidence = [
     "run-manifest.json", "logs/conversation.jsonl", "logs/conversation.md", "logs/provider-stream.jsonl", "logs/runtime.log", "logs/application.log",
-    "input-workspace/pending-analysis.json", "input-workspace/common-rules.md", "input-workspace/skill-catalog.md", "input-workspace/rule-set-manifest.md", "template-snapshots/Skill_Analysis_HTML_Report_Template_v1.5.0.md",
+    "input-workspace/pending-analysis.json", "input-workspace/common-rules.md", "input-workspace/skill-catalog.md", "input-workspace/rule-set-manifest.md", "template-snapshots/Skill_Analysis_HTML_Report_Template_v1.5.1.md",
     "control/analysis-instruction.md", "control/instruction-mode.json", "control/system-safety-wrapper.md", "control/default-analysis-instruction.md", "control/user-additional-instruction.md", "control/user-custom-instruction.md", "control/final-effective-instruction.md", "control/final-effective-instruction.sha256", "control/instruction-composition-manifest.json", "control/input-transport-contract.json", "control/request-package-manifest.json", "control/output-schema.json", "control/bridge-contract.json",
     "progress/source-input-receipt.json", "progress/lifecycle-summary.json", "progress/bridge-execution-context-receipt.json", "debug/token-usage.json", "debug/bridge-diagnostics.json"
   ];
@@ -4467,7 +4467,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     expectedFileCount: aiRequiredEvidence.length + (artifactAttemptExpected ? 2 : 0), artifactSubmissionAttemptExpected: artifactAttemptExpected, artifactSubmissionAttemptEvidence: artifactAttemptEvidence.map((relativePath) => ({ relativePath, status: "required_and_present" })), copiedFileCount: aiCopyEntries.filter((entry) => entry.status === "copied").length, excludedSecretFileCount: 0, missingRequiredFileCount: trulyMissingFiles.length, expectedAbsentForFailedRunCount: expectedAbsentForFailedRun.length, hashMismatchCount: aiHashMismatches.length,
     flushResults: aiFlushResults, sourceFiles: aiCopyEntries.map((entry) => ({ relativePath: entry.relativePath.slice(aiCopyPrefix.length), size: entry.size, sha256: entry.sourceSha256 ?? null })),
     destinationFiles: aiCopyEntries.map((entry) => ({ relativePath: entry.relativePath, size: entry.size, sha256: entry.destinationSha256 ?? null, hashMatch: entry.hashMatch ?? false })),
-    excludedFiles: [{ pattern: "credentials/oauth/token/.env", reason: "Secret and managed authentication material are never collected." }], instructionMode: selectedInstructionMode, htmlRenderStatus: selectedHtmlStatus, sqliteStatus: selectedSqliteStatus, notApplicableForInstructionMode: notApplicableForInstructionMode.map((relativePath) => ({ relativePath, status: "not_applicable_for_instruction_mode" })), missingFiles: trulyMissingFiles, expectedAbsentForFailedRun: expectedAbsentForFailedRun.map((relativePath) => ({ relativePath, reason: "Not present in the source Run because the Run ended before successful artifact publication." })), duplicateAliases: [], lifecycleClassificationVocabulary: ["expected_and_present", "expected_but_missing", "not_produced_due_to_prior_failure", "not_applicable_no_model_delivery", "not_applicable_no_submission", "not_applicable_instruction_mode"], canonicalTemplateSnapshot: "template-snapshots/Skill_Analysis_HTML_Report_Template_v1.5.0.md", legacyRenderWorkspaceAliasExpected: false, exportStatus, contentCompleteness, debugBundleStatus: exportStatus
+    excludedFiles: [{ pattern: "credentials/oauth/token/.env", reason: "Secret and managed authentication material are never collected." }], instructionMode: selectedInstructionMode, htmlRenderStatus: selectedHtmlStatus, sqliteStatus: selectedSqliteStatus, notApplicableForInstructionMode: notApplicableForInstructionMode.map((relativePath) => ({ relativePath, status: "not_applicable_for_instruction_mode" })), missingFiles: trulyMissingFiles, expectedAbsentForFailedRun: expectedAbsentForFailedRun.map((relativePath) => ({ relativePath, reason: "Not present in the source Run because the Run ended before successful artifact publication." })), duplicateAliases: [], lifecycleClassificationVocabulary: ["expected_and_present", "expected_but_missing", "not_produced_due_to_prior_failure", "not_applicable_no_model_delivery", "submission_received_and_persisted", "submission_validated_but_publish_blocked", "submission_rejected_before_decode", "not_applicable_instruction_mode"], canonicalTemplateSnapshot: "template-snapshots/Skill_Analysis_HTML_Report_Template_v1.5.1.md", legacyRenderWorkspaceAliasExpected: false, exportStatus, contentCompleteness, debugBundleStatus: exportStatus
   };
   writeBundleJson(folderPath, "debug-completeness.json", { ...debugCompleteness, exportStatus, contentCompleteness });
   writeBundleJson(folderPath, "debug-completeness-manifest.json", debugCompleteness);

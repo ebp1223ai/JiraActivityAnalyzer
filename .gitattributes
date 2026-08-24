@@ -1,1 +1,2 @@
 *.pdf binary
+rules/v0.3.35/*.md -text
