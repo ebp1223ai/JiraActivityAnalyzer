@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.33",
+  "version": "0.3.34",
   "description": "Electron desktop analyzer with bundled Codex local-workspace AI analysis and canonical debug evidence.",
   "author": "COPGEN",
   "type": "module",
@@ -104,6 +104,9 @@
     "replay:v0.3.30-artifact-validation": "node scripts/replay-v0330-artifact-validation.cjs",
     "test:v0.3.32": "node scripts/test-v0332.cjs",
     "test:v0.3.33": "npm run electron:build && node scripts/test-v0333.cjs",
+    "test:v0.3.34": "node scripts/test-v0334.cjs",
+    "replay:v0.3.33": "node scripts/replay-v0333-real-runs.cjs",
+    "test:live:v0.3.34:17": "node scripts/test-live-v0334-17.cjs",
     "replay:v0.3.32:17": "node scripts/replay-v0332-real-run.cjs 17",
     "replay:v0.3.32:117": "node scripts/replay-v0332-real-run.cjs 117",
     "replay:v0.3.31-quality-gate": "node scripts/replay-v0331-quality-gate.cjs",
@@ -188,8 +191,8 @@
         "to": "codex-runtime/NOTICE.txt"
       },
       {
-        "from": "rules/v0.3.33",
-        "to": "bundled-rules/v0.3.33",
+        "from": "rules/v0.3.34",
+        "to": "bundled-rules/v0.3.34",
         "filter": [
           "**/*"
         ]
@@ -198,8 +201,8 @@
         "from": "dist-electron/jaa-analysis-bridge",
         "to": "jaa-analysis-bridge",
         "filter": [
-          "analysis-bridge-v0331.cjs",
-          "analysis-bridge-manifest-v0331.json"
+          "analysis-bridge-v0334.cjs",
+          "analysis-bridge-manifest-v0334.json"
         ]
       }
     ]

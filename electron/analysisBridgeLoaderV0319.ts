@@ -2,7 +2,7 @@ import { app } from "electron";
 import { ANALYSIS_BRIDGE_VERSION, type AnalysisBridgeToolContext, type AnalysisLifecycleSummary } from "../shared/analysisBridgeContract.js";
 import type { AiAnalysisRequestPackage } from "../shared/aiAnalysisContract.js";
 import type { AiInstructionMode } from "../shared/analysisInstructionContract.js";
-import { resolveAnalysisBridgeArtifactV0331, type BridgePreflightReceiptV0331 } from "./analysisBridgeResolverV0331.js";
+import { resolveAnalysisBridgeArtifactV0334, type BridgePreflightReceiptV0334 } from "./analysisBridgeResolverV0334.js";
 
 type BridgeInstance = {
   version: string;
@@ -26,12 +26,12 @@ type BridgeInstance = {
 
 type BridgeInput = { runId: string; sessionNonce: string; runDirectory: string; requestPackage: AiAnalysisRequestPackage; rulesSnapshotId: string; catalogSkillIds: string[]; instructionMode?: AiInstructionMode; analysisAttemptId?: string; requestId?: string; provider?: string; model?: string; manifestSha256?: string; commonRulesSha256?: string; catalogSha256?: string; outputSchemaSha256?: string; quoteCatalog?: unknown; evidenceSegments?: unknown[] };
 
-export function preflightAnalysisBridgeV0331(phase: BridgePreflightReceiptV0331["phase"], attemptId?: string | null) {
-  return resolveAnalysisBridgeArtifactV0331({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase, attemptId });
+export function preflightAnalysisBridgeV0334(phase: BridgePreflightReceiptV0334["phase"], attemptId?: string | null) {
+  return resolveAnalysisBridgeArtifactV0334({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase, attemptId });
 }
 
 export function loadAnalysisBridge(input: BridgeInput) {
-  const resolution = preflightAnalysisBridgeV0331("analysis_start", input.analysisAttemptId);
+  const resolution = preflightAnalysisBridgeV0334("analysis_start", input.analysisAttemptId);
   if (resolution.receipt.status !== "ready" || !resolution.runtime || !resolution.manifest) {
     const code = resolution.receipt.rootErrorCode ?? "AI_BRIDGE_LOADABILITY_FAILED";
     throw Object.assign(new Error(`${code}:${resolution.receipt.rootErrorMessage ?? "Analysis Bridge preflight failed."}`), { code, bridgePreflightReceipt: resolution.receipt });

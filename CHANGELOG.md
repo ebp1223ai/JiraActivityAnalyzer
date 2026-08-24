@@ -1,3 +1,9 @@
+# v0.3.34 - Provider Lifecycle and Live Analysis Validation
+
+- Added Bridge v14 host-owned provider lifecycle, atomic INPUT_READY finalization, readonly post-finalize status, and idempotent finalize semantics.
+- Added run-level all-FAILED truth, validation causality evidence, offline v0.3.34 verification, real v0.3.33 replay, and opt-in live 17-record validation.
+- Bound Classification 1.6.3, Prompt Template v15, Rule Set Manifest 0.8.3, and HTML Renderer 1.5.1.
+
 # v0.3.33 - Multi-skill Quality, HTML, Lifecycle, and Runtime Identity Truth
 
 - Replaced exclusive-quote-only multi-skill enforcement with evidence coverage v2: independent quotes pass, distinguishable shared quotes warn, indistinguishable shared quotes block, and missing PRIMARY_CHANGE evidence fails closed without rewriting model output.

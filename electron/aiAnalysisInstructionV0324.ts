@@ -8,7 +8,7 @@ export const SYSTEM_SAFETY_WRAPPER=`# JAA 不可變安全規範
 禁止 Shell、PowerShell、CMD、Python、外部 Codex、網路、MCP、Plugin、Skill、PATH 或替代檔案工具。禁止取得或輸出 OAuth Token、Cookie、Authorization、密碼或其他憑證。Run、Attempt、Request、Thread、Turn、source hash、Rule Snapshot 與 contract identity 全由 JAA 持有，模型不得提交、猜測或覆寫。
 
 必須以 bridge-resumable-v4 完成所有 files、bytes、segments、EOF、hash 與 ACK，取得 Model Delivery Receipt 後才能分類。模型不負責檔案 I/O、HTML、Package、SQLite 或正式 identity。任何驗證失敗均 fail closed。`;
-export const DEFAULT_ANALYSIS_INSTRUCTION=`# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.33
+export const DEFAULT_ANALYSIS_INSTRUCTION=`# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.34
 
 完整閱讀 Manifest v0.8.2、Common Rules v1.6.2、Catalog v0.3.1 與全部 N 筆資料；必須驗證 4/4 files 與 N/N records，不可跳讀、抽樣、猜測或用摘要取代原文。只使用 JAA frozen Evidence Quote Catalog 的完整 evidenceQuoteId，不得自造、截斷、跨 record 引用，或提交 evidenceRef、segment、role、source hash、Stable ID。Quote 不足時必須使用該筆特有且可驗證的 UNKNOWN／FAILED 理由。
 
@@ -31,9 +31,9 @@ export function composeEffectiveInstruction(input:{mode:AiInstructionMode;runId:
 
 expectedRecordCount=${input.recordCount}
 decisionContract=${contract.schemaVersion}
-Prompt Identity=JAA-CHATGPT-ZH-TW-0.3.33
-Prompt Template=0.3.33-zh-TW-v14
-Bridge=0.3.31-bridge-v13
+Prompt Identity=JAA-CHATGPT-ZH-TW-0.3.34
+Prompt Template=0.3.34-zh-TW-v15
+Bridge=0.3.34-bridge-v14
 Transport=bridge-resumable-v4
 
 JAA-owned identity 不提供給模型，也不得出現在 submission。`;const mode=input.mode==="CUSTOM_DIAGNOSTIC"?`# Custom Diagnostic Mode

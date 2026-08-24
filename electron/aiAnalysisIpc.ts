@@ -37,7 +37,7 @@ import {
   sha256Text
 } from "./aiAnalysisCore.js";
 import { ensureDir, getAppDataDir, getAppRuntimeDir, getBundledAnalysisRulesDir, getExportsDir } from "./appPaths.js";
-import { RuleSelectionTransactionServiceV0333, normalizeRuleSelectionErrorV0333 } from "./aiAnalysisRulesV0333.js";
+import { RuleSelectionTransactionServiceV0334, normalizeRuleSelectionErrorV0334 } from "./aiAnalysisRulesV0334.js";
 import { ActiveResultRegistryV0325, AnalysisAttemptStoreV0325, navigationDecisionV0325 } from "./aiAnalysisResultStateV0325.js";
 import { buildEvidenceSegmentCatalogV0324, EVIDENCE_SEGMENTER_VERSION, type EvidenceSegmentCatalogV0324 } from "./aiAnalysisEvidenceSegmenterV0324.js";
 import { buildEvidenceQuoteCatalog, quoteCatalogJsonl } from "./evidenceQuoteCatalogV0326.js";
@@ -49,13 +49,13 @@ import { assembleCanonicalResultsV0324 } from "./aiAnalysisArtifactsV0324.js";
 import { buildIssueSnapshotProfilesV0324, buildReportDataPackageV0324, durableJsonWriteV0324 } from "./aiAnalysisReportDataPackageV0324.js";
 import { renderReportDataPackageHtmlV0333, HTML_RENDERER_VERSION_V0333 } from "./aiAnalysisHtmlRendererV0333.js";
 import { getChatGptService } from "./chatGptService.js";
-import { preflightAnalysisBridgeV0331 } from "./analysisBridgeLoaderV0319.js";
+import { preflightAnalysisBridgeV0334 } from "./analysisBridgeLoaderV0319.js";
 import { ProviderDispatchLedgerV0330 } from "./providerDispatchLedgerV0330.js";
 import { firstFailedValidationStageV0331 } from "./analysisLifecycleV0331.js";
 import { convergeTerminalLifecycleV0333, persistTerminalLifecycleV0333 } from "./analysisLifecycleV0333.js";
 import { loadPersistedSubmissionV0332, writeArtifactSubmissionResultV0332, type ValidationStageV0332 } from "./analysisValidationTruthV0332.js";
 import { writeValidationStageReceiptsV0333 } from "./analysisValidationTruthV0333.js";
-import { RUNTIME_CONTRACT_V0333, validateDispatchIdentityV0333 } from "./runtimeContractRegistryV0333.js";
+import { RUNTIME_CONTRACT_V0334, validateDispatchIdentityV0334 } from "./runtimeContractRegistryV0334.js";
 import { redactChatGptText, redactChatGptTextComplete, sanitizeChatGptValueComplete } from "./chatGptRedactor.js";
 import { normalizeJaaError } from "./jaaErrorNormalizerV0327.js";
 import { buildRequestPackage, loadRequestPackage } from "./aiAnalysisRequestPackageV0324.js";
@@ -182,7 +182,7 @@ function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requ
   writeJson("run-manifest.json", { run, artifacts: { formalJson: run.analyzedFilePath ? "written" : run.databaseWriteStatus ?? "not_written", goldenHtml: run.reportFilePath ? "written" : run.databaseWriteStatus ?? "not_written", sqlite: run.databaseWriteStatus ?? "not_started" } });
   if (["failed", "failed_validation", "provider_failed", "provider_timeout"].includes(run.status)) writeJson("failed-run-manifest.json", { runId: run.runId, status: run.status, errorCode: run.progress.errorCode, message: run.progress.message });
   if (run.capacitySnapshot) writeJson("capacity-snapshot.json", run.capacitySnapshot);
-  const runtimeDiagnostics = { provider: run.provider, model: run.model, runtimeSource: run.runtimeSource ?? "bundled", runtimeIntegrity: run.runtimeIntegrity ?? null, runtimeVersion: run.providerRuntimeVersion ?? null, requestCount: run.progress.requestCount, providerDispatchCount: run.progress.providerDispatchCount ?? run.progress.requestCount, threadStartAttemptCount: run.progress.threadStartAttemptCount ?? 0, threadCreatedCount: run.progress.threadCreatedCount ?? run.progress.threadCount ?? 0, turnStartAttemptCount: run.progress.turnStartAttemptCount ?? 0, acceptedTurnCount: run.progress.acceptedTurnCount ?? run.progress.turnCount ?? 0, turnCompletedCount: run.progress.turnCompletedCount ?? 0, retryCount: run.progress.retryCount, repairTurnCount: run.progress.repairTurnCount ?? 0, fallbackRequestCount: run.progress.fallbackRequestCount ?? 0, outputSchemaSha256: run.outputSchemaSha256 ?? null, hostRuntimeContract: RUNTIME_CONTRACT_V0333 };
+  const runtimeDiagnostics = { provider: run.provider, model: run.model, runtimeSource: run.runtimeSource ?? "bundled", runtimeIntegrity: run.runtimeIntegrity ?? null, runtimeVersion: run.providerRuntimeVersion ?? null, requestCount: run.progress.requestCount, providerDispatchCount: run.progress.providerDispatchCount ?? run.progress.requestCount, threadStartAttemptCount: run.progress.threadStartAttemptCount ?? 0, threadCreatedCount: run.progress.threadCreatedCount ?? run.progress.threadCount ?? 0, turnStartAttemptCount: run.progress.turnStartAttemptCount ?? 0, acceptedTurnCount: run.progress.acceptedTurnCount ?? run.progress.turnCount ?? 0, turnCompletedCount: run.progress.turnCompletedCount ?? 0, retryCount: run.progress.retryCount, repairTurnCount: run.progress.repairTurnCount ?? 0, fallbackRequestCount: run.progress.fallbackRequestCount ?? 0, outputSchemaSha256: run.outputSchemaSha256 ?? null, hostRuntimeContract: RUNTIME_CONTRACT_V0334 };
   writeJson("provider-diagnostics.json", runtimeDiagnostics);
   writeJson("runtime-diagnostics.json", runtimeDiagnostics);
   const roleManifestPath = path.join(folder, "rule-template-role-manifest.json");
@@ -264,10 +264,10 @@ export function registerAiAnalysisIpc() {
   chatgpt.subscribeStatus(() => BrowserWindow.getAllWindows().forEach((window) => window.webContents.send("ai-analysis:snapshot-changed", snapshot())));
   const bundledRulesDirectory = getBundledAnalysisRulesDir();
   const aiStateDirectory = ensureDir(path.join(getAppDataDir(), "ai-analysis", "v0.3.26-state"));
-  const ruleSelection = new RuleSelectionTransactionServiceV0333(bundledRulesDirectory, path.join(aiStateDirectory, "rule-selection"));
+  const ruleSelection = new RuleSelectionTransactionServiceV0334(bundledRulesDirectory, path.join(aiStateDirectory, "rule-selection"));
   let rules: AiRulesSnapshot | null = ruleSelection.rules;
   const attemptStore = new AnalysisAttemptStoreV0325(path.join(aiStateDirectory, "attempts"));
-  const startupBridgeReceipt = preflightAnalysisBridgeV0331("startup", null).receipt;
+  const startupBridgeReceipt = preflightAnalysisBridgeV0334("startup", null).receipt;
   const resultRegistry = new ActiveResultRegistryV0325(path.join(aiStateDirectory, "results"));
   let lastNavigationDecision = null as import("../shared/aiAnalysisContract.js").AiNavigationDecisionV0325 | null;
   const pendingDatasets: AiPendingDataset[] = [];
@@ -495,8 +495,8 @@ export function registerAiAnalysisIpc() {
     return result.error ? { canceled: false, ...errorPayload(result.error), activated: false, snapshot: snapshot() } : { canceled: false, ok: true, activated: result.activated, snapshot: snapshot() };
   });
   ipcMain.handle("ai-analysis:cancel-rule-draft", async (event) => { ruleSelection.cancelDraft(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; });
-  ipcMain.handle("ai-analysis:use-bundled-rules", async (event) => { try { ruleSelection.useBundled(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0333(error)), snapshot: snapshot() }; } });
-  ipcMain.handle("ai-analysis:load-rules", async (event) => { try { rules = ruleSelection.revalidate(); notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0333(error)), snapshot: snapshot() }; } });  ipcMain.handle("ai-analysis:choose-pending", async () => {
+  ipcMain.handle("ai-analysis:use-bundled-rules", async (event) => { try { ruleSelection.useBundled(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0334(error)), snapshot: snapshot() }; } });
+  ipcMain.handle("ai-analysis:load-rules", async (event) => { try { rules = ruleSelection.revalidate(); notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0334(error)), snapshot: snapshot() }; } });  ipcMain.handle("ai-analysis:choose-pending", async () => {
     analysisUserActions.push(`${now()} Select Pending JSON requested`);
     const choice = await dialog.showOpenDialog({ title: "Open pending-analysis JSON", properties: ["openFile"], filters: [{ name: "JSON", extensions: ["json"] }] });
     if (choice.canceled || !choice.filePaths[0]) return { canceled: true, snapshot: snapshot() };
@@ -600,14 +600,14 @@ export function registerAiAnalysisIpc() {
       if (!refreshedRules.valid) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", refreshedRules.errors.join(" ") || "Rules validation failed.");
       if (refreshedDataset.sourceFileSha256 !== dataset.sourceFileSha256) throw new AiAnalysisError("SOURCE_MISMATCH", "Pending Dataset changed after selection; import it again.");
       rules = refreshedRules; dataset = refreshedDataset;
-    } catch (error) { return rejectAttempt(normalizeRuleSelectionErrorV0333(error)); }
+    } catch (error) { return rejectAttempt(normalizeRuleSelectionErrorV0334(error)); }
     const service = payload.service ?? (payload.mode === "CHATGPT" ? "chatgpt" : "ai_nexus");
     const provider = payload.mode === "OFFLINE_RULE" ? "offline_rule" : payload.mode === "CHATGPT" ? "chatgpt_codex" : "ai_nexus";
     if (payload.mode === "CHATGPT" && chatgpt.getStatus().state !== "connected") return rejectAttempt(new AiAnalysisError("CHATGPT_SIGN_IN_REQUIRED", "ChatGPT must be connected before analysis."));
     if (payload.mode === "AI_NEXUS") { const current = settingsAndSecret("ai_nexus").settings; if (current.connectionStatus !== "passed" || current.testedFingerprint !== current.configFingerprint) return rejectAttempt(new AiAnalysisError("AI_NOT_CONFIGURED", "AI Nexus settings must pass connection testing before analysis.")); }
-    let bridgePreflightReceipt: ReturnType<typeof preflightAnalysisBridgeV0331>["receipt"] | null = null;
+    let bridgePreflightReceipt: ReturnType<typeof preflightAnalysisBridgeV0334>["receipt"] | null = null;
     if (payload.mode === "CHATGPT") {
-      const bridgeResolution = preflightAnalysisBridgeV0331("analysis_start", attempt.analysisAttemptId);
+      const bridgeResolution = preflightAnalysisBridgeV0334("analysis_start", attempt.analysisAttemptId);
       bridgePreflightReceipt = bridgeResolution.receipt;
       fs.writeFileSync(path.join(attempt.archivePath, "bridge-preflight-receipt.json"), JSON.stringify(bridgeResolution.receipt, null, 2) + "\n", "utf8");
       const attemptLedger = new ProviderDispatchLedgerV0330(path.join(attempt.archivePath, "provider-dispatch-ledger.jsonl"));
@@ -720,7 +720,7 @@ export function registerAiAnalysisIpc() {
         run.status = "running"; run.progress.status = "running"; run.progress.stage = "starting_thread"; run.progress.message = "Dispatching one artifact-producing ChatGPT thread and one turn.";
         run.telemetry = { runCreatedAt: startedAt, inputPreparedAt: now(), providerRequestPreparedAt: now(), providerDispatchAttemptedAt: null, providerContactedAt: null, threadCreatedAt: null, turnStartAttemptedAt: null, turnAcceptedAt: null, turnCompletedAt: null, providerDurationMs: null, localOrchestrationMs: null, durableLoggingMs: null, validationMs: null, canonicalAssemblyMs: null, sqliteWriteMs: null };
         requestEvidence = { runId, model: chatgpt.getStatus().selectedModel, deliveryMode: request.requestPackage.deliveryMode, workspaceFileCount: 4, outputWorkspace: "ai-output", inlineFileContentCount: 0, nativeInputFileCount: 0, instructionSha256: request.requestPackage.finalProviderPayloadSha256, instructionBytes: request.requestPackage.finalProviderPayloadBytes, finalAssistantResponse: "brief_text", authorization: "[masked]" };
-        const dispatchIdentityReceipt = validateDispatchIdentityV0333({
+        const dispatchIdentityReceipt = validateDispatchIdentityV0334({
           applicationVersion: request.requestPackage.applicationVersion ?? __MAIN_APP_VERSION__,
           promptIdentity: request.requestPackage.promptIdentity ?? "",
           promptTemplateVersion: request.requestPackage.promptTemplateVersion ?? "",

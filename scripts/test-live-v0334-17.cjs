@@ -1,0 +1,13 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const root = path.resolve(__dirname, "..");
+const output = path.join(root, "test-artifacts", "v0334", "live-provider-validation.json");
+const finish = (value, code = 0) => { fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, JSON.stringify(value, null, 2) + "\n"); console.log(JSON.stringify(value, null, 2)); process.exit(code); };
+if (process.env.JAA_ENABLE_LIVE_PROVIDER_TEST !== "1") finish({ status: "NOT RUN", reason: "JAA_ENABLE_LIVE_PROVIDER_TEST is not 1.", providerContacted: false, tokenTelemetry: "unavailable" });
+const configPath = process.env.JAA_LIVE_PROVIDER_TEST_CONFIG;
+if (!configPath || !path.isAbsolute(configPath) || !fs.existsSync(configPath)) finish({ status: "NOT RUN", reason: "Absolute JAA_LIVE_PROVIDER_TEST_CONFIG is missing or unreadable.", providerContacted: false, tokenTelemetry: "unavailable" });
+const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+const required = ["pendingDatasetPath", "manifestPath", "commonRulesPath", "catalogPath", "htmlTemplatePath"];
+const invalid = required.filter((key) => !path.isAbsolute(String(config[key] ?? "")) || !fs.existsSync(config[key]));
+if (invalid.length || config.expectedRecordCount !== 17 || config.allowProviderContact !== true || config.allowProductionSqlite !== false) finish({ status: "NOT RUN", reason: "Live config failed strict 5-file/17-record/safety preflight.", invalidFields: invalid, providerContacted: false, tokenTelemetry: "unavailable" });
+finish({ status: "NOT RUN", reason: "Managed-auth live execution must be initiated through the production UI pipeline; this CLI runner never substitutes a mock or bypasses Managed OAuth.", selectedInputVerified: true, providerContacted: false, productionSqliteWritten: false, activeResultChanged: false, tokenTelemetry: "unavailable" }, 2);

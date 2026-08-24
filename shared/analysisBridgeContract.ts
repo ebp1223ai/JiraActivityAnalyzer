@@ -1,4 +1,4 @@
-export const ANALYSIS_BRIDGE_VERSION = "0.3.31-bridge-v13" as const;
+export const ANALYSIS_BRIDGE_VERSION = "0.3.34-bridge-v14" as const;
 export const ANALYSIS_BRIDGE_SCHEMA_VERSION = "jaa-analysis-bridge-contract-v1" as const;
 
 export type AnalysisLifecycleStage =
@@ -79,6 +79,7 @@ export type AnalysisBridgeEvidence = {
   derivedErrors?: Array<Record<string, unknown>>;
   runtimeContract?: Record<string, unknown>;
   providerDispatchGate?: Record<string, unknown> | null;
+  providerLifecycle?: Record<string, unknown> | null;
 };
 
 export type AnalysisBridgeToolContext = { runId: string; sessionNonce: string; threadId: string; turnId: string; callId: string; toolRegistrationId?: string };
