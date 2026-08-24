@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "jaa-execution-time-ledger-v1",
+  "targetVersion": "0.3.34",
+  "generatedAtUtc": "2026-08-24T09:18:53.5590429Z",
+  "tokenTelemetry": "unavailable",
+  "commands": [
+    {
+      "exitCode": 0,
+      "outcome": "PASS",
+      "command": "npm.cmd run typecheck",
+      "durationMs": 9387
+    },
+    {
+      "exitCode": 0,
+      "outcome": "PASS",
+      "command": "npm.cmd run test:v0.3.34",
+      "durationMs": 764
+    },
+    {
+      "exitCode": 0,
+      "outcome": "PASS",
+      "command": "npm.cmd run replay:v0.3.33",
+      "durationMs": 548
+    },
+    {
+      "exitCode": 0,
+      "outcome": "NOT RUN",
+      "command": "npm.cmd run test:live:v0.3.34:17",
+      "durationMs": 512
+    },
+    {
+      "exitCode": 0,
+      "outcome": "PASS",
+      "command": "v0.3.31/v0.3.32/v0.3.33 regression",
+      "durationMs": 1660
+    },
+    {
+      "exitCode": 0,
+      "outcome": "PASS",
+      "command": "npm.cmd run build",
+      "durationMs": 32000
+    },
+    {
+      "exitCode": 1,
+      "outcome": "EXPECTED FAIL",
+      "command": "npm.cmd run dist (clean guard)",
+      "durationMs": 25164
+    },
+    {
+      "exitCode": 0,
+      "outcome": "PASS",
+      "command": "npm.cmd run dist (final package source)",
+      "durationMs": 157000
+    },
+    {
+      "exitCode": 1,
+      "outcome": "FAIL after did-finish-load",
+      "command": "win-unpacked UI smoke",
+      "durationMs": 51968
+    },
+    {
+      "exitCode": 1,
+      "outcome": "FAIL / no diagnostic output",
+      "command": "Portable UI smoke",
+      "durationMs": 186232
+    }
+  ]
+}

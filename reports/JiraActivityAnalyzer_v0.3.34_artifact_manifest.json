@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "jaa-v0334-artifact-manifest-v1",
+  "targetVersion": "0.3.34",
+  "overallStatus": "Partial / Manual Validation Pending",
+  "packageSourceCommit": "705e28201b02d63b563b1dbc8840cdc5c1402916",
+  "buildTime": "2026/08/24 17:07:44",
+  "artifacts": [
+    {
+      "bytes": 190652990,
+      "sha256": "63e7b4e7550208c7695afee9bffd938df9da14f7ed35a563f0736cda65161e34",
+      "path": "release/Jira Activity Analyzer Setup 0.3.34.exe"
+    },
+    {
+      "bytes": 190422900,
+      "sha256": "38f60dd858ed311c1529b4647fcb1dd5fb4ee378c8babc674a55b37ac9364c25",
+      "path": "release/Jira Activity Analyzer Portable 0.3.34.exe"
+    },
+    {
+      "bytes": 235706368,
+      "sha256": "72f3ae92eefb7cffe4527256f07b6cc7112745710f832f2d09d1ec9a6014298a",
+      "path": "release/win-unpacked/Jira Activity Analyzer.exe"
+    },
+    {
+      "bytes": 25029894,
+      "sha256": "d1b0eb60df8dae82b3d0a788d5b5048ba78bc489eadad2b55ec6b351a57705da",
+      "path": "release/win-unpacked/resources/app.asar"
+    },
+    {
+      "bytes": 184382,
+      "sha256": "6956c0c8d6cad6011b0bd61f7217ac7fb3fbe28dba7fce71298c4ce79b48a242",
+      "path": "release/win-unpacked/resources/jaa-analysis-bridge/analysis-bridge-v0334.cjs"
+    }
+  ]
+}
