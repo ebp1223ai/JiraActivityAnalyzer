@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jaa-v0335-execution-time-ledger-v1",
+  "generatedAtUtc": "2026-08-24T11:48:53.6880546Z",
+  "tokenTelemetry": "unavailable",
+  "commands": [
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 9.48
+    },
+    {
+      "command": "npm.cmd run test:v0.3.35",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 1.48
+    },
+    {
+      "command": "npm.cmd run replay:v0.3.34",
+      "result": "SECURITY_BLOCKED_NOT_RUN",
+      "exitCode": null,
+      "durationSeconds": null
+    },
+    {
+      "command": "npm.cmd run replay:v0.3.33",
+      "result": "SECURITY_BLOCKED_NOT_RUN",
+      "exitCode": null,
+      "durationSeconds": null
+    },
+    {
+      "command": "npm.cmd run test:live:v0.3.35:17",
+      "result": "NOT_RUN_OPT_IN_ABSENT",
+      "exitCode": 0,
+      "durationSeconds": 0.72
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 50.5
+    },
+    {
+      "command": "npm.cmd run dist",
+      "result": "PASS",
+      "exitCode": 0,
+      "durationSeconds": 190.0
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS_WITH_LINE_ENDING_WARNINGS",
+      "exitCode": 0,
+      "durationSeconds": null
+    }
+  ]
+}

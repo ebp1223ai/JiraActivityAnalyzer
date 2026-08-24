@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "jaa-v0335-artifact-manifest-v1",
+  "overallStatus": "Partial / Manual Validation Pending",
+  "appVersion": "0.3.35",
+  "packageSourceCommit": "c1b8586cccda3817b156e61fddd9908324b89876",
+  "buildTimeIso": "2026-08-24T11:43:32.173Z",
+  "dirtyState": true,
+  "artifacts": [
+    {
+      "role": "installer",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.35.exe",
+      "bytes": 190668251,
+      "sha256": "4f5f9e7174156de4f15a41b790889cd3afeca2c4e5f7012014f41fa129aa2a7b"
+    },
+    {
+      "role": "portable",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.35.exe",
+      "bytes": 190438102,
+      "sha256": "c72f3e16b42b77a4f1334a98a100d174a5d29cbdfe4558d7e78f643441de82ce"
+    },
+    {
+      "role": "win-unpacked",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "4d200e92a97bd379c0ea472b6b6e1808dea39ba2da8fa3149863e0bd14504b52"
+    },
+    {
+      "role": "bridge",
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\resources\\jaa-analysis-bridge\\analysis-bridge-v0335.cjs",
+      "bytes": 191013,
+      "sha256": "3050efc3e3f4e8b7a41c5cb7e4147715d77102476a8ff041b9faf30fb7d8b232"
+    }
+  ],
+  "verification": {
+    "packagedBridge": "PASS",
+    "realV0334Replay": "SECURITY_BLOCKED_NOT_RUN",
+    "realV0333Replay": "SECURITY_BLOCKED_NOT_RUN",
+    "live17": "NOT_RUN",
+    "fullGuiSmoke": "MANUAL_VALIDATION_PENDING"
+  }
+}
