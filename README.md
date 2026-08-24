@@ -1,3 +1,8 @@
+## v0.3.32 Quote-level Multi-skill Quality Gate 與 Validation Receipt Truth
+
+v0.3.32 以 frozen Evidence Quote Catalog 的 sourceRecordStableId + sourceJsonPointer + rawStartOffset + rawEndOffset + quoteSha256 判定多技能證據獨立性；相同 Comment／Diff／Activity Event 可支持多個 Skill，但每個 Skill 仍必須有至少一個未被同筆其他 Skill 共用的 PRIMARY_CHANGE quote。Boilerplate Gate 只分析模型撰寫的 explanation、negative checks 與 rationale，不再掃描來源 Quote 本文。
+
+Validation receipts 升級為 jaa-validation-stage-receipt-v2，明確區分 FAILED 與 NOT_RUN_DUE_TO_PRIOR_FAILURE；submission durable save 與 formal artifact acceptance 分開記錄，Quality Gate 失敗使用 AI_DECISION_QUALITY_GATE_BLOCKED，並以唯一 jaa-run-terminal-event-v1 收斂。正式 Bridge 保持 0.3.31-bridge-v13 byte-identical。真實 Managed OAuth 17 筆、Installer GUI 與乾淨 Windows 驗證仍為 Manual Validation Pending。
 ## v0.3.31 Protected-token-safe Segmentation 與 Terminal Lifecycle
 
 v0.3.31 將模型輸入 transport 升級為 `bridge-resumable-v4`，以 byte-based protected spans 與 deterministic variable-length segment planner 保護 Evidence Quote ID、Catalog Skill ID、SHA-256 及其他需逐字提交的契約識別碼。Provider dispatch 前必須通過 UTF-8、CRLF、JSON escape、coverage、reassembly 與 protected-token boundary preflight，並保存 `jaa-segment-boundary-safety-receipt-v1`；任何不安全邊界皆 fail closed。

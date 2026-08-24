@@ -37,21 +37,24 @@ import {
   sha256Text
 } from "./aiAnalysisCore.js";
 import { ensureDir, getAppDataDir, getAppRuntimeDir, getBundledAnalysisRulesDir, getExportsDir } from "./appPaths.js";
-import { RuleSelectionTransactionServiceV0328, normalizeRuleSelectionErrorV0328 } from "./aiAnalysisRulesV0328.js";
+import { RuleSelectionTransactionServiceV0332, normalizeRuleSelectionErrorV0332 } from "./aiAnalysisRulesV0332.js";
 import { ActiveResultRegistryV0325, AnalysisAttemptStoreV0325, navigationDecisionV0325 } from "./aiAnalysisResultStateV0325.js";
 import { buildEvidenceSegmentCatalogV0324, EVIDENCE_SEGMENTER_VERSION, type EvidenceSegmentCatalogV0324 } from "./aiAnalysisEvidenceSegmenterV0324.js";
 import { buildEvidenceQuoteCatalog, quoteCatalogJsonl } from "./evidenceQuoteCatalogV0326.js";
 import { buildModelVisibleEvidenceQuoteMapV0329, projectModelPayloadV0329, validateModelVisibleQuoteCoverageV0329 } from "./modelVisibleEvidenceQuoteMapV0329.js";
 import { evaluateSystemicNoResultGateV0329 } from "./systemicNoResultGateV0329.js";
 import { parseAndValidateDecisionsV0324, type ValidationFindingV0324 } from "./aiAnalysisDecisionContractV0324.js";
-import { evaluateDecisionQualityV0324 } from "./aiAnalysisQualityV0324.js";
+import { evaluateDecisionQualityV0332 } from "./aiAnalysisQualityV0332.js";
 import { assembleCanonicalResultsV0324 } from "./aiAnalysisArtifactsV0324.js";
 import { buildIssueSnapshotProfilesV0324, buildReportDataPackageV0324, durableJsonWriteV0324 } from "./aiAnalysisReportDataPackageV0324.js";
 import { renderReportDataPackageHtmlV0324, HTML_RENDERER_VERSION_V0324 } from "./aiAnalysisHtmlRendererV0324.js";
 import { getChatGptService } from "./chatGptService.js";
 import { preflightAnalysisBridgeV0331 } from "./analysisBridgeLoaderV0319.js";
 import { ProviderDispatchLedgerV0330 } from "./providerDispatchLedgerV0330.js";
-import { convergeTerminalLifecycleV0331, firstFailedValidationStageV0331, persistTerminalLifecycleSnapshotV0331 } from "./analysisLifecycleV0331.js";
+import { firstFailedValidationStageV0331 } from "./analysisLifecycleV0331.js";
+import { convergeTerminalLifecycleV0332, persistTerminalLifecycleV0332 } from "./analysisLifecycleV0332.js";
+import { loadPersistedSubmissionV0332, writeArtifactSubmissionResultV0332, writeValidationStageReceiptsV0332, type ValidationStageV0332 } from "./analysisValidationTruthV0332.js";
+import { RUNTIME_CONTRACT_V0332 } from "./runtimeContractRegistryV0332.js";
 import { redactChatGptText, redactChatGptTextComplete, sanitizeChatGptValueComplete } from "./chatGptRedactor.js";
 import { normalizeJaaError } from "./jaaErrorNormalizerV0327.js";
 import { buildRequestPackage, loadRequestPackage } from "./aiAnalysisRequestPackageV0324.js";
@@ -178,7 +181,7 @@ function persistRunDebugEvidence(stagingFolder: string, run: AiAnalysisRun, requ
   writeJson("run-manifest.json", { run, artifacts: { formalJson: run.analyzedFilePath ? "written" : run.databaseWriteStatus ?? "not_written", goldenHtml: run.reportFilePath ? "written" : run.databaseWriteStatus ?? "not_written", sqlite: run.databaseWriteStatus ?? "not_started" } });
   if (["failed", "failed_validation", "provider_failed", "provider_timeout"].includes(run.status)) writeJson("failed-run-manifest.json", { runId: run.runId, status: run.status, errorCode: run.progress.errorCode, message: run.progress.message });
   if (run.capacitySnapshot) writeJson("capacity-snapshot.json", run.capacitySnapshot);
-  const runtimeDiagnostics = { provider: run.provider, model: run.model, runtimeSource: run.runtimeSource ?? "bundled", runtimeIntegrity: run.runtimeIntegrity ?? null, runtimeVersion: run.providerRuntimeVersion ?? null, requestCount: run.progress.requestCount, providerDispatchCount: run.progress.providerDispatchCount ?? run.progress.requestCount, threadStartAttemptCount: run.progress.threadStartAttemptCount ?? 0, threadCreatedCount: run.progress.threadCreatedCount ?? run.progress.threadCount ?? 0, turnStartAttemptCount: run.progress.turnStartAttemptCount ?? 0, acceptedTurnCount: run.progress.acceptedTurnCount ?? run.progress.turnCount ?? 0, turnCompletedCount: run.progress.turnCompletedCount ?? 0, retryCount: run.progress.retryCount, repairTurnCount: run.progress.repairTurnCount ?? 0, fallbackRequestCount: run.progress.fallbackRequestCount ?? 0, outputSchemaSha256: run.outputSchemaSha256 ?? null };
+  const runtimeDiagnostics = { provider: run.provider, model: run.model, runtimeSource: run.runtimeSource ?? "bundled", runtimeIntegrity: run.runtimeIntegrity ?? null, runtimeVersion: run.providerRuntimeVersion ?? null, requestCount: run.progress.requestCount, providerDispatchCount: run.progress.providerDispatchCount ?? run.progress.requestCount, threadStartAttemptCount: run.progress.threadStartAttemptCount ?? 0, threadCreatedCount: run.progress.threadCreatedCount ?? run.progress.threadCount ?? 0, turnStartAttemptCount: run.progress.turnStartAttemptCount ?? 0, acceptedTurnCount: run.progress.acceptedTurnCount ?? run.progress.turnCount ?? 0, turnCompletedCount: run.progress.turnCompletedCount ?? 0, retryCount: run.progress.retryCount, repairTurnCount: run.progress.repairTurnCount ?? 0, fallbackRequestCount: run.progress.fallbackRequestCount ?? 0, outputSchemaSha256: run.outputSchemaSha256 ?? null, hostRuntimeContract: RUNTIME_CONTRACT_V0332 };
   writeJson("provider-diagnostics.json", runtimeDiagnostics);
   writeJson("runtime-diagnostics.json", runtimeDiagnostics);
   const roleManifestPath = path.join(folder, "rule-template-role-manifest.json");
@@ -260,7 +263,7 @@ export function registerAiAnalysisIpc() {
   chatgpt.subscribeStatus(() => BrowserWindow.getAllWindows().forEach((window) => window.webContents.send("ai-analysis:snapshot-changed", snapshot())));
   const bundledRulesDirectory = getBundledAnalysisRulesDir();
   const aiStateDirectory = ensureDir(path.join(getAppDataDir(), "ai-analysis", "v0.3.26-state"));
-  const ruleSelection = new RuleSelectionTransactionServiceV0328(bundledRulesDirectory, path.join(aiStateDirectory, "rule-selection"));
+  const ruleSelection = new RuleSelectionTransactionServiceV0332(bundledRulesDirectory, path.join(aiStateDirectory, "rule-selection"));
   let rules: AiRulesSnapshot | null = ruleSelection.rules;
   const attemptStore = new AnalysisAttemptStoreV0325(path.join(aiStateDirectory, "attempts"));
   const startupBridgeReceipt = preflightAnalysisBridgeV0331("startup", null).receipt;
@@ -491,8 +494,8 @@ export function registerAiAnalysisIpc() {
     return result.error ? { canceled: false, ...errorPayload(result.error), activated: false, snapshot: snapshot() } : { canceled: false, ok: true, activated: result.activated, snapshot: snapshot() };
   });
   ipcMain.handle("ai-analysis:cancel-rule-draft", async (event) => { ruleSelection.cancelDraft(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; });
-  ipcMain.handle("ai-analysis:use-bundled-rules", async (event) => { try { ruleSelection.useBundled(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0328(error)), snapshot: snapshot() }; } });
-  ipcMain.handle("ai-analysis:load-rules", async (event) => { try { rules = ruleSelection.revalidate(); notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0328(error)), snapshot: snapshot() }; } });  ipcMain.handle("ai-analysis:choose-pending", async () => {
+  ipcMain.handle("ai-analysis:use-bundled-rules", async (event) => { try { ruleSelection.useBundled(); rules = ruleSelection.rules; notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0332(error)), snapshot: snapshot() }; } });
+  ipcMain.handle("ai-analysis:load-rules", async (event) => { try { rules = ruleSelection.revalidate(); notify(event); return { ok: true, snapshot: snapshot() }; } catch (error) { return { ...errorPayload(normalizeRuleSelectionErrorV0332(error)), snapshot: snapshot() }; } });  ipcMain.handle("ai-analysis:choose-pending", async () => {
     analysisUserActions.push(`${now()} Select Pending JSON requested`);
     const choice = await dialog.showOpenDialog({ title: "Open pending-analysis JSON", properties: ["openFile"], filters: [{ name: "JSON", extensions: ["json"] }] });
     if (choice.canceled || !choice.filePaths[0]) return { canceled: true, snapshot: snapshot() };
@@ -596,7 +599,7 @@ export function registerAiAnalysisIpc() {
       if (!refreshedRules.valid) throw new AiAnalysisError("ANALYSIS_RULES_INVALID", refreshedRules.errors.join(" ") || "Rules validation failed.");
       if (refreshedDataset.sourceFileSha256 !== dataset.sourceFileSha256) throw new AiAnalysisError("SOURCE_MISMATCH", "Pending Dataset changed after selection; import it again.");
       rules = refreshedRules; dataset = refreshedDataset;
-    } catch (error) { return rejectAttempt(normalizeRuleSelectionErrorV0328(error)); }
+    } catch (error) { return rejectAttempt(normalizeRuleSelectionErrorV0332(error)); }
     const service = payload.service ?? (payload.mode === "CHATGPT" ? "chatgpt" : "ai_nexus");
     const provider = payload.mode === "OFFLINE_RULE" ? "offline_rule" : payload.mode === "CHATGPT" ? "chatgpt_codex" : "ai_nexus";
     if (payload.mode === "CHATGPT" && chatgpt.getStatus().state !== "connected") return rejectAttempt(new AiAnalysisError("CHATGPT_SIGN_IN_REQUIRED", "ChatGPT must be connected before analysis."));
@@ -749,7 +752,9 @@ export function registerAiAnalysisIpc() {
         const raw = stageVisibleProviderResponse(stagingFolder, response.text); run.providerResponseRawPath = raw.rawFilePath; run.providerResponseGzipPath = raw.filePath; run.providerResponseSha256 = raw.rawSha256; run.providerResponseGzipSha256 = raw.gzipSha256;
         const validationStarted = Date.now(); run.status = "validating"; run.progress.status = "validating"; run.progress.stage = "validating_artifacts_v0316";
         const validated = parseAndValidateDecisionsV0324(artifacts.decisionsText, { recordCount: compact.payload.eventCount, catalogSkillIds: run.rules.catalog.map((item) => item.id), sourceRecordStableIds: compact.payload.records.map((record) => record.sourceRecordStableId), evidenceSegments: segmentCatalog.segments });
-        const quality = evaluateDecisionQualityV0324(validated.validation); const allFindings: ValidationFindingV0324[] = [...validated.validation.findings, ...quality.findings];
+        const persistedSubmission = loadPersistedSubmissionV0332(stagingFolder);
+        writeArtifactSubmissionResultV0332({ runDirectory: stagingFolder, runId, submissionSha256: persistedSubmission.submissionSha256, formalArtifactStatus: "pending_validation" });
+        const quality = evaluateDecisionQualityV0332({ decisions: persistedSubmission.decisions, quoteCatalog, legacyValidation: validated.validation }); const allFindings: ValidationFindingV0324[] = [...validated.validation.findings, ...quality.findings];
         const systemicGate = evaluateSystemicNoResultGateV0329(validated.validation.decisions, { sourceDatasetSha256: dataset.sourceFileSha256, decisionSha256: artifacts.hashes.decisions, quoteCatalogSha256: quoteCatalog.catalogSha256 });
         const systemicGatePath = path.join(artifactPaths.canonical, "systemic-no-result-gate-report.json"); durableJsonWriteV0324(systemicGatePath, systemicGate); run.systemicNoResultGate = systemicGate; run.systemicNoResultGateReportPath = systemicGatePath;
         run.receivedDecisionCount = validated.validation.actualCount; run.providerReturnedRecordCount = validated.validation.actualCount; run.parsedRecordCount = validated.validation.actualCount; run.schemaValidRecordCount = validated.validation.schemaValid ? validated.validation.actualCount : 0; run.semanticValidRecordCount = validated.validation.semanticValidCount; run.progress.resultRecordCount = validated.validation.actualCount; run.progress.completedDiffs = validated.validation.actualCount;
@@ -769,7 +774,13 @@ export function registerAiAnalysisIpc() {
           const diagnosticPackage = buildReportDataPackageV0324({ mode: "DIAGNOSTIC_NON_CANONICAL", run, rules: run.rules, results: diagnosticResults, segments: segmentCatalog.segments, issueSnapshots: snapshotProfiles, validationFindings: allFindings, quality, inputReceipts: [bridgeSnapshot.sourceInputReceipt, bridgeSnapshot.modelDeliveryReceipt].filter(Boolean) });
           const diagnosticPackagePath = path.join(artifactPaths.canonical, "diagnostic-report-data-package.json"); const diagnosticWritten = durableJsonWriteV0324(diagnosticPackagePath, diagnosticPackage); run.diagnosticReportDataPackagePath = diagnosticWritten.filePath; run.reportPackageMode = "DIAGNOSTIC_NON_CANONICAL"; run.databaseWriteStatus = "Not written - diagnostic package is never SQLite eligible";
           try { const rendered = renderReportDataPackageHtmlV0324({ reportDataPackagePath: diagnosticPackagePath, templatePath: run.htmlTemplateSnapshotPath!, outputDirectory: artifactPaths.canonical }); run.diagnosticReportFilePath = rendered.receipt.outputHtmlPath; run.reportFilePath = rendered.receipt.outputHtmlPath; run.htmlRenderReceiptPath = rendered.receiptPath; run.htmlRenderStatus = "completed"; } catch (renderError) { run.htmlRenderStatus = "failed"; run.htmlRenderDiagnosticsPath = String(renderError); }
-          const first = allFindings.find((finding) => finding.severity === "ERROR"); throw new AiAnalysisError((systemicGate.reasonCode ?? "AI_RESPONSE_SEMANTIC_VALIDATION_FAILED") as AiAnalysisErrorCode, systemicGate.reasonCode ? `Systemic no-result gate blocked formal publication: ${systemicGate.reasonCode}.` : first ? `${first.code} ${first.jsonPointer}: ${first.message}` : "Aggregated validation failed.");
+          const first = allFindings.find((finding) => finding.severity === "ERROR");
+          const failedValidationStage: ValidationStageV0332 = quality.status === "BLOCKED" ? "QUALITY_GATE" : !validated.validation.schemaValid ? "DECISION_SCHEMA" : !validated.validation.evidenceValid ? "EVIDENCE_QUOTE_REFERENCE" : !validated.validation.semanticValid ? "STATUS_SEMANTIC" : "QUALITY_GATE";
+          const rootCode = (quality.status === "BLOCKED" ? "AI_DECISION_QUALITY_GATE_BLOCKED" : systemicGate.reasonCode ?? "AI_RESPONSE_SEMANTIC_VALIDATION_FAILED") as AiAnalysisErrorCode;
+          writeValidationStageReceiptsV0332({ runDirectory: stagingFolder, inputHash: persistedSubmission.submissionSha256, failedStage: failedValidationStage, rootErrorCode: rootCode, findings: allFindings });
+          writeArtifactSubmissionResultV0332({ runDirectory: stagingFolder, runId, submissionSha256: persistedSubmission.submissionSha256, formalArtifactStatus: "rejected", rootErrorCode: rootCode });
+          const affected = new Set(quality.findings.filter((finding) => finding.severity === "ERROR").map((finding) => finding.recordIndex).filter((value) => value !== null));
+          throw new AiAnalysisError(rootCode, quality.status === "BLOCKED" ? "MULTI_SKILL_EXCLUSIVE_PRIMARY_QUOTE_MISSING blockers=" + quality.findings.filter((finding) => finding.severity === "ERROR").length + " affectedRecords=" + affected.size + " firstRecordIndex=" + (first?.recordIndex ?? "unavailable") + " firstSkillId=" + (first?.skillId ?? "unavailable") + "; submission persisted, formal Artifact rejected, Canonical not created, Diagnostic HTML created; aggregate=" + run.qualityGateReportPath : systemicGate.reasonCode ? "Systemic no-result gate blocked formal publication: " + systemicGate.reasonCode + "." : first ? first.code + " " + first.jsonPointer + ": " + first.message : "Aggregated validation failed.");
         }
         chatgpt.advanceBridgeLifecycle(runId, "VALIDATION_COMPLETED", "completed"); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null;
         run.telemetry.validationMs = Date.now() - validationStarted; const assemblyStarted = Date.now(); run.progress.stage = "assembling_canonical";
@@ -832,6 +843,7 @@ export function registerAiAnalysisIpc() {
           const sqliteStarted = Date.now(); run.progress.stage = "committing_database"; const databaseCommit = commitExistingCanonical(dbPath, dataset, run); run.telemetry = { ...(run.telemetry ?? {}), sqliteWriteMs: Date.now() - sqliteStarted, sqliteCompletedAt: now() }; run.finalAcceptedRecordCount = databaseCommit.ok ? run.results.length : 0; run.progress.stage = "completed"; run.progress.status = databaseCommit.ok ? "completed" : "completed_with_persistence_error"; run.status = run.progress.status; run.progress.errorCode = databaseCommit.ok ? null : databaseCommit.failure.errorCode as AiAnalysisErrorCode; run.progress.message = databaseCommit.ok ? "Analysis artifacts, canonical output, Golden HTML, and SQLite commit completed." : "Analysis artifacts are valid and viewable, but the SQLite commit failed."; chatgpt.advanceBridgeLifecycle(runId, "RUN_COMPLETED", "completed"); run.bridgeEvidence = chatgpt.getBridgeEvidence(runId); run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null; if (run.lifecycle) { run.lifecycle.htmlRenderStatus = run.htmlRenderStatus ?? "not_started"; run.lifecycle.sqliteStatus = databaseCommit.ok ? "committed" : "commit_failed"; run.lifecycle.overallStatus = databaseCommit.ok ? "completed" : "completed_with_persistence_error"; run.lifecycle.rootErrorCode = databaseCommit.ok ? null : databaseCommit.failure.errorCode; }
         }
         if (runStagingFolder) persistRunDebugEvidence(runStagingFolder, run, requestEvidence, { providerResponseSha256: run.providerResponseSha256, finalAssistantMessagePath: run.finalAssistantMessagePath, analysisReportPath: run.analysisReportPath }, [{ at: run.startedAt, type: "analysis_started" }, { at: run.completedAt, type: "analysis_completed", warnings: run.anomalyWarnings ?? [] }], analysisUserActions);
+        if (runStagingFolder && run.lifecycle) { const submitted = loadPersistedSubmissionV0332(runStagingFolder); writeArtifactSubmissionResultV0332({ runDirectory: runStagingFolder, runId, submissionSha256: submitted.submissionSha256, formalArtifactStatus: run.canonicalRecordCount ? "accepted" : "pending_validation" }); writeValidationStageReceiptsV0332({ runDirectory: runStagingFolder, inputHash: submitted.submissionSha256, failedStage: null, rootErrorCode: null, warningStages: run.status === "completed_with_quality_warnings" ? ["SQLITE"] : run.htmlRenderStatus === "failed" ? ["HTML_RENDER"] : [] }); const terminal = convergeTerminalLifecycleV0332(run.lifecycle, { terminalState: run.status === "completed_with_quality_warnings" ? "completed_with_warnings" : run.status === "completed_with_persistence_error" ? "completed_with_persistence_error" : "completed", rootErrorCode: run.progress.errorCode, artifactReceived: true, artifactAccepted: true, validationStarted: true, validationPassed: true, firstFailedValidationStage: null, canonicalCreated: Boolean(run.canonicalRecordCount), analyzedResultCreated: Boolean(run.analyzedFilePath), activeResultChanged: Boolean(run.canonicalRecordCount), formalReportPackageCreated: Boolean(run.reportDataPackagePath), formalHtmlCreated: Boolean(run.reportFilePath), diagnosticReportPackageCreated: false, diagnosticHtmlCreated: false, sqliteStatus: run.lifecycle.sqliteStatus, updatedAtUtc: run.completedAt }); run.lifecycle = terminal; persistTerminalLifecycleV0332(runStagingFolder, terminal); }
       } else {
         run.status = "completed"; run.progress.status = "completed"; run.progress.stage = "writing_staging"; run.progress.message = "Analysis completed. Results require human review.";
         const reportPath = run.plannedAnalyzedFilePath!.replace(/\.json$/i, ".html"); const html = goldenHtmlForRun(run, dataset); validateGoldenHtml(html, run.results.length); let exported: ReturnType<typeof atomicExport> | null = null; let report: ReturnType<typeof atomicExport> | null = null;
@@ -881,7 +893,7 @@ export function registerAiAnalysisIpc() {
         const artifactDirectory = path.join(run.runDirectory, "artifact-attempts");
         const artifactReceived = fs.existsSync(artifactDirectory) && fs.readdirSync(artifactDirectory).some((name) => /^ai-submitted-artifact-attempt-\d+[.]json$/i.test(name));
         const firstFailedValidationStage = firstFailedValidationStageV0331(run.runDirectory);
-        const terminalLifecycle = convergeTerminalLifecycleV0331(run.lifecycle, {
+        const terminalLifecycle = convergeTerminalLifecycleV0332(run.lifecycle, {
           terminalState: rootErrorCode === "RUN_CANCELLED" ? "cancelled" : rootErrorCode === "AI_PROVIDER_TIMEOUT" ? "timed_out" : "failed",
           rootErrorCode, artifactReceived, artifactAccepted: false,
           validationStarted: Boolean(firstFailedValidationStage) || validationFailure,
@@ -890,10 +902,10 @@ export function registerAiAnalysisIpc() {
           formalReportPackageCreated: false, formalHtmlCreated: false,
           diagnosticReportPackageCreated: Boolean(run.diagnosticReportDataPackagePath),
           diagnosticHtmlCreated: Boolean(run.diagnosticReportFilePath),
-          sqliteStatus: "blocked", updatedAtUtc: run.completedAt
+          sqliteStatus: "blocked", rootErrorStage: firstFailedValidationStage, updatedAtUtc: run.completedAt
         });
         run.lifecycle = terminalLifecycle;
-        persistTerminalLifecycleSnapshotV0331(run.runDirectory, terminalLifecycle);
+        persistTerminalLifecycleV0332(run.runDirectory, terminalLifecycle);
       }
     } finally { const successful = ["completed", "completed_with_quality_warnings", "completed_with_persistence_error"].includes(run.status) && resultRegistry.active?.runId === run.runId; if (run.status !== "queued") attemptStore.finish(attempt, successful ? "COMPLETED" : "FAILED"); if (run.status !== "queued") { lastNavigationDecision = attemptStore.navigation(attempt, navigationDecisionV0325({ attempt, run, active: resultRegistry.active })); run.navigationDecision = lastNavigationDecision; } run.bridgeEvidence = chatgpt.getBridgeEvidence(runId) ?? run.bridgeEvidence ?? null; if (!run.lifecycle?.terminalSnapshotHash) run.lifecycle = run.bridgeEvidence?.lifecycle ?? run.lifecycle ?? null; const archive = runArchives.get(runId); try { archive?.writeManifest(run); if (!["queued", "running", "validating", "retrying", "cancelling"].includes(run.status)) archive?.close("terminal"); } catch (archiveError) { run.progress.errorCode = "AI_RUN_ARCHIVE_FAILED"; run.progress.message += ` Archive finalization failed: ${archiveError instanceof Error ? archiveError.message : String(archiveError)}`; } if (run.status !== "queued") dispatchGuard.finish(runId); providerFailureEvidence.delete(runId); activeRunId = null; abortControllers.delete(runId); observedWorkspaceFiles.delete(runId); lastProviderUiNotifyAt.delete(runId); chatgpt.releaseBridge(runId); notify(event); }
     return { ok: run.status === "completed" || run.status === "completed_with_quality_warnings" || run.status === "completed_with_persistence_error", run, navigationDecision: run.navigationDecision ?? null, snapshot: snapshot() };

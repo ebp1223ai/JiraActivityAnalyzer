@@ -1,3 +1,9 @@
+# v0.3.32 - Quote-level Multi-skill Quality Gate and Validation Receipt Truth
+
+- Added authoritative quote-span identity and per-Skill exclusive PRIMARY_CHANGE validation without folding distinct quotes into a parent evidence reference.
+- Restricted boilerplate detection to model-authored prose and added truthful v2 validation receipts, artifact submission/formal status separation, and a single idempotent terminal event.
+- Bound Manifest v0.8.1 and Common Rules v1.6.1 while preserving Catalog v0.3.1, HTML Template v1.5.0, transport v4, Decision v5, and the byte-identical external Bridge v13.
+- Added direct replay coverage for the v0.3.31 17-record debug archive.
 # v0.3.31 - Protected-token-safe Segmentation and Terminal Lifecycle Convergence
 
 - Upgraded model delivery to `bridge-resumable-v4` with `jaa-model-input-segment-v3` and deterministic protected-token-safe byte segmentation.

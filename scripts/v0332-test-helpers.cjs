@@ -1,0 +1,6 @@
+const fs=require("node:fs"),path=require("node:path"),{spawnSync}=require("node:child_process"),esbuild=require("esbuild");const root=path.resolve(__dirname,".."),artifacts=path.join(root,"test-artifacts","v0332"),archive=process.env.JAA_V0332_DEBUG_ARCHIVE||path.join(root,"release","exports","debug-folders","jira-activity-analyzer-debug-folder-20260822_002647.7z");
+function api(){fs.mkdirSync(artifacts,{recursive:true});const out=path.join(artifacts,"modules.cjs");esbuild.buildSync({entryPoints:[path.join(root,"electron","v0332TestExports.ts")],outfile:out,bundle:true,platform:"node",format:"cjs",target:"node20",external:["electron"],logLevel:"silent"});delete require.cache[out];return require(out)}
+function entries(){const x=spawnSync("tar",["-tf",archive],{encoding:"utf8"});if(x.status)throw new Error(x.stderr);return x.stdout.split(/\r?\n/).filter(Boolean)}
+function bytes(suffix){const name=entries().find(x=>x.endsWith(suffix));if(!name)throw new Error("missing archive entry "+suffix);const x=spawnSync("tar",["-xOf",archive,name],{encoding:"buffer",maxBuffer:64*1024*1024});if(x.status)throw new Error(x.stderr.toString());return x.stdout}
+const json=s=>JSON.parse(bytes(s).toString("utf8")),jsonl=s=>bytes(s).toString("utf8").split(/\r?\n/).filter(Boolean).map(JSON.parse);
+module.exports={root,artifacts,archive,api,bytes,json,jsonl};

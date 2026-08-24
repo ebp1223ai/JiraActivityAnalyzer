@@ -51,6 +51,7 @@ export type AnalysisLifecycleSummary = {
   terminalState?: string;
   terminalIdempotencyKey?: string;
   terminalSnapshotHash?: string;
+  terminalAtUtc?: string;
   analysisStarted: boolean;
   analysisCompleted: boolean;
   completedCount: number | null;

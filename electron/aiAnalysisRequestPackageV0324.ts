@@ -9,7 +9,7 @@ import { getDecisionContractDescriptorV0326 } from "./aiAnalysisDecisionContract
 
 export const REQUEST_PACKAGE_VERSION = "ai-analysis-request-package-v6" as const;
 export const CORE_INSTRUCTION_NAME = "jira-activity-analysis-local-workspace-instruction" as const;
-export const CORE_INSTRUCTION_VERSION = "0.3.31-zh-TW-v12" as const;
+export const CORE_INSTRUCTION_VERSION = "0.3.32-zh-TW-v13" as const;
 export const PROVIDER_DELIVERY_MODE = "LOCAL_FILE_WORKSPACE" as const;
 
 function sha256(value: Buffer | string) { return crypto.createHash("sha256").update(value).digest("hex"); }
