@@ -33,7 +33,7 @@ export type AnalysisLifecycleSummary = {
   canonicalAssemblyStatus: "not_started" | "completed" | "failed";
   htmlRenderStatus: "not_started" | "rendering" | "completed" | "failed";
   sqliteStatus: "blocked" | "eligible" | "committed" | "commit_failed";
-  overallStatus: "running" | "completed" | "completed_with_warnings" | "completed_with_quality_warnings" | "completed_with_artifact_error" | "completed_with_persistence_error" | "failed" | "interrupted";
+  overallStatus: "running" | "completed" | "completed_with_warnings" | "completed_with_quality_warnings" | "completed_with_artifact_error" | "completed_with_report_error" | "completed_with_persistence_error" | "failed" | "interrupted";
   lastSuccessfulStage: AnalysisLifecycleStage;
   firstFailedStage: AnalysisLifecycleStage | null;
   rootErrorCode: string | null;

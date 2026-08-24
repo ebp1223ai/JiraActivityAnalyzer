@@ -3,6 +3,7 @@ import { buildIdentityReceipt as buildV0326Receipt, persistAiSubmittedArtifact a
 
 export type ApprovedArtifactIdentityV0328 = Readonly<{
   identityVersion: "jaa-approved-artifact-identity-v1";
+  applicationVersion: "0.3.33";
   analysisAttemptId: string;
   runId: string;
   requestId: string;
@@ -19,19 +20,20 @@ export type ApprovedArtifactIdentityV0328 = Readonly<{
   catalogSha256: string;
   decisionContract: "jaa-ai-analysis-decisions-v5";
   outputSchemaSha256: string;
-  promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.31";
+  promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.33";
   bridgeIdentity: "0.3.31-bridge-v13";
   createdAtUtc: string;
 }>;
 
 export type ArtifactSubmissionV0328 = ArtifactSubmissionV0326;
 
-export function createApprovedArtifactIdentityV0328(input: Omit<ApprovedArtifactIdentityV0328, "identityVersion" | "decisionContract" | "promptIdentity" | "bridgeIdentity" | "createdAtUtc"> & { createdAtUtc?: string }) {
+export function createApprovedArtifactIdentityV0328(input: Omit<ApprovedArtifactIdentityV0328, "identityVersion" | "applicationVersion" | "decisionContract" | "promptIdentity" | "bridgeIdentity" | "createdAtUtc"> & { createdAtUtc?: string }) {
   return Object.freeze({
     identityVersion: "jaa-approved-artifact-identity-v1",
+    applicationVersion: "0.3.33",
     ...input,
     decisionContract: "jaa-ai-analysis-decisions-v5",
-    promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.31",
+    promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.33",
     bridgeIdentity: "0.3.31-bridge-v13",
     createdAtUtc: input.createdAtUtc ?? new Date().toISOString()
   }) as ApprovedArtifactIdentityV0328;

@@ -9,7 +9,7 @@ import { getDecisionContractDescriptorV0326 } from "./aiAnalysisDecisionContract
 
 export const REQUEST_PACKAGE_VERSION = "ai-analysis-request-package-v6" as const;
 export const CORE_INSTRUCTION_NAME = "jira-activity-analysis-local-workspace-instruction" as const;
-export const CORE_INSTRUCTION_VERSION = "0.3.32-zh-TW-v13" as const;
+export const CORE_INSTRUCTION_VERSION = "0.3.33-zh-TW-v14" as const;
 export const PROVIDER_DELIVERY_MODE = "LOCAL_FILE_WORKSPACE" as const;
 
 function sha256(value: Buffer | string) { return crypto.createHash("sha256").update(value).digest("hex"); }
@@ -88,7 +88,7 @@ export function buildRequestPackage(input: { runId: string; runDirectory: string
   atomicExport(path.join(control, "output-schema.json"), decisionContract.canonicalJson);
   atomicExport(path.join(control, "bridge-contract.json"), JSON.stringify({ schemaVersion: "jaa-analysis-bridge-contract-v1", version: "0.3.31-bridge-v13", executionContext: "jaa-bridge-execution-context-v1", modelDeliveryHandle: "jaa-model-delivery-handle-v1", modelVisibleIdentityFields: [], transport: "codex_dynamic_tools_stdio", modelInputTransport: "bridge-resumable-v4", localOnly: true, tools: ["jaa_get_input_manifest", "jaa_read_and_ack_next_segment", "jaa_get_delivery_status", "jaa_finalize_input_delivery", "jaa_report_analysis_progress", "jaa_publish_analysis_artifacts_v5"], arbitraryPath: false, arbitraryCommand: false, externalFallback: false }, null, 2));
   const requestPackage: AiAnalysisRequestPackage = {
-    requestPackageVersion: REQUEST_PACKAGE_VERSION, instructionMode, instructionComposition: composition, modelInputTransport: "bridge-resumable-v4", promptLocale: "zh-TW", responseLocale: "zh-TW", promptTemplateVersion: CORE_INSTRUCTION_VERSION, decisionContractVersion: decisionContract.schemaVersion, decisionContractSha256: decisionContract.sha256, runId: input.runId, createdAtLocal: created.toLocaleString("sv-SE", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }), createdAtUtc: created.toISOString(), localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    requestPackageVersion: REQUEST_PACKAGE_VERSION, applicationVersion: "0.3.33", promptIdentity: "JAA-CHATGPT-ZH-TW-0.3.33", qualityContractVersion: input.rules.qualityContractVersion, bridgeIdentity: "0.3.31-bridge-v13", rulesSnapshotId: input.rules.snapshotId ?? input.rules.ruleSetId, instructionMode, instructionComposition: composition, modelInputTransport: "bridge-resumable-v4", promptLocale: "zh-TW", responseLocale: "zh-TW", promptTemplateVersion: CORE_INSTRUCTION_VERSION, decisionContractVersion: decisionContract.schemaVersion, decisionContractSha256: decisionContract.sha256, runId: input.runId, createdAtLocal: created.toLocaleString("sv-SE", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }), createdAtUtc: created.toISOString(), localTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     deliveryMode: PROVIDER_DELIVERY_MODE, inputRecordCount: pendingRecords.length, inputStableIdSetSha256, pendingSourceSha256, documents,
     coreInstructionName: CORE_INSTRUCTION_NAME, coreInstructionVersion: CORE_INSTRUCTION_VERSION, coreInstructionSha256: sha256(prompt), supplementalInstructionSha256: supplemental ? sha256(supplemental) : null, outputSchemaSha256: decisionContract.sha256,
     finalProviderPayloadSha256: sha256(prompt), finalProviderPayloadBytes: Buffer.byteLength(prompt), inlineBlockCount: 0, nativeFileCount: 0, workspaceFileCount: 4, inlineFileContentCount: 0, nativeInputFileCount: 0

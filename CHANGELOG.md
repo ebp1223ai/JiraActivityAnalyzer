@@ -1,3 +1,11 @@
+# v0.3.33 - Multi-skill Quality, HTML, Lifecycle, and Runtime Identity Truth
+
+- Replaced exclusive-quote-only multi-skill enforcement with evidence coverage v2: independent quotes pass, distinguishable shared quotes warn, indistinguishable shared quotes block, and missing PRIMARY_CHANGE evidence fails closed without rewriting model output.
+- Added deterministic Catalog detail/status validation plus separate exact-duplicate and boilerplate model-prose findings; Quality warnings require durable, audited acceptance before an idempotent SQLite retry.
+- Aligned Manifest v0.8.2, Common Rules v1.6.2, Template v1.5.1, Report Package, and local Renderer 1.5.1 on LAYERED_VALIDATION_RECEIPTS_V2.
+- Unified automatic and Results-page HTML rendering, preserved valid Canonical results on report failure, and introduced truthful completed_with_report_error lifecycle handling.
+- Added pre-dispatch App 0.3.33 / Prompt v14 / Bridge v13 identity validation and cleaned stale failure fields from successful terminal lifecycle snapshots.
+- Added real read-only offline replay coverage for the supplied v0.3.32 17-record and 117-record Debug archives without contacting the Provider or mutating raw submissions.
 # v0.3.32 - Quote-level Multi-skill Quality Gate and Validation Receipt Truth
 
 - Added authoritative quote-span identity and per-Skill exclusive PRIMARY_CHANGE validation without folding distinct quotes into a parent evidence reference.
