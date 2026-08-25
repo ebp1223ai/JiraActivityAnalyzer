@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "jaa-v0336-execution-time-ledger-v1",
+  "generatedAtUtc": "2026-08-25T11:38:39.6726259+08:00",
+  "entries": [
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "npm.cmd run typecheck",
+      "durationMs": 10591
+    },
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "npm.cmd run test:v0.3.36",
+      "durationMs": 808
+    },
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "npm.cmd run test:v0.3.31",
+      "durationMs": 3918
+    },
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "npm.cmd run test:v0.3.32",
+      "durationMs": 1543
+    },
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "npm.cmd run test:v0.3.33",
+      "durationMs": 2703
+    },
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "npm.cmd run test:v0.3.34",
+      "durationMs": 812
+    },
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "npm.cmd run test:v0.3.35",
+      "durationMs": 1246
+    },
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "npm.cmd run build",
+      "durationMs": 46487
+    },
+    {
+      "result": "BLOCKED_BY_SECURITY_REVIEW",
+      "exitCode": null,
+      "command": "npm.cmd run replay:v0.3.35:forensic",
+      "durationMs": null
+    },
+    {
+      "result": "BLOCKED_BY_SECURITY_REVIEW",
+      "exitCode": null,
+      "command": "npm.cmd run replay:v0.3.35:corrected-host",
+      "durationMs": null
+    },
+    {
+      "result": "FAIL_PACKAGED_BRIDGE_REGISTRY_V1",
+      "exitCode": 1,
+      "command": "npm.cmd run dist (attempt 1)",
+      "durationMs": 126000
+    },
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "npm.cmd run dist (attempt 2)",
+      "durationMs": 122000
+    },
+    {
+      "result": "FAIL_NO_V0336_LOG",
+      "exitCode": 1,
+      "command": "win-unpacked ELECTRON_UI_SMOKE=1 ELECTRON_UI_CAPTURE=0",
+      "durationMs": 53973
+    },
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "ASAR security inventory",
+      "durationMs": 833
+    },
+    {
+      "result": "PASS",
+      "exitCode": 0,
+      "command": "git diff --check",
+      "durationMs": null
+    }
+  ],
+  "liveProvider": {
+    "status": "NOT_RUN",
+    "providerContacted": false
+  },
+  "productionSqliteWritten": false,
+  "tokenTelemetry": "unavailable"
+}

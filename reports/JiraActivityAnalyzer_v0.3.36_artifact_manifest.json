@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "jaa-v0336-artifact-manifest-v1",
+  "applicationVersion": "0.3.36",
+  "branch": "feat/v0.3.36-terminal-reconciliation-artifact-identity-correctness",
+  "packagedSourceCommit": "390f2e781267cf0bcf5f7da5bba13a58072e4638",
+  "buildTime": "2026/08/25 11:30:20",
+  "dirtyState": true,
+  "artifacts": [
+    {
+      "role": "INSTALLER",
+      "path": "release/Jira Activity Analyzer Setup 0.3.36.exe",
+      "bytes": 190671783,
+      "sha256": "b67c74336aad73ac3214645ce0b4c04926d66d5e2e647d28d06d1d4764be12ce"
+    },
+    {
+      "role": "PORTABLE",
+      "path": "release/Jira Activity Analyzer Portable 0.3.36.exe",
+      "bytes": 190441697,
+      "sha256": "bdaade62cb720dc39d9176ea03933563f261529835310b6121ecbfe5de7ee70f"
+    },
+    {
+      "role": "WIN_UNPACKED",
+      "path": "release/win-unpacked/Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "a9e7a647ab63daa749be1d17291ece877fae811c1ad3e2ca5b6854241c4b6ab1"
+    },
+    {
+      "role": "APP_ASAR",
+      "path": "release/win-unpacked/resources/app.asar",
+      "bytes": 25046816,
+      "sha256": "01e333be0622e4e25d7328ef7e596085451ccfb3858706bb4b639816f104a4a7"
+    },
+    {
+      "role": "ANALYSIS_BRIDGE",
+      "path": "release/win-unpacked/resources/jaa-analysis-bridge/analysis-bridge-v0336.cjs",
+      "bytes": 180758,
+      "sha256": "7232578c6fa63b018462c01c468f754d1e417bc3f03b6e58c93fecfebea3c367"
+    }
+  ],
+  "controlledDocuments": [
+    {
+      "file": "JiraActivityAnalyzer_v0.3.36_Complete_Codex_Prompt.md",
+      "bytes": 32170,
+      "sha256": "68f26c2f58f98e779da3cb3cc427e835e77f64b14bed4389b65a6a8d0f0effd0"
+    },
+    {
+      "file": "Skill_Analysis_HTML_Report_Template_v1.5.1.md",
+      "bytes": 38057,
+      "sha256": "dee064f1746a550d7c1867c9305a7b4774bb1788c37d8c00ab3e4e1216aeee02"
+    },
+    {
+      "file": "Skill_Analysis_Rule_Set_Manifest_v0.8.5.md",
+      "bytes": 40969,
+      "sha256": "62a3a4ba8e2923d2a1898e28e68753033aea9914abf9a384a4f037978a2eeb38"
+    },
+    {
+      "file": "Skill_Catalog_v0.3.1.md",
+      "bytes": 24636,
+      "sha256": "dd1b4a366e4f7fdc3232776a7a6ff54070eae00cc41102c195de5b0deb749d7d"
+    },
+    {
+      "file": "Skill_Classification_Common_Rules_v1.6.5.md",
+      "bytes": 51776,
+      "sha256": "c819004275aff3c6b3fc646b994ef1077a8e4385730e07460fdd0e36d4aef10d"
+    }
+  ],
+  "packagedBridgeVerification": "PASS",
+  "asarForbiddenMatches": 0,
+  "rendererSmoke": "FAILED_UNATTRIBUTED_EXIT_1_MANUAL_VALIDATION_REQUIRED",
+  "forensicReplay": "BLOCKED_BY_SECURITY_REVIEW",
+  "correctedHostReplay": "BLOCKED_BY_SECURITY_REVIEW",
+  "generatedAtUtc": "2026-08-25T11:38:39.6726259+08:00"
+}
