@@ -1,0 +1,3 @@
+# v0.3.37 Debug Completeness Report
+
+Debug collection now includes provider-adapter receipt, durable Artifact receipt, reducer fact journal, Resolver receipt, terminal decision, run terminal, post-Artifact stage receipts and recovery lineage. Persisted Artifact detection also consults durable truth and physical artifact-attempts; contradictory/corrupt truth is classified `CONTRADICTORY_EVIDENCE` instead of not applicable. Credential-pattern scans of v0.3.37 changed/new source found zero matches. Real Debug Bundle completeness remains NOT RUN because the sensitive archive was not opened.

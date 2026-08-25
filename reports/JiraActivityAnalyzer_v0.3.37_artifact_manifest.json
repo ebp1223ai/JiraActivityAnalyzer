@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "jaa-v0337-artifact-manifest-v1",
+  "appVersion": "0.3.37",
+  "overallStatus": "Partial / Manual Validation Pending",
+  "generatedAtUtc": "2026-08-25T06:40:32.3480141Z",
+  "sourceCommit": "0e60c25d35610e52c6ec371854f3d2f792376176",
+  "buildTime": "2026/08/25 14:34:07",
+  "dirtyState": true,
+  "artifacts": [
+    {
+      "role": "portable",
+      "path": "release/Jira Activity Analyzer Portable 0.3.37.exe",
+      "bytes": 190453659,
+      "sha256": "5a6e60d80c20f4c111213341d9a084b8059f4de90dce44f8a108a79e01ee96f9"
+    },
+    {
+      "role": "installer",
+      "path": "release/Jira Activity Analyzer Setup 0.3.37.exe",
+      "bytes": 190683806,
+      "sha256": "110218a18f27555872c7be6a180785c90ce5063f57b4ff0847e9284199b250fd"
+    },
+    {
+      "role": "win-unpacked-executable",
+      "path": "release/win-unpacked/Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "920348ce9eb7dfb30804ca4bbf596da170d5f66b1b88dabf389e2d9103c56569"
+    },
+    {
+      "role": "analysis-bridge",
+      "path": "release/win-unpacked/resources/jaa-analysis-bridge/analysis-bridge-v0337.cjs",
+      "bytes": 181460,
+      "sha256": "403b9093c2f95bc5ba49679eff851680c13baf80e31b24db1a35a8d593dc0770"
+    },
+    {
+      "role": "bundled-codex",
+      "path": "release/win-unpacked/resources/codex-runtime/bin/codex.exe",
+      "bytes": 298668336,
+      "sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d"
+    }
+  ],
+  "controlledDocuments": [
+    {
+      "file": "JiraActivityAnalyzer_v0.3.37_Complete_Codex_Prompt.md",
+      "bytes": 36020,
+      "sha256": "021c346abd48c1e29f7451c9b19722645233936fcd4e68373ac00b61f68c2555"
+    },
+    {
+      "file": "Skill_Analysis_HTML_Report_Template_v1.5.1.md",
+      "bytes": 38057,
+      "sha256": "dee064f1746a550d7c1867c9305a7b4774bb1788c37d8c00ab3e4e1216aeee02"
+    },
+    {
+      "file": "Skill_Catalog_v0.3.1.md",
+      "bytes": 24636,
+      "sha256": "dd1b4a366e4f7fdc3232776a7a6ff54070eae00cc41102c195de5b0deb749d7d"
+    },
+    {
+      "file": "Skill_Classification_Common_Rules_v1.6.6.md",
+      "bytes": 56335,
+      "sha256": "bd1858c939fd6e240c5fd57bf7d28c90d52bd1b9cee8149daca7b4f1403c2da4"
+    },
+    {
+      "file": "Skill_Analysis_Rule_Set_Manifest_v0.8.6.md",
+      "bytes": 46907,
+      "sha256": "62b8951e3d580f99ade72cc0eb50efb64c5064553ac8fee480f48c9128ebdee9"
+    }
+  ]
+}

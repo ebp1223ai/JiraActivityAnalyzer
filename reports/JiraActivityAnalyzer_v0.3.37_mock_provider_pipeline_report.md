@@ -1,0 +1,3 @@
+# v0.3.37 Mock Provider Pipeline Report
+
+Deterministic 17-record Mock Adapter test PASS without network, Codex process, OAuth, Provider token, production SQLite or production Active Result. Artifact persistence, 14 ordered stage receipts, SQLite `NOT_RUN_BY_TEST_ISOLATION`, recovery supersession and idempotent rerun were verified. Failed and cancelled pre-Artifact scenarios were verified. This result is test isolation evidence and does not equal Live Provider PASS.

@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "jaa-v0337-execution-time-ledger-v1",
+  "generatedAtUtc": "2026-08-25T06:40:32.3480141Z",
+  "sourceCommit": "0e60c25d35610e52c6ec371854f3d2f792376176",
+  "commands": [
+    {
+      "command": "npm.cmd run typecheck",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 12864
+    },
+    {
+      "command": "npm.cmd run test:v0.3.37",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 4960,
+      "providerContacted": false,
+      "productionSqliteWritten": false
+    },
+    {
+      "command": "npm.cmd run test:provider-adapter:v0.3.37",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 4392,
+      "providerContacted": false
+    },
+    {
+      "command": "npm.cmd run test:mock-provider:v0.3.37",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 4563,
+      "providerContacted": false,
+      "productionSqliteWritten": false
+    },
+    {
+      "command": "npm.cmd run replay:v0.3.36",
+      "status": "NOT RUN",
+      "exitCode": 0,
+      "durationMs": 3638,
+      "reason": "Safe extracted JAA_V0336_REPLAY_ROOT not supplied",
+      "providerContacted": false,
+      "tokenDelta": 0,
+      "productionSqliteWritten": false,
+      "activeResultReplaced": false
+    },
+    {
+      "command": "npm.cmd run test:live:v0.3.37:17",
+      "status": "NOT RUN",
+      "exitCode": 0,
+      "durationMs": 3649,
+      "reason": "JAA_ENABLE_LIVE_PROVIDER_TEST not enabled",
+      "providerContacted": false,
+      "tokenTelemetry": "unavailable"
+    },
+    {
+      "command": "npm.cmd run build",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 22146
+    },
+    {
+      "command": "v0.3.31..v0.3.36 direct historical regression",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 5547
+    },
+    {
+      "command": "npm.cmd run dist",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 115747
+    },
+    {
+      "command": "Portable packaged renderer DOM startup",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 19093
+    },
+    {
+      "command": "win-unpacked packaged renderer DOM startup",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 8818
+    },
+    {
+      "command": "git diff --check",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": null
+    }
+  ]
+}

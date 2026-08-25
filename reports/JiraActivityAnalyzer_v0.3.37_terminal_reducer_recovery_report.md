@@ -1,0 +1,3 @@
+# v0.3.37 Terminal Reducer and Recovery Report
+
+The terminal reducer rereads durable evidence and prevents `FAILED_NO_ARTIFACT` whenever positive or corrupt evidence exists. Post-Artifact receipts cover all 14 ordered stages and failed stages cause downstream `NOT_RUN_DUE_TO_PRIOR_FAILURE`. Recovery preserves old terminal bytes and writes a recovery terminal plus `jaa-recovery-supersession-receipt-v1`; idempotent synthetic replay PASS with Provider contact 0, token delta 0, production SQLite false, and Active Result replacement false. Startup/manual recovery projections and UI action are present. The real v0.3.36 17-record recovery was NOT RUN, therefore real Canonical/HTML recovery remains Manual Validation Pending.

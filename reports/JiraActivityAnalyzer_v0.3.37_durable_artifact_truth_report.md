@@ -1,0 +1,3 @@
+# v0.3.37 Durable Artifact Truth Report
+
+Implemented `jaa-durable-artifact-truth-resolver-v1`, byte reopen/hash verification, durable Artifact receipt binding, and hash-chained `reducer-facts.jsonl`. Resolver statuses are `PERSISTED_VALID`, `NOT_FOUND`, `CONTRADICTORY`, and `CORRUPT`. Synthetic ordering, missing, hash mismatch, journal integrity, and stale-terminal contradiction tests PASS. The production failure path now invokes the Resolver before accepting a no-artifact conclusion. The specified real v0.3.36 archive replay is NOT RUN pending a safe extracted root, so its expected SHA `5540f1a4a0227cd51d8e2ff3ffafc747be99c52eb4a4dd49b780e9b2e8b34322` was not independently reopened in this run.

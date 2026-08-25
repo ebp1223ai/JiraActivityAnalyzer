@@ -1,0 +1,3 @@
+# v0.3.37 Provider Adapter Boundary Report
+
+Provider-neutral Request, Artifact, Adapter, event sink, capabilities and registry contracts were added. Formal ChatGPT dispatch now resolves `ChatGptCodexProviderAdapterV0337` from the registry; provider selection and preflight are durably receipted. Core source architecture scans reject concrete ChatGPT/Codex imports. No silent fallback exists. Production `main.cjs` contains neither the Mock provider ID nor fixture text, and ASAR inventory contains no test-only Mock module.
