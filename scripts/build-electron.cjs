@@ -79,7 +79,7 @@ const bridgeSha256 = require("node:crypto").createHash("sha256").update(fs.readF
 const bridgeBytes = fs.statSync(bridgeOutput).size;
 fs.writeFileSync(path.join(bridgeResourceDir, "analysis-bridge-manifest-v0336.json"), JSON.stringify({
   schemaVersion: "jaa-packaged-analysis-bridge-manifest-v1", bridgeIdentity: "0.3.36-bridge-v16", artifactFileName: "analysis-bridge-v0336.cjs",
-  artifactBytes: bridgeBytes, artifactSha256: bridgeSha256, runtimeContractRegistry: "jaa-runtime-contract-registry-v1",
+  artifactBytes: bridgeBytes, artifactSha256: bridgeSha256, runtimeContractRegistry: "jaa-runtime-contract-registry-v2",
   transport: "bridge-resumable-v4", segmentSchema: "jaa-model-input-segment-v3", segmentPlanner: "jaa-protected-token-safe-segment-planner-v1", boundaryReceipt: "jaa-segment-boundary-safety-receipt-v1", decisionContract: "jaa-ai-analysis-decisions-v5", localOnly: true, externalFallback: false
 }, null, 2) + "\n", "utf8");
 console.log(`  analysis bridge manifest  identity=0.3.36-bridge-v16 bytes=${bridgeBytes} sha256=${bridgeSha256}`);

@@ -13,6 +13,7 @@ const manifestFile = path.join(resourceDirectory, "analysis-bridge-manifest-v033
 const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
 const bytes = fs.readFileSync(artifact); const hash = crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(bytes.length, manifest.artifactBytes); assert.equal(hash, manifest.artifactSha256); assert.equal(manifest.bridgeIdentity, "0.3.36-bridge-v16");
+assert.equal(manifest.runtimeContractRegistry, "jaa-runtime-contract-registry-v2");
 assert.equal(manifest.transport, "bridge-resumable-v4");
 assert.equal(manifest.segmentSchema, "jaa-model-input-segment-v3");
 assert.equal(manifest.segmentPlanner, "jaa-protected-token-safe-segment-planner-v1");
