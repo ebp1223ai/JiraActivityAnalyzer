@@ -1,0 +1,2 @@
+if (process.env.JAA_ENABLE_LIVE_PROVIDER_TEST !== "1") { console.log(JSON.stringify({ status: "NOT_RUN", reason: "JAA_ENABLE_LIVE_PROVIDER_TEST=1 was not set." })); process.exit(0); }
+throw new Error("LIVE_TEST_PREREQUISITES_MUST_BE_PROVIDED_EXPLICITLY");

@@ -28,7 +28,11 @@ export function sanitizeChatGptValueComplete(value: unknown, seen = new WeakSet<
   if (seen.has(value)) return "[circular]";
   seen.add(value);
   if (Array.isArray(value)) return value.map((item) => sanitizeChatGptValueComplete(item, seen));
-  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) => [/token|authorization|cookie|secret|password|api.?key|delivery.?handle|artifact.?handle/i.test(key) ? key : key, /token|authorization|cookie|secret|password|api.?key|delivery.?handle|artifact.?handle/i.test(key) ? "[masked]" : sanitizeChatGptValueComplete(child, seen)]));
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) => {
+    const numericTokenTelemetry = /token/i.test(key) && (typeof child === "number" || child === null);
+    const secretField = /token|authorization|cookie|secret|password|api.?key|delivery.?handle|artifact.?handle/i.test(key);
+    return [key, secretField && !numericTokenTelemetry ? "[masked]" : sanitizeChatGptValueComplete(child, seen)];
+  }));
 }
 
 export function redactChatGptText(value: unknown) {

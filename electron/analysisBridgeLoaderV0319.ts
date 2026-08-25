@@ -2,7 +2,7 @@ import { app } from "electron";
 import { ANALYSIS_BRIDGE_VERSION, type AnalysisBridgeToolContext, type AnalysisLifecycleSummary } from "../shared/analysisBridgeContract.js";
 import type { AiAnalysisRequestPackage } from "../shared/aiAnalysisContract.js";
 import type { AiInstructionMode } from "../shared/analysisInstructionContract.js";
-import { resolveAnalysisBridgeArtifactV0335, type BridgePreflightReceiptV0335 } from "./analysisBridgeResolverV0335.js";
+import { resolveAnalysisBridgeArtifactV0336, type BridgePreflightReceiptV0336 } from "./analysisBridgeResolverV0336.js";
 
 type BridgeInstance = {
   version: string;
@@ -18,6 +18,7 @@ type BridgeInstance = {
   terminate(): void;
   setProviderTurnStatus(status: AnalysisLifecycleSummary["providerTurnStatus"]): void;
   setControlStage(state: string, reason: string, receiptId?: string | null): unknown;
+  setArtifactStatus(status: "content_validated" | "formally_published"): unknown;
   setHtmlRenderStatus(status: AnalysisLifecycleSummary["htmlRenderStatus"]): void;
   setSqliteStatus(status: AnalysisLifecycleSummary["sqliteStatus"], errorCode?: string): void;
   setPostBridgeStage(stage: "VALIDATION_COMPLETED" | "CANONICAL_ASSEMBLY_COMPLETED" | "RUN_COMPLETED", status: "completed" | "failed"): void;
@@ -27,12 +28,12 @@ type BridgeInstance = {
 
 type BridgeInput = { runId: string; sessionNonce: string; runDirectory: string; requestPackage: AiAnalysisRequestPackage; rulesSnapshotId: string; catalogSkillIds: string[]; instructionMode?: AiInstructionMode; analysisAttemptId?: string; requestId?: string; provider?: string; model?: string; manifestSha256?: string; commonRulesSha256?: string; catalogSha256?: string; outputSchemaSha256?: string; quoteCatalog?: unknown; evidenceSegments?: unknown[] };
 
-export function preflightAnalysisBridgeV0335(phase: BridgePreflightReceiptV0335["phase"], attemptId?: string | null) {
-  return resolveAnalysisBridgeArtifactV0335({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase, attemptId });
+export function preflightAnalysisBridgeV0336(phase: BridgePreflightReceiptV0336["phase"], attemptId?: string | null) {
+  return resolveAnalysisBridgeArtifactV0336({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase, attemptId });
 }
 
 export function loadAnalysisBridge(input: BridgeInput) {
-  const resolution = preflightAnalysisBridgeV0335("analysis_start", input.analysisAttemptId);
+  const resolution = preflightAnalysisBridgeV0336("analysis_start", input.analysisAttemptId);
   if (resolution.receipt.status !== "ready" || !resolution.runtime || !resolution.manifest) {
     const code = resolution.receipt.rootErrorCode ?? "AI_BRIDGE_LOADABILITY_FAILED";
     throw Object.assign(new Error(`${code}:${resolution.receipt.rootErrorMessage ?? "Analysis Bridge preflight failed."}`), { code, bridgePreflightReceipt: resolution.receipt });

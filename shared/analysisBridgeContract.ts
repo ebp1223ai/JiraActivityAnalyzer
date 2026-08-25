@@ -1,4 +1,4 @@
-export const ANALYSIS_BRIDGE_VERSION = "0.3.35-bridge-v15" as const;
+export const ANALYSIS_BRIDGE_VERSION = "0.3.36-bridge-v16" as const;
 export const ANALYSIS_BRIDGE_SCHEMA_VERSION = "jaa-analysis-bridge-contract-v1" as const;
 
 export type AnalysisLifecycleStage =
@@ -26,7 +26,7 @@ export type AnalysisLifecycleSummary = {
   sourceInputStatus?: "not_started" | "validated" | "failed";
   modelInputStatus?: "not_started" | "delivering" | "delivered" | "failed";
   analysisStatus: "not_started" | "running" | "completed" | "failed" | "interrupted";
-  artifactStatus: "not_started" | "submitting" | "received" | "accepted" | "rejected" | "submission_rejected" | "published" | "failed";
+  artifactStatus: "not_started" | "submitting" | "received" | "accepted" | "persisted" | "content_validated" | "formally_published" | "rejected" | "submission_rejected" | "published" | "failed";
   artifactAttemptStatus?: "not_started" | "received";
   validationStatus: "not_started" | "running" | "passed" | "completed" | "failed" | "blocked";
   firstFailedValidationStage?: string | null;

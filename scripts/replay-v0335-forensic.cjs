@@ -1,0 +1,10 @@
+const fs = require("node:fs"); const path = require("node:path");
+const root = process.env.JAA_V0335_REPLAY_ROOT ? path.resolve(process.env.JAA_V0335_REPLAY_ROOT) : null;
+if (!root || !fs.existsSync(root)) { console.log(JSON.stringify({ status: "NOT_RUN", reason: "JAA_V0335_REPLAY_ROOT was not provided; the real Debug Bundle remains unread and unchanged.", providerCalled: false, productionSqliteWritten: false })); process.exit(0); }
+const files = []; (function visit(folder) { for (const item of fs.readdirSync(folder, { withFileTypes: true })) { const target = path.join(folder, item.name); item.isDirectory() ? visit(target) : files.push(target); } })(root);
+const identityFile = files.find((file) => /artifact-identity-receipt.*\.json$/i.test(file)); const registryFile = files.find((file) => /runtime-contract-registry\.json$/i.test(file));
+if (!identityFile || !registryFile) throw new Error("REPLAY_EVIDENCE_INCOMPLETE: identity or registry receipt missing");
+const identity = JSON.parse(fs.readFileSync(identityFile, "utf8")); const registry = JSON.parse(fs.readFileSync(registryFile, "utf8"));
+const approved = identity.expectedIdentity || identity.approvedArtifactIdentity || identity.expected || {}; const mismatches = [["applicationVersion", registry.applicationVersion, approved.applicationVersion], ["promptIdentity", registry.promptIdentity, approved.promptIdentity], ["bridgeIdentity", registry.bridgeIdentity, approved.bridgeIdentity]].filter((x) => x[1] !== x[2]).map(([field, expected, observed]) => ({ field, expected, observed }));
+if (!mismatches.length) throw new Error("FORENSIC_REPLAY_EXPECTED_IDENTITY_MISMATCH_NOT_FOUND");
+console.log(JSON.stringify({ status: "PASS", outcome: "IDENTITY_MISMATCH", mismatches, providerCalled: false, productionSqliteWritten: false }, null, 2));

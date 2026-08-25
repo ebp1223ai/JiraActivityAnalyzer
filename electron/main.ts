@@ -63,7 +63,7 @@ import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } f
 import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
 import { flushRunArchive } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
-import { resolveAnalysisBridgeArtifactV0335 } from "./analysisBridgeResolverV0335.js";
+import { resolveAnalysisBridgeArtifactV0336 } from "./analysisBridgeResolverV0336.js";
 
 declare const __MAIN_APP_VERSION__: string;
 declare const __MAIN_BUILD_TIME__: string;
@@ -124,7 +124,7 @@ try {
 }
 
 if (shouldVerifyAnalysisBridge) {
-  const resolution = resolveAnalysisBridgeArtifactV0335({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase: "diagnostic" });
+  const resolution = resolveAnalysisBridgeArtifactV0336({ appIsPackaged: app.isPackaged, processResourcesPath: process.resourcesPath, developmentResourcesPath: __dirname, phase: "diagnostic" });
   const output = JSON.stringify(resolution.receipt);
   console.log(`JAA_ANALYSIS_BRIDGE_DIAGNOSTIC=${output}`);
   const receiptPath = process.env.JAA_BRIDGE_DIAGNOSTIC_RECEIPT_PATH;
@@ -4430,10 +4430,10 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     "control/analysis-instruction.md", "control/instruction-mode.json", "control/system-safety-wrapper.md", "control/default-analysis-instruction.md", "control/user-additional-instruction.md", "control/user-custom-instruction.md", "control/final-effective-instruction.md", "control/final-effective-instruction.sha256", "control/instruction-composition-manifest.json", "control/input-transport-contract.json", "control/request-package-manifest.json", "control/output-schema.json", "control/bridge-contract.json",
     "progress/source-input-receipt.json", "progress/lifecycle-summary.json", "progress/bridge-execution-context-receipt.json", "debug/token-usage.json", "debug/bridge-diagnostics.json"
   ];
-  const aiFormalSuccessfulEvidence = ["progress/model-delivery-events.jsonl", "progress/model-delivery-receipt.json", "progress/input-receipt.json", "progress/analysis-progress.jsonl", "progress/artifact-receipt.json", "ai-output/ai-analysis-decisions.json", "ai-output/analysis-report.md", "ai-output/final-assistant-message.txt", "canonical-output/analysis-result.json", "canonical-output/validation-report.json", "canonical-output/completion-manifest.json"];
+  const aiFormalSuccessfulEvidence = ["progress/model-delivery-events.jsonl", "progress/model-delivery-receipt.json", "progress/input-receipt.json", "progress/analysis-progress.jsonl", "progress/artifact-receipt.json", "ai-output/ai-analysis-decisions.json", "ai-output/analysis-report.md", "ai-output/artifact-final-summary.txt", "ai-output/provider-final-assistant-message.txt", "canonical-output/analysis-result.json", "canonical-output/validation-report.json", "canonical-output/completion-manifest.json"];
   const aiHtmlEvidence = selectedHtmlStatus === "completed" ? ["canonical-output/analysis-result.html", "canonical-output/html-render-receipt.json", "debug/html-render-diagnostics.json"] : selectedHtmlStatus === "failed" ? ["debug/html-render-diagnostics.json"] : [];
   const aiPersistenceEvidence = selectedSqliteStatus === "committed" ? ["progress/database-commit-receipt.json"] : selectedSqliteStatus === "commit_failed" ? ["progress/database-commit-failure.json"] : [];
-  const aiCustomSuccessfulEvidence = ["progress/model-delivery-events.jsonl", "progress/model-delivery-receipt.json", "progress/input-receipt.json", "ai-output/custom-response.md", "ai-output/final-assistant-message.txt"];
+  const aiCustomSuccessfulEvidence = ["progress/model-delivery-events.jsonl", "progress/model-delivery-receipt.json", "progress/input-receipt.json", "ai-output/custom-response.md", "ai-output/artifact-final-summary.txt", "ai-output/provider-final-assistant-message.txt"];
   const customDiagnostic = selectedInstructionMode === "CUSTOM_DIAGNOSTIC";
   const aiSuccessfulRunEvidence = customDiagnostic ? aiCustomSuccessfulEvidence : [...aiFormalSuccessfulEvidence, ...aiHtmlEvidence, ...aiPersistenceEvidence];
   const notApplicableForInstructionMode = customDiagnostic ? aiFormalSuccessfulEvidence.filter((item) => !aiCustomSuccessfulEvidence.includes(item)) : [];
