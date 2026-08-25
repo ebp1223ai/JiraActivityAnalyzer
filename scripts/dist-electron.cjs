@@ -101,7 +101,7 @@ build({
   });
   fs.writeFileSync(path.join(releaseDir, "build-info.json"), `${JSON.stringify({ ...buildInfo, artifacts }, null, 2)}\n`, "utf8");
   console.log(`  copied versioned environment template  file=${path.join("release", ".env.version")}`);
-  execFileSync(process.execPath, [path.join(projectRoot, "scripts", "verify-packaged-bridge-v0336.cjs")], { cwd: projectRoot, stdio: "inherit" });
+  execFileSync(process.execPath, [path.join(projectRoot, "scripts", "verify-packaged-bridge-v0337.cjs")], { cwd: projectRoot, stdio: "inherit" });
   console.log(`  packaged source commit  commit=${packagedSourceCommit}`);
 }).catch((error) => {
   console.error(error);

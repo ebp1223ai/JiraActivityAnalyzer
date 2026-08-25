@@ -1,3 +1,6 @@
+## v0.3.37 Durable Artifact Recovery 與 Provider-neutral Core
+
+v0.3.37 以 durable Artifact file、receipt、Run Manifest、Bridge evidence 與 hash-chained fact journal 作為 Artifact 真實性來源，禁止 stale 記憶體狀態產生錯誤的 no-artifact terminal。ChatGPT 正式流程改由 Provider Adapter 執行；Mock Adapter 僅供無網路隔離測試，不會出現在 production UI 或封裝。已保存 Artifact 可透過相同的 14-stage post-Artifact pipeline 冪等恢復，且不重新聯絡 Provider、不消耗 token、不修改原始提交。
 ## v0.3.32 Quote-level Multi-skill Quality Gate 與 Validation Receipt Truth
 
 v0.3.32 以 frozen Evidence Quote Catalog 的 sourceRecordStableId + sourceJsonPointer + rawStartOffset + rawEndOffset + quoteSha256 判定多技能證據獨立性；相同 Comment／Diff／Activity Event 可支持多個 Skill，但每個 Skill 仍必須有至少一個未被同筆其他 Skill 共用的 PRIMARY_CHANGE quote。Boilerplate Gate 只分析模型撰寫的 explanation、negative checks 與 rationale，不再掃描來源 Quote 本文。

@@ -1,3 +1,9 @@
+# v0.3.37 - Durable Artifact Recovery and Provider-neutral Analysis Core
+
+- Added durable Artifact truth resolution, a hash-chained reducer fact journal, terminal contradiction protection, and an idempotent 14-stage post-Artifact pipeline.
+- Routed formal ChatGPT analysis through a production Provider Adapter while keeping the deterministic Mock Adapter test-only and absent from production bundles.
+- Added startup/manual recovery projections, append-only supersession evidence, Bridge v17, Prompt v18, and byte-exact Rule Set Manifest v0.8.6 / Common Rules v1.6.6 bindings.
+- Live Provider and the sensitive v0.3.36 Debug Bundle replay remain explicit opt-in/manual validation boundaries.
 # v0.3.34 - Provider Lifecycle and Live Analysis Validation
 
 - Added Bridge v14 host-owned provider lifecycle, atomic INPUT_READY finalization, readonly post-finalize status, and idempotent finalize semantics.

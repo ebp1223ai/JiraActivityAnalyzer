@@ -1,3 +1,4 @@
 *.pdf binary
 rules/v0.3.35/*.md -text
 rules/v0.3.36/*.md -text
+rules/v0.3.37/*.md -text

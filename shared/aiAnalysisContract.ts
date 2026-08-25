@@ -95,6 +95,8 @@ export type AiAnalysisErrorCode =
   | "AI_ANALYSIS_NOT_STARTED"
   | "AI_ANALYSIS_INCOMPLETE"
   | "AI_ARTIFACT_SUBMISSION_MISSING"
+  | "AI_TERMINAL_FACT_RECONCILIATION_REQUIRED"
+  | "AI_POST_ARTIFACT_PIPELINE_FAILED"
   | "AI_ARTIFACT_PUBLISH_FAILED"
   | "AI_ARTIFACT_RECEIPT_INVALID"
   | "AI_DECISION_SEMANTIC_INVALID"
@@ -576,6 +578,10 @@ export type AiAnalysisRun = {
   jiraServerFingerprint: string;
   selectedDiffIds: string[];
   provider: ActiveAiProvider;
+  providerAdapterId?: string | null;
+  providerAdapterDisplayName?: string | null;
+  durableArtifactTruth?: { status: "PERSISTED_VALID" | "NOT_FOUND" | "CONTRADICTORY" | "CORRUPT"; artifactSha256: string | null; artifactBytes: number | null; findingCodes: string[] } | null;
+  postArtifactRecovery?: { eligible: boolean; status: "NOT_REQUIRED" | "AVAILABLE" | "RUNNING" | "SUCCEEDED" | "FAILED"; nextStage: string | null; supersessionReceiptPath: string | null; providerContacted: false } | null;
   model: string;
   apiContract: AiApiContract | "offline";
   configFingerprint: string | null;
@@ -823,6 +829,7 @@ export type AiAnalysisSnapshot = {
   activeResult?: AiActiveAnalysisResultV0325 | null;
   successfulResults?: AiActiveAnalysisResultV0325[];
   lastNavigationDecision?: AiNavigationDecisionV0325 | null;
+  providerAdapters?: Array<{ id: string; displayName: string; productionSelectable: boolean }>;
   analysisBridge?: { status: "ready" | "failed"; expectedBridgeIdentity: string; observedBridgeIdentity: string | null; expectedBytes: number; observedBytes: number; expectedSha256: string; observedSha256: string | null; resolvedAbsolutePath: string | null; rootErrorCode: string | null; rootErrorMessage: string | null; loadabilityValidated: boolean; externalFallbackUsed: false };
 };
 

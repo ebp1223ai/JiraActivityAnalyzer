@@ -9,7 +9,7 @@ const m = api();
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0335-"));
 const hash = (value) => crypto.createHash("sha256").update(value).digest("hex");
 
-assert.equal(m.ANALYSIS_BRIDGE_VERSION, "0.3.36-bridge-v16");
+assert.equal(m.ANALYSIS_BRIDGE_VERSION, "0.3.37-bridge-v17");
 assert.equal(m.RUNTIME_CONTRACT_V0335.applicationVersion, "0.3.35");
 assert.equal(m.RUNTIME_CONTRACT_V0335.promptTemplateVersion, "0.3.35-zh-TW-v16");
 assert.equal(m.RUNTIME_CONTRACT_V0335.hostLifecycleContract, "jaa-host-control-lifecycle-v2");

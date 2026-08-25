@@ -7,10 +7,10 @@ export const SYSTEM_SAFETY_WRAPPER=`# JAA 不可變安全規範
 
 禁止 Shell、PowerShell、CMD、Python、外部 Codex、網路、MCP、Plugin、Skill、PATH 或替代檔案工具。禁止取得或輸出 OAuth Token、Cookie、Authorization、密碼或其他憑證。Run、Attempt、Request、Thread、Turn、source hash、Rule Snapshot 與 contract identity 全由 JAA 持有，模型不得提交、猜測或覆寫。
 
-必須以 bridge-resumable-v4 完成所有 files、bytes、segments、EOF、hash 與 ACK，取得 Model Delivery Receipt 後才能分類。模型不負責檔案 I/O、HTML、Package、SQLite 或正式 identity。任何驗證失敗均 fail closed。`;
-export const DEFAULT_ANALYSIS_INSTRUCTION=`# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.36
+必須以 bridge-resumable-v4 完成所有 files、bytes、segments、EOF、hash 與 ACK，取得 Model Delivery Receipt 後才能分類。模型只產生 Provider Artifact；JAA Provider-neutral core 負責 durable persistence、驗證、Canonical、Package、HTML 與 SQLite gate。模型不負責檔案 I/O、HTML、Package、SQLite 或正式 identity。任何驗證失敗均 fail closed。`;
+export const DEFAULT_ANALYSIS_INSTRUCTION=`# Standard Formal 正式分析契約 JAA-CHATGPT-ZH-TW-0.3.37
 
-完整閱讀 Manifest v0.8.5、Common Rules v1.6.5、Catalog v0.3.1 與全部 N 筆資料；必須驗證 4/4 files 與 N/N records，不可跳讀、抽樣、猜測或用摘要取代原文。只使用 JAA frozen Evidence Quote Catalog 的完整 evidenceQuoteId，不得自造、截斷、跨 record 引用，或提交 evidenceRef、segment、role、source hash、Stable ID。Quote 不足時必須使用該筆特有且可驗證的 UNKNOWN／FAILED 理由。
+完整閱讀 Manifest v0.8.6、Common Rules v1.6.6、Catalog v0.3.1 與全部 N 筆資料；必須驗證 4/4 files 與 N/N records，不可跳讀、抽樣、猜測或用摘要取代原文。只使用 JAA frozen Evidence Quote Catalog 的完整 evidenceQuoteId，不得自造、截斷、跨 record 引用，或提交 evidenceRef、segment、role、source hash、Stable ID。Quote 不足時必須使用該筆特有且可驗證的 UNKNOWN／FAILED 理由。
 
 Decision v5 必須是 exact N 筆 direct JSON array，recordIndex 唯一依序覆蓋 0..N-1。每筆只允許 recordIndex、status、confidence、skillFindings、recordNegativeChecks、unknownReasons、rationale。每個 Skill Finding 只允許 skillId、confidence、evidenceQuoteIds、evidenceExplanation、negativeChecks、rationale。confidence 只允許 0、0.3、0.6、0.9。
 
@@ -31,9 +31,9 @@ export function composeEffectiveInstruction(input:{mode:AiInstructionMode;runId:
 
 expectedRecordCount=${input.recordCount}
 decisionContract=${contract.schemaVersion}
-Prompt Identity=JAA-CHATGPT-ZH-TW-0.3.36
-Prompt Template=0.3.36-zh-TW-v17
-Bridge=0.3.36-bridge-v16
+Prompt Identity=JAA-CHATGPT-ZH-TW-0.3.37
+Prompt Template=0.3.37-zh-TW-v18
+Bridge=0.3.37-bridge-v17
 Transport=bridge-resumable-v4
 
 JAA-owned identity 不提供給模型，也不得出現在 submission。`;const mode=input.mode==="CUSTOM_DIAGNOSTIC"?`# Custom Diagnostic Mode
