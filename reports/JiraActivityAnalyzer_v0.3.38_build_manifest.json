@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "jaa-v038-build-manifest-v1",
+  "appVersion": "0.3.38",
+  "packagedSourceCommit": "15e955bddaa157d8a9f9c3c0914c47a970614630",
+  "buildTime": "2026/09/01 15:25:29",
+  "buildTimeIso": "2026-09-01T07:25:29.396Z",
+  "branch": "feat/v0.3.38-ai-analysis-database",
+  "dirtyState": true,
+  "artifacts": [
+    {"fileName":"Jira Activity Analyzer Setup 0.3.38.exe","sizeBytes":190988344,"sha256":"443dab5f09ce60253185dede5ca81bb009918152ff15c39c8c1dff7b87a6e45f"},
+    {"fileName":"Jira Activity Analyzer Portable 0.3.38.exe","sizeBytes":190758257,"sha256":"92aed3d2a8517879daf1c4ca5e0cdb4ce41367036b78cc9d564038a4898878bc"},
+    {"fileName":"win-unpacked/Jira Activity Analyzer.exe","sizeBytes":235706368,"sha256":"bb97a1817e2c757ed16aa13a8403c7d97ff09da995fd4586c282f44186341fff"}
+  ],
+  "packagedBridgeVerification": "PASS",
+  "installerGuiValidation": "MANUAL_VALIDATION_PENDING"
+}

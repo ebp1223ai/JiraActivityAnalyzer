@@ -35,3 +35,12 @@ navigation boundary.
 
 Final packaging and artifact hashes are recorded in the v0.3.38 verification
 report after `dist` completes.
+
+## Final Packaging
+
+- Source commit: `15e955bddaa157d8a9f9c3c0914c47a970614630`
+- Build version / time: `0.3.38` / `2026/09/01 15:25:29`
+- Installer, Portable, and win-unpacked were built successfully.
+- Packaged bridge diagnostic passed for win-unpacked and Portable.
+- Artifact hashes are in `JiraActivityAnalyzer_v0.3.38_build_manifest.json`.
+- Overall acceptance is `PARTIAL / MANUAL GUI VALIDATION PENDING` because the legacy full UI smoke harness fails on an existing preload bridge mismatch.

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "jaa-token-provider-ledger-v1",
+  "version": "0.3.38",
+  "provider": "Codex",
+  "tokenUsage": "NOT_AVAILABLE",
+  "reason": "Execution tools provided no trustworthy token-usage receipt; no estimate was fabricated."
+}

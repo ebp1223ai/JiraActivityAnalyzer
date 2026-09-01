@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "jaa-execution-time-ledger-v1",
+  "version": "0.3.38",
+  "timezone": "Asia/Taipei",
+  "entries": [
+    {"command":"npm.cmd run typecheck","result":"PASS","exitCode":0,"elapsedSeconds":12.709},
+    {"command":"npm.cmd run test:v0.3.38","result":"PASS","exitCode":0,"elapsedSeconds":2.489},
+    {"command":"npm.cmd run build","result":"PASS","exitCode":0,"elapsedSeconds":21.841},
+    {"command":"npm.cmd run dist","result":"BLOCKED_DIRTY_WORKTREE","exitCode":1,"elapsedSeconds":17.677},
+    {"command":"JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist","result":"PASS","exitCode":0,"elapsedSeconds":174.607},
+    {"command":"app-only legacy UI smoke","result":"FAIL_LEGACY_HARNESS","exitCode":1,"elapsedSeconds":112.4},
+    {"command":"Portable CDP route audit","result":"NOT_COMPLETED_ENDPOINT_UNAVAILABLE","exitCode":null,"elapsedSeconds":null}
+  ],
+  "note": "Only stopwatch-backed timings are exact. Total development wall-clock and token usage are unavailable and were not estimated."
+}
