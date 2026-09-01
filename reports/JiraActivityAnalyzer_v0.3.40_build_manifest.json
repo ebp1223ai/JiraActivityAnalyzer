@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "jaa-v0.3.40-build-manifest-v1",
+  "appVersion": "0.3.40",
+  "buildTime": "2026/09/01 19:36:08",
+  "buildTimeIso": "2026-09-01T11:36:08.000Z",
+  "branch": "feat/v0.3.40-ai-database-results-recovery",
+  "packagedSourceCommit": "e616bd7d8dcf417a2508b921971a3050e0cdb9a0",
+  "implementationCommit": "e616bd7d8dcf417a2508b921971a3050e0cdb9a0",
+  "dirtyState": true,
+  "environment": {
+    "os": "Microsoft Windows NT 10.0.26100.0",
+    "git": "2.52.0.windows.1",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3",
+    "sqlite": "3.53.1",
+    "nodeSqliteLoadable": true,
+    "externalSqliteNativeDependency": false
+  },
+  "artifacts": [
+    {
+      "kind": "installer",
+      "path": "release/Jira Activity Analyzer Setup 0.3.40.exe",
+      "sizeBytes": 191086083,
+      "sha256": "81f7564ce5e93bebd1ca8c9279b9457c480dfd8a19e73c6be4580e33b21b26d7"
+    },
+    {
+      "kind": "portable",
+      "path": "release/Jira Activity Analyzer Portable 0.3.40.exe",
+      "sizeBytes": 190855930,
+      "sha256": "bf077efa1a4a1f2c8628cf0a2dc8427132e9841e5b694902c923040fe9a7a7d4"
+    },
+    {
+      "kind": "win-unpacked",
+      "path": "release/win-unpacked/Jira Activity Analyzer.exe",
+      "sizeBytes": 235706368,
+      "sha256": "903d35b7d82ea91fce881a5c7076f10c0e398d95691f9cfa0552b917973a11e7"
+    }
+  ],
+  "packagedResources": {
+    "importSchemaSha256": "6d51b5fb613b5ff957ab815e6702cf23845d5fce0124fb73b224983a39986a8c",
+    "htmlTemplateSha256": "54e626b846aecd122f5c1b92ea2932e566e0d8fee9fb7204d31d10b54a9666a0",
+    "ruleManifestSha256": "d1f7dc4f6c0cc094176e8a89feef7cb43b63ddce12915d688e01fc93bf67b4ce",
+    "skillCatalogSha256": "f9d3e28542e9ebd19b097ab33c59602fc00aa317022fab2a33ee77e25adf89a4",
+    "commonRulesSha256": "1a44d74f2e08af7eb2a19e302415ae9e81082a67fa94c7ac265382b5a89a9ff7",
+    "analysisBridgeIdentity": "0.3.37-bridge-v17",
+    "analysisBridgeSha256": "403b9093c2f95bc5ba49679eff851680c13baf80e31b24db1a35a8d593dc0770"
+  },
+  "verification": {
+    "inputHashes": "PASS_25_OF_25",
+    "typecheck": "PASS",
+    "v0340": "PASS",
+    "v0339": "PASS",
+    "v0338": "PASS",
+    "unit": "PASS",
+    "integration": "PASS",
+    "regression": "PASS",
+    "build": "PASS",
+    "packagedBridge": "PASS",
+    "winUnpackedUiSmoke": "PASS",
+    "portableIsolatedUiSmoke": "PASS",
+    "manualGuiValidation": "PENDING"
+  },
+  "tagPushGate": "BLOCKED_PENDING_MANUAL_GUI",
+  "warnings": [
+    "Vite node:crypto browser externalization",
+    "Renderer chunk larger than 500 kB",
+    "electron-builder duplicate dependency references",
+    "Default Electron icon"
+  ]
+}
