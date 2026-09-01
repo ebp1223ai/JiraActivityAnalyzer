@@ -1,3 +1,9 @@
+# v0.3.38 - AI Analysis Database, Import, Source Linking, and Integrated Views
+
+- Added the independent global AI Analysis SQLite v1 under the portable `JAA_DATA_ROOT`, with WAL/FULL durability, integrity checks, frozen DDL, and checkpoint-aware diagnostics.
+- Added strict `jaa-ai-analysis-import-package v1.0.0` preview/confirm import with Draft 2020-12 Schema validation, RFC 8785 hashes, transactional rollback, idempotency, and review-rank protection.
+- Added append-only source-link attempts, AI Results and raw-left-join Integrated Results viewers, server-side filters/paging, query exports, and AI database Debug Bundle evidence.
+- Archived the legacy AI Analysis navigation entry without deleting or rewriting its implementation. No live Jira or AI Provider is contacted by the new import/view workflow.
 # v0.3.37 - Durable Artifact Recovery and Provider-neutral Analysis Core
 
 - Added durable Artifact truth resolution, a hash-chained reducer fact journal, terminal contradiction protection, and an idempotent 14-stage post-Artifact pipeline.

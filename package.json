@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.37",
+  "version": "0.3.38",
   "description": "Electron desktop analyzer with bundled Codex local-workspace AI analysis and canonical debug evidence.",
   "author": "COPGEN",
   "type": "module",
@@ -123,10 +123,13 @@
     "replay:v0.3.32:117": "node scripts/replay-v0332-real-run.cjs 117",
     "replay:v0.3.31-quality-gate": "node scripts/replay-v0331-quality-gate.cjs",
     "replay:v0.3.31-validation-receipts": "node scripts/replay-v0331-validation-receipts.cjs",
-    "replay:v0.3.31-terminal-lifecycle": "node scripts/replay-v0331-terminal-lifecycle.cjs"
+    "replay:v0.3.31-terminal-lifecycle": "node scripts/replay-v0331-terminal-lifecycle.cjs",
+    "test:v0.3.38": "node scripts/test-v0338.cjs"
   },
   "dependencies": {
     "@openai/codex": "0.147.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "lucide-react": "^0.469.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -215,6 +218,20 @@
         "filter": [
           "analysis-bridge-v0337.cjs",
           "analysis-bridge-manifest-v0337.json"
+        ]
+      },
+      {
+        "from": "rules/v0.3.38",
+        "to": "bundled-rules/v0.3.38",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "contracts/ai-analysis",
+        "to": "ai-analysis-contracts",
+        "filter": [
+          "**/*"
         ]
       }
     ]

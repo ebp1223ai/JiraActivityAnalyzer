@@ -114,6 +114,14 @@ export function getDatabaseDir() {
   return resolveInsideRoot(getAppDataDir(), "database");
 }
 
+export function getAiAnalysisDatabaseDir() {
+  return resolveInsideRoot(getAppRuntimeDir(), "databases", "ai-analysis");
+}
+
+export function getAiAnalysisDatabasePath() {
+  return resolveInsideRoot(getAiAnalysisDatabaseDir(), "jaa-ai-analysis.sqlite");
+}
+
 export function getConfigDir() {
   return resolveInsideRoot(getAppDataDir(), "config");
 }

@@ -148,7 +148,18 @@ contextBridge.exposeInMainWorld("desktopApp", {
     openExportFolder: (payload?: { folderPath?: string }) => ipcRenderer.invoke("user-analysis:open-export-folder", payload),
     autoSaveRun: (payload: unknown) => ipcRenderer.invoke("user-analysis:auto-save-run", payload)
   },
-  aiAnalysis: {
+  aiDatabase: {
+    overview: () => ipcRenderer.invoke("ai-database:overview"),
+    selectImport: () => ipcRenderer.invoke("ai-database:select-import"),
+    preflight: (payload: unknown) => ipcRenderer.invoke("ai-database:preflight", payload),
+    importPackage: (payload: unknown) => ipcRenderer.invoke("ai-database:import", payload),
+    relink: () => ipcRenderer.invoke("ai-database:relink"),
+    queryResults: (payload: unknown) => ipcRenderer.invoke("ai-database:query-results", payload),
+    queryIntegrated: (payload: unknown) => ipcRenderer.invoke("ai-database:query-integrated", payload),
+    exportDiagnostics: () => ipcRenderer.invoke("ai-database:export-diagnostics"),
+    exportQuery: (payload: unknown) => ipcRenderer.invoke("ai-database:export-query", payload),
+    openFolder: () => ipcRenderer.invoke("ai-database:open-folder")
+  },  aiAnalysis: {
     getSnapshot: () => ipcRenderer.invoke("ai-analysis:snapshot"),
     startChatGpt: () => ipcRenderer.invoke("ai-analysis:chatgpt-start"),
     loginChatGpt: () => ipcRenderer.invoke("ai-analysis:chatgpt-login"),

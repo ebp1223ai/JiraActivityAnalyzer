@@ -1,0 +1,75 @@
+{
+  "schema": {
+    "filename": "jaa-ai-analysis-import-package_v1.0.0.schema.json",
+    "sha256": "6d51b5fb613b5ff957ab815e6702cf23845d5fce0124fb73b224983a39986a8c",
+    "bytes": 31380
+  },
+  "documents": [
+    {
+      "filename": "Skill_Analysis_Rule_Set_Manifest_v1.4.0.md",
+      "sha256": "d1f7dc4f6c0cc094176e8a89feef7cb43b63ddce12915d688e01fc93bf67b4ce",
+      "bytes": 8731
+    },
+    {
+      "filename": "Skill_Classification_Common_Rules_v2.4.0.md",
+      "sha256": "1a44d74f2e08af7eb2a19e302415ae9e81082a67fa94c7ac265382b5a89a9ff7",
+      "bytes": 22078
+    },
+    {
+      "filename": "Skill_Catalog_v0.3.4.md",
+      "sha256": "f9d3e28542e9ebd19b097ab33c59602fc00aa317022fab2a33ee77e25adf89a4",
+      "bytes": 30237
+    },
+    {
+      "filename": "Skill_Analysis_HTML_Report_Template_v1.10.0.md",
+      "sha256": "54e626b846aecd122f5c1b92ea2932e566e0d8fee9fb7204d31d10b54a9666a0",
+      "bytes": 70754
+    }
+  ],
+  "fixtures": [
+    {
+      "filename": "jaa-ai-analysis-import-59__ai-only__v1.0.0.json",
+      "sha256": "ea677c6f77bf7c3fefdb1f37333aba4d071fd4470fba939f3a9ba295fa28d70f",
+      "bytes": 921424,
+      "semanticErrors": []
+    },
+    {
+      "filename": "jaa-ai-analysis-import-59__review-completed__v1.0.0.json",
+      "sha256": "38791edcc2206f98c586bb34f1819a4e2b34215788ff2a28b515a41d4c0402da",
+      "bytes": 973965,
+      "semanticErrors": []
+    }
+  ],
+  "html": {
+    "filename": "skill-analysis-user-all-activity-events_20260831_190725_7015513a__review-v1.3.0__template-v1.10.0.html",
+    "sha256": "cc74ded93c8f8dcb87441439c186151387565b34c5e8503c5e885ba5e480726c",
+    "bytes": 1569981
+  },
+  "htmlContractChecks": {
+    "templateMachineContractJsonValid": true,
+    "templateSchemaVersion": "jaa-html-report-template-v11",
+    "templateImportPackageSchemaSha256": "6d51b5fb613b5ff957ab815e6702cf23845d5fce0124fb73b224983a39986a8c",
+    "exportReviewButtonCount": 1,
+    "exportJaaButtonCount": 1,
+    "aiImportBaseCount": 1,
+    "seededCompletedReviewCount": 59,
+    "runtimeHasSourceAiHashGate": true,
+    "runtimeSupportsAllReviewRanks": true
+  },
+  "contentPreservation": {
+    "pendingRecords": 59,
+    "aiOnlyRecords": 59,
+    "reviewedRecords": 59,
+    "legacyAnalyzedResults": 59,
+    "legacySkillFindings": 86,
+    "packageSkillFindings": 86,
+    "manualReviewRecords": 59,
+    "completedReviewRecords": 59,
+    "acceptedSkillReviews": 81,
+    "rejectedSkillReviews": 5,
+    "statusDisagreements": 10,
+    "sourceHashSameAcrossPackages": true,
+    "aiHashSameAcrossPackages": true
+  },
+  "validationStatus": "PASS"
+}

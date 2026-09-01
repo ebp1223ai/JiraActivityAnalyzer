@@ -3,7 +3,7 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
-import { assertAppPath, ensureDir, getActivityStreamBaselinesDir, getAppDataDir, getAppLogsDir, getAppRuntimeDir, getBackupsDir, getCacheDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashDumpsDir, getCrashLogsDir, getDatabaseDir, getDebugFoldersDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getFullFetchResultsDir, getFullFetchStagingDir, getLegacyFullFetchStagingDir, getLogsDir, getProbeResultsDir, getRawDataDir, getSessionDataDir, getSourceArchivesDir, getTempDir, initializeAppRoot } from "./appPaths.js";
+import { assertAppPath, ensureDir, getActivityStreamBaselinesDir, getAppDataDir, getAppLogsDir, getAppRuntimeDir, getAiAnalysisDatabasePath, getBackupsDir, getCacheDir, getConfigDir, getConfigPath, getConnectionsPath, getCrashDumpsDir, getCrashLogsDir, getDatabaseDir, getDebugFoldersDir, getDefaultEnvPath, getEnvPath, getExportsDir, getFullFetchLogsDir, getFullFetchRawRunsDir, getFullFetchResultsDir, getFullFetchStagingDir, getLegacyFullFetchStagingDir, getLogsDir, getProbeResultsDir, getRawDataDir, getSessionDataDir, getSourceArchivesDir, getTempDir, initializeAppRoot } from "./appPaths.js";
 import { createCollisionSafeDirectory, getConfiguredAppRoot, isPathInsideRoot, resolveCanonicalAppRoot } from "./appRoot.js";
 import { applyPortableElectronPaths } from "./electronPortablePaths.js";
 import { baselineFileName, compareBaselineObservation, entryFingerprint as createEntryFingerprint, loadBaselineSnapshot, saveBaselineSnapshot, selectBaselineGuardOutcome, sha256, type ActivityStreamBaselineComparison, type ActivityStreamBaselineSnapshot, type BaselineObservation } from "./activityStreamBaseline.js";
@@ -61,6 +61,8 @@ import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
 import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
+import { registerAiAnalysisDatabaseIpcV038 } from "./aiAnalysisDatabaseIpcV038.js";
+import { checkpointAiDatabase, exportAiDiagnostics } from "./aiAnalysisDatabaseV038.js";
 import { flushRunArchive } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
 import { resolveAnalysisBridgeArtifactV0337 } from "./analysisBridgeResolverV0337.js";
@@ -132,6 +134,7 @@ if (shouldVerifyAnalysisBridge) {
   process.exit(resolution.receipt.status === "ready" ? 0 : 2);
 }
 registerAiAnalysisIpc();
+registerAiAnalysisDatabaseIpcV038(() => resolveLocalDatabasePath(getAppRuntimeDir(), loadEffectiveRuntimeConfig().localDatabasePath));
 
 type AutoSaveResultType = "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test";
 type AutoSavedRun = { runId: string; resultType: AutoSaveResultType; status: string; savedAt: string; filePath: string; folderPath: string; data: Record<string, unknown> };
@@ -212,6 +215,9 @@ const uiRoutes = [
   { name: "collection", hash: "#/collection", title: "Data Collection" },
   { name: "issues", hash: "#/issues", title: "Issue Viewer" },
   { name: "users", hash: "#/users", title: "User Viewer" },
+  { name: "ai-database", hash: "#/ai-database", title: "AI Analysis Database" },
+  { name: "ai-results", hash: "#/ai-results", title: "AI Results Viewer" },
+  { name: "integrated-results", hash: "#/integrated-results", title: "Integrated Results" },
   { name: "activity-stream-probe", hash: "#/activity-stream-probe", title: "Activity Stream" },
   { name: "jira-probe", hash: "#/jira-probe", title: "Jira Probe" },
   { name: "settings", hash: "#/settings", title: "Settings" }
@@ -4051,6 +4057,23 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     if (attemptPath && fs.existsSync(attemptPath)) { const copied = collectDebugFolderSources(folderPath, [{ sourcePath: attemptPath, relativePath: "ai-analysis/current-attempt" }]); copiedEntries.push(...copied.entries); evidenceEntries.push({ id: "ai_analysis_current_attempt", status: copied.failed.length ? "copy_failed" : "copied", sourcePath: attemptPath, relativePath: "ai-analysis/current-attempt", reason: copied.failed.length ? copied.failed.map((entry) => entry.reason).join("; ") : "Current attempt evidence copied; no prior Run fallback was used." }); }
     else evidenceEntries.push({ id: "ai_analysis_canonical_run", status: "not_run", sourcePath: aiRunsRoot, relativePath: "ai-analysis/canonical-run", reason: "Current attempt has no Run; prior latest Run fallback is intentionally disabled." });
   }
+  try {
+    const aiDatabasePath = getAiAnalysisDatabasePath();
+    if (fs.existsSync(aiDatabasePath)) {
+      checkpointAiDatabase(aiDatabasePath);
+      const aiDiagnostics = exportAiDiagnostics(aiDatabasePath);
+      const aiDatabaseBundleDir = path.join(folderPath, "ai-analysis-database");
+      writeBundleJson(aiDatabaseBundleDir, "ai-database-metadata.json", aiDiagnostics.metadata);
+      writeBundleJson(aiDatabaseBundleDir, "ai-import-batches.json", aiDiagnostics.batches);
+      writeBundleJson(aiDatabaseBundleDir, "ai-import-actions.json", aiDiagnostics.actions);
+      writeBundleJson(aiDatabaseBundleDir, "ai-source-links.json", aiDiagnostics.links);
+      writeBundleJson(aiDatabaseBundleDir, "ai-source-link-attempts.json", aiDiagnostics.linkAttempts);
+      fs.writeFileSync(path.join(aiDatabaseBundleDir, "ai-database-integrity-check.txt"), `${JSON.stringify(aiDiagnostics.integrity)}\nforeignKeyErrors=${aiDiagnostics.foreignKeys.length}\n`, "utf8");
+      evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copied", sourcePath: aiDatabasePath, relativePath: "ai-analysis-database", reason: "AI database metadata and diagnostics exported after WAL checkpoint; SQLite content was not copied." });
+    } else evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "not_run", sourcePath: aiDatabasePath, relativePath: "ai-analysis-database", reason: "AI Analysis Database has not been created." });
+  } catch (error) {
+    evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copy_failed", sourcePath: getAiAnalysisDatabasePath(), relativePath: "ai-analysis-database", reason: error instanceof Error ? error.message : String(error) });
+  }
   for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
     collectDiagnosticFile("current_session_" + fileName, path.join(diagnosticSnapshot.sessionDir, fileName), "sessions/current/" + fileName);
   }
@@ -4610,11 +4633,11 @@ async function navigateUiSmoke(window: BrowserWindow, hash: string, readySelecto
 }
 
 async function openAnalysisUiSmoke(window: BrowserWindow) {
-  await navigateUiSmoke(window, "#/analysis", "[data-testid='workflow-timeline']");
+  await navigateUiSmoke(window, "#/collection", "[data-testid='workflow-timeline']");
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='workflow-timeline']")?.click()`);
   const startedAt = Date.now();
   while (Date.now() - startedAt < 5000) {
-    const ready = await window.webContents.executeJavaScript(`Boolean(document.querySelector("[data-testid='analysis-setup-user']"))`);
+    const ready = await window.webContents.executeJavaScript(`Boolean(document.querySelector("[data-testid='analysis-setup-user-v244']"))`);
     if (ready) return;
     await wait(100);
   }
@@ -5052,7 +5075,7 @@ async function runUiSmoke(window: BrowserWindow) {
   const commentRegressionEntry = activityEntry({ issueKey: "COPGEN1-138930", title: "謝正洪(roger_hsieh) commented on COPGEN1-138930 - [JACKSONQLC-3024] IOFULLSEQWRT Failure", content: "attachment metadata exists elsewhere", raw: "<activity:object-type>attachment</activity:object-type>", application: "Jira", objectType: "issue" }, "escaped_username", "asrun-classifier", 0);
   if (commentRegressionEntry.activityType !== "comment" || commentRegressionEntry.issueKey !== "COPGEN1-138930" || commentRegressionEntry.activityApplication !== "Jira" || commentRegressionEntry.activityTypeClassifier.matchedRule !== "commented_on" || commentRegressionEntry.activityTypeClassifier.finalType !== "comment" || commentRegressionEntry.activityTypeClassifier.priority !== 100) failures.push(`commented-on classifier regression failed: ${JSON.stringify(commentRegressionEntry)}`);
   window.setSize(1280, 720, false);
-  await navigateUiSmoke(window, "#/precision-probe", "[data-testid='probe-mode-stability']");
+  await navigateUiSmoke(window, "#/activity-stream-probe", "[data-testid='probe-mode-stability']");
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-stability']")?.click();`);
   await wait(120);
   const stabilitySetupAudit = await window.webContents.executeJavaScript(`(() => ({ modes: document.querySelectorAll("[data-testid^='probe-mode-']").length, setup: Boolean(document.querySelector("[data-testid='run-stability-probe']")), requestWindow: Boolean(document.querySelector("[data-testid='stability-request-window']")), rounds: Boolean(document.querySelector("[data-testid='stability-round-count']")), delay: Boolean(document.querySelector("[data-testid='stability-round-delay']")), stopMode: Boolean(document.querySelector("[data-testid='round-mode-stop_when_stable']")), forceMode: Boolean(document.querySelector("[data-testid='round-mode-force_all_rounds']")), currentMode: Boolean(document.querySelector("[data-testid='current-round-mode']")), merge: Boolean(document.querySelector("[data-testid='stability-merge-strategy']")), noLocalLogLevel: !(document.body.innerText || "").includes("Stability Probe Log Level") }))()`);
@@ -5074,8 +5097,8 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(100);
   const stabilityRawAudit = await window.webContents.executeJavaScript(`document.querySelectorAll("[data-testid='stability-raw-results'] details").length`);
   if (Object.values(stabilitySetupAudit).some((value) => value === false) || stabilitySetupAudit.modes !== 6 || !stabilityResultAudit.progress || !stabilityResultAudit.recommendation || !stabilityResultAudit.completed || !stabilityResultAudit.elapsed || !stabilityResultAudit.globalLog || !stabilityComparisonAudit.table || stabilityComparisonAudit.rows < 2 || !stabilityComparisonAudit.headers || !stabilityComparisonAudit.filter || !stabilityComparisonAudit.sort || !stabilityComparisonAudit.columns || !stabilityComparisonAudit.copy || stabilityRawAudit < 2) failures.push(`Activity Stream Stability Probe UI/run audit failed ${JSON.stringify({ stabilitySetupAudit, stabilityResultAudit, stabilityComparisonAudit, stabilityRawAudit })}`);
-  await navigateUiSmoke(window, "#/", "h1");
-  await navigateUiSmoke(window, "#/precision-probe", "[data-testid='probe-mode-raw']");
+  await navigateUiSmoke(window, "#/database", "h1");
+  await navigateUiSmoke(window, "#/activity-stream-probe", "[data-testid='probe-mode-raw']");
   const stabilityPersistenceAudit = await window.webContents.executeJavaScript(`(() => ({ activeRaw: document.querySelector("[data-testid='probe-mode-raw']")?.classList.contains("btn-primary") === true, rawRounds: document.querySelectorAll("[data-testid='stability-raw-results'] details").length }))()`);
   if (!stabilityPersistenceAudit.activeRaw || stabilityPersistenceAudit.rawRounds < 2) failures.push(`Stability session persistence audit failed ${JSON.stringify(stabilityPersistenceAudit)}`);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-benchmark']")?.click();`);
@@ -5113,7 +5136,7 @@ async function runUiSmoke(window: BrowserWindow) {
     const selectIssues = document.querySelector("[data-testid='workflow-selectIssues']");
     const related = document.querySelector("[data-testid='workflow-relatedIssues']");
     const body = document.body.innerText || "";
-    return { count, labels, states: cards.map((el) => el.getAttribute("data-step-state")), colorBars: cards.every((el) => el.className.includes("border-l-4")), badges: cards.every((el) => (el.textContent || "").includes("Status:")), reasons: cards.every((el) => Boolean(el.querySelector("[data-step-reason]")?.textContent?.trim())), setup: Boolean(document.querySelector("[data-testid='analysis-setup-user']")), selectBlocked: selectIssues instanceof HTMLButtonElement && selectIssues.disabled, relatedBlocked: related instanceof HTMLButtonElement && related.disabled, advancedHidden: !document.querySelector("[data-testid='advanced-tools-toggle']") && !document.querySelector("#candidate-search") && !body.includes("Advanced Candidate Search") && !body.includes("Preview JQL"), hasPrecisionTab: Boolean(document.querySelector("[data-testid='workflow-precision']")), stepLabels: ["Setup & Build Timeline", "Select Issues", "Full Fetch", "Related Issues", "Export"].every((label) => labels.some((text) => text.includes(label))) };
+    return { count, labels, states: cards.map((el) => el.getAttribute("data-step-state")), colorBars: cards.every((el) => el.className.includes("border-l-4")), badges: cards.every((el) => (el.textContent || "").includes("Status:")), reasons: cards.every((el) => Boolean(el.querySelector("[data-step-reason]")?.textContent?.trim())), setup: Boolean(document.querySelector("[data-testid='analysis-setup-user-v244']")), selectBlocked: selectIssues instanceof HTMLButtonElement && selectIssues.disabled, relatedBlocked: related instanceof HTMLButtonElement && related.disabled, advancedHidden: !document.querySelector("[data-testid='advanced-tools-toggle']") && !document.querySelector("#candidate-search") && !body.includes("Advanced Candidate Search") && !body.includes("Preview JQL"), hasPrecisionTab: Boolean(document.querySelector("[data-testid='workflow-precision']")), stepLabels: ["Setup & Build Timeline", "Select Issues", "Full Fetch", "Related Issues", "Export"].every((label) => labels.some((text) => text.includes(label))) };
   })()`);
   if (analysisWorkflowAudit.count !== 5 || !analysisWorkflowAudit.setup || !analysisWorkflowAudit.selectBlocked || !analysisWorkflowAudit.relatedBlocked || !analysisWorkflowAudit.advancedHidden || analysisWorkflowAudit.hasPrecisionTab || !analysisWorkflowAudit.stepLabels || !analysisWorkflowAudit.states.includes("current") || !analysisWorkflowAudit.states.includes("blocked") || !analysisWorkflowAudit.colorBars || !analysisWorkflowAudit.badges || !analysisWorkflowAudit.reasons) failures.push(`User Analysis workflow visual state audit failed: ${JSON.stringify(analysisWorkflowAudit)}`);
   const simplifiedTimelineSetupAudit = await window.webContents.executeJavaScript(`(() => { const status = document.querySelector("[data-testid='analysis-setup-status']")?.textContent || ""; return { requestWindow: document.querySelector("[data-testid='analysis-request-window']")?.value === "7_days", rounds: document.querySelector("[data-testid='analysis-full-scan-round-count']")?.value === "3", delay: Boolean(document.querySelector("[data-testid='analysis-round-delay']")), mode: document.querySelector("[data-testid='analysis-round-mode']")?.value === "force_all_rounds", merge: document.querySelector("[data-testid='analysis-merge-strategy']")?.value === "union", openProbe: Boolean(document.querySelector("[data-testid='open-stability-probe']")), duplicateRemoved: !document.querySelector("[data-testid='setup-build-activity-timeline']"), statusOnly: status.includes("Setup is ready. Build Activity Timeline"), lowerBuild: Boolean(document.querySelector("[data-testid='build-activity-timeline']")) }; })()`);
@@ -5134,7 +5157,7 @@ async function runUiSmoke(window: BrowserWindow) {
   if (failedStepAudit.state !== "failed" || !failedStepAudit.reason || !failedStepAudit.style.includes("bg-red-50") || warningStepAudit.state !== "warning" || !warningStepAudit.reason || !warningStepAudit.style.includes("bg-amber-50") || !fullFetchProgressStep3 || fullFetchProgressStep4 || fullFetchProgressStep5) failures.push(`User Analysis warning/failed/progress state audit failed: ${JSON.stringify({ failedStepAudit, warningStepAudit, fullFetchProgressStep3, fullFetchProgressStep4, fullFetchProgressStep5 })}`);
   await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:seed-workflow-visual-state", { detail: { state: "reset" } }));`);
   await wait(100);
-  await navigateUiSmoke(window, "#/precision-probe", "[data-testid='probe-mode-precision']");
+  await navigateUiSmoke(window, "#/activity-stream-probe", "[data-testid='probe-mode-precision']");
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='probe-mode-precision']")?.click();`);
   await wait(120);
   const standardFlowUiAudit = await window.webContents.executeJavaScript(`(() => ({ panel: Boolean(document.querySelector("[data-testid='standard-activity-stream-flow']")), selected: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("roger_hsieh"), escaped: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("roger\\_hsieh"), date: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("update-date AFTER/BEFORE"), chunking: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("Auto"), limit: document.querySelector("[data-testid='standard-activity-stream-flow']")?.textContent?.includes("500"), advancedClosed: !document.querySelector("[data-testid='advanced-diagnostics']"), noMainUserInput: !document.querySelector("[data-testid='activity-stream-user']"), noMainQueryMode: !document.querySelector("[data-testid='activity-stream-query-mode']"), noMainDateMode: !document.querySelector("[data-testid='activity-stream-date-query-mode']"), noMainMax: !document.querySelector("[data-testid='probe-max-results']") }))()`);
@@ -5380,7 +5403,7 @@ async function runUiSmoke(window: BrowserWindow) {
   if (trackingDefaultCollapsed.expanded !== "false" || trackingDefaultCollapsed.panel || !noEntriesTrackingAudit.banner || !noEntriesTrackingAudit.detailsOpen || !noEntriesTrackingAudit.text.includes("Latest No Entries Result") || !noEntriesTrackingAudit.text.includes("no_entries") || !noEntriesTrackingAudit.text.includes("parsed_confluence_only") || noEntriesTrackingAudit.cardCount !== noEntriesTrackingAudit.uniqueRunIds) failures.push(`no_entries/result tracking UI audit failed ${JSON.stringify({ trackingDefaultCollapsed, noEntriesTrackingAudit })}`);
   const autoSaveUiAudit = await window.webContents.executeJavaScript(`(() => { const text = document.querySelector("[data-testid='last-auto-saved-result']")?.textContent || ""; return { visible: Boolean(text), activity: text.includes("activity_stream_run"), path: text.includes("activity-stream-runs"), open: Boolean(document.querySelector("[data-testid='open-auto-save-folder']")), copy: Boolean(document.querySelector("[data-testid='copy-auto-save-path']")) }; })()`);
   await openAnalysisUiSmoke(window);
-  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement)) return; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='analysis-setup-user']", "roger_hsieh"); set("[data-testid='analysis-setup-start']", "2026-07-01"); set("[data-testid='analysis-setup-end']", "2026-07-07"); set("[data-testid='analysis-setup-project']", "COPGEN1"); })()`);
+  await window.webContents.executeJavaScript(`(() => { const set = (selector, value) => { const element = document.querySelector(selector); if (!(element instanceof HTMLInputElement)) return; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, value); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }; set("[data-testid='analysis-setup-user-v244']", "roger_hsieh"); set("[data-testid='analysis-setup-start']", "2026-07-01"); set("[data-testid='analysis-setup-end']", "2026-07-07"); set("[data-testid='analysis-setup-project']", "COPGEN1"); })()`);
   await wait(150);
   await window.webContents.executeJavaScript(`document.querySelector("[data-testid='workflow-timeline']")?.click();`);
   await wait(150);
@@ -5502,7 +5525,7 @@ async function runUiSmoke(window: BrowserWindow) {
   await wait(100);
   await window.webContents.executeJavaScript(`window.desktopApp?.userAnalysis?.updateWorkflowSnapshot?.({ steps: { activityTimeline: "completed", timelineIssueSelection: "completed", fetchQueue: "ready", fullFetch: "completed", relatedIssues: "completed", exports: "not_run" }, timelineIssueGroups: [{ issueKey: "COPGEN1-125806", source: "activity_timeline", issueKeyRole: "secondary", isJiraRelated: true, hasJiraIssueKey: true, sourceSystemSummary: { jira: 1, confluence: 0, other: 0, unknown: 0 }, sourceDetails: { jira_activity_stream: 1 }, jiraRelationSummary: { jiraRelatedEventCount: 1, nonJiraRelatedEventCount: 0, hasJiraIssueKeyCount: 1, sourceApplicationCounts: { jira: 1, confluence: 0, other: 0, unknown: 0 }, relatedSystemsCounts: { jira: 1 }, jiraRelationReasons: { has_jira_issue_key: 1 } } }], timelineSelectedIssues: ["COPGEN1-125806"], fetchQueue: [{ key: "COPGEN1-125806", queueMetadata: { sources: ["activity_timeline"] } }], relatedCandidateIssues: [{ issueKey: "COPGEN1-69506", relationType: "parent_link", scope: "recommended", discoveredFromIssueKey: "COPGEN1-126606", source: "related_issue_expansion", field: "parent", reason: "parent_link discovered from COPGEN1-126606", confidence: "high", firstSeen: "2026-07-02T06:00:00.000Z", lastSeen: "2026-07-02T06:00:00.000Z", evidenceCount: 1, selected: false }], addedTimelineIssuesToFetchQueueCount: 1, addedRelatedIssuesToFetchQueueCount: 1, addedRecommendedRelatedIssuesToFetchQueueCount: 1, addedOptionalRelatedIssuesToFetchQueueCount: 0, uiState: { workflowStepCount: 5, advancedToolsVisible: false, fullFetchProgressLocation: "step3_full_fetch", timeline: { visibleColumns: ["time", "user", "issueKey", "activityType", "sourceApplication"], requiredColumns: ["time", "user", "issueKey", "activityType", "sourceApplication"], optionalColumns: [], filters: { sourceApplications: ["jira", "confluence"], jiraRelations: ["jira_related"] }, filteredCount: 1, totalCount: 4 }, selectIssues: { visibleColumns: ["selected", "issueKey", "sourceApplications", "eventCount", "firstSeen", "lastSeen"], requiredColumns: ["selected", "issueKey", "sourceApplications", "eventCount", "firstSeen", "lastSeen"], optionalColumns: [], filters: { jiraRelations: ["jira_related"], sourceApplications: ["jira", "confluence"] }, filteredCount: 1, totalCount: 2 } } });`);
   const timelineInputGuardAudit = await window.webContents.executeJavaScript(`(() => { const button = document.querySelector("[data-testid='build-activity-timeline']"); return Boolean(document.querySelector("[data-testid='analysis-setup-blocked']")) && button instanceof HTMLButtonElement && button.disabled; })()`);
-  await window.webContents.executeJavaScript(`(() => { const input = document.querySelector("[data-testid='analysis-setup-user']"); if (input instanceof HTMLInputElement) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "roger_hsieh"); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
+  await window.webContents.executeJavaScript(`(() => { const input = document.querySelector("[data-testid='analysis-setup-user-v244']"); if (input instanceof HTMLInputElement) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "roger_hsieh"); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
   if (!timelineInputGuardAudit) failures.push("activity timeline missing selected user/date guard audit failed");
   await window.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("jaa:seed-full-fetch-failure"));`);
   await wait(120);

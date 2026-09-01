@@ -11,7 +11,8 @@ const groups = [
     label: "總覽 / Overview",
     items: [
       { to: "/connections", label: "Jira 連線", sub: "Jira Connection", icon: UserRound },
-      { to: "/database", label: "資料庫總覽", sub: "Database Overview", icon: Database }
+      { to: "/database", label: "資料庫總覽", sub: "Database Overview", icon: Database },
+      { to: "/ai-database", label: "AI 分析資料庫", sub: "AI Analysis Database", icon: Sparkles }
     ]
   },
   {
@@ -24,12 +25,14 @@ const groups = [
     label: "檢視器 / Viewers",
     items: [
       { to: "/issues", label: "Issue 檢視", sub: "Issue Viewer", icon: BarChart3 },
-      { to: "/users", label: "使用者檢視", sub: "User Viewer", icon: UsersRound }
+      { to: "/users", label: "使用者檢視", sub: "User Viewer", icon: UsersRound },
+      { to: "/ai-results", label: "AI 結果檢視", sub: "AI Results Viewer", icon: Sparkles },
+      { to: "/integrated-results", label: "整合顯示結果", sub: "Integrated Results", icon: BarChart3 }
     ]
   }
 ];
 
-const aiAnalysisItem = { to: "/ai-analysis", label: "AI 分析", sub: "AI Analysis", icon: Sparkles };
+
 
 const advancedItems = [
   { to: "/activity-stream-probe", label: "活動串流測試", sub: "Activity Stream Probe", icon: RadioTower },
@@ -78,7 +81,7 @@ export function Sidebar() {
         ))}
         <div className="mb-4">
           <div className="mb-1 px-3 text-[10px] font-black uppercase text-slate-400">AI 分析 / AI Analysis</div>
-          <div className="space-y-1"><NavItem item={aiAnalysisItem} /></div>
+          <button type="button" disabled title="Archived in v0.3.38" className="flex w-full cursor-not-allowed items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-bold text-slate-400 opacity-70"><Sparkles className="shrink-0" size={19} /><span>AI 分析（封存中）<br /><span className="text-[11px]">AI Analysis Archived</span></span></button>
         </div>
         <div className="mb-4">
           <button

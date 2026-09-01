@@ -1,0 +1,1403 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jiraactivityanalyzer.local/schema/jaa-ai-analysis-import-package-v1.0.0.schema.json",
+  "title": "JAA AI Analysis Import Package v1.0.0",
+  "description": "Canonical exchange contract accepted by JiraActivityAnalyzer v0.3.38 AI Analysis Database importer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaName",
+    "schemaVersion",
+    "schemaSha256",
+    "minimumImporterVersion",
+    "requiredCapabilities",
+    "packageId",
+    "createdAt",
+    "generator",
+    "sourceBinding",
+    "rulesBinding",
+    "templateBinding",
+    "reviewCoverage",
+    "records",
+    "counts",
+    "integrity",
+    "conversionReceipt"
+  ],
+  "properties": {
+    "schemaName": {
+      "const": "jaa-ai-analysis-import-package"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "schemaSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "minimumImporterVersion": {
+      "const": "0.3.38"
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "allOf": [
+        {
+          "contains": {
+            "const": "AI_ANALYSIS_SQLITE_V1"
+          }
+        },
+        {
+          "contains": {
+            "const": "SOURCE_RECORD_LINK_V1"
+          }
+        },
+        {
+          "contains": {
+            "const": "MANUAL_REVIEW_LAYER_V1"
+          }
+        }
+      ],
+      "items": {
+        "enum": [
+          "AI_ANALYSIS_SQLITE_V1",
+          "SOURCE_RECORD_LINK_V1",
+          "MANUAL_REVIEW_LAYER_V1"
+        ]
+      }
+    },
+    "packageId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generator": {
+      "$ref": "#/$defs/generator"
+    },
+    "sourceBinding": {
+      "$ref": "#/$defs/sourceBinding"
+    },
+    "rulesBinding": {
+      "$ref": "#/$defs/rulesBinding"
+    },
+    "templateBinding": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/templateBinding"
+        }
+      ]
+    },
+    "reviewCoverage": {
+      "$ref": "#/$defs/reviewCoverage"
+    },
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100000,
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    },
+    "counts": {
+      "$ref": "#/$defs/counts"
+    },
+    "integrity": {
+      "$ref": "#/$defs/packageIntegrity"
+    },
+    "conversionReceipt": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/conversionReceipt"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "mode"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "mode": {
+          "enum": [
+            "CLOUD_AI_ANALYSIS",
+            "HTML_MANUAL_REVIEW_EXPORT",
+            "CLOUD_AI_CONVERSION",
+            "GOLDEN_FIXTURE_BUILDER"
+          ]
+        }
+      }
+    },
+    "sourceBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pendingFilename",
+        "pendingSha256",
+        "pendingSchemaName",
+        "pendingSchemaVersion",
+        "sourceDatabaseId",
+        "jiraServerFingerprint",
+        "jiraServerHost",
+        "exportId",
+        "sourceView",
+        "createdAt",
+        "timezone",
+        "sourceRecordCount",
+        "querySnapshot",
+        "exportMetadata"
+      ],
+      "properties": {
+        "pendingFilename": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "pendingSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "pendingSchemaName": {
+          "const": "jira-activity-analyzer.pending-analysis"
+        },
+        "pendingSchemaVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "sourceDatabaseId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "jiraServerFingerprint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "jiraServerHost": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "exportId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "sourceView": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "sourceRecordCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "querySnapshot": {
+          "type": "object"
+        },
+        "exportMetadata": {
+          "type": "object"
+        }
+      }
+    },
+    "rulesBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ruleSetId",
+        "manifestVersion",
+        "manifestSha256",
+        "commonRulesVersion",
+        "commonRulesSha256",
+        "catalogVersion",
+        "catalogSha256"
+      ],
+      "properties": {
+        "ruleSetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "manifestVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "manifestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "commonRulesVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "commonRulesSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "catalogVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "catalogSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "templateBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "templateId",
+        "templateVersion",
+        "templateSchemaVersion",
+        "templateSha256"
+      ],
+      "properties": {
+        "templateId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "templateVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "templateSchemaVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "templateSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "reviewCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reviewRank",
+        "reviewedRecordCount",
+        "completedRecordCount",
+        "totalRecordCount"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "NONE",
+            "PARTIAL",
+            "COMPLETED"
+          ]
+        },
+        "reviewRank": {
+          "enum": [
+            "AI_ONLY",
+            "REVIEW_PARTIAL",
+            "REVIEW_COMPLETED"
+          ]
+        },
+        "reviewedRecordCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completedRecordCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalRecordCount": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stableIdentity",
+        "displayValue"
+      ],
+      "properties": {
+        "stableIdentity": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "displayValue": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "sourceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidenceId",
+        "activityEventId",
+        "sourceDatabaseId",
+        "jiraServerFingerprint",
+        "sourceRecordStableId",
+        "historyId",
+        "historyItemIndex",
+        "issueId",
+        "issueKey",
+        "projectKey",
+        "fieldId",
+        "fieldName",
+        "eventTime",
+        "actor",
+        "sourceProvenance",
+        "sourceContentHash",
+        "beforeSha256",
+        "afterSha256"
+      ],
+      "properties": {
+        "evidenceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "activityEventId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "sourceDatabaseId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "jiraServerFingerprint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "sourceRecordStableId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "historyId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        },
+        "historyItemIndex": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "issueId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "issueKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "projectKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "fieldId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        },
+        "fieldName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "eventTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "actor": {
+          "$ref": "#/$defs/actor"
+        },
+        "sourceProvenance": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "sourceContentHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "beforeSha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          ]
+        },
+        "afterSha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          ]
+        }
+      }
+    },
+    "diffLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "oldLineNumber",
+        "newLineNumber",
+        "text"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "oldLineNumber": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "newLineNumber": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 1000000
+        }
+      }
+    },
+    "diffHunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "oldStart",
+        "oldLines",
+        "newStart",
+        "newLines",
+        "lines"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "oldStart": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "oldLines": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "newStart": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "newLines": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lines": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/diffLine"
+          }
+        }
+      }
+    },
+    "sourceSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issueType",
+        "priority",
+        "issueStatus",
+        "beforeAvailability",
+        "afterAvailability",
+        "diffText",
+        "diffHunks",
+        "readableContent",
+        "addedLineCount",
+        "removedLineCount",
+        "diffStatus",
+        "isSubstantiveChange",
+        "integrityStatus",
+        "diagnostics",
+        "pendingRecordIntegrity"
+      ],
+      "properties": {
+        "issueType": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        },
+        "priority": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        },
+        "issueStatus": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        },
+        "beforeAvailability": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "afterAvailability": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "diffText": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 5000000
+        },
+        "diffHunks": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/diffHunk"
+          }
+        },
+        "readableContent": {
+          "type": "string",
+          "maxLength": 5000000
+        },
+        "addedLineCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "removedLineCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "diffStatus": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "isSubstantiveChange": {
+          "type": "boolean"
+        },
+        "integrityStatus": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "diagnostics": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "string",
+            "maxLength": 100000
+          }
+        },
+        "pendingRecordIntegrity": {
+          "type": "object"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceJsonPointer",
+        "quote"
+      ],
+      "properties": {
+        "sourceJsonPointer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000000
+        }
+      }
+    },
+    "skillFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skillId",
+        "skillName",
+        "group",
+        "catalogSupport",
+        "confidence",
+        "evidence",
+        "evidenceExplanation",
+        "negativeChecks",
+        "rationale"
+      ],
+      "properties": {
+        "skillId": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$",
+          "maxLength": 100
+        },
+        "skillName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "group": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "catalogSupport": {
+          "enum": [
+            "DEFINED",
+            "PARTIAL",
+            "MISSING"
+          ]
+        },
+        "confidence": {
+          "enum": [
+            0,
+            0.3,
+            0.6,
+            0.9
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "evidenceExplanation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200000
+        },
+        "negativeChecks": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "string",
+            "maxLength": 200000
+          }
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200000
+        }
+      }
+    },
+    "aiAnalysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "confidence",
+        "skillFindings",
+        "recordNegativeChecks",
+        "unknownReasons",
+        "rationale"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "CLASSIFIED",
+            "UNKNOWN",
+            "EXCLUDED",
+            "FAILED"
+          ]
+        },
+        "confidence": {
+          "enum": [
+            0,
+            0.3,
+            0.6,
+            0.9
+          ]
+        },
+        "skillFindings": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/skillFinding"
+          }
+        },
+        "recordNegativeChecks": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "string",
+            "maxLength": 200000
+          }
+        },
+        "unknownReasons": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "string",
+            "maxLength": 200000
+          }
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 200000
+        }
+      }
+    },
+    "skillReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skillId",
+        "aiConfidence",
+        "verdict",
+        "proposedConfidence",
+        "notes"
+      ],
+      "properties": {
+        "skillId": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$",
+          "maxLength": 100
+        },
+        "aiConfidence": {
+          "enum": [
+            0,
+            0.3,
+            0.6,
+            0.9
+          ]
+        },
+        "verdict": {
+          "enum": [
+            "UNREVIEWED",
+            "ACCEPT",
+            "REJECT_WRONG_SKILL",
+            "REJECT_EVIDENCE_INSUFFICIENT",
+            "ADJUST_CONFIDENCE",
+            "UNCERTAIN"
+          ]
+        },
+        "proposedConfidence": {
+          "enum": [
+            null,
+            0.3,
+            0.6,
+            0.9
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 200000
+        }
+      }
+    },
+    "missingSkillReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewId",
+        "skillId",
+        "suggestedConfidence",
+        "sourceJsonPointer",
+        "quote",
+        "reason",
+        "negativeChecks",
+        "reviewOrigin",
+        "confirmed"
+      ],
+      "properties": {
+        "reviewId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "skillId": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$",
+          "maxLength": 100
+        },
+        "suggestedConfidence": {
+          "enum": [
+            null,
+            0.3,
+            0.6,
+            0.9
+          ]
+        },
+        "sourceJsonPointer": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "quote": {
+          "type": "string",
+          "maxLength": 1000000
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "negativeChecks": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "string",
+            "maxLength": 200000
+          }
+        },
+        "reviewOrigin": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "evidenceAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assignmentId",
+        "targetSkillId",
+        "targetSkillPresence",
+        "sourceFindingSkillId",
+        "sourceJsonPointer",
+        "quote",
+        "suggestedConfidence",
+        "reason",
+        "negativeChecks",
+        "reviewOrigin",
+        "confirmed"
+      ],
+      "properties": {
+        "assignmentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "targetSkillId": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$",
+          "maxLength": 100
+        },
+        "targetSkillPresence": {
+          "enum": [
+            "EXISTING",
+            "MISSING"
+          ]
+        },
+        "sourceFindingSkillId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$",
+              "maxLength": 100
+            }
+          ]
+        },
+        "sourceJsonPointer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000000
+        },
+        "suggestedConfidence": {
+          "enum": [
+            null,
+            0.3,
+            0.6,
+            0.9
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200000
+        },
+        "negativeChecks": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "string",
+            "maxLength": 200000
+          }
+        },
+        "reviewOrigin": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "manualReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recordIndex",
+        "evidenceId",
+        "sourceRecordStableId",
+        "issueKey",
+        "aiStatus",
+        "expectedStatus",
+        "statusAgreement",
+        "skillIdentificationState",
+        "missingSkillIds",
+        "missingSkillReviews",
+        "additionalEvidenceAssignments",
+        "notes",
+        "completed",
+        "skillReviews"
+      ],
+      "properties": {
+        "recordIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidenceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "sourceRecordStableId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "issueKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "aiStatus": {
+          "enum": [
+            "CLASSIFIED",
+            "UNKNOWN",
+            "EXCLUDED",
+            "FAILED"
+          ]
+        },
+        "expectedStatus": {
+          "enum": [
+            "UNDECIDED",
+            "CLASSIFIED",
+            "UNKNOWN",
+            "EXCLUDED",
+            "FAILED"
+          ]
+        },
+        "statusAgreement": {
+          "enum": [
+            "UNREVIEWED",
+            "AGREE",
+            "DISAGREE"
+          ]
+        },
+        "skillIdentificationState": {
+          "enum": [
+            "NOT_APPLICABLE",
+            "IDENTIFIED",
+            "NEEDS_DOMAIN_FOLLOWUP"
+          ]
+        },
+        "missingSkillIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$",
+            "maxLength": 100
+          }
+        },
+        "missingSkillReviews": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/missingSkillReview"
+          }
+        },
+        "additionalEvidenceAssignments": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/evidenceAssignment"
+          }
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 200000
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "skillReviews": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/skillReview"
+          }
+        }
+      }
+    },
+    "recordIntegrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceReferenceSha256",
+        "sourceSnapshotSha256",
+        "aiAnalysisSha256",
+        "manualReviewSha256",
+        "recordSha256"
+      ],
+      "properties": {
+        "sourceReferenceSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sourceSnapshotSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "aiAnalysisSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "manualReviewSha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          ]
+        },
+        "recordSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recordIndex",
+        "dedupeKey",
+        "sourceReference",
+        "sourceSnapshot",
+        "aiAnalysis",
+        "manualReview",
+        "integrity"
+      ],
+      "properties": {
+        "recordIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dedupeKey": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sourceReference": {
+          "$ref": "#/$defs/sourceReference"
+        },
+        "sourceSnapshot": {
+          "$ref": "#/$defs/sourceSnapshot"
+        },
+        "aiAnalysis": {
+          "$ref": "#/$defs/aiAnalysis"
+        },
+        "manualReview": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/manualReview"
+            }
+          ]
+        },
+        "integrity": {
+          "$ref": "#/$defs/recordIntegrity"
+        }
+      }
+    },
+    "aiStatusCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED"
+      ],
+      "properties": {
+        "CLASSIFIED": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "UNKNOWN": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "EXCLUDED": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "FAILED": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceRecordCount",
+        "recordCount",
+        "skillFindingCount",
+        "aiStatusCounts",
+        "reviewedRecordCount",
+        "completedRecordCount"
+      ],
+      "properties": {
+        "sourceRecordCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recordCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "skillFindingCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "aiStatusCounts": {
+          "$ref": "#/$defs/aiStatusCounts"
+        },
+        "reviewedRecordCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completedRecordCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "packageIntegrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonicalization",
+        "hashAlgorithm",
+        "sourceReferencesSha256",
+        "aiAnalysisSha256",
+        "manualReviewSha256",
+        "packageSha256"
+      ],
+      "properties": {
+        "canonicalization": {
+          "const": "RFC8785"
+        },
+        "hashAlgorithm": {
+          "const": "SHA-256"
+        },
+        "sourceReferencesSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "aiAnalysisSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "manualReviewSha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          ]
+        },
+        "packageSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "conversionSourceFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "filename",
+        "sha256"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "filename": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "conversionReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceFormat",
+        "convertedAt",
+        "converter",
+        "sourceFiles",
+        "notes"
+      ],
+      "properties": {
+        "sourceFormat": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "convertedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "converter": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "sourceFiles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/conversionSourceFile"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 200000
+          }
+        }
+      }
+    }
+  }
+}

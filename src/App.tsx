@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { AppLayout } from "./components/AppLayout";
 import { buildInfo } from "./buildInfo";
 import { AnalysisPage } from "./routes/AnalysisPage";
-import { AiAnalysisPage } from "./routes/AiAnalysisPage";
+import { AiDatabasePage } from "./routes/AiDatabasePage";
+import { AiResultsPage, IntegratedResultsPage } from "./routes/AiDatabaseViewerPages";
 import { ConnectionsPage } from "./routes/ConnectionsPage";
 import { DashboardPage } from "./routes/DashboardPage";
 import { JiraProbePage } from "./routes/JiraProbePage";
@@ -50,7 +51,10 @@ export default function App() {
               <Route path="/collection" element={<AnalysisPage />} />
               <Route path="/issues" element={<IssueViewerPage />} />
               <Route path="/users" element={<UserViewerPage />} />
-              <Route path="/ai-analysis" element={<AiAnalysisPage />} />
+              <Route path="/ai-database" element={<AiDatabasePage />} />
+              <Route path="/ai-results" element={<AiResultsPage />} />
+              <Route path="/integrated-results" element={<IntegratedResultsPage />} />
+              <Route path="/ai-analysis" element={<Navigate to="/database" replace />} />
               <Route path="/activity-stream-probe" element={<PrecisionProbePage />} />
               <Route path="/jira-probe" element={<JiraProbePage />} />
               <Route path="/settings" element={<SettingsPage />} />
