@@ -1,0 +1,3433 @@
+{
+  "schemaName": "jaa-ai-analysis-import-package",
+  "schemaVersion": "1.0.0",
+  "schemaSha256": "6d51b5fb613b5ff957ab815e6702cf23845d5fce0124fb73b224983a39986a8c",
+  "minimumImporterVersion": "0.3.38",
+  "requiredCapabilities": [
+    "AI_ANALYSIS_SQLITE_V1",
+    "SOURCE_RECORD_LINK_V1",
+    "MANUAL_REVIEW_LAYER_V1"
+  ],
+  "packageId": "b429c623-8ae3-5556-880b-302cddb202fb",
+  "createdAt": "2026-09-01T07:58:13Z",
+  "generator": {
+    "name": "Cloud AI Legacy Review Converter",
+    "version": "1.0.0",
+    "mode": "CLOUD_AI_CONVERSION"
+  },
+  "sourceBinding": {
+    "pendingFilename": "pending-analysis_user-all-activity-events_20260813_174200_25bc5cd9(3).json",
+    "pendingSha256": "5c64b0de8c58f25dc7f382616f28f5d0dfcf973e248968759093c38d88b19254",
+    "pendingSchemaName": "jira-activity-analyzer.pending-analysis",
+    "pendingSchemaVersion": "0.3.3-draft.1",
+    "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+    "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+    "jiraServerHost": "jira.phison.com:8443",
+    "exportId": "25bc5cd9-feea-4633-ab44-75670aa6f3e2",
+    "sourceView": "USER_ALL_ACTIVITY_EVENTS",
+    "createdAt": "2026-08-13T17:42:00+08:00",
+    "timezone": "Asia/Taipei",
+    "sourceRecordCount": 17,
+    "querySnapshot": {
+      "query": {
+        "filters": {
+          "field": {
+            "values": [
+              "Comment"
+            ]
+          }
+        },
+        "sortField": "eventTime",
+        "sortDirection": "desc",
+        "dateRange": {
+          "shortcut": "last30",
+          "startDate": "2026-07-15",
+          "endDate": "2026-08-13"
+        },
+        "revision": 4,
+        "descriptionChangedOnly": false,
+        "includeBeforeUnavailable": false,
+        "diffQuickFilters": {
+          "hideNoChange": true,
+          "hideZeroAdded": true,
+          "hideZeroDeleted": false,
+          "hideBeforeUnavailable": true
+        }
+      },
+      "subject": {
+        "userScope": {
+          "kind": "selected-users",
+          "userIds": [
+            "JIRAUSER28920"
+          ]
+        }
+      },
+      "filterSnapshotHash": "91ffcefeeff708ee7cc428e7a61ac38c8e60f4c89d1a84161f9b81721559e3da"
+    },
+    "exportMetadata": {
+      "exportMode": "compact-reference",
+      "selfContained": false,
+      "fullContentIncluded": false,
+      "sourceDatabaseRequiredForFullContent": true
+    }
+  },
+  "rulesBinding": {
+    "ruleSetId": "JAA-SKILL-ANALYSIS-BASELINE-2",
+    "manifestVersion": "1.1.0",
+    "manifestSha256": "5cdd5f3f7f7b3eeea82d8bee11d6bc55b394e38609fbd7d02641c557e103bdca",
+    "commonRulesVersion": "2.1.0",
+    "commonRulesSha256": "0fcfd9dce44e79f205fd7f856a1e987b93c2bda78c779dea99aed58cef92d0c4",
+    "catalogVersion": "0.3.3",
+    "catalogSha256": "15ba4f519e6087fab5022e4c5166a50bd5de242e0625fc49ab90265e7253b1ba"
+  },
+  "templateBinding": {
+    "templateId": "JAA-SKILL-ANALYSIS-GOLDEN-HTML",
+    "templateVersion": "1.7.0",
+    "templateSchemaVersion": "jaa-html-report-template-v8",
+    "templateSha256": "e4744d02c6ab5b4fbce49f0e0aae4562340411298f3df64e96212529fe4bb356"
+  },
+  "reviewCoverage": {
+    "state": "COMPLETED",
+    "reviewRank": "REVIEW_COMPLETED",
+    "reviewedRecordCount": 17,
+    "completedRecordCount": 17,
+    "totalRecordCount": 17
+  },
+  "records": [
+    {
+      "recordIndex": 0,
+      "dedupeKey": "6a7881b68310f1d4a3caf00f8f01347c20c8408d3339edfedb26526b54a97ce9",
+      "sourceReference": {
+        "evidenceId": "pae_532d4bd5f1971822a0ea2925c609518a75c99220",
+        "activityEventId": "e24cf5a8-a551-44e9-a61e-bf84a0991606",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12432204",
+        "historyId": "12432204",
+        "historyItemIndex": null,
+        "issueId": "3756212",
+        "issueKey": "COPGEN1-146289",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-04T05:59:29.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "ba9f9a7665e469c0b8c46c18672053085e2b878947f224fb8b27ee67cc6c4f00",
+        "beforeSha256": null,
+        "afterSha256": "de9c994872219a6eb1b9a3eb2b49a516876d5708db5a0fdabcbd96174f6a2d63"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "e24cf5a8-a551-44e9-a61e-bf84a0991606:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"[Last Action] - \\r\\n\\r\\n[Last Behavior] - \\r\\n\\r\\n[Fail Phenomenon] - \\r\\nGC卡在FTLGCCheckProgram()\\r\\n[Root Cause] - \\r\\n因未考量到Copy Data追上Build GCSA時，導致Copy Data繼續前進，使Program Index大於Read Index。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12432204\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "[Last Action] - \r\n\r\n[Last Behavior] - \r\n\r\n[Fail Phenomenon] - \r\nGC卡在FTLGCCheckProgram()\r\n[Root Cause] - \r\n因未考量到Copy Data追上Build GCSA時，導致Copy Data繼續前進，使Program Index大於Read Index。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "3092dc4962985836a7df537e46ef56b7e0598cac9efe4fcff2b94f7fbdf0f513",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/1/text",
+                "quote": "GC卡在FTLGCCheckProgram()"
+              }
+            ],
+            "evidenceExplanation": "內容直接描述 GC 檢查程式與 Copy Data、Build GCSA、Program/Read Index 間的核心流程異常。",
+            "negativeChecks": [
+              "已排除只有一般 GC 關鍵字的情況；本筆具有具體函式與索引關係。",
+              "未見獨立的 Suspend、Pausing 或 Event 排程證據。"
+            ],
+            "rationale": "GC Kernel 的候選界線包含 GCSA 建置、CopyData 搬移與核心 GC flow，本筆有直接且可歸因的根因描述。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/1/text",
+                "quote": "因未考量到Copy Data追上Build GCSA時，導致Copy Data繼續前進，使Program Index大於Read Index。"
+              }
+            ],
+            "evidenceExplanation": "內容建立未考量條件、狀態繼續前進與索引失序之間的明確根因鏈。",
+            "negativeChecks": [
+              "不是只有問題現象或初步歸類，已指出具體根因與失效機制。"
+            ],
+            "rationale": "本筆已超過一般初步 triage，符合對關鍵條件與根因鏈的深入判讀。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "Program/Read Index 位於 GC Copy Data 情境，不另歸類一般 RW Flow。",
+          "沒有獨立證據支持 GC Event 排程。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本筆同時具備 GC 核心流程的具體技術內容與清楚根因推理，可保留 GC Kernel 與深入 Bug 分析兩個獨立技術面向。"
+      },
+      "manualReview": {
+        "recordIndex": 0,
+        "evidenceId": "pae_532d4bd5f1971822a0ea2925c609518a75c99220",
+        "sourceRecordStableId": "12432204",
+        "issueKey": "COPGEN1-146289",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [
+          {
+            "targetSkillId": "GC_006",
+            "targetSkillPresence": "EXISTING",
+            "sourceFindingSkillId": "DEBUG_004",
+            "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/1/text",
+            "quote": "因未考量到Copy Data追上Build GCSA時，導致Copy Data繼續前進，使Program Index大於Read Index。",
+            "suggestedConfidence": 0.9,
+            "reason": "此段描述包含了GC Skill 所以需要再從GC Skill中抽取一項列舉",
+            "negativeChecks": [
+              "不建立重複 Skill Finding；只補充同一句 Evidence 與既有 Skill 的關聯。"
+            ],
+            "reviewOrigin": "MIGRATED_FROM_V1_1",
+            "confirmed": true,
+            "assignmentId": "aea_a70e65a842e157396fa0"
+          }
+        ],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "74e36686ede1df48c857295f88019afde68f3e6e7f65db811843050c265037ce",
+        "sourceSnapshotSha256": "275f289c804c856c2a1c073b986ebc8277bef7bcc1c831ed87c42350d328bfeb",
+        "aiAnalysisSha256": "3950aa8e35d1dd44ddd6bf002a9b2a6c81969b13d6ba0df1eda0a1f94505eb57",
+        "manualReviewSha256": "906071a1ea1866747a672d9428cb44ba4eecbcd1e0d98c2b8c8d6d7bb807aa42",
+        "recordSha256": "59f40065916a138f9f22575a75c1c5513452b071d7d2f21fb4f2c3b7948d5fb7"
+      }
+    },
+    {
+      "recordIndex": 1,
+      "dedupeKey": "3a5b9b0a4d21cd7c6405abfb35d0199834c5e78a92dea6e4392bc7bd2d113845",
+      "sourceReference": {
+        "evidenceId": "pae_fad137d621e0b39337e19a36dffa24deb4524ccf",
+        "activityEventId": "c38cd82d-7f27-478d-8d95-9b5e1204f56e",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12432106:2026-08-04T05:48:00.000Z",
+        "historyId": "12432106",
+        "historyItemIndex": null,
+        "issueId": "3756212",
+        "issueKey": "COPGEN1-146289",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-04T05:48:00.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "f834efe40ae1b3a47585cac153fd3ecf6c21ca4480483be718e909371ac3e47f",
+        "beforeSha256": null,
+        "afterSha256": "9c2c2238b4c3c22ee2428ed79798dc47a88250cea4b0ce36b7fcab475faf7693"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "c38cd82d-7f27-478d-8d95-9b5e1204f56e:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"從小兔子DrievLog分析：\\r\\n\\r\\n!image-2026-08-04-13-26-08-407.png|thumbnail!\\r\\n\\r\\n將這些位址用大寶劍搜尋：\\r\\n\\r\\n!image-2026-08-04-13-27-39-229.png|thumbnail!\\r\\n\\r\\n!image-2026-08-04-13-28-05-122.png|thumbnail!\\r\\n\\r\\n!image-2026-08-04-13-28-47-505.png|thumbnail!\\r\\n\\r\\n黃色標記的位址：FTLGCProgram_ForSkipTieIn()\\r\\n\\r\\n綠色標記的位址：FTLGCCheckProgram()\\r\\n\\r\\n藍色標記的位址：FTLGCProgram_CalculateTieInDataMax()\\r\\n\\r\\n檢查Code，是卡在下圖紅框：\\r\\n\\r\\n!image-2026-08-04-13-31-02-150.png|thumbnail!\\r\\n\\r\\nubDataMax一直都是0，檢查FTLGCProgram_CalculateTieInDataMax()的內容。\\r\\n\\r\\n原因是Program Index大於Read Index。\\r\\n\\r\\n下圖紅框成立，導致回傳0。\\r\\n\\r\\n!image-2026-08-04-13-33-09-401.png|thumbnail!\\r\\n\\r\\n檢查Program Index為什麼大於Read Index。\\r\\n\\r\\ngpVT->GC.BuildGCSA.ubTableIndexForBuildGCSA = 0x01 //當前是使用[1]\\r\\n\\r\\ngpVT->GC.BuildGCSA.ubTableIndexForReadData = 0x01 //當前是使用[1]\\r\\n\\r\\ngpVT->GC.BuildGCSA.ubTableIndexForProgramData = 0x00 //當前是使用[0]\\r\\n\\r\\n \\r\\n\\r\\ngpVT->GC.BuildGCSA.State[1] = BUILD_GCSA_FINISH //Build GCSA已經Finish，這是最後一張GCSA Table\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwGCSAAlignIndex[1] = 0x0400\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwGCSAIndex[1] = 0x0400\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwDummyCnt[1] = 0x0400\\r\\n\\r\\ngpVT->GC.CopyData.auwReadIndex[1] = 0x0400\\r\\n\\r\\n \\r\\n\\r\\ngpVT->GC.BuildGCSA.State[0] = BUILD_GCSA_STOP //這是前一張GCSA Table，也是Program正在使用的\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwGCSAAlignIndex[0] = 0x0700\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwGCSAIndex[0] = 0x0700\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwDummyCnt[0] = 0x0000\\r\\n\\r\\ngpVT->GC.CopyData.auwReadIndex[0] = 0x0700 //Read Index\\r\\n\\r\\ngpVT->GC.CopyData.uwProgramIndex = 0x0A00 //Program Index，這個值不合哩，已經超過Read Index\\r\\n\\r\\n \\r\\n\\r\\ngGC.uwGCSAThreshold = 0x0EFC\\r\\n\\r\\n發現Build Stop的那一張GCSA Table，是因為All Scan Valid Done才結束，因為GCSA Index小於GCSA Threshold\\r\\n\\r\\n檢查Copy Data Flow會導致在下圖紅框處不成立\\r\\n\\r\\n在All Scan Valid Done前，Program Index已經等於GCSA Index，還是不會轉換State。\\r\\n\\r\\n!image-2026-08-04-13-43-52-830.png|thumbnail!\\r\\n\\r\\n在All Scan Valid Done後，Build GCSA產生下一張All Dummy GCSA Table。\\r\\n\\r\\n導致Read Index前進，Program Index跟著前進，使Program Index超出自己正在使用的GCSA Table Index。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12432106\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "從小兔子DrievLog分析：\r\n\r\n!image-2026-08-04-13-26-08-407.png|thumbnail!\r\n\r\n將這些位址用大寶劍搜尋：\r\n\r\n!image-2026-08-04-13-27-39-229.png|thumbnail!\r\n\r\n!image-2026-08-04-13-28-05-122.png|thumbnail!\r\n\r\n!image-2026-08-04-13-28-47-505.png|thumbnail!\r\n\r\n黃色標記的位址：FTLGCProgram_ForSkipTieIn()\r\n\r\n綠色標記的位址：FTLGCCheckProgram()\r\n\r\n藍色標記的位址：FTLGCProgram_CalculateTieInDataMax()\r\n\r\n檢查Code，是卡在下圖紅框：\r\n\r\n!image-2026-08-04-13-31-02-150.png|thumbnail!\r\n\r\nubDataMax一直都是0，檢查FTLGCProgram_CalculateTieInDataMax()的內容。\r\n\r\n原因是Program Index大於Read Index。\r\n\r\n下圖紅框成立，導致回傳0。\r\n\r\n!image-2026-08-04-13-33-09-401.png|thumbnail!\r\n\r\n檢查Program Index為什麼大於Read Index。\r\n\r\ngpVT->GC.BuildGCSA.ubTableIndexForBuildGCSA = 0x01 //當前是使用[1]\r\n\r\ngpVT->GC.BuildGCSA.ubTableIndexForReadData = 0x01 //當前是使用[1]\r\n\r\ngpVT->GC.BuildGCSA.ubTableIndexForProgramData = 0x00 //當前是使用[0]\r\n\r\n \r\n\r\ngpVT->GC.BuildGCSA.State[1] = BUILD_GCSA_FINISH //Build GCSA已經Finish，這是最後一張GCSA Table\r\n\r\ngpVT->GC.BuildGCSA.auwGCSAAlignIndex[1] = 0x0400\r\n\r\ngpVT->GC.BuildGCSA.auwGCSAIndex[1] = 0x0400\r\n\r\ngpVT->GC.BuildGCSA.auwDummyCnt[1] = 0x0400\r\n\r\ngpVT->GC.CopyData.auwReadIndex[1] = 0x0400\r\n\r\n \r\n\r\ngpVT->GC.BuildGCSA.State[0] = BUILD_GCSA_STOP //這是前一張GCSA Table，也是Program正在使用的\r\n\r\ngpVT->GC.BuildGCSA.auwGCSAAlignIndex[0] = 0x0700\r\n\r\ngpVT->GC.BuildGCSA.auwGCSAIndex[0] = 0x0700\r\n\r\ngpVT->GC.BuildGCSA.auwDummyCnt[0] = 0x0000\r\n\r\ngpVT->GC.CopyData.auwReadIndex[0] = 0x0700 //Read Index\r\n\r\ngpVT->GC.CopyData.uwProgramIndex = 0x0A00 //Program Index，這個值不合哩，已經超過Read Index\r\n\r\n \r\n\r\ngGC.uwGCSAThreshold = 0x0EFC\r\n\r\n發現Build Stop的那一張GCSA Table，是因為All Scan Valid Done才結束，因為GCSA Index小於GCSA Threshold\r\n\r\n檢查Copy Data Flow會導致在下圖紅框處不成立\r\n\r\n在All Scan Valid Done前，Program Index已經等於GCSA Index，還是不會轉換State。\r\n\r\n!image-2026-08-04-13-43-52-830.png|thumbnail!\r\n\r\n在All Scan Valid Done後，Build GCSA產生下一張All Dummy GCSA Table。\r\n\r\n導致Read Index前進，Program Index跟著前進，使Program Index超出自己正在使用的GCSA Table Index。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "48d9d7b119ed3e8586f59ad8056aff29bb171e4a76d8684afefabe222e19664d",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/1/diff/diffHunks/0/lines/1/text",
+                "quote": "在All Scan Valid Done後，Build GCSA產生下一張All Dummy GCSA Table。"
+              }
+            ],
+            "evidenceExplanation": "Evidence 具體追查 Build GCSA、Copy Data 與 GCSA Table 索引推進，是 GC Kernel 的核心流程。",
+            "negativeChecks": [
+              "GCSA Table 屬於 GC context，未誤歸類為一般 Table Group。",
+              "GC Copy Read/Program 未自動歸類一般 RW。"
+            ],
+            "rationale": "多個 GC 函式、狀態與索引值共同支持 GC Kernel。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/1/diff/diffHunks/0/lines/1/text",
+                "quote": "導致Read Index前進，Program Index跟著前進，使Program Index超出自己正在使用的GCSA Table Index。"
+              }
+            ],
+            "evidenceExplanation": "從函式、狀態與多組索引值建立完整失效鏈，並定位到 Program Index 超出所屬 Table。",
+            "negativeChecks": [
+              "不是僅做初步現象歸類，已完成關鍵條件與根因推理。"
+            ],
+            "rationale": "具有跨 log、程式碼與狀態資料的深入根因洞察。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "DriveLog 僅是資料來源；後續主要證據是 GC Code、gpVT->GC.*、GCSA／CopyData 與 Read／Program Index，因此不建立 SYSTEM_029。",
+          "GCSA Table 位於 GC flow，不誤歸一般 Table Group。",
+          "未見 event queue、dispatch、scheduling 或獨立 pausing 控制證據。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本筆從 DriveLog 取得線索後，主要以 GC 函式、GCSA／CopyData state 與索引關係完成根因分析；依新版邊界保留 GC Kernel 與 DEBUG_004，不把資料來源誤列為 Drive log 技能。"
+      },
+      "manualReview": {
+        "recordIndex": 1,
+        "evidenceId": "pae_fad137d621e0b39337e19a36dffa24deb4524ccf",
+        "sourceRecordStableId": "12432106:2026-08-04T05:48:00.000Z",
+        "issueKey": "COPGEN1-146289",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [
+          {
+            "targetSkillId": "GC_006",
+            "targetSkillPresence": "EXISTING",
+            "sourceFindingSkillId": "DEBUG_004",
+            "sourceJsonPointer": "/records/1/diff/diffHunks/0/lines/1/text",
+            "quote": "導致Read Index前進，Program Index跟著前進，使Program Index超出自己正在使用的GCSA Table Index。",
+            "suggestedConfidence": 0.9,
+            "reason": "此段描述包含了GC Skill 所以需要再從GC Skill中抽取一項列舉",
+            "negativeChecks": [
+              "不建立重複 Skill Finding；只補充同一句 Evidence 與既有 Skill 的關聯。"
+            ],
+            "reviewOrigin": "MIGRATED_FROM_V1_1",
+            "confirmed": true,
+            "assignmentId": "aea_a2cafcac97bbf4fabe78"
+          }
+        ],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "0f69f3a9e70811a4e4ca0aa81cf6cc5ebe1b5d765636cac28e679b135077f125",
+        "sourceSnapshotSha256": "71e9e9a632e304e5b0f0caf49b8637c1389676bcd5bcbf0f0726fe145e2f07c5",
+        "aiAnalysisSha256": "179fbb387b535c00e90ba4ad99ff169d44659dafcb60e5f9ceda32e0e080c325",
+        "manualReviewSha256": "5cad48f099284a47d0b040f5014111a494bffba734ebbcef1da6db0c573a2dd7",
+        "recordSha256": "503d96f8a73489e3f9e4cdfd3d5776b2a4663922115064413ad5c699ba5ef2b5"
+      }
+    },
+    {
+      "recordIndex": 2,
+      "dedupeKey": "ed9bacd15639ed5f5bc1bbe188f7481b3a5fe6100a64e412d12a1c3e99371286",
+      "sourceReference": {
+        "evidenceId": "pae_099a2c73e8797cbb2dd34a20e9a3ce53ef9c9a67",
+        "activityEventId": "f78ab879-03a7-4470-abdf-08272cbd6068",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12432106",
+        "historyId": "12432106",
+        "historyItemIndex": null,
+        "issueId": "3756212",
+        "issueKey": "COPGEN1-146289",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-04T05:47:49.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "25a44603e541a047450d45dc1f3c076ee80524ad912377bdca6a43f09528a09f",
+        "beforeSha256": null,
+        "afterSha256": "7bee2e33e6f71f68c4f6952ccde5d4bf98b27e5711a2892a340223047975b7ae"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "f78ab879-03a7-4470-abdf-08272cbd6068:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"從小兔子DrievLog分析：\\r\\n\\r\\n!image-2026-08-04-13-26-08-407.png|thumbnail!\\r\\n\\r\\n將這些位址用大寶劍搜尋：\\r\\n\\r\\n!image-2026-08-04-13-27-39-229.png|thumbnail!\\r\\n\\r\\n!image-2026-08-04-13-28-05-122.png|thumbnail!\\r\\n\\r\\n!image-2026-08-04-13-28-47-505.png|thumbnail!\\r\\n\\r\\n黃色標記的位址：FTLGCProgram_ForSkipTieIn()\\r\\n\\r\\n綠色標記的位址：FTLGCCheckProgram()\\r\\n\\r\\n藍色標記的位址：FTLGCProgram_CalculateTieInDataMax()\\r\\n\\r\\n檢查Code，是卡在下圖紅框：\\r\\n\\r\\n!image-2026-08-04-13-31-02-150.png|thumbnail!\\r\\n\\r\\nubDataMax一直都是0，檢查FTLGCProgram_CalculateTieInDataMax()的內容。\\r\\n\\r\\n原因是Program Index大於Read Index。\\r\\n\\r\\n下圖紅框成立，導致回傳0。\\r\\n\\r\\n!image-2026-08-04-13-33-09-401.png|thumbnail!\\r\\n\\r\\n檢查Program Index為什麼大於Read Index。\\r\\n\\r\\ngpVT->GC.BuildGCSA.ubTableIndexForBuildGCSA = 0x01 //當前是使用[1]\\r\\n\\r\\ngpVT->GC.BuildGCSA.ubTableIndexForReadData = 0x01 //當前是使用[1]\\r\\n\\r\\ngpVT->GC.BuildGCSA.ubTableIndexForProgramData = 0x00 //當前是使用[0]\\r\\n\\r\\n \\r\\n\\r\\ngpVT->GC.BuildGCSA.State[1] = BUILD_GCSA_FINISH //Build GCSA已經Finish，這是最後一張GCSA Table\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwGCSAAlignIndex[1] = 0x0400\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwGCSAIndex[1] = 0x0400\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwDummyCnt[1] = 0x0400\\r\\n\\r\\ngpVT->GC.CopyData.auwReadIndex[1] = 0x0400\\r\\n\\r\\n \\r\\n\\r\\ngpVT->GC.BuildGCSA.State[0] = BUILD_GCSA_STOP //這是前一張GCSA Table，也是Program正在使用的\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwGCSAAlignIndex[0] = 0x0700\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwGCSAIndex[0] = 0x0700\\r\\n\\r\\ngpVT->GC.BuildGCSA.auwDummyCnt[0] = 0x0000\\r\\n\\r\\ngpVT->GC.CopyData.auwReadIndex[0] = 0x0700 //Read Index\\r\\n\\r\\ngpVT->GC.CopyData.uwProgramIndex = 0x0A00 //Program Index，這個值不合哩，已經超過Read Index\\r\\n\\r\\n \\r\\n\\r\\ngGC.uwGCSAThreshold = 0x0EFC\\r\\n\\r\\n發現Build Stop的那一張GCSA Table，是因為All Scan Valid Done才結束，因為GCSA Index小於GCSA Threshold\\r\\n\\r\\n檢查Copy Data Flow會導致在下圖紅框處不成立\\r\\n\\r\\n在All Scan Valid Done前，Program Index已經等於GCSA Index，還是不會轉換State。\\r\\n\\r\\n!image-2026-08-04-13-43-52-830.png|thumbnail!\\r\\n\\r\\n在All Scan Valid Done後，Build GCSA產生下一張All Dummy GCSA Table。\\r\\n\\r\\n導致Read Index前進，Program Index跟著前進，使Program Index超出自己正在使用的GCSA Table Index。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12432106\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "從小兔子DrievLog分析：\r\n\r\n!image-2026-08-04-13-26-08-407.png|thumbnail!\r\n\r\n將這些位址用大寶劍搜尋：\r\n\r\n!image-2026-08-04-13-27-39-229.png|thumbnail!\r\n\r\n!image-2026-08-04-13-28-05-122.png|thumbnail!\r\n\r\n!image-2026-08-04-13-28-47-505.png|thumbnail!\r\n\r\n黃色標記的位址：FTLGCProgram_ForSkipTieIn()\r\n\r\n綠色標記的位址：FTLGCCheckProgram()\r\n\r\n藍色標記的位址：FTLGCProgram_CalculateTieInDataMax()\r\n\r\n檢查Code，是卡在下圖紅框：\r\n\r\n!image-2026-08-04-13-31-02-150.png|thumbnail!\r\n\r\nubDataMax一直都是0，檢查FTLGCProgram_CalculateTieInDataMax()的內容。\r\n\r\n原因是Program Index大於Read Index。\r\n\r\n下圖紅框成立，導致回傳0。\r\n\r\n!image-2026-08-04-13-33-09-401.png|thumbnail!\r\n\r\n檢查Program Index為什麼大於Read Index。\r\n\r\ngpVT->GC.BuildGCSA.ubTableIndexForBuildGCSA = 0x01 //當前是使用[1]\r\n\r\ngpVT->GC.BuildGCSA.ubTableIndexForReadData = 0x01 //當前是使用[1]\r\n\r\ngpVT->GC.BuildGCSA.ubTableIndexForProgramData = 0x00 //當前是使用[0]\r\n\r\n \r\n\r\ngpVT->GC.BuildGCSA.State[1] = BUILD_GCSA_FINISH //Build GCSA已經Finish，這是最後一張GCSA Table\r\n\r\ngpVT->GC.BuildGCSA.auwGCSAAlignIndex[1] = 0x0400\r\n\r\ngpVT->GC.BuildGCSA.auwGCSAIndex[1] = 0x0400\r\n\r\ngpVT->GC.BuildGCSA.auwDummyCnt[1] = 0x0400\r\n\r\ngpVT->GC.CopyData.auwReadIndex[1] = 0x0400\r\n\r\n \r\n\r\ngpVT->GC.BuildGCSA.State[0] = BUILD_GCSA_STOP //這是前一張GCSA Table，也是Program正在使用的\r\n\r\ngpVT->GC.BuildGCSA.auwGCSAAlignIndex[0] = 0x0700\r\n\r\ngpVT->GC.BuildGCSA.auwGCSAIndex[0] = 0x0700\r\n\r\ngpVT->GC.BuildGCSA.auwDummyCnt[0] = 0x0000\r\n\r\ngpVT->GC.CopyData.auwReadIndex[0] = 0x0700 //Read Index\r\n\r\ngpVT->GC.CopyData.uwProgramIndex = 0x0A00 //Program Index，這個值不合哩，已經超過Read Index\r\n\r\n \r\n\r\ngGC.uwGCSAThreshold = 0x0EFC\r\n\r\n發現Build Stop的那一張GCSA Table，是因為All Scan Valid Done才結束，因為GCSA Index小於GCSA Threshold\r\n\r\n檢查Copy Data Flow會導致在下圖紅框處不成立\r\n\r\n在All Scan Valid Done前，Program Index已經等於GCSA Index，還是不會轉換State。\r\n\r\n!image-2026-08-04-13-43-52-830.png|thumbnail!\r\n\r\n在All Scan Valid Done後，Build GCSA產生下一張All Dummy GCSA Table。\r\n\r\n導致Read Index前進，Program Index跟著前進，使Program Index超出自己正在使用的GCSA Table Index。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "0d9958cf1130d1274744480b26e5890b9e6e07de3a49f789c280cdc3eed5fdf4",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/2/diff/diffHunks/0/lines/1/text",
+                "quote": "在All Scan Valid Done後，Build GCSA產生下一張All Dummy GCSA Table。"
+              }
+            ],
+            "evidenceExplanation": "本 record 的 Comment 原文逐步檢查 Build GCSA、Copy Data 以及 GCSA Table 索引推進。",
+            "negativeChecks": [
+              "GCSA Table 是 GC 流程內容，不是一般 TableUpdate 或 VT/L2P 操作。",
+              "Read/Program 索引出現在 GC Copy Data 脈絡，不另列 RW。"
+            ],
+            "rationale": "具體 GC 函式、狀態與資料搬移證據支持 GC Kernel。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/2/diff/diffHunks/0/lines/1/text",
+                "quote": "導致Read Index前進，Program Index跟著前進，使Program Index超出自己正在使用的GCSA Table Index。"
+              }
+            ],
+            "evidenceExplanation": "作者將 All Scan Valid Done、下一張 Dummy GCSA、Read Index 與 Program Index 串成根因鏈。",
+            "negativeChecks": [
+              "分析已定位失效條件與狀態推進，不只是初步 triage。"
+            ],
+            "rationale": "具備關鍵條件推理與根因定位，符合 DEBUG_004。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "DriveLog 僅是資料來源；後續主要證據是 GC Code、gpVT->GC.*、GCSA／CopyData 與 Read／Program Index，因此不建立 SYSTEM_029。",
+          "GCSA Table 位於 GC flow，不誤歸一般 Table Group。",
+          "未見 event queue、dispatch、scheduling 或獨立 pausing 控制證據。"
+        ],
+        "unknownReasons": [],
+        "rationale": "此筆依自己的來源身分獨立分析；主要技術行為是 GC 核心流程與索引失序的根因推理，因此保留 GC_006 與 DEBUG_004，DriveLog 僅作資料來源。"
+      },
+      "manualReview": {
+        "recordIndex": 2,
+        "evidenceId": "pae_099a2c73e8797cbb2dd34a20e9a3ce53ef9c9a67",
+        "sourceRecordStableId": "12432106",
+        "issueKey": "COPGEN1-146289",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [
+          {
+            "targetSkillId": "GC_006",
+            "targetSkillPresence": "EXISTING",
+            "sourceFindingSkillId": "DEBUG_004",
+            "sourceJsonPointer": "/records/2/diff/diffHunks/0/lines/1/text",
+            "quote": "導致Read Index前進，Program Index跟著前進，使Program Index超出自己正在使用的GCSA Table Index。",
+            "suggestedConfidence": 0.9,
+            "reason": "此段描述包含了GC Skill 所以需要再從GC Skill中抽取一項列舉",
+            "negativeChecks": [
+              "不建立重複 Skill Finding；只補充同一句 Evidence 與既有 Skill 的關聯。"
+            ],
+            "reviewOrigin": "MIGRATED_FROM_V1_1",
+            "confirmed": true,
+            "assignmentId": "aea_3e64d0bd170145ec120c"
+          }
+        ],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "62fd3e0b9ec53edbcc5a226c86868546ec70205ed677c7e79b7b270074e48142",
+        "sourceSnapshotSha256": "78a5fa2bc68abe1164d2568abb7d888e2ffddd7a46f58204fb2b1d99b323bd6e",
+        "aiAnalysisSha256": "f92bc2ef0aec6f1c46f4627202f1501d5b382ce00ec1134cbcc3a84872aead76",
+        "manualReviewSha256": "926738d741b8592dfd9425048ca6b5675afb0d06ddc6b698d5dcdc776ff0f1d1",
+        "recordSha256": "cf8b92d168c6202f11f907cc56bf4e34676eccf98dc14280dea4983bfe89644b"
+      }
+    },
+    {
+      "recordIndex": 3,
+      "dedupeKey": "c51bb3efb5ea89215716b102d4ddf8d60f6dbdac16c9d83d310ea1083a88f4dc",
+      "sourceReference": {
+        "evidenceId": "pae_bfae4c85d0745cc84cb22e70ff4dad4ab8b921d2",
+        "activityEventId": "b47977d7-e811-497d-b6a8-6be58937bdeb",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12428134",
+        "historyId": "12428134",
+        "historyItemIndex": null,
+        "issueId": "3756212",
+        "issueKey": "COPGEN1-146289",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-03T10:53:54.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "62f8b9d5cf36c1e44f1d242d52e71efe5c5ce15603dcba2afe4d3eafd2decfdd",
+        "beforeSha256": null,
+        "afterSha256": "febd09950c9257f3cef6b09fe802479f3f31477f8168cd4259574bb6a4122dec"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "b47977d7-e811-497d-b6a8-6be58937bdeb:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"請協助Dump DriveLog/VT。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12428134\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "請協助Dump DriveLog/VT。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "88e1a8bee43b2d7a9b7784bc3b810a30c7f3d57728a24d671304654000a956ff",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [
+          "內容僅請求他人提供 DriveLog/VT，沒有本人技術分析、log 判讀或修改內容。",
+          "只有 DriveLog 名稱不足以建立 SYSTEM_029。"
+        ],
+        "unknownReasons": [],
+        "rationale": "這是 request-only Comment，依 Negative Rules 明確排除技能分類。"
+      },
+      "manualReview": {
+        "recordIndex": 3,
+        "evidenceId": "pae_bfae4c85d0745cc84cb22e70ff4dad4ab8b921d2",
+        "sourceRecordStableId": "12428134",
+        "issueKey": "COPGEN1-146289",
+        "aiStatus": "EXCLUDED",
+        "expectedStatus": "EXCLUDED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "NOT_APPLICABLE",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "fb994807425fda9e76fd6f555ff4ced3688e12a5c945e593b6a6e68848d64c17",
+        "sourceSnapshotSha256": "5a512ef84243c1b8ddfb52d0f5f45d6870e946958d52069ccebca94667372628",
+        "aiAnalysisSha256": "bc2b9e5a2521e73de7111a7149537cc50776be63e5f9bd79d981a87e6d49294f",
+        "manualReviewSha256": "b932698d2f224222cbc494e89444e188b1f2b4624607ca3b4ec2d051590a195c",
+        "recordSha256": "2fc06a7f1dd80194bdd05bdc0b71d4d16f9dd3e44f2abaa3de8cb6fea36efc51"
+      }
+    },
+    {
+      "recordIndex": 4,
+      "dedupeKey": "e977943d1d6c95d399b16198721c7d23e18f5437535fd5373764299affa0f2f3",
+      "sourceReference": {
+        "evidenceId": "pae_59210e4f25a2ebb422ab3086bf89a7a2e3776d40",
+        "activityEventId": "671afa12-c927-4d9d-bc93-58f25a1da00e",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12418258",
+        "historyId": "12418258",
+        "historyItemIndex": null,
+        "issueId": "3747348",
+        "issueKey": "COPGEN1-145740",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-31T08:49:02.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "6329f35b3f0e96f44f589543153ca04ca091487c61ab6676c43ae959c5636c9d",
+        "beforeSha256": null,
+        "afterSha256": "657c4d30333be1460c130aa16eaa23ad725925aa61fecf3d1f376b05d69c78fe"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "671afa12-c927-4d9d-bc93-58f25a1da00e:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"[Last Action] - \\r\\n\\r\\n[Last Behavior] - \\r\\n\\r\\n[Fail Phenomenon] - \\r\\nGC Flow卡在Insert GCSA\\r\\n[Root Cause] - \\r\\n因Feature修改條件，發生未考慮到的情況，導致Flow卡住。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12418258\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "[Last Action] - \r\n\r\n[Last Behavior] - \r\n\r\n[Fail Phenomenon] - \r\nGC Flow卡在Insert GCSA\r\n[Root Cause] - \r\n因Feature修改條件，發生未考慮到的情況，導致Flow卡住。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "61e47b12872bd2cb9461f2fbba64cdc3dcaa4792307554e03aa2b999744cf611",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/4/diff/diffHunks/0/lines/1/text",
+                "quote": "GC Flow卡在Insert GCSA"
+              }
+            ],
+            "evidenceExplanation": "Insert GCSA 與 GC Flow 卡住直接落在 GCSA 建置與核心 GC flow 範圍。",
+            "negativeChecks": [
+              "不是只因 GC 字樣分類；Evidence 指出具體 Insert GCSA 流程。",
+              "未見一般 TableUpdate、VT 或 L2P 證據。"
+            ],
+            "rationale": "具體的 Insert GCSA 失效現象支持 GC Kernel。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/4/diff/diffHunks/0/lines/1/text",
+                "quote": "因Feature修改條件，發生未考慮到的情況，導致Flow卡住。"
+              }
+            ],
+            "evidenceExplanation": "Comment 已將 Feature 條件修改與未涵蓋情境、流程停滯建立因果關係。",
+            "negativeChecks": [
+              "有明確 Root Cause，而非只有初步現象歸類；但缺少更細部狀態值，因此信心為 0.6。"
+            ],
+            "rationale": "具備關鍵條件的根因判斷，但細節少於完整深入分析。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "未出現 Suspend、Stop、Pausing 或 Event scheduling 的獨立證據。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本筆可確認 Insert GCSA 核心流程問題，並提供 Feature 條件造成停滯的根因說明。"
+      },
+      "manualReview": {
+        "recordIndex": 4,
+        "evidenceId": "pae_59210e4f25a2ebb422ab3086bf89a7a2e3776d40",
+        "sourceRecordStableId": "12418258",
+        "issueKey": "COPGEN1-145740",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.6,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "a426217340bf33bca5cb8410a33ba3c0e61bd442855ca8f7445892ff07b0b68f",
+        "sourceSnapshotSha256": "94fc6e256e41751dd2615bcea63cd7c6d0731c2b16644da467572b671c1a4cf8",
+        "aiAnalysisSha256": "22f086a4d36760ebb97806b4e591d2ddef9f321ef8c0f96a838e481170c34996",
+        "manualReviewSha256": "bb4589178707010f9ffc91555d493b77733923cd4f2db95b9d7ab7804a6c6cca",
+        "recordSha256": "d2c36c6ee9ea8bae6ee52ddbbe283b4990b827f621dbf698f071a277f83c282b"
+      }
+    },
+    {
+      "recordIndex": 5,
+      "dedupeKey": "8f486da7d2f28b221a1b08027c621c9be3a564cd8692cc0114be3d689ca8f2ba",
+      "sourceReference": {
+        "evidenceId": "pae_99dffff85da0e96fc17130e2f5b03c1c98e1c5d1",
+        "activityEventId": "62ab1152-0b02-4d9a-bd38-1211571a7b51",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12418248",
+        "historyId": "12418248",
+        "historyItemIndex": null,
+        "issueId": "3747348",
+        "issueKey": "COPGEN1-145740",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-31T08:47:22.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "0419ee3c31d5e910071656b321bf175d8057f04462f5e17519d77a74e0e8a1c7",
+        "beforeSha256": null,
+        "afterSha256": "125933a40bbe0fa21769bdefc2a474d773f2f44ea03f7b9f736abe34d71913df"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "62ab1152-0b02-4d9a-bd38-1211571a7b51:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"檢查DriveLog：\\r\\n\\r\\nubSrcNum=0x0，ulGCTargetPlaneIdx=0x0。\\r\\n\\r\\n預期當下：gGC.btNeedAddFreeGCGR = TRUE。\\r\\n\\r\\nGC_10SEC_LOG，gpVT->GC.InsertGCSA.State = INSERT_GCSA_INIT，一直卡在Init。\\r\\n\\r\\n!image-2026-07-31-16-47-13-400.png|thumbnail!\\r\\n\\r\\n與https://jira.phison.com:8443/browse/COPGEN1-145677問題相同。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12418248\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "檢查DriveLog：\r\n\r\nubSrcNum=0x0，ulGCTargetPlaneIdx=0x0。\r\n\r\n預期當下：gGC.btNeedAddFreeGCGR = TRUE。\r\n\r\nGC_10SEC_LOG，gpVT->GC.InsertGCSA.State = INSERT_GCSA_INIT，一直卡在Init。\r\n\r\n!image-2026-07-31-16-47-13-400.png|thumbnail!\r\n\r\n與https://jira.phison.com:8443/browse/COPGEN1-145677問題相同。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "a5bd335ff2dbc5ae12bdf254d9a21718c6fa82b36c9dcdba6b2a7c6348369638",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/5/diff/diffHunks/0/lines/1/text",
+                "quote": "gpVT->GC.InsertGCSA.State = INSERT_GCSA_INIT，一直卡在Init。"
+              }
+            ],
+            "evidenceExplanation": "Evidence 指出 Insert GCSA state 持續停在 INIT，屬於 GC 核心流程狀態。",
+            "negativeChecks": [
+              "沒有足夠資訊證明一般 Table Group 或 GC Event 排程。"
+            ],
+            "rationale": "具體 GC state 足以保留 GC Kernel 候選，但本筆未獨立完成完整根因鏈。"
+          },
+          {
+            "skillId": "DEBUG_001",
+            "skillName": "Bug 分析：初步分析歸類準確",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.3,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/5/diff/diffHunks/0/lines/1/text",
+                "quote": "與https://jira.phison.com:8443/browse/COPGEN1-145677問題相同。"
+              }
+            ],
+            "evidenceExplanation": "作者明確記錄已確認與另一題為相同問題，代表完成初步比對與歸類；本筆未寫出更完整的比對依據。",
+            "negativeChecks": [
+              "不是只有貼上 Issue URL，原文明確下了「問題相同」的判斷。",
+              "未把連結 Issue 內未出現在本筆的技術內容歸給目前作者。",
+              "比對依據有限，因此信心降為 0.3，且不升為 DEBUG_004。"
+            ],
+            "rationale": "依 Common Rules v2.1.0，相同問題的明確確認可建立低信心 DEBUG_001 候選。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "少數 GC 變數、單一 GC_10SEC_LOG snapshot 與預期值不足以證明 SYSTEM_029；DriveLog 在本筆僅為資料來源。",
+          "相同 Issue 判斷只支持初步 Debug 歸類，不自動帶入連結題目的其他技能。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本筆的 GC InsertGCSA state 可支持 GC_006；另因作者明確確認相同問題，保留低信心 DEBUG_001。單一 snapshot 與少數 GC 變數不足以建立 SYSTEM_029。"
+      },
+      "manualReview": {
+        "recordIndex": 5,
+        "evidenceId": "pae_99dffff85da0e96fc17130e2f5b03c1c98e1c5d1",
+        "sourceRecordStableId": "12418248",
+        "issueKey": "COPGEN1-145740",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.6,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_001",
+            "aiConfidence": 0.3,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "120ba23f7c4b545806e816d2846e37e117a1ce5d568fa2cc6206b4f78c58e3ff",
+        "sourceSnapshotSha256": "df1bee843c7fdacbd87a189d838485776fa7f873c34113fdbe6c7c431287700c",
+        "aiAnalysisSha256": "9bca3b15aee2101ef0c3652c88aadfa76e62e90c897a231781abad7f46544e31",
+        "manualReviewSha256": "b2e413c99d337ab0e514d0264dc3249dda916bbaf415b69775fe8341bf9a9724",
+        "recordSha256": "a3d806d2f6a720052a79230d009b0f49f2176496c95ec4bf56333930753030cc"
+      }
+    },
+    {
+      "recordIndex": 6,
+      "dedupeKey": "55416f3952f7a1e1c16053b9fa1a267fc9add8acada4e38786d319d6dc28ccc9",
+      "sourceReference": {
+        "evidenceId": "pae_d56c55948e12d6a0ee1c56b22af245430c6442e5",
+        "activityEventId": "ef4f22ea-8643-4680-a659-f37afa0064aa",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12415695",
+        "historyId": "12415695",
+        "historyItemIndex": null,
+        "issueId": "3591216",
+        "issueKey": "COPGEN1-136654",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-31T02:04:55.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "30780805739c630b4af04875a182eeeabe1dd7ed606d4f25ca8fc77f033facdc",
+        "beforeSha256": null,
+        "afterSha256": "08916364d27fbf10d0915622e39bb932c5eb9cafd1115d0b026ed7c9433b4433"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "ef4f22ea-8643-4680-a659-f37afa0064aa:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"Hi [~arcadia_fang] \\r\\n\\r\\n已完成上Code，在麻煩您檢查內容是否完備。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12415695\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "Hi [~arcadia_fang] \r\n\r\n已完成上Code，在麻煩您檢查內容是否完備。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "48a5ed49f87c996508650190483891c5daa4cdaa61684f7420d57c0f2d96f894",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [
+          "內容只有已完成上 Code 與請他人確認，沒有呈現程式修改、技術行為或分析內容。"
+        ],
+        "unknownReasons": [],
+        "rationale": "這是 completion-only 工作通知，依規則不得強迫分類。"
+      },
+      "manualReview": {
+        "recordIndex": 6,
+        "evidenceId": "pae_d56c55948e12d6a0ee1c56b22af245430c6442e5",
+        "sourceRecordStableId": "12415695",
+        "issueKey": "COPGEN1-136654",
+        "aiStatus": "EXCLUDED",
+        "expectedStatus": "EXCLUDED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "NOT_APPLICABLE",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "3019d8a230eeeb7045558e183d32f7182f36cd4d4fc61cdcd135c32060118379",
+        "sourceSnapshotSha256": "b1e5c0871963c5c45edad411aff90253d7b5b51085c9b8c9e52729914413a68a",
+        "aiAnalysisSha256": "76ffc8660ac42d496e306bd61fd175ae8c1ca63f4058e65529bb1fd3da1dfbd2",
+        "manualReviewSha256": "cd69c748901275edf596d12246373086c943c13bf82aca2b6e4c13c0dda993af",
+        "recordSha256": "27521788ece9ebb3ad1eebc5dcd9951a473208aedc29849899c845dd58d16a66"
+      }
+    },
+    {
+      "recordIndex": 7,
+      "dedupeKey": "239def59e3f111f4dc5ba9dcaa36fa6aaaf40d96be429a391f2cab049813eff0",
+      "sourceReference": {
+        "evidenceId": "pae_2cb297139d1aeca948e5222178499a24bfbde011",
+        "activityEventId": "66d81f69-745e-4768-9faa-2a944e6ffe29",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12412640",
+        "historyId": "12412640",
+        "historyItemIndex": null,
+        "issueId": "3745456",
+        "issueKey": "COPGEN1-145664",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-30T07:18:43.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "3805c79bb61ceb42b5ec2cc317b89aa0dfbdd95945a73ddc7b1a92deec890264",
+        "beforeSha256": null,
+        "afterSha256": "54a3627c3a74c3b90075ae6afcda6a95a7cb5d8f3efd08b5895e0405053758e4"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "66d81f69-745e-4768-9faa-2a944e6ffe29:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"[Last Action] - \\r\\n\\r\\n[Last Behavior] - \\r\\n\\r\\n[Fail Phenomenon] - \\r\\nGC Suspend Restert後，GC Flow無法繼續前進。\\r\\n[Root Cause] - \\r\\nGC Suspend時，Copy Data State切換錯誤。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12412640\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "[Last Action] - \r\n\r\n[Last Behavior] - \r\n\r\n[Fail Phenomenon] - \r\nGC Suspend Restert後，GC Flow無法繼續前進。\r\n[Root Cause] - \r\nGC Suspend時，Copy Data State切換錯誤。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "1316a05cd71420baa58c35d306b250ecf5b2017b35c5381b4633edb2177df769",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_007",
+            "skillName": "GC Suspend/Stop Flow",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/7/diff/diffHunks/0/lines/1/text",
+                "quote": "GC Suspend Restert後，GC Flow無法繼續前進。"
+              }
+            ],
+            "evidenceExplanation": "問題直接發生在 GC Suspend 後 Restart 的流程恢復與狀態前進。",
+            "negativeChecks": [
+              "未見獨立 pause/unpause 或 pausing 控制證據，不保留 GC_011。",
+              "Copy Data state 是 Suspend 流程根因，沒有另行重複列 GC_006。"
+            ],
+            "rationale": "符合 Suspend／Resume 條件與狀態轉移錯誤的 GC_007 邊界。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/7/diff/diffHunks/0/lines/1/text",
+                "quote": "GC Suspend時，Copy Data State切換錯誤。"
+              }
+            ],
+            "evidenceExplanation": "Comment 已從現象定位到 Suspend 時 Copy Data state transition 錯誤。",
+            "negativeChecks": [
+              "根因方向明確但缺少更詳細的狀態值與修正方式，因此使用 0.6。"
+            ],
+            "rationale": "具備狀態切換層級的根因判斷，足以保留深入分析候選。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "沒有 event queue 或 scheduling 證據。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本筆明確描述 GC Suspend/Restart 狀態轉移失敗及其 Copy Data 根因。"
+      },
+      "manualReview": {
+        "recordIndex": 7,
+        "evidenceId": "pae_2cb297139d1aeca948e5222178499a24bfbde011",
+        "sourceRecordStableId": "12412640",
+        "issueKey": "COPGEN1-145664",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "GC Suspend時，Copy Data State切換錯誤。",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_007",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.6,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [
+          {
+            "targetSkillId": "GC_007",
+            "targetSkillPresence": "EXISTING",
+            "sourceFindingSkillId": "DEBUG_004",
+            "sourceJsonPointer": "/records/7/diff/diffHunks/0/lines/1/text",
+            "quote": "GC Suspend時，Copy Data State切換錯誤。",
+            "suggestedConfidence": 0.9,
+            "reason": "此段描述包含了GC Skill 所以需要再從GC Skill中抽取一項列舉",
+            "negativeChecks": [
+              "不建立重複 Skill Finding；只補充同一句 Evidence 與既有 Skill 的關聯。"
+            ],
+            "reviewOrigin": "MIGRATED_FROM_V1_1",
+            "confirmed": true,
+            "assignmentId": "aea_8b4ca7ad92c57fe527fa"
+          }
+        ],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "747349ee4693a4d4e3790efb50acc7b656736815b67e1834761911ac176d60e4",
+        "sourceSnapshotSha256": "b1c707263b0274ea4f94c1de69ae90ed12f1dd34986a6dae3df2b25da077c3dd",
+        "aiAnalysisSha256": "6071726c1b0c6e0f2b196ece5ed4b3e8f7c90b192769f1c3a3c865d1cab681a0",
+        "manualReviewSha256": "c90950979ffd6ec29ed6513dbac4ea45e1591515ab28bb45aac8de6af4ffa0e7",
+        "recordSha256": "773e9fe8d71a058614846ae36b2852cac199c387cf47bd2f80ab05202521a436"
+      }
+    },
+    {
+      "recordIndex": 8,
+      "dedupeKey": "18e0bf9696c1da9b8abadbed249970c4c883b3a4faa21228ccf0876e75a8c557",
+      "sourceReference": {
+        "evidenceId": "pae_00721a2812f7302c297de1d43a0a73086d13bd8d",
+        "activityEventId": "c5cada25-c53a-4383-b49d-0181bda27c26",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12412637",
+        "historyId": "12412637",
+        "historyItemIndex": null,
+        "issueId": "3745456",
+        "issueKey": "COPGEN1-145664",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-30T07:18:13.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "40c6c1ce3551bfa2422ee73ffadb7fabcd2ab0f83d7043d7ebe6a750cc903a1e",
+        "beforeSha256": null,
+        "afterSha256": "10362bb03c6dd08ad2d4d280b4af8ec381b1f03687488f9bd56530034f9df7ca"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "c5cada25-c53a-4383-b49d-0181bda27c26:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"GC檢查確認與https://jira.phison.com:8443/browse/COPGEN1-145667，是相同問題。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12412637\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "GC檢查確認與https://jira.phison.com:8443/browse/COPGEN1-145667，是相同問題。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "2b425d36c6954f4712bd793cd411332cfcdf286d3c033a99a1a5219147e92b11",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.3,
+        "skillFindings": [
+          {
+            "skillId": "DEBUG_001",
+            "skillName": "Bug 分析：初步分析歸類準確",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.3,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/8/diff/diffHunks/0/lines/1/text",
+                "quote": "GC檢查確認與https://jira.phison.com:8443/browse/COPGEN1-145667，是相同問題。"
+              }
+            ],
+            "evidenceExplanation": "作者不是只貼連結，而是明確記錄經檢查後確認為相同問題，形成初步問題比對與歸類。",
+            "negativeChecks": [
+              "原文未提供比對特徵或根因細節，因此只給 0.3。",
+              "不把連結 Issue 的 GC 流程、狀態或其他領域內容帶入本筆。",
+              "缺少根因鏈與改善方法，不建立 DEBUG_004。"
+            ],
+            "rationale": "符合新版規則中「明確確認相同／相似問題」的 DEBUG_001 低信心候選界線。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "只有「GC檢查」文字不足以建立 GC 領域 Skill；本筆沒有可獨立引用的 GC flow、state、變數或條件。",
+          "連結目標內容不歸因給目前 Evidence 作者。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本筆明確記錄檢查並確認為相同問題，可保留低信心 DEBUG_001；但沒有足夠的本筆原文支持任何 GC 領域 Skill。"
+      },
+      "manualReview": {
+        "recordIndex": 8,
+        "evidenceId": "pae_00721a2812f7302c297de1d43a0a73086d13bd8d",
+        "sourceRecordStableId": "12412637",
+        "issueKey": "COPGEN1-145664",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "DEBUG_001",
+            "aiConfidence": 0.3,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "0fb45112886966d9a07d1b60f8fd99477d149375dbe82eceedd8fe93408f2438",
+        "sourceSnapshotSha256": "af7faf51693e8c392626d1e6fb4f753254d6dac941bd8a0b352d45742eb59d69",
+        "aiAnalysisSha256": "b82c5f52a5384bf33a88c9063d8ad9875bdbd02a368fcc16c7de918e992e832b",
+        "manualReviewSha256": "3c3e2fc11556cc5f3be4514f15ff6d65d92bd6bbc5fa3d3d17176302533c7338",
+        "recordSha256": "89e236135f71fa9a32c19d073d365cef05e7a7f10de428cba4a485543ac116fc"
+      }
+    },
+    {
+      "recordIndex": 9,
+      "dedupeKey": "0abfac5410d10665da890e64b03b2a5ad3ce27a89ac0958fb918b4f1c9965acf",
+      "sourceReference": {
+        "evidenceId": "pae_1fb8d814508aa58426759036e3a133a6e16bad08",
+        "activityEventId": "46ccfffc-9ec6-46de-ab73-f509ba3f5b57",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12407405",
+        "historyId": "12407405",
+        "historyItemIndex": null,
+        "issueId": "3745483",
+        "issueKey": "COPGEN1-145671",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-29T06:36:32.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "a628ebf1745efa49b7bc413df950c19e1105ff797c24c0eacfa943a84857fae5",
+        "beforeSha256": null,
+        "afterSha256": "cec09554eee2ba9b6853dc3471564f531e46e2cff9710283fe746cdd244db41a"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "46ccfffc-9ec6-46de-ab73-f509ba3f5b57:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"[Last Action] - \\r\\n\\r\\n[Last Behavior] - \\r\\n\\r\\n[Fail Phenomenon] - \\r\\nGC Suspend無法完成\\r\\n[Root Cause] - \\r\\n因Backup GCSA Flow檢查GC Suspend的條件修改錯誤\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12407405\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "[Last Action] - \r\n\r\n[Last Behavior] - \r\n\r\n[Fail Phenomenon] - \r\nGC Suspend無法完成\r\n[Root Cause] - \r\n因Backup GCSA Flow檢查GC Suspend的條件修改錯誤",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "9e8e931ce1e93b72fdedfe5783646ffc16f8aed47f8a384bc40a2c2c3283a038",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_007",
+            "skillName": "GC Suspend/Stop Flow",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/9/diff/diffHunks/0/lines/1/text",
+                "quote": "GC Suspend無法完成"
+              }
+            ],
+            "evidenceExplanation": "Evidence 直接指出 GC Suspend 無法完成，並將原因連到 Backup GCSA Flow 的 Suspend 條件。",
+            "negativeChecks": [
+              "沒有明確 pausing 狀態或 pause/unpause 控制，未列 GC_011。",
+              "Backup GCSA 在此是 Suspend 條件的一部分，未重複列 GC_006。"
+            ],
+            "rationale": "符合 GC Suspend 條件與流程錯誤的 GC_007 定義。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/9/diff/diffHunks/0/lines/1/text",
+                "quote": "因Backup GCSA Flow檢查GC Suspend的條件修改錯誤"
+              }
+            ],
+            "evidenceExplanation": "作者將故障定位到 Backup GCSA Flow 的 Suspend 條件修改錯誤。",
+            "negativeChecks": [
+              "有具體根因方向，但缺少詳細狀態推演，信心維持 0.6。"
+            ],
+            "rationale": "已超過單純現象描述，提供關鍵條件層級的根因定位。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "沒有資料支持 GC Event 排程或一般 RW Flow。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本筆可確認 GC Suspend flow 的條件錯誤，並提供可歸因的根因判斷。"
+      },
+      "manualReview": {
+        "recordIndex": 9,
+        "evidenceId": "pae_1fb8d814508aa58426759036e3a133a6e16bad08",
+        "sourceRecordStableId": "12407405",
+        "issueKey": "COPGEN1-145671",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_007",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.6,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "9c0ebf569ccc13089888c35da3bd50d5c168bde9b4c67f2b9fd0fb80bba3e721",
+        "sourceSnapshotSha256": "7ccade43cf0a115dc926f480eca5b336143212c2cd38bd707554bce46f3192a4",
+        "aiAnalysisSha256": "524544902d79d32d1b155ba02f97ba1c833ffe307b5d552ad1c0f95cd08c253f",
+        "manualReviewSha256": "3ec766d815e8f1911b06305a66e66066ed64c138cf41b2a756a5faad89d74f27",
+        "recordSha256": "332f3048ce1be0adc723ece8555940ad979cc2c058a0b2a30760265f6f3683ec"
+      }
+    },
+    {
+      "recordIndex": 10,
+      "dedupeKey": "6c86e105f10565e27a7ad8cfce2a889e013ec29696f2f347048065b81ec3dbc1",
+      "sourceReference": {
+        "evidenceId": "pae_707d9e09d3394894d306a6450848bc8040e01d02",
+        "activityEventId": "9259b275-cb02-4992-b500-347228e4e913",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12407392",
+        "historyId": "12407392",
+        "historyItemIndex": null,
+        "issueId": "3745483",
+        "issueKey": "COPGEN1-145671",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-29T06:34:50.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "33d81dec75f6de42bee65cff09b4dda5f22a9ce3bd6664ef09a354800d1ea71d",
+        "beforeSha256": null,
+        "afterSha256": "9bd8febc1fc3301bca73e0c1ea53865a743fd7d846ac63130e41745806f02240"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "9259b275-cb02-4992-b500-347228e4e913:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"從異常DriveLog，看到GC_BACKUP_GCSA_LOG的ulGCTargetPlaneIdx=0x10c20都沒有前進：\\r\\n\\r\\n!image-2026-07-29-14-31-19-196.png|thumbnail!\\r\\n\\r\\n懷疑當下有GC Suspend。\\r\\n\\r\\n!image-2026-07-29-14-32-52-582.png|thumbnail!\\r\\n\\r\\n看到gpVT->GC.CopyData.State一直停在COPYDATA_WAIT_READ。\\r\\n\\r\\n是已知的問題，相同於https://jira.phison.com:8443/browse/COPGEN1-145663。\\r\\n\\r\\nFix JIRA：https://jira.phison.com:8443/browse/COPGEN1-145749\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12407392\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "從異常DriveLog，看到GC_BACKUP_GCSA_LOG的ulGCTargetPlaneIdx=0x10c20都沒有前進：\r\n\r\n!image-2026-07-29-14-31-19-196.png|thumbnail!\r\n\r\n懷疑當下有GC Suspend。\r\n\r\n!image-2026-07-29-14-32-52-582.png|thumbnail!\r\n\r\n看到gpVT->GC.CopyData.State一直停在COPYDATA_WAIT_READ。\r\n\r\n是已知的問題，相同於https://jira.phison.com:8443/browse/COPGEN1-145663。\r\n\r\nFix JIRA：https://jira.phison.com:8443/browse/COPGEN1-145749",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "b2170bc50cfc020784ca7c57ff7be3eeea67d5416012ad0476378180060d1f4f",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "SYSTEM_029",
+            "skillName": "Drive log",
+            "group": "System",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/10/diff/diffHunks/0/lines/1/text",
+                "quote": "從異常DriveLog，看到GC_BACKUP_GCSA_LOG的ulGCTargetPlaneIdx=0x10c20都沒有前進："
+              }
+            ],
+            "evidenceExplanation": "作者從異常 DriveLog 解析特定 log 欄位與值，判斷 Target Plane Index 未前進。",
+            "negativeChecks": [
+              "不是只有 log 名稱或附件，具有欄位值及狀態判讀。"
+            ],
+            "rationale": "符合 SYSTEM_029 的實際 Drive log 解析與結論推導。"
+          },
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/10/diff/diffHunks/0/lines/1/text",
+                "quote": "看到gpVT->GC.CopyData.State一直停在COPYDATA_WAIT_READ。"
+              }
+            ],
+            "evidenceExplanation": "Copy Data state 停在 WAIT_READ 是 GC 核心資料搬移流程的具體狀態證據。",
+            "negativeChecks": [
+              "Copy Data 位於 GC 脈絡，不另列一般 RW Flow。"
+            ],
+            "rationale": "具體 GC CopyData state 支持 GC Kernel，但本筆主要目的仍是問題診斷。"
+          },
+          {
+            "skillId": "GC_007",
+            "skillName": "GC Suspend/Stop Flow",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/10/diff/diffHunks/0/lines/1/text",
+                "quote": "懷疑當下有GC Suspend。"
+              }
+            ],
+            "evidenceExplanation": "作者依 log 停滯狀態推測當下有 GC Suspend，且問題脈絡是 Suspend 無法完成。",
+            "negativeChecks": [
+              "文字使用『懷疑』且未在本筆展開 Suspend 條件，因此信心不提高至 0.9。",
+              "未見獨立 pausing 控制，不列 GC_011。"
+            ],
+            "rationale": "有合理且可追溯的 Suspend 候選，但證據強度低於直接根因描述。"
+          },
+          {
+            "skillId": "DEBUG_001",
+            "skillName": "Bug 分析：初步分析歸類準確",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/10/diff/diffHunks/0/lines/1/text",
+                "quote": "是已知的問題，相同於https://jira.phison.com:8443/browse/COPGEN1-145663。"
+              }
+            ],
+            "evidenceExplanation": "在先行解析 log 與 state 後，作者把問題歸類到已知案例並提供 Fix Jira。",
+            "negativeChecks": [
+              "沒有把連結目標內容當作本筆 Evidence；分類依據仍包含本筆 log 判讀。",
+              "本筆未自行提供完整根因鏈，未升為 DEBUG_004。"
+            ],
+            "rationale": "符合以 log 現象縮小範圍並歸類已知問題的初步 Bug 分析。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "沒有 event queue、dispatch 或 scheduling 證據。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本筆以 DriveLog 判讀 GC Backup GCSA 與 CopyData 停滯，完成初步問題歸類並形成 Suspend 候選。"
+      },
+      "manualReview": {
+        "recordIndex": 10,
+        "evidenceId": "pae_707d9e09d3394894d306a6450848bc8040e01d02",
+        "sourceRecordStableId": "12407392",
+        "issueKey": "COPGEN1-145671",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "SYSTEM_029",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.6,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "GC_007",
+            "aiConfidence": 0.6,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_001",
+            "aiConfidence": 0.6,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "5d63540b762a486c54a2a61faf7f5857ab51b49edacd34a303d7e668873328d3",
+        "sourceSnapshotSha256": "60bda88c6dd0dbdb76a683cbdcb62ecd94da444a83d94ffdaa267e214b397ee6",
+        "aiAnalysisSha256": "5331e68c92fc2a0e8868170acedf5aed34b5a72e3e70054b70cfe733f394e92d",
+        "manualReviewSha256": "59519cf636ad395f69de6ec55a9b00b763007313a2f9bdf3e691810b8b67e2e2",
+        "recordSha256": "1b0f7620cbacbe35c6074274d6d694133fa286ba74d44709b758757a35d0e790"
+      }
+    },
+    {
+      "recordIndex": 11,
+      "dedupeKey": "66e21a25fa37998ce3dad022c6a873fc1bc1c221fad7e970aa9b414ca4ad6082",
+      "sourceReference": {
+        "evidenceId": "pae_48c1ab19539d380a3be04e38254371f18e55e62b",
+        "activityEventId": "3fe5a5a5-6649-4ab0-a6fc-c3036d23cf19",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12406472",
+        "historyId": "12406472",
+        "historyItemIndex": null,
+        "issueId": "3745474",
+        "issueKey": "COPGEN1-145667",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-29T03:20:13.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "eaee2e70450dfa53dc8dc978cea0c5dc5d45e176b5897dad19cc11b2dd0c7bb1",
+        "beforeSha256": null,
+        "afterSha256": "0bffa3dbe538bd54ec544656844b682a15e8b3408e523940b3f9e855cf002943"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "3fe5a5a5-6649-4ab0-a6fc-c3036d23cf19:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"[Last Action] - \\r\\n\\r\\n[Last Behavior] - \\r\\n\\r\\n[Fail Phenomenon] - \\r\\nGC Suspend Restert後，GC Flow無法繼續前進。\\r\\n[Root Cause] - \\r\\nGC Suspend時，Copy Data State切換錯誤。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12406472\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "[Last Action] - \r\n\r\n[Last Behavior] - \r\n\r\n[Fail Phenomenon] - \r\nGC Suspend Restert後，GC Flow無法繼續前進。\r\n[Root Cause] - \r\nGC Suspend時，Copy Data State切換錯誤。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "7622cc12ffc4423885811772b2a38b2517b2b03119485dc9d194ce76dc55a5c1",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_007",
+            "skillName": "GC Suspend/Stop Flow",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/11/diff/diffHunks/0/lines/1/text",
+                "quote": "GC Suspend Restert後，GC Flow無法繼續前進。"
+              }
+            ],
+            "evidenceExplanation": "Comment 直接描述 Suspend 後 Restart 時 GC flow 無法恢復前進。",
+            "negativeChecks": [
+              "沒有獨立 pausing 控制證據，不列 GC_011。",
+              "Copy Data state transition 是 Suspend 根因，不另重複建立 GC_006。"
+            ],
+            "rationale": "明確符合 GC Suspend/Stop/Resume 狀態轉移範圍。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/11/diff/diffHunks/0/lines/1/text",
+                "quote": "GC Suspend時，Copy Data State切換錯誤。"
+              }
+            ],
+            "evidenceExplanation": "作者將 Restart 後卡住的現象定位到 Suspend 時 Copy Data state 切換錯誤。",
+            "negativeChecks": [
+              "有根因方向但未提供完整狀態推演，故不使用最高信心。"
+            ],
+            "rationale": "關鍵狀態轉移已被定位，符合深入分析候選。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "雖與 record 7 內容相同，仍依本筆自己的來源身分獨立完成判斷。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本 record 有可歸因的 Suspend/Restart 流程問題與 Copy Data state 根因。"
+      },
+      "manualReview": {
+        "recordIndex": 11,
+        "evidenceId": "pae_48c1ab19539d380a3be04e38254371f18e55e62b",
+        "sourceRecordStableId": "12406472",
+        "issueKey": "COPGEN1-145667",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "GC Suspend時，Copy Data State切換錯誤。",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_007",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.6,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [
+          {
+            "targetSkillId": "GC_007",
+            "targetSkillPresence": "EXISTING",
+            "sourceFindingSkillId": "DEBUG_004",
+            "sourceJsonPointer": "/records/11/diff/diffHunks/0/lines/1/text",
+            "quote": "GC Suspend時，Copy Data State切換錯誤。",
+            "suggestedConfidence": 0.9,
+            "reason": "此 Evidence 同時支持既有 GC_007，不應建立重複漏判 Skill。",
+            "negativeChecks": [
+              "不建立重複 Skill Finding；只補充同一句 Evidence 與既有 Skill 的關聯。"
+            ],
+            "reviewOrigin": "MIGRATED_FROM_V1_1",
+            "confirmed": true,
+            "assignmentId": "aea_96b84ea0e8f57b67bb82"
+          }
+        ],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "2a77d0e51fa60806c946add94a22f739c28ab14ebf464e792416c0656c5a978d",
+        "sourceSnapshotSha256": "09e8d273f0c316e7c90be593daeaa03f067cad7942bf6654d0ce8792683619c9",
+        "aiAnalysisSha256": "fc9b81f318cf0270e3d73584c6856954e689fb1eca979bb1731ef625d59f75d7",
+        "manualReviewSha256": "0f7c4cb19e64e430ed93a48fea44b2b1bcaa05bd165279962273baf7fd27b847",
+        "recordSha256": "cc562b75997cf9e00f1ce75402a4f571877963ede2953b8c87b09841d1e46876"
+      }
+    },
+    {
+      "recordIndex": 12,
+      "dedupeKey": "bb8ea241c9cb196b3cc872e6cef0d7c82e288c3935db377a1a9354c9116d257d",
+      "sourceReference": {
+        "evidenceId": "pae_3bd9c52e17d73a357e5ebcf397c6be31217456ec",
+        "activityEventId": "7a39d8c8-543a-4555-841e-d1edc27105cf",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12405724:2026-07-29T01:57:00.000Z",
+        "historyId": "12405724",
+        "historyItemIndex": null,
+        "issueId": "3745474",
+        "issueKey": "COPGEN1-145667",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-29T01:57:00.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fc07b8cfe9e056838362d30420ebf64d0039aa2ab5e6f5333e9b6dca1e3df9d8",
+        "beforeSha256": null,
+        "afterSha256": "a0271707906654976710bd28085aadaeefaa963d588b03d68c56b5e071b0b88b"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "7a39d8c8-543a-4555-841e-d1edc27105cf:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"從小兔子無法看出來原因。\\r\\n\\r\\n從DriveLog檢查：\\r\\n|| Time|| Type||val0||val1||val2||val3||val4||\\r\\n|17104202|GC_PAUSING_LOG|uoGCPausingTime=0xa| | | | |\\r\\n|17104203|GC_BACKUP_GCSA_LOG|uwGCSAIdx=0xf20|uwDummyIdx=0x0|uwSortedOptimalCnt=0xf20|ulGCTargetPlaneIdx=0xb50| |\\r\\n|17104203|GC_STANDBY_LOG|LOAD_PTE_STOP|BUILD_GCSA_BUILD|COPYDATA_INIT|INSERT_GCSA_INIT| |\\r\\n|17104203|GC_BACKUP_GCSA_LOG|uwGCSAIdx=0xf20|uwDummyIdx=0x0|uwSortedOptimalCnt=0x0|ulGCTargetPlaneIdx=0xb50| |\\r\\n|17104205|GC_SUSPEND_DONE_LOG|btNowHMB=0x0|ulGCTargetPlaneIdx=0xb50|uwGCSAIdx=0x0|uwReadIdx=0x0|uwProgramIdx=0xf20|\\r\\n|17104344|GC_SUSPEND_RESTART_LOG|LOAD_PTE_INIT|BUILD_GCSA_BUILD|COPYDATA_FINISH|INSERT_GCSA_INIT| |\\r\\n\\r\\n從GC_PAUSING_LOG與GC_STANDBY_LOG，Time很接近。\\r\\n\\r\\ngGC.ubSuspendEnable = TRUE時，當下正在GC Pausing，會馬上結束GC Pausing並且印出GC_BACKUP_GCSA_LOG。\\r\\n\\r\\n第二筆的GC_BACKUP_GCSA_LOG是因為下圖：\\r\\n\\r\\n!image-2026-07-29-09-40-28-826.png|thumbnail!\\r\\n\\r\\nCopy Data State還沒有Finish，所以Backup GCSA State維持不變。\\r\\n\\r\\n繞一圈FTLTask後，在印一次的緣故。\\r\\n\\r\\n \\r\\n\\r\\n從GC_SUSPEND_DONE_LOG的Program Index != Read Index，不預期Suspend Done可以停在這種狀態。\\r\\n\\r\\n因Suspend Done必須將Read Data都Program完成，2個Index應該要相等。\\r\\n\\r\\n在GC_SUSPEND_RESTART_LOG，Suspend Done前，Copy Data已經在COPYDATA_FINISH。\\r\\n\\r\\n表示有誤切到COPYDATA_FINISH。\\r\\n\\r\\n從GC_STANDBY_LOG，可以看到當下Copy Data State是COPYDATA_INIT，所以應該是從COPYDATA_INIT誤切到COPYDATA_FINISH。\\r\\n\\r\\n檢查發現錯誤在下圖：\\r\\n\\r\\n!image-2026-07-29-09-55-04-157.png|thumbnail!\\r\\n\\r\\n預期要在紅框處完成Suspend Done，但是走去綠框了。\\r\\n\\r\\n紅框M_FTL_GC_CHECK_SUSPEND()無法成立的原因是Program Index還殘留著，未清除為0。\\r\\n\\r\\n預期會調整Program Index清除為0的位置。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12405724\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "從小兔子無法看出來原因。\r\n\r\n從DriveLog檢查：\r\n|| Time|| Type||val0||val1||val2||val3||val4||\r\n|17104202|GC_PAUSING_LOG|uoGCPausingTime=0xa| | | | |\r\n|17104203|GC_BACKUP_GCSA_LOG|uwGCSAIdx=0xf20|uwDummyIdx=0x0|uwSortedOptimalCnt=0xf20|ulGCTargetPlaneIdx=0xb50| |\r\n|17104203|GC_STANDBY_LOG|LOAD_PTE_STOP|BUILD_GCSA_BUILD|COPYDATA_INIT|INSERT_GCSA_INIT| |\r\n|17104203|GC_BACKUP_GCSA_LOG|uwGCSAIdx=0xf20|uwDummyIdx=0x0|uwSortedOptimalCnt=0x0|ulGCTargetPlaneIdx=0xb50| |\r\n|17104205|GC_SUSPEND_DONE_LOG|btNowHMB=0x0|ulGCTargetPlaneIdx=0xb50|uwGCSAIdx=0x0|uwReadIdx=0x0|uwProgramIdx=0xf20|\r\n|17104344|GC_SUSPEND_RESTART_LOG|LOAD_PTE_INIT|BUILD_GCSA_BUILD|COPYDATA_FINISH|INSERT_GCSA_INIT| |\r\n\r\n從GC_PAUSING_LOG與GC_STANDBY_LOG，Time很接近。\r\n\r\ngGC.ubSuspendEnable = TRUE時，當下正在GC Pausing，會馬上結束GC Pausing並且印出GC_BACKUP_GCSA_LOG。\r\n\r\n第二筆的GC_BACKUP_GCSA_LOG是因為下圖：\r\n\r\n!image-2026-07-29-09-40-28-826.png|thumbnail!\r\n\r\nCopy Data State還沒有Finish，所以Backup GCSA State維持不變。\r\n\r\n繞一圈FTLTask後，在印一次的緣故。\r\n\r\n \r\n\r\n從GC_SUSPEND_DONE_LOG的Program Index != Read Index，不預期Suspend Done可以停在這種狀態。\r\n\r\n因Suspend Done必須將Read Data都Program完成，2個Index應該要相等。\r\n\r\n在GC_SUSPEND_RESTART_LOG，Suspend Done前，Copy Data已經在COPYDATA_FINISH。\r\n\r\n表示有誤切到COPYDATA_FINISH。\r\n\r\n從GC_STANDBY_LOG，可以看到當下Copy Data State是COPYDATA_INIT，所以應該是從COPYDATA_INIT誤切到COPYDATA_FINISH。\r\n\r\n檢查發現錯誤在下圖：\r\n\r\n!image-2026-07-29-09-55-04-157.png|thumbnail!\r\n\r\n預期要在紅框處完成Suspend Done，但是走去綠框了。\r\n\r\n紅框M_FTL_GC_CHECK_SUSPEND()無法成立的原因是Program Index還殘留著，未清除為0。\r\n\r\n預期會調整Program Index清除為0的位置。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "14bbaf09c62e325bb161ee27899aa6c362beae2636b13dc5850f2d1d075eede4",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "SYSTEM_029",
+            "skillName": "Drive log",
+            "group": "System",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/12/diff/diffHunks/0/lines/1/text",
+                "quote": "從GC_SUSPEND_DONE_LOG的Program Index != Read Index，不預期Suspend Done可以停在這種狀態。"
+              }
+            ],
+            "evidenceExplanation": "作者逐項解析 GC log 的時序、state 與 Program/Read Index，並判斷 Suspend Done 狀態不合理。",
+            "negativeChecks": [
+              "不是僅貼上 log；內容包含欄位、值、時序比較及技術結論。"
+            ],
+            "rationale": "完整符合 Drive log 解析技能。"
+          },
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/12/diff/diffHunks/0/lines/1/text",
+                "quote": "從GC_STANDBY_LOG，可以看到當下Copy Data State是COPYDATA_INIT，所以應該是從COPYDATA_INIT誤切到COPYDATA_FINISH。"
+              }
+            ],
+            "evidenceExplanation": "Copy Data state 從 INIT 誤切到 FINISH 是 GC 核心資料搬移流程的具體錯誤。",
+            "negativeChecks": [
+              "Copy Data/Program/Read 位於 GC flow，不誤列一般 RW。"
+            ],
+            "rationale": "具體 GC CopyData state transition 與 GCSA 記錄支持 GC Kernel。"
+          },
+          {
+            "skillId": "GC_007",
+            "skillName": "GC Suspend/Stop Flow",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/12/diff/diffHunks/0/lines/1/text",
+                "quote": "預期要在紅框處完成Suspend Done，但是走去綠框了。"
+              }
+            ],
+            "evidenceExplanation": "Evidence 直接追查 Suspend Done、Restart 與檢查條件的錯誤路徑。",
+            "negativeChecks": [
+              "不是只有 GC Suspend 關鍵字，包含 state、index 與檢查條件。"
+            ],
+            "rationale": "明確符合 Suspend/Stop/Resume 條件及狀態轉移技能。"
+          },
+          {
+            "skillId": "GC_011",
+            "skillName": "Pausing GC",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/12/diff/diffHunks/0/lines/1/text",
+                "quote": "gGC.ubSuspendEnable = TRUE時，當下正在GC Pausing，會馬上結束GC Pausing並且印出GC_BACKUP_GCSA_LOG。"
+              }
+            ],
+            "evidenceExplanation": "本筆有獨立的 GC Pausing 狀態、SuspendEnable 控制與結束行為，不只是一般 Suspend 描述。",
+            "negativeChecks": [
+              "已確認存在獨立 pausing 控制證據，因此可與 GC_007 共存。"
+            ],
+            "rationale": "符合 Pausing GC 的明確狀態與控制機制。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/12/diff/diffHunks/0/lines/1/text",
+                "quote": "紅框M_FTL_GC_CHECK_SUSPEND()無法成立的原因是Program Index還殘留著，未清除為0。"
+              }
+            ],
+            "evidenceExplanation": "作者從多筆 log 時序與 state 推導到檢查條件失敗，並定位 Program Index 未清零的根因。",
+            "negativeChecks": [
+              "不只是初步歸類，已包含完整根因鏈及預計調整位置。"
+            ],
+            "rationale": "具有跨 log 狀態關聯、關鍵條件推理與具體修正方向。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "沒有 event queue、dispatch 或 scheduling 證據，不列 GC_009。",
+          "五個 Findings 分別對應 log 解析、CopyData、Suspend、Pausing 與根因推理，並非重複標籤。"
+        ],
+        "unknownReasons": [],
+        "rationale": "這是一筆內容完整的 GC Suspend 問題分析，具有 Drive log、核心 CopyData、Suspend、Pausing 與深入根因五個可區分面向。"
+      },
+      "manualReview": {
+        "recordIndex": 12,
+        "evidenceId": "pae_3bd9c52e17d73a357e5ebcf397c6be31217456ec",
+        "sourceRecordStableId": "12405724:2026-07-29T01:57:00.000Z",
+        "issueKey": "COPGEN1-145667",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "SYSTEM_029",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "GC_007",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "GC_011",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "e8b8a766e5b6b791649b4739a21a1ca6a8eeb99050f185a6441e567f9b4b0922",
+        "sourceSnapshotSha256": "d169e37bf8b73d1e8e547909c6bfce543b145efc04e9216fa4a506df0b6f90a7",
+        "aiAnalysisSha256": "841edae8c11629e033e1415968879186b98520d16213c8bba65f03e50a79a04a",
+        "manualReviewSha256": "c37ca6c623dbd448b073f540fc9ae99fd7d28dd040015b38a1c6cdaeda4d5fc8",
+        "recordSha256": "4f2cb270c483ef177f952d98dd20926910d1c6a203971f83e85a7c2eec1c9658"
+      }
+    },
+    {
+      "recordIndex": 13,
+      "dedupeKey": "9776f3c1694b2413e3341f1d2b8d567e8627cc5dcc663ca2a270becd376a0543",
+      "sourceReference": {
+        "evidenceId": "pae_2019c0d615052673fe3b5b404ff170c413bab728",
+        "activityEventId": "569568cf-2bbc-4168-916a-b952be5e65e1",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12405724",
+        "historyId": "12405724",
+        "historyItemIndex": null,
+        "issueId": "3745474",
+        "issueKey": "COPGEN1-145667",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-29T01:46:44.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "a0a8e81c797b7650f627135c57adc27ce792a7862e9332d301bab99e967f1860",
+        "beforeSha256": null,
+        "afterSha256": "d4e7c98421e4cf58e0e825228a43ab347f60e797d1f99f25355c3ce219eb3b27"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "569568cf-2bbc-4168-916a-b952be5e65e1:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"從小兔子無法看出來原因。\\r\\n\\r\\n從DriveLog檢查：\\r\\n|| Time|| Type||val0||val1||val2||val3||val4||\\r\\n|17104202|GC_PAUSING_LOG|uoGCPausingTime=0xa| | | | |\\r\\n|17104203|GC_BACKUP_GCSA_LOG|uwGCSAIdx=0xf20|uwDummyIdx=0x0|uwSortedOptimalCnt=0xf20|ulGCTargetPlaneIdx=0xb50| |\\r\\n|17104203|GC_STANDBY_LOG|LOAD_PTE_STOP|BUILD_GCSA_BUILD|COPYDATA_INIT|INSERT_GCSA_INIT| |\\r\\n|17104203|GC_BACKUP_GCSA_LOG|uwGCSAIdx=0xf20|uwDummyIdx=0x0|uwSortedOptimalCnt=0x0|ulGCTargetPlaneIdx=0xb50| |\\r\\n|17104205|GC_SUSPEND_DONE_LOG|btNowHMB=0x0|ulGCTargetPlaneIdx=0xb50|uwGCSAIdx=0x0|uwReadIdx=0x0|uwProgramIdx=0xf20|\\r\\n|17104344|GC_SUSPEND_RESTART_LOG|LOAD_PTE_INIT|BUILD_GCSA_BUILD|COPYDATA_FINISH|INSERT_GCSA_INIT| |\\r\\n\\r\\n從GC_PAUSING_LOG與GC_STANDBY_LOG，Time很接近。\\r\\n\\r\\ngGC.ubSuspendEnable = TRUE時，當下正在GC Pausing，會馬上結束GC Pausing並且印出GC_BACKUP_GCSA_LOG。\\r\\n\\r\\n第二筆的GC_BACKUP_GCSA_LOG是因為下圖：\\r\\n\\r\\n!image-2026-07-29-09-40-28-826.png|thumbnail!\\r\\n\\r\\nCopy Data State還沒有Finish，所以Backup GCSA State維持不變。\\r\\n\\r\\n繞一圈FTLTask後，在印一次的緣故。\\r\\n\\r\\n \\r\\n\\r\\n從GC_SUSPEND_DONE_LOG的Program Index != Read Index，不預期Suspend Done可以停在這種狀態。\\r\\n\\r\\n因Suspend Done必須將Read Data都Program完成，2個Index應該要相等。\\r\\n\\r\\n在GC_SUSPEND_RESTART_LOG，Suspend Done前，Copy Data已經在COPYDATA_FINISH。\\r\\n\\r\\n表示有誤切到COPYDATA_FINISH。\\r\\n\\r\\n從GC_STANDBY_LOG，可以看到當下Copy Data State是COPYDATA_INIT，所以應該是從COPYDATA_INIT誤切到COPYDATA_FINISH。\\r\\n\\r\\n檢查發現錯誤在下圖：\\r\\n\\r\\n!image-2026-07-29-09-55-04-157.png|thumbnail!\\r\\n\\r\\n預期要在紅框處完成Suspend Done，但是走去綠框了。\\r\\n\\r\\n紅框M_FTL_GC_CHECK_SUSPEND()無法成立的原因是Program Index還殘留著，未清除為0。\\r\\n\\r\\n預期會調整Program Index清除為0的位置。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12405724\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "從小兔子無法看出來原因。\r\n\r\n從DriveLog檢查：\r\n|| Time|| Type||val0||val1||val2||val3||val4||\r\n|17104202|GC_PAUSING_LOG|uoGCPausingTime=0xa| | | | |\r\n|17104203|GC_BACKUP_GCSA_LOG|uwGCSAIdx=0xf20|uwDummyIdx=0x0|uwSortedOptimalCnt=0xf20|ulGCTargetPlaneIdx=0xb50| |\r\n|17104203|GC_STANDBY_LOG|LOAD_PTE_STOP|BUILD_GCSA_BUILD|COPYDATA_INIT|INSERT_GCSA_INIT| |\r\n|17104203|GC_BACKUP_GCSA_LOG|uwGCSAIdx=0xf20|uwDummyIdx=0x0|uwSortedOptimalCnt=0x0|ulGCTargetPlaneIdx=0xb50| |\r\n|17104205|GC_SUSPEND_DONE_LOG|btNowHMB=0x0|ulGCTargetPlaneIdx=0xb50|uwGCSAIdx=0x0|uwReadIdx=0x0|uwProgramIdx=0xf20|\r\n|17104344|GC_SUSPEND_RESTART_LOG|LOAD_PTE_INIT|BUILD_GCSA_BUILD|COPYDATA_FINISH|INSERT_GCSA_INIT| |\r\n\r\n從GC_PAUSING_LOG與GC_STANDBY_LOG，Time很接近。\r\n\r\ngGC.ubSuspendEnable = TRUE時，當下正在GC Pausing，會馬上結束GC Pausing並且印出GC_BACKUP_GCSA_LOG。\r\n\r\n第二筆的GC_BACKUP_GCSA_LOG是因為下圖：\r\n\r\n!image-2026-07-29-09-40-28-826.png|thumbnail!\r\n\r\nCopy Data State還沒有Finish，所以Backup GCSA State維持不變。\r\n\r\n繞一圈FTLTask後，在印一次的緣故。\r\n\r\n \r\n\r\n從GC_SUSPEND_DONE_LOG的Program Index != Read Index，不預期Suspend Done可以停在這種狀態。\r\n\r\n因Suspend Done必須將Read Data都Program完成，2個Index應該要相等。\r\n\r\n在GC_SUSPEND_RESTART_LOG，Suspend Done前，Copy Data已經在COPYDATA_FINISH。\r\n\r\n表示有誤切到COPYDATA_FINISH。\r\n\r\n從GC_STANDBY_LOG，可以看到當下Copy Data State是COPYDATA_INIT，所以應該是從COPYDATA_INIT誤切到COPYDATA_FINISH。\r\n\r\n檢查發現錯誤在下圖：\r\n\r\n!image-2026-07-29-09-55-04-157.png|thumbnail!\r\n\r\n預期要在紅框處完成Suspend Done，但是走去綠框了。\r\n\r\n紅框M_FTL_GC_CHECK_SUSPEND()無法成立的原因是Program Index還殘留著，未清除為0。\r\n\r\n預期會調整Program Index清除為0的位置。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "42c5b2758618809a6cf3a60eba2f74fda27b9e9144c142d91b75fb27474dabf9",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "SYSTEM_029",
+            "skillName": "Drive log",
+            "group": "System",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/13/diff/diffHunks/0/lines/1/text",
+                "quote": "從GC_SUSPEND_DONE_LOG的Program Index != Read Index，不預期Suspend Done可以停在這種狀態。"
+              }
+            ],
+            "evidenceExplanation": "本 record 以 DriveLog 時序、state 及 index 不一致判斷 Suspend Done 異常。",
+            "negativeChecks": [
+              "有實際欄位與狀態判讀，並非只提及 DriveLog。"
+            ],
+            "rationale": "符合 SYSTEM_029 的 log 解析與技術結論。"
+          },
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/13/diff/diffHunks/0/lines/1/text",
+                "quote": "從GC_STANDBY_LOG，可以看到當下Copy Data State是COPYDATA_INIT，所以應該是從COPYDATA_INIT誤切到COPYDATA_FINISH。"
+              }
+            ],
+            "evidenceExplanation": "Evidence 清楚呈現 GC CopyData state 的錯誤轉移。",
+            "negativeChecks": [
+              "GC CopyData context 不歸入一般 RW Flow。"
+            ],
+            "rationale": "CopyData 與 GCSA state 分析支持 GC Kernel。"
+          },
+          {
+            "skillId": "GC_007",
+            "skillName": "GC Suspend/Stop Flow",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/13/diff/diffHunks/0/lines/1/text",
+                "quote": "預期要在紅框處完成Suspend Done，但是走去綠框了。"
+              }
+            ],
+            "evidenceExplanation": "作者定位 Suspend Done 應成立但走到錯誤分支的流程問題。",
+            "negativeChecks": [
+              "具體狀態與條件足以支持，不是單一 Suspend 關鍵字。"
+            ],
+            "rationale": "符合 GC Suspend/Stop Flow 的條件與狀態轉移。"
+          },
+          {
+            "skillId": "GC_011",
+            "skillName": "Pausing GC",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/13/diff/diffHunks/0/lines/1/text",
+                "quote": "gGC.ubSuspendEnable = TRUE時，當下正在GC Pausing，會馬上結束GC Pausing並且印出GC_BACKUP_GCSA_LOG。"
+              }
+            ],
+            "evidenceExplanation": "內容獨立說明 Pausing 狀態、控制旗標與結束行為。",
+            "negativeChecks": [
+              "有獨立 pausing 技術面向，可與 Suspend Flow 同時保留。"
+            ],
+            "rationale": "直接符合 Pausing GC 的狀態控制範圍。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/13/diff/diffHunks/0/lines/1/text",
+                "quote": "紅框M_FTL_GC_CHECK_SUSPEND()無法成立的原因是Program Index還殘留著，未清除為0。"
+              }
+            ],
+            "evidenceExplanation": "作者把 log 時序、錯誤 state 與程式檢查條件串連，定位到 Program Index 未清零。",
+            "negativeChecks": [
+              "包含根因鏈與預計修改方向，明顯超過初步歸類。"
+            ],
+            "rationale": "符合 DEBUG_004 的關鍵條件推理與改善方向。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "內容雖與 record 12 相同，仍以本筆來源位置與身分獨立引用。",
+          "沒有 GC Event scheduling 證據。"
+        ],
+        "unknownReasons": [],
+        "rationale": "此筆完整支援 Drive log、GC Kernel、Suspend、Pausing 與深入根因分析，且各 Skill 有獨立技術說明。"
+      },
+      "manualReview": {
+        "recordIndex": 13,
+        "evidenceId": "pae_2019c0d615052673fe3b5b404ff170c413bab728",
+        "sourceRecordStableId": "12405724",
+        "issueKey": "COPGEN1-145667",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "SYSTEM_029",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "GC_007",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "GC_011",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "a85b434448b90d30caa1939a878763aca9cd926bee32cc3918503028829039f5",
+        "sourceSnapshotSha256": "676414ba13053abb628310fbaed6937b018227e6720efbb2a186b9158bd78d3c",
+        "aiAnalysisSha256": "85d13598b2033ee2ebfc06801f5b67f448a23ca4484764ebf81a78066b1604ed",
+        "manualReviewSha256": "c2a32f6367f1fad3335a1f6cdc82fb3f26d4fcc0dda7416f7d2efd8a0d45747c",
+        "recordSha256": "a5fa52f08e3f973047e10f0946323b85f90b1c8e6487e11e0aa6a2bb5ae33a1b"
+      }
+    },
+    {
+      "recordIndex": 14,
+      "dedupeKey": "c840ef24a743fbf4c47c18ec8ece602fb6fcf19bc3b5d944b2d182b2e674017d",
+      "sourceReference": {
+        "evidenceId": "pae_ae447ab4899ec83fb3ef09ef92afe405005b27d8",
+        "activityEventId": "d2138112-f354-4a14-98b3-0ef3d50c2d7b",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12403607:2026-07-29T00:42:55.000Z",
+        "historyId": "12403607",
+        "historyItemIndex": null,
+        "issueId": "3745536",
+        "issueKey": "COPGEN1-145677",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-29T00:42:55.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "f5ceb9a83e31bcc831f9b7e53585092ea5807acfd056489dd4742d7f4663e687",
+        "beforeSha256": null,
+        "afterSha256": "c5885d491d9cd12265539e76cd8351c1fc0288ddc10955736012db1a43b44ff1"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "d2138112-f354-4a14-98b3-0ef3d50c2d7b:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"因Feature https://jira.phison.com:8443/browse/COPGEN1-136654，修改了INSERT_GCSA_INIT。\\r\\n\\r\\n因未考量到gGC.ubNeedAddFreeGCGR = TRUE時，是走GC Stop的Flow。\\r\\n\\r\\ngGC.ubNeedAddFreeGCGR = TRUE時，Backup GCSA State會是BACKUP_GCSA_FINAL_GCTARGET_DONE。\\r\\n\\r\\n導致條件無法成立，Flow卡住。\\r\\n\\r\\n修正方式：\\r\\n\\r\\n!image-2026-07-28-17-00-04-074.png|thumbnail!\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12403607\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "因Feature https://jira.phison.com:8443/browse/COPGEN1-136654，修改了INSERT_GCSA_INIT。\r\n\r\n因未考量到gGC.ubNeedAddFreeGCGR = TRUE時，是走GC Stop的Flow。\r\n\r\ngGC.ubNeedAddFreeGCGR = TRUE時，Backup GCSA State會是BACKUP_GCSA_FINAL_GCTARGET_DONE。\r\n\r\n導致條件無法成立，Flow卡住。\r\n\r\n修正方式：\r\n\r\n!image-2026-07-28-17-00-04-074.png|thumbnail!",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "bf8e6c50220cb8c09792eb427a6d873493ce63efe429dc4596556cc6af7ad337",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/14/diff/diffHunks/0/lines/1/text",
+                "quote": "gGC.ubNeedAddFreeGCGR = TRUE時，Backup GCSA State會是BACKUP_GCSA_FINAL_GCTARGET_DONE。"
+              }
+            ],
+            "evidenceExplanation": "Evidence 具體描述 Insert/Backup GCSA state 與 GC flow 條件。",
+            "negativeChecks": [
+              "GCSA state 屬於 GC kernel context，不分類一般 Table Group。"
+            ],
+            "rationale": "Insert GCSA 與 Backup GCSA 的狀態條件直接支持 GC Kernel。"
+          },
+          {
+            "skillId": "GC_007",
+            "skillName": "GC Suspend/Stop Flow",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/14/diff/diffHunks/0/lines/1/text",
+                "quote": "因未考量到gGC.ubNeedAddFreeGCGR = TRUE時，是走GC Stop的Flow。"
+              }
+            ],
+            "evidenceExplanation": "內容明確指出特定旗標下走 GC Stop flow，且該條件未被考量。",
+            "negativeChecks": [
+              "未見 pausing 狀態，不列 GC_011。"
+            ],
+            "rationale": "符合 GC Stop Flow 的條件與錯誤處理範圍。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/14/diff/diffHunks/0/lines/1/text",
+                "quote": "導致條件無法成立，Flow卡住。"
+              }
+            ],
+            "evidenceExplanation": "作者將 Feature 修改、FreeGCGR 旗標、Backup GCSA final state 與條件失敗串成根因鏈，並提出修正。",
+            "negativeChecks": [
+              "不是只報告卡住現象，已指出未考量條件與修正方向。"
+            ],
+            "rationale": "具備關鍵條件推理與具體改善方向，符合 DEBUG_004。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "沒有 event queue、dispatch 或 pausing 控制證據。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本筆同時包含 GCSA 核心狀態、GC Stop flow 與根因修正三個可區分的技術面向。"
+      },
+      "manualReview": {
+        "recordIndex": 14,
+        "evidenceId": "pae_ae447ab4899ec83fb3ef09ef92afe405005b27d8",
+        "sourceRecordStableId": "12403607:2026-07-29T00:42:55.000Z",
+        "issueKey": "COPGEN1-145677",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "GC_007",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "4c416b6b87ce7d2721557cf0ae07bed66941790028311516a0e1357e0817792f",
+        "sourceSnapshotSha256": "62bd27cc1b651517a7d38954c403fc3ea35564d9e565f453a4479508c3cc28fe",
+        "aiAnalysisSha256": "e3174599ef85de71ccc0cdd8e0a37d7f1d49a46e89d199ab428dc4475289f557",
+        "manualReviewSha256": "232a832d6f5ab1c88e3d0e3301ad5ff82bff9adcca219159d3fc9081468dfe98",
+        "recordSha256": "9fb7a348ca18bf678620d8c657820644e0af69583f8a65ba42850f407ad402ae"
+      }
+    },
+    {
+      "recordIndex": 15,
+      "dedupeKey": "6791f90fa3c1d3b147ac1a34d6e9518175b4a7b003566ec8b65dde9bf25667c2",
+      "sourceReference": {
+        "evidenceId": "pae_b0ea1780d7866a83f3c6bd0f2d63f2df97f10c66",
+        "activityEventId": "0fc7593d-88b2-4334-8e3d-b267120f6a53",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12403646",
+        "historyId": "12403646",
+        "historyItemIndex": null,
+        "issueId": "3745536",
+        "issueKey": "COPGEN1-145677",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-28T09:13:01.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "ed2ac6264d2b9f56b90f0b8585be39975c1ae0cd4b43bfeb91120d16a038d7db",
+        "beforeSha256": null,
+        "afterSha256": "bf36a41babbb74bd618284ac0efc0a3b2187e5cdb3d150b5f0f2ab578071a19f"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "0fc7593d-88b2-4334-8e3d-b267120f6a53:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"[Last Action] - \\r\\n\\r\\n[Last Behavior] - \\r\\n\\r\\n[Fail Phenomenon] - \\r\\nGC Flow卡在Insert GCSA\\r\\n[Root Cause] - \\r\\n因Feature修改條件，發生未考慮到的情況，導致Flow卡住。\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12403646\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "[Last Action] - \r\n\r\n[Last Behavior] - \r\n\r\n[Fail Phenomenon] - \r\nGC Flow卡在Insert GCSA\r\n[Root Cause] - \r\n因Feature修改條件，發生未考慮到的情況，導致Flow卡住。",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "5dd2278a0aeea65e1d13f4542fe1c3282d38804e57f7dc89e06154b608db911a",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/15/diff/diffHunks/0/lines/1/text",
+                "quote": "GC Flow卡在Insert GCSA"
+              }
+            ],
+            "evidenceExplanation": "Insert GCSA 是具體 GC 核心流程，本筆明確描述其停滯。",
+            "negativeChecks": [
+              "未因 GCSA Table 字樣誤列一般 Table Group。"
+            ],
+            "rationale": "符合 GCSA 建置與核心 GC flow 的 GC_006 候選界線。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/15/diff/diffHunks/0/lines/1/text",
+                "quote": "因Feature修改條件，發生未考慮到的情況，導致Flow卡住。"
+              }
+            ],
+            "evidenceExplanation": "Comment 將 Feature 條件修改與未涵蓋情境、流程卡住建立因果關係。",
+            "negativeChecks": [
+              "有根因敘述但缺少實際 state/value，因此使用中等信心。"
+            ],
+            "rationale": "關鍵條件已被指出，足以保留 DEBUG_004，但深度有限。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "沒有 Suspend、Stop、Pausing 或排程的獨立證據。"
+        ],
+        "unknownReasons": [],
+        "rationale": "本筆可分類為 Insert GCSA 核心流程與條件修改造成的根因分析。"
+      },
+      "manualReview": {
+        "recordIndex": 15,
+        "evidenceId": "pae_b0ea1780d7866a83f3c6bd0f2d63f2df97f10c66",
+        "sourceRecordStableId": "12403646",
+        "issueKey": "COPGEN1-145677",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.6,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "21c898c63e598bb85d4c02c9d1c3673335f67cafdd490431d5748ea6488826d2",
+        "sourceSnapshotSha256": "33fa41b6286d88d472490b70d036718566955bf361259580709fac9d8caaa581",
+        "aiAnalysisSha256": "c7eb597293d756f6d1724b2663641ba86f1cf626eeccea75c55a9fbe39f16866",
+        "manualReviewSha256": "0afe4e58d6d0ed2d521ba46e70caa2e75243a1763799940996fd9c701beaf5da",
+        "recordSha256": "0d89ffb7fabb77625385d04d7cbdc5f3cf6049300c497216f0c6000f6f4888d1"
+      }
+    },
+    {
+      "recordIndex": 16,
+      "dedupeKey": "ac55c72c8bbc5c321d5702001ae324bd4d3d0cd19e612b25974502cd62e8e7d6",
+      "sourceReference": {
+        "evidenceId": "pae_d33b9f9ff73de3cf9073f538737ce7cf4a3bf61a",
+        "activityEventId": "727124e5-2a74-4e60-8374-2686f279947b",
+        "sourceDatabaseId": "cf3c5d17-b1a3-4cef-b7cd-46d9c810e940",
+        "jiraServerFingerprint": "jira:fallback:3d2bac5af8dde5ce264db30adad836f5af4a3466be3c20eeae1a05dadce8f5ab",
+        "sourceRecordStableId": "12403607",
+        "historyId": "12403607",
+        "historyItemIndex": null,
+        "issueId": "3745536",
+        "issueKey": "COPGEN1-145677",
+        "projectKey": "COPGEN1",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-07-28T09:07:32.000Z",
+        "actor": {
+          "stableIdentity": "JIRAUSER28920",
+          "displayValue": "謝正洪(roger_hsieh)"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "88d7ab2caecd0b121c4d9da534ea8a8db1032e3745ec215ef37d91ced1958708",
+        "beforeSha256": null,
+        "afterSha256": "b0f99b360aabf20e90529d5cbd12ef66b5d92c293b345a055ac3b74210330bfc"
+      },
+      "sourceSnapshot": {
+        "issueType": null,
+        "priority": null,
+        "issueStatus": null,
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": null,
+        "diffHunks": [
+          {
+            "id": "727124e5-2a74-4e60-8374-2686f279947b:hunk:1:1:1",
+            "oldStart": 1,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 6,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "{"
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 2,
+                "text": "  \"body\": \"因Feature https://jira.phison.com:8443/browse/COPGEN1-136654，修改了INSERT_GCSA_INIT。\\r\\n\\r\\n因未考量到gGC.ubNeedAddFreeGCGR = TRUE時，是走GC Stop的Flow。\\r\\n\\r\\ngGC.ubNeedAddFreeGCGR = TRUE時，Backup GCSA State會是BACKUP_GCSA_FINAL_GCTARGET_DONE。\\r\\n\\r\\n導致條件無法成立，Flow卡住。\\r\\n\\r\\n修正方式：\\r\\n\\r\\n!image-2026-07-28-17-00-04-074.png|thumbnail!\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 3,
+                "text": "  \"commentId\": \"12403607\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 4,
+                "text": "  \"contentStatus\": \"available\","
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 5,
+                "text": "  \"provenance\": \"current_at_first_observation\""
+              },
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 6,
+                "text": "}"
+              }
+            ]
+          }
+        ],
+        "readableContent": "因Feature https://jira.phison.com:8443/browse/COPGEN1-136654，修改了INSERT_GCSA_INIT。\r\n\r\n因未考量到gGC.ubNeedAddFreeGCGR = TRUE時，是走GC Stop的Flow。\r\n\r\ngGC.ubNeedAddFreeGCGR = TRUE時，Backup GCSA State會是BACKUP_GCSA_FINAL_GCTARGET_DONE。\r\n\r\n導致條件無法成立，Flow卡住。\r\n\r\n修正方式：\r\n\r\n!image-2026-07-28-17-00-04-074.png|thumbnail!",
+        "addedLineCount": 6,
+        "removedLineCount": 0,
+        "diffStatus": "changed",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": [],
+        "pendingRecordIntegrity": {
+          "recordSha256": "fac9cacc7e498f01087451c05ced4329d3ba50b34f631290ade82bb84b14be7d",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": true,
+          "diagnostics": []
+        }
+      },
+      "aiAnalysis": {
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/16/diff/diffHunks/0/lines/1/text",
+                "quote": "gGC.ubNeedAddFreeGCGR = TRUE時，Backup GCSA State會是BACKUP_GCSA_FINAL_GCTARGET_DONE。"
+              }
+            ],
+            "evidenceExplanation": "Comment 具體分析 Insert GCSA 與 Backup GCSA state 的核心條件。",
+            "negativeChecks": [
+              "GCSA state 是 GC 技術內容，不另列一般 Table Group。"
+            ],
+            "rationale": "GCSA state 與 Insert flow 的明確證據支持 GC Kernel。"
+          },
+          {
+            "skillId": "GC_007",
+            "skillName": "GC Suspend/Stop Flow",
+            "group": "GC",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/16/diff/diffHunks/0/lines/1/text",
+                "quote": "因未考量到gGC.ubNeedAddFreeGCGR = TRUE時，是走GC Stop的Flow。"
+              }
+            ],
+            "evidenceExplanation": "Evidence 清楚指出特定條件會進入 GC Stop flow，且原 Feature 未涵蓋該路徑。",
+            "negativeChecks": [
+              "沒有獨立 Pausing GC 證據。"
+            ],
+            "rationale": "符合 GC Stop Flow 的條件與狀態路徑。"
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "group": "Debug",
+            "catalogSupport": "DEFINED",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/16/diff/diffHunks/0/lines/1/text",
+                "quote": "導致條件無法成立，Flow卡住。"
+              }
+            ],
+            "evidenceExplanation": "作者從 Feature 修改與旗標路徑推導到 Backup GCSA state 造成條件失敗，並指出修正方式。",
+            "negativeChecks": [
+              "已包含具體條件鏈與改善方向，不是只有初步 triage。"
+            ],
+            "rationale": "符合根因鏈、關鍵條件推理及效率改善的 DEBUG_004。"
+          }
+        ],
+        "recordNegativeChecks": [
+          "內容與 record 14 相同，但本筆依自己的 evidenceId 與 stable ID 獨立分析。",
+          "沒有 GC Event 排程證據。"
+        ],
+        "unknownReasons": [],
+        "rationale": "此筆可獨立支持 GCSA 核心流程、GC Stop flow 以及根因修正三個技能面向。"
+      },
+      "manualReview": {
+        "recordIndex": 16,
+        "evidenceId": "pae_d33b9f9ff73de3cf9073f538737ce7cf4a3bf61a",
+        "sourceRecordStableId": "12403607",
+        "issueKey": "COPGEN1-145677",
+        "aiStatus": "CLASSIFIED",
+        "expectedStatus": "CLASSIFIED",
+        "statusAgreement": "AGREE",
+        "skillIdentificationState": "IDENTIFIED",
+        "missingSkillIds": [],
+        "notes": "",
+        "completed": true,
+        "skillReviews": [
+          {
+            "skillId": "GC_006",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "GC_007",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          },
+          {
+            "skillId": "DEBUG_004",
+            "aiConfidence": 0.9,
+            "verdict": "ACCEPT",
+            "proposedConfidence": null,
+            "notes": ""
+          }
+        ],
+        "additionalEvidenceAssignments": [],
+        "missingSkillReviews": []
+      },
+      "integrity": {
+        "sourceReferenceSha256": "0d6aed78a775f8f1fd3f7fb1d641067798e3349e21735497b0922dd32f95e4db",
+        "sourceSnapshotSha256": "d141da0bb174a5a8d5406b5a81fed8230dc70f57f9d55c685c1d9b83b1322446",
+        "aiAnalysisSha256": "c11e48a7eda5d9f29a0c67a89ada6146908827f1bfabb4e687c770d052acaeff",
+        "manualReviewSha256": "557d3ce1a3601406a1bd175a9dba458f7281a9a35a881e36c368502d3a9e76ed",
+        "recordSha256": "6adba50a0e9f3e4959f91df172b0b1b5adda8de46b527d483d9000d482d5bb8b"
+      }
+    }
+  ],
+  "counts": {
+    "sourceRecordCount": 17,
+    "recordCount": 17,
+    "skillFindingCount": 39,
+    "aiStatusCounts": {
+      "CLASSIFIED": 15,
+      "UNKNOWN": 0,
+      "EXCLUDED": 2,
+      "FAILED": 0
+    },
+    "reviewedRecordCount": 17,
+    "completedRecordCount": 17
+  },
+  "integrity": {
+    "canonicalization": "RFC8785",
+    "hashAlgorithm": "SHA-256",
+    "sourceReferencesSha256": "7f84df7e4fe5a93674b9d6ad719239ab8245cecb65d9cd322adfdd2e3c3be651",
+    "aiAnalysisSha256": "5bcc4a17cb92fa321f7e7502c81d93c256b243bb023bdf6457c0322ba292ccff",
+    "manualReviewSha256": "7dde61d6b6fd30b093a10c7c07f46719d75c6ffa63a9ed8c567ee48c35a4c628",
+    "packageSha256": "9b4a2feda85f166b2c3a0283d33c2b6c25f88a6d46f636422abc630eec18bc9a"
+  },
+  "conversionReceipt": {
+    "sourceFormat": "jaa-manual-skill-review v1.2.0 + jaa-skill-analysis-result v1.0.0",
+    "convertedAt": "2026-09-01T07:58:13Z",
+    "converter": "Cloud AI conversion requested for JAA AI Analysis Database import",
+    "sourceFiles": [
+      {
+        "role": "PENDING_ANALYSIS_JSON",
+        "filename": "pending-analysis_user-all-activity-events_20260813_174200_25bc5cd9(3).json",
+        "sha256": "5c64b0de8c58f25dc7f382616f28f5d0dfcf973e248968759093c38d88b19254"
+      },
+      {
+        "role": "LEGACY_ANALYZED_RESULT_JSON",
+        "filename": "manual-baseline-analysis-result-17__ruleset-v1.1.0.json",
+        "sha256": "21cc8317bff160d2f0f664aaa579502cad358a91124e0ecaaee431e9fcf548a0"
+      },
+      {
+        "role": "MANUAL_REVIEW_JSON",
+        "filename": "manual-skill-review-17__v1.2.0__2026-08-31T06-24-58-748Z(1).json",
+        "sha256": "8766cdc2d7c9915cef914531970a91ca816073d5191311457eecfb812ac7c241"
+      }
+    ],
+    "notes": [
+      "Legacy formats were converted outside JAA; JAA imports only the unified package.",
+      "Source reference, source snapshot, AI analysis and manual decisions were preserved.",
+      "Removed Pending-only inlineSegments from 0 diff lines because import-package v1.0.0 diffLine is strict; line text and line numbers remain unchanged.",
+      "Input review status=COMPLETED; converted coverage=COMPLETED; converted rank=REVIEW_COMPLETED.",
+      "Manual review v1.2.0 records were migrated to the v1.3-compatible manualReview shape."
+    ]
+  }
+}

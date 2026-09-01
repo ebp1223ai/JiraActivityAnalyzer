@@ -1,3 +1,8 @@
+## v0.3.39 Explicit AI Database Lifecycle
+
+v0.3.39 removes lazy AI Analysis SQLite creation. Opening AI Database, AI Results, or Integrated Results only detects lifecycle state; the database is created only after an explicit confirmed action, using same-directory temporary validation and atomic rename without overwriting an existing file. Missing, empty, corrupt, too-new, or invariant-failing files remain visible through safe lifecycle diagnostics.
+
+The importer accepts only the frozen jaa-ai-analysis-import-package v1.0.0 contract. Manual Review, Pending Analysis, legacy analyzed outputs, schema identity mismatch, undeclared fields, and package integrity failures stop before confirmation and produce zero database/import-history writes. The AI database page includes health, backup, source-context, import-history, and diagnostics actions through context-isolated request-scoped IPC.
 ## v0.3.37 Durable Artifact Recovery 與 Provider-neutral Core
 
 v0.3.37 以 durable Artifact file、receipt、Run Manifest、Bridge evidence 與 hash-chained fact journal 作為 Artifact 真實性來源，禁止 stale 記憶體狀態產生錯誤的 no-artifact terminal。ChatGPT 正式流程改由 Provider Adapter 執行；Mock Adapter 僅供無網路隔離測試，不會出現在 production UI 或封裝。已保存 Artifact 可透過相同的 14-stage post-Artifact pipeline 冪等恢復，且不重新聯絡 Provider、不消耗 token、不修改原始提交。

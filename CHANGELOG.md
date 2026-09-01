@@ -1,3 +1,9 @@
+# v0.3.39 - Explicit AI Database Lifecycle and Strict Import UX
+
+- Added explicit, atomic AI Analysis database creation with no lazy creation, path containment, same-directory temporary validation, no-overwrite publication, lifecycle health states, backup, and read-only diagnostics.
+- Added request-scoped, single-flight lifecycle IPC plus ready-state gating across AI Database, AI Results, and Integrated Results.
+- Added strict canonical fixtures, precise JSON-path validation, wrong-file-role diagnostics, package integrity fail-closed behavior, and review-rank regression coverage.
+- Packaged the verified v0.3.39 rules and lifecycle design assets. Manual Windows GUI acceptance remains a release gate before Tag or Push.
 # v0.3.38 - AI Analysis Database, Import, Source Linking, and Integrated Views
 
 - Added the independent global AI Analysis SQLite v1 under the portable `JAA_DATA_ROOT`, with WAL/FULL durability, integrity checks, frozen DDL, and checkpoint-aware diagnostics.

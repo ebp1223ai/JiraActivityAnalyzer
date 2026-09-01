@@ -96,6 +96,30 @@ function reviewStateOf(pkg: JsonRecord): ReviewState {
   return "AI_ONLY";
 }
 
+function jsonPath(instancePath: string, additionalProperty?: string) {
+  const segments = instancePath.split("/").filter(Boolean).map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"));
+  let result = "$";
+  for (const segment of segments) result += /^\d+$/.test(segment) ? `[${segment}]` : `.${segment}`;
+  if (additionalProperty) result += `.${additionalProperty}`;
+  return result;
+}
+
+function wrongFileRole(pkg: JsonRecord): { code: string; message: string } | null {
+  const schemaName = String(pkg?.schemaName ?? pkg?.schema ?? "");
+  if (schemaName === AI_IMPORT_SCHEMA_NAME) return null;
+  const identity = `${schemaName} ${String(pkg?.schemaVersion ?? "")}`.toLowerCase();
+  if (identity.includes("manual-skill-review") || identity.includes("manual_review")) {
+    return { code: "WRONG_FILE_ROLE_MANUAL_REVIEW", message: "Manual Review JSON stores review progress; export a JAA AI Analysis Import Package first." };
+  }
+  if (identity.includes("pending-analysis") || identity.includes("pending_analysis")) {
+    return { code: "WRONG_FILE_ROLE_PENDING", message: "Pending Analysis JSON is source input, not an AI database import package." };
+  }
+  if (identity.includes("analyzed") || identity.includes("analysis-result") || identity.includes("canonical-output")) {
+    return { code: "WRONG_FILE_ROLE_LEGACY_ANALYZED", message: "Legacy analyzed output must be converted to jaa-ai-analysis-import-package v1.0.0." };
+  }
+  return { code: "UNSUPPORTED_FILE_TYPE", message: "The selected JSON is not a supported JAA AI Analysis Import Package." };
+}
+
 function validateHashes(pkg: JsonRecord, errors: AiImportPreview["errors"]) {
   for (const record of pkg.records as JsonRecord[]) {
     const index = Number(record.recordIndex);
@@ -157,15 +181,25 @@ export function validateAiImportPackage(input: {
   }
   const schemaBuffer = fs.readFileSync(input.schemaPath);
   if (sha256(schemaBuffer) !== AI_IMPORT_SCHEMA_SHA256) errors.push({ code: "LOCAL_SCHEMA_SHA_MISMATCH", message: "Bundled import schema SHA-256 is not approved." });
-  if (pkg.schemaName !== AI_IMPORT_SCHEMA_NAME || pkg.schemaVersion !== AI_IMPORT_SCHEMA_VERSION || pkg.schemaSha256 !== AI_IMPORT_SCHEMA_SHA256) errors.push({ code: "UNSUPPORTED_IMPORT_CONTRACT", message: "Only jaa-ai-analysis-import-package v1.0.0 is supported." });
-  if (!semverAtMost(String(pkg.minimumImporterVersion ?? "999.0.0"), input.appVersion ?? "0.3.38")) errors.push({ code: "IMPORTER_VERSION_TOO_OLD", message: `Package requires importer ${pkg.minimumImporterVersion}.` });
+  const roleError = wrongFileRole(pkg);
+  if (roleError) {
+    return { preview: { ok: false, filePath, fileName: path.basename(filePath), fileSizeBytes: stat.size, reviewState: reviewStateOf(pkg), recordCount: Array.isArray(pkg.records) ? pkg.records.length : 0, findingCount: Number(pkg.counts?.skillFindingCount ?? 0), errors: [roleError] } };
+  }
+  if (pkg.schemaVersion !== AI_IMPORT_SCHEMA_VERSION || pkg.schemaSha256 !== AI_IMPORT_SCHEMA_SHA256) errors.push({ code: "IMPORT_SCHEMA_IDENTITY_MISMATCH", message: "Import package schema version or SHA-256 does not match the frozen v1.0.0 contract." });
+  if (!semverAtMost(String(pkg.minimumImporterVersion ?? "999.0.0"), input.appVersion ?? "0.3.39")) errors.push({ code: "IMPORTER_VERSION_TOO_OLD", message: `Package requires importer ${pkg.minimumImporterVersion}.` });
   for (const capability of pkg.requiredCapabilities ?? []) if (!AI_IMPORT_CAPABILITIES.includes(capability)) errors.push({ code: "UNSUPPORTED_CAPABILITY", message: `Unsupported required capability: ${capability}` });
   try {
     const schema = JSON.parse(schemaBuffer.toString("utf8"));
     const ajv = new Ajv2020({ allErrors: true, strict: true });
     addFormats(ajv);
-    const valid = ajv.compile(schema)(pkg);
-    if (!valid) for (const error of ajv.errors ?? []) errors.push({ code: "SCHEMA_VALIDATION_FAILED", message: error.message ?? "Schema validation failed.", path: error.instancePath });
+    const validate = ajv.compile(schema);
+    const valid = validate(pkg);
+    if (!valid) for (const error of validate.errors ?? []) {
+      const additionalProperty = error.keyword === "additionalProperties" ? String(error.params?.additionalProperty ?? "") : "";
+      const precisePath = jsonPath(String(error.instancePath ?? ""), additionalProperty || undefined);
+      const message = additionalProperty ? `unexpected property ${additionalProperty}` : error.message ?? "Schema validation failed.";
+      errors.push({ code: "SCHEMA_VALIDATION_FAILED", message, path: precisePath });
+    }
   } catch (error) { errors.push({ code: "SCHEMA_VALIDATOR_FAILED", message: error instanceof Error ? error.message : String(error) }); }
   if (Array.isArray(pkg.records)) {
     const dedupe = new Set<string>();
@@ -185,7 +219,11 @@ export function validateAiImportPackage(input: {
     });
     if (pkg.records.length !== pkg.counts?.recordCount || pkg.records.length !== pkg.reviewCoverage?.totalRecordCount || pkg.records.length !== pkg.sourceBinding?.sourceRecordCount) errors.push({ code: "RECORD_COUNT_MISMATCH", message: "Declared record counts do not match records.length." });
     if (findingCount !== pkg.counts?.skillFindingCount) errors.push({ code: "FINDING_COUNT_MISMATCH", message: "Declared finding count does not match package contents." });
+    const integrityErrorStart = errors.length;
     validateHashes(pkg, errors);
+    if (errors.slice(integrityErrorStart).some((error) => /HASH_MISMATCH$/.test(error.code))) {
+      errors.push({ code: "PACKAGE_INTEGRITY_FAILED", message: "One or more package, record, or layer integrity hashes do not match." });
+    }
   }
   const preview: AiImportPreview = { ok: errors.length === 0, filePath, fileName: path.basename(filePath), fileSizeBytes: stat.size, packageId: pkg.packageId, packageSha256: pkg.integrity?.packageSha256, reviewState: reviewStateOf(pkg), recordCount: pkg.records?.length ?? 0, findingCount: pkg.counts?.skillFindingCount ?? 0, errors };
   if (preview.ok && input.databasePath && fs.existsSync(input.databasePath)) Object.assign(preview, previewActions(input.databasePath, pkg));
@@ -377,7 +415,7 @@ export function relinkAiAnalysisSources(input: { databasePath: string; sourceDat
 export function aiDatabaseOverview(databasePath: string) {
   if (!fs.existsSync(databasePath)) return { exists: false, databasePath, schemaVersion: 0, sizeBytes: 0, recordCount: 0, findingCount: 0, reviewedCount: 0, matchedCount: 0, integrity: "not-created", batches: [] };
   const db = new DatabaseSync(databasePath, { readOnly: true }); configure(db, true);
-  try { const scalar = (sql: string) => Number((db.prepare(sql).get() as { value: number }).value); return { exists: true, databasePath, schemaVersion: Number((db.prepare("PRAGMA user_version").get() as JsonRecord).user_version), sizeBytes: fs.statSync(databasePath).size, recordCount: scalar("SELECT COUNT(*) value FROM ai_analysis_records"), findingCount: scalar("SELECT COUNT(*) value FROM ai_skill_findings"), reviewedCount: scalar("SELECT COUNT(*) value FROM ai_analysis_records WHERE review_state<>'AI_ONLY'"), matchedCount: scalar("SELECT COUNT(*) value FROM ai_source_links WHERE link_status='MATCHED'"), integrity: String((db.prepare("PRAGMA integrity_check").get() as JsonRecord).integrity_check), batches: rows(db.prepare("SELECT * FROM v_ai_import_batch_summary ORDER BY previewed_at_utc DESC LIMIT 100").all()) }; } finally { db.close(); }
+  try { const scalar = (sql: string) => Number((db.prepare(sql).get() as { value: number }).value); return { exists: true, databasePath, schemaVersion: Number((db.prepare("PRAGMA user_version").get() as JsonRecord).user_version), sizeBytes: fs.statSync(databasePath).size, recordCount: scalar("SELECT COUNT(*) value FROM ai_analysis_records"), findingCount: scalar("SELECT COUNT(*) value FROM ai_skill_findings"), reviewedCount: scalar("SELECT COUNT(*) value FROM ai_analysis_records WHERE review_state<>'AI_ONLY'"), matchedCount: scalar("SELECT COUNT(*) value FROM ai_source_links WHERE link_status='MATCHED'"), integrity: String((db.prepare("PRAGMA integrity_check").get() as JsonRecord).integrity_check), batches: rows(db.prepare("SELECT * FROM ai_import_batches ORDER BY COALESCE(completed_at_utc,previewed_at_utc) DESC LIMIT 100").all()) }; } finally { db.close(); }
 }
 
 function normalizedPage(payload: JsonRecord) { return { limit: Math.max(1, Math.min(500, Number(payload?.limit ?? 100))), offset: Math.max(0, Number(payload?.offset ?? 0)) }; }

@@ -149,16 +149,20 @@ contextBridge.exposeInMainWorld("desktopApp", {
     autoSaveRun: (payload: unknown) => ipcRenderer.invoke("user-analysis:auto-save-run", payload)
   },
   aiDatabase: {
-    overview: () => ipcRenderer.invoke("ai-database:overview"),
-    selectImport: () => ipcRenderer.invoke("ai-database:select-import"),
+    lifecycle: (payload: unknown) => ipcRenderer.invoke("ai-database:lifecycle", payload),
+    create: (payload: unknown) => ipcRenderer.invoke("ai-database:create", payload),
+    healthCheck: (payload: unknown) => ipcRenderer.invoke("ai-database:health-check", payload),
+    backup: (payload: unknown) => ipcRenderer.invoke("ai-database:backup", payload),
+    selectImport: (payload: unknown) => ipcRenderer.invoke("ai-database:select-import", payload),
     preflight: (payload: unknown) => ipcRenderer.invoke("ai-database:preflight", payload),
+    cancelPreflight: (payload: unknown) => ipcRenderer.invoke("ai-database:cancel-preflight", payload),
     importPackage: (payload: unknown) => ipcRenderer.invoke("ai-database:import", payload),
-    relink: () => ipcRenderer.invoke("ai-database:relink"),
+    relink: (payload: unknown) => ipcRenderer.invoke("ai-database:relink", payload),
     queryResults: (payload: unknown) => ipcRenderer.invoke("ai-database:query-results", payload),
     queryIntegrated: (payload: unknown) => ipcRenderer.invoke("ai-database:query-integrated", payload),
-    exportDiagnostics: () => ipcRenderer.invoke("ai-database:export-diagnostics"),
+    exportDiagnostics: (payload: unknown) => ipcRenderer.invoke("ai-database:export-diagnostics", payload),
     exportQuery: (payload: unknown) => ipcRenderer.invoke("ai-database:export-query", payload),
-    openFolder: () => ipcRenderer.invoke("ai-database:open-folder")
+    openFolder: (payload: unknown) => ipcRenderer.invoke("ai-database:open-folder", payload)
   },  aiAnalysis: {
     getSnapshot: () => ipcRenderer.invoke("ai-analysis:snapshot"),
     startChatGpt: () => ipcRenderer.invoke("ai-analysis:chatgpt-start"),

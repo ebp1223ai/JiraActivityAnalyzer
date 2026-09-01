@@ -7,6 +7,7 @@ import { SectionCard } from "../components/SectionCard";
 type Variant = "ai" | "integrated";
 type QueryResult = { ok?: boolean; total?: number; limit?: number; offset?: number; items?: Array<Record<string, any>>; sourceAvailable?: boolean; message?: string };
 const initialFilters = { actor: "", issue: "", field: "", aiStatus: "", effectiveStatus: "", reviewState: "", linkStatus: "", analysisState: "ALL", startDate: "", endDate: "" };
+const makeRequestId = (kind: string) => `v039-${kind}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 function Cell({ value, title }: { value: unknown; title?: string }) {
   const text = value === null || value === undefined || value === "" ? "-" : String(value);
@@ -24,7 +25,8 @@ function Viewer({ variant }: { variant: Variant }) {
   const load = useCallback(async () => {
     setBusy(true);
     try {
-      const response = variant === "integrated" ? await api?.queryIntegrated({ filters: applied, limit, offset }) : await api?.queryResults({ filters: applied, limit, offset });
+      const requestId = makeRequestId("query");
+      const response = variant === "integrated" ? await api?.queryIntegrated({ requestId, filters: applied, limit, offset }) : await api?.queryResults({ requestId, filters: applied, limit, offset });
       setResult(response ?? { total: 0, items: [], limit, offset });
     } finally { setBusy(false); }
   }, [api, applied, offset, variant]);
@@ -38,7 +40,7 @@ function Viewer({ variant }: { variant: Variant }) {
   return (
     <div className="min-w-0 space-y-4">
       <PageHeader title={variant === "ai" ? "AI 結果檢視" : "整合顯示結果"} subtitle={variant === "ai" ? "AI Results Viewer" : "Integrated Results"} connected={false} />
-      <SectionCard title="Filters" subtitle="篩選條件" action={<div className="flex flex-wrap gap-2"><button className="btn-primary" type="button" onClick={() => { setOffset(0); setApplied({ ...filters }); }}><Filter size={16} /> Apply</button><button className="btn-secondary" type="button" onClick={() => void load()}><RefreshCw size={16} /> Refresh</button><button className="btn-secondary" type="button" onClick={() => void api?.exportQuery({ kind: variant, filters: applied })}><Download size={16} /> Export JSON</button></div>}>
+      <SectionCard title="Filters" subtitle="篩選條件" action={<div className="flex flex-wrap gap-2"><button className="btn-primary" type="button" onClick={() => { setOffset(0); setApplied({ ...filters }); }}><Filter size={16} /> Apply</button><button className="btn-secondary" type="button" onClick={() => void load()}><RefreshCw size={16} /> Refresh</button><button className="btn-secondary" type="button" onClick={() => void api?.exportQuery({ requestId: makeRequestId("export"), kind: variant, filters: applied })}><Download size={16} /> Export JSON</button></div>}>
         <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4">
           {fields.map(([key, label]) => <label className="min-w-0 text-xs font-bold text-muted" key={key}>{label}<input className="input mt-1 w-full min-w-0" type={key.endsWith("Date") ? "date" : "text"} value={filters[key]} onChange={(event) => setFilters((current) => ({ ...current, [key]: event.target.value }))} /></label>)}
           {variant === "integrated" ? <label className="text-xs font-bold text-muted">Analysis State<select className="input mt-1 w-full" value={filters.analysisState} onChange={(event) => setFilters((current) => ({ ...current, analysisState: event.target.value }))}><option value="ALL">All</option><option value="ANALYZED">Analyzed</option><option value="UNANALYZED">Unanalyzed</option></select></label> : null}

@@ -8,8 +8,9 @@ const m = api();
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "jaa-v0338-"));
 const ddlPath = path.join(root, "contracts", "ai-analysis", "jaa-ai-analysis-v1.sql");
 const schemaPath = path.join(root, "contracts", "ai-analysis", "jaa-ai-analysis-import-package_v1.0.0.schema.json");
-const aiOnlyPath = path.join(root, "tests", "fixtures", "v038", "jaa-ai-analysis-import-59__ai-only__v1.0.0.json");
-const completedPath = path.join(root, "tests", "fixtures", "v038", "jaa-ai-analysis-import-59__review-completed__v1.0.0.json");
+// v0.3.39 activates strict AJV errors; use canonical equivalents instead of loosening the frozen schema.
+const aiOnlyPath = path.join(root, "tests", "fixtures", "v039", "jaa-ai-analysis-import-59__ai-only__strict-canonical-v1.0.0.json");
+const completedPath = path.join(root, "tests", "fixtures", "v039", "jaa-ai-analysis-import-59__review-completed__converted-v1.0.0.json");
 
 function dbPath(name) { return path.join(temporary, name, "jaa-ai-analysis.sqlite"); }
 function scalar(file, sql) { const db = new DatabaseSync(file, { readOnly: true }); try { return Number(db.prepare(sql).get().value); } finally { db.close(); } }

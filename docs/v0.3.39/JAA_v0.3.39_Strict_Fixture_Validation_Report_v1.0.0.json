@@ -1,0 +1,42 @@
+{
+  "schemaName": "jaa-v0.3.39-strict-fixture-validation",
+  "schemaVersion": "1.0.0",
+  "targetSchemaFilename": "jaa-ai-analysis-import-package_v1.0.0.schema.json",
+  "targetSchemaSha256": "6d51b5fb613b5ff957ab815e6702cf23845d5fce0124fb73b224983a39986a8c",
+  "validationStatus": "PASS",
+  "canonicalFixtures": [
+    {
+      "filename": "jaa-ai-analysis-import-59__ai-only__strict-canonical-v1.0.0.json",
+      "fileSha256": "615b41e663c3d3ae5f87cdca54954f4a25667393e5b8a558defbc505ea3e0c05",
+      "packageSha256": "94466380c61602cab4d7386aa60c2b7b993f3993e4882d66af0a00b4e441ffd3",
+      "recordCount": 59,
+      "skillFindingCount": 86,
+      "reviewRank": "AI_ONLY",
+      "schemaErrors": [],
+      "semanticErrors": []
+    },
+    {
+      "filename": "jaa-ai-analysis-import-59__review-completed__converted-v1.0.0.json",
+      "fileSha256": "b61aa102108c139e92e1bd90ef5a03563b4e6748b7a2764ed3efced09a34fe61",
+      "packageSha256": "9b1836f5ef97ae9bd3c0f7205f3854402981acf5d0772db3dd6926e06cc41b79",
+      "recordCount": 59,
+      "skillFindingCount": 86,
+      "reviewRank": "REVIEW_COMPLETED",
+      "schemaErrors": [],
+      "semanticErrors": []
+    }
+  ],
+  "layerPreservation": {
+    "sourceReferencesSha256Same": true,
+    "aiAnalysisSha256Same": true
+  },
+  "negativeFixture": {
+    "filename": "jaa-ai-analysis-import-59__negative-inlineSegments__expected-preflight-fail.json",
+    "fileSha256": "780b5c3ec40f91ab5c2ce0d97b4fb9a6b298d57f9e95c9f3560447bb84ffc8f8",
+    "expectedOutcome": "PREFLIGHT_FAIL",
+    "expectedError": "unexpected property inlineSegments",
+    "observedSchemaErrors": [
+      "$.records[0].sourceSnapshot.diffHunks[0].lines[0]: unexpected property inlineSegments"
+    ]
+  }
+}

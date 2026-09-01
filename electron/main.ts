@@ -61,7 +61,7 @@ import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
 import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
-import { registerAiAnalysisDatabaseIpcV038 } from "./aiAnalysisDatabaseIpcV038.js";
+import { registerAiAnalysisDatabaseIpcV039 } from "./aiAnalysisDatabaseIpcV039.js";
 import { checkpointAiDatabase, exportAiDiagnostics } from "./aiAnalysisDatabaseV038.js";
 import { flushRunArchive } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
@@ -135,7 +135,7 @@ if (shouldVerifyAnalysisBridge) {
   process.exit(resolution.receipt.status === "ready" ? 0 : 2);
 }
 registerAiAnalysisIpc();
-registerAiAnalysisDatabaseIpcV038(() => resolveLocalDatabasePath(getAppRuntimeDir(), loadEffectiveRuntimeConfig().localDatabasePath));
+registerAiAnalysisDatabaseIpcV039(() => resolveLocalDatabasePath(getAppRuntimeDir(), loadEffectiveRuntimeConfig().localDatabasePath));
 
 type AutoSaveResultType = "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test";
 type AutoSavedRun = { runId: string; resultType: AutoSaveResultType; status: string; savedAt: string; filePath: string; folderPath: string; data: Record<string, unknown> };

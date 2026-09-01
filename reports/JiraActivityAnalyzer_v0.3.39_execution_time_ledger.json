@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "jaa-execution-time-ledger-v1",
+  "version": "0.3.39",
+  "timezone": "Asia/Taipei",
+  "entries": [
+    { "command": "npm.cmd run typecheck", "attempt": 1, "result": "FAIL", "exitCode": 2, "elapsedSeconds": 8.919, "note": "renderer optional Bridge callback type" },
+    { "command": "npm.cmd run typecheck", "attempt": 2, "result": "FAIL", "exitCode": 2, "elapsedSeconds": 12.428, "note": "duplicate IPC ok property" },
+    { "command": "npm.cmd run typecheck", "attempt": 3, "result": "PASS", "exitCode": 0, "elapsedSeconds": 10.148 },
+    { "command": "npm.cmd run test:v0.3.39", "attempt": 1, "result": "FAIL", "exitCode": 1, "elapsedSeconds": 6.405, "note": "empty overview used missing view column" },
+    { "command": "npm.cmd run test:v0.3.39", "attempt": 2, "result": "FAIL", "exitCode": 1, "elapsedSeconds": 4.163, "note": "temporary WAL/SHM cleanup" },
+    { "command": "npm.cmd run test:v0.3.39", "attempt": 3, "result": "FAIL", "exitCode": 1, "elapsedSeconds": 4.392, "note": "AJV compiled errors were not read" },
+    { "command": "npm.cmd run test:v0.3.39", "attempt": 4, "result": "FAIL", "exitCode": 1, "elapsedSeconds": 4.874, "note": "historical non-canonical v0.3.38 fixtures" },
+    { "command": "npm.cmd run test:v0.3.39", "attempt": 5, "result": "PASS", "exitCode": 0, "elapsedSeconds": 6.435 },
+    { "command": "npm.cmd run build", "attempt": 1, "result": "PASS", "exitCode": 0, "elapsedSeconds": 21.415 },
+    { "command": "npm.cmd run test:ui", "attempt": 1, "result": "PASS", "exitCode": 0, "elapsedSeconds": 48.8 },
+    { "command": "npm.cmd run dist", "attempt": 1, "result": "PASS", "exitCode": 0, "elapsedSeconds": 124.6, "note": "superseded after final lifecycle diagnostics" },
+    { "command": "npm.cmd run typecheck", "attempt": 4, "result": "PASS", "exitCode": 0, "elapsedSeconds": 9.896 },
+    { "command": "npm.cmd run test:v0.3.39", "attempt": 6, "result": "PASS", "exitCode": 0, "elapsedSeconds": 6.861 },
+    { "command": "npm.cmd run dist", "attempt": 2, "result": "PASS", "exitCode": 0, "elapsedSeconds": 121.0, "note": "final artifacts" },
+    { "command": "win-unpacked app-only UI smoke", "attempt": 2, "result": "PASS", "exitCode": 0, "elapsedSeconds": 33.8 },
+    { "command": "Portable app-only UI smoke", "attempt": 2, "result": "PASS", "exitCode": 0, "elapsedSeconds": 37.5 }
+  ],
+  "manualGuiValidation": "PENDING"
+}

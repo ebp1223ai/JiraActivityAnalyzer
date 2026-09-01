@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "jaa-v0.3.39-build-manifest-v1",
+  "appVersion": "0.3.39",
+  "buildTime": "2026/09/01 16:51:52",
+  "buildTimeIso": "2026-09-01T08:51:52.049Z",
+  "branch": "feat/v0.3.39-ai-database-lifecycle-ui",
+  "packagedSourceCommit": "11d3457854cfb5505efcf9cffa154115a2ac9512",
+  "dirtyState": true,
+  "artifacts": [
+    {
+      "kind": "installer",
+      "path": "release/Jira Activity Analyzer Setup 0.3.39.exe",
+      "sizeBytes": 191036324,
+      "sha256": "ebdb748be4368cf14dc7cd7019b83cf1db9f160b3d5a78e00ddea222202f2abb"
+    },
+    {
+      "kind": "portable",
+      "path": "release/Jira Activity Analyzer Portable 0.3.39.exe",
+      "sizeBytes": 190806171,
+      "sha256": "716dd1d252091229f3be534375e86f3b9f0e3d1213b9387c6299897d616f60f5"
+    },
+    {
+      "kind": "win-unpacked",
+      "path": "release/win-unpacked/Jira Activity Analyzer.exe",
+      "sizeBytes": 235706368,
+      "sha256": "d206a7775a026b50b4672e8e37ef4ccea82b1f62fc42b5860786a3919b369387"
+    }
+  ],
+  "packagedRulesVerified": true,
+  "packagedSchemaSha256": "6d51b5fb613b5ff957ab815e6702cf23845d5fce0124fb73b224983a39986a8c",
+  "bridgeVerification": "PASS",
+  "winUnpackedUiSmoke": "PASS",
+  "portableUiSmoke": "PASS",
+  "manualGuiValidation": "PENDING",
+  "tagPushGate": "BLOCKED_PENDING_MANUAL_GUI"
+}

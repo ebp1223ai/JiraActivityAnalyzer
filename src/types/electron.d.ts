@@ -157,16 +157,20 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         autoSaveRun: (payload: { resultType: "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test"; runId: string; status: string; data: unknown }) => Promise<{ canceled: boolean; runId: string; resultType: string; status: string; savedAt: string; filePath: string; folderPath: string; resultTracking: Record<"latestRunResult" | "lastSuccessfulResult" | "lastParsedResult" | "latestNoEntriesResult", { runId: string; resultType: string; status: string; diagnosis: string; parsedActivityCount: number; savedAt: string; path: string; folderPath: string } | null> }>;
       };
       aiDatabase?: {
-        overview: () => Promise<Record<string, any>>;
-        selectImport: () => Promise<Record<string, any>>;
-        preflight: (payload: { filePath: string }) => Promise<Record<string, any>>;
-        importPackage: (payload: { filePath: string; confirmed: boolean }) => Promise<Record<string, any>>;
-        relink: () => Promise<Record<string, any>>;
-        queryResults: (payload: Record<string, unknown>) => Promise<Record<string, any>>;
-        queryIntegrated: (payload: Record<string, unknown>) => Promise<Record<string, any>>;
-        exportDiagnostics: () => Promise<Record<string, any>>;
-        exportQuery: (payload: { kind: "ai" | "integrated"; filters: Record<string, unknown> }) => Promise<Record<string, any>>;
-        openFolder: () => Promise<Record<string, any>>;
+        lifecycle: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        create: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        healthCheck: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        backup: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        selectImport: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        preflight: (payload: { requestId: string; filePath: string }) => Promise<Record<string, any>>;
+        cancelPreflight: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        importPackage: (payload: { requestId: string; filePath: string; confirmed: boolean }) => Promise<Record<string, any>>;
+        relink: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        queryResults: (payload: Record<string, unknown> & { requestId: string }) => Promise<Record<string, any>>;
+        queryIntegrated: (payload: Record<string, unknown> & { requestId: string }) => Promise<Record<string, any>>;
+        exportDiagnostics: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        exportQuery: (payload: { requestId: string; kind: "ai" | "integrated"; filters: Record<string, unknown> }) => Promise<Record<string, any>>;
+        openFolder: (payload: { requestId: string }) => Promise<Record<string, any>>;
       };      aiAnalysis?: {
         getSnapshot: () => Promise<AiAnalysisSnapshot>;
         startChatGpt: () => Promise<{ ok: boolean; status: AiAnalysisSnapshot["chatgpt"]; errorCode?: string; message?: string }>;

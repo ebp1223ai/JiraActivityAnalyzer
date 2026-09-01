@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "jaa-token-ledger-v1",
+  "version": "0.3.39",
+  "providerRequests": 0,
+  "providerInputTokens": 0,
+  "providerOutputTokens": 0,
+  "status": "NO_PROVIDER_OR_LIVE_JIRA_REQUESTS_EXECUTED",
+  "note": "All validation used local synthetic fixtures and Electron app-only smoke."
+}
