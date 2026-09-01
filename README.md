@@ -889,3 +889,8 @@ button. See [the v0.3.10 implementation note](docs/v0.3.10-ai-analysis-ui-recons
 - 可解碼 submission 先原子持久化，再執行 Decision v5、Evidence Quote ID、semantic 與 quality validation。
 - 驗證失敗會建立 `DIAGNOSTIC_NON_CANONICAL` Package/HTML；不建立 Canonical、不取代 Active Result、不導向 Results、不寫 SQLite。
 - `npm.cmd run replay:v0.3.25 -- <Debug Folder>` 可做 local-only 唯讀 submission replay；不呼叫 Provider、不修改來源、不寫 production SQLite。
+## AI Analysis v0.3.40
+
+v0.3.40 adds an explicit AI Analysis database lifecycle without changing the frozen AI schema. Create, Open/Switch, recent-database selection, source-link diagnostics, and relink all run in the Electron main process through validated IPC. Databases under `APP_ROOT` are stored as relocatable relative paths plus file identity; external databases retain an absolute path plus identity. A missing or invalid active file is reported as `FILE_NOT_FOUND` or its specific validation state and never becomes a silent empty database.
+
+AI Results and Integrated Results use structured, whitelisted, parameterized queries with server-side totals, filtering, sorting, and paging. Column visibility is persisted in `<APP_ROOT>/app-data/settings/ui-preferences.json`. Integrated Results treats Raw SQLite as the left-hand base, distinguishes closed database, schema mismatch, query failure, empty filter results, and source-link mismatch, and keeps unmatched raw events visible as `UNANALYZED`. Debug bundles always include the `ai-analysis-database/` diagnostics directory and masked lifecycle/query/switch receipts.

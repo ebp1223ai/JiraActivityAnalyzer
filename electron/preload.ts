@@ -151,6 +151,8 @@ contextBridge.exposeInMainWorld("desktopApp", {
   aiDatabase: {
     lifecycle: (payload: unknown) => ipcRenderer.invoke("ai-database:lifecycle", payload),
     create: (payload: unknown) => ipcRenderer.invoke("ai-database:create", payload),
+    openSwitch: (payload: unknown) => ipcRenderer.invoke("ai-database:open-switch", payload),
+    forget: (payload: unknown) => ipcRenderer.invoke("ai-database:forget", payload),
     healthCheck: (payload: unknown) => ipcRenderer.invoke("ai-database:health-check", payload),
     backup: (payload: unknown) => ipcRenderer.invoke("ai-database:backup", payload),
     selectImport: (payload: unknown) => ipcRenderer.invoke("ai-database:select-import", payload),

@@ -35,6 +35,8 @@ export type UiPreferences = {
   issueActivityEvents: TablePreferences;
   issueChangelog: TablePreferences;
   issueComments: TablePreferences;
+  aiResults: TablePreferences;
+  integratedResults: TablePreferences;
   filterPresets: Array<Record<string, unknown>>;
   [key: string]: unknown;
 };
@@ -61,6 +63,8 @@ export const ISSUE_CHANGELOG_COLUMNS = activityViewerRegistryForScope("issueChan
 export const USER_ACTIVITY_EVENT_COLUMNS = activityViewerRegistryForScope("userAllActivityEvents").map((column) => column.id);
 
 export const ISSUE_COMMENT_COLUMNS = ["author", "created", "updated", "body"] as const;
+export const AI_RESULTS_COLUMNS = ["eventTime", "actor", "issueKey", "fieldName", "aiStatus", "effectiveStatus", "reviewState", "skills", "linkStatus", "confidence", "rationale"] as const;
+export const INTEGRATED_RESULTS_COLUMNS = ["eventTime", "actor", "issueKey", "fieldName", "analysisState", "aiStatus", "reviewState", "linkStatus", "before", "after"] as const;
 
 const PAGE_SIZES = new Set([25, 50, 100, 200]);
 const ACTIVITY_QUERY_FIELDS = Array.from(new Set(["issueActivityEvents", "issueChangelog", "userAllActivityEvents"].flatMap((scope) =>
@@ -81,6 +85,8 @@ export function defaultUiPreferences(): UiPreferences {
     issueActivityEvents: { ...defaultTable(ISSUE_ACTIVITY_EVENT_COLUMNS), diffQuickFilters: { ...DEFAULT_DIFF_QUICK_FILTERS } },
     issueChangelog: { ...defaultTable(ISSUE_CHANGELOG_COLUMNS), diffQuickFilters: { ...DEFAULT_DIFF_QUICK_FILTERS } },
     issueComments: defaultTable(ISSUE_COMMENT_COLUMNS),
+    aiResults: { ...defaultTable(AI_RESULTS_COLUMNS), visibleColumns: AI_RESULTS_COLUMNS.filter((column) => column !== "rationale") },
+    integratedResults: { ...defaultTable(INTEGRATED_RESULTS_COLUMNS), visibleColumns: INTEGRATED_RESULTS_COLUMNS.filter((column) => column !== "before") },
     filterPresets: []
   };
 }
@@ -241,6 +247,8 @@ export function normalizeUiPreferences(value: unknown): UiPreferences {
     issueActivityEvents: normalizeTable(migrateActivityPreferences(source.issueActivityEvents), ISSUE_ACTIVITY_EVENT_COLUMNS, defaults.issueActivityEvents, ["eventTime", "action"], ACTIVITY_QUERY_FIELDS),
     issueChangelog: normalizeTable(migrateActivityPreferences(source.issueChangelog), ISSUE_CHANGELOG_COLUMNS, defaults.issueChangelog, ["eventTime", "action"], ACTIVITY_QUERY_FIELDS),
     issueComments: normalizeTable(source.issueComments, ISSUE_COMMENT_COLUMNS, defaults.issueComments, ["created", "author"]),
+    aiResults: normalizeTable(source.aiResults, AI_RESULTS_COLUMNS, defaults.aiResults),
+    integratedResults: normalizeTable(source.integratedResults, INTEGRATED_RESULTS_COLUMNS, defaults.integratedResults),
     filterPresets: normalizeFilterPresets(source.filterPresets)
   };
 }
@@ -283,7 +291,7 @@ export function loadUiPreferences(appRoot: string) {
 }
 
 export type UiPreferenceSection = "databaseIssueList" | "timelineEventList" | "userRelatedIssues" | "userAllActivityEvents"
-  | "issueActivityEvents" | "issueChangelog" | "issueComments" | "filterPresets";
+  | "issueActivityEvents" | "issueChangelog" | "issueComments" | "aiResults" | "integratedResults" | "filterPresets";
 
 export function updateUiPreferences(appRoot: string, section: UiPreferenceSection, value: unknown) {
   const loaded = loadUiPreferences(appRoot);

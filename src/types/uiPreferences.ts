@@ -51,6 +51,8 @@ export type UiPreferences = {
   issueActivityEvents: TablePreferences;
   issueChangelog: TablePreferences;
   issueComments: TablePreferences;
+  aiResults: TablePreferences;
+  integratedResults: TablePreferences;
   filterPresets: FilterPreset[];
 };
 
@@ -62,7 +64,7 @@ export type UiPreferencesLoadResult = {
 
 export type UiPreferencesUpdate = {
   section: "databaseIssueList" | "timelineEventList" | "userRelatedIssues"
-    | "userAllActivityEvents" | "issueActivityEvents" | "issueChangelog" | "issueComments" | "filterPresets";
+    | "userAllActivityEvents" | "issueActivityEvents" | "issueChangelog" | "issueComments" | "aiResults" | "integratedResults" | "filterPresets";
   value: TablePreferences<DatabaseIssueColumn> | TablePreferences | FilterPreset[];
 };
 

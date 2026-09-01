@@ -41,7 +41,9 @@ function StateBanner({ snapshot }: { snapshot: Snapshot }) {
         <div className="min-w-0">
           <div className="break-words font-black" data-no-clip="true">{snapshot.lifecycleState ?? "DETECTING"}</div>
           <p className="mt-1 break-words text-sm">
-            {snapshot.lifecycleState === "NOT_CREATED" ? "AI 分析資料庫尚未建立。只有按下 Create Database 並確認後才會建立檔案。" :
+            {snapshot.lifecycleState === "NOT_SELECTED" ? "尚未選擇 AI 分析資料庫。請建立新資料庫或開啟既有 .sqlite/.db。" :
+              snapshot.lifecycleState === "FILE_NOT_FOUND" ? "最後使用的 AI 資料庫找不到；系統不會建立空白替代檔，也不會自動 fallback。" :
+              snapshot.lifecycleState === "NOT_CREATED" ? "AI 分析資料庫尚未建立。" :
               diagnostic ? snapshot.message ?? "資料庫只能以診斷模式開啟；系統不會覆寫或刪除既有檔案。" :
               snapshot.lifecycleState === "READY_EMPTY" ? "資料庫健康且尚無資料，可以選擇正式 Import Package。" :
               snapshot.lifecycleState === "READY_WITH_DATA" ? "資料庫健康且已有可查詢的 AI 分析資料。" :
@@ -79,10 +81,12 @@ export function AiDatabasePage() {
   };
 
   const createDatabase = async () => {
-    if (!window.confirm(`建立 AI 分析資料庫？\n\n${snapshot.databasePath ?? ""}\n\nExisting files are never overwritten.`)) return;
     await run("create", () => api?.create({ requestId: makeRequestId("create") }));
   };
-  const selectPackage = async () => {
+  const openSwitchDatabase = async () => {
+    const result = await run("switch", () => api?.openSwitch({ requestId: makeRequestId("switch") }));
+    if (result?.ok && !result.canceled) setNotice(`已切換至 ${String((result.snapshot as Snapshot | undefined)?.databaseFileName ?? "AI database")}`);
+  };  const selectPackage = async () => {
     const result = await run("preflight", () => api?.selectImport({ requestId: makeRequestId("select") }));
     if (result && !result.canceled) setPreview(result);
   };
@@ -97,6 +101,8 @@ export function AiDatabasePage() {
 
   const details = useMemo(() => [
     ["File Name", snapshot.databaseFileName],
+    ["Path Mode", snapshot.pathMode ?? "-"],
+    ["Database Identity", snapshot.databaseId ?? "-"],
     ["Full Path", snapshot.databasePath],
     ["Schema", `${snapshot.schemaName ?? "jaa-ai-analysis-sqlite"} v${snapshot.schemaVersion ?? 1}`],
     ["SQLite Runtime", snapshot.sqliteRuntimeVersion ?? "node:sqlite"],
@@ -114,23 +120,14 @@ export function AiDatabasePage() {
   return (
     <div className="min-w-0 space-y-4">
       <PageHeader title="AI 分析資料庫" subtitle="AI Analysis Database Lifecycle" connected={ready} />
+      <div className="flex min-w-0 flex-wrap gap-2" data-testid="ai-database-primary-actions">
+        <button className="btn-secondary" type="button" disabled={Boolean(busy)} onClick={() => void createDatabase()}><Database size={16} /> 建立新資料庫</button>
+        <button className="btn-secondary" type="button" disabled={Boolean(busy)} onClick={() => void openSwitchDatabase()}><FolderOpen size={16} /> 開啟／切換資料庫</button>
+        <button className="btn-primary" type="button" disabled={!ready || Boolean(busy)} onClick={() => void selectPackage()}><Upload size={16} /> 匯入 AI 分析 JSON</button>
+        <details className="relative"><summary className="btn-secondary cursor-pointer list-none">更多操作</summary><div className="absolute right-0 top-11 z-30 grid w-56 gap-1 rounded-md border border-line bg-white p-2 shadow-xl"><button className="btn-secondary justify-start" type="button" onClick={() => void refresh()}><RefreshCw size={16} /> Refresh</button><button className="btn-secondary justify-start" type="button" disabled={!ready} onClick={() => void run("health", () => api?.healthCheck({ requestId: makeRequestId("health") }))}><Activity size={16} /> Health Check</button><button className="btn-secondary justify-start" type="button" disabled={!ready} onClick={() => void run("backup", () => api?.backup({ requestId: makeRequestId("backup") }))}><HardDrive size={16} /> Backup</button><button className="btn-secondary justify-start" type="button" onClick={() => void api?.openFolder({ requestId: makeRequestId("folder") })}><FolderOpen size={16} /> Open Folder</button><button className="btn-secondary justify-start" type="button" onClick={() => void api?.exportDiagnostics({ requestId: makeRequestId("diagnostics") })}><FileCheck2 size={16} /> Export Diagnostics</button></div></details>
+      </div>
       <StateBanner snapshot={snapshot} />
 
-      {snapshot.lifecycleState === "NOT_CREATED" ? (
-        <SectionCard title="Create AI Analysis Database" subtitle="明確建立資料庫">
-          <div className="space-y-4">
-            <dl className="grid min-w-0 gap-3 md:grid-cols-2">
-              <Detail label="Target Path" value={snapshot.databasePath} mono copy />
-              <Detail label="Frozen Schema" value={`${snapshot.schemaName} v${snapshot.schemaVersion}`} />
-            </dl>
-            <p className="break-words text-sm text-muted">建立流程會在同一目錄產生暫存 DB、執行 DDL、integrity／foreign-key／invariant 檢查，再以 atomic rename 發佈。若目標已存在，操作會停止且不覆寫。</p>
-            <div className="flex flex-wrap gap-2">
-              <button className="btn-primary" type="button" disabled={Boolean(busy)} onClick={() => void createDatabase()}><Database size={16} /> {busy === "create" ? "Creating..." : "Create Database"}</button>
-              <button className="btn-secondary" type="button" disabled={Boolean(busy)} onClick={() => void refresh()}><RefreshCw size={16} /> Re-detect</button>
-            </div>
-          </div>
-        </SectionCard>
-      ) : null}
 
       {snapshot.exists ? (
         <>
@@ -143,14 +140,7 @@ export function AiDatabasePage() {
             <MetricCard label="Import Batches" value={String(snapshot.importBatchCount ?? 0)} icon={Archive} tone="bg-slate-100 text-slate-700" />
           </ResponsiveMetricGrid>
 
-          <SectionCard title="Database Overview" subtitle="資料庫概況" action={<div className="flex flex-wrap gap-2">
-            <button className="btn-primary" type="button" disabled={!ready || Boolean(busy)} onClick={() => void selectPackage()}><Upload size={16} /> Import Data</button>
-            <button className="btn-secondary" type="button" disabled={Boolean(busy)} onClick={() => void refresh()}><RefreshCw size={16} /> Refresh</button>
-            <button className="btn-secondary" type="button" disabled={!ready || Boolean(busy)} onClick={() => void run("health", () => api?.healthCheck({ requestId: makeRequestId("health") }))}><Activity size={16} /> Health Check</button>
-            <button className="btn-secondary" type="button" disabled={!ready || Boolean(busy)} onClick={() => void run("backup", () => api?.backup({ requestId: makeRequestId("backup") }))}><HardDrive size={16} /> Backup</button>
-            <button className="btn-secondary" type="button" onClick={() => void api?.openFolder({ requestId: makeRequestId("folder") })}><FolderOpen size={16} /> Open Folder</button>
-            <button className="btn-secondary" type="button" onClick={() => void api?.exportDiagnostics({ requestId: makeRequestId("diagnostics") })}><FileCheck2 size={16} /> Export Diagnostics</button>
-          </div>}>
+          <SectionCard title="Database Overview" subtitle="資料庫概況">
             <dl className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {details.map(([label, value]) => <Detail key={label} label={label} value={value} mono={label === "Full Path"} copy={label === "Full Path"} />)}
             </dl>
@@ -158,7 +148,7 @@ export function AiDatabasePage() {
         </>
       ) : null}
 
-      <SectionCard title="Import Package" subtitle="匯入套件" action={<button className="btn-primary" type="button" onClick={() => void selectPackage()} disabled={!ready || Boolean(busy)}><Upload size={16} /> Select JSON</button>}>
+      <SectionCard title="Import Package" subtitle="匯入套件">
         {!ready ? <p className="text-sm text-muted">Create and validate the AI Analysis database before selecting an import package.</p> : !preview ? <p className="text-sm text-muted">只接受 jaa-ai-analysis-import-package v1.0.0。Manual Review、Pending Analysis 與 legacy analyzed JSON 會以明確 file-role 錯誤拒絕，Preflight 失敗不會寫入 DB 或 Import History。</p> : (
           <div className="space-y-3">
             <div className={`rounded-md border p-3 text-sm ${preview.ok ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
@@ -178,12 +168,17 @@ export function AiDatabasePage() {
 
       {snapshot.exists ? (
         <>
+          <SectionCard title="來源配對 / Source Link" subtitle="每次 Relink 都新增 append-only attempt，不覆寫歷史" action={<button className="btn-primary" type="button" disabled={!ready || Boolean(busy)} onClick={async () => { const result = await run("relink", () => api?.relink({ requestId: makeRequestId("relink") })); if (result?.ok) setNotice(`Relink completed: ${result.total}`); }}><Link2 size={16} /> 重新配對</button>}>
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">{Object.entries(snapshot.linkOutcomeCounts ?? {}).map(([status, count]) => <div className="min-w-0 rounded-md border border-line p-3" key={status}><div className="break-words text-xs font-bold text-muted">{status}</div><div className="mt-1 text-2xl font-black" data-no-clip="true">{String(count)}</div></div>)}</div>
+            {!Object.keys(snapshot.linkOutcomeCounts ?? {}).length ? <p className="text-sm text-muted">尚無配對紀錄。Import 或 Relink 後會顯示 MATCHED、MISMATCH、NOT FOUND 與 ERROR counts。</p> : null}
+          </SectionCard>
+          {snapshot.recentDatabases?.length ? <SectionCard title="最近使用 / Recent Databases" subtitle="忘記路徑不會刪除實體 DB"><ResponsiveTableContainer><table className="w-full min-w-[900px] text-left text-xs"><thead><tr className="border-b text-muted"><th className="p-2">File</th><th className="p-2">Path</th><th className="p-2">Mode</th><th className="p-2">Identity</th><th className="p-2">Status</th><th className="p-2">Actions</th></tr></thead><tbody>{snapshot.recentDatabases.map((item: Snapshot) => <tr className="border-b" key={`${item.databaseId}-${item.value}`}><td className="p-2 font-bold">{item.fileName}</td><td className="max-w-[360px] truncate p-2" title={String(item.resolvedPath)} data-allow-truncate="true">{item.resolvedPath}</td><td className="p-2">{item.mode}</td><td className="max-w-[220px] truncate p-2 font-mono" title={String(item.databaseId)} data-allow-truncate="true">{item.databaseId}</td><td className="p-2">{item.active ? "ACTIVE" : item.exists ? "READY" : "FILE_NOT_FOUND"}</td><td className="p-2"><div className="flex gap-2"><button className="btn-secondary" type="button" disabled={!item.exists || item.active || Boolean(busy)} onClick={() => void run("switch", () => api?.openSwitch({ requestId: makeRequestId("recent"), filePath: String(item.resolvedPath) }))}>使用</button><button className="btn-secondary" type="button" disabled={item.active || Boolean(busy)} onClick={() => void run("forget", () => api?.forget({ requestId: makeRequestId("forget"), databaseId: String(item.databaseId) }))}>忘記</button></div></td></tr>)}</tbody></table></ResponsiveTableContainer></SectionCard> : null}
           <SectionCard title="Source Contexts" subtitle="來源資料庫脈絡">
             <ResponsiveTableContainer>
               <table className="w-full min-w-[760px] text-left text-xs"><thead><tr className="border-b text-muted"><th className="p-2">Source Database</th><th className="p-2">Jira Fingerprint</th><th className="p-2">Host</th><th className="p-2">Records</th><th className="p-2">Last Imported</th></tr></thead><tbody>{(snapshot.sourceContexts ?? []).map((item: any) => <tr className="border-b" key={`${item.source_database_id}-${item.jira_server_fingerprint}`}><td className="max-w-[260px] truncate p-2" title={item.source_database_id} data-allow-truncate="true">{item.source_database_id}</td><td className="max-w-[260px] truncate p-2" title={item.jira_server_fingerprint} data-allow-truncate="true">{item.jira_server_fingerprint}</td><td className="p-2">{item.jira_server_host ?? "-"}</td><td className="p-2">{item.record_count}</td><td className="p-2">{item.last_imported_at_utc ?? "-"}</td></tr>)}</tbody></table>
             </ResponsiveTableContainer>
           </SectionCard>
-          <SectionCard title="Import History" subtitle="匯入歷史" action={<button className="btn-secondary" type="button" disabled={!ready || Boolean(busy)} onClick={async () => { const result = await run("relink", () => api?.relink({ requestId: makeRequestId("relink") })); if (result?.ok) setNotice(`Relink completed: ${result.total}`); }}><Link2 size={16} /> Relink</button>}>
+          <SectionCard title="Import History" subtitle="匯入歷史">
             <ResponsiveTableContainer>
               <table className="min-w-[980px] w-full text-left text-xs"><thead><tr className="border-b text-muted"><th className="p-2">Package</th><th className="p-2">Review</th><th className="p-2">Status</th><th className="p-2">Records</th><th className="p-2">Inserted</th><th className="p-2">Replaced</th><th className="p-2">Protected</th><th className="p-2">No-op</th><th className="p-2">Completed</th></tr></thead><tbody>{(snapshot.batches ?? []).map((batch: any) => <tr className="border-b" key={batch.import_batch_id}><td className="max-w-[260px] truncate p-2" title={batch.package_id} data-allow-truncate="true">{batch.package_id}</td><td className="p-2">{batch.review_coverage_state}</td><td className="p-2 font-bold">{batch.status}</td><td className="p-2">{batch.declared_record_count}</td><td className="p-2">{batch.inserted_count}</td><td className="p-2">{batch.replaced_count}</td><td className="p-2">{batch.protected_skip_count}</td><td className="p-2">{batch.identical_noop_count}</td><td className="p-2">{batch.completed_at_utc ?? "-"}</td></tr>)}</tbody></table>
             </ResponsiveTableContainer>

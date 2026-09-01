@@ -159,6 +159,8 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
       aiDatabase?: {
         lifecycle: (payload: { requestId: string }) => Promise<Record<string, any>>;
         create: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        openSwitch: (payload: { requestId: string; filePath?: string }) => Promise<Record<string, any>>;
+        forget: (payload: { requestId: string; databaseId: string }) => Promise<Record<string, any>>;
         healthCheck: (payload: { requestId: string }) => Promise<Record<string, any>>;
         backup: (payload: { requestId: string }) => Promise<Record<string, any>>;
         selectImport: (payload: { requestId: string }) => Promise<Record<string, any>>;
@@ -169,7 +171,7 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         queryResults: (payload: Record<string, unknown> & { requestId: string }) => Promise<Record<string, any>>;
         queryIntegrated: (payload: Record<string, unknown> & { requestId: string }) => Promise<Record<string, any>>;
         exportDiagnostics: (payload: { requestId: string }) => Promise<Record<string, any>>;
-        exportQuery: (payload: { requestId: string; kind: "ai" | "integrated"; filters: Record<string, unknown> }) => Promise<Record<string, any>>;
+        exportQuery: (payload: { requestId: string; kind: "ai" | "integrated"; query: Record<string, unknown> }) => Promise<Record<string, any>>;
         openFolder: (payload: { requestId: string }) => Promise<Record<string, any>>;
       };      aiAnalysis?: {
         getSnapshot: () => Promise<AiAnalysisSnapshot>;

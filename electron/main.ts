@@ -61,7 +61,7 @@ import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
 import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
-import { registerAiAnalysisDatabaseIpcV039 } from "./aiAnalysisDatabaseIpcV039.js";
+import { getActiveAiDatabasePathV040, getAiDatabaseV040Diagnostics, registerAiAnalysisDatabaseIpcV040 } from "./aiAnalysisDatabaseIpcV040.js";
 import { checkpointAiDatabase, exportAiDiagnostics } from "./aiAnalysisDatabaseV038.js";
 import { flushRunArchive } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
@@ -135,7 +135,7 @@ if (shouldVerifyAnalysisBridge) {
   process.exit(resolution.receipt.status === "ready" ? 0 : 2);
 }
 registerAiAnalysisIpc();
-registerAiAnalysisDatabaseIpcV039(() => resolveLocalDatabasePath(getAppRuntimeDir(), loadEffectiveRuntimeConfig().localDatabasePath));
+registerAiAnalysisDatabaseIpcV040(() => resolveLocalDatabasePath(getAppRuntimeDir(), loadEffectiveRuntimeConfig().localDatabasePath));
 
 type AutoSaveResultType = "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test";
 type AutoSavedRun = { runId: string; resultType: AutoSaveResultType; status: string; savedAt: string; filePath: string; folderPath: string; data: Record<string, unknown> };
@@ -947,7 +947,7 @@ ipcMain.handle("ui-preferences:update", async (_event, payload: { section?: unkn
   const section = String(payload?.section ?? "");
   const allowedSections = new Set([
     "databaseIssueList", "timelineEventList", "userRelatedIssues", "userAllActivityEvents",
-    "issueActivityEvents", "issueChangelog", "issueComments", "filterPresets"
+    "issueActivityEvents", "issueChangelog", "issueComments", "aiResults", "integratedResults", "filterPresets"
   ]);
   if (!allowedSections.has(section)) throw new Error("INVALID_UI_PREFERENCE_SECTION");
   return updateUiPreferences(getConfiguredAppRoot(), section as Parameters<typeof updateUiPreferences>[1], payload?.value);
@@ -4059,23 +4059,27 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     else evidenceEntries.push({ id: "ai_analysis_canonical_run", status: "not_run", sourcePath: aiRunsRoot, relativePath: "ai-analysis/canonical-run", reason: "Current attempt has no Run; prior latest Run fallback is intentionally disabled." });
   }
   try {
-    const aiDatabasePath = getAiAnalysisDatabasePath();
-    if (fs.existsSync(aiDatabasePath)) {
+    const aiDatabasePath = getActiveAiDatabasePathV040();
+    const aiLifecycleDiagnostics = getAiDatabaseV040Diagnostics();
+    const aiDatabaseBundleDir = path.join(folderPath, "ai-analysis-database");
+    fs.mkdirSync(aiDatabaseBundleDir, { recursive: true });
+    writeBundleJson(aiDatabaseBundleDir, "ai-database-lifecycle.json", aiLifecycleDiagnostics.activeDatabase);
+    writeBundleJson(aiDatabaseBundleDir, "ai-query-diagnostics.json", aiLifecycleDiagnostics.queryReceipts);
+    writeBundleJson(aiDatabaseBundleDir, "ai-switch-preflight-failure.json", aiLifecycleDiagnostics.latestSwitchFailure ?? { status: "not_observed" });
+    if (aiDatabasePath && fs.existsSync(aiDatabasePath)) {
       checkpointAiDatabase(aiDatabasePath);
       const aiDiagnostics = exportAiDiagnostics(aiDatabasePath);
-      const aiDatabaseBundleDir = path.join(folderPath, "ai-analysis-database");
       writeBundleJson(aiDatabaseBundleDir, "ai-database-metadata.json", aiDiagnostics.metadata);
       writeBundleJson(aiDatabaseBundleDir, "ai-import-batches.json", aiDiagnostics.batches);
       writeBundleJson(aiDatabaseBundleDir, "ai-import-actions.json", aiDiagnostics.actions);
       writeBundleJson(aiDatabaseBundleDir, "ai-source-links.json", aiDiagnostics.links);
       writeBundleJson(aiDatabaseBundleDir, "ai-source-link-attempts.json", aiDiagnostics.linkAttempts);
       fs.writeFileSync(path.join(aiDatabaseBundleDir, "ai-database-integrity-check.txt"), `${JSON.stringify(aiDiagnostics.integrity)}\nforeignKeyErrors=${aiDiagnostics.foreignKeys.length}\n`, "utf8");
-      evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copied", sourcePath: aiDatabasePath, relativePath: "ai-analysis-database", reason: "AI database metadata and diagnostics exported after WAL checkpoint; SQLite content was not copied." });
-    } else evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "not_run", sourcePath: aiDatabasePath, relativePath: "ai-analysis-database", reason: "AI Analysis Database has not been created." });
+    }
+    evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copied", sourcePath: aiDatabasePath || "active AI database not selected", relativePath: "ai-analysis-database", reason: "AI lifecycle and query diagnostics exported without copying SQLite content." });
   } catch (error) {
-    evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copy_failed", sourcePath: getAiAnalysisDatabasePath(), relativePath: "ai-analysis-database", reason: error instanceof Error ? error.message : String(error) });
-  }
-  for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
+    evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copy_failed", sourcePath: getActiveAiDatabasePathV040(), relativePath: "ai-analysis-database", reason: error instanceof Error ? error.message : String(error) });
+  }  for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
     collectDiagnosticFile("current_session_" + fileName, path.join(diagnosticSnapshot.sessionDir, fileName), "sessions/current/" + fileName);
   }
   if (diagnosticSnapshot.previousSessionId) {
