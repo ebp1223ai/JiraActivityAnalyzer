@@ -26,6 +26,12 @@ win-unpacked executables were generated from the v0.3.39 dirty candidate tree.
 | win-unpacked and Portable app-only smoke | PASS |
 | Human clicks through create/import/backup/recovery workflow | PENDING |
 
+## Commit State
+
+Implementation commit: a01e4f0. A report-only closeout commit follows this
+document update. Neither commit includes the user's v0.2.47 tracked modification,
+untracked workspace data, release artifacts, databases, tokens, recordings or
+temporary extraction.
 ## Release Gate
 
 The formal prompt requires human Windows GUI acceptance before creating or

@@ -5,6 +5,7 @@
   "buildTimeIso": "2026-09-01T08:51:52.049Z",
   "branch": "feat/v0.3.39-ai-database-lifecycle-ui",
   "packagedSourceCommit": "11d3457854cfb5505efcf9cffa154115a2ac9512",
+  "implementationCommit": "a01e4f0",
   "dirtyState": true,
   "artifacts": [
     {

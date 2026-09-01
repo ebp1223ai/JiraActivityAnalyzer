@@ -42,6 +42,13 @@ The packaged v0.3.39 rules are byte-identical to the supplied input:
 | Common Rules v2.4.0 | `1a44d74f2e08af7eb2a19e302415ae9e81082a67fa94c7ac265382b5a89a9ff7` |
 | Import Schema v1.0.0 | `6d51b5fb613b5ff957ab815e6702cf23845d5fce0124fb73b224983a39986a8c` |
 
+## Traceability
+
+- Baseline HEAD before implementation: 11d3457854cfb5505efcf9cffa154115a2ac9512.
+- Implementation and initial reports commit: a01e4f0.
+- Final report commit is recorded by Git after this closeout update.
+- The packaged candidate records dirtyState=true because it was built before
+  commit while preserving the user's unrelated tracked modification.
 ## Safety
 
 No real Jira, AI provider or production database integration was executed. The
