@@ -124,7 +124,8 @@
     "replay:v0.3.31-quality-gate": "node scripts/replay-v0331-quality-gate.cjs",
     "replay:v0.3.31-validation-receipts": "node scripts/replay-v0331-validation-receipts.cjs",
     "replay:v0.3.31-terminal-lifecycle": "node scripts/replay-v0331-terminal-lifecycle.cjs",
-    "test:v0.3.38": "node scripts/test-v0338.cjs"
+    "test:v0.3.38": "node scripts/test-v0338.cjs",
+    "test:ui:legacy-deep": "npm run build && cross-env ELECTRON_UI_SMOKE=1 ELECTRON_UI_CAPTURE=0 ELECTRON_UI_LEGACY_DEEP=1 electron dist-electron/main.cjs"
   },
   "dependencies": {
     "@openai/codex": "0.147.0",

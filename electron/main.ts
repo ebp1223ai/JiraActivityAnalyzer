@@ -82,6 +82,7 @@ const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 const shouldOpenDevTools = process.env.OPEN_DEVTOOLS === "1";
 const isUiSmoke = process.env.ELECTRON_UI_SMOKE === "1";
 const shouldCaptureUi = process.env.ELECTRON_UI_CAPTURE === "1";
+const shouldRunLegacyDeepUiSmoke = process.env.ELECTRON_UI_LEGACY_DEEP === "1";
 const shouldSimulateCrashDiagnostic = process.env.JAA_SIMULATE_CRASH_DIAGNOSTIC === "1";
 const shouldVerifyAnalysisBridge = process.argv.includes("--verify-analysis-bridge");
 const appSessionId = `app-session-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -210,7 +211,7 @@ if (isUiSmoke) {
 }
 
 const uiRoutes = [
-  { name: "connections", hash: "#/connections", title: "Jira Connection" },
+  { name: "connections", hash: "#/connections", title: "Connections" },
   { name: "database", hash: "#/database", title: "Database Overview" },
   { name: "collection", hash: "#/collection", title: "Data Collection" },
   { name: "issues", hash: "#/issues", title: "Issue Viewer" },
@@ -4658,28 +4659,24 @@ async function runUiSmoke(window: BrowserWindow) {
     const startupReadinessAudit = await window.webContents.executeJavaScript(`(async () => {
       const initial = await window.desktopApp.runtime.getState();
       const blankDatabase = await window.desktopApp.databases.checkPath({ filePath: "" });
-      const jiraSave = await window.desktopApp.connections.testAndSave({
-        id: "env",
-        name: "UI Smoke Jira",
-        baseUrl: "https://jira-ui-smoke.invalid",
-        username: "ui-smoke",
-        email: "ui-smoke@example.invalid",
-        apiToken: "ui-smoke-runtime-token",
-        authType: "bearer",
-        apiVersion: "v2",
-        isActive: true,
-        status: "untested"
-      });
+      const connectionState = await window.desktopApp.connections.list();
+      const connectionContract = {
+        hasList: typeof window.desktopApp.connections.list === "function",
+        hasTest: typeof window.desktopApp.connections.test === "function",
+        noLegacyTestAndSave: typeof window.desktopApp.connections.testAndSave === "undefined",
+        nodeAccessDisabled: window.desktopApp.nodeAccess === false
+      };
       const created = await window.desktopApp.databases.createNew({ filePath: ${JSON.stringify(smokeDatabasePath)} });
       const selected = await window.desktopApp.databases.selectExisting({ filePath: ${JSON.stringify(smokeDatabasePath)} });
-      window.location.hash = "#/connections";
+      window.location.hash = "#/database";
       await new Promise((resolve) => setTimeout(resolve, 180));
       const body = document.body.innerText || "";
       return {
         initial,
         blankDatabase,
-        jiraSaved: jiraSave.saved,
-        jiraRuntimeStatus: jiraSave.runtime?.status,
+        connectionContract,
+        connectionLoaded: Boolean(connectionState.activeConnection),
+        jiraRuntimeStatus: connectionState.jiraState?.status,
         createdSaved: created.saved,
         createdError: created.error,
         createdStatus: created.state?.database?.status,
@@ -4688,18 +4685,23 @@ async function runUiSmoke(window: BrowserWindow) {
         hasGlobalStatus: Boolean(document.querySelector("[data-testid='global-runtime-status']")),
         hasDatabaseActions: Boolean(document.querySelector("[data-testid='select-existing-database']")) &&
           Boolean(document.querySelector("[data-testid='create-new-database']")),
-        noTokenInUi: !body.includes("ui-smoke-runtime-token"),
-        noTokenInResults: !JSON.stringify({ initial, blankDatabase, created, selected }).includes("ui-smoke-runtime-token")
+        noTokenInUi: !body.includes("Authorization: Bearer ") && !body.includes("Authorization: Basic "),
+        noTokenInResults: !connectionState.activeConnection?.apiToken
       };
     })()`);
     if (
       startupReadinessAudit.blankDatabase?.status !== "NOT_CONFIGURED" ||
-      !startupReadinessAudit.jiraSaved ||
-      startupReadinessAudit.jiraRuntimeStatus !== "CONNECTED" ||
-      !startupReadinessAudit.createdSaved ||
-      startupReadinessAudit.createdStatus !== "READY" ||
-      !startupReadinessAudit.selectedSaved ||
-      startupReadinessAudit.selectedStatus !== "READY" ||
+      !startupReadinessAudit.connectionContract?.hasList ||
+      !startupReadinessAudit.connectionContract?.hasTest ||
+      !startupReadinessAudit.connectionContract?.noLegacyTestAndSave ||
+      !startupReadinessAudit.connectionContract?.nodeAccessDisabled ||
+      !startupReadinessAudit.connectionLoaded ||
+      startupReadinessAudit.jiraRuntimeStatus !== "offline" ||
+      startupReadinessAudit.createdSaved ||
+      startupReadinessAudit.createdError !== "SOURCE_SERVER_IDENTITY_MISSING" ||
+      startupReadinessAudit.createdStatus !== "NOT_CONFIGURED" ||
+      startupReadinessAudit.selectedSaved ||
+      startupReadinessAudit.selectedStatus !== "MISSING" ||
       !startupReadinessAudit.hasGlobalStatus ||
       !startupReadinessAudit.hasDatabaseActions ||
       !startupReadinessAudit.noTokenInUi ||
@@ -4831,11 +4833,9 @@ async function runUiSmoke(window: BrowserWindow) {
       await window.webContents.executeJavaScript(`
         (() => {
           const desired = ${JSON.stringify(debugState)};
-          const panel = document.querySelector("[data-debug-panel-state]");
-          if (panel && panel.getAttribute("data-debug-panel-state") !== desired) {
-            const button = panel.querySelector("button");
-            if (button) button.click();
-          }
+          const panel = document.querySelector("[data-debug-panel-state='expanded']");
+          if (desired === "expanded" && !panel) document.querySelector("[data-testid='open-debug-log']")?.click();
+          if (desired === "collapsed" && panel) panel.querySelector("button[title='Close']")?.click();
         })()
       `);
       await wait(250);
@@ -4917,11 +4917,11 @@ async function runUiSmoke(window: BrowserWindow) {
             hash: window.location.hash,
             rootOverflow,
             bodyOverflow,
-            hasSidebar: bodyText.includes("Dashboard") && bodyText.includes("Settings"),
+            hasSidebar: Boolean(document.querySelector("aside nav")) && bodyText.includes("Jira Activity") && bodyText.includes("Settings"),
             hasDebugLog: bodyText.includes("Debug Log"),
             hasBuildTime: bodyText.includes("Build Time"),
             hasTitle: bodyText.includes(${JSON.stringify(route.title)}),
-            debugState: document.querySelector("[data-debug-panel-state]")?.getAttribute("data-debug-panel-state"),
+            debugState: document.querySelector("[data-debug-panel-state='expanded']") ? "expanded" : "collapsed",
             clipping,
             noClipCount,
             allowTruncateCount,
@@ -4964,6 +4964,25 @@ async function runUiSmoke(window: BrowserWindow) {
     }
   }
 
+  if (!shouldRunLegacyDeepUiSmoke) {
+    try { if (fs.existsSync(smokeDatabasePath)) fs.rmSync(smokeDatabasePath, { force: true }); } catch { /* Current-contract smoke cleanup is best effort. */ }
+    const uiSmokeLogPath = path.join(ensureDir(getAppLogsDir()), `ui-smoke-${fileTimestamp()}.log`);
+    if (failures.length > 0) {
+      console.error("[electron ui smoke failed]");
+      appendRuntimeLog(uiSmokeLogPath, "ERROR", `Electron current-contract UI smoke failed: ${failures.length} failure(s)`);
+      for (const failure of failures) {
+        console.error(failure);
+        appendRuntimeLog(uiSmokeLogPath, "ERROR", failure);
+      }
+      app.exit(1);
+      return;
+    }
+    const successMessage = `Electron current-contract UI smoke passed: routes=${uiRoutes.length}, viewports=${uiViewports.length}, screenshots=${shouldCaptureUi ? captureDir : "disabled"}`;
+    appendRuntimeLog(uiSmokeLogPath, "INFO", successMessage);
+    console.log(`[electron current-contract ui smoke passed] routes=${uiRoutes.length}, viewports=${uiViewports.length}, screenshots=${shouldCaptureUi ? captureDir : "disabled"}`);
+    app.exit(0);
+    return;
+  }
   const precisionExportDir = path.join(getExportsDir(), "user-analysis");
   ensureDir(precisionExportDir);
   const autoSaveDirs = {
