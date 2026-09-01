@@ -44,3 +44,12 @@ report after `dist` completes.
 - Packaged bridge diagnostic passed for win-unpacked and Portable.
 - Artifact hashes are in `JiraActivityAnalyzer_v0.3.38_build_manifest.json`.
 - Overall acceptance is `PARTIAL / MANUAL GUI VALIDATION PENDING` because the legacy full UI smoke harness fails on an existing preload bridge mismatch.
+## Legacy UI Smoke Harness Alignment
+
+- Root cause confirmed as harness drift: removed `connections.testAndSave` API, stale Sidebar text, and incorrect Debug Log toggle.
+- Production preload, IPC validation, context isolation, DB identity gate, and `nodeAccess=false` were not relaxed.
+- Default current-contract smoke validates 11 routes, five viewports, Debug Log expanded/collapsed, overflow, clipping, Build Time, and Sidebar.
+- Legacy deep checks remain opt-in through `npm run test:ui:legacy-deep`.
+- Development renderer, win-unpacked, and isolated Portable UI smoke passed.
+- Harness correction commit: `84994583aa425baebda13af5344e975bdfbdbdf2`.
+- Manual GUI acceptance remains pending; no Tag or Push was performed.

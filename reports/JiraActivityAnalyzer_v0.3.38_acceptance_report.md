@@ -1,31 +1,41 @@
 # Jira Activity Analyzer v0.3.38 Acceptance Report
 
-## Conclusion
+## 結論
 
-v0.3.38 AI Analysis Database、strict import contract、Golden Fixture regression、production build，以及 Windows Installer／Portable／win-unpacked 封裝均已完成。win-unpacked 與 Portable 的 packaged bridge diagnostics 均通過。
+自動化驗收狀態為 **PASS / MANUAL GUI VALIDATION PENDING**。Legacy full UI smoke 的首要失敗已確認為 test harness 沿用不存在的 `connections.testAndSave`，不是正式 App regression。更新為現行 preload／IPC 契約後，development renderer、win-unpacked 與隔離 APP_ROOT 的 Portable UI smoke 均通過。依使用者指示仍不建立 Tag、不 Push，等待人工 GUI 驗收。
 
-整體狀態為 **PARTIAL / MANUAL GUI VALIDATION PENDING**。既有跨版本 UI smoke 在 route audit 前因 `connections.testAndSave` bridge mismatch 失敗，後續產生連鎖誤報；另一次 Portable CDP 嘗試未透過 portable wrapper 取得 renderer endpoint。未隱藏失敗，也未為了讓測試通過而修改 production 行為。
+## Harness Drift 證據
 
-## Acceptance Matrix
+- 正式 preload 只公開 `connections.loadEnv / chooseEnv / list / test / onStateChanged`。
+- `electron/v0237Integration.test.ts` 明確禁止 `testAndSave`、`connection:save` 與 `connection:set-active`。
+- 舊 smoke 在第一個例外前尚未完成 route navigation，造成後續 Sidebar／Debug Log／route 全尺寸連鎖誤報。
+- 舊 smoke 另使用已過期的 `Dashboard` sidebar 字樣、只能關不能開的 Debug panel toggle，以及已被各版本獨立 regression tests 取代的 v0.2.4x 深度互動 selectors。
+- 原始失敗輸出保留於 ignored `test-artifacts/v038-legacy-smoke-after-contract-fix.log`；摘要保留於 Test Report。
+
+## 修正原則
+
+- production preload、IPC handlers、context isolation、`nodeAccess=false` 與 DB server-identity validation 均未降低或放寬。
+- current smoke 使用 `connections.list()` 檢查 renderer contract，不發送真實 Jira request。
+- 未認證 DB 建立測試改驗證 `SOURCE_SERVER_IDENTITY_MISSING` 安全阻擋。
+- Debug panel 改用正式 `open-debug-log` 與 Close button。
+- 預設 `test:ui` 驗證 11 routes、5 viewports、Debug 展開／收合、overflow 與 clipping。
+- 歷史深度 harness 原碼保留，可用 `npm run test:ui:legacy-deep` 顯式執行。
+
+## 驗收矩陣
 
 | Requirement | Status | Evidence |
 |---|---|---|
-| Independent AI SQLite and frozen DDL | PASS | `test:v0.3.38`; schema version 1 |
-| Strict package v1.0.0 preflight | PASS | Schema SHA, Ajv 2020-12, identity/count/hash validation |
-| Golden AI-only import | PASS | 59 records / 86 findings |
-| Reviewed replacement | PASS | 59 completed; 81 accept; 5 reject; 10 disagreements |
-| Idempotency and rank protection | PASS | duplicate no-op; 59 protected skips |
-| Atomic rollback | PASS | synthetic failure leaves no partial batch |
-| Source Link attempts | PASS | append-only attempts and relink regression |
-| AI-only and integrated queries | PASS | server paging/filter; raw LEFT JOIN retained |
-| Archived old AI navigation | PASS | disabled sidebar item and redirect regression |
-| Debug Bundle AI diagnostics | PASS | metadata/action/link/attempt/integrity; no SQLite copy by default |
-| TypeScript / production build | PASS | exit 0 |
-| Installer / Portable / win-unpacked | PASS | dist exit 0; hashes in build manifest |
-| Packaged bridge loadability | PASS | win-unpacked and Portable receipts exit 0 |
-| Full legacy UI smoke | FAIL (existing harness drift) | `connections.testAndSave is not a function` then cascading failures |
-| Three-page manual GUI inspection | PENDING | Portable wrapper did not expose CDP endpoint; no desktop screenshot used |
+| Strict AI package / Golden 59 records, 86 findings | PASS | `test:v0.3.38` |
+| Review protection / idempotency / rollback / Source Link | PASS | `test:v0.3.38` |
+| Production preload／IPC security contract | PASS | static regression + runtime current smoke |
+| Existing non-AI routes | PASS | Connections, Database, Collection, Issues, Users, Activity Stream, Jira Probe, Settings |
+| New AI routes | PASS | AI Database, AI Results, Integrated Results |
+| Development renderer UI smoke | PASS | 11 routes × 5 viewports |
+| win-unpacked UI smoke | PASS | packaged `app.asar/dist/index.html`, 11 routes × 5 viewports |
+| Portable UI smoke | PASS | copied artifact with isolated APP_ROOT, 11 routes × 5 viewports |
+| Packaged bridge diagnostics | PASS | win-unpacked and Portable receipts |
+| Manual GUI acceptance | PENDING | waiting for user validation |
 
 ## Safety
 
-未執行真實 Jira、AI provider 或 production SQLite 整合。Git 不包含 Token、密碼、Cookie、`.env`、Database、Debug Bundle、Installer 或 Portable。使用者既有修改與未追蹤檔案均保留。
+未執行真實 Jira、AI provider 或 production SQLite 整合。Git 不包含 Token、密碼、Cookie、`.env`、Database、Debug Bundle、Installer 或 Portable。使用者既有 v0.2.47 tracked 修改與未追蹤資料保持原樣。

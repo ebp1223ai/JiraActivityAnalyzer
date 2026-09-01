@@ -3,13 +3,96 @@
   "version": "0.3.38",
   "timezone": "Asia/Taipei",
   "entries": [
-    {"command":"npm.cmd run typecheck","result":"PASS","exitCode":0,"elapsedSeconds":12.709},
-    {"command":"npm.cmd run test:v0.3.38","result":"PASS","exitCode":0,"elapsedSeconds":2.489},
-    {"command":"npm.cmd run build","result":"PASS","exitCode":0,"elapsedSeconds":21.841},
-    {"command":"npm.cmd run dist","result":"BLOCKED_DIRTY_WORKTREE","exitCode":1,"elapsedSeconds":17.677},
-    {"command":"JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist","result":"PASS","exitCode":0,"elapsedSeconds":174.607},
-    {"command":"app-only legacy UI smoke","result":"FAIL_LEGACY_HARNESS","exitCode":1,"elapsedSeconds":112.4},
-    {"command":"Portable CDP route audit","result":"NOT_COMPLETED_ENDPOINT_UNAVAILABLE","exitCode":null,"elapsedSeconds":null}
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 12.709
+    },
+    {
+      "command": "npm.cmd run test:v0.3.38",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 2.489
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 21.841
+    },
+    {
+      "command": "npm.cmd run dist",
+      "result": "BLOCKED_DIRTY_WORKTREE",
+      "exitCode": 1,
+      "elapsedSeconds": 17.677
+    },
+    {
+      "command": "JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 174.607
+    },
+    {
+      "command": "app-only legacy UI smoke",
+      "result": "FAIL_LEGACY_HARNESS",
+      "exitCode": 1,
+      "elapsedSeconds": 112.4
+    },
+    {
+      "command": "Portable CDP route audit",
+      "result": "NOT_COMPLETED_ENDPOINT_UNAVAILABLE",
+      "exitCode": null,
+      "elapsedSeconds": null
+    },
+    {
+      "command": "npm.cmd run typecheck (harness closeout)",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 10.59
+    },
+    {
+      "command": "npm.cmd run test:v0.3.38 (harness closeout)",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 2.657
+    },
+    {
+      "command": "npm.cmd run build (harness closeout)",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 27.858
+    },
+    {
+      "command": "current-contract renderer UI smoke",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 32.385
+    },
+    {
+      "command": "JAA_ALLOW_DIRTY_PACKAGE=1 npm.cmd run dist (harness closeout)",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 243.6
+    },
+    {
+      "command": "win-unpacked packaged UI smoke",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 30.829
+    },
+    {
+      "command": "Portable UI smoke at release APP_ROOT",
+      "result": "EXPECTATION_MISMATCH_EXISTING_CONFIG",
+      "exitCode": 1,
+      "elapsedSeconds": 156.873
+    },
+    {
+      "command": "Portable UI smoke with isolated APP_ROOT",
+      "result": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 45.632
+    }
   ],
   "note": "Only stopwatch-backed timings are exact. Total development wall-clock and token usage are unavailable and were not estimated."
 }
