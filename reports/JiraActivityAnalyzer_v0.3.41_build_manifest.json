@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "jaa-v0.3.41-build-manifest-v1",
+  "version": "0.3.41",
+  "buildTime": "2026/09/02 13:38:17",
+  "buildTimeIso": "2026-09-02T05:38:17.442Z",
+  "sourceCommit": "381e15ec403fb37a58040d81995c54dcc01dc559",
+  "branch": "feat/v0.3.41-lossless-source-trace",
+  "dirtyState": true,
+  "dirtyStateReason": "Preserved user-owned v0.2.47 tracked report modification; excluded from source and report commits.",
+  "input": {
+    "zipSha256": "564053ad3ef0692c27e40d854ef70b7f9659151c13f28d1b6e0241b3439ab3b4",
+    "verifiedFiles": 34,
+    "missingFiles": 0,
+    "mismatchedFiles": 0
+  },
+  "artifacts": [
+    {
+      "path": "release/Jira Activity Analyzer Setup 0.3.41.exe",
+      "bytes": 191131343,
+      "sha256": "ec6c8feb2186fc0682bbb8445e2dc6b05cc02f131c0e2720c298eb8ee7ac2066"
+    },
+    {
+      "path": "release/Jira Activity Analyzer Portable 0.3.41.exe",
+      "bytes": 190901226,
+      "sha256": "96c0de55fcd76483ea460881f5744267e0a18aea0612f68251fdab58aba2b6d2"
+    },
+    {
+      "path": "release/win-unpacked/Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "8d2fa38b539af3c05c62ba935dada068c32d612625c824c8b4b2e7e8878004a5"
+    }
+  ],
+  "packagedContracts": [
+    { "path": "JAA_AI_Analysis_Database_Design_v2.0.0.md", "sha256": "839331d1d8eab490e1c4d7bb967698056c5393112a65e07d642498e778d558fc" },
+    { "path": "JAA_AI_Analysis_SQLite_Schema_v2.0.0.sql", "sha256": "1ad8269f4b70eb98571a551bf436cb9a022d681d8f69efef718548cd353cf648" },
+    { "path": "jaa-ai-analysis-package_v2.0.0.schema.json", "sha256": "36f879a3ee5a5671e92c0ea8dec4c4e850caf7282cbfc45ef68f41e394e8af27" },
+    { "path": "jaa-source-trace_v1.0.0.schema.json", "sha256": "b96147f4a2f766fb39679beeba66ef4ea210f290bc69078b88456fc8b5b8e6e7" },
+    { "path": "Skill_Analysis_HTML_Report_Template_v1.12.0.md", "sha256": "1faae24dfca1259317f1848298fa486b4883f2ccafcd11eecd109560388bd3db" },
+    { "path": "Skill_Analysis_Review_Workbench_v1.12.0.html", "sha256": "73bddee4b0a74e889fccc7561c075faa6591d6819d1c60b2d1085d2fd99e0049" },
+    { "path": "Skill_Analysis_Rule_Set_Manifest_v1.5.0.md", "sha256": "6d3534f4be8f9674784c4a63884e1ca53b010b260e3bc05752d71f5590660938" },
+    { "path": "Skill_Classification_Common_Rules_v2.5.0.md", "sha256": "35db89535fb7f697e77647e8c3293a1656f8d714d9ae64b5ad7928515935ef63" },
+    { "path": "Skill_Catalog_v0.3.5.md", "sha256": "d32eb58ff7ea01931e889d97e2f4b1a30ed35a5cce17a293ba37b0e19d73d006" }
+  ],
+  "testSummary": {
+    "typecheck": "PASS",
+    "v0.3.41": "PASS",
+    "build": "PASS",
+    "uiRoutes": 11,
+    "uiViewports": 5,
+    "winUnpackedSmoke": "PASS",
+    "portableIsolatedSmoke": "PASS",
+    "packagedFrozenBytes": "9/9 PASS",
+    "legacyV0328PackagedHarness": "FAIL_HARNESS_DRIFT",
+    "manualGui": "PENDING",
+    "real76RecordGate": "NOT_RUN"
+  },
+  "releaseGate": "PARTIAL_MANUAL_GUI_VALIDATION_PENDING"
+}
