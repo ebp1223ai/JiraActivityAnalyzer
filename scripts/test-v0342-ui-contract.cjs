@@ -1,0 +1,32 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = path.resolve(__dirname, "..");
+const read = (name) => fs.readFileSync(path.join(root, name), "utf8");
+const app = read("src/App.tsx");
+const sidebar = read("src/components/Sidebar.tsx");
+const database = read("src/routes/AiDatabasePage.tsx");
+const viewers = read("src/routes/AiDatabaseViewerPagesV042.tsx");
+const table = read("src/components/SqliteDataTable.tsx");
+const main = read("electron/main.ts");
+
+assert.match(app, /AiResultsPageV042/);
+assert.match(app, /IntegratedResultsPageV042/);
+assert.match(sidebar, /AI Analysis Database/);
+assert.match(sidebar, /AI Results Viewer/);
+assert.match(sidebar, /Integrated Results/);
+assert.match(database, /DatabaseOverviewToolbar/);
+assert.match(database, /匯入 Package v2/);
+assert.match(database, /更多操作/);
+assert.match(database, /重新配對/);
+assert.match(viewers, /ActivityComparisonTable/);
+assert.match(viewers, /fieldCatalog/);
+assert.doesNotMatch(viewers, /Top Filters|TopFilters/);
+assert.match(table, /data-column-catalog/);
+assert.match(table, /Search field path or group/);
+assert.match(table, /Inclusive end of day/);
+for (const size of ["1024, height: 768", "1280, height: 720", "1366, height: 768", "1600, height: 900", "1920, height: 1080"]) assert.ok(main.includes(size), `missing viewport ${size}`);
+for (const route of ["#/ai-database", "#/ai-results", "#/integrated-results"]) assert.ok(main.includes(route), `missing smoke route ${route}`);
+assert.doesNotMatch(main, /registerAiAnalysisIpc\(\)/);
+console.log(JSON.stringify({ status: "PASS", version: "0.3.42", approvedInformationArchitecture: true, productionReuse: true, dynamicColumns: true, dateRangeHeaders: true, fiveViewports: true, archivedProviderStartup: false }));

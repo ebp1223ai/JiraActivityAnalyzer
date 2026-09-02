@@ -40,6 +40,7 @@ export type ViewerTableResult<TRow extends Record<string, unknown> = Record<stri
   page: number;
   pageSize: number;
   pageCount: number;
+  fieldCatalog?: Array<{ path: string; label: string; group: string; dataType: string; filterType: "text" | "number" | "multi" | "date"; sortable: boolean; exportable: boolean; allNull: boolean }>;
   sourceStatus?: "confirmed" | "no_records" | "source_unidentifiable";
   unidentifiableSourceCount?: number;
 };

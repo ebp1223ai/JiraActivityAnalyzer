@@ -60,10 +60,10 @@ import { filterSnapshot, type PendingAnalysisExportRequest, type PendingAnalysis
 import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
-import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
-import { getActiveAiDatabasePathV041, getAiDatabaseV041Diagnostics, registerAiAnalysisDatabaseIpcV041 } from "./aiAnalysisDatabaseIpcV041.js";
+import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory } from "./aiAnalysisIpc.js";
+import { getActiveAiDatabasePathV042, getAiDatabaseV042Diagnostics, registerAiAnalysisDatabaseIpcV042 } from "./aiAnalysisDatabaseIpcV042.js";
 import { checkpointAiDatabase } from "./aiAnalysisDatabaseV038.js";
-import { aiDatabaseDiagnosticsV041 } from "./aiAnalysisDatabaseV041.js";
+import { aiDatabaseDiagnosticsV042 } from "./aiAnalysisDatabaseV042.js";
 import { flushRunArchive } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
 import { resolveAnalysisBridgeArtifactV0337 } from "./analysisBridgeResolverV0337.js";
@@ -84,6 +84,8 @@ const shouldOpenDevTools = process.env.OPEN_DEVTOOLS === "1";
 const isUiSmoke = process.env.ELECTRON_UI_SMOKE === "1";
 const shouldCaptureUi = process.env.ELECTRON_UI_CAPTURE === "1";
 const shouldRunLegacyDeepUiSmoke = process.env.ELECTRON_UI_LEGACY_DEEP === "1";
+const v042UiSmokeGoldenPackage = process.env.JAA_V042_GOLDEN_PACKAGE;
+const shouldExpectV042PortableDatabase = process.env.JAA_V042_EXPECT_AI_DB === "1";
 const shouldSimulateCrashDiagnostic = process.env.JAA_SIMULATE_CRASH_DIAGNOSTIC === "1";
 const shouldVerifyAnalysisBridge = process.argv.includes("--verify-analysis-bridge");
 const appSessionId = `app-session-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -135,8 +137,7 @@ if (shouldVerifyAnalysisBridge) {
   if (receiptPath) { fs.mkdirSync(path.dirname(path.resolve(receiptPath)), { recursive: true }); fs.writeFileSync(path.resolve(receiptPath), JSON.stringify(resolution.receipt, null, 2) + "\n", "utf8"); }
   process.exit(resolution.receipt.status === "ready" ? 0 : 2);
 }
-registerAiAnalysisIpc();
-registerAiAnalysisDatabaseIpcV041(() => resolveLocalDatabasePath(getAppRuntimeDir(), loadEffectiveRuntimeConfig().localDatabasePath));
+registerAiAnalysisDatabaseIpcV042(() => resolveLocalDatabasePath(getAppRuntimeDir(), loadEffectiveRuntimeConfig().localDatabasePath));
 
 type AutoSaveResultType = "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test";
 type AutoSavedRun = { runId: string; resultType: AutoSaveResultType; status: string; savedAt: string; filePath: string; folderPath: string; data: Record<string, unknown> };
@@ -4060,8 +4061,8 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     else evidenceEntries.push({ id: "ai_analysis_canonical_run", status: "not_run", sourcePath: aiRunsRoot, relativePath: "ai-analysis/canonical-run", reason: "Current attempt has no Run; prior latest Run fallback is intentionally disabled." });
   }
   try {
-    const aiDatabasePath = getActiveAiDatabasePathV041();
-    const aiLifecycleDiagnostics = getAiDatabaseV041Diagnostics();
+    const aiDatabasePath = getActiveAiDatabasePathV042();
+    const aiLifecycleDiagnostics = getAiDatabaseV042Diagnostics();
     const aiDatabaseBundleDir = path.join(folderPath, "ai-analysis-database");
     fs.mkdirSync(aiDatabaseBundleDir, { recursive: true });
     writeBundleJson(aiDatabaseBundleDir, "ai-database-lifecycle.json", aiLifecycleDiagnostics.activeDatabase);
@@ -4069,7 +4070,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     writeBundleJson(aiDatabaseBundleDir, "ai-switch-preflight-failure.json", aiLifecycleDiagnostics.latestSwitchFailure ?? { status: "not_observed" });
     if (aiDatabasePath && fs.existsSync(aiDatabasePath)) {
       checkpointAiDatabase(aiDatabasePath);
-      const aiDiagnostics = aiDatabaseDiagnosticsV041(aiDatabasePath);
+      const aiDiagnostics = aiDatabaseDiagnosticsV042(aiDatabasePath);
       writeBundleJson(aiDatabaseBundleDir, "ai-database-metadata.json", aiDiagnostics.snapshot);
       writeBundleJson(aiDatabaseBundleDir, "ai-import-batches.json", aiDiagnostics.batches);
       writeBundleJson(aiDatabaseBundleDir, "ai-source-traces.json", aiDiagnostics.traces);
@@ -4078,7 +4079,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     }
     evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copied", sourcePath: aiDatabasePath || "active AI database not selected", relativePath: "ai-analysis-database", reason: "AI lifecycle and query diagnostics exported without copying SQLite content." });
   } catch (error) {
-    evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copy_failed", sourcePath: getActiveAiDatabasePathV041(), relativePath: "ai-analysis-database", reason: error instanceof Error ? error.message : String(error) });
+    evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copy_failed", sourcePath: getActiveAiDatabasePathV042(), relativePath: "ai-analysis-database", reason: error instanceof Error ? error.message : String(error) });
   }  for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
     collectDiagnosticFile("current_session_" + fileName, path.join(diagnosticSnapshot.sessionDir, fileName), "sessions/current/" + fileName);
   }
@@ -4108,6 +4109,9 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     appRoot: getAppRuntimeDir(),
     executablePath: process.execPath,
     isPackaged: app.isPackaged,
+    launchedExecutablePath: process.env.PORTABLE_EXECUTABLE_FILE || process.execPath,
+    resourcesPath: process.resourcesPath,
+    logicalRootSource: process.env.PORTABLE_EXECUTABLE_DIR ? "PORTABLE_EXECUTABLE_DIR" : process.env.PORTABLE_EXECUTABLE_FILE ? "PORTABLE_EXECUTABLE_FILE" : app.isPackaged ? "process.execPath" : "developmentRoot",
     checkedAt: createdAt,
     paths: {
       userData: getAppDataDir(),
@@ -4119,7 +4123,9 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
       fullFetchStaging: getFullFetchStagingDir(),
       exports: getExportsDir(),
       sourceArchive: getSourceArchivesDir(),
-      debugFolders: getDebugFoldersDir()
+      debugFolders: getDebugFoldersDir(),
+      aiAnalysisDatabase: getAiAnalysisDatabasePath(),
+      backups: getBackupsDir()
     }
   });
   writeBundleJson(folderPath, "path-audit.json", pathAudit);
@@ -4657,6 +4663,41 @@ async function runUiSmoke(window: BrowserWindow) {
   }
 
   const failures: string[] = [];
+  try {
+    const v042DatabasePath = getAiAnalysisDatabasePath();
+    const v042Audit = await window.webContents.executeJavaScript(`(async () => {
+      const api = window.desktopApp.aiDatabase;
+      if (!api) return { available: false };
+      const lifecycle = await api.lifecycle({ requestId: "v042-smoke-lifecycle" });
+      const result = { available: true, initial: lifecycle.snapshot };
+      if (${JSON.stringify(Boolean(v042UiSmokeGoldenPackage))}) {
+        const filePath = ${JSON.stringify(v042UiSmokeGoldenPackage ?? "")};
+        const databasePath = ${JSON.stringify(getAiAnalysisDatabasePath())};
+        const created = lifecycle.snapshot?.canQuery
+          ? { ok: true, snapshot: lifecycle.snapshot, reused: true }
+          : await api.create({ requestId: "v042-smoke-create", filePath: databasePath });
+        const preflight = await api.preflight({ requestId: "v042-smoke-preflight", filePath });
+        const imported = preflight.ok
+          ? await api.importPackage({ requestId: "v042-smoke-import", filePath, confirmed: true })
+          : { ok: false, skipped: true };
+        const queried = await api.queryResults({ requestId: "v042-smoke-query", page: 1, pageSize: 200 });
+        return { ...result, created, preflight, imported, queried };
+      }
+      return result;
+    })()`);
+    if (!v042Audit.available) failures.push("v0.3.42 AI Database Bridge is unavailable");
+    if (v042UiSmokeGoldenPackage && (
+      !v042Audit.created?.ok || !v042Audit.preflight?.ok || !v042Audit.imported?.ok ||
+      Number(v042Audit.queried?.totalCount) !== 44 || v042Audit.queried?.fieldCatalog?.length < 1
+    )) failures.push(`v0.3.42 Golden package UI/IPC smoke failed ${JSON.stringify(v042Audit)}`);
+    if (shouldExpectV042PortableDatabase && (
+      v042Audit.initial?.lifecycleState !== "READY_WITH_DATA" ||
+      v042Audit.initial?.pathMode !== "APP_ROOT_RELATIVE" ||
+      path.resolve(v042Audit.initial?.databasePath ?? "") !== path.resolve(v042DatabasePath)
+    )) failures.push(`v0.3.42 relocated Portable database recovery failed ${JSON.stringify(v042Audit.initial)}`);
+  } catch (error) {
+    failures.push(`v0.3.42 AI Database UI/IPC smoke threw: ${error instanceof Error ? error.message : String(error)}`);
+  }
   const smokeDatabasePath = path.join(getTempDir(), `v0237-ui-smoke-${process.pid}.sqlite`);
   try {
     if (fs.existsSync(smokeDatabasePath)) fs.rmSync(smokeDatabasePath, { force: true });

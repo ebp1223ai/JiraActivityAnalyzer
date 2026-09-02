@@ -1,0 +1,2644 @@
+{
+  "schemaName": "jira-activity-analyzer.pending-analysis",
+  "schemaVersion": "0.3.3-draft.1",
+  "contractStatus": "GOLDEN_FIXTURE",
+  "exportId": "export-source-trace-golden-44",
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "timezone": "Asia/Taipei",
+  "appVersion": "0.3.42-fixture",
+  "sourceView": "USER_ALL_ACTIVITY_EVENTS",
+  "sourceDatabase": {
+    "sourceDatabaseId": "source-db-golden-001",
+    "jiraServerFingerprint": "jira:fixture:001",
+    "jiraServerHost": "jira.example.invalid",
+    "sourceSchemaVersion": 3,
+    "databaseGeneration": "generation-golden-001"
+  },
+  "querySnapshot": {
+    "query": {
+      "dateRange": {
+        "startDate": "2026-08-01",
+        "endDate": "2026-08-31"
+      }
+    },
+    "subject": {
+      "userScope": {
+        "kind": "selected-users",
+        "userIds": [
+          "fixture_user"
+        ]
+      }
+    }
+  },
+  "exportMetadata": {
+    "exportMode": "self-contained-fixture",
+    "selfContained": true,
+    "fullContentIncluded": true,
+    "sourceDatabaseRequiredForFullContent": false
+  },
+  "counts": {
+    "recordCount": 44
+  },
+  "integrity": {
+    "status": "fixture"
+  },
+  "diagnostics": [],
+  "records": [
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_000",
+        "activityEventId": "activity-fixture-44-000",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-000",
+        "historyId": "history-44-000",
+        "historyItemIndex": null,
+        "issueId": "issue-44-000",
+        "issueKey": "FIX-1000",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-01T00:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 000: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-000",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 000: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-000",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_001",
+        "activityEventId": "activity-fixture-44-001",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-001",
+        "historyId": "history-44-001",
+        "historyItemIndex": null,
+        "issueId": "issue-44-001",
+        "issueKey": "FIX-1001",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-02T01:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 001: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-001",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 001: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-001",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_002",
+        "activityEventId": "activity-fixture-44-002",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-002",
+        "historyId": "history-44-002",
+        "historyItemIndex": null,
+        "issueId": "issue-44-002",
+        "issueKey": "FIX-1002",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-03T02:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 002: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-002",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 002: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-002",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_003",
+        "activityEventId": "activity-fixture-44-003",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-003",
+        "historyId": "history-44-003",
+        "historyItemIndex": null,
+        "issueId": "issue-44-003",
+        "issueKey": "FIX-1003",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-04T03:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 003: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-003",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 003: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-003",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_004",
+        "activityEventId": "activity-fixture-44-004",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-004",
+        "historyId": "history-44-004",
+        "historyItemIndex": null,
+        "issueId": "issue-44-004",
+        "issueKey": "FIX-1004",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-05T04:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 004: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-004",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 004: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-004",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_005",
+        "activityEventId": "activity-fixture-44-005",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-005",
+        "historyId": "history-44-005",
+        "historyItemIndex": null,
+        "issueId": "issue-44-005",
+        "issueKey": "FIX-1005",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-06T05:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 005: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-005",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 005: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-005",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_006",
+        "activityEventId": "activity-fixture-44-006",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-006",
+        "historyId": "history-44-006",
+        "historyItemIndex": null,
+        "issueId": "issue-44-006",
+        "issueKey": "FIX-1006",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-07T06:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 006: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-006",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 006: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-006",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_007",
+        "activityEventId": "activity-fixture-44-007",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-007",
+        "historyId": "history-44-007",
+        "historyItemIndex": null,
+        "issueId": "issue-44-007",
+        "issueKey": "FIX-1007",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-08T07:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 007: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-007",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 007: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-007",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_008",
+        "activityEventId": "activity-fixture-44-008",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-008",
+        "historyId": "history-44-008",
+        "historyItemIndex": null,
+        "issueId": "issue-44-008",
+        "issueKey": "FIX-1008",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-09T08:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 008: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-008",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 008: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-008",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_009",
+        "activityEventId": "activity-fixture-44-009",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-009",
+        "historyId": "history-44-009",
+        "historyItemIndex": null,
+        "issueId": "issue-44-009",
+        "issueKey": "FIX-1009",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-10T09:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 009: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-009",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 009: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-009",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_010",
+        "activityEventId": "activity-fixture-44-010",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-010",
+        "historyId": "history-44-010",
+        "historyItemIndex": null,
+        "issueId": "issue-44-010",
+        "issueKey": "FIX-1010",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-11T10:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 010: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-010",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 010: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-010",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_011",
+        "activityEventId": "activity-fixture-44-011",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-011",
+        "historyId": "history-44-011",
+        "historyItemIndex": null,
+        "issueId": "issue-44-011",
+        "issueKey": "FIX-1011",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-12T11:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 011: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-011",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 011: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-011",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_012",
+        "activityEventId": "activity-fixture-44-012",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-012",
+        "historyId": "history-44-012",
+        "historyItemIndex": null,
+        "issueId": "issue-44-012",
+        "issueKey": "FIX-1012",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-13T12:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 012: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-012",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 012: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-012",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_013",
+        "activityEventId": "activity-fixture-44-013",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-013",
+        "historyId": "history-44-013",
+        "historyItemIndex": null,
+        "issueId": "issue-44-013",
+        "issueKey": "FIX-1013",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-14T13:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 013: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-013",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 013: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-013",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_014",
+        "activityEventId": "activity-fixture-44-014",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-014",
+        "historyId": "history-44-014",
+        "historyItemIndex": null,
+        "issueId": "issue-44-014",
+        "issueKey": "FIX-1014",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-15T14:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 014: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-014",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 014: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-014",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_015",
+        "activityEventId": "activity-fixture-44-015",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-015",
+        "historyId": "history-44-015",
+        "historyItemIndex": null,
+        "issueId": "issue-44-015",
+        "issueKey": "FIX-1015",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-16T15:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 015: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-015",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 015: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-015",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_016",
+        "activityEventId": "activity-fixture-44-016",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-016",
+        "historyId": "history-44-016",
+        "historyItemIndex": null,
+        "issueId": "issue-44-016",
+        "issueKey": "FIX-1016",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-17T16:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 016: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-016",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 016: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-016",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_017",
+        "activityEventId": "activity-fixture-44-017",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-017",
+        "historyId": "history-44-017",
+        "historyItemIndex": null,
+        "issueId": "issue-44-017",
+        "issueKey": "FIX-1017",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-18T17:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 017: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-017",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 017: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-017",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_018",
+        "activityEventId": "activity-fixture-44-018",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-018",
+        "historyId": "history-44-018",
+        "historyItemIndex": null,
+        "issueId": "issue-44-018",
+        "issueKey": "FIX-1018",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-19T18:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 018: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-018",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 018: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-018",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_019",
+        "activityEventId": "activity-fixture-44-019",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-019",
+        "historyId": "history-44-019",
+        "historyItemIndex": null,
+        "issueId": "issue-44-019",
+        "issueKey": "FIX-1019",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-20T19:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 019: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-019",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 019: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-019",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_020",
+        "activityEventId": "activity-fixture-44-020",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-020",
+        "historyId": "history-44-020",
+        "historyItemIndex": null,
+        "issueId": "issue-44-020",
+        "issueKey": "FIX-1020",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-21T20:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 020: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-020",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 020: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-020",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_021",
+        "activityEventId": "activity-fixture-44-021",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-021",
+        "historyId": "history-44-021",
+        "historyItemIndex": null,
+        "issueId": "issue-44-021",
+        "issueKey": "FIX-1021",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-22T21:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 021: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-021",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 021: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-021",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_022",
+        "activityEventId": "activity-fixture-44-022",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-022",
+        "historyId": "history-44-022",
+        "historyItemIndex": null,
+        "issueId": "issue-44-022",
+        "issueKey": "FIX-1022",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-23T22:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 022: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-022",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 022: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-022",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_023",
+        "activityEventId": "activity-fixture-44-023",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-023",
+        "historyId": "history-44-023",
+        "historyItemIndex": null,
+        "issueId": "issue-44-023",
+        "issueKey": "FIX-1023",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-24T23:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 023: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-023",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 023: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-023",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_024",
+        "activityEventId": "activity-fixture-44-024",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-024",
+        "historyId": "history-44-024",
+        "historyItemIndex": null,
+        "issueId": "issue-44-024",
+        "issueKey": "FIX-1024",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-25T00:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 024: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-024",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 024: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-024",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_025",
+        "activityEventId": "activity-fixture-44-025",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-025",
+        "historyId": "history-44-025",
+        "historyItemIndex": null,
+        "issueId": "issue-44-025",
+        "issueKey": "FIX-1025",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-26T01:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 025: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-025",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 025: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-025",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_026",
+        "activityEventId": "activity-fixture-44-026",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-026",
+        "historyId": "history-44-026",
+        "historyItemIndex": null,
+        "issueId": "issue-44-026",
+        "issueKey": "FIX-1026",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-27T02:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 026: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-026",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 026: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-026",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_027",
+        "activityEventId": "activity-fixture-44-027",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-027",
+        "historyId": "history-44-027",
+        "historyItemIndex": null,
+        "issueId": "issue-44-027",
+        "issueKey": "FIX-1027",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-28T03:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 027: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-027",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 027: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-027",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_028",
+        "activityEventId": "activity-fixture-44-028",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-028",
+        "historyId": "history-44-028",
+        "historyItemIndex": null,
+        "issueId": "issue-44-028",
+        "issueKey": "FIX-1028",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-01T04:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 028: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-028",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 028: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-028",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_029",
+        "activityEventId": "activity-fixture-44-029",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-029",
+        "historyId": "history-44-029",
+        "historyItemIndex": null,
+        "issueId": "issue-44-029",
+        "issueKey": "FIX-1029",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-02T05:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 029: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-029",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 029: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-029",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_030",
+        "activityEventId": "activity-fixture-44-030",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-030",
+        "historyId": "history-44-030",
+        "historyItemIndex": null,
+        "issueId": "issue-44-030",
+        "issueKey": "FIX-1030",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-03T06:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 030: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-030",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 030: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-030",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_031",
+        "activityEventId": "activity-fixture-44-031",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-031",
+        "historyId": "history-44-031",
+        "historyItemIndex": null,
+        "issueId": "issue-44-031",
+        "issueKey": "FIX-1031",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-04T07:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 031: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-031",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 031: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-031",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_032",
+        "activityEventId": "activity-fixture-44-032",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-032",
+        "historyId": "history-44-032",
+        "historyItemIndex": null,
+        "issueId": "issue-44-032",
+        "issueKey": "FIX-1032",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-05T08:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 032: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-032",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 032: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-032",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_033",
+        "activityEventId": "activity-fixture-44-033",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-033",
+        "historyId": "history-44-033",
+        "historyItemIndex": null,
+        "issueId": "issue-44-033",
+        "issueKey": "FIX-1033",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-06T09:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 033: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-033",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 033: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-033",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_034",
+        "activityEventId": "activity-fixture-44-034",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-034",
+        "historyId": "history-44-034",
+        "historyItemIndex": null,
+        "issueId": "issue-44-034",
+        "issueKey": "FIX-1034",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-07T10:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 034: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-034",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 034: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-034",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_035",
+        "activityEventId": "activity-fixture-44-035",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-035",
+        "historyId": "history-44-035",
+        "historyItemIndex": null,
+        "issueId": "issue-44-035",
+        "issueKey": "FIX-1035",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-08T11:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 035: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-035",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 035: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-035",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_036",
+        "activityEventId": "activity-fixture-44-036",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-036",
+        "historyId": "history-44-036",
+        "historyItemIndex": null,
+        "issueId": "issue-44-036",
+        "issueKey": "FIX-1036",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-09T12:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 036: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-036",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 036: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-036",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_037",
+        "activityEventId": "activity-fixture-44-037",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-037",
+        "historyId": "history-44-037",
+        "historyItemIndex": null,
+        "issueId": "issue-44-037",
+        "issueKey": "FIX-1037",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-10T13:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 037: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-037",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 037: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-037",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_038",
+        "activityEventId": "activity-fixture-44-038",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-038",
+        "historyId": "history-44-038",
+        "historyItemIndex": null,
+        "issueId": "issue-44-038",
+        "issueKey": "FIX-1038",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-11T14:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 038: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-038",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 038: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-038",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_039",
+        "activityEventId": "activity-fixture-44-039",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-039",
+        "historyId": "history-44-039",
+        "historyItemIndex": null,
+        "issueId": "issue-44-039",
+        "issueKey": "FIX-1039",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-12T15:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 039: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-039",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 039: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-039",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_040",
+        "activityEventId": "activity-fixture-44-040",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-040",
+        "historyId": "history-44-040",
+        "historyItemIndex": null,
+        "issueId": "issue-44-040",
+        "issueKey": "FIX-1040",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-13T16:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 040: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-040",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 040: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-040",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_041",
+        "activityEventId": "activity-fixture-44-041",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-041",
+        "historyId": "history-44-041",
+        "historyItemIndex": null,
+        "issueId": "issue-44-041",
+        "issueKey": "FIX-1041",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-14T17:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 041: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-041",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 041: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-041",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_042",
+        "activityEventId": "activity-fixture-44-042",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-042",
+        "historyId": "history-44-042",
+        "historyItemIndex": null,
+        "issueId": "issue-44-042",
+        "issueKey": "FIX-1042",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-15T18:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 042: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-042",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 042: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-042",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_44_043",
+        "activityEventId": "activity-fixture-44-043",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-44-043",
+        "historyId": "history-44-043",
+        "historyItemIndex": null,
+        "issueId": "issue-44-043",
+        "issueKey": "FIX-1043",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-16T19:00:00.000Z",
+        "actor": {
+          "stableIdentity": "fixture_user",
+          "displayValue": "Fixture User"
+        },
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ Synthetic trace 043: GC Suspend state transition and debug investigation.",
+        "diffHunks": [
+          {
+            "id": "h44-043",
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              {
+                "kind": "insert",
+                "oldLineNumber": null,
+                "newLineNumber": 1,
+                "text": "Synthetic trace 043: GC Suspend state transition and debug investigation."
+              }
+            ]
+          }
+        ],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {
+        "recordSha256": "fixture-record-043",
+        "originalEvidenceAvailable": true,
+        "sourceContentHashesVerified": true,
+        "diagnostics": []
+      }
+    }
+  ]
+}

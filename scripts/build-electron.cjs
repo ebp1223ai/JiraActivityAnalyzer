@@ -1,3 +1,4 @@
+require("node:child_process").execFileSync(process.execPath, ["scripts/generate-v0342-embedded-ddl.cjs"], { cwd: require("node:path").resolve(__dirname, ".."), stdio: "inherit" });
 const esbuild = require("esbuild");
 const fs = require("node:fs");
 const path = require("node:path");

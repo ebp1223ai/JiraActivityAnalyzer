@@ -9,7 +9,7 @@ import { DatabaseOverviewDetails, DatabaseOverviewToolbar } from "../components/
 type Snapshot = Record<string, any>;
 type Preview = Record<string, any>;
 
-const makeRequestId = (kind: string) => `v041-${kind}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const makeRequestId = (kind: string) => `v042-${kind}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 function size(bytes: number) {
   if (!bytes) return "0 B";
@@ -45,7 +45,7 @@ function StateBanner({ snapshot }: { snapshot: Snapshot }) {
             {snapshot.lifecycleState === "NOT_SELECTED" ? "尚未選擇 AI 分析資料庫。請建立新資料庫或開啟既有 .sqlite/.db。" :
               snapshot.lifecycleState === "FILE_NOT_FOUND" ? "最後使用的 AI 資料庫找不到；系統不會建立空白替代檔，也不會自動 fallback。" :
               snapshot.lifecycleState === "NOT_CREATED" ? "AI 分析資料庫尚未建立。" :
-              snapshot.lifecycleState === "MIGRATION_REQUIRED" ? "偵測到 schema v1。使用開啟／切換後會先建立備份，再以 transaction 遷移至 schema v2。" :
+              snapshot.lifecycleState === "MIGRATION_REQUIRED" ? "偵測到 schema v1。v0.3.42 不會自動修改或遷移此檔案；請保留原檔並使用 schema v2 資料庫。" :
               diagnostic ? snapshot.message ?? "資料庫只能以診斷模式開啟；系統不會覆寫或刪除既有檔案。" :
               snapshot.lifecycleState === "READY_EMPTY" ? "資料庫健康且尚無資料，可以選擇正式 Import Package。" :
               snapshot.lifecycleState === "READY_WITH_DATA" ? "資料庫健康且已有可查詢的 AI 分析資料。" :
@@ -156,7 +156,7 @@ export function AiDatabasePage() {
             <div className={`rounded-md border p-3 text-sm ${preview.ok ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
               <div className="font-black" data-no-clip="true">{preview.ok ? "Preflight Passed" : "Preflight Failed"}</div>
               <div className="break-all text-xs">{preview.fileName} · {size(Number(preview.fileSizeBytes ?? 0))}</div>
-              <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1"><span>Records: {preview.recordCount ?? 0}</span><span>Findings: {preview.findingCount ?? 0}</span><span>Review: {preview.reviewRank ?? "-"}</span><span>Insert: {preview.insertCount ?? 0}</span><span>Replace: {preview.replaceCount ?? 0}</span><span>Protected: {preview.protectedSkipCount ?? 0}</span><span>No-op: {preview.identicalNoopCount ?? 0}</span></div>
+              <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1"><span>Records: {preview.recordCount ?? 0}</span><span>Findings: {preview.findingCount ?? 0}</span><span>Review: {preview.reviewRank ?? "-"}</span><span>Derived: {preview.derivedReviewRank ?? "-"}</span><span>Insert: {preview.insertCount ?? 0}</span><span>Replace: {preview.replaceCount ?? 0}</span><span>Protected: {preview.protectedSkipCount ?? 0}</span><span>No-op: {preview.identicalNoopCount ?? 0}</span></div>
               {preview.errors?.length ? <ul className="mt-2 list-disc pl-5">{preview.errors.map((error: any, index: number) => <li className="break-words" key={`${error.code}-${index}`}><strong>{error.code}</strong>: {error.message}{error.path ? ` (${error.path})` : ""}</li>)}</ul> : null}
             </div>
             <div className="flex flex-wrap gap-2">
