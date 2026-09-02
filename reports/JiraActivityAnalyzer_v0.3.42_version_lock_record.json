@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "jaa-v0.3.42-version-lock-record-v1",
+  "version": "0.3.42",
+  "sourceCommit": "ce4fc73e76c5a0fa6b7bc076a09a0245a8661721",
+  "distStartedAtUtc": "2026-09-02T11:12:04.4812397Z",
+  "firstExecutableObservedAtUtc": "2026-09-02T11:13:38.9922588Z",
+  "distCompletedAtUtc": "2026-09-02T11:14:52.5237952Z",
+  "locked": true,
+  "postLockAllowedChanges": ["non-mutating verification", "acceptance evidence", "reports", "manual GUI validation"],
+  "sourceChangesAfterLock": false,
+  "manualGuiGate": "PENDING",
+  "tag": "ABSENT",
+  "push": "NOT_PERFORMED",
+  "nextVersionIfSourceChangeRequired": "0.3.43"
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "jaa-v0.3.42-execution-time-ledger-v1",
+  "firstObservableAt": "2026-09-02T18:27:35+08:00",
+  "entries": [
+    {"activity":"ZIP safety/hash audit","durationMs":6400,"exitCode":0,"result":"PASS","note":"Absolute command start unavailable; retained tool wall time"},
+    {"activity":"Extract and SHA256SUMS verification","durationMs":11000,"exitCode":0,"result":"PASS 34/34"},
+    {"activity":"Input bundle validator","durationMs":3700,"exitCode":0,"result":"PASS_WITH_SKIPS 164/0/1"},
+    {"activity":"Typecheck after strengthened contracts","durationMs":9939,"exitCode":0,"result":"PASS"},
+    {"activity":"v0.3.42 focused and regression tests","durationMs":9221,"exitCode":0,"result":"PASS"},
+    {"activity":"Current-contract UI smoke","durationMs":73682,"exitCode":0,"result":"PASS"},
+    {"activity":"App-only UI capture","durationMs":225557,"exitCode":0,"result":"PASS 110 PNG"},
+    {"activity":"Final typecheck","durationMs":10573,"exitCode":0,"result":"PASS"},
+    {"activity":"Final v0.3.42 focused and regression tests","durationMs":9266,"exitCode":0,"result":"PASS"},
+    {"activity":"Final current-contract UI smoke","durationMs":45520,"exitCode":0,"result":"PASS"},
+    {"activity":"Initial dist clean-tree gate","startUtc":"2026-09-02T11:11:03.3069739Z","endUtc":"2026-09-02T11:11:22.5708355Z","durationMs":19259,"exitCode":1,"result":"BLOCKED_BEFORE_ARTIFACT","note":"Expected preserved v0.2.47 tracked modification"},
+    {"activity":"Authorized dirty-worktree dist","startUtc":"2026-09-02T11:12:04.4812397Z","endUtc":"2026-09-02T11:14:52.5237952Z","durationMs":168038,"exitCode":0,"result":"PASS"},
+    {"activity":"Portable create/import UI smoke","startUtc":"2026-09-02T11:15:23.2892506Z","endUtc":"2026-09-02T11:16:08.9769390Z","durationMs":45684,"exitCode":0,"result":"PASS"},
+    {"activity":"Portable relocated reopen UI smoke","startUtc":"2026-09-02T11:16:24.4133454Z","endUtc":"2026-09-02T11:17:03.4861639Z","durationMs":39070,"exitCode":0,"result":"PASS"},
+    {"activity":"win-unpacked UI smoke","startUtc":"2026-09-02T11:17:19.1947870Z","endUtc":"2026-09-02T11:17:50.0085865Z","durationMs":30809,"exitCode":0,"result":"PASS"}
+  ],
+  "completedAtUtc": "2026-09-02T11:19:57.9030159+00:00",
+  "wallClockSecondsFromFirstObservable": 3142.903,
+  "manualGuiGate": "PENDING",
+  "wallClockNote": "End-to-end wall clock includes implementation, inspection, retries, report generation, and user-visible tool latency; command durations above are measured, not estimated."
+}

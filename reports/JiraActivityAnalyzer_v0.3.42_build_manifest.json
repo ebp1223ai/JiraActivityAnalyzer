@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "jaa-v0.3.42-build-manifest-v1",
+  "status": "PARTIAL_MANUAL_GUI_VALIDATION_PENDING",
+  "version": "0.3.42",
+  "sourceCommit": "ce4fc73e76c5a0fa6b7bc076a09a0245a8661721",
+  "branch": "feat/v0.3.42-ai-import-ui-portable-recovery",
+  "buildTime": "2026/09/02 19:12:05",
+  "buildTimeIso": "2026-09-02T11:12:05.626Z",
+  "dirtyState": true,
+  "dirtyStateReason": "Pre-existing user-owned v0.2.47 report modification preserved and excluded from commit",
+  "runtime": {
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "electron": "43.0.0",
+    "electronBuilder": "26.15.3",
+    "sqlite": "3.53.1",
+    "windows": "Windows_NT 10.0.26100 x64"
+  },
+  "frozenAssets": {
+    "sqliteDdlSha256": "1ad8269f4b70eb98571a551bf436cb9a022d681d8f69efef718548cd353cf648",
+    "packageSchemaSha256": "36f879a3ee5a5671e92c0ea8dec4c4e850caf7282cbfc45ef68f41e394e8af27",
+    "sourceTraceSchemaSha256": "b96147f4a2f766fb39679beeba66ef4ea210f290bc69078b88456fc8b5b8e6e7",
+    "workbenchSha256": "69dc5bb785cca466099f4e771bfa58f0a05f5438cfe8d394186818a26fab35f2"
+  },
+  "artifacts": [
+    {"kind":"installer","path":"F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Setup 0.3.42.exe","bytes":191080639,"sha256":"faeca5288e87fc7837f94a4fe231f50c89bb883ef84e0cac327828fda307515f"},
+    {"kind":"portable","path":"F:\\AI\\JiraActivityAnalyzer\\release\\Jira Activity Analyzer Portable 0.3.42.exe","bytes":190850545,"sha256":"37f17704a4a2987cad79876e04cfbffd23805d11ae6dda32e58e34362e2f0986"},
+    {"kind":"win-unpacked","path":"F:\\AI\\JiraActivityAnalyzer\\release\\win-unpacked\\Jira Activity Analyzer.exe","bytes":235706368,"sha256":"de94fc33c681b0347bd761fb83dca62ba321d2122d0a6dd50dd95c91d8a39fad"}
+  ],
+  "screenshots": {"path":"F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\screenshots","count":110,"captureMethod":"Electron BrowserWindow.capturePage"},
+  "inputPackage": "D:\\ch_kao\\Downloads\\3.42\\JiraActivityAnalyzer_v0.3.42_Complete_Codex_Input.zip",
+  "manualGuiGate": "PENDING",
+  "tag": "ABSENT",
+  "push": "NOT_PERFORMED"
+}
