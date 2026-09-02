@@ -1,3 +1,10 @@
+# v0.3.41 - Lossless Source Trace and Production Viewer Reuse
+
+- Added formal `jaa-ai-analysis-package` v2.0.0 validation and transactional SQLite schema v2 with immutable Source Trace, layered analyses/reviews, review-rank protection, and idempotent import.
+- Added backup-first v1-to-v2 migration with partial legacy trace truth, rollback and count reconciliation; hash remains integrity evidence and never a Source Link key.
+- Reused the production Database Overview toolbar and Activity Events table stack for AI Database, AI Results, and Integrated Results, including header filters, preferences, route state and stale-response rejection.
+- Bundled the frozen v0.3.41 rules, schemas, DDL and offline Review Workbench. Tag and Push remain gated on explicit manual Windows GUI acceptance.
+
 # v0.3.39 - Explicit AI Database Lifecycle and Strict Import UX
 
 - Added explicit, atomic AI Analysis database creation with no lazy creation, path containment, same-directory temporary validation, no-overwrite publication, lifecycle health states, backup, and read-only diagnostics.

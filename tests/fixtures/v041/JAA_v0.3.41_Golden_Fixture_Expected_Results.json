@@ -1,0 +1,29 @@
+{
+  "schemaName": "jaa-v0.3.41-fixture-expected-results",
+  "schemaVersion": "1.0.0",
+  "expected": [
+    {
+      "file": "jaa-ai-analysis-package-v2__ai-only__golden-3.json",
+      "schema": "PASS",
+      "sourceTrace": "3/3 COMPLETE",
+      "reviewRank": "AI_ONLY"
+    },
+    {
+      "file": "jaa-ai-analysis-package-v2__review-completed__golden-3.json",
+      "schema": "PASS",
+      "sourceTrace": "3/3 COMPLETE",
+      "reviewRank": "REVIEW_COMPLETED"
+    },
+    {
+      "file": "jaa-ai-analysis-package-v2__negative-missing-diff.json",
+      "schema": "FAIL",
+      "jsonPointer": "/records/1/sourceTrace/diff",
+      "error": "required"
+    }
+  ],
+  "invariants": [
+    "Hash is not a link key",
+    "Source Trace is deep-equal across positive fixtures",
+    "Review modifies only manualReview"
+  ]
+}

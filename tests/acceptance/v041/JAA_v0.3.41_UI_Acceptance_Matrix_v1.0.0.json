@@ -1,0 +1,23 @@
+{
+  "schemaName": "jaa-ui-acceptance-matrix",
+  "schemaVersion": "1.0.0",
+  "targetApplicationVersion": "0.3.41",
+  "cases": [
+    {"id":"UI-DB-001","page":"AI_ANALYSIS_DATABASE","requirement":"AI DB Ready 狀態在全域狀態列獨立顯示","expected":"RAW_DB、AI_DB、INTEGRATION 狀態互不替代"},
+    {"id":"UI-DB-002","page":"AI_ANALYSIS_DATABASE","requirement":"建立／開啟／切換 AI SQLite","expected":"使用資料庫總覽 lifecycle component；路徑可自選"},
+    {"id":"UI-DB-003","page":"AI_ANALYSIS_DATABASE","requirement":"Database Overview 外觀與操作","expected":"直接重用 Database Overview production components"},
+    {"id":"UI-DB-004","page":"AI_ANALYSIS_DATABASE","requirement":"Source Trace 統計","expected":"COMPLETE／PARTIAL／MISSING／INVALID 分開顯示"},
+    {"id":"UI-DB-005","page":"AI_ANALYSIS_DATABASE","requirement":"Source Link Summary 與 Relink","expected":"Relink 入口可見；Hash 不列為 Link reason"},
+    {"id":"UI-AI-001","page":"AI_RESULTS","requirement":"欄位標題篩選","expected":"直接使用 User Viewer header filters；無獨立 Top Filters Panel"},
+    {"id":"UI-AI-002","page":"AI_RESULTS","requirement":"欄位顯示／順序","expected":"使用既有 preference store 並跨 route 保存"},
+    {"id":"UI-AI-003","page":"AI_RESULTS","requirement":"切換頁面後資料保留","expected":"A→B→A rows、filters、sort、page 不遺失"},
+    {"id":"UI-AI-004","page":"AI_RESULTS","requirement":"Source Link 與 Integrity 顯示","expected":"兩欄或兩個獨立狀態；MISMATCH 不改寫 Link"},
+    {"id":"UI-INTEGRATED-001","page":"INTEGRATED_RESULTS","requirement":"原始資料為母體","expected":"LEFT JOIN；沒有 AI Record 的原始列仍顯示 UNANALYZED"},
+    {"id":"UI-INTEGRATED-002","page":"INTEGRATED_RESULTS","requirement":"Identity Join","expected":"Primary／Fallback 依契約；Hash 不參與 JOIN"},
+    {"id":"UI-INTEGRATED-003","page":"INTEGRATED_RESULTS","requirement":"Before／After／Diff","expected":"直接重用 User Viewer Diff renderer，不顯示未處理符號"},
+    {"id":"UI-INTEGRATED-004","page":"INTEGRATED_RESULTS","requirement":"欄位標題篩選","expected":"與 User Viewer 同元件、同語意"},
+    {"id":"UI-INTEGRATED-005","page":"INTEGRATED_RESULTS","requirement":"錯誤狀態","expected":"RAW_DB_CLOSED、SCHEMA_ERROR、NO_MATCH 分開；不誤報"},
+    {"id":"UI-STATE-001","page":"ALL","requirement":"Stale response guard","expected":"Route、DB identity、Request ID 不一致的 response 被丟棄並寫 diagnostics"},
+    {"id":"UI-ARCHIVE-001","page":"SIDEBAR","requirement":"舊 AI 分析封存","expected":"顯示 AI 分析（封存中）且點擊無動作"}
+  ]
+}

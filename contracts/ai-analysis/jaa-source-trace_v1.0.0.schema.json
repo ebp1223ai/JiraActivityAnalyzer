@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jaa.local/schemas/jaa-source-trace_v1.0.0.schema.json",
+  "title": "JAA Lossless Source Trace v1.0.0",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "pendingDocument",
+    "sourceDatabase",
+    "sourceView",
+    "querySnapshot",
+    "exportMetadata"
+  ],
+  "properties": {
+    "contractVersion": { "const": "JAA-SOURCE-TRACE-v1" },
+    "pendingDocument": { "$ref": "#/$defs/pendingDocument" },
+    "sourceDatabase": { "$ref": "#/$defs/sourceDatabase" },
+    "sourceView": { "type": "string", "minLength": 1 },
+    "querySnapshot": { "type": "object" },
+    "exportMetadata": { "type": "object" },
+    "optionalIntegrityReceipt": { "$ref": "#/$defs/integrityReceipt" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "pendingDocument": {
+      "type": "object",
+      "required": [
+        "schemaName",
+        "schemaVersion",
+        "contractStatus",
+        "exportId",
+        "createdAt",
+        "timezone",
+        "appVersion",
+        "counts",
+        "integrity",
+        "diagnostics"
+      ],
+      "properties": {
+        "schemaName": { "type": "string", "minLength": 1 },
+        "schemaVersion": { "type": "string", "minLength": 1 },
+        "contractStatus": { "type": ["string", "null"] },
+        "exportId": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "timezone": { "type": "string", "minLength": 1 },
+        "appVersion": { "type": "string", "minLength": 1 },
+        "counts": { "type": "object" },
+        "integrity": { "type": "object" },
+        "diagnostics": { "type": ["object", "array", "null"] },
+        "pendingFilename": { "type": ["string", "null"] },
+        "pendingFileSha256": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": true
+    },
+    "sourceDatabase": {
+      "type": "object",
+      "required": [
+        "sourceDatabaseId",
+        "jiraServerFingerprint",
+        "jiraServerHost",
+        "sourceSchemaVersion",
+        "databaseGeneration"
+      ],
+      "properties": {
+        "sourceDatabaseId": { "type": "string", "minLength": 1 },
+        "jiraServerFingerprint": { "type": "string", "minLength": 1 },
+        "jiraServerHost": { "type": "string", "minLength": 1 },
+        "sourceSchemaVersion": { "type": ["integer", "string"] },
+        "databaseGeneration": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "recordSourceTrace": {
+      "type": "object",
+      "required": ["reference", "diff", "pendingIntegrity"],
+      "properties": {
+        "reference": { "$ref": "#/$defs/reference" },
+        "diff": { "type": "object" },
+        "pendingIntegrity": { "type": "object" },
+        "optionalIntegrityReceipt": { "$ref": "#/$defs/integrityReceipt" }
+      },
+      "additionalProperties": false
+    },
+    "reference": {
+      "type": "object",
+      "required": [
+        "evidenceId",
+        "activityEventId",
+        "sourceDatabaseId",
+        "sourceRecordStableId",
+        "issueKey",
+        "fieldName",
+        "eventTime"
+      ],
+      "properties": {
+        "evidenceId": { "type": "string", "minLength": 1 },
+        "activityEventId": { "type": "string", "minLength": 1 },
+        "sourceDatabaseId": { "type": "string", "minLength": 1 },
+        "sourceRecordStableId": { "type": "string", "minLength": 1 },
+        "issueKey": { "type": "string", "minLength": 1 },
+        "fieldId": { "type": ["string", "null"] },
+        "fieldName": { "type": "string", "minLength": 1 },
+        "eventTime": { "type": "string", "format": "date-time" },
+        "actor": { "type": ["object", "null"] },
+        "sourceProvenance": { "type": ["string", "null"] },
+        "sourceContentHash": { "type": ["string", "null"] },
+        "beforeSha256": { "type": ["string", "null"] },
+        "afterSha256": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "integrityReceipt": {
+      "type": ["object", "null"],
+      "required": ["status", "algorithm", "contractVersion"],
+      "properties": {
+        "status": {
+          "enum": ["VERIFIED", "MISMATCH", "UNVERIFIABLE", "NOT_CHECKED", "ERROR"]
+        },
+        "algorithm": { "type": ["string", "null"] },
+        "contractVersion": { "type": ["string", "null"] },
+        "canonicalization": { "type": ["string", "null"] },
+        "expectedDigest": { "type": ["string", "null"] },
+        "actualDigest": { "type": ["string", "null"] },
+        "diagnostics": { "type": "array" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

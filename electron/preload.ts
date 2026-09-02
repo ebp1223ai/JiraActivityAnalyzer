@@ -162,9 +162,12 @@ contextBridge.exposeInMainWorld("desktopApp", {
     relink: (payload: unknown) => ipcRenderer.invoke("ai-database:relink", payload),
     queryResults: (payload: unknown) => ipcRenderer.invoke("ai-database:query-results", payload),
     queryIntegrated: (payload: unknown) => ipcRenderer.invoke("ai-database:query-integrated", payload),
+    distinct: (payload: unknown) => ipcRenderer.invoke("ai-database:distinct", payload),
+    reportStale: (payload: unknown) => ipcRenderer.invoke("ai-database:report-stale", payload),
     exportDiagnostics: (payload: unknown) => ipcRenderer.invoke("ai-database:export-diagnostics", payload),
     exportQuery: (payload: unknown) => ipcRenderer.invoke("ai-database:export-query", payload),
-    openFolder: (payload: unknown) => ipcRenderer.invoke("ai-database:open-folder", payload)
+    openFolder: (payload: unknown) => ipcRenderer.invoke("ai-database:open-folder", payload),
+    openWorkbench: (payload: unknown) => ipcRenderer.invoke("ai-database:open-workbench", payload)
   },  aiAnalysis: {
     getSnapshot: () => ipcRenderer.invoke("ai-analysis:snapshot"),
     startChatGpt: () => ipcRenderer.invoke("ai-analysis:chatgpt-start"),

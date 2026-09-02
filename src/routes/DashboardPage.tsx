@@ -7,6 +7,7 @@ import { PageHeader } from "../components/PageHeader";
 import { ResponsiveMetricGrid } from "../components/Responsive";
 import { SectionCard } from "../components/SectionCard";
 import { DistributionPanel } from "../components/DistributionPanel";
+import { DatabaseOverviewToolbar } from "../components/DatabaseOverviewComponents";
 import { SectionErrorBoundary } from "../components/SectionErrorBoundary";
 import { recordTableRequest } from "../diagnostics/tableDiagnostics";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
@@ -211,14 +212,14 @@ export function DashboardPage() {
     <div className="min-w-0">
       <PageHeader title="資料庫總覽" subtitle="Database Overview" connected={state.database.canRead} />
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <DatabaseOverviewToolbar testId="raw-database-primary-actions">
         <button data-testid="select-existing-database" className="btn" type="button" onClick={() => void selectDatabase()}><FileInput size={16} />選擇既有 / Select</button>
         <button data-testid="create-new-database" className="btn btn-primary" type="button" onClick={() => void createDatabase()}><Plus size={16} />建立資料庫 / Create</button>
         <button className="btn" type="button" onClick={() => void retryDatabase()}><RefreshCw size={16} />重新驗證 / Recheck</button>
         <button className="btn" type="button" disabled={!state.database.canRead || issueStatus === "loading"} onClick={() => void refresh()}><RefreshCw size={16} />快速重新整理 / Refresh</button>
         <button className="btn" type="button" disabled={!state.database.canRead || healthRunning} onClick={() => void fullHealthCheck()}><Wrench size={16} />{healthRunning ? "檢查中..." : "完整健康檢查 / Health"}</button>
         <button className="btn" type="button" disabled={!state.database.path} onClick={() => void copyDatabasePath()}><Copy size={16} />複製路徑 / Copy Path</button>
-      </div>
+      </DatabaseOverviewToolbar>
 
       {notice ? <div className={`mb-4 rounded-md border p-4 text-sm font-bold ${overviewStatus === "error" || issueStatus === "error" || distributionStatus === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-blue-200 bg-blue-50 text-blue-800"}`}>{notice}</div> : null}
 

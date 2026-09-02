@@ -1,0 +1,20 @@
+{
+  "schemaName": "jaa-source-link-golden",
+  "schemaVersion": "1.0.0",
+  "sourceDatabaseId": "source-db-golden-001",
+  "rawCandidates": [
+    {"activityEventId":"activity-fixture-000","sourceRecordStableId":"stable-000","fieldName":"Comment","eventTime":"2026-08-31T01:00:00.000Z"},
+    {"activityEventId":"activity-fixture-001","sourceRecordStableId":"stable-001","fieldName":"Comment","eventTime":"2026-08-31T02:00:00.000Z"},
+    {"activityEventId":"activity-fixture-002","sourceRecordStableId":"stable-002","fieldName":"description","eventTime":"2026-08-31T03:00:00.000Z"}
+  ],
+  "expected": [
+    {"recordIndex":0,"method":"PRIMARY","candidateCount":1,"status":"PRIMARY_MATCHED","matchedActivityEventId":"activity-fixture-000","integrityStatus":"UNVERIFIABLE"},
+    {"recordIndex":1,"method":"PRIMARY","candidateCount":1,"status":"PRIMARY_MATCHED","matchedActivityEventId":"activity-fixture-001","integrityStatus":"MISMATCH"},
+    {"recordIndex":2,"method":"PRIMARY","candidateCount":1,"status":"PRIMARY_MATCHED","matchedActivityEventId":"activity-fixture-002","integrityStatus":"NOT_CHECKED"}
+  ],
+  "assertions": [
+    "All three links succeed even though integrity statuses differ",
+    "Hash and integrityReceipt never participate in candidate selection",
+    "Every attempt is persisted append-only"
+  ]
+}

@@ -63,8 +63,8 @@ export const ISSUE_CHANGELOG_COLUMNS = activityViewerRegistryForScope("issueChan
 export const USER_ACTIVITY_EVENT_COLUMNS = activityViewerRegistryForScope("userAllActivityEvents").map((column) => column.id);
 
 export const ISSUE_COMMENT_COLUMNS = ["author", "created", "updated", "body"] as const;
-export const AI_RESULTS_COLUMNS = ["eventTime", "actor", "issueKey", "fieldName", "aiStatus", "effectiveStatus", "reviewState", "skills", "linkStatus", "confidence", "rationale"] as const;
-export const INTEGRATED_RESULTS_COLUMNS = ["eventTime", "actor", "issueKey", "fieldName", "analysisState", "aiStatus", "reviewState", "linkStatus", "before", "after"] as const;
+export const AI_RESULTS_COLUMNS = [...USER_ACTIVITY_EVENT_COLUMNS, "analysisStatus", "reviewRank", "sourceTraceStatus", "sourceLinkStatus", "integrityStatus", "confidence", "skillIds", "rationale"] as const;
+export const INTEGRATED_RESULTS_COLUMNS = [...USER_ACTIVITY_EVENT_COLUMNS, "analysisState", "analysisStatus", "reviewRank", "sourceTraceStatus", "sourceLinkStatus", "integrityStatus", "confidence", "skillIds", "rationale"] as const;
 
 const PAGE_SIZES = new Set([25, 50, 100, 200]);
 const ACTIVITY_QUERY_FIELDS = Array.from(new Set(["issueActivityEvents", "issueChangelog", "userAllActivityEvents"].flatMap((scope) =>

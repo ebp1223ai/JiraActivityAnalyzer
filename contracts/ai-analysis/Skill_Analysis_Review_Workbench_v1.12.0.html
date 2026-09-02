@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI 技能分析人工驗收工作台 v1.12.0</title>
+  <style>
+    :root{--bg:#f5f7fb;--panel:#fff;--line:#dce4f0;--text:#13233f;--muted:#64748b;--blue:#2563eb;--green:#059669;--amber:#d97706;--red:#dc2626}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 "Segoe UI","Noto Sans TC",sans-serif}button,input,select,textarea{font:inherit}
+    header{background:#fff;border-bottom:1px solid var(--line);padding:18px 24px;display:flex;justify-content:space-between;gap:16px;align-items:center;position:sticky;top:0;z-index:5}h1{font-size:22px;margin:0}h2{font-size:18px;margin:0 0 8px}h3{font-size:15px;margin:0 0 8px}.muted{color:var(--muted)}
+    main{max-width:1500px;margin:auto;padding:22px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.spread{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 12px;cursor:pointer}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn:disabled{opacity:.45;cursor:not-allowed}.pill{display:inline-block;border-radius:99px;padding:4px 8px;background:#eef2ff;color:#4338ca;font-size:11px;font-weight:700}.pill.good{background:#dcfce7;color:#047857}.pill.warn{background:#fef3c7;color:#b45309}.pill.bad{background:#fee2e2;color:#b91c1c}
+    .drop{border:2px dashed #93c5fd;border-radius:14px;padding:42px 20px;text-align:center;background:#f8fbff}.drop.drag{background:#eff6ff}.drop input{margin-top:15px}.grid{display:grid;grid-template-columns:290px minmax(0,1fr);gap:16px}.list{max-height:70vh;overflow:auto}.record-btn{width:100%;text-align:left;border:0;border-bottom:1px solid #edf1f7;background:#fff;padding:12px;cursor:pointer}.record-btn.active{background:#eff6ff}.record-btn small{display:block;color:var(--muted);margin-top:4px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.source{white-space:pre-wrap;background:#111827;color:#e5e7eb;padding:14px;border-radius:10px;max-height:360px;overflow:auto}.field{margin:12px 0}.field label{display:block;color:var(--muted);margin-bottom:5px}.field select,.field input,.field textarea{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:9px;background:#fff}.field textarea{min-height:90px}.finding{border-left:4px solid #93c5fd;padding:10px 12px;background:#f8fafc;margin:10px 0}.errors{border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;padding:12px;white-space:pre-wrap}.stats{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px}.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px}.stat b{display:block;font-size:22px;margin-top:5px}.hidden{display:none!important}dialog{border:0;border-radius:14px;padding:0;max-width:820px;width:calc(100% - 30px)}dialog::backdrop{background:#0f172a88}.dialog-body{padding:20px;max-height:75vh;overflow:auto}.kv{display:grid;grid-template-columns:180px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid #edf1f7}.legacy{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}.legacy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    @media(max-width:900px){.grid,.two{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.legacy-grid{grid-template-columns:1fr}header{position:static}.spread{display:block}}
+  </style>
+</head>
+<body>
+<header>
+  <div><h1>AI 技能分析人工驗收工作台</h1><div class="muted">Template v1.12.0 · Package v2.0.0 · Lossless Source Trace</div></div>
+  <div class="row"><button class="btn" id="infoBtn" disabled>資料資訊</button><button class="btn" id="exportReviewBtn" disabled>匯出驗收進度</button><button class="btn primary" id="exportPackageBtn" disabled>匯出 JAA 分析 Package</button></div>
+</header>
+<main>
+  <section id="emptyState" class="panel">
+    <div class="drop" id="dropZone">
+      <h2>先匯入 JAA AI 分析 JSON</h2>
+      <p class="muted">接受 AI_ONLY、REVIEW_PARTIAL、REVIEW_COMPLETED 的 <b>jaa-ai-analysis-package v2.0.0</b></p>
+      <input id="packageFile" type="file" accept=".json,application/json">
+    </div>
+    <div class="legacy">
+      <h3>Legacy 三檔轉換</h3>
+      <p class="muted">單檔只能辨識角色；Pending＋Analyzed＋Review 三檔齊全且 Identity 一致時，才可轉成完整 v2 Package。此區是正式操作入口基準。</p>
+      <div class="legacy-grid"><label>Pending JSON<input id="legacyPending" type="file" accept=".json"></label><label>Analyzed JSON<input id="legacyAnalyzed" type="file" accept=".json"></label><label>Review JSON<input id="legacyReview" type="file" accept=".json"></label></div>
+      <button class="btn" id="legacyConvertBtn" disabled>驗證三檔並轉換</button>
+      <div id="legacyHint" class="muted">尚未選齊三份檔案。</div>
+    </div>
+  </section>
+
+  <div id="errorBox" class="errors hidden" role="alert"></div>
+
+  <section id="workspace" class="hidden">
+    <div class="stats">
+      <div class="stat"><span class="muted">Records</span><b id="recordCount">0</b></div>
+      <div class="stat"><span class="muted">Completed</span><b id="completedCount">0</b></div>
+      <div class="stat"><span class="muted">Findings</span><b id="findingCount">0</b></div>
+      <div class="stat"><span class="muted">Source Trace</span><b id="traceStatus">—</b></div>
+      <div class="stat"><span class="muted">Review Rank</span><b id="rankStatus">—</b></div>
+    </div>
+    <div class="grid">
+      <aside class="panel list"><div class="spread"><h3>Records</h3><input id="search" placeholder="搜尋 Issue／人員"></div><div id="recordList"></div></aside>
+      <article id="recordPanel"></article>
+    </div>
+  </section>
+</main>
+
+<dialog id="infoDialog"><div class="dialog-body"><div class="spread"><h2>資料資訊</h2><button class="btn" id="closeInfo">關閉</button></div><div id="infoBody"></div></div></dialog>
+
+<script>
+  const $=id=>document.getElementById(id),clone=v=>structuredClone(v);let pkg=null,immutable=null,current=0;
+  const requiredRef=['evidenceId','activityEventId','sourceDatabaseId','sourceRecordStableId','issueKey','fieldName','eventTime'];
+  function canonical(v){if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';if(v&&typeof v==='object')return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';return JSON.stringify(v)}
+  function errorsFor(p){const e=[];if(p?.schemaName!=='jaa-ai-analysis-package')e.push('$.schemaName 必須為 jaa-ai-analysis-package');if(p?.schemaVersion!=='2.0.0')e.push('$.schemaVersion 必須為 2.0.0');if(!p?.sourceTrace)e.push('$.sourceTrace 缺失');for(const k of ['pendingDocument','sourceDatabase','sourceView','querySnapshot','exportMetadata'])if(p?.sourceTrace?.[k]===undefined)e.push(`$.sourceTrace.${k} 缺失`);if(!Array.isArray(p?.records))e.push('$.records 必須為陣列');else p.records.forEach((r,i)=>{if(r.recordIndex!==i)e.push(`$.records[${i}].recordIndex 不連續`);if(!r.sourceTrace)e.push(`$.records[${i}].sourceTrace 缺失`);const ref=r.sourceTrace?.reference;requiredRef.forEach(k=>{if(ref?.[k]===undefined||ref?.[k]===null||ref?.[k]==='')e.push(`$.records[${i}].sourceTrace.reference.${k} 缺失`)});if(r.sourceTrace?.diff===undefined)e.push(`$.records[${i}].sourceTrace.diff 缺失`);if(r.sourceTrace?.pendingIntegrity===undefined)e.push(`$.records[${i}].sourceTrace.pendingIntegrity 缺失`);if(!r.aiAnalysis)e.push(`$.records[${i}].aiAnalysis 缺失`)});return e.slice(0,100)}
+  function showError(title,items){$('errorBox').textContent=title+'\n'+items.join('\n');$('errorBox').classList.remove('hidden')}
+  async function loadFile(file){try{const p=JSON.parse(await file.text());const e=errorsFor(p);if(e.length)return showError('檔案未通過 v2 Source Trace 驗證',e);pkg=clone(p);immutable={sourceTrace:canonical(p.sourceTrace),records:p.records.map(r=>canonical({sourceTrace:r.sourceTrace,aiAnalysis:r.aiAnalysis,dedupeKey:r.dedupeKey,recordIndex:r.recordIndex}))};current=0;$('errorBox').classList.add('hidden');$('emptyState').classList.add('hidden');$('workspace').classList.remove('hidden');['infoBtn','exportReviewBtn','exportPackageBtn'].forEach(id=>$(id).disabled=false);render()}catch(err){showError('JSON 無法載入',[err.message])}}
+  $('packageFile').onchange=e=>e.target.files[0]&&loadFile(e.target.files[0]);const dz=$('dropZone');dz.ondragover=e=>{e.preventDefault();dz.classList.add('drag')};dz.ondragleave=()=>dz.classList.remove('drag');dz.ondrop=e=>{e.preventDefault();dz.classList.remove('drag');e.dataTransfer.files[0]&&loadFile(e.dataTransfer.files[0])};
+  function ref(r){return r.sourceTrace.reference}function reviewFor(r){return r.manualReview||{recordIndex:r.recordIndex,expectedStatus:'UNDECIDED',skillReviews:[],missingSkillReviews:[],additionalEvidenceAssignments:[],notes:'',completed:false}}
+  function render(){const completed=pkg.records.filter(r=>r.manualReview?.completed).length,findings=pkg.records.reduce((n,r)=>n+(r.aiAnalysis?.skillFindings?.length||0),0);$('recordCount').textContent=pkg.records.length;$('completedCount').textContent=completed;$('findingCount').textContent=findings;$('traceStatus').textContent='COMPLETE';$('traceStatus').className='';$('rankStatus').textContent=deriveRank();renderList();renderRecord()}
+  function deriveRank(){const reviewed=pkg.records.filter(r=>r.manualReview!==null).length,done=pkg.records.filter(r=>r.manualReview?.completed).length;return reviewed===0?'AI_ONLY':done===pkg.records.length?'REVIEW_COMPLETED':'REVIEW_PARTIAL'}
+  function renderList(){const q=$('search').value.trim().toLowerCase();$('recordList').replaceChildren(...pkg.records.map((r,i)=>({r,i})).filter(({r})=>{const x=ref(r);return !q||[x.issueKey,x.actor?.displayValue,x.evidenceId].join(' ').toLowerCase().includes(q)}).map(({r,i})=>{const b=document.createElement('button');b.className='record-btn'+(i===current?' active':'');b.innerHTML=`<b>#${i} · ${escapeHtml(ref(r).issueKey)}</b><small>${escapeHtml(ref(r).actor?.displayValue||'-')} · ${escapeHtml(ref(r).fieldName)} · ${r.manualReview?.completed?'已完成':'未完成'}</small>`;b.onclick=()=>{current=i;renderList();renderRecord()};return b}))}
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  function renderRecord(){const r=pkg.records[current],x=ref(r),rv=reviewFor(r),a=r.aiAnalysis||{},findings=a.skillFindings||[];$('recordPanel').innerHTML=`<div class="panel"><div class="spread"><div><h2>#${current} · ${escapeHtml(x.issueKey)}</h2><div class="muted">${escapeHtml(x.eventTime)} · ${escapeHtml(x.actor?.displayValue||'-')} · ${escapeHtml(x.fieldName)}<br>Activity Event ${escapeHtml(x.activityEventId)}</div></div><div><span class="pill good">TRACE COMPLETE</span> <span class="pill">AI ${escapeHtml(a.status||'-')}</span></div></div></div><div class="two"><div class="panel"><h3>原始內容／Diff</h3><pre class="source">${escapeHtml(readable(r.sourceTrace.diff))}</pre></div><div class="panel"><h3>AI Record Decision</h3><p><b>Status：</b>${escapeHtml(a.status||'-')}　<b>Confidence：</b>${a.confidence??'-'}</p><p>${escapeHtml(a.rationale||'')}</p>${findings.map(f=>`<div class="finding"><b>${escapeHtml(f.skillId)} · ${escapeHtml(f.skillName||'')}</b><div>${escapeHtml(f.rationale||'')}</div></div>`).join('')}</div></div><div class="panel"><h3>人工驗收</h3><div class="field"><label>人工預期狀態</label><select id="expectedStatus"><option>UNDECIDED</option><option>CLASSIFIED</option><option>UNKNOWN</option><option>EXCLUDED</option><option>FAILED</option></select></div><div class="field"><label>Record 人工備註</label><textarea id="notes"></textarea></div><label><input type="checkbox" id="completed"> 此筆驗收完成</label><div class="row" style="margin-top:14px"><button class="btn primary" id="saveReview">儲存此筆</button><button class="btn" id="acceptAi">接受 AI 此筆結果</button><button class="btn" id="nextRecord">下一筆</button></div></div>`;$('expectedStatus').value=rv.expectedStatus||'UNDECIDED';$('notes').value=rv.notes||'';$('completed').checked=Boolean(rv.completed);$('saveReview').onclick=saveReview;$('acceptAi').onclick=()=>{$('expectedStatus').value=a.status||'UNDECIDED';$('completed').checked=true;saveReview()};$('nextRecord').onclick=()=>{current=Math.min(pkg.records.length-1,current+1);renderList();renderRecord()}}
+  function readable(d){if(d?.diffText)return d.diffText;const lines=(d?.diffHunks||[]).flatMap(h=>h.lines||[]).map(x=>`${x.kind||''} ${x.text||''}`);return lines.join('\n')||JSON.stringify(d,null,2)}
+  function saveReview(){const r=pkg.records[current],a=r.aiAnalysis||{};r.manualReview={...reviewFor(r),recordIndex:r.recordIndex,expectedStatus:$('expectedStatus').value,notes:$('notes').value,completed:$('completed').checked,aiStatus:a.status};render()}
+  function immutableOk(){return immutable.sourceTrace===canonical(pkg.sourceTrace)&&pkg.records.every((r,i)=>immutable.records[i]===canonical({sourceTrace:r.sourceTrace,aiAnalysis:r.aiAnalysis,dedupeKey:r.dedupeKey,recordIndex:r.recordIndex}))}
+  function download(name,obj){const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+  $('exportPackageBtn').onclick=()=>{if(!immutableOk())return showError('IMMUTABLE_LAYER_CHANGED',['Source Trace 或 AI Analysis 已改變，禁止匯出。']);const out=clone(pkg);out.packageId=crypto.randomUUID?.()||('package-'+Date.now());out.createdAt=new Date().toISOString();out.generator={name:'JAA Offline Manual Review Workbench',version:'1.12.0',mode:'HTML_MANUAL_REVIEW_EXPORT'};out.reviewRank=deriveRank();out.counts={...out.counts,records:out.records.length,reviewedRecords:out.records.filter(r=>r.manualReview!==null).length,completedReviews:out.records.filter(r=>r.manualReview?.completed).length};download(`jaa-ai-analysis-package-${out.records.length}__${out.reviewRank.toLowerCase()}__v2.0.0.json`,out)};
+  $('exportReviewBtn').onclick=()=>download(`manual-skill-review-${pkg.records.length}__v1.4.0.json`,{schemaName:'jaa-manual-skill-review',schemaVersion:'1.4.0',sourcePackageBinding:{schemaName:pkg.schemaName,schemaVersion:pkg.schemaVersion,packageId:pkg.packageId,sourceDatabaseId:pkg.sourceTrace.sourceDatabase.sourceDatabaseId,recordCount:pkg.records.length},reviewer:'',records:pkg.records.map(r=>r.manualReview)});
+  $('search').oninput=renderList;$('infoBtn').onclick=()=>{const s=pkg.sourceTrace,rows=[['Package ID',pkg.packageId],['Schema',pkg.schemaName+' '+pkg.schemaVersion],['Review Rank',deriveRank()],['Source Database ID',s.sourceDatabase.sourceDatabaseId],['Database Generation',s.sourceDatabase.databaseGeneration],['Jira Host',s.sourceDatabase.jiraServerHost],['Source View',s.sourceView],['Records',pkg.records.length],['Source Trace','COMPLETE'],['Integrity Receipt',pkg.packageIntegrityReceipt?.status||'NOT_CHECKED']];$('infoBody').innerHTML=rows.map(([k,v])=>`<div class="kv"><b>${escapeHtml(k)}</b><span>${escapeHtml(v)}</span></div>`).join('')+'<h3>querySnapshot</h3><pre>'+escapeHtml(JSON.stringify(s.querySnapshot,null,2))+'</pre>';$('infoDialog').showModal()};$('closeInfo').onclick=()=>$('infoDialog').close();
+  const legacyInputs=['legacyPending','legacyAnalyzed','legacyReview'];function legacyState(){const ready=legacyInputs.every(id=>$(id).files.length);$('legacyConvertBtn').disabled=!ready;$('legacyHint').textContent=ready?'三份檔案已選齊；正式實作將執行 Identity Gate 與 Lossless conversion。':'尚未選齊三份檔案。'}legacyInputs.forEach(id=>$(id).onchange=legacyState);$('legacyConvertBtn').onclick=()=>showError('靜態 Workbench 的 Legacy 轉換入口已確認',['Codex 必須依 Package v2 Schema 實作三檔 Identity Gate；不得猜測缺失來源資料。']);
+</script>
+</body>
+</html>

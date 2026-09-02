@@ -4,7 +4,7 @@ import { AppLayout } from "./components/AppLayout";
 import { buildInfo } from "./buildInfo";
 import { AnalysisPage } from "./routes/AnalysisPage";
 import { AiDatabasePage } from "./routes/AiDatabasePage";
-import { AiResultsPage, IntegratedResultsPage } from "./routes/AiDatabaseViewerPages";
+import { AiResultsPageV041, IntegratedResultsPageV041 } from "./routes/AiDatabaseViewerPagesV041";
 import { ConnectionsPage } from "./routes/ConnectionsPage";
 import { DashboardPage } from "./routes/DashboardPage";
 import { JiraProbePage } from "./routes/JiraProbePage";
@@ -15,6 +15,7 @@ import { UserViewerPage } from "./routes/UserViewerPage";
 import { ConnectionProvider } from "./state/ConnectionContext";
 import { SessionStateProvider } from "./state/SessionStateContext";
 import { RuntimeStatusProvider } from "./state/RuntimeStatusContext";
+import { AiViewerStateProvider } from "./state/AiViewerStateContext";
 
 function UiSmokeErrorTrigger() {
   const [shouldThrow, setShouldThrow] = useState(false);
@@ -42,6 +43,7 @@ export default function App() {
     <RuntimeStatusProvider>
       <ConnectionProvider>
         <SessionStateProvider>
+          <AiViewerStateProvider>
           <UiSmokeErrorTrigger />
           <Routes>
             <Route element={<AppLayout />}>
@@ -52,8 +54,8 @@ export default function App() {
               <Route path="/issues" element={<IssueViewerPage />} />
               <Route path="/users" element={<UserViewerPage />} />
               <Route path="/ai-database" element={<AiDatabasePage />} />
-              <Route path="/ai-results" element={<AiResultsPage />} />
-              <Route path="/integrated-results" element={<IntegratedResultsPage />} />
+              <Route path="/ai-results" element={<AiResultsPageV041 />} />
+              <Route path="/integrated-results" element={<IntegratedResultsPageV041 />} />
               <Route path="/ai-analysis" element={<Navigate to="/database" replace />} />
               <Route path="/activity-stream-probe" element={<PrecisionProbePage />} />
               <Route path="/jira-probe" element={<JiraProbePage />} />
@@ -66,6 +68,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/database" replace />} />
             </Route>
           </Routes>
+          </AiViewerStateProvider>
         </SessionStateProvider>
       </ConnectionProvider>
     </RuntimeStatusProvider>

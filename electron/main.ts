@@ -61,8 +61,9 @@ import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 import { loadUiPreferences, updateUiPreferences } from "./uiPreferences.js";
 import { validateActivityTimelineRunContext, type ActivityTimelineRunContext } from "./activityTimelineRunContext.js";
 import { getSelectedAiAnalysisAttemptDirectory, getSelectedCanonicalAiRunDirectory, registerAiAnalysisIpc } from "./aiAnalysisIpc.js";
-import { getActiveAiDatabasePathV040, getAiDatabaseV040Diagnostics, registerAiAnalysisDatabaseIpcV040 } from "./aiAnalysisDatabaseIpcV040.js";
-import { checkpointAiDatabase, exportAiDiagnostics } from "./aiAnalysisDatabaseV038.js";
+import { getActiveAiDatabasePathV041, getAiDatabaseV041Diagnostics, registerAiAnalysisDatabaseIpcV041 } from "./aiAnalysisDatabaseIpcV041.js";
+import { checkpointAiDatabase } from "./aiAnalysisDatabaseV038.js";
+import { aiDatabaseDiagnosticsV041 } from "./aiAnalysisDatabaseV041.js";
 import { flushRunArchive } from "./aiAnalysisRunArchiveV0314.js";
 import { stopChatGptService } from "./chatGptService.js";
 import { resolveAnalysisBridgeArtifactV0337 } from "./analysisBridgeResolverV0337.js";
@@ -135,7 +136,7 @@ if (shouldVerifyAnalysisBridge) {
   process.exit(resolution.receipt.status === "ready" ? 0 : 2);
 }
 registerAiAnalysisIpc();
-registerAiAnalysisDatabaseIpcV040(() => resolveLocalDatabasePath(getAppRuntimeDir(), loadEffectiveRuntimeConfig().localDatabasePath));
+registerAiAnalysisDatabaseIpcV041(() => resolveLocalDatabasePath(getAppRuntimeDir(), loadEffectiveRuntimeConfig().localDatabasePath));
 
 type AutoSaveResultType = "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test";
 type AutoSavedRun = { runId: string; resultType: AutoSaveResultType; status: string; savedAt: string; filePath: string; folderPath: string; data: Record<string, unknown> };
@@ -4059,8 +4060,8 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     else evidenceEntries.push({ id: "ai_analysis_canonical_run", status: "not_run", sourcePath: aiRunsRoot, relativePath: "ai-analysis/canonical-run", reason: "Current attempt has no Run; prior latest Run fallback is intentionally disabled." });
   }
   try {
-    const aiDatabasePath = getActiveAiDatabasePathV040();
-    const aiLifecycleDiagnostics = getAiDatabaseV040Diagnostics();
+    const aiDatabasePath = getActiveAiDatabasePathV041();
+    const aiLifecycleDiagnostics = getAiDatabaseV041Diagnostics();
     const aiDatabaseBundleDir = path.join(folderPath, "ai-analysis-database");
     fs.mkdirSync(aiDatabaseBundleDir, { recursive: true });
     writeBundleJson(aiDatabaseBundleDir, "ai-database-lifecycle.json", aiLifecycleDiagnostics.activeDatabase);
@@ -4068,17 +4069,16 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
     writeBundleJson(aiDatabaseBundleDir, "ai-switch-preflight-failure.json", aiLifecycleDiagnostics.latestSwitchFailure ?? { status: "not_observed" });
     if (aiDatabasePath && fs.existsSync(aiDatabasePath)) {
       checkpointAiDatabase(aiDatabasePath);
-      const aiDiagnostics = exportAiDiagnostics(aiDatabasePath);
-      writeBundleJson(aiDatabaseBundleDir, "ai-database-metadata.json", aiDiagnostics.metadata);
+      const aiDiagnostics = aiDatabaseDiagnosticsV041(aiDatabasePath);
+      writeBundleJson(aiDatabaseBundleDir, "ai-database-metadata.json", aiDiagnostics.snapshot);
       writeBundleJson(aiDatabaseBundleDir, "ai-import-batches.json", aiDiagnostics.batches);
-      writeBundleJson(aiDatabaseBundleDir, "ai-import-actions.json", aiDiagnostics.actions);
-      writeBundleJson(aiDatabaseBundleDir, "ai-source-links.json", aiDiagnostics.links);
-      writeBundleJson(aiDatabaseBundleDir, "ai-source-link-attempts.json", aiDiagnostics.linkAttempts);
-      fs.writeFileSync(path.join(aiDatabaseBundleDir, "ai-database-integrity-check.txt"), `${JSON.stringify(aiDiagnostics.integrity)}\nforeignKeyErrors=${aiDiagnostics.foreignKeys.length}\n`, "utf8");
+      writeBundleJson(aiDatabaseBundleDir, "ai-source-traces.json", aiDiagnostics.traces);
+      writeBundleJson(aiDatabaseBundleDir, "ai-source-link-attempts.json", aiDiagnostics.links);
+      fs.writeFileSync(path.join(aiDatabaseBundleDir, "ai-database-integrity-check.txt"), `${JSON.stringify(aiDiagnostics.snapshot.integrity)}\nforeignKeyErrors=${aiDiagnostics.snapshot.foreignKeyErrors ?? 0}\n`, "utf8");
     }
     evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copied", sourcePath: aiDatabasePath || "active AI database not selected", relativePath: "ai-analysis-database", reason: "AI lifecycle and query diagnostics exported without copying SQLite content." });
   } catch (error) {
-    evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copy_failed", sourcePath: getActiveAiDatabasePathV040(), relativePath: "ai-analysis-database", reason: error instanceof Error ? error.message : String(error) });
+    evidenceEntries.push({ id: "ai_analysis_database_diagnostics", status: "copy_failed", sourcePath: getActiveAiDatabasePathV041(), relativePath: "ai-analysis-database", reason: error instanceof Error ? error.message : String(error) });
   }  for (const fileName of ["main.ndjson", "renderer.ndjson", "transitions.ndjson", "session-summary.json"]) {
     collectDiagnosticFile("current_session_" + fileName, path.join(diagnosticSnapshot.sessionDir, fileName), "sessions/current/" + fileName);
   }

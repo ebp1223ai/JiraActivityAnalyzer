@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jaa.local/schemas/jaa-ai-analysis-package_v2.0.0.schema.json",
+  "title": "JAA AI Analysis Package v2.0.0",
+  "type": "object",
+  "required": [
+    "schemaName",
+    "schemaVersion",
+    "packageId",
+    "createdAt",
+    "generator",
+    "reviewRank",
+    "sourceTrace",
+    "rulesBinding",
+    "counts",
+    "records"
+  ],
+  "properties": {
+    "schemaName": { "const": "jaa-ai-analysis-package" },
+    "schemaVersion": { "const": "2.0.0" },
+    "packageId": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "generator": {
+      "type": "object",
+      "required": ["name", "version", "mode"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "mode": {
+          "enum": ["CLOUD_AI_ANALYSIS", "HTML_MANUAL_REVIEW_EXPORT", "LEGACY_THREE_FILE_CONVERSION", "TEST_FIXTURE"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "reviewRank": {
+      "enum": ["AI_ONLY", "REVIEW_PARTIAL", "REVIEW_COMPLETED"]
+    },
+    "sourceTrace": {
+      "$ref": "jaa-source-trace_v1.0.0.schema.json"
+    },
+    "rulesBinding": {
+      "type": "object",
+      "required": ["manifest", "commonRules", "skillCatalog", "htmlTemplate"],
+      "properties": {
+        "manifest": { "$ref": "#/$defs/fileBinding" },
+        "commonRules": { "$ref": "#/$defs/fileBinding" },
+        "skillCatalog": { "$ref": "#/$defs/fileBinding" },
+        "htmlTemplate": { "$ref": "#/$defs/fileBinding" }
+      },
+      "additionalProperties": false
+    },
+    "counts": {
+      "type": "object",
+      "required": ["records", "classified", "unknown", "excluded", "failed", "skillFindings", "reviewedRecords", "completedReviews"],
+      "properties": {
+        "records": { "type": "integer", "minimum": 0 },
+        "classified": { "type": "integer", "minimum": 0 },
+        "unknown": { "type": "integer", "minimum": 0 },
+        "excluded": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skillFindings": { "type": "integer", "minimum": 0 },
+        "reviewedRecords": { "type": "integer", "minimum": 0 },
+        "completedReviews": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/record" }
+    },
+    "packageIntegrityReceipt": {
+      "$ref": "jaa-source-trace_v1.0.0.schema.json#/$defs/integrityReceipt"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "reviewRank": { "const": "AI_ONLY" } } },
+      "then": {
+        "properties": {
+          "records": {
+            "items": {
+              "properties": { "manualReview": { "type": "null" } }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "fileBinding": {
+      "type": "object",
+      "required": ["file", "version", "sha256"],
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "record": {
+      "type": "object",
+      "required": ["recordIndex", "dedupeKey", "sourceTrace", "aiAnalysis", "manualReview"],
+      "properties": {
+        "recordIndex": { "type": "integer", "minimum": 0 },
+        "dedupeKey": { "type": "string", "minLength": 1 },
+        "sourceTrace": {
+          "$ref": "jaa-source-trace_v1.0.0.schema.json#/$defs/recordSourceTrace"
+        },
+        "aiAnalysis": { "$ref": "#/$defs/aiAnalysis" },
+        "manualReview": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/manualReview" }
+          ]
+        },
+        "integrityReceipt": {
+          "$ref": "jaa-source-trace_v1.0.0.schema.json#/$defs/integrityReceipt"
+        }
+      },
+      "additionalProperties": false
+    },
+    "aiAnalysis": {
+      "type": "object",
+      "required": [
+        "recordIndex",
+        "evidenceId",
+        "sourceRecordStableId",
+        "issueKey",
+        "status",
+        "confidence",
+        "skillFindings",
+        "recordNegativeChecks",
+        "unknownReasons",
+        "rationale"
+      ],
+      "properties": {
+        "recordIndex": { "type": "integer", "minimum": 0 },
+        "evidenceId": { "type": "string", "minLength": 1 },
+        "sourceRecordStableId": { "type": "string", "minLength": 1 },
+        "issueKey": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["CLASSIFIED", "UNKNOWN", "EXCLUDED", "FAILED"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "skillFindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/skillFinding" }
+        },
+        "recordNegativeChecks": { "type": "array", "items": { "type": "string" } },
+        "unknownReasons": { "type": "array", "items": { "type": "string" } },
+        "rationale": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "skillFinding": {
+      "type": "object",
+      "required": ["skillId", "skillName", "confidence", "evidence", "rationale"],
+      "properties": {
+        "skillId": { "type": "string", "pattern": "^[A-Z]+_[0-9]{3}$" },
+        "skillName": { "type": "string", "minLength": 1 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["sourceJsonPointer", "quote"],
+            "properties": {
+              "sourceJsonPointer": { "type": "string", "minLength": 1 },
+              "quote": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": true
+          }
+        },
+        "negativeChecks": { "type": "array", "items": { "type": "string" } },
+        "rationale": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "manualReview": {
+      "type": "object",
+      "required": ["recordIndex", "expectedStatus", "skillReviews", "missingSkillReviews", "additionalEvidenceAssignments", "notes", "completed"],
+      "properties": {
+        "recordIndex": { "type": "integer", "minimum": 0 },
+        "expectedStatus": { "enum": ["UNDECIDED", "CLASSIFIED", "UNKNOWN", "EXCLUDED", "FAILED"] },
+        "skillReviews": { "type": "array" },
+        "missingSkillReviews": { "type": "array" },
+        "additionalEvidenceAssignments": { "type": "array" },
+        "notes": { "type": "string" },
+        "completed": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

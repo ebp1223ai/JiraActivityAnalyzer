@@ -6,8 +6,8 @@ traceable AI-assisted skill analysis.
 
 ## Current version
 
-- Version: 0.3.15
-- Theme: Bundled Codex Runtime, Local File Workspace, and Canonical Debug Evidence
+- Version: 0.3.41
+- Theme: Lossless Source Trace, AI SQLite Schema v2, and Production Viewer Reuse
 - Active AI providers: ChatGPT via bundled and integrity-verified Codex App Server, AI Nexus, and Offline Rule Analyzer
 - Configuration: ENV format v4
 - Source Jira databases remain read-only

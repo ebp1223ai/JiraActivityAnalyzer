@@ -59,9 +59,10 @@ export function activityComparisonColumns(mode: ActivityComparisonMode): SqliteT
 
 type Props = Omit<ComponentProps<typeof SqliteDataTable>, "columns" | "renderExpandedRow"> & {
   mode: ActivityComparisonMode;
+  additionalColumns?: SqliteTableColumn[];
 };
 
-export function ActivityComparisonTable({ mode, query, onQueryChange, preferences, onPreferencesChange, ...props }: Props) {
+export function ActivityComparisonTable({ mode, additionalColumns = [], query, onQueryChange, preferences, onPreferencesChange, ...props }: Props) {
   const diffQuickFilters = normalizeDiffQuickFilters(query.diffQuickFilters);
   const changeDiffQuickFilters = (next: typeof diffQuickFilters) => {
     onPreferencesChange?.({ ...(preferences ?? { visibleColumns: [], columnOrder: [], columnWidths: {}, pageSize: query.pageSize, pageIndex: 1, sort: query.sort, filters: query.filters }), diffQuickFilters: next });
@@ -69,6 +70,6 @@ export function ActivityComparisonTable({ mode, query, onQueryChange, preference
   };
   return <div className="min-w-0 space-y-3">
     <DiffQuickFilters value={diffQuickFilters} disabled={Boolean(props.loading)} onChange={changeDiffQuickFilters} />
-    <SqliteDataTable {...props} query={query} onQueryChange={onQueryChange} preferences={preferences} onPreferencesChange={onPreferencesChange} columns={activityComparisonColumns(mode)} renderExpandedRow={(row) => <ActivityEventDetailPanel row={row} />} />
+    <SqliteDataTable {...props} query={query} onQueryChange={onQueryChange} preferences={preferences} onPreferencesChange={onPreferencesChange} columns={[...activityComparisonColumns(mode), ...additionalColumns]} renderExpandedRow={(row) => <ActivityEventDetailPanel row={row} />} />
   </div>;
 }

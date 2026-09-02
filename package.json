@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.40",
+  "version": "0.3.41",
   "description": "Electron desktop analyzer with bundled Codex local-workspace AI analysis and canonical debug evidence.",
   "author": "COPGEN",
   "type": "module",
@@ -127,6 +127,7 @@
     "test:v0.3.38": "node scripts/test-v0338.cjs",
     "test:v0.3.39": "npm run electron:build && node scripts/test-v0339.cjs && node scripts/test-v0338.cjs",
     "test:v0.3.40": "npm run electron:build && node scripts/test-v0340.cjs && node scripts/test-v0339.cjs && node scripts/test-v0338.cjs",
+    "test:v0.3.41": "npm run electron:build && node scripts/test-v0341.cjs && node scripts/test-v0341-integration.cjs && node scripts/test-v0341-link-query.cjs && node scripts/test-v0341-workbench.cjs && node scripts/test-v0340.cjs && node scripts/test-v0339.cjs && node scripts/test-v0338.cjs",
     "test:ui:legacy-deep": "npm run build && cross-env ELECTRON_UI_SMOKE=1 ELECTRON_UI_CAPTURE=0 ELECTRON_UI_LEGACY_DEEP=1 electron dist-electron/main.cjs"
   },
   "dependencies": {
@@ -239,6 +240,13 @@
       },      {
         "from": "rules/v0.3.40",
         "to": "bundled-rules/v0.3.40",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "rules/v0.3.41",
+        "to": "bundled-rules/v0.3.41",
         "filter": [
           "**/*"
         ]
