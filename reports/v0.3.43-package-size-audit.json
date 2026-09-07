@@ -1,0 +1,610 @@
+{
+  "label": "v0.3.43",
+  "auditedAt": "2026-09-07T09:35:32.479Z",
+  "platform": "win32-x64",
+  "electronVersion": "43.0.0",
+  "asarEnabled": true,
+  "asarUnpackActualScope": "none",
+  "metrics": {
+    "installer": {
+      "path": "Jira Activity Analyzer Setup 0.3.43.exe",
+      "bytes": 191165501,
+      "mib": 182.31
+    },
+    "portable": {
+      "path": "Jira Activity Analyzer Portable 0.3.43.exe",
+      "bytes": 190935412,
+      "mib": 182.09
+    },
+    "winUnpacked": {
+      "bytes": 771998784,
+      "mib": 736.235
+    },
+    "appAsar": {
+      "bytes": 25757847,
+      "mib": 24.565
+    },
+    "appAsarUnpacked": {
+      "exists": false,
+      "bytes": 0,
+      "mib": 0
+    },
+    "resources": {
+      "bytes": 397805295,
+      "mib": 379.377
+    },
+    "packagedNodeModules": {
+      "packedBytes": 22023393,
+      "unpackedBytes": 0,
+      "bytes": 22023393,
+      "mib": 21.003
+    }
+  },
+  "largestFiles": [
+    {
+      "path": "resources/codex-runtime/bin/codex.exe",
+      "bytes": 298668336,
+      "mib": 284.832,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "mib": 224.787,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "resources/codex-runtime/bin/codex-code-mode-host.exe",
+      "bytes": 57450288,
+      "mib": 54.789,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "resources/app.asar",
+      "bytes": 25757847,
+      "mib": 24.565,
+      "category": "Application Code",
+      "necessary": true,
+      "basis": "正式應用程式程式碼或封裝中繼資料。"
+    },
+    {
+      "path": "dxcompiler.dll",
+      "bytes": 25609728,
+      "mib": 24.423,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "LICENSES.chromium.html",
+      "bytes": 20313277,
+      "mib": 19.372,
+      "category": "Application Code",
+      "necessary": true,
+      "basis": "正式應用程式程式碼或封裝中繼資料。"
+    },
+    {
+      "path": "icudtl.dat",
+      "bytes": 10876560,
+      "mib": 10.373,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "resources/codex-runtime/codex-resources/codex-windows-sandbox-setup.exe",
+      "bytes": 8804144,
+      "mib": 8.396,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "libGLESv2.dll",
+      "bytes": 8021504,
+      "mib": 7.65,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "resources.pak",
+      "bytes": 7147269,
+      "mib": 6.816,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "vk_swiftshader.dll",
+      "bytes": 5494784,
+      "mib": 5.24,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "d3dcompiler_47.dll",
+      "bytes": 4741488,
+      "mib": 4.522,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "resources/codex-runtime/codex-path/rg.exe",
+      "bytes": 4218880,
+      "mib": 4.023,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "ffmpeg.dll",
+      "bytes": 3061248,
+      "mib": 2.919,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "locales/ml.pak",
+      "bytes": 1705247,
+      "mib": 1.626,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/ta.pak",
+      "bytes": 1696416,
+      "mib": 1.618,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/kn.pak",
+      "bytes": 1661406,
+      "mib": 1.584,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/te.pak",
+      "bytes": 1571646,
+      "mib": 1.499,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/hi.pak",
+      "bytes": 1529365,
+      "mib": 1.459,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "dxil.dll",
+      "bytes": 1509760,
+      "mib": 1.44,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "locales/bn.pak",
+      "bytes": 1460793,
+      "mib": 1.393,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "resources/app.asar/dist-electron/main.cjs",
+      "bytes": 1449941,
+      "mib": 1.383,
+      "category": "Application Code",
+      "necessary": true,
+      "basis": "正式應用程式程式碼或封裝中繼資料。"
+    },
+    {
+      "path": "locales/gu.pak",
+      "bytes": 1443467,
+      "mib": 1.377,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/mr.pak",
+      "bytes": 1414904,
+      "mib": 1.349,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/th.pak",
+      "bytes": 1320614,
+      "mib": 1.259,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "resources/codex-runtime/codex-resources/codex-command-runner.exe",
+      "bytes": 1300272,
+      "mib": 1.24,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "locales/el.pak",
+      "bytes": 1250786,
+      "mib": 1.193,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/uk.pak",
+      "bytes": 1172427,
+      "mib": 1.118,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/ru.pak",
+      "bytes": 1163087,
+      "mib": 1.109,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/bg.pak",
+      "bytes": 1137844,
+      "mib": 1.085,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/ar.pak",
+      "bytes": 1095898,
+      "mib": 1.045,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-dom/cjs/react-dom-profiling.development.js",
+      "bytes": 1082082,
+      "mib": 1.032,
+      "category": "Production Dependency",
+      "necessary": true,
+      "basis": "正式執行依賴：react-dom/cjs。"
+    },
+    {
+      "path": "locales/sr.pak",
+      "bytes": 1075610,
+      "mib": 1.026,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-dom/cjs/react-dom-client.development.js",
+      "bytes": 1065698,
+      "mib": 1.016,
+      "category": "Production Dependency",
+      "necessary": true,
+      "basis": "正式執行依賴：react-dom/cjs。"
+    },
+    {
+      "path": "locales/fa.pak",
+      "bytes": 1026720,
+      "mib": 0.979,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/ur.pak",
+      "bytes": 1009975,
+      "mib": 0.963,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/am.pak",
+      "bytes": 994404,
+      "mib": 0.948,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "vulkan-1.dll",
+      "bytes": 924160,
+      "mib": 0.881,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "locales/he.pak",
+      "bytes": 898516,
+      "mib": 0.857,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/ja.pak",
+      "bytes": 815268,
+      "mib": 0.778,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "resources/app.asar/dist/assets/index-sPsnsXEK.js",
+      "bytes": 805764,
+      "mib": 0.768,
+      "category": "Application Code",
+      "necessary": true,
+      "basis": "正式應用程式程式碼或封裝中繼資料。"
+    },
+    {
+      "path": "locales/vi.pak",
+      "bytes": 799477,
+      "mib": 0.762,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react/dist/umd/lucide-react.js",
+      "bytes": 795674,
+      "mib": 0.759,
+      "category": "Production Dependency",
+      "necessary": true,
+      "basis": "正式執行依賴：lucide-react/dist。"
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react/dist/cjs/lucide-react.js",
+      "bytes": 756146,
+      "mib": 0.721,
+      "category": "Production Dependency",
+      "necessary": true,
+      "basis": "正式執行依賴：lucide-react/dist。"
+    },
+    {
+      "path": "locales/lt.pak",
+      "bytes": 751706,
+      "mib": 0.717,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/lv.pak",
+      "bytes": 748765,
+      "mib": 0.714,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "v8_context_snapshot.bin",
+      "bytes": 740048,
+      "mib": 0.706,
+      "category": "Electron Required Runtime",
+      "necessary": true,
+      "basis": "Electron／Chromium／Node 啟動所需的基礎執行元件。"
+    },
+    {
+      "path": "locales/hu.pak",
+      "bytes": 738244,
+      "mib": 0.704,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/fr.pak",
+      "bytes": 738084,
+      "mib": 0.704,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    },
+    {
+      "path": "locales/sk.pak",
+      "bytes": 729969,
+      "mib": 0.696,
+      "category": "Static Asset",
+      "necessary": true,
+      "basis": "Electron 或應用程式執行時載入的靜態資產。"
+    }
+  ],
+  "largestDirectories": [
+    {
+      "path": "resources",
+      "bytes": 422352334,
+      "mib": 402.787,
+      "packagePercentage": 54.71
+    },
+    {
+      "path": "resources/codex-runtime",
+      "bytes": 370443498,
+      "mib": 353.282,
+      "packagePercentage": 47.98
+    },
+    {
+      "path": "resources/codex-runtime/bin",
+      "bytes": 356118624,
+      "mib": 339.621,
+      "packagePercentage": 46.13
+    },
+    {
+      "path": "locales",
+      "bytes": 48895643,
+      "mib": 46.631,
+      "packagePercentage": 6.33
+    },
+    {
+      "path": "resources/app.asar",
+      "bytes": 24547039,
+      "mib": 23.41,
+      "packagePercentage": 3.18
+    },
+    {
+      "path": "resources/app.asar/node_modules",
+      "bytes": 22023393,
+      "mib": 21.003,
+      "packagePercentage": 2.85
+    },
+    {
+      "path": "resources/codex-runtime/codex-resources",
+      "bytes": 10104416,
+      "mib": 9.636,
+      "packagePercentage": 1.31
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-dom",
+      "bytes": 7318213,
+      "mib": 6.979,
+      "packagePercentage": 0.95
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-dom/cjs",
+      "bytes": 7305668,
+      "mib": 6.967,
+      "packagePercentage": 0.95
+    },
+    {
+      "path": "resources/codex-runtime/codex-path",
+      "bytes": 4218880,
+      "mib": 4.023,
+      "packagePercentage": 0.55
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react",
+      "bytes": 3509792,
+      "mib": 3.347,
+      "packagePercentage": 0.45
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react/dist",
+      "bytes": 3405791,
+      "mib": 3.248,
+      "packagePercentage": 0.44
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router",
+      "bytes": 3348865,
+      "mib": 3.194,
+      "packagePercentage": 0.43
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/dist",
+      "bytes": 3344616,
+      "mib": 3.19,
+      "packagePercentage": 0.43
+    },
+    {
+      "path": "resources/app.asar/node_modules/recharts",
+      "bytes": 2573274,
+      "mib": 2.454,
+      "packagePercentage": 0.33
+    },
+    {
+      "path": "resources/app.asar/dist-electron",
+      "bytes": 1675745,
+      "mib": 1.598,
+      "packagePercentage": 0.22
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/dist/production",
+      "bytes": 1672309,
+      "mib": 1.595,
+      "packagePercentage": 0.22
+    },
+    {
+      "path": "resources/app.asar/node_modules/react-router/dist/development",
+      "bytes": 1672307,
+      "mib": 1.595,
+      "packagePercentage": 0.22
+    },
+    {
+      "path": "resources/app.asar/node_modules/lodash",
+      "bytes": 1412361,
+      "mib": 1.347,
+      "packagePercentage": 0.18
+    },
+    {
+      "path": "resources/app.asar/node_modules/lucide-react/dist/esm",
+      "bytes": 1338991,
+      "mib": 1.277,
+      "packagePercentage": 0.17
+    }
+  ],
+  "capacityByCategory": [
+    {
+      "category": "Electron Required Runtime",
+      "bytes": 668068544,
+      "mib": 637.12
+    },
+    {
+      "category": "Static Asset",
+      "bytes": 56359906,
+      "mib": 53.749
+    },
+    {
+      "category": "Application Code",
+      "bytes": 50093980,
+      "mib": 47.773
+    },
+    {
+      "category": "Production Dependency",
+      "bytes": 22017849,
+      "mib": 20.998
+    },
+    {
+      "category": "Test／Development Artifact",
+      "bytes": 5544,
+      "mib": 0.005
+    }
+  ],
+  "duplicatePhysicalFiles": [],
+  "unexpectedPackagedContent": [
+    {
+      "path": "resources/app.asar/node_modules/json-schema-traverse/spec/fixtures/schema.js",
+      "bytes": 5544,
+      "mib": 0.005,
+      "category": "Test／Development Artifact",
+      "necessary": false,
+      "basis": "正式套件不應包含的測試或開發產物。"
+    }
+  ],
+  "notes": [
+    "app.asar 虛擬檔案與 win-unpacked 實體檔案同時列入檔案／目錄排行；app.asar 容器因此與其內容是兩種不同觀察口徑。",
+    "Production Dependencies 為 app.asar 內 node_modules 非 unpacked 檔案，加上 app.asar.unpacked/node_modules 實體檔案。",
+    "重複檔案偵測只掃描 100 KiB 以上的 win-unpacked 實體檔案，避免把 app.asar 虛擬內容重複計算。"
+  ]
+}

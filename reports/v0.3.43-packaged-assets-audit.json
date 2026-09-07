@@ -1,0 +1,108 @@
+{
+  "status": "PASS",
+  "scope": "Frozen contract bytes, embedded DDL hash, private filename patterns; does not waive failed third-party fixture packaging gate",
+  "hashes": [
+    {
+      "name": "catalog-v0.3.5.json",
+      "match": true,
+      "sha256": "5bcdcff4065dc50e1e732f71287092d3de8960ee1e202457a2d88b4d5cb96596"
+    },
+    {
+      "name": "jaa-ai-analysis-import-package_v1.0.0.schema.json",
+      "match": true,
+      "sha256": "6d51b5fb613b5ff957ab815e6702cf23845d5fce0124fb73b224983a39986a8c"
+    },
+    {
+      "name": "jaa-ai-analysis-package_v2.0.0.schema.json",
+      "match": true,
+      "sha256": "36f879a3ee5a5671e92c0ea8dec4c4e850caf7282cbfc45ef68f41e394e8af27"
+    },
+    {
+      "name": "jaa-ai-analysis-package_v2.0.1.schema.json",
+      "match": true,
+      "sha256": "cd6a6d1385b5a49f5c56b14d97ccfe21008102c41b0ac5a9e20c7c97ca39a9db"
+    },
+    {
+      "name": "jaa-ai-analysis-v1.sql",
+      "match": true,
+      "sha256": "c3d718e797414a09a580d10cc55135bf47879e42ee596e75ce9e032e88a16d24"
+    },
+    {
+      "name": "jaa-source-trace_v1.0.0.schema.json",
+      "match": true,
+      "sha256": "b96147f4a2f766fb39679beeba66ef4ea210f290bc69078b88456fc8b5b8e6e7"
+    },
+    {
+      "name": "JAA_AI_Analysis_Database_Design_v2.0.0.md",
+      "match": true,
+      "sha256": "839331d1d8eab490e1c4d7bb967698056c5393112a65e07d642498e778d558fc"
+    },
+    {
+      "name": "JAA_AI_Analysis_SQLite_Schema_v2.0.0.sql",
+      "match": true,
+      "sha256": "1ad8269f4b70eb98571a551bf436cb9a022d681d8f69efef718548cd353cf648"
+    },
+    {
+      "name": "JAA_Package_v2.0.1_Compatibility_Addendum.md",
+      "match": true,
+      "sha256": "68a9563a9cd1d0b511c413b546934d11a5ec0c2da43e0f60040fc58105d809c4"
+    },
+    {
+      "name": "Skill_Analysis_HTML_Report_Template_v1.12.0.md",
+      "match": true,
+      "sha256": "1faae24dfca1259317f1848298fa486b4883f2ccafcd11eecd109560388bd3db"
+    },
+    {
+      "name": "Skill_Analysis_HTML_Report_Template_v1.13.1.md",
+      "match": true,
+      "sha256": "db266f8b6ac9aa989e10e5e83e181386c191e7e31b89ee47530c9cb17a51effc"
+    },
+    {
+      "name": "Skill_Analysis_HTML_Report_Template_v1.13.2.md",
+      "match": true,
+      "sha256": "6466a42b30c4ef92952ae2ade7f27b8684308bbdbbb61799a3245f6da7ba8458"
+    },
+    {
+      "name": "Skill_Analysis_Review_Workbench_v1.12.0.html",
+      "match": true,
+      "sha256": "73bddee4b0a74e889fccc7561c075faa6591d6819d1c60b2d1085d2fd99e0049"
+    },
+    {
+      "name": "Skill_Analysis_Review_Workbench_v1.13.1.html",
+      "match": true,
+      "sha256": "69dc5bb785cca466099f4e771bfa58f0a05f5438cfe8d394186818a26fab35f2"
+    },
+    {
+      "name": "Skill_Analysis_Review_Workbench_v1.13.2.html",
+      "match": true,
+      "sha256": "fe0d7c325f7685f06e95049dd6866527cc8025e7aba413463f1139a8f9306fee"
+    },
+    {
+      "name": "Skill_Analysis_Rule_Set_Manifest_v1.6.0.md",
+      "match": true,
+      "sha256": "b9eec61d696bb8b03ad03c4199a369f010a1c4081ada9065697dd7705b2a8861"
+    },
+    {
+      "name": "Skill_Analysis_Rule_Set_Manifest_v1.6.1.md",
+      "match": true,
+      "sha256": "d1a93e359b1b687ac1f790e228637efccc5c3984bcb346dae4afd1a9a3dceb71"
+    },
+    {
+      "name": "Skill_Catalog_v0.3.5.md",
+      "match": true,
+      "sha256": "d32eb58ff7ea01931e889d97e2f4b1a30ed35a5cce17a293ba37b0e19d73d006"
+    },
+    {
+      "name": "Skill_Classification_Common_Rules_v2.6.0.md",
+      "match": true,
+      "sha256": "bcab7d76d347e44d1e68624b1ef68d0c86b629dd0384a9dc80bd37620e5684ea"
+    },
+    {
+      "name": "Skill_Classification_Common_Rules_v2.6.1.md",
+      "match": true,
+      "sha256": "d4fa8775bb9c71cb2fec67657d861c04ea2f7363f48c6a801a9d70de671757c5"
+    }
+  ],
+  "embeddedDdlHashPresent": true,
+  "privateNames": []
+}

@@ -1,0 +1,360 @@
+{
+  "schemaVersion": "jaa-v0.3.43-execution-time-ledger-v1",
+  "version": "0.3.43",
+  "status": "PARTIAL_TIMING_COVERAGE",
+  "initialStartUtc": null,
+  "initialStartReason": "Not captured before first executable action; must not reconstruct",
+  "firstObservableLocal": "2026-09-07T16:12:00.4407256+08:00",
+  "firstObservableKind": "extraction timestamp, not full-task start",
+  "generatedAt": "2026-09-07T17:43:47.9196694+08:00",
+  "commands": [
+    {
+      "command": "npm.cmd run build",
+      "startedAt": "2026-09-07T17:06:11.5526837+08:00",
+      "finishedAt": "2026-09-07T17:06:36.0245179+08:00",
+      "exitCode": 0,
+      "durationSeconds": 24.4650401
+    },
+    {
+      "command": "npm.cmd run test:ui:v0.3.43",
+      "startedAt": "2026-09-07T17:07:14.4550703+08:00",
+      "finishedAt": "2026-09-07T17:08:09.6216704+08:00",
+      "exitCode": 0,
+      "durationSeconds": 55.1613924
+    },
+    {
+      "command": "npm.cmd run test:v0.3.43",
+      "startedAt": "2026-09-07T17:11:05.9842888+08:00",
+      "finishedAt": "2026-09-07T17:12:30.2131779+08:00",
+      "exitCode": 0,
+      "durationSeconds": 84.2247234
+    },
+    {
+      "command": "npm.cmd run build",
+      "startedAt": "2026-09-07T17:15:22.9205328+08:00",
+      "finishedAt": "2026-09-07T17:15:47.7573849+08:00",
+      "exitCode": 0,
+      "durationSeconds": 24.8324643
+    },
+    {
+      "durationMs": 17226.959,
+      "exitCode": 0,
+      "startedAt": "2026-09-07T17:19:45.1550957+08:00",
+      "command": "npm.cmd run build"
+    },
+    {
+      "durationMs": 69047.3956,
+      "exitCode": 0,
+      "command": "npm.cmd run test:ui:v0.3.43",
+      "startedAt": "2026-09-07T17:20:20.3352267+08:00"
+    },
+    {
+      "command": "npm.cmd run typecheck",
+      "startedAt": "2026-09-07T17:23:53.7633128+08:00",
+      "exitCode": 0,
+      "durationMs": 12478.2806
+    },
+    {
+      "durationMs": 62006.6475,
+      "exitCode": 0,
+      "startedAt": "2026-09-07T17:24:51.1241109+08:00",
+      "command": "npm.cmd run test:ui:v0.3.43 (release gate)"
+    },
+    {
+      "durationMs": 5903.1612,
+      "startedAt": "2026-09-07T17:27:02.2577455+08:00",
+      "command": "node scripts/test-v0343-ui.cjs (reopen-only preflight)",
+      "exitCode": 0
+    },
+    {
+      "startedAt": "2026-09-07T17:27:18.5240827+08:00",
+      "durationMs": 84533.0522,
+      "command": "npm.cmd run test:v0.3.43 (release gate)",
+      "exitCode": 0
+    },
+    {
+      "outputDirectory": "F:/AI/JiraActivityAnalyzer/release/v0.3.43-candidate",
+      "exitCode": 0,
+      "startedAt": "2026-09-07T17:31:20.6582629+08:00",
+      "durationMs": 208723.263,
+      "command": "npm.cmd run dist"
+    },
+    {
+      "startedAt": "2026-09-07T17:35:32.2612027+08:00",
+      "command": "node scripts/audit-package-size.cjs v0.3.43",
+      "exitCode": 0,
+      "durationMs": 4751.5688
+    },
+    {
+      "durationMs": 775.662,
+      "startedAt": "2026-09-07T17:35:49.9790118+08:00",
+      "exitCode": 1,
+      "command": "node scripts/verify-v0343-windows.cjs"
+    },
+    {
+      "command": "node scripts/test-v0343-ui.cjs (frozen win-unpacked, independent of failed package-content gate)",
+      "startedAt": "2026-09-07T17:36:15.6750251+08:00",
+      "exitCode": 0,
+      "durationMs": 67530.8718
+    },
+    {
+      "startedAt": "2026-09-07T17:38:19.5414429+08:00",
+      "command": "node scripts/test-v0343-ui.cjs (frozen Portable, isolated APP_ROOT)",
+      "durationMs": 51580.0668,
+      "exitCode": 1
+    }
+  ],
+  "testReceipts": [
+    {
+      "artifact": "correctness-1788771542118",
+      "status": "PASS",
+      "durationMs": 15730.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "correctness-1788772333530",
+      "status": "PASS",
+      "durationMs": 16333.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "correctness-1788773306255",
+      "status": "PASS",
+      "durationMs": 16048.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "integration-1788770283411",
+      "status": "FAIL",
+      "durationMs": 2362.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "integration-1788770303075",
+      "status": "PASS",
+      "durationMs": 50577.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "integration-1788771077778",
+      "status": "PASS",
+      "durationMs": 55220.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "integration-1788772275592",
+      "status": "PASS",
+      "durationMs": 57428.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "integration-1788773248949",
+      "status": "PASS",
+      "durationMs": 56804.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "local-package-1788771810951",
+      "status": "PASS",
+      "durationMs": null,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "services-1788769559953",
+      "status": "FAIL,PASS",
+      "durationMs": 3474.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "services-1788769580686",
+      "status": "FAIL,PASS",
+      "durationMs": 3717.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "services-1788769634978",
+      "status": "PASS",
+      "durationMs": 8841.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "services-1788771067883",
+      "status": "PASS",
+      "durationMs": 9159.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "services-1788772266469",
+      "status": "PASS",
+      "durationMs": 8762.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "services-1788773238972",
+      "status": "PASS",
+      "durationMs": 9649.0,
+      "durationKind": "sum of test groups; not process wall-clock",
+      "exitCode": null,
+      "note": "Nested in npm test commands; do not double-count"
+    },
+    {
+      "artifact": "ui-1788770491386",
+      "status": "FAIL",
+      "durationMs": 12454,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788770553310",
+      "status": "FAIL",
+      "durationMs": 11826,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788770838374",
+      "status": "FAIL",
+      "durationMs": 1722,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788770858458",
+      "status": "FAIL",
+      "durationMs": 1420,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788770889134",
+      "status": "FAIL",
+      "durationMs": 54104,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788771226642",
+      "status": "FAIL",
+      "durationMs": 25540,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788771393841",
+      "status": "FAIL",
+      "durationMs": 20476,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788771458840",
+      "status": "PASS",
+      "durationMs": 28089,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788772035298",
+      "status": "PASS",
+      "durationMs": 51397,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788772821197",
+      "status": "PASS",
+      "durationMs": 65309,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788773091851",
+      "status": "PASS",
+      "durationMs": 58085,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "ui-1788773222604",
+      "status": "PASS",
+      "durationMs": 5502,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "workbench-1788771635341",
+      "status": "FAIL",
+      "durationMs": 18873,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    },
+    {
+      "artifact": "workbench-1788771731345",
+      "status": "PASS",
+      "durationMs": 11573,
+      "durationKind": "script-reported wall-clock where available",
+      "exitCode": null,
+      "note": "Exit code not inferred from status; see measured command if available"
+    }
+  ],
+  "unmeasuredEvents": [
+    "Early source inspection and edits",
+    "Tool ACL failures and fallback attempts",
+    "Initial npm install/audit and early build/typecheck attempts",
+    "Initial git diff --check failure then whitespace-only fix",
+    "Temporary core.autocrlf=false diff check produced CRLF false positives; normal configuration check passed; no Git config changed",
+    "First source commit blocked by safety review; protected index/HEAD/hash evidence provided; second attempt succeeded",
+    "Packaged assets read-only audit, exit 0; tool process wall time 0.648 seconds",
+    "Normal isolated Portable launch, renderer startup inspection and scoped diagnostic process cleanup",
+    "Final fact-only report generation and Git verification"
+  ],
+  "tokenUsage": {
+    "status": "UNAVAILABLE",
+    "reason": "No exact provider task meter available",
+    "input": null,
+    "total": null,
+    "output": null
+  },
+  "warning": "This ledger is incomplete; null timings are not zero. Tool wait and all early commands were not recorded. Nested receipts overlap measured command durations."
+}

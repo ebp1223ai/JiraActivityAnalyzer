@@ -1,0 +1,779 @@
+{
+  "version": "0.3.43",
+  "releaseGate": "FAILED_PACKAGING_CONTENT_AND_PORTABLE_AUTOMATION_INCOMPLETE",
+  "uiEvidence": [
+    {
+      "evidenceDirectory": "test-artifacts/v0.3.43/ui-1788773091851",
+      "status": "PASS",
+      "runtime": {
+        "version": "0.3.43",
+        "userData": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.43\\ui-1788773091851\\app-root\\app-data",
+        "exe": "F:\\AI\\JiraActivityAnalyzer\\node_modules\\electron\\dist\\electron.exe"
+      },
+      "durationMs": 58085,
+      "captureMethod": "Playwright Electron BrowserWindow.capturePage stayHidden (renderer only)",
+      "states": [
+        {
+          "filename": "ai-database-normal-1920x1080.png",
+          "state": "normal",
+          "page": "ai-database",
+          "width": 1920,
+          "height": 1080,
+          "dpr": 1,
+          "html": 1920,
+          "body": 1920,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-results-normal-1920x1080.png",
+          "state": "normal",
+          "page": "ai-results",
+          "width": 1920,
+          "height": 1080,
+          "dpr": 1,
+          "html": 1920,
+          "body": 1920,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "integrated-results-normal-1920x1080.png",
+          "state": "normal",
+          "page": "integrated-results",
+          "width": 1920,
+          "height": 1080,
+          "dpr": 1,
+          "html": 1920,
+          "body": 1920,
+          "sidebar": true,
+          "heading": "整合顯示結果 / Integrated Results"
+        },
+        {
+          "filename": "ai-database-normal-1440x900.png",
+          "state": "normal",
+          "page": "ai-database",
+          "width": 1440,
+          "height": 900,
+          "dpr": 1,
+          "html": 1440,
+          "body": 1440,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-results-normal-1440x900.png",
+          "state": "normal",
+          "page": "ai-results",
+          "width": 1440,
+          "height": 900,
+          "dpr": 1,
+          "html": 1440,
+          "body": 1440,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "integrated-results-normal-1440x900.png",
+          "state": "normal",
+          "page": "integrated-results",
+          "width": 1440,
+          "height": 900,
+          "dpr": 1,
+          "html": 1440,
+          "body": 1440,
+          "sidebar": true,
+          "heading": "整合顯示結果 / Integrated Results"
+        },
+        {
+          "filename": "ai-database-normal-1280x720.png",
+          "state": "normal",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-results-normal-1280x720.png",
+          "state": "normal",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "integrated-results-normal-1280x720.png",
+          "state": "normal",
+          "page": "integrated-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "整合顯示結果 / Integrated Results"
+        },
+        {
+          "filename": "ai-database-normal-1024x768.png",
+          "state": "normal",
+          "page": "ai-database",
+          "width": 1024,
+          "height": 768,
+          "dpr": 1,
+          "html": 1024,
+          "body": 1024,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-results-normal-1024x768.png",
+          "state": "normal",
+          "page": "ai-results",
+          "width": 1024,
+          "height": 768,
+          "dpr": 1,
+          "html": 1024,
+          "body": 1024,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "integrated-results-normal-1024x768.png",
+          "state": "normal",
+          "page": "integrated-results",
+          "width": 1024,
+          "height": 768,
+          "dpr": 1,
+          "html": 1024,
+          "body": 1024,
+          "sidebar": true,
+          "heading": "整合顯示結果 / Integrated Results"
+        },
+        {
+          "filename": "ai-database-normal-800x600.png",
+          "state": "normal",
+          "page": "ai-database",
+          "width": 800,
+          "height": 600,
+          "dpr": 1,
+          "html": 800,
+          "body": 800,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-results-normal-800x600.png",
+          "state": "normal",
+          "page": "ai-results",
+          "width": 800,
+          "height": 600,
+          "dpr": 1,
+          "html": 800,
+          "body": 800,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "integrated-results-normal-800x600.png",
+          "state": "normal",
+          "page": "integrated-results",
+          "width": 800,
+          "height": 600,
+          "dpr": 1,
+          "html": 800,
+          "body": 800,
+          "sidebar": true,
+          "heading": "整合顯示結果 / Integrated Results"
+        },
+        {
+          "filename": "ai-results-filter-1280x720.png",
+          "state": "filter",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "ai-results-source-tabs-1280x720.png",
+          "state": "source-tabs",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "ai-results-column-chooser-1280x720.png",
+          "state": "column-chooser",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "database-shared-controls-1280x720.png",
+          "state": "shared-controls",
+          "page": "database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "資料庫總覽 / Database Overview"
+        },
+        {
+          "filename": "ai-database-primary-hover-1280x720.png",
+          "state": "primary-hover",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-database-primary-focus-1280x720.png",
+          "state": "primary-focus",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-database-empty-database-1280x720.png",
+          "state": "empty-database",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-results-empty-database-1280x720.png",
+          "state": "empty-database",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "ai-results-empty-filter-1280x720.png",
+          "state": "empty-filter",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "ai-results-facet-error-1280x720.png",
+          "state": "facet-error",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "integrated-results-query-error-1280x720.png",
+          "state": "query-error",
+          "page": "integrated-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "整合顯示結果 / Integrated Results"
+        },
+        {
+          "filename": "ai-database-more-menu-1280x720.png",
+          "state": "more-menu",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-database-renderer-zoom-1.25-1280x720.png",
+          "state": "renderer-zoom-1.25",
+          "page": "ai-database",
+          "width": 1024,
+          "height": 576,
+          "dpr": 1.25,
+          "html": 1024,
+          "body": 1024,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-database-renderer-zoom-1.5-1280x720.png",
+          "state": "renderer-zoom-1.5",
+          "page": "ai-database",
+          "width": 853,
+          "height": 480,
+          "dpr": 1.5,
+          "html": 853,
+          "body": 853,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-database-import-error-1280x720.png",
+          "state": "import-error",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-results-source-conflict-partial-review-1280x720.png",
+          "state": "source-conflict-partial-review",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        }
+      ],
+      "checks": [
+        {
+          "name": "real-IPC-Raw-only-query-and-facet-with-AI-closed",
+          "status": "PASS"
+        },
+        {
+          "name": "real-preload-import-relink",
+          "status": "PASS",
+          "counts": {
+            "PRIMARY_MATCHED": 55
+          }
+        },
+        {
+          "name": "original-route-connections",
+          "status": "PASS",
+          "heading": "連線設定 / Connections / Read-only Jira connection status"
+        },
+        {
+          "name": "original-route-users",
+          "status": "PASS",
+          "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+        },
+        {
+          "name": "original-route-issues",
+          "status": "PASS",
+          "heading": "Issue 檢視 / Issue Viewer · Local Database Only"
+        },
+        {
+          "name": "original-route-settings",
+          "status": "PASS",
+          "heading": "設定 / Settings"
+        },
+        {
+          "name": "route-db-A-B-A-page-scroll-and-IME-filter",
+          "status": "PASS"
+        },
+        {
+          "name": "invalid-import-picker-and-real-partial-conflict-package",
+          "status": "PASS",
+          "picker": "test-only deterministic file selection; actual preflight/import IPC"
+        },
+        {
+          "name": "real-SQL-query-facet-error-ui-and-menu",
+          "status": "PASS"
+        }
+      ],
+      "styles": {
+        "original": {
+          "height": 38,
+          "padding": "8px 14px",
+          "font": "800 13.76px / 15.824px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontFamily": "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "radius": "7px",
+          "display": "flex",
+          "align": "center",
+          "gap": "8px"
+        },
+        "current": {
+          "height": 38,
+          "padding": "8px 14px",
+          "font": "800 13.76px / 15.824px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontFamily": "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "radius": "7px",
+          "display": "flex",
+          "align": "center",
+          "gap": "8px"
+        }
+      },
+      "errors": []
+    },
+    {
+      "evidenceDirectory": "test-artifacts/v0.3.43/win-unpacked-ui",
+      "status": "PASS",
+      "runtime": {
+        "version": "0.3.43",
+        "userData": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.43-candidate\\win-unpacked\\app-data",
+        "exe": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.43-candidate\\win-unpacked\\Jira Activity Analyzer.exe"
+      },
+      "durationMs": 62485,
+      "captureMethod": "Playwright Electron BrowserWindow.capturePage stayHidden (renderer only)",
+      "states": [
+        {
+          "filename": "ai-database-normal-1280x720.png",
+          "state": "normal",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-results-normal-1280x720.png",
+          "state": "normal",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "integrated-results-normal-1280x720.png",
+          "state": "normal",
+          "page": "integrated-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "整合顯示結果 / Integrated Results"
+        },
+        {
+          "filename": "ai-results-filter-1280x720.png",
+          "state": "filter",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "ai-results-source-tabs-1280x720.png",
+          "state": "source-tabs",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "ai-results-column-chooser-1280x720.png",
+          "state": "column-chooser",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "database-shared-controls-1280x720.png",
+          "state": "shared-controls",
+          "page": "database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "資料庫總覽 / Database Overview"
+        },
+        {
+          "filename": "ai-database-primary-hover-1280x720.png",
+          "state": "primary-hover",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-database-primary-focus-1280x720.png",
+          "state": "primary-focus",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-database-empty-database-1280x720.png",
+          "state": "empty-database",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-results-empty-database-1280x720.png",
+          "state": "empty-database",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "ai-results-empty-filter-1280x720.png",
+          "state": "empty-filter",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "ai-results-facet-error-1280x720.png",
+          "state": "facet-error",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        },
+        {
+          "filename": "integrated-results-query-error-1280x720.png",
+          "state": "query-error",
+          "page": "integrated-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "整合顯示結果 / Integrated Results"
+        },
+        {
+          "filename": "ai-database-more-menu-1280x720.png",
+          "state": "more-menu",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-database-renderer-zoom-1.25-1280x720.png",
+          "state": "renderer-zoom-1.25",
+          "page": "ai-database",
+          "width": 1024,
+          "height": 576,
+          "dpr": 1.25,
+          "html": 1024,
+          "body": 1024,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-database-renderer-zoom-1.5-1280x720.png",
+          "state": "renderer-zoom-1.5",
+          "page": "ai-database",
+          "width": 853,
+          "height": 480,
+          "dpr": 1.5,
+          "html": 853,
+          "body": 853,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-database-import-error-1280x720.png",
+          "state": "import-error",
+          "page": "ai-database",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 分析資料庫 / AI Analysis Database"
+        },
+        {
+          "filename": "ai-results-source-conflict-partial-review-1280x720.png",
+          "state": "source-conflict-partial-review",
+          "page": "ai-results",
+          "width": 1280,
+          "height": 720,
+          "dpr": 1,
+          "html": 1280,
+          "body": 1280,
+          "sidebar": true,
+          "heading": "AI 結果檢視 / AI Results Viewer"
+        }
+      ],
+      "checks": [
+        {
+          "name": "real-IPC-Raw-only-query-and-facet-with-AI-closed",
+          "status": "PASS"
+        },
+        {
+          "name": "real-preload-import-relink",
+          "status": "PASS",
+          "counts": {
+            "PRIMARY_MATCHED": 55
+          }
+        },
+        {
+          "name": "original-route-connections",
+          "status": "PASS",
+          "heading": "連線設定 / Connections / Read-only Jira connection status"
+        },
+        {
+          "name": "original-route-users",
+          "status": "PASS",
+          "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+        },
+        {
+          "name": "original-route-issues",
+          "status": "PASS",
+          "heading": "Issue 檢視 / Issue Viewer · Local Database Only"
+        },
+        {
+          "name": "original-route-settings",
+          "status": "PASS",
+          "heading": "設定 / Settings"
+        },
+        {
+          "name": "route-db-A-B-A-page-scroll-and-IME-filter",
+          "status": "PASS"
+        },
+        {
+          "name": "invalid-import-picker-and-real-partial-conflict-package",
+          "status": "PASS",
+          "picker": "test-only deterministic file selection; actual preflight/import IPC"
+        },
+        {
+          "name": "real-SQL-query-facet-error-ui-and-menu",
+          "status": "PASS"
+        }
+      ],
+      "styles": {
+        "original": {
+          "height": 38,
+          "padding": "8px 14px",
+          "font": "800 13.76px / 15.824px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontFamily": "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "radius": "7px",
+          "display": "flex",
+          "align": "center",
+          "gap": "8px"
+        },
+        "current": {
+          "height": 38,
+          "padding": "8px 14px",
+          "font": "800 13.76px / 15.824px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontFamily": "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "radius": "7px",
+          "display": "flex",
+          "align": "center",
+          "gap": "8px"
+        }
+      },
+      "errors": []
+    }
+  ],
+  "portableAutomation": "Timeout 45000ms; exit 1",
+  "portableNormalStartup": {
+    "firstPaint": true,
+    "rendererBoot": true,
+    "relocationVerified": false,
+    "completeThreePageFlow": false,
+    "initialRouteReady": true
+  },
+  "manualGui": "PENDING"
+}
