@@ -170,10 +170,10 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         relink: (payload: { requestId: string }) => Promise<Record<string, any>>;
         queryResults: (payload: Record<string, unknown> & { requestId: string }) => Promise<Record<string, any>>;
         queryIntegrated: (payload: Record<string, unknown> & { requestId: string }) => Promise<Record<string, any>>;
-        distinct: (payload: { requestId: string; field: string; search?: string; limit?: number }) => Promise<Record<string, any>>;
+        distinct: (payload: { requestId: string; field: string; search?: string; limit?: number; kind?: "ai" | "integrated"; query?: Record<string, unknown> }) => Promise<Record<string, any>>;
         reportStale: (payload: Record<string, unknown>) => Promise<{ ok: boolean }>;
         exportDiagnostics: (payload: { requestId: string }) => Promise<Record<string, any>>;
-        exportQuery: (payload: { requestId: string; kind: "ai" | "integrated"; exportScope?: "visible" | "all"; visibleFields?: string[]; query: Record<string, unknown> }) => Promise<Record<string, any>>;
+        exportQuery: (payload: { requestId: string; kind: "ai" | "integrated"; exportScope?: "visible" | "all"; visibleFields?: string[]; format?: "json" | "csv"; query: Record<string, unknown> }) => Promise<Record<string, any>>;
         openFolder: (payload: { requestId: string }) => Promise<Record<string, any>>;
         openWorkbench: (payload: { requestId: string }) => Promise<Record<string, any>>;
       };      aiAnalysis?: {

@@ -1,0 +1,137 @@
+{
+  "schemaName": "jira-activity-analyzer.pending-analysis",
+  "schemaVersion": "0.3.3-draft.1",
+  "contractStatus": "GOLDEN_FIXTURE",
+  "exportId": "export-source-trace-golden-3",
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "timezone": "Asia/Taipei",
+  "appVersion": "0.3.41-fixture",
+  "sourceView": "USER_ALL_ACTIVITY_EVENTS",
+  "sourceDatabase": {
+    "sourceDatabaseId": "source-db-golden-001",
+    "jiraServerFingerprint": "jira:fixture:001",
+    "jiraServerHost": "jira.example.invalid",
+    "sourceSchemaVersion": 3,
+    "databaseGeneration": "generation-golden-001"
+  },
+  "querySnapshot": {
+    "query": {"dateRange":{"startDate":"2026-08-01","endDate":"2026-08-31"}},
+    "subject": {"userScope":{"kind":"selected-users","userIds":["fixture_user"]}}
+  },
+  "exportMetadata": {
+    "exportMode": "self-contained-fixture",
+    "selfContained": true,
+    "fullContentIncluded": true,
+    "sourceDatabaseRequiredForFullContent": false
+  },
+  "counts": {"recordCount":3},
+  "integrity": {"status":"fixture"},
+  "diagnostics": [],
+  "records": [
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_000",
+        "activityEventId": "activity-fixture-000",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-000",
+        "historyId": "stable-000",
+        "historyItemIndex": null,
+        "issueId": "issue-000",
+        "issueKey": "FIX-100",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-31T01:00:00.000Z",
+        "actor": {"stableIdentity":"fixture_user","displayValue":"Fixture User"},
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ GC Suspend 時 Copy Data State 切換錯誤。",
+        "diffHunks": [{"id":"h0","oldStart":0,"oldLines":0,"newStart":1,"newLines":1,"lines":[{"kind":"insert","oldLineNumber":null,"newLineNumber":1,"text":"GC Suspend 時 Copy Data State 切換錯誤。"}]}],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {"recordSha256":"fixture-record-000","originalEvidenceAvailable":true,"sourceContentHashesVerified":false,"diagnostics":[]}
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_001",
+        "activityEventId": "activity-fixture-001",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-001",
+        "historyId": "stable-001",
+        "historyItemIndex": null,
+        "issueId": "issue-001",
+        "issueKey": "FIX-101",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "Comment",
+        "eventTime": "2026-08-31T02:00:00.000Z",
+        "actor": {"stableIdentity":"fixture_user","displayValue":"Fixture User"},
+        "sourceProvenance": "jira_comment",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "UNAVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ 請協助關閉此 Issue。",
+        "diffHunks": [{"id":"h0","oldStart":0,"oldLines":0,"newStart":1,"newLines":1,"lines":[{"kind":"insert","oldLineNumber":null,"newLineNumber":1,"text":"請協助關閉此 Issue。"}]}],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": false,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {"recordSha256":"fixture-record-001","originalEvidenceAvailable":true,"sourceContentHashesVerified":false,"diagnostics":[]}
+    },
+    {
+      "reference": {
+        "evidenceId": "pae_fixture_002",
+        "activityEventId": "activity-fixture-002",
+        "sourceDatabaseId": "source-db-golden-001",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "sourceRecordStableId": "stable-002",
+        "historyId": "stable-002",
+        "historyItemIndex": null,
+        "issueId": "issue-002",
+        "issueKey": "FIX-102",
+        "projectKey": "FIX",
+        "fieldId": null,
+        "fieldName": "description",
+        "eventTime": "2026-08-31T03:00:00.000Z",
+        "actor": {"stableIdentity":"fixture_user","displayValue":"Fixture User"},
+        "sourceProvenance": "jira_history",
+        "sourceContentHash": "fixture-only-not-a-link-key",
+        "beforeSha256": null,
+        "afterSha256": null
+      },
+      "diff": {
+        "beforeAvailability": "AVAILABLE",
+        "afterAvailability": "AVAILABLE",
+        "diffText": "+ COP0API_SendSQ_GCRead()",
+        "diffHunks": [{"id":"h0","oldStart":1,"oldLines":0,"newStart":1,"newLines":1,"lines":[{"kind":"insert","oldLineNumber":null,"newLineNumber":1,"text":"COP0API_SendSQ_GCRead()"}]}],
+        "addedLineCount": 1,
+        "removedLineCount": 0,
+        "diffStatus": "AVAILABLE",
+        "isSubstantiveChange": true,
+        "integrityStatus": "VERIFIED",
+        "diagnostics": []
+      },
+      "integrity": {"recordSha256":"fixture-record-002","originalEvidenceAvailable":true,"sourceContentHashesVerified":false,"diagnostics":[]}
+    }
+  ]
+}

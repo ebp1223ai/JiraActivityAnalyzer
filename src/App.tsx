@@ -4,7 +4,7 @@ import { AppLayout } from "./components/AppLayout";
 import { buildInfo } from "./buildInfo";
 import { AnalysisPage } from "./routes/AnalysisPage";
 import { AiDatabasePage } from "./routes/AiDatabasePage";
-import { AiResultsPageV042, IntegratedResultsPageV042 } from "./routes/AiDatabaseViewerPagesV042";
+import { AiResultsPageV043, IntegratedResultsPageV043 } from "./routes/AiDatabaseViewerPagesV043";
 import { ConnectionsPage } from "./routes/ConnectionsPage";
 import { DashboardPage } from "./routes/DashboardPage";
 import { JiraProbePage } from "./routes/JiraProbePage";
@@ -54,8 +54,8 @@ export default function App() {
               <Route path="/issues" element={<IssueViewerPage />} />
               <Route path="/users" element={<UserViewerPage />} />
               <Route path="/ai-database" element={<AiDatabasePage />} />
-              <Route path="/ai-results" element={<AiResultsPageV042 />} />
-              <Route path="/integrated-results" element={<IntegratedResultsPageV042 />} />
+              <Route path="/ai-results" element={<AiResultsPageV043 />} />
+              <Route path="/integrated-results" element={<IntegratedResultsPageV043 />} />
               <Route path="/ai-analysis" element={<Navigate to="/database" replace />} />
               <Route path="/activity-stream-probe" element={<PrecisionProbePage />} />
               <Route path="/jira-probe" element={<JiraProbePage />} />

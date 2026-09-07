@@ -2,3 +2,6 @@
 rules/v0.3.35/*.md -text
 rules/v0.3.36/*.md -text
 rules/v0.3.37/*.md -text
+# Preserve signed/frozen contract and golden fixture bytes across Windows clones.
+contracts/ai-analysis/** -text
+tests/fixtures/v0.3.43/** -text

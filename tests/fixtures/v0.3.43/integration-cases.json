@@ -1,0 +1,56 @@
+{
+  "note": "Seed adapters must target actual Raw schema. This document is not production DDL.",
+  "cases": [
+    {
+      "id": "I01",
+      "raw": 55,
+      "ai": 0,
+      "links": 0,
+      "expectedRawRows": 55
+    },
+    {
+      "id": "I02",
+      "raw": 55,
+      "ai": 55,
+      "links": 0,
+      "expectedRawRows": 55
+    },
+    {
+      "id": "I03",
+      "raw": 55,
+      "ai": 55,
+      "links": 10,
+      "expectedRawRows": 55
+    },
+    {
+      "id": "I04",
+      "raw": 55,
+      "ai": 55,
+      "links": 55,
+      "expectedRawRows": 55
+    },
+    {
+      "id": "I05",
+      "raw": 55,
+      "ai": 56,
+      "links": 55,
+      "expectedRawRows": 55,
+      "orphans": 1
+    },
+    {
+      "id": "I06",
+      "raw": 55,
+      "ai": 55,
+      "links": 55,
+      "findings": 130,
+      "expectedRawRows": 55,
+      "noFanOut": true
+    },
+    {
+      "id": "I07",
+      "injectQueryError": true,
+      "expectedStatus": "QUERY_ERROR",
+      "mustNotBecomeEmpty": true
+    }
+  ]
+}

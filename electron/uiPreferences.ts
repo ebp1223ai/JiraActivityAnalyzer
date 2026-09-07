@@ -1,3 +1,4 @@
+import { normalizeAiViewerScopesV043 } from "../shared/aiViewerPreferencesV043.js";
 import fs from "node:fs";
 import path from "node:path";
 import { activityViewerRegistryForScope } from "../shared/activityViewerColumns.js";
@@ -239,6 +240,7 @@ export function normalizeUiPreferences(value: unknown): UiPreferences {
   delete retained.issueActivityStream;
   return {
     ...retained,
+    aiViewerScopes: normalizeAiViewerScopesV043(source.aiViewerScopes),
     formatVersion: 2,
     databaseIssueList: normalizeTable(source.databaseIssueList, DATABASE_ISSUE_COLUMNS, defaults.databaseIssueList, ["issueKey"]),
     timelineEventList: normalizeTable(source.timelineEventList, TIMELINE_EVENT_COLUMNS, defaults.timelineEventList),
@@ -291,11 +293,12 @@ export function loadUiPreferences(appRoot: string) {
 }
 
 export type UiPreferenceSection = "databaseIssueList" | "timelineEventList" | "userRelatedIssues" | "userAllActivityEvents"
-  | "issueActivityEvents" | "issueChangelog" | "issueComments" | "aiResults" | "integratedResults" | "filterPresets";
+  | "issueActivityEvents" | "issueChangelog" | "issueComments" | "aiResults" | "integratedResults" | "filterPresets" | "aiViewerScopes";
 
 export function updateUiPreferences(appRoot: string, section: UiPreferenceSection, value: unknown) {
   const loaded = loadUiPreferences(appRoot);
-  const merged = normalizeUiPreferences({ ...loaded.preferences, [section]: value });
+  if (section === "aiViewerScopes" && JSON.stringify(value).length > 10 * 1024 * 1024) throw new Error("PREFERENCES_SIZE_EXCEEDED");
+  const merged = normalizeUiPreferences({ ...loaded.preferences, [section]: section === "aiViewerScopes" ? { ...(loaded.preferences.aiViewerScopes as Record<string, unknown> ?? {}), ...normalizeAiViewerScopesV043(value) } : value });
   writeJsonAtomic(loaded.filePath, merged);
   return { preferences: merged, filePath: loaded.filePath, warning: "" };
 }

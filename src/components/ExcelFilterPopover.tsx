@@ -42,7 +42,7 @@ export function ExcelFilterPopover({ label, selected, search, result, loading, o
           const value = normalizedValue(item.value);
           return <label key={value} className="flex min-w-0 items-center gap-2 rounded px-1 py-1 text-xs hover:bg-slate-50">
             <input type="checkbox" checked={draft.includes(value)} onChange={(event) => setDraft(event.currentTarget.checked ? Array.from(new Set([...draft, value])) : draft.filter((candidate) => candidate !== value))} />
-            <span className="min-w-0 flex-1 truncate" title={item.value}>{item.value}</span>
+            <span className="min-w-0 flex-1 truncate" title={item.label ?? item.value}>{item.label ?? item.value}</span>
             <span className="shrink-0 text-muted">{item.count}</span>
           </label>;
         }) : null}

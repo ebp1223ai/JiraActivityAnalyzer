@@ -1,0 +1,45 @@
+{
+  "aiOnly": {
+    "records": 55,
+    "classified": 40,
+    "unknown": 0,
+    "excluded": 15,
+    "failed": 0,
+    "skillFindings": 130,
+    "reviewedRecords": 0,
+    "completedReviews": 0
+  },
+  "partial": {
+    "records": 55,
+    "classified": 40,
+    "unknown": 0,
+    "excluded": 15,
+    "failed": 0,
+    "skillFindings": 130,
+    "reviewedRecords": 2,
+    "completedReviews": 1
+  },
+  "completed": {
+    "records": 55,
+    "classified": 40,
+    "unknown": 0,
+    "excluded": 15,
+    "failed": 0,
+    "skillFindings": 130,
+    "reviewedRecords": 55,
+    "completedReviews": 55
+  },
+  "catalogIds": 279,
+  "multiSegmentIds": 95,
+  "real55Expected": {
+    "records": 55,
+    "classified": 40,
+    "unknown": 0,
+    "excluded": 15,
+    "failed": 0,
+    "skillFindings": 130,
+    "reviewedRecords": 0,
+    "completedReviews": 0
+  },
+  "syntheticNote": "Same 55/130 dimensions as real package; not anonymization or equivalent findings."
+}

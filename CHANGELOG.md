@@ -1,3 +1,12 @@
+# v0.3.43 - Results Consistency, Typed Facets and Package 2.0.1
+
+- Unified active-analysis projection across AI and Raw-based integrated results; retained complete findings, source traces and separate manual decisions.
+- Added exact full-scope typed facets, collision-safe nested fields, date/time bounds, scoped preferences and full-result JSON/CSV exports.
+- Reused production tables, Diff formatter and database controls, with anchored filters and explicit source tabs.
+- Accepted frozen Package 2.0.0/2.0.1 bindings and the complete 279-skill Catalog; retained DDL 2.0.0 and immutable Workbench 1.13.2.
+- Added transaction content readback, package-ID collision rejection, safe diagnostics and real Electron/current-state SQLite tests.
+- Windows candidate remains Partial / Manual GUI Validation Pending. No v0.3.43 Tag or Push before explicit GUI approval.
+
 # v0.3.41 - Lossless Source Trace and Production Viewer Reuse
 
 - Added formal `jaa-ai-analysis-package` v2.0.0 validation and transactional SQLite schema v2 with immutable Source Trace, layered analyses/reviews, review-rank protection, and idempotent import.

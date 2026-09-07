@@ -1,0 +1,4391 @@
+{
+  "schemaName": "jaa-ai-analysis-package",
+  "schemaVersion": "2.0.1",
+  "packageId": "synthetic-v043-catalog279",
+  "createdAt": "2026-09-07T00:00:00Z",
+  "generator": {
+    "name": "v043-synthetic-fixtures",
+    "version": "1.0.0",
+    "mode": "TEST_FIXTURE"
+  },
+  "reviewRank": "AI_ONLY",
+  "sourceTrace": {
+    "contractVersion": "JAA-SOURCE-TRACE-v1",
+    "pendingDocument": {
+      "schemaName": "jira-activity-analyzer.pending-analysis",
+      "schemaVersion": "0.3.3-draft.1",
+      "contractStatus": "GOLDEN_FIXTURE",
+      "exportId": "synthetic-v043-catalog279",
+      "createdAt": "2026-09-02T00:00:00.000Z",
+      "timezone": "Asia/Taipei",
+      "appVersion": "0.3.43-fixture",
+      "counts": {
+        "exportedCount": 1
+      },
+      "integrity": {
+        "recordCount": 1
+      },
+      "diagnostics": [],
+      "sourceDatabase": {
+        "sourceDatabaseId": "synthetic-v043-db",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "jiraServerHost": "jira.example.invalid",
+        "sourceSchemaVersion": 3,
+        "databaseGeneration": "generation-golden-001"
+      },
+      "sourceView": "USER_ALL_ACTIVITY_EVENTS",
+      "querySnapshot": {
+        "query": {
+          "dateRange": {
+            "startDate": "2026-08-01",
+            "endDate": "2026-08-31"
+          }
+        },
+        "subject": {
+          "userScope": {
+            "kind": "selected-users",
+            "userIds": [
+              "fixture_user"
+            ]
+          }
+        }
+      },
+      "exportMetadata": {
+        "exportMode": "compact-reference",
+        "selfContained": false,
+        "fullContentIncluded": false,
+        "sourceDatabaseRequiredForFullContent": true
+      }
+    },
+    "sourceDatabase": {
+      "sourceDatabaseId": "synthetic-v043-db",
+      "jiraServerFingerprint": "jira:fixture:001",
+      "jiraServerHost": "jira.example.invalid",
+      "sourceSchemaVersion": 3,
+      "databaseGeneration": "generation-golden-001"
+    },
+    "sourceView": "USER_ALL_ACTIVITY_EVENTS",
+    "querySnapshot": {
+      "query": {
+        "dateRange": {
+          "startDate": "2026-08-01",
+          "endDate": "2026-08-31"
+        }
+      },
+      "subject": {
+        "userScope": {
+          "kind": "selected-users",
+          "userIds": [
+            "fixture_user"
+          ]
+        }
+      }
+    },
+    "exportMetadata": {
+      "exportMode": "compact-reference",
+      "selfContained": false,
+      "fullContentIncluded": false,
+      "sourceDatabaseRequiredForFullContent": true
+    },
+    "optionalIntegrityReceipt": null
+  },
+  "rulesBinding": {
+    "manifest": {
+      "file": "Skill_Analysis_Rule_Set_Manifest_v1.6.1.md",
+      "version": "1.6.1",
+      "bytes": 7924,
+      "sha256": "d1a93e359b1b687ac1f790e228637efccc5c3984bcb346dae4afd1a9a3dceb71"
+    },
+    "commonRules": {
+      "file": "Skill_Classification_Common_Rules_v2.6.1.md",
+      "version": "2.6.1",
+      "bytes": 24640,
+      "sha256": "d4fa8775bb9c71cb2fec67657d861c04ea2f7363f48c6a801a9d70de671757c5"
+    },
+    "skillCatalog": {
+      "file": "Skill_Catalog_v0.3.5.md",
+      "version": "0.3.5",
+      "bytes": 30465,
+      "sha256": "d32eb58ff7ea01931e889d97e2f4b1a30ed35a5cce17a293ba37b0e19d73d006"
+    },
+    "htmlTemplate": {
+      "file": "Skill_Analysis_HTML_Report_Template_v1.13.2.md",
+      "version": "1.13.2",
+      "bytes": 17235,
+      "sha256": "6466a42b30c4ef92952ae2ade7f27b8684308bbdbbb61799a3245f6da7ba8458"
+    }
+  },
+  "counts": {
+    "records": 1,
+    "classified": 1,
+    "unknown": 0,
+    "excluded": 0,
+    "failed": 0,
+    "skillFindings": 279,
+    "reviewedRecords": 0,
+    "completedReviews": 0
+  },
+  "records": [
+    {
+      "recordIndex": 0,
+      "dedupeKey": "synthetic-v043-db:event-000",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-000",
+          "activityEventId": "event-000",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-000",
+          "historyId": "history-000",
+          "historyItemIndex": null,
+          "issueId": "issue-0",
+          "issueKey": "FIX-100",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:00:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 0,
+        "evidenceId": "evidence-000",
+        "sourceRecordStableId": "stable-000",
+        "issueKey": "FIX-100",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "GC_001",
+            "skillName": "D1 D3 架構",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_002",
+            "skillName": "FreePool",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_003",
+            "skillName": "PTEBMP",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_004",
+            "skillName": "Over Provisioning",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_005",
+            "skillName": "GC Buffer",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_006",
+            "skillName": "GC Kernel",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_007",
+            "skillName": "GC Suspend/Stop Flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_008",
+            "skillName": "GC Sustain",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_009",
+            "skillName": "GC Event 排程",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_010",
+            "skillName": "Maya",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_011",
+            "skillName": "Pausing GC",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_012",
+            "skillName": "Cache Policy",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_013",
+            "skillName": "EDR",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_014",
+            "skillName": "Low Valid Count Policy",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_015",
+            "skillName": "GC Reserved Max Space Unit",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_016",
+            "skillName": "FNV",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_017",
+            "skillName": "High Rand Read Count Policy / Early BG GC",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_018",
+            "skillName": "WAF",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_019",
+            "skillName": "WL",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_001",
+            "skillName": "Boot Code",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_002",
+            "skillName": "Efuse",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_003",
+            "skillName": "HMB",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_004",
+            "skillName": "D2H",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_005",
+            "skillName": "I2C",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_006",
+            "skillName": "I3C",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_007",
+            "skillName": "SMBus",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_008",
+            "skillName": "MCTP",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_009",
+            "skillName": "SPI",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_010",
+            "skillName": "UART",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_011",
+            "skillName": "Thermal Throttling",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_012",
+            "skillName": "Clock",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_013",
+            "skillName": "RTT",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_014",
+            "skillName": "CPU ARM R52 Stack",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_015",
+            "skillName": "CPU Andes N25/N45",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_016",
+            "skillName": "Multi-Core CPU",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_017",
+            "skillName": "Doorbell",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_018",
+            "skillName": "MR",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_019",
+            "skillName": "BMU",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_020",
+            "skillName": "DMAC/Copy Engine",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_021",
+            "skillName": "SOC AXI/AHB",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_022",
+            "skillName": "System PD0/PD1",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_023",
+            "skillName": "GPIO/Sideband",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_024",
+            "skillName": "VDT",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_025",
+            "skillName": "LED",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_026",
+            "skillName": "FPHY",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_027",
+            "skillName": "ITC",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_028",
+            "skillName": "RNG",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_029",
+            "skillName": "Drive log",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_030",
+            "skillName": "AOM",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_031",
+            "skillName": "Shadow DBUF",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_032",
+            "skillName": "RAM Arrangement",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_033",
+            "skillName": "Boot Loader",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_034",
+            "skillName": "工規相關應用",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_035",
+            "skillName": "Config",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_036",
+            "skillName": "PMIC",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_037",
+            "skillName": "Set PS Flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_038",
+            "skillName": "APST",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_039",
+            "skillName": "LPM Mode",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_040",
+            "skillName": "Active Idle",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_041",
+            "skillName": "PCIe 相關",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_042",
+            "skillName": "Measure Power and Latency",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_043",
+            "skillName": "MS, MM25, Athena, PHM",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SECURITY_001",
+            "skillName": "TCG",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SECURITY_002",
+            "skillName": "DICE",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SECURITY_003",
+            "skillName": "SPDM",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SECURITY_004",
+            "skillName": "ATA Security",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SECURITY_005",
+            "skillName": "SEC API",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SECURITY_006",
+            "skillName": "Security Spec",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SECURITY_007",
+            "skillName": "VUC Protect V5 / SP800-227",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SECURITY_008",
+            "skillName": "SEC HW IP",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_001",
+            "skillName": "FIP",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_002",
+            "skillName": "Cop0",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_003",
+            "skillName": "Flash/Fphy initial",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_004",
+            "skillName": "Patch",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_005",
+            "skillName": "VUC",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_006",
+            "skillName": "Andes 整體",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_007",
+            "skillName": "KIC 和 AIPR",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_008",
+            "skillName": "Micron 和 IWL",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_009",
+            "skillName": "YMTC 和 AMPI",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_010",
+            "skillName": "Samsung 和 PIR",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_011",
+            "skillName": "Andes Preread",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_012",
+            "skillName": "Die interleave",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_013",
+            "skillName": "IOR",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_014",
+            "skillName": "BBS",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_015",
+            "skillName": "VCA/PCA/FSA 排列和處理",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_016",
+            "skillName": "NAND spec 理解/熟悉度",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_017",
+            "skillName": "組內 Tool/Script",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_018",
+            "skillName": "LA 分析/Performance 相關",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_001",
+            "skillName": "Read Fail - CopyUnit",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_002",
+            "skillName": "Program Fail - CopyBlock",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_003",
+            "skillName": "Program Fail - Clawback",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_004",
+            "skillName": "Erase Fail",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_005",
+            "skillName": "Erase Feature",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_006",
+            "skillName": "VT Error Handle",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_007",
+            "skillName": "InitInfo Error Handle",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_008",
+            "skillName": "System Area Error Handle",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_009",
+            "skillName": "Repair Unit",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_010",
+            "skillName": "Error Handle with Die Interleave",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_011",
+            "skillName": "NPS Verification",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_012",
+            "skillName": "VUC/VS/PHSVS Gen Fail Command",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_013",
+            "skillName": "Wordline Folding Handle",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_014",
+            "skillName": "Boot Partition Error Handle",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_015",
+            "skillName": "IO Plus",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_001",
+            "skillName": "ReadVerify Main Flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_002",
+            "skillName": "MediaScan",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_003",
+            "skillName": "Read Disturb",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_004",
+            "skillName": "Erase/Empty Page Check",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_005",
+            "skillName": "Program 後 Read Verify",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_006",
+            "skillName": "Phison HB/SB Task",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_007",
+            "skillName": "Micron MAG EH Flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_008",
+            "skillName": "TurboRAIN/AdvancedRAIN 所使用的 SB API",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_009",
+            "skillName": "Nand Team Consultant",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_010",
+            "skillName": "Phison ERS",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_011",
+            "skillName": "AOM-Retry",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_012",
+            "skillName": "Refresh/MarkBad 條件",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_013",
+            "skillName": "各 IC Controller HW 操作/Data Flow 理解",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_014",
+            "skillName": "vRLC",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_015",
+            "skillName": "mConfig 管理",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_016",
+            "skillName": "UNEL 存取",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_017",
+            "skillName": "WLL WorkloadLog 紀錄與存取",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_018",
+            "skillName": "ERS ErrorRecovery 存取",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_019",
+            "skillName": "其他 MAG 項目",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_020",
+            "skillName": "NXS 驗證",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_021",
+            "skillName": "PPS 白箱驗證",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_022",
+            "skillName": "General Bug 分析",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_023",
+            "skillName": "Micron MAG Log 分析",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_024",
+            "skillName": "推 COP0 SQ / FIP MT 操作",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_025",
+            "skillName": "Retention 後 / Lenovo OOBE Feature",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_026",
+            "skillName": "Multi-Retry",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_027",
+            "skillName": "Auto-Retry",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_028",
+            "skillName": "VUC 實作",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_001",
+            "skillName": "TableUpdate",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_002",
+            "skillName": "Trim",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_003",
+            "skillName": "InitInfo/VT",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_004",
+            "skillName": "SPOR",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_005",
+            "skillName": "Table WL / Table VB / Table Perf WAF",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_006",
+            "skillName": "Table Verification",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_007",
+            "skillName": "General Table Bug Analysis",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_008",
+            "skillName": "SPOR / Refresh / Sync Bug Analysis",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_009",
+            "skillName": "Table Event / Trim / SaveVT Performance Analysis",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_010",
+            "skillName": "FTL Flow Debug for Table",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TABLE_011",
+            "skillName": "Table VUC Implementation",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_001",
+            "skillName": "DCM Read Flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_002",
+            "skillName": "Generate RCQ",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_003",
+            "skillName": "FW Read Flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_004",
+            "skillName": "Read Queue System",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_005",
+            "skillName": "COP0 Read SQ",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_006",
+            "skillName": "AutoFrom",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_007",
+            "skillName": "Read Completion",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_008",
+            "skillName": "Inorder Read",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_009",
+            "skillName": "PreRead with DCM",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_010",
+            "skillName": "HW PreRead Engine",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_011",
+            "skillName": "256K preread",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_012",
+            "skillName": "MultiRange preread",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_013",
+            "skillName": "Same PCA",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_014",
+            "skillName": "DCM Write Flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_015",
+            "skillName": "Generate WCQ",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_016",
+            "skillName": "FW Write Flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_017",
+            "skillName": "Load Alignment",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_018",
+            "skillName": "FW Insert Write",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_019",
+            "skillName": "COP0 Write SQ",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_020",
+            "skillName": "E31 HWACC & PKE",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_021",
+            "skillName": "E33 WriteACC & PKE",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_022",
+            "skillName": "GR & RS Map",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_023",
+            "skillName": "BBS & PCA Rule",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_024",
+            "skillName": "Journal",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_025",
+            "skillName": "Dummy & WAF",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_026",
+            "skillName": "SLC Pool & D1",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_027",
+            "skillName": "TLC",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_028",
+            "skillName": "Static Calculation",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_029",
+            "skillName": "Dynamic Analysis",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_030",
+            "skillName": "Delay & Timeout",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_031",
+            "skillName": "COP0 Andes Cowork",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_032",
+            "skillName": "PLDM",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_033",
+            "skillName": "Logic Analyzer",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_034",
+            "skillName": "Protocol Analyzer",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_035",
+            "skillName": "CDM",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_036",
+            "skillName": "PCMARK10",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_037",
+            "skillName": "ARM CPU",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_038",
+            "skillName": "ANDES CPU",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_039",
+            "skillName": "Modulization",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_040",
+            "skillName": "Compiler Env",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_041",
+            "skillName": "HMB Reset",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_042",
+            "skillName": "Data Path",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RW_043",
+            "skillName": "Address Translation",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RAID_001",
+            "skillName": "Map/Protection Concept",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RAID_002",
+            "skillName": "Encode",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RAID_003",
+            "skillName": "Decode",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RAID_004",
+            "skillName": "RAID HW Mechanism/Register",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RAID_005",
+            "skillName": "TurboRAID",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "RAID_006",
+            "skillName": "PKE",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "DEBUG_001",
+            "skillName": "Bug 分析：初步分析歸類準確",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "DEBUG_002",
+            "skillName": "Bug 分析：週報總結歸納",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "DEBUG_003",
+            "skillName": "Bug 分析：意見與溝通能力",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "DEBUG_004",
+            "skillName": "Bug 分析：洞察癥結、改善效率",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "DEBUG_005",
+            "skillName": "Branch 維護：阻擋炸彈、限時排除 bug 擇優 FW 放測",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "DEBUG_006",
+            "skillName": "Branch 維護：組態、Sample、機台、測項、人力與狀況管理",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "DEBUG_007",
+            "skillName": "Branch 維護：修正 bug 到穩定版本",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "DEBUG_008",
+            "skillName": "CD 自動開卡 flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "DEBUG_009",
+            "skillName": "Debug SOP 確立",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_001",
+            "skillName": "Burner 架構設計管理",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_002",
+            "skillName": "QMP 架構設計管理",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_003",
+            "skillName": "Phison Card init flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_004",
+            "skillName": "Micron Card init flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_005",
+            "skillName": "Preformat",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_006",
+            "skillName": "SSFW/Fence FW",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_007",
+            "skillName": "LLF",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_008",
+            "skillName": "ISP Flash",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_009",
+            "skillName": "Erase All",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_010",
+            "skillName": "VUC 1.0",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_011",
+            "skillName": "VUC 3.0",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_012",
+            "skillName": "VS Micron",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_013",
+            "skillName": "Gen Bin Tool 架構設計管理",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_014",
+            "skillName": "material",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_015",
+            "skillName": "VUC Protection",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_016",
+            "skillName": "Codesign mechanism",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_017",
+            "skillName": "DLMC",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_018",
+            "skillName": "IPL/Init/Loader",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_019",
+            "skillName": "BootLoader",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_020",
+            "skillName": "Sys/Code/IDPage/InfoBlk",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_021",
+            "skillName": "DBT/RUT",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_022",
+            "skillName": "VT sweep/Vth tool/NFI tool",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "MP_023",
+            "skillName": "ICE mode",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_001",
+            "skillName": "Host Init task",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_002",
+            "skillName": "Reset flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_003",
+            "skillName": "Standby",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_004",
+            "skillName": "Save/Load Host table",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_005",
+            "skillName": "set/get Feature",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_006",
+            "skillName": "NVME Smart/Vendor smart",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_007",
+            "skillName": "Flush",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_008",
+            "skillName": "Format/Sanitize",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_009",
+            "skillName": "PLN",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_010",
+            "skillName": "Device Self Test",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_011",
+            "skillName": "Sync R/W",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_012",
+            "skillName": "Verify",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_013",
+            "skillName": "Sync Write UNC/Write Zero",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_014",
+            "skillName": "Persistent Log",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_015",
+            "skillName": "Boot Partition",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_016",
+            "skillName": "WorkLoadLog",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_017",
+            "skillName": "HMB",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_018",
+            "skillName": "Multi Namespace",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_019",
+            "skillName": "UNEL",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_020",
+            "skillName": "TCI/THI/OCP/Lenovo Ellie/Dell",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_021",
+            "skillName": "RPMB",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_022",
+            "skillName": "VUC",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_023",
+            "skillName": "Speed class",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_024",
+            "skillName": "錄 PA / 分析 Trace",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_025",
+            "skillName": "使用 UEFI tool",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_001",
+            "skillName": "PD FW flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_002",
+            "skillName": "USB4 FW flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_003",
+            "skillName": "PD/USB4 Trace 分析",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_004",
+            "skillName": "PD/USB4 Debug",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_005",
+            "skillName": "PD Protocol",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_006",
+            "skillName": "USB4 Protocol",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_007",
+            "skillName": "USB3 INIT/ISR FW flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_008",
+            "skillName": "USB3 CMD FW flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_009",
+            "skillName": "USB3 Trace 分析",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_010",
+            "skillName": "USB3.2 Debug",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_011",
+            "skillName": "USB3.2 Protocol",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_012",
+            "skillName": "SCSI command Protocol",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_013",
+            "skillName": "APU FW flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_014",
+            "skillName": "APU Debug",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_015",
+            "skillName": "PCIe/NVMe INIT/ISR FW flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_016",
+            "skillName": "PCIe/NVMe Trace 分析",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_017",
+            "skillName": "NVMe CMD FW flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_018",
+            "skillName": "PCIe/NVMe Debug",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_019",
+            "skillName": "PCIe/NVMe Protocol",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_020",
+            "skillName": "USB Security",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_021",
+            "skillName": "IOR 機制",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_022",
+            "skillName": "GenT",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_023",
+            "skillName": "MFi",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_024",
+            "skillName": "軟體熟悉度",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_025",
+            "skillName": "相容性",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_026",
+            "skillName": "與 HW/FAE 溝通",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_027",
+            "skillName": "與其他 Group 溝通",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TOOL_001",
+            "skillName": "SSD_Utility",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TOOL_002",
+            "skillName": "RabbitX",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TOOL_003",
+            "skillName": "Smart RMA Robot / parse tool",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "TOOL_004",
+            "skillName": "CI/CD",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic structural regression; not a real skill judgement."
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    }
+  ]
+}

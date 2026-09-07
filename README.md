@@ -1,3 +1,13 @@
+## v0.3.43 結果一致性與完整篩選
+
+AI 分析資料庫接受正式 `jaa-ai-analysis-package` 2.0.0／2.0.1；三種人工驗收 Rank 均支援，不會將 AI 建議自動當成人工確認。現行 SQLite DDL 仍是 2.0.0。舊版章節為歷史紀錄，以本節為目前匯入契約。
+
+AI 結果預設顯示分析當時 Source Trace；整合結果以 Raw Event 為基底，只有唯一配對才補上同一 active analysis。可切換來源內容，缺少 Before 不等於空字串。動態欄位與候選值依完整資料範圍查詢；表格 JSON／CSV 匯出包含全部符合列，並非完整 Analysis Package。CSV 每個 cell 使用 JSON 編碼以區分型別並防止公式執行。
+
+當版驗證：`npm.cmd run test:v0.3.43`、`npm.cmd run test:ui:v0.3.43`、`node scripts/test-v0343-workbench.cjs`。UI 測試使用隔離合成 SQLite 與正式 preload／IPC，以 `BrowserWindow.capturePage(stayHidden)` 只擷取 App renderer。測試資料與截圖位於忽略的 `test-artifacts/v0.3.43/`。
+
+可用 `JAA_DIST_OUTPUT_DIR` 指定新的封裝輸出資料夾，避免覆蓋其他版本的產物。候選版仍需使用者明確回覆 `v0.3.43 GUI 驗收 PASS`；此前不建立 Tag、不 Push、不建立 GitHub Release。
+
 ## v0.3.39 Explicit AI Database Lifecycle
 
 v0.3.39 removes lazy AI Analysis SQLite creation. Opening AI Database, AI Results, or Integrated Results only detects lifecycle state; the database is created only after an explicit confirmed action, using same-directory temporary validation and atomic rename without overwriting an existing file. Missing, empty, corrupt, too-new, or invariant-failing files remain visible through safe lifecycle diagnostics.

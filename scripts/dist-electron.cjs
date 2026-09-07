@@ -7,6 +7,7 @@ const { Arch, Platform, build } = require("electron-builder");
 
 const projectRoot = path.resolve(__dirname, "..");
 const packageJson = require(path.join(projectRoot, "package.json"));
+const releaseDir = path.resolve(process.env.JAA_DIST_OUTPUT_DIR || path.join(projectRoot, "release"));
 const trackedDirty = execSync("git status --porcelain --untracked-files=no", {
   cwd: projectRoot,
   stdio: ["ignore", "pipe", "inherit"]
@@ -88,9 +89,9 @@ fs.promises.rename = async (from, to) => {
 
 build({
   targets: Platform.WINDOWS.createTarget(["nsis", "portable"], Arch.x64),
-  config: { extraMetadata: { jaaBuildInfo: buildInfo } }
+  config: { directories: { output: releaseDir }, extraMetadata: { jaaBuildInfo: buildInfo } }
 }).then(() => {
-  const releaseDir = path.join(projectRoot, "release");
+
   const legacyTemplatePath = path.join(releaseDir, ".env.Version");
   const lowercaseTemplatePath = path.join(releaseDir, ".env.version");
   fs.rmSync(legacyTemplatePath, { force: true });

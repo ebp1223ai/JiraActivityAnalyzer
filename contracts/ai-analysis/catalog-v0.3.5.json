@@ -1,0 +1,1397 @@
+{
+  "GC_001": {
+    "skillId": "GC_001",
+    "skillName": "D1 D3 架構",
+    "group": "GC"
+  },
+  "GC_002": {
+    "skillId": "GC_002",
+    "skillName": "FreePool",
+    "group": "GC"
+  },
+  "GC_003": {
+    "skillId": "GC_003",
+    "skillName": "PTEBMP",
+    "group": "GC"
+  },
+  "GC_004": {
+    "skillId": "GC_004",
+    "skillName": "Over Provisioning",
+    "group": "GC"
+  },
+  "GC_005": {
+    "skillId": "GC_005",
+    "skillName": "GC Buffer",
+    "group": "GC"
+  },
+  "GC_006": {
+    "skillId": "GC_006",
+    "skillName": "GC Kernel",
+    "group": "GC"
+  },
+  "GC_007": {
+    "skillId": "GC_007",
+    "skillName": "GC Suspend/Stop Flow",
+    "group": "GC"
+  },
+  "GC_008": {
+    "skillId": "GC_008",
+    "skillName": "GC Sustain",
+    "group": "GC"
+  },
+  "GC_009": {
+    "skillId": "GC_009",
+    "skillName": "GC Event 排程",
+    "group": "GC"
+  },
+  "GC_010": {
+    "skillId": "GC_010",
+    "skillName": "Maya",
+    "group": "GC"
+  },
+  "GC_011": {
+    "skillId": "GC_011",
+    "skillName": "Pausing GC",
+    "group": "GC"
+  },
+  "GC_012": {
+    "skillId": "GC_012",
+    "skillName": "Cache Policy",
+    "group": "GC"
+  },
+  "GC_013": {
+    "skillId": "GC_013",
+    "skillName": "EDR",
+    "group": "GC"
+  },
+  "GC_014": {
+    "skillId": "GC_014",
+    "skillName": "Low Valid Count Policy",
+    "group": "GC"
+  },
+  "GC_015": {
+    "skillId": "GC_015",
+    "skillName": "GC Reserved Max Space Unit",
+    "group": "GC"
+  },
+  "GC_016": {
+    "skillId": "GC_016",
+    "skillName": "FNV",
+    "group": "GC"
+  },
+  "GC_017": {
+    "skillId": "GC_017",
+    "skillName": "High Rand Read Count Policy / Early BG GC",
+    "group": "GC"
+  },
+  "GC_018": {
+    "skillId": "GC_018",
+    "skillName": "WAF",
+    "group": "GC"
+  },
+  "GC_019": {
+    "skillId": "GC_019",
+    "skillName": "WL",
+    "group": "GC"
+  },
+  "SYSTEM_001": {
+    "skillId": "SYSTEM_001",
+    "skillName": "Boot Code",
+    "group": "System"
+  },
+  "SYSTEM_002": {
+    "skillId": "SYSTEM_002",
+    "skillName": "Efuse",
+    "group": "System"
+  },
+  "SYSTEM_003": {
+    "skillId": "SYSTEM_003",
+    "skillName": "HMB",
+    "group": "System"
+  },
+  "SYSTEM_004": {
+    "skillId": "SYSTEM_004",
+    "skillName": "D2H",
+    "group": "System"
+  },
+  "SYSTEM_005": {
+    "skillId": "SYSTEM_005",
+    "skillName": "I2C",
+    "group": "System"
+  },
+  "SYSTEM_006": {
+    "skillId": "SYSTEM_006",
+    "skillName": "I3C",
+    "group": "System"
+  },
+  "SYSTEM_007": {
+    "skillId": "SYSTEM_007",
+    "skillName": "SMBus",
+    "group": "System"
+  },
+  "SYSTEM_008": {
+    "skillId": "SYSTEM_008",
+    "skillName": "MCTP",
+    "group": "System"
+  },
+  "SYSTEM_009": {
+    "skillId": "SYSTEM_009",
+    "skillName": "SPI",
+    "group": "System"
+  },
+  "SYSTEM_010": {
+    "skillId": "SYSTEM_010",
+    "skillName": "UART",
+    "group": "System"
+  },
+  "SYSTEM_011": {
+    "skillId": "SYSTEM_011",
+    "skillName": "Thermal Throttling",
+    "group": "System"
+  },
+  "SYSTEM_012": {
+    "skillId": "SYSTEM_012",
+    "skillName": "Clock",
+    "group": "System"
+  },
+  "SYSTEM_013": {
+    "skillId": "SYSTEM_013",
+    "skillName": "RTT",
+    "group": "System"
+  },
+  "SYSTEM_014": {
+    "skillId": "SYSTEM_014",
+    "skillName": "CPU ARM R52 Stack",
+    "group": "System"
+  },
+  "SYSTEM_015": {
+    "skillId": "SYSTEM_015",
+    "skillName": "CPU Andes N25/N45",
+    "group": "System"
+  },
+  "SYSTEM_016": {
+    "skillId": "SYSTEM_016",
+    "skillName": "Multi-Core CPU",
+    "group": "System"
+  },
+  "SYSTEM_017": {
+    "skillId": "SYSTEM_017",
+    "skillName": "Doorbell",
+    "group": "System"
+  },
+  "SYSTEM_018": {
+    "skillId": "SYSTEM_018",
+    "skillName": "MR",
+    "group": "System"
+  },
+  "SYSTEM_019": {
+    "skillId": "SYSTEM_019",
+    "skillName": "BMU",
+    "group": "System"
+  },
+  "SYSTEM_020": {
+    "skillId": "SYSTEM_020",
+    "skillName": "DMAC/Copy Engine",
+    "group": "System"
+  },
+  "SYSTEM_021": {
+    "skillId": "SYSTEM_021",
+    "skillName": "SOC AXI/AHB",
+    "group": "System"
+  },
+  "SYSTEM_022": {
+    "skillId": "SYSTEM_022",
+    "skillName": "System PD0/PD1",
+    "group": "System"
+  },
+  "SYSTEM_023": {
+    "skillId": "SYSTEM_023",
+    "skillName": "GPIO/Sideband",
+    "group": "System"
+  },
+  "SYSTEM_024": {
+    "skillId": "SYSTEM_024",
+    "skillName": "VDT",
+    "group": "System"
+  },
+  "SYSTEM_025": {
+    "skillId": "SYSTEM_025",
+    "skillName": "LED",
+    "group": "System"
+  },
+  "SYSTEM_026": {
+    "skillId": "SYSTEM_026",
+    "skillName": "FPHY",
+    "group": "System"
+  },
+  "SYSTEM_027": {
+    "skillId": "SYSTEM_027",
+    "skillName": "ITC",
+    "group": "System"
+  },
+  "SYSTEM_028": {
+    "skillId": "SYSTEM_028",
+    "skillName": "RNG",
+    "group": "System"
+  },
+  "SYSTEM_029": {
+    "skillId": "SYSTEM_029",
+    "skillName": "Drive log",
+    "group": "System"
+  },
+  "SYSTEM_030": {
+    "skillId": "SYSTEM_030",
+    "skillName": "AOM",
+    "group": "System"
+  },
+  "SYSTEM_031": {
+    "skillId": "SYSTEM_031",
+    "skillName": "Shadow DBUF",
+    "group": "System"
+  },
+  "SYSTEM_032": {
+    "skillId": "SYSTEM_032",
+    "skillName": "RAM Arrangement",
+    "group": "System"
+  },
+  "SYSTEM_033": {
+    "skillId": "SYSTEM_033",
+    "skillName": "Boot Loader",
+    "group": "System"
+  },
+  "SYSTEM_034": {
+    "skillId": "SYSTEM_034",
+    "skillName": "工規相關應用",
+    "group": "System"
+  },
+  "SYSTEM_035": {
+    "skillId": "SYSTEM_035",
+    "skillName": "Config",
+    "group": "System"
+  },
+  "SYSTEM_036": {
+    "skillId": "SYSTEM_036",
+    "skillName": "PMIC",
+    "group": "System"
+  },
+  "SYSTEM_037": {
+    "skillId": "SYSTEM_037",
+    "skillName": "Set PS Flow",
+    "group": "System"
+  },
+  "SYSTEM_038": {
+    "skillId": "SYSTEM_038",
+    "skillName": "APST",
+    "group": "System"
+  },
+  "SYSTEM_039": {
+    "skillId": "SYSTEM_039",
+    "skillName": "LPM Mode",
+    "group": "System"
+  },
+  "SYSTEM_040": {
+    "skillId": "SYSTEM_040",
+    "skillName": "Active Idle",
+    "group": "System"
+  },
+  "SYSTEM_041": {
+    "skillId": "SYSTEM_041",
+    "skillName": "PCIe 相關",
+    "group": "System"
+  },
+  "SYSTEM_042": {
+    "skillId": "SYSTEM_042",
+    "skillName": "Measure Power and Latency",
+    "group": "System"
+  },
+  "SYSTEM_043": {
+    "skillId": "SYSTEM_043",
+    "skillName": "MS, MM25, Athena, PHM",
+    "group": "System"
+  },
+  "SECURITY_001": {
+    "skillId": "SECURITY_001",
+    "skillName": "TCG",
+    "group": "Security"
+  },
+  "SECURITY_002": {
+    "skillId": "SECURITY_002",
+    "skillName": "DICE",
+    "group": "Security"
+  },
+  "SECURITY_003": {
+    "skillId": "SECURITY_003",
+    "skillName": "SPDM",
+    "group": "Security"
+  },
+  "SECURITY_004": {
+    "skillId": "SECURITY_004",
+    "skillName": "ATA Security",
+    "group": "Security"
+  },
+  "SECURITY_005": {
+    "skillId": "SECURITY_005",
+    "skillName": "SEC API",
+    "group": "Security"
+  },
+  "SECURITY_006": {
+    "skillId": "SECURITY_006",
+    "skillName": "Security Spec",
+    "group": "Security"
+  },
+  "SECURITY_007": {
+    "skillId": "SECURITY_007",
+    "skillName": "VUC Protect V5 / SP800-227",
+    "group": "Security"
+  },
+  "SECURITY_008": {
+    "skillId": "SECURITY_008",
+    "skillName": "SEC HW IP",
+    "group": "Security"
+  },
+  "FLASH_001": {
+    "skillId": "FLASH_001",
+    "skillName": "FIP",
+    "group": "Flash"
+  },
+  "FLASH_002": {
+    "skillId": "FLASH_002",
+    "skillName": "Cop0",
+    "group": "Flash"
+  },
+  "FLASH_003": {
+    "skillId": "FLASH_003",
+    "skillName": "Flash/Fphy initial",
+    "group": "Flash"
+  },
+  "FLASH_004": {
+    "skillId": "FLASH_004",
+    "skillName": "Patch",
+    "group": "Flash"
+  },
+  "FLASH_005": {
+    "skillId": "FLASH_005",
+    "skillName": "VUC",
+    "group": "Flash"
+  },
+  "FLASH_006": {
+    "skillId": "FLASH_006",
+    "skillName": "Andes 整體",
+    "group": "Flash"
+  },
+  "FLASH_007": {
+    "skillId": "FLASH_007",
+    "skillName": "KIC 和 AIPR",
+    "group": "Flash"
+  },
+  "FLASH_008": {
+    "skillId": "FLASH_008",
+    "skillName": "Micron 和 IWL",
+    "group": "Flash"
+  },
+  "FLASH_009": {
+    "skillId": "FLASH_009",
+    "skillName": "YMTC 和 AMPI",
+    "group": "Flash"
+  },
+  "FLASH_010": {
+    "skillId": "FLASH_010",
+    "skillName": "Samsung 和 PIR",
+    "group": "Flash"
+  },
+  "FLASH_011": {
+    "skillId": "FLASH_011",
+    "skillName": "Andes Preread",
+    "group": "Flash"
+  },
+  "FLASH_012": {
+    "skillId": "FLASH_012",
+    "skillName": "Die interleave",
+    "group": "Flash"
+  },
+  "FLASH_013": {
+    "skillId": "FLASH_013",
+    "skillName": "IOR",
+    "group": "Flash"
+  },
+  "FLASH_014": {
+    "skillId": "FLASH_014",
+    "skillName": "BBS",
+    "group": "Flash"
+  },
+  "FLASH_015": {
+    "skillId": "FLASH_015",
+    "skillName": "VCA/PCA/FSA 排列和處理",
+    "group": "Flash"
+  },
+  "FLASH_016": {
+    "skillId": "FLASH_016",
+    "skillName": "NAND spec 理解/熟悉度",
+    "group": "Flash"
+  },
+  "FLASH_017": {
+    "skillId": "FLASH_017",
+    "skillName": "組內 Tool/Script",
+    "group": "Flash"
+  },
+  "FLASH_018": {
+    "skillId": "FLASH_018",
+    "skillName": "LA 分析/Performance 相關",
+    "group": "Flash"
+  },
+  "FTL_ERROR_HANDLE_001": {
+    "skillId": "FTL_ERROR_HANDLE_001",
+    "skillName": "Read Fail - CopyUnit",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_002": {
+    "skillId": "FTL_ERROR_HANDLE_002",
+    "skillName": "Program Fail - CopyBlock",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_003": {
+    "skillId": "FTL_ERROR_HANDLE_003",
+    "skillName": "Program Fail - Clawback",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_004": {
+    "skillId": "FTL_ERROR_HANDLE_004",
+    "skillName": "Erase Fail",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_005": {
+    "skillId": "FTL_ERROR_HANDLE_005",
+    "skillName": "Erase Feature",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_006": {
+    "skillId": "FTL_ERROR_HANDLE_006",
+    "skillName": "VT Error Handle",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_007": {
+    "skillId": "FTL_ERROR_HANDLE_007",
+    "skillName": "InitInfo Error Handle",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_008": {
+    "skillId": "FTL_ERROR_HANDLE_008",
+    "skillName": "System Area Error Handle",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_009": {
+    "skillId": "FTL_ERROR_HANDLE_009",
+    "skillName": "Repair Unit",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_010": {
+    "skillId": "FTL_ERROR_HANDLE_010",
+    "skillName": "Error Handle with Die Interleave",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_011": {
+    "skillId": "FTL_ERROR_HANDLE_011",
+    "skillName": "NPS Verification",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_012": {
+    "skillId": "FTL_ERROR_HANDLE_012",
+    "skillName": "VUC/VS/PHSVS Gen Fail Command",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_013": {
+    "skillId": "FTL_ERROR_HANDLE_013",
+    "skillName": "Wordline Folding Handle",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_014": {
+    "skillId": "FTL_ERROR_HANDLE_014",
+    "skillName": "Boot Partition Error Handle",
+    "group": "FTLErrorHandle"
+  },
+  "FTL_ERROR_HANDLE_015": {
+    "skillId": "FTL_ERROR_HANDLE_015",
+    "skillName": "IO Plus",
+    "group": "FTLErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_001": {
+    "skillId": "FLASH_ERROR_HANDLE_001",
+    "skillName": "ReadVerify Main Flow",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_002": {
+    "skillId": "FLASH_ERROR_HANDLE_002",
+    "skillName": "MediaScan",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_003": {
+    "skillId": "FLASH_ERROR_HANDLE_003",
+    "skillName": "Read Disturb",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_004": {
+    "skillId": "FLASH_ERROR_HANDLE_004",
+    "skillName": "Erase/Empty Page Check",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_005": {
+    "skillId": "FLASH_ERROR_HANDLE_005",
+    "skillName": "Program 後 Read Verify",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_006": {
+    "skillId": "FLASH_ERROR_HANDLE_006",
+    "skillName": "Phison HB/SB Task",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_007": {
+    "skillId": "FLASH_ERROR_HANDLE_007",
+    "skillName": "Micron MAG EH Flow",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_008": {
+    "skillId": "FLASH_ERROR_HANDLE_008",
+    "skillName": "TurboRAIN/AdvancedRAIN 所使用的 SB API",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_009": {
+    "skillId": "FLASH_ERROR_HANDLE_009",
+    "skillName": "Nand Team Consultant",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_010": {
+    "skillId": "FLASH_ERROR_HANDLE_010",
+    "skillName": "Phison ERS",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_011": {
+    "skillId": "FLASH_ERROR_HANDLE_011",
+    "skillName": "AOM-Retry",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_012": {
+    "skillId": "FLASH_ERROR_HANDLE_012",
+    "skillName": "Refresh/MarkBad 條件",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_013": {
+    "skillId": "FLASH_ERROR_HANDLE_013",
+    "skillName": "各 IC Controller HW 操作/Data Flow 理解",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_014": {
+    "skillId": "FLASH_ERROR_HANDLE_014",
+    "skillName": "vRLC",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_015": {
+    "skillId": "FLASH_ERROR_HANDLE_015",
+    "skillName": "mConfig 管理",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_016": {
+    "skillId": "FLASH_ERROR_HANDLE_016",
+    "skillName": "UNEL 存取",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_017": {
+    "skillId": "FLASH_ERROR_HANDLE_017",
+    "skillName": "WLL WorkloadLog 紀錄與存取",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_018": {
+    "skillId": "FLASH_ERROR_HANDLE_018",
+    "skillName": "ERS ErrorRecovery 存取",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_019": {
+    "skillId": "FLASH_ERROR_HANDLE_019",
+    "skillName": "其他 MAG 項目",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_020": {
+    "skillId": "FLASH_ERROR_HANDLE_020",
+    "skillName": "NXS 驗證",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_021": {
+    "skillId": "FLASH_ERROR_HANDLE_021",
+    "skillName": "PPS 白箱驗證",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_022": {
+    "skillId": "FLASH_ERROR_HANDLE_022",
+    "skillName": "General Bug 分析",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_023": {
+    "skillId": "FLASH_ERROR_HANDLE_023",
+    "skillName": "Micron MAG Log 分析",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_024": {
+    "skillId": "FLASH_ERROR_HANDLE_024",
+    "skillName": "推 COP0 SQ / FIP MT 操作",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_025": {
+    "skillId": "FLASH_ERROR_HANDLE_025",
+    "skillName": "Retention 後 / Lenovo OOBE Feature",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_026": {
+    "skillId": "FLASH_ERROR_HANDLE_026",
+    "skillName": "Multi-Retry",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_027": {
+    "skillId": "FLASH_ERROR_HANDLE_027",
+    "skillName": "Auto-Retry",
+    "group": "FlashErrorHandle"
+  },
+  "FLASH_ERROR_HANDLE_028": {
+    "skillId": "FLASH_ERROR_HANDLE_028",
+    "skillName": "VUC 實作",
+    "group": "FlashErrorHandle"
+  },
+  "TABLE_001": {
+    "skillId": "TABLE_001",
+    "skillName": "TableUpdate",
+    "group": "Table"
+  },
+  "TABLE_002": {
+    "skillId": "TABLE_002",
+    "skillName": "Trim",
+    "group": "Table"
+  },
+  "TABLE_003": {
+    "skillId": "TABLE_003",
+    "skillName": "InitInfo/VT",
+    "group": "Table"
+  },
+  "TABLE_004": {
+    "skillId": "TABLE_004",
+    "skillName": "SPOR",
+    "group": "Table"
+  },
+  "TABLE_005": {
+    "skillId": "TABLE_005",
+    "skillName": "Table WL / Table VB / Table Perf WAF",
+    "group": "Table"
+  },
+  "TABLE_006": {
+    "skillId": "TABLE_006",
+    "skillName": "Table Verification",
+    "group": "Table"
+  },
+  "TABLE_007": {
+    "skillId": "TABLE_007",
+    "skillName": "General Table Bug Analysis",
+    "group": "Table"
+  },
+  "TABLE_008": {
+    "skillId": "TABLE_008",
+    "skillName": "SPOR / Refresh / Sync Bug Analysis",
+    "group": "Table"
+  },
+  "TABLE_009": {
+    "skillId": "TABLE_009",
+    "skillName": "Table Event / Trim / SaveVT Performance Analysis",
+    "group": "Table"
+  },
+  "TABLE_010": {
+    "skillId": "TABLE_010",
+    "skillName": "FTL Flow Debug for Table",
+    "group": "Table"
+  },
+  "TABLE_011": {
+    "skillId": "TABLE_011",
+    "skillName": "Table VUC Implementation",
+    "group": "Table"
+  },
+  "RW_001": {
+    "skillId": "RW_001",
+    "skillName": "DCM Read Flow",
+    "group": "RW"
+  },
+  "RW_002": {
+    "skillId": "RW_002",
+    "skillName": "Generate RCQ",
+    "group": "RW"
+  },
+  "RW_003": {
+    "skillId": "RW_003",
+    "skillName": "FW Read Flow",
+    "group": "RW"
+  },
+  "RW_004": {
+    "skillId": "RW_004",
+    "skillName": "Read Queue System",
+    "group": "RW"
+  },
+  "RW_005": {
+    "skillId": "RW_005",
+    "skillName": "COP0 Read SQ",
+    "group": "RW"
+  },
+  "RW_006": {
+    "skillId": "RW_006",
+    "skillName": "AutoFrom",
+    "group": "RW"
+  },
+  "RW_007": {
+    "skillId": "RW_007",
+    "skillName": "Read Completion",
+    "group": "RW"
+  },
+  "RW_008": {
+    "skillId": "RW_008",
+    "skillName": "Inorder Read",
+    "group": "RW"
+  },
+  "RW_009": {
+    "skillId": "RW_009",
+    "skillName": "PreRead with DCM",
+    "group": "RW"
+  },
+  "RW_010": {
+    "skillId": "RW_010",
+    "skillName": "HW PreRead Engine",
+    "group": "RW"
+  },
+  "RW_011": {
+    "skillId": "RW_011",
+    "skillName": "256K preread",
+    "group": "RW"
+  },
+  "RW_012": {
+    "skillId": "RW_012",
+    "skillName": "MultiRange preread",
+    "group": "RW"
+  },
+  "RW_013": {
+    "skillId": "RW_013",
+    "skillName": "Same PCA",
+    "group": "RW"
+  },
+  "RW_014": {
+    "skillId": "RW_014",
+    "skillName": "DCM Write Flow",
+    "group": "RW"
+  },
+  "RW_015": {
+    "skillId": "RW_015",
+    "skillName": "Generate WCQ",
+    "group": "RW"
+  },
+  "RW_016": {
+    "skillId": "RW_016",
+    "skillName": "FW Write Flow",
+    "group": "RW"
+  },
+  "RW_017": {
+    "skillId": "RW_017",
+    "skillName": "Load Alignment",
+    "group": "RW"
+  },
+  "RW_018": {
+    "skillId": "RW_018",
+    "skillName": "FW Insert Write",
+    "group": "RW"
+  },
+  "RW_019": {
+    "skillId": "RW_019",
+    "skillName": "COP0 Write SQ",
+    "group": "RW"
+  },
+  "RW_020": {
+    "skillId": "RW_020",
+    "skillName": "E31 HWACC & PKE",
+    "group": "RW"
+  },
+  "RW_021": {
+    "skillId": "RW_021",
+    "skillName": "E33 WriteACC & PKE",
+    "group": "RW"
+  },
+  "RW_022": {
+    "skillId": "RW_022",
+    "skillName": "GR & RS Map",
+    "group": "RW"
+  },
+  "RW_023": {
+    "skillId": "RW_023",
+    "skillName": "BBS & PCA Rule",
+    "group": "RW"
+  },
+  "RW_024": {
+    "skillId": "RW_024",
+    "skillName": "Journal",
+    "group": "RW"
+  },
+  "RW_025": {
+    "skillId": "RW_025",
+    "skillName": "Dummy & WAF",
+    "group": "RW"
+  },
+  "RW_026": {
+    "skillId": "RW_026",
+    "skillName": "SLC Pool & D1",
+    "group": "RW"
+  },
+  "RW_027": {
+    "skillId": "RW_027",
+    "skillName": "TLC",
+    "group": "RW"
+  },
+  "RW_028": {
+    "skillId": "RW_028",
+    "skillName": "Static Calculation",
+    "group": "RW"
+  },
+  "RW_029": {
+    "skillId": "RW_029",
+    "skillName": "Dynamic Analysis",
+    "group": "RW"
+  },
+  "RW_030": {
+    "skillId": "RW_030",
+    "skillName": "Delay & Timeout",
+    "group": "RW"
+  },
+  "RW_031": {
+    "skillId": "RW_031",
+    "skillName": "COP0 Andes Cowork",
+    "group": "RW"
+  },
+  "RW_032": {
+    "skillId": "RW_032",
+    "skillName": "PLDM",
+    "group": "RW"
+  },
+  "RW_033": {
+    "skillId": "RW_033",
+    "skillName": "Logic Analyzer",
+    "group": "RW"
+  },
+  "RW_034": {
+    "skillId": "RW_034",
+    "skillName": "Protocol Analyzer",
+    "group": "RW"
+  },
+  "RW_035": {
+    "skillId": "RW_035",
+    "skillName": "CDM",
+    "group": "RW"
+  },
+  "RW_036": {
+    "skillId": "RW_036",
+    "skillName": "PCMARK10",
+    "group": "RW"
+  },
+  "RW_037": {
+    "skillId": "RW_037",
+    "skillName": "ARM CPU",
+    "group": "RW"
+  },
+  "RW_038": {
+    "skillId": "RW_038",
+    "skillName": "ANDES CPU",
+    "group": "RW"
+  },
+  "RW_039": {
+    "skillId": "RW_039",
+    "skillName": "Modulization",
+    "group": "RW"
+  },
+  "RW_040": {
+    "skillId": "RW_040",
+    "skillName": "Compiler Env",
+    "group": "RW"
+  },
+  "RW_041": {
+    "skillId": "RW_041",
+    "skillName": "HMB Reset",
+    "group": "RW"
+  },
+  "RW_042": {
+    "skillId": "RW_042",
+    "skillName": "Data Path",
+    "group": "RW"
+  },
+  "RW_043": {
+    "skillId": "RW_043",
+    "skillName": "Address Translation",
+    "group": "RW"
+  },
+  "RAID_001": {
+    "skillId": "RAID_001",
+    "skillName": "Map/Protection Concept",
+    "group": "RAID"
+  },
+  "RAID_002": {
+    "skillId": "RAID_002",
+    "skillName": "Encode",
+    "group": "RAID"
+  },
+  "RAID_003": {
+    "skillId": "RAID_003",
+    "skillName": "Decode",
+    "group": "RAID"
+  },
+  "RAID_004": {
+    "skillId": "RAID_004",
+    "skillName": "RAID HW Mechanism/Register",
+    "group": "RAID"
+  },
+  "RAID_005": {
+    "skillId": "RAID_005",
+    "skillName": "TurboRAID",
+    "group": "RAID"
+  },
+  "RAID_006": {
+    "skillId": "RAID_006",
+    "skillName": "PKE",
+    "group": "RAID"
+  },
+  "DEBUG_001": {
+    "skillId": "DEBUG_001",
+    "skillName": "Bug 分析：初步分析歸類準確",
+    "group": "Debug"
+  },
+  "DEBUG_002": {
+    "skillId": "DEBUG_002",
+    "skillName": "Bug 分析：週報總結歸納",
+    "group": "Debug"
+  },
+  "DEBUG_003": {
+    "skillId": "DEBUG_003",
+    "skillName": "Bug 分析：意見與溝通能力",
+    "group": "Debug"
+  },
+  "DEBUG_004": {
+    "skillId": "DEBUG_004",
+    "skillName": "Bug 分析：洞察癥結、改善效率",
+    "group": "Debug"
+  },
+  "DEBUG_005": {
+    "skillId": "DEBUG_005",
+    "skillName": "Branch 維護：阻擋炸彈、限時排除 bug 擇優 FW 放測",
+    "group": "Debug"
+  },
+  "DEBUG_006": {
+    "skillId": "DEBUG_006",
+    "skillName": "Branch 維護：組態、Sample、機台、測項、人力與狀況管理",
+    "group": "Debug"
+  },
+  "DEBUG_007": {
+    "skillId": "DEBUG_007",
+    "skillName": "Branch 維護：修正 bug 到穩定版本",
+    "group": "Debug"
+  },
+  "DEBUG_008": {
+    "skillId": "DEBUG_008",
+    "skillName": "CD 自動開卡 flow",
+    "group": "Debug"
+  },
+  "DEBUG_009": {
+    "skillId": "DEBUG_009",
+    "skillName": "Debug SOP 確立",
+    "group": "Debug"
+  },
+  "MP_001": {
+    "skillId": "MP_001",
+    "skillName": "Burner 架構設計管理",
+    "group": "MP"
+  },
+  "MP_002": {
+    "skillId": "MP_002",
+    "skillName": "QMP 架構設計管理",
+    "group": "MP"
+  },
+  "MP_003": {
+    "skillId": "MP_003",
+    "skillName": "Phison Card init flow",
+    "group": "MP"
+  },
+  "MP_004": {
+    "skillId": "MP_004",
+    "skillName": "Micron Card init flow",
+    "group": "MP"
+  },
+  "MP_005": {
+    "skillId": "MP_005",
+    "skillName": "Preformat",
+    "group": "MP"
+  },
+  "MP_006": {
+    "skillId": "MP_006",
+    "skillName": "SSFW/Fence FW",
+    "group": "MP"
+  },
+  "MP_007": {
+    "skillId": "MP_007",
+    "skillName": "LLF",
+    "group": "MP"
+  },
+  "MP_008": {
+    "skillId": "MP_008",
+    "skillName": "ISP Flash",
+    "group": "MP"
+  },
+  "MP_009": {
+    "skillId": "MP_009",
+    "skillName": "Erase All",
+    "group": "MP"
+  },
+  "MP_010": {
+    "skillId": "MP_010",
+    "skillName": "VUC 1.0",
+    "group": "MP"
+  },
+  "MP_011": {
+    "skillId": "MP_011",
+    "skillName": "VUC 3.0",
+    "group": "MP"
+  },
+  "MP_012": {
+    "skillId": "MP_012",
+    "skillName": "VS Micron",
+    "group": "MP"
+  },
+  "MP_013": {
+    "skillId": "MP_013",
+    "skillName": "Gen Bin Tool 架構設計管理",
+    "group": "MP"
+  },
+  "MP_014": {
+    "skillId": "MP_014",
+    "skillName": "material",
+    "group": "MP"
+  },
+  "MP_015": {
+    "skillId": "MP_015",
+    "skillName": "VUC Protection",
+    "group": "MP"
+  },
+  "MP_016": {
+    "skillId": "MP_016",
+    "skillName": "Codesign mechanism",
+    "group": "MP"
+  },
+  "MP_017": {
+    "skillId": "MP_017",
+    "skillName": "DLMC",
+    "group": "MP"
+  },
+  "MP_018": {
+    "skillId": "MP_018",
+    "skillName": "IPL/Init/Loader",
+    "group": "MP"
+  },
+  "MP_019": {
+    "skillId": "MP_019",
+    "skillName": "BootLoader",
+    "group": "MP"
+  },
+  "MP_020": {
+    "skillId": "MP_020",
+    "skillName": "Sys/Code/IDPage/InfoBlk",
+    "group": "MP"
+  },
+  "MP_021": {
+    "skillId": "MP_021",
+    "skillName": "DBT/RUT",
+    "group": "MP"
+  },
+  "MP_022": {
+    "skillId": "MP_022",
+    "skillName": "VT sweep/Vth tool/NFI tool",
+    "group": "MP"
+  },
+  "MP_023": {
+    "skillId": "MP_023",
+    "skillName": "ICE mode",
+    "group": "MP"
+  },
+  "HOST_PCIE_001": {
+    "skillId": "HOST_PCIE_001",
+    "skillName": "Host Init task",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_002": {
+    "skillId": "HOST_PCIE_002",
+    "skillName": "Reset flow",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_003": {
+    "skillId": "HOST_PCIE_003",
+    "skillName": "Standby",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_004": {
+    "skillId": "HOST_PCIE_004",
+    "skillName": "Save/Load Host table",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_005": {
+    "skillId": "HOST_PCIE_005",
+    "skillName": "set/get Feature",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_006": {
+    "skillId": "HOST_PCIE_006",
+    "skillName": "NVME Smart/Vendor smart",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_007": {
+    "skillId": "HOST_PCIE_007",
+    "skillName": "Flush",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_008": {
+    "skillId": "HOST_PCIE_008",
+    "skillName": "Format/Sanitize",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_009": {
+    "skillId": "HOST_PCIE_009",
+    "skillName": "PLN",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_010": {
+    "skillId": "HOST_PCIE_010",
+    "skillName": "Device Self Test",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_011": {
+    "skillId": "HOST_PCIE_011",
+    "skillName": "Sync R/W",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_012": {
+    "skillId": "HOST_PCIE_012",
+    "skillName": "Verify",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_013": {
+    "skillId": "HOST_PCIE_013",
+    "skillName": "Sync Write UNC/Write Zero",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_014": {
+    "skillId": "HOST_PCIE_014",
+    "skillName": "Persistent Log",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_015": {
+    "skillId": "HOST_PCIE_015",
+    "skillName": "Boot Partition",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_016": {
+    "skillId": "HOST_PCIE_016",
+    "skillName": "WorkLoadLog",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_017": {
+    "skillId": "HOST_PCIE_017",
+    "skillName": "HMB",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_018": {
+    "skillId": "HOST_PCIE_018",
+    "skillName": "Multi Namespace",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_019": {
+    "skillId": "HOST_PCIE_019",
+    "skillName": "UNEL",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_020": {
+    "skillId": "HOST_PCIE_020",
+    "skillName": "TCI/THI/OCP/Lenovo Ellie/Dell",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_021": {
+    "skillId": "HOST_PCIE_021",
+    "skillName": "RPMB",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_022": {
+    "skillId": "HOST_PCIE_022",
+    "skillName": "VUC",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_023": {
+    "skillId": "HOST_PCIE_023",
+    "skillName": "Speed class",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_024": {
+    "skillId": "HOST_PCIE_024",
+    "skillName": "錄 PA / 分析 Trace",
+    "group": "HostPCIE"
+  },
+  "HOST_PCIE_025": {
+    "skillId": "HOST_PCIE_025",
+    "skillName": "使用 UEFI tool",
+    "group": "HostPCIE"
+  },
+  "HOST_USB_001": {
+    "skillId": "HOST_USB_001",
+    "skillName": "PD FW flow",
+    "group": "HostUSB"
+  },
+  "HOST_USB_002": {
+    "skillId": "HOST_USB_002",
+    "skillName": "USB4 FW flow",
+    "group": "HostUSB"
+  },
+  "HOST_USB_003": {
+    "skillId": "HOST_USB_003",
+    "skillName": "PD/USB4 Trace 分析",
+    "group": "HostUSB"
+  },
+  "HOST_USB_004": {
+    "skillId": "HOST_USB_004",
+    "skillName": "PD/USB4 Debug",
+    "group": "HostUSB"
+  },
+  "HOST_USB_005": {
+    "skillId": "HOST_USB_005",
+    "skillName": "PD Protocol",
+    "group": "HostUSB"
+  },
+  "HOST_USB_006": {
+    "skillId": "HOST_USB_006",
+    "skillName": "USB4 Protocol",
+    "group": "HostUSB"
+  },
+  "HOST_USB_007": {
+    "skillId": "HOST_USB_007",
+    "skillName": "USB3 INIT/ISR FW flow",
+    "group": "HostUSB"
+  },
+  "HOST_USB_008": {
+    "skillId": "HOST_USB_008",
+    "skillName": "USB3 CMD FW flow",
+    "group": "HostUSB"
+  },
+  "HOST_USB_009": {
+    "skillId": "HOST_USB_009",
+    "skillName": "USB3 Trace 分析",
+    "group": "HostUSB"
+  },
+  "HOST_USB_010": {
+    "skillId": "HOST_USB_010",
+    "skillName": "USB3.2 Debug",
+    "group": "HostUSB"
+  },
+  "HOST_USB_011": {
+    "skillId": "HOST_USB_011",
+    "skillName": "USB3.2 Protocol",
+    "group": "HostUSB"
+  },
+  "HOST_USB_012": {
+    "skillId": "HOST_USB_012",
+    "skillName": "SCSI command Protocol",
+    "group": "HostUSB"
+  },
+  "HOST_USB_013": {
+    "skillId": "HOST_USB_013",
+    "skillName": "APU FW flow",
+    "group": "HostUSB"
+  },
+  "HOST_USB_014": {
+    "skillId": "HOST_USB_014",
+    "skillName": "APU Debug",
+    "group": "HostUSB"
+  },
+  "HOST_USB_015": {
+    "skillId": "HOST_USB_015",
+    "skillName": "PCIe/NVMe INIT/ISR FW flow",
+    "group": "HostUSB"
+  },
+  "HOST_USB_016": {
+    "skillId": "HOST_USB_016",
+    "skillName": "PCIe/NVMe Trace 分析",
+    "group": "HostUSB"
+  },
+  "HOST_USB_017": {
+    "skillId": "HOST_USB_017",
+    "skillName": "NVMe CMD FW flow",
+    "group": "HostUSB"
+  },
+  "HOST_USB_018": {
+    "skillId": "HOST_USB_018",
+    "skillName": "PCIe/NVMe Debug",
+    "group": "HostUSB"
+  },
+  "HOST_USB_019": {
+    "skillId": "HOST_USB_019",
+    "skillName": "PCIe/NVMe Protocol",
+    "group": "HostUSB"
+  },
+  "HOST_USB_020": {
+    "skillId": "HOST_USB_020",
+    "skillName": "USB Security",
+    "group": "HostUSB"
+  },
+  "HOST_USB_021": {
+    "skillId": "HOST_USB_021",
+    "skillName": "IOR 機制",
+    "group": "HostUSB"
+  },
+  "HOST_USB_022": {
+    "skillId": "HOST_USB_022",
+    "skillName": "GenT",
+    "group": "HostUSB"
+  },
+  "HOST_USB_023": {
+    "skillId": "HOST_USB_023",
+    "skillName": "MFi",
+    "group": "HostUSB"
+  },
+  "HOST_USB_024": {
+    "skillId": "HOST_USB_024",
+    "skillName": "軟體熟悉度",
+    "group": "HostUSB"
+  },
+  "HOST_USB_025": {
+    "skillId": "HOST_USB_025",
+    "skillName": "相容性",
+    "group": "HostUSB"
+  },
+  "HOST_USB_026": {
+    "skillId": "HOST_USB_026",
+    "skillName": "與 HW/FAE 溝通",
+    "group": "HostUSB"
+  },
+  "HOST_USB_027": {
+    "skillId": "HOST_USB_027",
+    "skillName": "與其他 Group 溝通",
+    "group": "HostUSB"
+  },
+  "TOOL_001": {
+    "skillId": "TOOL_001",
+    "skillName": "SSD_Utility",
+    "group": "Tool"
+  },
+  "TOOL_002": {
+    "skillId": "TOOL_002",
+    "skillName": "RabbitX",
+    "group": "Tool"
+  },
+  "TOOL_003": {
+    "skillId": "TOOL_003",
+    "skillName": "Smart RMA Robot / parse tool",
+    "group": "Tool"
+  },
+  "TOOL_004": {
+    "skillId": "TOOL_004",
+    "skillName": "CI/CD",
+    "group": "Tool"
+  }
+}

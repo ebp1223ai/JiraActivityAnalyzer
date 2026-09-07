@@ -5,7 +5,7 @@ const asar = require("@electron/asar");
 const packageJson = require("../package.json");
 
 const projectRoot = path.resolve(__dirname, "..");
-const releaseDir = path.join(projectRoot, "release");
+const releaseDir = path.resolve(process.env.JAA_DIST_OUTPUT_DIR || path.join(projectRoot, "release"));
 const unpackedDir = path.join(releaseDir, "win-unpacked");
 const resourcesDir = path.join(unpackedDir, "resources");
 const appAsarPath = path.join(resourcesDir, "app.asar");

@@ -9,7 +9,7 @@ const EVENT_LABELS: Record<string, string> = {
 
 export function formatActivityEventType(value: unknown) {
   const normalized = String(value ?? "").trim().toLowerCase();
-  if (!normalized) return "Unknown event";
+  if (!normalized) return "未提供 / Not provided";
   return EVENT_LABELS[normalized] ?? normalized.split(/[_-]+/).filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 }
 

@@ -19,12 +19,14 @@ export type ViewerTableQuery = {
   sort: { field: string; direction: ViewerSortDirection } | null;
   filters: Record<string, {
     text?: string;
+    operator?: string;
     values?: string[];
     from?: string;
     to?: string;
     min?: number;
     max?: number;
   }>;
+  timeZone?: string;
   dateRange?: DateRangeState;
   revision?: number;
   commentDateMode?: "created" | "updated";
@@ -49,6 +51,6 @@ export type ActivityViewerTableResult = ViewerTableResult<ActivityViewerRow>;
 
 export type ViewerDistinctResult = {
   field: string;
-  values: Array<{ value: string; count: number }>;
+  values: Array<{ value: string; count: number; label?: string; selected?: boolean }>;
   truncated: boolean;
 };

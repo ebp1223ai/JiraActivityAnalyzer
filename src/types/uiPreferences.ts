@@ -3,6 +3,7 @@ import type { DiffQuickFilters } from "../../shared/viewerEfficiency";
 
 export type TableFilterPreference = {
   text?: string;
+  operator?: string;
   values?: string[];
   from?: string;
   to?: string;
@@ -44,6 +45,7 @@ export type FilterPreset = {
 };
 export type UiPreferences = {
   formatVersion: 2;
+  aiViewerScopes?: Record<string, any>;
   databaseIssueList: TablePreferences<DatabaseIssueColumn>;
   timelineEventList: TablePreferences;
   userRelatedIssues: TablePreferences;
@@ -64,8 +66,8 @@ export type UiPreferencesLoadResult = {
 
 export type UiPreferencesUpdate = {
   section: "databaseIssueList" | "timelineEventList" | "userRelatedIssues"
-    | "userAllActivityEvents" | "issueActivityEvents" | "issueChangelog" | "issueComments" | "aiResults" | "integratedResults" | "filterPresets";
-  value: TablePreferences<DatabaseIssueColumn> | TablePreferences | FilterPreset[];
+    | "userAllActivityEvents" | "issueActivityEvents" | "issueChangelog" | "issueComments" | "aiResults" | "integratedResults" | "filterPresets" | "aiViewerScopes";
+  value: TablePreferences<DatabaseIssueColumn> | TablePreferences | FilterPreset[] | Record<string, unknown>;
 };
 
 export type DatabaseIssueListPreferences = TablePreferences<DatabaseIssueColumn> & {

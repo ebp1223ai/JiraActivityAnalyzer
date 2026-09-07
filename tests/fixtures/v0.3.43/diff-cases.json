@@ -1,0 +1,84 @@
+{
+  "cases": [
+    {
+      "id": "D01",
+      "kind": "full",
+      "before": "old\nkeep",
+      "after": "new\nkeep",
+      "expectedRemoved": [
+        "old"
+      ],
+      "expectedAdded": [
+        "new"
+      ]
+    },
+    {
+      "id": "D02",
+      "kind": "compact",
+      "before": null,
+      "after": null,
+      "hunks": [
+        {
+          "kind": "delete",
+          "text": "old"
+        },
+        {
+          "kind": "insert",
+          "text": "new"
+        }
+      ],
+      "expected": [
+        "old",
+        "new"
+      ],
+      "forbidden": [
+        "Comment content unavailable",
+        "No previous value"
+      ],
+      "label": "僅包含差異片段"
+    },
+    {
+      "id": "D03",
+      "kind": "before-missing",
+      "before": null,
+      "after": "new",
+      "label": "未提供變更前內容",
+      "notEquivalentToBefore": ""
+    },
+    {
+      "id": "D04",
+      "kind": "unchanged",
+      "before": "same",
+      "after": "same",
+      "added": 0,
+      "removed": 0
+    },
+    {
+      "id": "D05",
+      "kind": "conflict",
+      "snapshot": "analysis-time text",
+      "rawEvent": "later text",
+      "defaultAiText": "analysis-time text",
+      "showConflict": true
+    },
+    {
+      "id": "D06",
+      "kind": "read-error",
+      "error": "SQLITE_ERROR",
+      "mustNotBecomeEmpty": true
+    },
+    {
+      "id": "D07",
+      "kind": "literal-escaping",
+      "source": "literal \\r\\n code; real\r\nline\tend",
+      "immutable": true,
+      "doNotBlindlyDecodeCodeLiterals": true
+    },
+    {
+      "id": "D08",
+      "kind": "xss",
+      "source": "<img src=x onerror=alert(1)>",
+      "scriptExecutions": 0
+    }
+  ]
+}

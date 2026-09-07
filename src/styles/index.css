@@ -112,12 +112,13 @@ canvas {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 8px;
   border-radius: 7px;
   border: 1px solid #c9d7eb;
   background: white;
   color: #1558d6;
-  padding: 0.68rem 0.9rem;
+  padding: 8px 14px;
+  min-height: 38px;
   font-size: 0.86rem;
   font-weight: 800;
   white-space: normal;
@@ -194,3 +195,6 @@ canvas {
 textarea { font: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 button:disabled, .btn:disabled { cursor: not-allowed; opacity: 0.48; }
+
+.btn > svg { flex-shrink: 0; width: 16px; height: 16px; }
+.btn:hover:not(:disabled) { filter: brightness(0.97); }

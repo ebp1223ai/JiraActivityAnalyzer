@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom";
+import { TypedColumnFilter } from "./TypedColumnFilter";
 import { Fragment, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronsUpDown, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Filter, RotateCcw, Settings2, X } from "lucide-react";
 import type { ViewerDistinctResult, ViewerProgressDto, ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
@@ -22,6 +24,8 @@ export type SqliteTableColumn = {
   group?: string;
   kind: "text" | "multi" | "date" | "number";
   queryField?: string;
+  dataType?: string;
+  sortable?: boolean;
   required?: boolean;
   defaultVisible?: boolean;
   width?: number;
@@ -32,6 +36,7 @@ export type SqliteTableColumn = {
 
 type Props = {
   tableId?: string;
+  fullResultFilters?: boolean;
   columns: SqliteTableColumn[];
   result: ViewerTableResult;
   query: ViewerTableQuery;
@@ -53,10 +58,14 @@ function text(value: unknown) {
   return value === undefined || value === null || value === "" ? "—" : String(value);
 }
 
-export function SqliteDataTable({ tableId = "sqlite-table", columns, result, query, loading, error, progress, onCancel, onQueryChange, loadDistinct, preferences, onPreferencesChange, sessionState, onSessionStateChange, getRowId = stableViewerRowId, renderExpandedRow }: Props) {
+export function SqliteDataTable({ tableId = "sqlite-table", fullResultFilters = false, columns, result, query, loading, error, progress, onCancel, onQueryChange, loadDistinct, preferences, onPreferencesChange, sessionState, onSessionStateChange, getRowId = stableViewerRowId, renderExpandedRow }: Props) {
   const normalized = useMemo(() => normalizeTablePreferences(preferences, columns.map((column) => ({ id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))), [columns, preferences]);
   const normalizedSession = useMemo(() => normalizeViewerTableSession(sessionState), [sessionState]);
   const [filterColumn, setFilterColumn] = useState("");
+  const [filterPosition, setFilterPosition] = useState({ left: 8, top: 80 });
+  const [distinctError, setDistinctError] = useState("");
+  const filterPanel = useRef<HTMLDivElement>(null);
+  const filterTrigger = useRef<HTMLButtonElement | null>(null);
   const [distinctSearch, setDistinctSearch] = useState("");
   const [distinct, setDistinct] = useState<ViewerDistinctResult | null>(null);
   const [distinctLoading, setDistinctLoading] = useState(false);
@@ -95,14 +104,14 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
   }
 
   useEffect(() => {
-    if (!activeColumn || activeColumn.kind !== "multi" || !loadDistinct) return;
+    if (!activeColumn || (!fullResultFilters && activeColumn.kind !== "multi") || !loadDistinct) return;
     const requestId = ++distinctRequest.current;
     const field = queryField(activeColumn);
-    setDistinctLoading(true);
+    setDistinctLoading(true); setDistinctError("");
     const timer = window.setTimeout(() => void loadDistinct(field, distinctSearch).then((next) => {
       if (requestId === distinctRequest.current) setDistinct(next);
-    }).catch(() => {
-      if (requestId === distinctRequest.current) setDistinct({ field, values: [], truncated: false });
+    }).catch((error: unknown) => {
+      if (requestId === distinctRequest.current) { setDistinct(null); setDistinctError(error instanceof Error ? error.message : String(error)); }
     }).finally(() => {
       if (requestId === distinctRequest.current) setDistinctLoading(false);
     }), 250);
@@ -112,6 +121,13 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
     };
   }, [activeColumn?.id, activeColumn?.kind, distinctSearch, loadDistinct]);
 
+  useEffect(() => {
+    if (!filterColumn) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setFilterColumn(""); };
+    const outside = (event: PointerEvent) => { if (!filterPanel.current?.contains(event.target as Node) && !filterTrigger.current?.contains(event.target as Node)) setFilterColumn(""); };
+    window.addEventListener("keydown", close); window.addEventListener("pointerdown", outside);
+    return () => { window.removeEventListener("keydown", close); window.removeEventListener("pointerdown", outside); filterTrigger.current?.focus(); };
+  }, [filterColumn]);
   function savePreferences(next: TablePreferences, action: string) {
     log(action);
     onPreferencesChange?.(normalizeTablePreferences(next, columns.map((column) => ({ id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))));
@@ -155,7 +171,8 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
     changeQuery({ ...query, page: 1, filters }, `filter_apply column=${column.id}`);
   }
 
-  function openFilter(column: SqliteTableColumn) {
+  function openFilter(column: SqliteTableColumn, trigger: HTMLButtonElement) {
+    const rect = trigger.getBoundingClientRect(); filterTrigger.current = trigger; setFilterPosition({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 396)), top: Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - 420)) });
     log(`filter_open column=${column.id}`);
     setFilterColumn((current) => current === column.id ? "" : column.id);
     setDistinctSearch("");
@@ -190,6 +207,7 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
   }
   function filterControl(column: SqliteTableColumn) {
     const filter = query.filters[queryField(column)] ?? {};
+    if (fullResultFilters) return <TypedColumnFilter key={column.id} label={column.label} kind={column.kind} container={column.dataType === "array" || column.dataType === "json"} filter={filter} result={distinct} loading={distinctLoading} error={distinctError} search={distinctSearch} onSearch={setDistinctSearch} onApply={(value) => setFilter(column, value)} onClose={() => setFilterColumn("")} />;
     if (column.kind === "multi") return <ExcelFilterPopover label={column.label} selected={filter.values ?? []} search={distinctSearch} result={distinct} loading={distinctLoading} onSearchChange={setDistinctSearch} onCancel={() => setFilterColumn("")} onApply={(values) => { setFilter(column, { values }); setFilterColumn(""); }} />;
     if (column.kind === "date") { const draft = dateDrafts[column.id] ?? filter; return <div className="grid gap-1"><input aria-label={`${column.label} start date`} className="field !px-1 !py-1 text-[11px]" type="date" value={draft.from ?? ""} onChange={(event) => setDateFilter(column, { ...draft, from: event.currentTarget.value || undefined })} /><input aria-label={`${column.label} end date`} className="field !px-1 !py-1 text-[11px]" type="date" value={draft.to ?? ""} onChange={(event) => setDateFilter(column, { ...draft, to: event.currentTarget.value || undefined })} />{dateErrors[column.id] ? <span className="text-[11px] font-bold text-rose-700" role="alert">{dateErrors[column.id]}</span> : <span className="text-[10px] text-muted">Inclusive end of day / 包含結束日</span>}</div>; }
     if (column.kind === "number") return <div className="grid grid-cols-2 gap-1"><input className="field !px-1 !py-1" type="number" placeholder="Min" value={filter.min ?? ""} onChange={(event) => setFilter(column, { ...filter, min: event.currentTarget.value === "" ? undefined : Number(event.currentTarget.value) })} /><input className="field !px-1 !py-1" type="number" placeholder="Max" value={filter.max ?? ""} onChange={(event) => setFilter(column, { ...filter, max: event.currentTarget.value === "" ? undefined : Number(event.currentTarget.value) })} /></div>;
@@ -204,13 +222,13 @@ export function SqliteDataTable({ tableId = "sqlite-table", columns, result, que
       </div> : null}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold"><span>篩選後 {result.filteredCount.toLocaleString()}，全部 {result.totalCount.toLocaleString()}</span><div className="flex gap-2">{Object.keys(query.filters).length || hasQuickFilters ? <button className="btn" type="button" onClick={() => changeQuery({ ...query, page: 1, filters: {}, diffQuickFilters: { ...DEFAULT_DIFF_QUICK_FILTERS } }, "filter_clear_all")}><X size={14} />{"Clear All Filters / \u6e05\u9664\u5168\u90e8\u7be9\u9078"}</button> : null}<button className="btn" type="button" onClick={() => { log("columns_toggle"); setSettingsOpen((value) => !value); }}><Settings2 size={14} />欄位</button></div></div>
       {settingsOpen ? <div className="mb-3 rounded-md border border-line bg-slate-50 p-3" data-column-catalog="true"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><b className="text-xs">Columns / 欄位 <span className="text-muted">({normalized.visibleColumns.length}/{columns.length})</span></b><div className="flex flex-wrap gap-2"><button className="btn" type="button" onClick={() => savePreferences({ ...normalized, visibleColumns: Array.from(new Set([...normalized.visibleColumns, ...searchedColumns.map((column) => column.id)])) }, "columns_select_all")}>Select All / 全選</button><button className="btn" type="button" onClick={() => savePreferences({ ...normalized, visibleColumns: columns.filter((column) => column.required).map((column) => column.id) }, "columns_clear")}>Clear / 清除</button><button className="btn" type="button" onClick={() => savePreferences({ ...normalized, columnWidths: {} }, "column_widths_reset")}><RotateCcw size={14} />Reset Widths</button><button className="btn" type="button" onClick={() => savePreferences(resetTableLayout(normalized, columns.map((column) => ({ id: column.id, queryField: column.queryField, required: column.required, defaultVisible: column.defaultVisible, defaultWidth: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }))), "table_layout_reset")}><RotateCcw size={14} />Reset Layout</button></div></div><input className="field mb-3" type="search" value={columnSearch} onChange={(event) => setColumnSearch(event.currentTarget.value)} placeholder="Search field path or group / 搜尋欄位或群組" aria-label="Search columns" /><div className="thin-scroll max-h-72 space-y-3 overflow-y-auto pr-1" data-virtualized-column-list="true">{groupedColumns.map(([group, groupColumns]) => <section key={group}><div className="sticky top-0 z-[1] bg-slate-50 py-1 text-[10px] font-black uppercase text-slate-500">{group} ({groupColumns.length})</div><div className="grid gap-1 sm:grid-cols-2 xl:grid-cols-3">{groupColumns.map((column) => { const index = orderedColumns.indexOf(column); return <div key={column.id} className="flex min-w-0 items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1" style={{ contentVisibility: "auto", containIntrinsicSize: "32px" }}><label className="flex min-w-0 flex-1 items-center gap-2 text-xs font-bold"><input className="shrink-0" type="checkbox" checked={normalized.visibleColumns.includes(column.id)} disabled={column.required} onChange={(event) => setColumnVisible(column, event.currentTarget.checked)} /><span className="min-w-0 break-all" title={column.queryField ?? column.id}>{column.label}</span>{column.required ? <span className="shrink-0 text-[10px] text-blue-700">Required</span> : null}</label>{column.required ? null : <div className="ml-1 flex shrink-0 gap-1"><button className="icon-btn !h-6 !w-6" type="button" disabled={index <= columns.filter((candidate) => candidate.required).length} title={`Move ${column.label} left`} onClick={() => moveColumn(column, -1)}><ArrowLeft size={12} /></button><button className="icon-btn !h-6 !w-6" type="button" disabled={index >= orderedColumns.length - 1} title={`Move ${column.label} right`} onClick={() => moveColumn(column, 1)}><ArrowRight size={12} /></button></div>}</div>; })}</div></section>)}</div></div> : null}
+      {activeColumn ? createPortal(<div ref={filterPanel} role="dialog" aria-label={`篩選 ${activeColumn.label}`} data-filter-column={activeColumn.id} className="fixed z-[100] w-96 max-w-[calc(100vw-16px)] overflow-auto rounded-md border border-line bg-white p-3 shadow-xl" style={{ ...filterPosition, maxHeight: "min(520px, calc(100vh - 32px))" }}>{filterControl(activeColumn)}<button type="button" className="btn mt-2" onClick={() => setFilterColumn("")}>關閉</button></div>, document.body) : null}
       {error ? <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{error}</div> : null}
       <div ref={scrollContainer} className="thin-scroll max-w-full overflow-x-auto rounded-md border border-line" data-table-scroll-container="true" onScroll={(event) => onSessionStateChange?.({ ...normalizedSession, scrollLeft: event.currentTarget.scrollLeft, scrollTop: event.currentTarget.scrollTop })}>
         <table className="w-max min-w-full table-fixed text-left text-xs">
           <thead className="sticky top-0 z-10 bg-slate-50">
-            <tr>{shown.map((column) => { const field = queryField(column); return <th key={column.id} className="relative border-b border-line px-3 py-2" style={{ width: normalized.columnWidths[column.id] ?? column.width ?? 150, minWidth: column.minWidth ?? 72, maxWidth: column.maxWidth ?? 640 }}><div className="flex items-center gap-1"><button className="flex min-w-0 flex-1 items-center gap-1 font-black" type="button" onClick={() => sort(column)}><span className="truncate">{column.label}</span>{query.sort?.field === field ? query.sort.direction === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : <ChevronsUpDown size={13} className="text-slate-400" />}</button><button className={`icon-btn ${query.filters[field] ? "!text-blue-700" : ""}`} type="button" onClick={() => openFilter(column)} title={`Filter ${column.label}`}><Filter size={13} /></button></div><div className="absolute right-0 top-0 h-full w-2 cursor-col-resize touch-none" role="separator" aria-label={`Resize ${column.label}`} onPointerDown={(event) => startResize(column, event)} /></th>; })}</tr>
-            {activeColumn ? <tr data-table-filter-row="layout"><th className="border-b border-blue-200 bg-blue-50/70 p-2 align-top" colSpan={shown.length}><div className="grid min-w-0 gap-2" style={{ gridTemplateColumns: shown.map((column) => `${normalized.columnWidths[column.id] ?? column.width ?? 150}px`).join(" ") }}>{shown.map((column) => <div key={column.id} className="min-w-0">{activeColumn.id === column.id ? <div className="min-w-0" data-filter-column={column.id}>{filterControl(column)}{column.kind !== "multi" ? <div className="mt-2 flex flex-wrap justify-end gap-2"><button className="btn" type="button" onClick={() => clearFilter(column)}>Clear</button><button className="btn" type="button" onClick={() => setFilterColumn("")}>Close</button></div> : null}</div> : null}</div>)}</div></th></tr> : null}
-          </thead>
+            <tr>{shown.map((column) => { const field = queryField(column); return <th key={column.id} className="relative border-b border-line px-3 py-2" style={{ width: normalized.columnWidths[column.id] ?? column.width ?? 150, minWidth: column.minWidth ?? 72, maxWidth: column.maxWidth ?? 640 }}><div className="flex items-center gap-1"><button className="flex min-w-0 flex-1 items-center gap-1 font-black" type="button" disabled={column.sortable === false} title={column.sortable === false ? "結構容器不可排序，請選擇子欄位" : undefined} onClick={() => sort(column)}><span className="truncate">{column.label}</span>{query.sort?.field === field ? query.sort.direction === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : <ChevronsUpDown size={13} className="text-slate-400" />}</button><button className={`icon-btn ${query.filters[field] ? "!text-blue-700" : ""}`} type="button" onClick={(event) => openFilter(column, event.currentTarget)} title={`Filter ${column.label}`}><Filter size={13} /></button></div><div className="absolute right-0 top-0 h-full w-2 cursor-col-resize touch-none" role="separator" aria-label={`Resize ${column.label}`} onPointerDown={(event) => startResize(column, event)} /></th>; })}</tr>
+</thead>
           <tbody>
             {loading ? <tr><td colSpan={shown.length} className="h-1 bg-blue-500 p-0" aria-label="Loading table rows" /></tr> : null}
             {!loading && !result.rows.length ? <tr><td colSpan={shown.length} className="p-10 text-center font-bold text-muted">找不到符合篩選條件的資料 / No matching records</td></tr> : null}

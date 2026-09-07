@@ -1,3 +1,4 @@
+import { TraceDiffLines } from "./TraceEvidenceView";
 import { useMemo } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { activityEventDisplayPolicy } from "../utils/activityEventDisplayPolicy";
@@ -11,6 +12,7 @@ type Props = {
 
 export function DiffCell({ row, expanded = false, onExpandedChange }: Props) {
   const policy = useMemo(() => activityEventDisplayPolicy(row), [row]);
+  if (row.sourceTrace && row.contentSource !== "RAW_EVENT") return <div className="space-y-2"><TraceDiffLines row={row} expanded={expanded} /><button className="btn" type="button" aria-expanded={expanded} onClick={() => onExpandedChange?.(!expanded)}>{expanded ? "收合詳細資料" : "查看來源與分析"}</button></div>;
   if (isDescriptionDiffRow(row)) return <DescriptionDiffCell row={row} expanded={expanded} onExpandedChange={onExpandedChange} />;
   const label = policy.kind === "comment" ? `${policy.operation} Comment` : "Diff preview";
   return (

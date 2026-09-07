@@ -1,0 +1,208 @@
+import fs from "node:fs";
+import { DatabaseSync } from "node:sqlite";
+import { projectActiveAiV043 } from "../shared/aiResultProjectionV043.js";
+import { fieldIdV043, registerDocumentV043, resolveFieldV043, typedValueV043, type FieldV043 } from "./aiFieldRegistryV043.js";
+
+type Json = Record<string, any>;
+export type QueryV043 = { page?: number; pageSize?: number; sort?: { field?: string; direction?: string } | null; filters?: Record<string, Json>; timeZone?: string; diffQuickFilters?: Json };
+type Snapshot = { db: DatabaseSync; registry: Map<string, FieldV043>; total: number; key: string; metadata: Json };
+const cache = new Map<string, Snapshot>();
+const receipts: Json = {};
+const parse = (value: any) => value == null ? null : JSON.parse(String(value));
+const fileKey = (p: string | null) => !p || !fs.existsSync(p) ? "CLOSED" : [p, ...[p, `${p}-wal`].flatMap(f => fs.existsSync(f) ? [fs.statSync(f).size, fs.statSync(f).mtimeMs, fs.statSync(f).ctimeMs] : [])].join(":");
+const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
+export function invalidateAiResultsV043() { for (const snapshot of cache.values()) snapshot.db.close(); cache.clear(); }
+
+function aiJoin(prefix = "") {
+  return `FROM ${prefix}ai_records r JOIN ${prefix}ai_record_analyses a ON a.analysis_id=r.active_analysis_id
+    JOIN ${prefix}ai_record_source_traces t ON t.ai_record_id=r.ai_record_id AND t.import_batch_id=a.import_batch_id
+    JOIN ${prefix}ai_import_batches b ON b.import_batch_id=a.import_batch_id
+    LEFT JOIN ${prefix}ai_record_reviews rv ON rv.review_id=r.active_review_id AND rv.analysis_id=a.analysis_id
+    LEFT JOIN ${prefix}source_link_attempts l ON l.rowid=(SELECT MAX(l2.rowid) FROM ${prefix}source_link_attempts l2 WHERE l2.ai_record_id=r.ai_record_id)`;
+}
+function jsonColumns(db: DatabaseSync, table: string, alias: string) {
+  return `json_object(${(db.prepare(`PRAGMA table_info(${quote(table)})`).all() as Json[]).flatMap(c => [`'${String(c.name).replace(/'/g, "''")}'`, `${alias}.${quote(c.name)}`]).join(",")})`;
+}
+function seedSchema(registry: Map<string, FieldV043>, db: DatabaseSync, namespace: string, tables: string[]) {
+  for (const table of tables) {
+    const fields = Object.fromEntries((db.prepare(`PRAGMA table_info(${quote(table)})`).all() as Json[]).map(c => [c.name, null]));
+    registerDocumentV043(registry, { [namespace]: { [table]: fields } });
+  }
+}
+function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null): Snapshot {
+  const key = `${kind}|${fileKey(aiPath)}|${fileKey(rawPath)}`;
+  const existing = cache.get(key); if (existing) return existing;
+  const db = new DatabaseSync(":memory:");
+  const registry = new Map<string, FieldV043>();
+  db.exec("CREATE TABLE documents(id TEXT PRIMARY KEY,body TEXT NOT NULL); CREATE TABLE cells(row_id TEXT NOT NULL,field_id TEXT NOT NULL,token TEXT NOT NULL,kind TEXT NOT NULL,text TEXT,number REAL, UNIQUE(row_id,field_id,token)); BEGIN");
+  registerDocumentV043(registry, { computed: Object.fromEntries(["eventTime", "issueKey", "projectKey", "displayName", "fieldName", "eventType", "action", "sourceProvenance", "before", "after", "diffText", "analysisStatus", "reviewRank", "sourceLinkStatus", "sourceTraceStatus", "integrityStatus", "skillId", "confidence", "rationale", "summary", "issueTypeName", "currentStatusName", "currentPriorityName", "historyId", "itemIndex"].map(key => [key, null])) });
+  const insertRow = db.prepare("INSERT INTO documents VALUES(?,?)"), insertCell = db.prepare("INSERT OR IGNORE INTO cells VALUES(?,?,?,?,?,?)");
+  let total = 0;
+  const add = (row: Json, doc: Json) => {
+    registerDocumentV043(registry, doc);
+    // One document per source event; array membership is indexed once per distinct value.
+    const local = new Map<string, FieldV043>(); registerDocumentV043(local, doc);
+    const fieldValues: Json = Object.create(null);
+    for (const [id, field] of local) {
+      const resolved = resolveFieldV043(doc, field);
+      fieldValues[id] = field.segments.includes(null) ? resolved : resolved[0];
+      const values = resolved.flatMap(v => Array.isArray(v) && v.length ? v : [v]);
+      for (const value of values) { const v = typedValueV043(value); insertCell.run(row.id, id, v.token, v.kind, v.text, v.number); }
+    }
+    insertRow.run(row.id, JSON.stringify({ ...row, fieldValues })); total++;
+  };
+  const aiRows = new Map<string, { row: Json; document: Json }>();
+  let rawIdentity = "", matched = 0, ambiguous = 0;
+  try {
+    if (aiPath && fs.existsSync(aiPath)) {
+      const source = new DatabaseSync(aiPath, { readOnly: true });
+      try {
+        source.exec("PRAGMA query_only=ON; BEGIN");
+        seedSchema(registry, source, "ai", ["ai_records", "ai_record_analyses", "ai_record_reviews", "ai_import_batches", "ai_skill_findings", "ai_record_source_traces"]);
+        seedSchema(registry, source, "link", ["source_link_attempts"]);
+        const select = ["r", "a", "t", "b", "rv", "l"].map((alias, i) => `${jsonColumns(source, ["ai_records", "ai_record_analyses", "ai_record_source_traces", "ai_import_batches", "ai_record_reviews", "source_link_attempts"][i], alias)} ${alias}`).join(",");
+        for (const raw of source.prepare(`SELECT ${select},(SELECT json_group_array(json(f.finding_json)) FROM ai_skill_findings f WHERE f.analysis_id=a.analysis_id) findings ${aiJoin()}`).iterate() as Iterable<Json>) {
+          const r = parse(raw.r), a = parse(raw.a), t = parse(raw.t), b = parse(raw.b), rv = parse(raw.rv), l = parse(raw.l);
+          const trace = parse(t.source_trace_json), analysis = parse(a.analysis_json), review = parse(rv.review_json), storedFindings = parse(raw.findings) as Json[];
+          const findings = analysis.skillFindings.map((original: Json) => { const saved = storedFindings.find(f => f.skillId === original.skillId); if (!saved || JSON.stringify(saved) !== JSON.stringify(original)) throw new Error("ACTIVE_FINDING_PROJECTION_MISMATCH"); return saved; });
+          if (findings.length !== storedFindings.length) throw new Error("ACTIVE_FINDING_COUNT_MISMATCH");
+          const row = projectActiveAiV043(r, trace, analysis, review, findings, b, l.link_attempt_id ? l : null);
+          const document = { ai: { ai_records: r, ai_record_analyses: a, ai_record_reviews: rv, ai_import_batches: b, sourceTrace: trace, analysis, manualReview: review, skillFindings: findings }, link: { source_link_attempts: l }, computed: row };
+          aiRows.set(r.ai_record_id, { row, document });
+        }
+      } finally { source.close(); }
+    }
+    if (rawPath && fs.existsSync(rawPath)) {
+      const raw = new DatabaseSync(rawPath, { readOnly: true });
+      try {
+        raw.exec("PRAGMA query_only=ON; BEGIN");
+        rawIdentity = String((raw.prepare("SELECT database_id FROM database_metadata WHERE metadata_key='primary'").get() as Json)?.database_id ?? "");
+        seedSchema(registry, raw, "raw", ["activity_events", "source_objects"]);
+        const byTarget = new Map<string, Array<{ row: Json; document: Json }>>();
+        for (const entry of aiRows.values()) {
+          const l = entry.row.link;
+          if (l?.raw_database_identity === rawIdentity && ["PRIMARY_MATCHED", "FALLBACK_MATCHED"].includes(l.link_status) && l.matched_activity_event_id) {
+            const list = byTarget.get(l.matched_activity_event_id) ?? []; list.push(entry); byTarget.set(l.matched_activity_event_id, list);
+          }
+        }
+        // Raw is the left side; a unique authoritative link is the only permitted AI association.
+        const objectColumns = new Set((raw.prepare('PRAGMA table_info(source_objects)').all() as Json[]).map(c => c.name));
+        const objectIdColumn = objectColumns.has('id') ? 'id' : 'source_object_id';
+        for (const item of raw.prepare(`SELECT ${jsonColumns(raw, "activity_events", "e")} event,${jsonColumns(raw, "source_objects", "o")} object FROM activity_events e LEFT JOIN source_objects o ON o.${quote(objectIdColumn)}=e.source_object_id`).iterate() as Iterable<Json>) {
+          const e = parse(item.event), o = parse(item.object), links = byTarget.get(e.id) ?? [], found = links.length === 1 ? links[0] : null;
+          const before = parse(e.from_value_json), after = parse(e.to_value_json);
+          const rawRow = { id: e.id, activityEventId: e.id, sourceRecordId: e.source_record_id, eventTime: e.event_time, eventType: e.event_type, action: e.event_type, sourceProvenance: e.source_provenance ?? e.event_type, displayName: e.actor_display_name ?? e.actor_account_id, actorAccountId: e.actor_account_id, issueKey: o.issue_key ?? o.object_key, projectKey: o.project_key ?? String(o.issue_key ?? o.object_key ?? "").split("-")[0], fieldName: e.field_name, fieldId: e.field_id, before, after, historyId: e.history_id ?? e.source_record_id, itemIndex: e.item_index ?? null };
+          if (links.length > 1) ambiguous++;
+          if (found) {
+            matched++;
+            found.row.rawSupplement = rawRow;
+            found.row.sourceConflict = (found.row.before !== null && JSON.stringify(found.row.before) !== JSON.stringify(before)) || (found.row.after !== null && JSON.stringify(found.row.after) !== JSON.stringify(after));
+          }
+          if (kind === "integrated") {
+            const row = { ...(found?.row ?? {}), ...rawRow, analysisState: found ? "ANALYZED" : links.length > 1 ? "IDENTITY_CONFLICT" : "UNANALYZED", contentSource: "RAW_EVENT", sourceTrace: found?.row.sourceTrace ?? null, sourceConflict: found?.row.sourceConflict ?? false, sourceLinkStatus: found?.row.sourceLinkStatus ?? (links.length > 1 ? "IDENTITY_CONFLICT" : "NOT_ATTEMPTED") };
+            add(row, { raw: { activity_events: e, source_objects: o, decoded: { activity_events: Object.fromEntries(Object.entries(e).filter(([k, v]) => k.endsWith("_json") && typeof v === "string").map(([k, v]) => [k, parse(v)])), source_objects: Object.fromEntries(Object.entries(o).filter(([k, v]) => k.endsWith("_json") && typeof v === "string").map(([k, v]) => [k, parse(v)])) } }, ai: found?.document.ai ?? {}, link: found?.document.link ?? {}, computed: row });
+          }
+        }
+      } finally { raw.close(); }
+    } else if (kind === "integrated") throw new Error("RAW_DATABASE_CLOSED");
+    if (kind === "ai") for (const entry of aiRows.values()) add(entry.row, entry.document);
+    db.exec("COMMIT; CREATE INDEX cells_field ON cells(field_id,token,row_id); CREATE INDEX cells_row ON cells(row_id,field_id); CREATE INDEX cells_range ON cells(field_id,number,row_id)");
+    const aliases: Record<string, string> = { actor: "displayName", field: "fieldName", source: "sourceProvenance", diff: "diffText" };
+    for (const field of [...registry.values()]) if (field.namespace === "computed" && field.segments.length === 1) {
+      const name = field.segments[0] as string; registry.set(name, field);
+    }
+    for (const [alias, name] of Object.entries(aliases)) if (registry.has(name)) registry.set(alias, registry.get(name)!);
+    const metadata = { rawDatabaseIdentity: rawIdentity, aiRecordCount: aiRows.size, matchedCount: matched, ambiguousCount: ambiguous, integrationState: !aiPath ? "AI_DATABASE_CLOSED" : !aiRows.size ? "READY_NO_AI_RECORDS" : !matched ? "RELINK_REQUIRED" : matched === aiRows.size ? "FULL_MATCH" : "PARTIAL_MATCH" };
+    const snapshot = { db, registry, total, key, metadata };
+    if (cache.size >= 2) { const oldest = cache.keys().next().value!; cache.get(oldest)!.db.close(); cache.delete(oldest); }
+    cache.set(key, snapshot); return snapshot;
+  } catch (error) { db.close(); throw error; }
+}
+
+// Resolve local calendar boundaries with Intl, not a fixed 24-hour offset across DST.
+export function dayBoundaryV043(day: string, zone: string, next = false) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error("QUERY_DATE_INVALID");
+  const parsed = Date.parse(`${day}T00:00:00Z`);
+  if (!Number.isFinite(parsed) || new Date(parsed).toISOString().slice(0, 10) !== day) throw new Error("QUERY_DATE_INVALID");
+  const target = new Date(parsed); if (next) target.setUTCDate(target.getUTCDate() + 1);
+  const desired = target.toISOString().slice(0, 10);
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" });
+  const calendar = (ms: number) => { const parts = Object.fromEntries(fmt.formatToParts(ms).map(p => [p.type, p.value])); return `${parts.year}-${parts.month}-${parts.day}`; };
+  let lo = target.getTime() - 36 * 3600000, hi = target.getTime() + 36 * 3600000;
+  while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (calendar(mid) < desired) lo = mid; else hi = mid; }
+  return hi;
+}
+function predicates(snapshot: Snapshot, query: QueryV043, exclude?: string) {
+  const clauses: string[] = [], binds: (string | number)[] = [];
+  const excluded = exclude ? snapshot.registry.get(exclude)?.path : undefined;
+  for (const [name, filter] of Object.entries(query.filters ?? {})) {
+    const f = snapshot.registry.get(name); if (!f) throw new Error(`QUERY_FIELD_UNAVAILABLE:${name}`);
+    if (f.path === excluded) continue;
+    const terms: string[] = [], values: (string | number)[] = [];
+    if (filter.values?.length) {
+      terms.push(`(${filter.values.map((v: string) => /^(missing|null|string|number|boolean|array|object):/.test(v) ? "c.token=?" : "c.text=?").join(" OR ")})`);
+      values.push(...filter.values);
+    } else if (filter.text) {
+      if (["array", "json"].includes(f.dataType)) throw new Error("CONTAINER_TEXT_FILTER_UNSUPPORTED");
+      terms.push(filter.operator === "exact" ? "c.text=?" : "instr(lower(c.text),lower(?))>0"); values.push(filter.text);
+    }
+    if (filter.min !== undefined || filter.max !== undefined) {
+      for (const n of [filter.min, filter.max]) if (n !== undefined && (typeof n !== "number" || !Number.isFinite(n))) throw new Error("QUERY_NUMBER_INVALID");
+      if (filter.min !== undefined && filter.max !== undefined && filter.min > filter.max) throw new Error("QUERY_NUMBER_RANGE_INVALID");
+      if (filter.min !== undefined) { terms.push("c.number>=?"); values.push(filter.min); }
+      if (filter.max !== undefined) { terms.push("c.number<=?"); values.push(filter.max); }
+    }
+    const bound = (v: string, upper: boolean) => /^\d{4}-\d{2}-\d{2}$/.test(v) ? dayBoundaryV043(v, query.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone, upper) : Date.parse(v);
+    const from = filter.from ? bound(filter.from, false) : undefined, to = filter.to ? bound(filter.to, true) : undefined;
+    if ((from !== undefined && !Number.isFinite(from)) || (to !== undefined && !Number.isFinite(to)) || (from !== undefined && to !== undefined && from > to)) throw new Error("QUERY_DATE_RANGE_INVALID");
+    if (from !== undefined) { terms.push("jaa_epoch(c.text)>=?"); values.push(from); }
+    if (to !== undefined) { terms.push(`jaa_epoch(c.text)${/^\d{4}-\d{2}-\d{2}$/.test(filter.to) ? "<" : "<="}?`); values.push(to); }
+    if (filter.operator === "exists") terms.push("1");
+    if (filter.operator === "is-empty") terms.push("c.token IN ('null:null','string:\"\"','array:[]','object:{}')");
+    if (filter.values?.includes("missing:")) {
+      clauses.push(`(NOT EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=?) OR EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND ${terms.join(" AND ")}))`); binds.push(f.path, f.path, ...values);
+    } else if (terms.length) { clauses.push(`EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND ${terms.join(" AND ")})`); binds.push(f.path, ...values); }
+  }
+  for (const [toggle, field, op] of [["hideZeroAdded", "addedLineCount", ">0"], ["hideZeroDeleted", "removedLineCount", ">0"], ["hideNoChange", "isSubstantiveChange", "=1"]]) if (query.diffQuickFilters?.[toggle]) {
+    const id = snapshot.registry.get(field)?.path;
+    // Unknown metrics remain visible; absence is not a measured zero.
+    if (id) { clauses.push(`NOT EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number${op}))`); binds.push(id); }
+  }
+  if (query.diffQuickFilters?.hideBeforeUnavailable) { const id = snapshot.registry.get("beforeAvailability")?.path; if (id) { clauses.push("NOT EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text='UNAVAILABLE')"); binds.push(id); } }
+  return { sql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", binds };
+}
+function snapshotFor(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null) { const s = createSnapshot(kind, aiPath, rawPath); s.db.function("jaa_epoch", (v: any) => { const ms = Date.parse(String(v)); return Number.isFinite(ms) ? ms : null; }); return s; }
+export function queryResultsV043(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null, query: QueryV043 = {}, all = false) {
+  const start = Date.now(), s = snapshotFor(kind, aiPath, rawPath), where = predicates(s, query);
+  const page = query.page ?? 1, size = query.pageSize ?? 50;
+  if (!Number.isSafeInteger(page) || page < 1 || ![25, 50, 100, 200].includes(size)) throw new Error("QUERY_PAGE_INVALID");
+  const sort = s.registry.get(query.sort?.field ?? "eventTime");
+  if (query.sort?.field && !sort) throw new Error("QUERY_SORT_FIELD_UNAVAILABLE");
+  if (sort && !sort.sortable) throw new Error("CONTAINER_SORT_UNSUPPORTED");
+  const sortSql = sort ? `(SELECT ${["number", "boolean"].includes(sort.dataType) ? "c.number" : sort.dataType === "date" ? "jaa_epoch(c.text)" : "c.text"} FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) ${query.sort?.direction === "asc" ? "ASC" : "DESC"},` : "";
+  const count = Number((s.db.prepare(`SELECT COUNT(*) n FROM documents d ${where.sql}`).get(...where.binds) as Json).n);
+  const sql = `SELECT body FROM documents d ${where.sql} ORDER BY ${sortSql} d.id ${all ? "" : "LIMIT ? OFFSET ?"}`;
+  const binds = [...where.binds, ...(sort ? [sort.path] : []), ...(all ? [] : [size, (page - 1) * size])];
+  const result = { ok: true, rows: (s.db.prepare(sql).all(...binds) as Json[]).map(r => parse(r.body)), fieldCatalog: [...s.registry].filter(([id, f]) => id === f.path).map(([, f]) => f), totalCount: s.total, filteredCount: count, page, pageSize: size, pageCount: Math.max(1, Math.ceil(count / size)), generation: s.key, ...s.metadata, durationMs: Date.now() - start };
+  receipts[kind] = { queryTemplate: sql, parameterTypes: binds.map(v => typeof v), scope: kind, total: s.total, filtered: count, elapsedMs: result.durationMs };
+  return result;
+}
+export function distinctResultsV043(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null, field: string, query: QueryV043 = {}, search = "") {
+  const s = snapshotFor(kind, aiPath, rawPath), f = s.registry.get(field); if (!f) throw new Error(`QUERY_FIELD_UNAVAILABLE:${field}`);
+  const where = predicates(s, query, field), join = where.sql ? "AND" : "WHERE";
+  const sql = `SELECT c.token value,c.text label,c.kind,COUNT(DISTINCT d.id) count FROM documents d JOIN cells c ON c.row_id=d.id ${where.sql} ${join} c.field_id=? AND instr(lower(c.text),lower(?))>0 GROUP BY c.token,c.text,c.kind ORDER BY c.number,c.text,c.token`;
+  const values = s.db.prepare(sql).all(...where.binds, f.path, search) as Json[];
+  const missing = Number((s.db.prepare(`SELECT COUNT(*) n FROM documents d ${where.sql} ${join} NOT EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=?)`).get(...where.binds, f.path) as Json).n);
+  if (missing && (!search || "未提供 missing".includes(search.toLowerCase()))) values.push({ value: "missing:", label: "(未提供 / missing)", kind: "missing", count: missing });
+  const selected = query.filters?.[field]?.values ?? [];
+  for (const value of selected) if (!values.some(item => item.value === value || item.label === value)) values.push({ value, label: value, count: 0, selected: true });
+  receipts.facets = { queryTemplate: sql, parameterTypes: [...where.binds, f.path, search].map(v => typeof v), candidateCount: values.length, excludedField: f.path, scope: kind };
+  return { field, values: values.map(item => ({ ...item, selected: selected.includes(item.value) || selected.includes(item.label) })), truncated: false };
+}
+export function exportResultsV043(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null, query: QueryV043, visible?: string[]) {
+  const result = queryResultsV043(kind, aiPath, rawPath, query, true);
+  const s = snapshotFor(kind, aiPath, rawPath);
+  const fields = visible ? visible.map(id => s.registry.get(id.replace(/^dynamic:/, ""))).filter((f): f is FieldV043 => Boolean(f)) : result.fieldCatalog;
+  return { schemaName: "jaa-table-query-export", schemaVersion: "0.3.43", scope: visible ? "visible-columns" : "all-fields", completePackage: false, snapshot: result.generation, totalCount: result.totalCount, filteredCount: result.filteredCount, fields: fields.map(f => ({ id: f.path, label: f.label })), rows: result.rows.map((row: Json) => Object.fromEntries(fields.map(f => [f.path, row.fieldValues[f.path]]))) };
+}
+export function latestQueryDiagnosticsV043() { return { ...receipts }; }

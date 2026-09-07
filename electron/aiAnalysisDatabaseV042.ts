@@ -4,6 +4,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import Ajv2020Module from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
+import { validatePackageSemanticsV043 } from "./aiPackageSemanticsV043.js";
 import { AI_ANALYSIS_DDL_SHA256_V042, AI_ANALYSIS_DDL_V042, AI_ANALYSIS_DDL_VERSION_V042 } from "./generated/aiAnalysisDdlV042.js";
 
 const Ajv2020 = ((Ajv2020Module as any).default ?? Ajv2020Module) as new (options: Record<string, unknown>) => any;
@@ -42,11 +43,11 @@ function stableId(prefix: string, ...parts: string[]) {
 function roleFailure(pkg: Json) {
   const name = String(pkg?.schemaName ?? pkg?.schema ?? "").toLowerCase();
   const version = String(pkg?.schemaVersion ?? "");
-  if (name === "jaa-ai-analysis-package" && version === AI_PACKAGE_SCHEMA_VERSION_V042) return null;
+  if (name === "jaa-ai-analysis-package" && ["2.0.0", "2.0.1"].includes(version)) return null;
   if (name.includes("pending-analysis")) return { code: "WRONG_FILE_ROLE_PENDING", message: "Pending Analysis is source input, not a formal AI Analysis Package v2." };
   if (name.includes("manual") || name.includes("review")) return { code: "WRONG_FILE_ROLE_REVIEW", message: "Standalone review JSON is not importable. Export a formal v2 package from the offline Workbench." };
   if (name.includes("analyzed") || name.includes("analysis-import") || version === "1.0.0") return { code: "WRONG_FILE_ROLE_LEGACY", message: "Legacy analyzed/package v1 files are view-only. Convert the three files outside JAA." };
-  return { code: "UNSUPPORTED_FILE_TYPE", message: "Only jaa-ai-analysis-package v2.0.0 is accepted." };
+  return { code: "UNSUPPORTED_FILE_TYPE", message: "Only jaa-ai-analysis-package v2.0.0 / v2.0.1 is accepted." };
 }
 
 function formatAjvErrors(errors: any[] | null | undefined) {
@@ -117,13 +118,14 @@ export function validateAiAnalysisPackageV042(input: { filePath: string; package
   const errors: V042Preview["errors"] = [];
   try {
     const sourceSchema = JSON.parse(fs.readFileSync(input.sourceTraceSchemaPath, "utf8"));
-    const packageSchema = JSON.parse(fs.readFileSync(input.packageSchemaPath, "utf8"));
+    const packageSchema = JSON.parse(fs.readFileSync(path.join(path.dirname(input.packageSchemaPath), `jaa-ai-analysis-package_v${pkg.schemaVersion}.schema.json`), "utf8"));
     const ajv = new Ajv2020({ allErrors: true, strict: false });
     addFormats(ajv);
     ajv.addSchema(sourceSchema);
     const validate = ajv.compile(packageSchema);
     const valid = validate(pkg);
     if (!valid) errors.push(...formatAjvErrors(validate.errors));
+    else errors.push(...validatePackageSemanticsV043(pkg, path.dirname(input.packageSchemaPath)));
   } catch (error) { errors.push({ code: "SCHEMA_VALIDATOR_FAILED", message: error instanceof Error ? error.message : String(error) }); }
   const identities = new Set<string>();
   let findings = 0;
@@ -188,7 +190,7 @@ export function inspectAiDatabaseV042(databasePath: string) {
     const integrity = String((db.prepare("PRAGMA integrity_check").get() as Json).integrity_check ?? "error");
     const foreignKeyErrors = rows(db.prepare("PRAGMA foreign_key_check").all()).length;
     const recordCount = scalar(db, "SELECT COUNT(*) value FROM ai_records");
-    const findingCount = scalar(db, "SELECT COUNT(*) value FROM ai_skill_findings");
+    const findingCount = scalar(db, "SELECT COUNT(*) value FROM ai_skill_findings f JOIN ai_records r ON r.active_analysis_id=f.analysis_id");
     const reviewedCount = scalar(db, "SELECT COUNT(*) value FROM ai_records WHERE active_review_id IS NOT NULL");
     const matchedCount = scalar(db, "SELECT COUNT(*) value FROM ai_records WHERE source_link_status IN ('PRIMARY_MATCHED','FALLBACK_MATCHED')");
     const linkOutcomeCounts = Object.fromEntries(rows<Json>(db.prepare("SELECT source_link_status status,COUNT(*) count FROM ai_records GROUP BY source_link_status").all()).map((item) => [String(item.status), Number(item.count)]));
@@ -198,7 +200,7 @@ export function inspectAiDatabaseV042(databasePath: string) {
     const sourceContexts = rows<Json>(db.prepare("SELECT source_database_id,database_generation,source_schema_version,COUNT(*) record_count,MAX(imported_at) last_imported_at FROM ai_import_batches WHERE transaction_status='COMMITTED' GROUP BY source_database_id,database_generation,source_schema_version ORDER BY last_imported_at DESC").all());
     const metadata = db.prepare("SELECT * FROM ai_schema_metadata LIMIT 1").get() as Json;
     const ok = integrity === "ok" && foreignKeyErrors === 0;
-    return { lifecycleState: ok ? recordCount ? "READY_WITH_DATA" : "READY_EMPTY" : "READ_ONLY_DIAGNOSTIC", databasePath: resolved, databaseFileName: path.basename(resolved), databaseDirectory: path.dirname(resolved), databaseId: sha256(resolved.toLowerCase()), exists: true, canCreate: false, canImport: ok, canQuery: ok, readOnly: !ok, schemaName: metadata.schema_name, schemaVersion: 2, sourceTraceContractVersion: metadata.source_trace_contract_version, packageContractVersion: metadata.package_contract_version, integrity, foreignKeyErrors, recordCount, findingCount, reviewedCount, matchedCount, linkOutcomeCounts, traceCompletenessCounts, sourceContextCount: sourceContexts.length, importBatchCount, batches, sourceContexts, sizeBytes: fs.statSync(resolved).size, modifiedAtUtc: fs.statSync(resolved).mtime.toISOString(), sqliteRuntimeVersion: String((db.prepare("SELECT sqlite_version() value").get() as Json).value), journalMode: String((db.prepare("PRAGMA journal_mode").get() as Json).journal_mode) };
+    return { lifecycleState: ok ? recordCount ? "READY_WITH_DATA" : "READY_EMPTY" : "READ_ONLY_DIAGNOSTIC", databasePath: resolved, databaseFileName: path.basename(resolved), databaseDirectory: path.dirname(resolved), databaseId: sha256(resolved.toLowerCase()), exists: true, canCreate: false, canImport: ok, canQuery: ok, readOnly: !ok, schemaName: metadata.schema_name, schemaVersion: 2, createdAtUtc: metadata.created_at, lastImportAtUtc: batches[0]?.imported_at ?? null, completedReviewCount: scalar(db, "SELECT COUNT(*) value FROM ai_records r JOIN ai_record_reviews v ON v.review_id=r.active_review_id WHERE v.completed=1"), sourceTraceContractVersion: metadata.source_trace_contract_version, packageContractVersion: metadata.package_contract_version, integrity, foreignKeyErrors, recordCount, findingCount, reviewedCount, matchedCount, linkOutcomeCounts, traceCompletenessCounts, sourceContextCount: sourceContexts.length, importBatchCount, batches, sourceContexts, sizeBytes: fs.statSync(resolved).size, modifiedAtUtc: fs.statSync(resolved).mtime.toISOString(), sqliteRuntimeVersion: String((db.prepare("SELECT sqlite_version() value").get() as Json).value), journalMode: String((db.prepare("PRAGMA journal_mode").get() as Json).journal_mode) };
   } catch (error) { return { lifecycleState: "READ_ONLY_DIAGNOSTIC", databasePath: resolved, exists: true, canCreate: false, canImport: false, canQuery: false, schemaVersion: 0, errorCode: "AI_DATABASE_OPEN_FAILED", message: error instanceof Error ? error.message : String(error) }; }
   finally { db.close(); }
 }
@@ -230,14 +232,18 @@ export function previewImportActionsV042(databasePath: string, pkg: Json) {
   const db = new DatabaseSync(databasePath, { readOnly: true });
   let insertCount = 0, replaceCount = 0, protectedSkipCount = 0, identicalNoopCount = 0;
   try {
-    if (db.prepare("SELECT 1 FROM ai_import_batches WHERE package_id=? AND transaction_status='COMMITTED'").get(pkg.packageId)) return { insertCount: 0, replaceCount: 0, protectedSkipCount: 0, identicalNoopCount: pkg.records.length };
+    const prior = db.prepare("SELECT package_metadata_json FROM ai_import_batches WHERE package_id=? AND transaction_status='COMMITTED'").get(pkg.packageId) as Json | undefined;
+    if (prior) {
+      if (JSON.parse(prior.package_metadata_json).packageSha256 !== packageDigestV042(pkg)) throw new Error("PACKAGE_ID_CONTENT_CONFLICT");
+      return { insertCount: 0, replaceCount: 0, protectedSkipCount: 0, identicalNoopCount: pkg.records.length };
+    }
     for (const record of pkg.records as Json[]) {
       const ref = record.sourceTrace.reference;
       const existing = currentRank(db, { sourceDatabaseId: ref.sourceDatabaseId, activityEventId: ref.activityEventId });
       const identical = existing && activeRecordDigest(db, ref.sourceDatabaseId, ref.activityEventId) === incomingRecordDigest(record);
       if (!existing) insertCount += 1;
-      else if (REVIEW_RANK[pkg.reviewRank as ReviewRank] > REVIEW_RANK[existing] || (pkg.reviewRank === existing && !identical)) replaceCount += 1;
-      else if (REVIEW_RANK[pkg.reviewRank as ReviewRank] < REVIEW_RANK[existing]) protectedSkipCount += 1;
+      else if (REVIEW_RANK[pkg.reviewRank as ReviewRank] > REVIEW_RANK[existing]) replaceCount += 1;
+      else if ((REVIEW_RANK[pkg.reviewRank as ReviewRank] < REVIEW_RANK[existing] || !identical)) protectedSkipCount += 1;
       else identicalNoopCount += 1;
     }
     return { insertCount, replaceCount, protectedSkipCount, identicalNoopCount };
@@ -251,7 +257,8 @@ export function importAiAnalysisPackageV042(input: { databasePath: string; packa
   const db = new DatabaseSync(input.databasePath);
   try {
     configure(db);
-    const prior = db.prepare("SELECT import_batch_id FROM ai_import_batches WHERE package_id=? AND transaction_status='COMMITTED'").get(pkg.packageId) as Json | undefined;
+    const prior = db.prepare("SELECT import_batch_id,package_metadata_json FROM ai_import_batches WHERE package_id=? AND transaction_status='COMMITTED'").get(pkg.packageId) as Json | undefined;
+    if (prior && JSON.parse(prior.package_metadata_json).packageSha256 !== packageSha256) throw new Error("PACKAGE_ID_CONTENT_CONFLICT");
     if (prior) return { ok: true, importBatchId: prior.import_batch_id, packageId: pkg.packageId, insertedCount: 0, replacedCount: 0, protectedSkipCount: 0, identicalNoopCount: pkg.records.length, idempotent: true, committedRecordCount: scalar(db, "SELECT COUNT(*) value FROM ai_records") };
     const batchId = stableId("batch", pkg.packageId, packageSha256);
     let insertedCount = 0, replacedCount = 0, protectedSkipCount = 0, identicalNoopCount = 0;
@@ -265,13 +272,13 @@ export function importAiAnalysisPackageV042(input: { databasePath: string; packa
       const existing = db.prepare("SELECT ai_record_id,active_analysis_id,active_review_id FROM ai_records WHERE source_database_id=? AND activity_event_id=?").get(ref.sourceDatabaseId, ref.activityEventId) as Json | undefined;
       const existingRank = existing ? currentRank(db, { sourceDatabaseId: ref.sourceDatabaseId, activityEventId: ref.activityEventId }) : undefined;
       const identical = Boolean(existingRank) && activeRecordDigest(db, ref.sourceDatabaseId, ref.activityEventId) === incomingRecordDigest(record);
-      const incomingWins = !existingRank || REVIEW_RANK[pkg.reviewRank as ReviewRank] > REVIEW_RANK[existingRank] || (pkg.reviewRank === existingRank && !identical);
+      const incomingWins = !existingRank || REVIEW_RANK[pkg.reviewRank as ReviewRank] > REVIEW_RANK[existingRank];
       if (!existing) {
         db.prepare("INSERT INTO ai_records(ai_record_id,source_database_id,database_generation,activity_event_id,source_record_stable_id,evidence_id,issue_key,field_identity,field_name,event_time,record_index,source_trace_status,source_link_status,integrity_status,active_analysis_id,active_review_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
           .run(recordId, ref.sourceDatabaseId, pkg.sourceTrace.sourceDatabase.databaseGeneration, ref.activityEventId, ref.sourceRecordStableId, ref.evidenceId, ref.issueKey, ref.fieldId ?? null, ref.fieldName, ref.eventTime, record.recordIndex, "COMPLETE", "NOT_ATTEMPTED", record.integrityReceipt?.status ?? "NOT_CHECKED", null, null, importedAt, importedAt);
         insertedCount += 1;
       } else if (incomingWins) replacedCount += 1;
-      else if (existingRank && REVIEW_RANK[pkg.reviewRank as ReviewRank] < REVIEW_RANK[existingRank]) protectedSkipCount += 1;
+      else if (existingRank && (REVIEW_RANK[pkg.reviewRank as ReviewRank] < REVIEW_RANK[existingRank] || !identical)) protectedSkipCount += 1;
       else identicalNoopCount += 1;
       const traceId = stableId("trace", recordId, batchId);
       db.prepare("INSERT INTO ai_record_source_traces(source_trace_id,ai_record_id,import_batch_id,source_trace_json,reference_json,diff_json,pending_integrity_json,source_schema_version,source_trace_contract_version,integrity_receipt_json,trace_completeness_status,observed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
@@ -301,13 +308,21 @@ export function importAiAnalysisPackageV042(input: { databasePath: string; packa
     if (readBack.batch !== 1 || readBack.traces !== expected.records || readBack.analyses !== expected.records || readBack.reviews !== expected.reviewedRecords || readBack.findings !== expected.skillFindings) {
       throw Object.assign(new Error("AI_IMPORT_READBACK_MISMATCH"), { readBack, expected });
     }
+    const readDocument = db.prepare(`SELECT t.source_trace_json,a.analysis_json,v.review_json FROM ai_record_source_traces t
+      JOIN ai_record_analyses a ON a.ai_record_id=t.ai_record_id AND a.import_batch_id=t.import_batch_id
+      LEFT JOIN ai_record_reviews v ON v.analysis_id=a.analysis_id WHERE t.import_batch_id=? AND t.ai_record_id=?`);
+    for (const record of pkg.records as Json[]) {
+      const ref=record.sourceTrace.reference;
+      const saved=readDocument.get(batchId,stableId("record",ref.sourceDatabaseId,ref.activityEventId)) as Json;
+      if (!saved || packageDigestV042({sourceTrace:JSON.parse(saved.source_trace_json),aiAnalysis:JSON.parse(saved.analysis_json),manualReview:saved.review_json ? JSON.parse(saved.review_json) : null}) !== incomingRecordDigest(record)) throw new Error("AI_IMPORT_CONTENT_READBACK_MISMATCH");
+    }
     db.exec("COMMIT");
     return { ok: true, importBatchId: batchId, readBack, packageId: pkg.packageId, insertedCount, replacedCount, protectedSkipCount, identicalNoopCount, idempotent: false, committedRecordCount: scalar(db, "SELECT COUNT(*) value FROM ai_records"), completedAt: importedAt };
   } catch (error) { try { db.exec("ROLLBACK"); } catch { /* no active transaction */ } throw error; }
   finally { db.close(); }
 }
 
-type RawCandidate = { activityEventId: string; sourceRecordStableId?: string; fieldName?: string; eventTime?: string; databaseGeneration?: string; sourceContentHash?: string };
+type RawCandidate = { activityEventId: string; sourceRecordStableId?: string; fieldName?: string; fieldIdentity?: string; eventTime?: string; databaseGeneration?: string; sourceContentHash?: string };
 export function decideSourceLinkV042(record: Json, rawDatabaseIdentity: string, candidates: RawCandidate[]) {
   const ref = record.sourceTrace.reference;
   if (rawDatabaseIdentity !== ref.sourceDatabaseId) return { method: "NONE", candidateCount: 0, status: "SOURCE_DATABASE_MISMATCH", matchedActivityEventId: null, databaseGenerationStatus: "UNKNOWN" };
@@ -315,7 +330,7 @@ export function decideSourceLinkV042(record: Json, rawDatabaseIdentity: string, 
   const generation = (candidate?: RawCandidate) => !candidate?.databaseGeneration ? "UNKNOWN" : candidate.databaseGeneration === record.databaseGeneration ? "SAME" : "DIFFERENT";
   if (primary.length === 1) return { method: "PRIMARY", candidateCount: 1, status: "PRIMARY_MATCHED", matchedActivityEventId: primary[0].activityEventId, databaseGenerationStatus: generation(primary[0]) };
   if (primary.length > 1) return { method: "PRIMARY", candidateCount: primary.length, status: "AMBIGUOUS", matchedActivityEventId: null, databaseGenerationStatus: "UNKNOWN" };
-  const fallback = candidates.filter((candidate) => candidate.sourceRecordStableId === ref.sourceRecordStableId && candidate.fieldName === ref.fieldName && candidate.eventTime === ref.eventTime);
+  const fallback = candidates.filter((candidate) => candidate.sourceRecordStableId === ref.sourceRecordStableId && (ref.fieldId ? candidate.fieldIdentity === ref.fieldId : candidate.fieldName === ref.fieldName) && candidate.eventTime === ref.eventTime);
   if (fallback.length === 1) return { method: "FALLBACK", candidateCount: 1, status: "FALLBACK_MATCHED", matchedActivityEventId: fallback[0].activityEventId, databaseGenerationStatus: generation(fallback[0]) };
   return { method: "FALLBACK", candidateCount: fallback.length, status: fallback.length > 1 ? "AMBIGUOUS" : "NOT_FOUND", matchedActivityEventId: null, databaseGenerationStatus: "UNKNOWN" };
 }

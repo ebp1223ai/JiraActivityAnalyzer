@@ -1,0 +1,166 @@
+{
+  "rows": [
+    {
+      "id": "r1",
+      "issue": "FIX-100",
+      "actor": "A",
+      "status": "CLASSIFIED",
+      "skills": [
+        "DEBUG_004",
+        "SYSTEM_003"
+      ]
+    },
+    {
+      "id": "r2",
+      "issue": "FIX-100",
+      "actor": "B",
+      "status": "EXCLUDED",
+      "skills": []
+    },
+    {
+      "id": "r3",
+      "issue": "FIX-200",
+      "actor": "A",
+      "status": "CLASSIFIED",
+      "skills": [
+        "DEBUG_004"
+      ]
+    },
+    {
+      "id": "r4",
+      "issue": "FIX-200",
+      "actor": "C",
+      "status": "UNKNOWN",
+      "skills": []
+    }
+  ],
+  "cases": [
+    {
+      "id": "F01",
+      "filters": {
+        "issue": [
+          "FIX-100"
+        ]
+      },
+      "rowIds": [
+        "r1",
+        "r2"
+      ],
+      "facet": "actor",
+      "values": [
+        {
+          "value": "A",
+          "count": 1
+        },
+        {
+          "value": "B",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "F02",
+      "filters": {
+        "issue": [
+          "FIX-100"
+        ],
+        "actor": [
+          "A"
+        ]
+      },
+      "rowIds": [
+        "r1"
+      ],
+      "facet": "actor",
+      "values": [
+        {
+          "value": "A",
+          "count": 1
+        },
+        {
+          "value": "B",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "F03",
+      "filters": {
+        "issue": [
+          "FIX-100"
+        ],
+        "actor": [
+          "A",
+          "B"
+        ]
+      },
+      "rowIds": [
+        "r1",
+        "r2"
+      ],
+      "facet": "actor",
+      "values": [
+        {
+          "value": "A",
+          "count": 1
+        },
+        {
+          "value": "B",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "F04",
+      "filters": {
+        "issue": [
+          "FIX-100"
+        ],
+        "actor": [
+          "A",
+          "B"
+        ],
+        "status": [
+          "CLASSIFIED"
+        ]
+      },
+      "rowIds": [
+        "r1"
+      ],
+      "facet": "actor",
+      "values": [
+        {
+          "value": "A",
+          "count": 1
+        },
+        {
+          "value": "B",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "id": "F05",
+      "filters": {
+        "skills": [
+          "DEBUG_004"
+        ]
+      },
+      "rowIds": [
+        "r1",
+        "r3"
+      ],
+      "facet": "skills",
+      "values": [
+        {
+          "value": "DEBUG_004",
+          "count": 2
+        },
+        {
+          "value": "SYSTEM_003",
+          "count": 1
+        }
+      ]
+    }
+  ]
+}

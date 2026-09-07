@@ -949,7 +949,7 @@ ipcMain.handle("ui-preferences:update", async (_event, payload: { section?: unkn
   const section = String(payload?.section ?? "");
   const allowedSections = new Set([
     "databaseIssueList", "timelineEventList", "userRelatedIssues", "userAllActivityEvents",
-    "issueActivityEvents", "issueChangelog", "issueComments", "aiResults", "integratedResults", "filterPresets"
+    "issueActivityEvents", "issueChangelog", "issueComments", "aiResults", "integratedResults", "filterPresets", "aiViewerScopes"
   ]);
   if (!allowedSections.has(section)) throw new Error("INVALID_UI_PREFERENCE_SECTION");
   return updateUiPreferences(getConfiguredAppRoot(), section as Parameters<typeof updateUiPreferences>[1], payload?.value);
@@ -6104,7 +6104,7 @@ function createMainWindow() {
     minHeight: 680,
     title: `Jira Activity Analyzer v${app.getVersion()}`,
     backgroundColor: "#f6f9fd",
-    show: !isUiSmoke,
+    show: !isUiSmoke && process.env.JAA_V043_BACKGROUND !== "1",
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

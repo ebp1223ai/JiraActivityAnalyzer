@@ -1,0 +1,331 @@
+{
+  "schemaName": "jaa-ai-analysis-package",
+  "schemaVersion": "2.0.0",
+  "packageId": "fixture-negative-missing-diff",
+  "createdAt": "2026-09-02T00:10:00.000Z",
+  "generator": {
+    "name": "JAA v2 Fixture Builder",
+    "version": "1.0.0",
+    "mode": "TEST_FIXTURE"
+  },
+  "reviewRank": "AI_ONLY",
+  "sourceTrace": {
+    "contractVersion": "JAA-SOURCE-TRACE-v1",
+    "pendingDocument": {
+      "schemaName": "jira-activity-analyzer.pending-analysis",
+      "schemaVersion": "0.3.3-draft.1",
+      "contractStatus": "GOLDEN_FIXTURE",
+      "exportId": "export-source-trace-golden-3",
+      "createdAt": "2026-09-02T00:00:00.000Z",
+      "timezone": "Asia/Taipei",
+      "appVersion": "0.3.41-fixture",
+      "counts": {
+        "recordCount": 3
+      },
+      "integrity": {
+        "status": "fixture"
+      },
+      "diagnostics": [],
+      "pendingFilename": "pending-analysis__source-trace-golden-3.json",
+      "pendingFileSha256": "20b6c3716615ea64e38d7e7d7a5c9dc661d986654e745c8e659c5618a3e6f959"
+    },
+    "sourceDatabase": {
+      "sourceDatabaseId": "source-db-golden-001",
+      "jiraServerFingerprint": "jira:fixture:001",
+      "jiraServerHost": "jira.example.invalid",
+      "sourceSchemaVersion": 3,
+      "databaseGeneration": "generation-golden-001"
+    },
+    "sourceView": "USER_ALL_ACTIVITY_EVENTS",
+    "querySnapshot": {
+      "query": {
+        "dateRange": {
+          "startDate": "2026-08-01",
+          "endDate": "2026-08-31"
+        }
+      },
+      "subject": {
+        "userScope": {
+          "kind": "selected-users",
+          "userIds": [
+            "fixture_user"
+          ]
+        }
+      }
+    },
+    "exportMetadata": {
+      "exportMode": "self-contained-fixture",
+      "selfContained": true,
+      "fullContentIncluded": true,
+      "sourceDatabaseRequiredForFullContent": false
+    },
+    "optionalIntegrityReceipt": null
+  },
+  "rulesBinding": {
+    "manifest": {
+      "file": "Skill_Analysis_Rule_Set_Manifest_v1.6.0.md",
+      "version": "1.6.0",
+      "bytes": 6865,
+      "sha256": "b9eec61d696bb8b03ad03c4199a369f010a1c4081ada9065697dd7705b2a8861"
+    },
+    "commonRules": {
+      "file": "Skill_Classification_Common_Rules_v2.6.0.md",
+      "version": "2.6.0",
+      "bytes": 24097,
+      "sha256": "bcab7d76d347e44d1e68624b1ef68d0c86b629dd0384a9dc80bd37620e5684ea"
+    },
+    "skillCatalog": {
+      "file": "Skill_Catalog_v0.3.5.md",
+      "version": "0.3.5",
+      "bytes": 30465,
+      "sha256": "d32eb58ff7ea01931e889d97e2f4b1a30ed35a5cce17a293ba37b0e19d73d006"
+    },
+    "htmlTemplate": {
+      "file": "Skill_Analysis_HTML_Report_Template_v1.13.1.md",
+      "version": "1.13.1",
+      "bytes": 15583,
+      "sha256": "db266f8b6ac9aa989e10e5e83e181386c191e7e31b89ee47530c9cb17a51effc"
+    }
+  },
+  "counts": {
+    "records": 3,
+    "classified": 1,
+    "unknown": 1,
+    "excluded": 1,
+    "failed": 0,
+    "skillFindings": 1,
+    "reviewedRecords": 0,
+    "completedReviews": 0
+  },
+  "records": [
+    {
+      "recordIndex": 0,
+      "dedupeKey": "source-db-golden-001|activity-fixture-000",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "pae_fixture_000",
+          "activityEventId": "activity-fixture-000",
+          "sourceDatabaseId": "source-db-golden-001",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-000",
+          "historyId": "stable-000",
+          "historyItemIndex": null,
+          "issueId": "issue-000",
+          "issueKey": "FIX-100",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-08-31T01:00:00.000Z",
+          "actor": {
+            "stableIdentity": "fixture_user",
+            "displayValue": "Fixture User"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ GC Suspend 時 Copy Data State 切換錯誤。",
+          "diffHunks": [
+            {
+              "id": "h0",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "GC Suspend 時 Copy Data State 切換錯誤。"
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "recordSha256": "fixture-record-000",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": false,
+          "diagnostics": []
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 0,
+        "evidenceId": "pae_fixture_000",
+        "sourceRecordStableId": "stable-000",
+        "issueKey": "FIX-100",
+        "status": "CLASSIFIED",
+        "confidence": 0.9,
+        "skillFindings": [
+          {
+            "skillId": "GC_007",
+            "skillName": "GC Suspend/Stop Flow",
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/sourceTrace/diff/diffHunks/0/lines/0/text",
+                "quote": "GC Suspend 時 Copy Data State 切換錯誤。"
+              }
+            ],
+            "negativeChecks": [
+              "不是單純流程通知；內容直接描述 GC Suspend 狀態轉移。"
+            ],
+            "rationale": "直接描述 GC Suspend 中 Copy Data State 切換錯誤。"
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "具體描述 GC Suspend 領域問題。"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 1,
+      "dedupeKey": "source-db-golden-001|activity-fixture-001",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "pae_fixture_001",
+          "activityEventId": "activity-fixture-001",
+          "sourceDatabaseId": "source-db-golden-001",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-001",
+          "historyId": "stable-001",
+          "historyItemIndex": null,
+          "issueId": "issue-001",
+          "issueKey": "FIX-101",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-08-31T02:00:00.000Z",
+          "actor": {
+            "stableIdentity": "fixture_user",
+            "displayValue": "Fixture User"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "pendingIntegrity": {
+          "recordSha256": "fixture-record-001",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": false,
+          "diagnostics": []
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 1,
+        "evidenceId": "pae_fixture_001",
+        "sourceRecordStableId": "stable-001",
+        "issueKey": "FIX-101",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [
+          "只有請求關閉 Issue，沒有技術內容。"
+        ],
+        "unknownReasons": [],
+        "rationale": "流程性通知。"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 2,
+      "dedupeKey": "source-db-golden-001|activity-fixture-002",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "pae_fixture_002",
+          "activityEventId": "activity-fixture-002",
+          "sourceDatabaseId": "source-db-golden-001",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-002",
+          "historyId": "stable-002",
+          "historyItemIndex": null,
+          "issueId": "issue-002",
+          "issueKey": "FIX-102",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "description",
+          "eventTime": "2026-08-31T03:00:00.000Z",
+          "actor": {
+            "stableIdentity": "fixture_user",
+            "displayValue": "Fixture User"
+          },
+          "sourceProvenance": "jira_history",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "AVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ COP0API_SendSQ_GCRead()",
+          "diffHunks": [
+            {
+              "id": "h0",
+              "oldStart": 1,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "COP0API_SendSQ_GCRead()"
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "recordSha256": "fixture-record-002",
+          "originalEvidenceAvailable": true,
+          "sourceContentHashesVerified": false,
+          "diagnostics": []
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 2,
+        "evidenceId": "pae_fixture_002",
+        "sourceRecordStableId": "stable-002",
+        "issueKey": "FIX-102",
+        "status": "UNKNOWN",
+        "confidence": 0.3,
+        "skillFindings": [],
+        "recordNegativeChecks": [
+          "只有函式名稱，缺少行為、參數與實際修改。"
+        ],
+        "unknownReasons": [
+          "Evidence 太短，無法可靠區分 GC／COP0 實作技能。"
+        ],
+        "rationale": "保留來源但不強迫分類。"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    }
+  ],
+  "packageIntegrityReceipt": null
+}

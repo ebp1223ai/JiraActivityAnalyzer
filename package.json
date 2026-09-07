@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.42",
+  "version": "0.3.43",
   "description": "Electron desktop analyzer with bundled Codex local-workspace AI analysis and canonical debug evidence.",
   "author": "COPGEN",
   "type": "module",
@@ -129,7 +129,9 @@
     "test:v0.3.40": "npm run electron:build && node scripts/test-v0340.cjs && node scripts/test-v0339.cjs && node scripts/test-v0338.cjs",
     "test:v0.3.41": "npm run electron:build && node scripts/test-v0341.cjs && node scripts/test-v0341-integration.cjs && node scripts/test-v0341-link-query.cjs && node scripts/test-v0341-workbench.cjs && node scripts/test-v0340.cjs && node scripts/test-v0339.cjs && node scripts/test-v0338.cjs",
     "test:v0.3.42": "npm run electron:build && node scripts/test-v0342.cjs && node scripts/test-v0342-workbench.cjs && node scripts/test-v0342-ui-contract.cjs && node scripts/test-v0341.cjs && node scripts/test-v0341-link-query.cjs && node scripts/test-v0341-workbench.cjs && node scripts/test-v0340.cjs && node scripts/test-v0339.cjs && node scripts/test-v0338.cjs",
-    "test:ui:legacy-deep": "npm run build && cross-env ELECTRON_UI_SMOKE=1 ELECTRON_UI_CAPTURE=0 ELECTRON_UI_LEGACY_DEEP=1 electron dist-electron/main.cjs"
+    "test:ui:legacy-deep": "npm run build && cross-env ELECTRON_UI_SMOKE=1 ELECTRON_UI_CAPTURE=0 ELECTRON_UI_LEGACY_DEEP=1 electron dist-electron/main.cjs",
+    "test:v0.3.43": "node scripts/test-v0343.cjs && node scripts/test-v0343-integration.cjs && node scripts/test-v0343-correctness.cjs",
+    "test:ui:v0.3.43": "node scripts/test-v0343-ui.cjs"
   },
   "dependencies": {
     "@openai/codex": "0.147.0",
@@ -142,6 +144,7 @@
     "recharts": "^2.15.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

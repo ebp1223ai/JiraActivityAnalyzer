@@ -1,0 +1,64 @@
+{
+  "note": "View projection fixture, not an import package; never use legacy effective() to stand in for separate AI/manual columns.",
+  "aiSkills": [
+    "DEBUG_004",
+    "SYSTEM_003",
+    "SYSTEM_020"
+  ],
+  "cases": [
+    {
+      "id": "R01",
+      "review": null,
+      "confirmed": [],
+      "pending": [
+        "DEBUG_004",
+        "SYSTEM_003",
+        "SYSTEM_020"
+      ],
+      "final": false
+    },
+    {
+      "id": "R02",
+      "review": {
+        "completed": false,
+        "verdicts": {
+          "DEBUG_004": "ACCEPT",
+          "SYSTEM_003": "REJECT",
+          "SYSTEM_020": "UNREVIEWED"
+        },
+        "added": [
+          "GC_006"
+        ]
+      },
+      "confirmed": [
+        "DEBUG_004",
+        "GC_006"
+      ],
+      "pending": [
+        "SYSTEM_020"
+      ],
+      "final": false
+    },
+    {
+      "id": "R03",
+      "review": {
+        "completed": true,
+        "verdicts": {
+          "DEBUG_004": "ACCEPT",
+          "SYSTEM_003": "REJECT",
+          "SYSTEM_020": "ADJUST"
+        },
+        "added": [
+          "GC_006"
+        ]
+      },
+      "confirmed": [
+        "DEBUG_004",
+        "SYSTEM_020",
+        "GC_006"
+      ],
+      "pending": [],
+      "final": true
+    }
+  ]
+}
