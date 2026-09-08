@@ -1,11 +1,11 @@
 {
   "version": "0.3.45",
-  "status": "PARTIAL_MANUAL_GUI_PENDING",
+  "status": "PARTIAL_RELEASE_BLOCKED",
   "startedAt": "2026-09-08T17:15:10.8858685+08:00",
-  "recordedAt": "2026-09-08T10:30:24.926Z",
+  "recordedAt": "2026-09-08T10:57:15.493Z",
   "timezone": "Asia/Taipei",
-  "wallClockMs": 4514041,
-  "commandUnionMs": 1118912,
+  "wallClockMs": 6124608,
+  "commandUnionMs": 2180539,
   "activeWorkMs": null,
   "waitingMs": null,
   "activeWaitingReason": "UNAVAILABLE: orchestration, reasoning and tool/approval waits are not separately metered.",
@@ -624,9 +624,230 @@
       "exitCode": 0,
       "signal": null,
       "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-29-23-320Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/v0345-delivery-report.cjs"
+      ],
+      "startedAt": "2026-09-08T10:30:24.670Z",
+      "finishedAt": "2026-09-08T10:30:25.149Z",
+      "durationMs": 478.81379999999996,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-30-24-670Z-node.log"
+    },
+    {
+      "command": [
+        "git",
+        "add",
+        "--",
+        "CHANGELOG.md",
+        "VERSION",
+        "electron/aiAnalysisDatabaseIpcV042.ts",
+        "electron/aiResultsIndexV044.ts",
+        "electron/aiResultsQueryV043.ts",
+        "electron/aiResultsServiceV044.ts",
+        "electron/aiResultsWorkerV044.ts",
+        "electron/automaticDiagnosticsV044.ts",
+        "electron/diagnosticWriterV044.ts",
+        "electron/main.ts",
+        "package-lock.json",
+        "package.json",
+        "scripts/test-v0344-installer.ps1",
+        "scripts/test-v0344-performance.cjs",
+        "scripts/test-v0344-ui.cjs",
+        "scripts/test-v0344-windows.cjs",
+        "scripts/test-v0344.cjs",
+        "scripts/v0344-asar-preflight.cjs",
+        "src/components/ActivityComparisonTable.tsx",
+        "src/routes/AiDatabaseViewerPagesV043.tsx",
+        "electron/databaseRevisionV045.ts",
+        "electron/diagnosticSnapshotV045.ts",
+        "reports/JiraActivityAnalyzer_v0.3.45_Acceptance.json",
+        "reports/JiraActivityAnalyzer_v0.3.45_Execution_Time_Ledger.json",
+        "reports/JiraActivityAnalyzer_v0.3.45_Implementation_Report.md",
+        "reports/JiraActivityAnalyzer_v0.3.45_Scope.json",
+        "reports/JiraActivityAnalyzer_v0.3.45_Test_Report.json",
+        "scripts/test-v0345-regressions.cjs",
+        "scripts/test-v0345-ui.cjs",
+        "scripts/test-v0345-windows.cjs",
+        "scripts/test-v0345.cjs",
+        "scripts/v0345-command.cjs",
+        "scripts/v0345-delivery-report.cjs",
+        "scripts/v0345-package.cjs",
+        "scripts/v0345-source-audit.cjs",
+        "scripts/v0345-ui-checks.cjs",
+        "src/state/aiResultCacheV045.ts"
+      ],
+      "startedAt": "2026-09-08T10:30:50.262Z",
+      "finishedAt": "2026-09-08T10:30:51.353Z",
+      "durationMs": 1090.511,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-30-50-262Z-git.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/v0345-source-audit.cjs"
+      ],
+      "startedAt": "2026-09-08T10:31:08.367Z",
+      "finishedAt": "2026-09-08T10:31:10.955Z",
+      "durationMs": 2586.4326,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-31-08-367Z-node.log"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "startedAt": "2026-09-08T10:31:32.538Z",
+      "finishedAt": "2026-09-08T10:31:32.640Z",
+      "durationMs": 101.33549999999998,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-31-32-538Z-git.log"
+    },
+    {
+      "command": [
+        "git",
+        "commit",
+        "-m",
+        "feat: prepare v0.3.45 raw enrichment cache export and diagnostics candidate"
+      ],
+      "startedAt": "2026-09-08T10:31:39.713Z",
+      "finishedAt": "2026-09-08T10:31:40.287Z",
+      "durationMs": 573.2664,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-31-39-713Z-git.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/v0344-asar-preflight.cjs"
+      ],
+      "startedAt": "2026-09-08T10:32:07.240Z",
+      "finishedAt": "2026-09-08T10:32:41.667Z",
+      "durationMs": 34426.0477,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-32-07-240Z-node.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "dist"
+      ],
+      "startedAt": "2026-09-08T10:33:10.583Z",
+      "finishedAt": "2026-09-08T10:36:14.619Z",
+      "durationMs": 184035.3943,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-33-10-583Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-windows.cjs"
+      ],
+      "startedAt": "2026-09-08T10:36:33.296Z",
+      "finishedAt": "2026-09-08T10:47:14.093Z",
+      "durationMs": 640799.073,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-36-33-296Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0344-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:47:38.450Z",
+      "finishedAt": "2026-09-08T10:48:41.474Z",
+      "durationMs": 63024.2145,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-47-38-450Z-node.log"
+    },
+    {
+      "command": [
+        "powershell.exe",
+        "-NoProfile",
+        "-File",
+        "scripts/test-v0344-installer.ps1",
+        "-Version",
+        "0.3.45"
+      ],
+      "startedAt": "2026-09-08T10:49:24.386Z",
+      "finishedAt": "2026-09-08T10:51:17.557Z",
+      "durationMs": 113168.8821,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-49-24-386Z-powershell.exe.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "typecheck"
+      ],
+      "startedAt": "2026-09-08T10:54:26.179Z",
+      "finishedAt": "2026-09-08T10:54:47.517Z",
+      "durationMs": 21337.4352,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-54-26-179Z-npm.cmd.log"
     }
   ],
   "topFive": [
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-windows.cjs"
+      ],
+      "startedAt": "2026-09-08T10:36:33.296Z",
+      "finishedAt": "2026-09-08T10:47:14.093Z",
+      "durationMs": 640799.073,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-36-33-296Z-node.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "dist"
+      ],
+      "startedAt": "2026-09-08T10:33:10.583Z",
+      "finishedAt": "2026-09-08T10:36:14.619Z",
+      "durationMs": 184035.3943,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-33-10-583Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "powershell.exe",
+        "-NoProfile",
+        "-File",
+        "scripts/test-v0344-installer.ps1",
+        "-Version",
+        "0.3.45"
+      ],
+      "startedAt": "2026-09-08T10:49:24.386Z",
+      "finishedAt": "2026-09-08T10:51:17.557Z",
+      "durationMs": 113168.8821,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-49-24-386Z-powershell.exe.log"
+    },
     {
       "command": [
         "node",
@@ -650,42 +871,6 @@
       "exitCode": 0,
       "signal": null,
       "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-02-37-575Z-node.log"
-    },
-    {
-      "command": [
-        "node",
-        "scripts/test-v0344-performance.cjs"
-      ],
-      "startedAt": "2026-09-08T09:55:24.458Z",
-      "finishedAt": "2026-09-08T09:56:27.310Z",
-      "durationMs": 62851.5709,
-      "exitCode": 0,
-      "signal": null,
-      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-55-24-458Z-node.log"
-    },
-    {
-      "command": [
-        "node",
-        "scripts/test-v0345-ui.cjs"
-      ],
-      "startedAt": "2026-09-08T10:13:49.390Z",
-      "finishedAt": "2026-09-08T10:14:50.145Z",
-      "durationMs": 60753.7174,
-      "exitCode": 0,
-      "signal": null,
-      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-13-49-390Z-node.log"
-    },
-    {
-      "command": [
-        "node",
-        "scripts/test-v0345-ui.cjs"
-      ],
-      "startedAt": "2026-09-08T10:27:22.407Z",
-      "finishedAt": "2026-09-08T10:28:23.057Z",
-      "durationMs": 60646.6679,
-      "exitCode": 1,
-      "signal": null,
-      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-27-22-407Z-node.log"
     }
   ],
   "failedAttempts": [
@@ -859,6 +1044,18 @@
       "exitCode": 1,
       "signal": null,
       "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-27-22-407Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-windows.cjs"
+      ],
+      "startedAt": "2026-09-08T10:36:33.296Z",
+      "finishedAt": "2026-09-08T10:47:14.093Z",
+      "durationMs": 640799.073,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-36-33-296Z-node.log"
     }
   ],
   "inputValidatorObservation": {
@@ -870,8 +1067,9 @@
     "timingSource": "Initial tool observation, before durable command wrapper"
   },
   "timingGaps": "Initial sandbox ACL rejection, read-only exploration and apply_patch retries retained in tool history; no complete per-command timing claimed for these. Command intervals are unioned, not added to wall-clock.",
-  "sourceCommit": null,
-  "reportHeadAtGeneration": "1696923df674351fc24b68865b4638fb0e756a36",
+  "sourceCommit": "d62a8a782c30befc14810541ac9ea91c24f3ad6b",
+  "reportHeadAtGeneration": "d62a8a782c30befc14810541ac9ea91c24f3ad6b",
   "finalReportCommit": null,
-  "finalReportCommitReason": "Resolve containing commit externally; do not invent a self-referential commit hash."
+  "finalReportCommitReason": "Resolve containing commit externally; do not invent a self-referential commit hash.",
+  "latePortableCleanup": "Initial Windows wrapper includes time awaiting/gracefully closing the late-starting isolated Portable after timeout; not all640.799s is active UI execution."
 }

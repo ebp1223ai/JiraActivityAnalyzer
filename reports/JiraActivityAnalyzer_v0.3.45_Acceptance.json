@@ -1,8 +1,8 @@
 {
   "version": "0.3.45",
-  "overall": "PARTIAL",
+  "overall": "PARTIAL_RELEASE_BLOCKED",
   "manualGui": "PENDING",
-  "generatedAt": "2026-09-08T10:30:24.926Z",
+  "generatedAt": "2026-09-08T10:55:54.418Z",
   "cases": [
     {
       "id": "T45-01",
@@ -338,6 +338,7 @@
       "expected": "current55/130與legacy44/113三Rank；null partial、rank保護、冪等、rollback、binding與lossless Trace；沿已證實不變的source測試證據可引用，當版packaged匯入仍驗",
       "status": "PASS",
       "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\report.json",
         "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
         "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
         "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
@@ -389,7 +390,8 @@
         "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-49-40-677Z-npm.cmd.log",
         "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-01-58-116Z-npm.cmd.log",
         "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-07-25-887Z-npm.cmd.log",
-        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-26-03-616Z-npm.cmd.log"
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-26-03-616Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-54-26-179Z-npm.cmd.log"
       ],
       "assessment": "Current source build/UI;1366/1920 and125% Chromium emulated scale. Windows system DPI manual gate still pending."
     },
@@ -402,7 +404,7 @@
       "expected": "預覽collect list/暫存ASAR，不產AppEXE即可查fixture/private/runtime/license/native/DDL；修正後才凍結首EXE",
       "status": "PASS",
       "evidence": [
-        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\asar-preflight-1788862809177\\report.json"
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\asar-preflight-1788863527529\\report.json"
       ],
       "assessment": "Temporary ASAR without AppEXE before packaging, licenses/native/private exclusion; actual output scanned separately."
     },
@@ -413,9 +415,11 @@
         "R45-07"
       ],
       "expected": "Installer/Portable/unpacked都有path/bytes/hash/build source/time，實際ASAR排除fixture/private、bridge/native/preload/DDL/hash/security/正常console errors=0",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "assessment": "All3 hashes and actual ASAR; normal UI console/preload/isolation/IPC checks."
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\report.json"
+      ],
+      "assessment": "All3 artifacts/ASAR verified; unpacked and Portable initial UI pass. Original wrapper failed only the initial relocation readiness deadline; immutable failure retained."
     },
     {
       "id": "T45-27",
@@ -424,9 +428,12 @@
         "R45-07"
       ],
       "expected": "隔離空中文/空白路徑單EXE→建庫/Golden/UI→關閉→移APP_ROOT→重開相對DB/prefs/logs/recovery；launcher与child ready分開，無AppData業務fallback",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "assessment": "Single EXE isolated Chinese/space root, real create/import/relink/query and whole APP_ROOT relocation."
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\report.json",
+        "test-artifacts/v0.3.45/portable-relocation-retry/report.json"
+      ],
+      "assessment": "PASS after unchanged retry; original root absent and relocated database restored. Initial launcher-to-child27.793s exceeded20s harness deadline; late App did-finish-load/ready confirmed and closed gracefully. Not claimed to be a cold-start performance pass."
     },
     {
       "id": "T45-28",
@@ -435,9 +442,11 @@
         "R45-07"
       ],
       "expected": "安全VM/隔離環境install/launch/uninstall，保留用戶資料；不能unpacked代替；環境缺失NOT_RUN",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "assessment": "Isolated install/launch/uninstall, refuses existing installation/shortcuts; original data untouched."
+      "status": "FAIL",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\installer-1788864565220\\report.json"
+      ],
+      "assessment": "RELEASE BLOCKER: installer command exited0 but uninstall removed entire APP_ROOT, including both isolated synthetic databases. Original harness does not assert user-data preservation; no original user data affected."
     },
     {
       "id": "T45-29",
@@ -481,5 +490,85 @@
     "T45-08",
     "T45-13",
     "T45-15"
-  ]
+  ],
+  "releaseBlockers": [
+    "T45-28 INSTALLER_REMOVES_APP_ROOT_DATA"
+  ],
+  "postPackagingVerification": {
+    "checkedAt": "2026-09-08T10:57:15.493Z",
+    "status": "PARTIAL_RELEASE_BLOCKED",
+    "manualGui": "PENDING",
+    "sourceInputsUnchanged": true,
+    "artifactHashesRechecked": true,
+    "originalWindowsWrapper": {
+      "status": "FAIL",
+      "path": "test-artifacts/v0.3.45/windows-1788863793639/report.json",
+      "reason": "20s readiness deadline expired before Portable child started; harness does not terminate launcher if controlPort is absent."
+    },
+    "portableRelocation": {
+      "status": "PASS_AFTER_UNCHANGED_RETRY",
+      "path": "test-artifacts/v0.3.45/portable-relocation-retry/report.json",
+      "testInputsChanged": false,
+      "launchToReadyMs": 15102,
+      "appRoot": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\搬移後 Portable Space",
+      "restoredDatabaseId": "2a97964868e43d6c488897092c4f5120d87b74730501bd027713de863b57db9b",
+      "originalRootAbsent": true,
+      "errors": [],
+      "actualAppExited": true
+    },
+    "lateStartupObservation": {
+      "launcherStartUtc": "2026-09-08T10:39:08.192Z",
+      "electronChildStartUtc": "2026-09-08T10:39:35.985Z",
+      "launcherToChildMs": 27793,
+      "didFinishLoadUtc": "2026-09-08T10:39:37.225Z",
+      "readyConfirmed": true,
+      "gracefulNonceQuit": true,
+      "delayInternalCause": "UNKNOWN; no claim that AV or a renderer regression caused the launcher delay"
+    },
+    "installer": {
+      "commandExitCode": 0,
+      "harnessStatus": "PASS",
+      "requiredDataPreservationGate": "FAIL",
+      "severity": "RELEASE_BLOCKER",
+      "syntheticOnly": true,
+      "installedRoot": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\installer-1788864565220\\Installed App",
+      "rawDatabase": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\installer-1788864565220\\Installed App\\databases\\raw.sqlite",
+      "aiDatabase": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\installer-1788864565220\\Installed App\\databases\\ai-analysis\\synthetic.sqlite",
+      "installRootExistsAfterUninstall": false,
+      "rawExistsAfterUninstall": false,
+      "aiExistsAfterUninstall": false,
+      "proof": "Installed UI created/imported/query-verified55 records before uninstall; entire install root and both synthetic databases absent afterward.",
+      "cause": "Packaged non-portable APP_ROOT resolves to dirname(execPath) (electron/appRoot.ts:42); existing NSIS uninstall removes install directory. No data-preservation customization in package.json nsis.",
+      "originalUserDataAffected": false
+    },
+    "signatures": [
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\Jira Activity Analyzer Setup 0.3.45.exe",
+        "status": "NotSigned"
+      },
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\Jira Activity Analyzer Portable 0.3.45.exe",
+        "status": "NotSigned"
+      },
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\win-unpacked\\Jira Activity Analyzer.exe",
+        "status": "NotSigned"
+      }
+    ],
+    "warnings": [
+      "Default Electron application icon.",
+      "Duplicate dependency references reported by electron-builder.",
+      "node:crypto browser externalization and >500kB renderer chunk.",
+      "Authorized dirtyState=true is only the protected original report; application source committed.",
+      "No signed publisher certificate on the3 delivered App executables."
+    ],
+    "nextVersionRequired": [
+      "Preserve database/config/export/log data during Installer uninstall and assert preservation.",
+      "Fix Portable readiness/cleanup harness handling for a launcher starting after its deadline.",
+      "Complete the six explicitly partial combination-test cases before release."
+    ],
+    "tag": "NOT_RUN",
+    "push": "NOT_RUN",
+    "releaseEligible": false
+  }
 }

@@ -59,6 +59,20 @@
       "ownership": "Dependency"
     },
     {
+      "file": "electron/databaseRevisionV045.ts",
+      "bytes": 3068,
+      "sha256": "e56780051c4a2dd0fc30a7c1ad4b6ff183c3356e3ecfd4d2b51647697a644cc2",
+      "requirement": "R45-01/02/03/04/05",
+      "ownership": "Dependency"
+    },
+    {
+      "file": "electron/diagnosticSnapshotV045.ts",
+      "bytes": 4093,
+      "sha256": "557f4b572d5b93f10960af62011bdcf68b800df32bdda48ddc4f6e7721512559",
+      "requirement": "R45-06",
+      "ownership": "Dependency"
+    },
+    {
       "file": "electron/diagnosticWriterV044.ts",
       "bytes": 19356,
       "sha256": "02275799e8f8cc7e32864055e469a0e1ec2bea922ea68d80604fa8943314a5d6",
@@ -83,6 +97,41 @@
       "file": "package.json",
       "bytes": 16893,
       "sha256": "2c9835976cc8bb2f85910357fa4f91146eec390fa24a5277b70abd4f077bb854",
+      "requirement": "R45-07/08",
+      "ownership": "Delivery"
+    },
+    {
+      "file": "reports/JiraActivityAnalyzer_v0.3.45_Acceptance.json",
+      "bytes": 23728,
+      "sha256": "0b65ae97fddced24be04ac18adc917c7f5635c706c29b86ea8501164f1499441",
+      "requirement": "R45-07/08",
+      "ownership": "Delivery"
+    },
+    {
+      "file": "reports/JiraActivityAnalyzer_v0.3.45_Execution_Time_Ledger.json",
+      "bytes": 26943,
+      "sha256": "6124fc658b736db64f429457f300ade6e057d8e97afa7c942226062be63c3391",
+      "requirement": "R45-07/08",
+      "ownership": "Delivery"
+    },
+    {
+      "file": "reports/JiraActivityAnalyzer_v0.3.45_Implementation_Report.md",
+      "bytes": 6980,
+      "sha256": "a3395e1b4e0669598a1392dd260619f8ba45c9242458b3dceeee7e857b8135b5",
+      "requirement": "R45-07/08",
+      "ownership": "Delivery"
+    },
+    {
+      "file": "reports/JiraActivityAnalyzer_v0.3.45_Scope.json",
+      "bytes": 9103,
+      "sha256": "d63cc7fc0cb2a9c97f491d3b7a341104643351055dd57126b26d6323a16f4f31",
+      "requirement": "R45-07/08",
+      "ownership": "Delivery"
+    },
+    {
+      "file": "reports/JiraActivityAnalyzer_v0.3.45_Test_Report.json",
+      "bytes": 147688,
+      "sha256": "3c6c67e43b14502d7c12785bc78787a152e6829e87f263380d313affb9e6ea1c",
       "requirement": "R45-07/08",
       "ownership": "Delivery"
     },
@@ -122,76 +171,6 @@
       "ownership": "Delivery"
     },
     {
-      "file": "scripts/v0344-asar-preflight.cjs",
-      "bytes": 3215,
-      "sha256": "30645c73a56f62ccc355ca8317acc4d6139d3cd4956bd02a7a8d315c49741fd8",
-      "requirement": "R45-07/08",
-      "ownership": "Delivery"
-    },
-    {
-      "file": "src/components/ActivityComparisonTable.tsx",
-      "bytes": 5642,
-      "sha256": "710c8b2135aecd69f9475b89cbbb5d182a880cc4359f4dd5c44c3d6e3c0b5986",
-      "requirement": "R45-01/02/03/04/05",
-      "ownership": "Direct"
-    },
-    {
-      "file": "src/routes/AiDatabaseViewerPagesV043.tsx",
-      "bytes": 19370,
-      "sha256": "bdb437f91611119a58382c2dd1bc457bf35ec5eef343dacb537f86f698712ae0",
-      "requirement": "R45-01/02/03/04/05",
-      "ownership": "Direct"
-    },
-    {
-      "file": "electron/databaseRevisionV045.ts",
-      "bytes": 3068,
-      "sha256": "e56780051c4a2dd0fc30a7c1ad4b6ff183c3356e3ecfd4d2b51647697a644cc2",
-      "requirement": "R45-01/02/03/04/05",
-      "ownership": "Dependency"
-    },
-    {
-      "file": "electron/diagnosticSnapshotV045.ts",
-      "bytes": 4093,
-      "sha256": "557f4b572d5b93f10960af62011bdcf68b800df32bdda48ddc4f6e7721512559",
-      "requirement": "R45-06",
-      "ownership": "Dependency"
-    },
-    {
-      "file": "reports/JiraActivityAnalyzer_v0.3.45_Acceptance.json",
-      "bytes": 23593,
-      "sha256": "e3dd0eb4a499402f4e153b3cf0e666b76d102569a6c66d6517bfa8a19a784187",
-      "requirement": "R45-07/08",
-      "ownership": "Delivery"
-    },
-    {
-      "file": "reports/JiraActivityAnalyzer_v0.3.45_Execution_Time_Ledger.json",
-      "bytes": 22897,
-      "sha256": "4631e54e3c23ebacda5baa05ccf4ab142f96511d470201f6b97efc63404484f8",
-      "requirement": "R45-07/08",
-      "ownership": "Delivery"
-    },
-    {
-      "file": "reports/JiraActivityAnalyzer_v0.3.45_Implementation_Report.md",
-      "bytes": 6960,
-      "sha256": "fdf064e360c64043a2647110943de977a0b692ee9bd3b9afa9517a4f12274495",
-      "requirement": "R45-07/08",
-      "ownership": "Delivery"
-    },
-    {
-      "file": "reports/JiraActivityAnalyzer_v0.3.45_Scope.json",
-      "bytes": 7598,
-      "sha256": "bf6ae7e980989628cf1fcf7ac96460987363e0a3101db6c9f4999017883edfdd",
-      "requirement": "R45-07/08",
-      "ownership": "Delivery"
-    },
-    {
-      "file": "reports/JiraActivityAnalyzer_v0.3.45_Test_Report.json",
-      "bytes": 125293,
-      "sha256": "dddd9feb937bc91a6cef05dd8603f5bc22ffe6f06898878abc77bd9871613f83",
-      "requirement": "R45-07/08",
-      "ownership": "Delivery"
-    },
-    {
       "file": "scripts/test-v0345-regressions.cjs",
       "bytes": 459,
       "sha256": "ca7b8b5a603b875397c34c6c1bb145649cc88721ed5ee5677f40c2043de371dd",
@@ -216,6 +195,13 @@
       "file": "scripts/test-v0345.cjs",
       "bytes": 12064,
       "sha256": "bd70947bde4ac3b0291d436af8162004c7262aeb3778b6f757f9524cd861fbe0",
+      "requirement": "R45-07/08",
+      "ownership": "Delivery"
+    },
+    {
+      "file": "scripts/v0344-asar-preflight.cjs",
+      "bytes": 3215,
+      "sha256": "30645c73a56f62ccc355ca8317acc4d6139d3cd4956bd02a7a8d315c49741fd8",
       "requirement": "R45-07/08",
       "ownership": "Delivery"
     },
@@ -253,6 +239,20 @@
       "sha256": "a79a4c8c4bacbbe7ba98061f6db01d646922f7e6a2d3893250531903ab57343a",
       "requirement": "R45-07/08",
       "ownership": "Delivery"
+    },
+    {
+      "file": "src/components/ActivityComparisonTable.tsx",
+      "bytes": 5642,
+      "sha256": "710c8b2135aecd69f9475b89cbbb5d182a880cc4359f4dd5c44c3d6e3c0b5986",
+      "requirement": "R45-01/02/03/04/05",
+      "ownership": "Direct"
+    },
+    {
+      "file": "src/routes/AiDatabaseViewerPagesV043.tsx",
+      "bytes": 19370,
+      "sha256": "bdb437f91611119a58382c2dd1bc457bf35ec5eef343dacb537f86f698712ae0",
+      "requirement": "R45-01/02/03/04/05",
+      "ownership": "Direct"
     },
     {
       "file": "src/state/aiResultCacheV045.ts",

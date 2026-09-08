@@ -1,7 +1,7 @@
 {
   "version": "0.3.45",
-  "status": "PARTIAL_MANUAL_GUI_AND_COVERAGE_PENDING",
-  "generatedAt": "2026-09-08T10:30:24.926Z",
+  "status": "PARTIAL_RELEASE_BLOCKED",
+  "generatedAt": "2026-09-08T10:55:54.418Z",
   "input": {
     "validatorPass": 495,
     "validatorFail": 0,
@@ -11,6 +11,14 @@
   "evidence": [
     {
       "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\asar-preflight-1788862809177\\report.json",
+      "status": "PASS"
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\asar-preflight-1788863527529\\report.json",
+      "status": "PASS"
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\installer-1788864565220\\report.json",
       "status": "PASS"
     },
     {
@@ -719,6 +727,185 @@
             "rawBytes": 132247552,
             "rendererLazyDiff": "requires separate UI assertion"
           }
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\portable-relocation-retry\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 53.28529999999955
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1060.6898999999976
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1017.6412999999993
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 38.22739999999976
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 351.2458000000006
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 378.14300000000003
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 520.8901000000005
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 407.19130000000223
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 478.17039999999906
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 297.1201000000001
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 327.41979999999967
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 382.441899999998
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 209.35429999999906
+        },
+        {
+          "name": "v045-five-real-cache-restores-zero-query-jobs",
+          "status": "PASS",
+          "samples": [
+            {
+              "elapsedMs": 320.3471999999965,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 426.9965000000011,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 381.2965000000004,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 270.05089999999836,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 300.60249999999724,
+              "newQueryJobs": 0
+            }
+          ]
+        },
+        {
+          "name": "v045-five-UI-ready-complete-exports",
+          "status": "PASS",
+          "samples": [
+            {
+              "elapsedMs": 484.16064453125,
+              "actionPreparationAndProcessingMs": 2481.006699999998,
+              "rows": 55,
+              "columns": 17,
+              "bytes": 47160
+            },
+            {
+              "elapsedMs": 459.037353515625,
+              "actionPreparationAndProcessingMs": 2459.024999999994,
+              "rows": 55,
+              "columns": 17,
+              "bytes": 47160
+            },
+            {
+              "elapsedMs": 353.203125,
+              "actionPreparationAndProcessingMs": 2354.993500000004,
+              "rows": 55,
+              "columns": 17,
+              "bytes": 47160
+            },
+            {
+              "elapsedMs": 372.572265625,
+              "actionPreparationAndProcessingMs": 2372.3490999999995,
+              "rows": 55,
+              "columns": 17,
+              "bytes": 47160
+            },
+            {
+              "elapsedMs": 460.91796875,
+              "actionPreparationAndProcessingMs": 2457.6091000000015,
+              "rows": 55,
+              "columns": 17,
+              "bytes": 47160
+            }
+          ],
+          "picker": "nonce-isolated automatic picker; actual picker span retained"
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 9.134899999997288
+        },
+        {
+          "name": "v045-renderer-125-percent-scale",
+          "status": "PASS",
+          "method": "Chromium device metrics emulation, not Windows system DPI"
+        },
+        {
+          "name": "v045-real-debug-export-cutoff",
+          "status": "PASS",
+          "cutoffUtc": "2026-09-08T10:48:36.917Z",
+          "files": 5,
+          "gaps": 0
+        },
+        {
+          "name": "route-ready:users",
+          "status": "PASS",
+          "durationMs": 33.42450000000099
+        },
+        {
+          "name": "route:users",
+          "status": "PASS",
+          "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+        },
+        {
+          "name": "runtime-IPC-registry-bidirectional-exact",
+          "status": "PASS",
+          "channels": 102
+        },
+        {
+          "name": "production-file-io-and-complete-streaming-pipeline",
+          "status": "PASS"
         }
       ]
     },
@@ -4568,6 +4755,42 @@
           "status": "PASS"
         }
       ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "command": [
+            "C:\\Program Files\\nodejs\\node.exe",
+            "scripts/test-v0344-ui.cjs"
+          ],
+          "exitCode": 0,
+          "durationMs": 67529,
+          "stdout": "UI evidence F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\unpacked-ui\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "C:\\Program Files\\nodejs\\node.exe",
+            "scripts/test-v0344-ui.cjs"
+          ],
+          "exitCode": 0,
+          "durationMs": 74027,
+          "stdout": "UI evidence F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\portable-ui\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "C:\\Program Files\\nodejs\\node.exe",
+            "scripts/test-v0344-ui.cjs"
+          ],
+          "exitCode": 1,
+          "durationMs": 486554,
+          "stdout": "UI evidence F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\portable-relocated-ui\n",
+          "stderr": "Error: ENOENT: no such file or directory, open 'F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\搬移後 Portable Space\\.jaa-ui-ready.json'\n    at Object.openSync (node:fs:561:18)\n    at Object.readFileSync (node:fs:445:35)\n    at F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-ui.cjs:31:42\n    at until (F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-ui.cjs:22:122)\n    at async main (F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-ui.cjs:31:3) {\n  errno: -4058,\n  code: 'ENOENT',\n  syscall: 'open',\n  path: 'F:\\\\AI\\\\JiraActivityAnalyzer\\\\test-artifacts\\\\v0.3.45\\\\windows-1788863793639\\\\搬移後 Portable Space\\\\.jaa-ui-ready.json'\n}\n"
+        }
+      ]
     }
   ],
   "regressions": [
@@ -4630,10 +4853,416 @@
     ],
     "reason": "No frozen importer/projection/Workbench changes; repeat only affected production paths and packaged Golden import."
   },
-  "build": null,
-  "freeze": null,
-  "windows": null,
-  "installer": null,
+  "build": {
+    "appVersion": "0.3.45",
+    "packagedSourceCommit": "d62a8a782c30befc14810541ac9ea91c24f3ad6b",
+    "buildTime": "2026/09/08 18:33:20",
+    "buildTimeIso": "2026-09-08T10:33:20.935Z",
+    "buildMachine": "pc1-ch_kao",
+    "buildOs": "Windows_NT 10.0.26100 x64",
+    "gitBranch": "feat/v0.3.45-integrated-raw-cache-export",
+    "dirtyState": true,
+    "artifacts": [
+      {
+        "fileName": "Jira Activity Analyzer Portable 0.3.45.exe",
+        "sizeBytes": 190964155,
+        "sha256": "f0029a2a44710f93e5cadb438d88fe66f4fa78d41b460f7014ead3f4eef99d09"
+      },
+      {
+        "fileName": "Jira Activity Analyzer Setup 0.3.45.exe",
+        "sizeBytes": 191194238,
+        "sha256": "1baa809a1c28573a36c3455cd4182bb0b16b9e5c92fe24557cef7cf8418488d3"
+      }
+    ]
+  },
+  "freeze": {
+    "version": "0.3.45",
+    "sourceCommit": "d62a8a782c30befc14810541ac9ea91c24f3ad6b",
+    "startedAt": "2026-09-08T10:33:10.522Z",
+    "firstExe": {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\win-unpacked\\Jira Activity Analyzer.exe",
+      "creationTimeUtc": "2026-09-08T10:33:55.033Z",
+      "observedAt": "2026-09-08T10:34:22.633Z",
+      "observationIntervalMs": 100
+    },
+    "status": "FROZEN",
+    "policy": "After first EXE, source/UI/tests/package inputs frozen. Report-only changes permitted. No Tag/Push without manual gate.",
+    "finishedAt": "2026-09-08T10:36:14.672Z",
+    "exitCode": 0,
+    "changedInputs": [],
+    "inputCount": 870
+  },
+  "windows": {
+    "status": "FAIL",
+    "manualGui": "PENDING",
+    "tag": "NOT_RUN",
+    "push": "NOT_RUN",
+    "results": [
+      {
+        "command": [
+          "C:\\Program Files\\nodejs\\node.exe",
+          "scripts/test-v0344-ui.cjs"
+        ],
+        "exitCode": 0,
+        "durationMs": 67529,
+        "stdout": "UI evidence F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\unpacked-ui\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "C:\\Program Files\\nodejs\\node.exe",
+          "scripts/test-v0344-ui.cjs"
+        ],
+        "exitCode": 0,
+        "durationMs": 74027,
+        "stdout": "UI evidence F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\portable-ui\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "C:\\Program Files\\nodejs\\node.exe",
+          "scripts/test-v0344-ui.cjs"
+        ],
+        "exitCode": 1,
+        "durationMs": 486554,
+        "stdout": "UI evidence F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\portable-relocated-ui\n",
+        "stderr": "Error: ENOENT: no such file or directory, open 'F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\搬移後 Portable Space\\.jaa-ui-ready.json'\n    at Object.openSync (node:fs:561:18)\n    at Object.readFileSync (node:fs:445:35)\n    at F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-ui.cjs:31:42\n    at until (F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-ui.cjs:22:122)\n    at async main (F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-ui.cjs:31:3) {\n  errno: -4058,\n  code: 'ENOENT',\n  syscall: 'open',\n  path: 'F:\\\\AI\\\\JiraActivityAnalyzer\\\\test-artifacts\\\\v0.3.45\\\\windows-1788863793639\\\\搬移後 Portable Space\\\\.jaa-ui-ready.json'\n}\n"
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\Jira Activity Analyzer Setup 0.3.45.exe",
+        "bytes": 191194238,
+        "MiB": 182.33703422546387,
+        "sha256": "1baa809a1c28573a36c3455cd4182bb0b16b9e5c92fe24557cef7cf8418488d3"
+      },
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\Jira Activity Analyzer Portable 0.3.45.exe",
+        "bytes": 190964155,
+        "MiB": 182.11760997772217,
+        "sha256": "f0029a2a44710f93e5cadb438d88fe66f4fa78d41b460f7014ead3f4eef99d09"
+      },
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\win-unpacked\\Jira Activity Analyzer.exe",
+        "bytes": 235706368,
+        "MiB": 224.787109375,
+        "sha256": "f6718cdec824c88dd01ebedcb8eea9e2b54f5158894eef52bc6cbcedc5d35445"
+      }
+    ],
+    "asar": {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\win-unpacked\\resources\\app.asar",
+      "sha256": "8319d7fe8f6b9b173896098097555b12294c3e41168de66a33715213eb6302d5",
+      "bytes": 26204335,
+      "forbidden": [],
+      "top50Files": [
+        {
+          "file": "\\dist-electron\\main.cjs",
+          "bytes": 1441842
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-profiling.development.js",
+          "bytes": 1082082
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-client.development.js",
+          "bytes": 1065698
+        },
+        {
+          "file": "\\dist\\assets\\index-B-G3R8Me.js",
+          "bytes": 817485
+        },
+        {
+          "file": "\\node_modules\\lucide-react\\dist\\umd\\lucide-react.js",
+          "bytes": 795674
+        },
+        {
+          "file": "\\node_modules\\lucide-react\\dist\\cjs\\lucide-react.js",
+          "bytes": 756146
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-profiling.profiling.js",
+          "bytes": 607634
+        },
+        {
+          "file": "\\node_modules\\lodash\\lodash.js",
+          "bytes": 545945
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-client.production.js",
+          "bytes": 536016
+        },
+        {
+          "file": "\\node_modules\\lucide-react\\dist\\umd\\lucide-react.min.js",
+          "bytes": 514980
+        },
+        {
+          "file": "\\node_modules\\recharts\\umd\\Recharts.js",
+          "bytes": 502946
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server.node.development.js",
+          "bytes": 429423
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server.edge.development.js",
+          "bytes": 425439
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server.browser.development.js",
+          "bytes": 424658
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.browser.development.js",
+          "bytes": 395197
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.development.js",
+          "bytes": 395194
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\production\\chunk-3WDNQUW5.mjs",
+          "bytes": 371988
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\development\\chunk-KS7C4IRE.mjs",
+          "bytes": 371987
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server.bun.development.js",
+          "bytes": 354659
+        },
+        {
+          "file": "\\node_modules\\recharts\\umd\\report.html",
+          "bytes": 348549
+        },
+        {
+          "file": "\\node_modules\\csstype\\index.js.flow",
+          "bytes": 344546
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\production\\chunk-IEF7VMTA.js",
+          "bytes": 342800
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\development\\chunk-SA4DP3SF.js",
+          "bytes": 342799
+        },
+        {
+          "file": "\\dist-electron\\ai-write-worker-v044.cjs",
+          "bytes": 342330
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server.node.production.js",
+          "bytes": 277046
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server.edge.production.js",
+          "bytes": 273614
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server.browser.production.js",
+          "bytes": 268058
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server.bun.production.js",
+          "bytes": 245324
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "bytes": 242793
+        },
+        {
+          "file": "\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.browser.production.js",
+          "bytes": 237937
+        },
+        {
+          "file": "\\node_modules\\lucide-react\\dist\\esm\\lucide-react.js",
+          "bytes": 201844
+        },
+        {
+          "file": "\\dist-electron\\database-viewer-worker.cjs",
+          "bytes": 130132
+        },
+        {
+          "file": "\\node_modules\\react-smooth\\umd\\ReactSmooth.js",
+          "bytes": 128560
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\development\\index-react-server.js",
+          "bytes": 123385
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\production\\index-react-server.js",
+          "bytes": 123385
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\development\\index-react-server.mjs",
+          "bytes": 120138
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\production\\index-react-server.mjs",
+          "bytes": 120138
+        },
+        {
+          "file": "\\node_modules\\lodash\\core.js",
+          "bytes": 115983
+        },
+        {
+          "file": "\\node_modules\\lucide-react\\dynamicIconImports.js",
+          "bytes": 101803
+        },
+        {
+          "file": "\\node_modules\\recharts\\lib\\chart\\generateCategoricalChart.js",
+          "bytes": 101175
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\development\\index-react-server.d.mts",
+          "bytes": 98459
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\production\\index-react-server.d.mts",
+          "bytes": 98459
+        },
+        {
+          "file": "\\node_modules\\react-transition-group\\dist\\react-transition-group.js",
+          "bytes": 98424
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\development\\index-react-server-client-CACgcj2J.d.mts",
+          "bytes": 98177
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\production\\index-react-server-client-CACgcj2J.d.mts",
+          "bytes": 98177
+        },
+        {
+          "file": "\\node_modules\\recharts\\es6\\chart\\generateCategoricalChart.js",
+          "bytes": 97743
+        },
+        {
+          "file": "\\dist-electron\\pending-analysis-export-worker.cjs",
+          "bytes": 94672
+        },
+        {
+          "file": "\\node_modules\\lucide-react\\dist\\esm\\icons\\index.js",
+          "bytes": 89448
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\development\\index.js",
+          "bytes": 84508
+        },
+        {
+          "file": "\\node_modules\\react-router\\dist\\production\\index.js",
+          "bytes": 84508
+        }
+      ],
+      "top20Directories": [
+        [
+          "/node_modules/react-dom/cjs",
+          7305668
+        ],
+        [
+          "/node_modules/lucide-react/dist",
+          3405791
+        ],
+        [
+          "/node_modules/react-router/dist",
+          3344616
+        ],
+        [
+          "/dist-electron/main.cjs",
+          1441842
+        ],
+        [
+          "/node_modules/recharts/lib",
+          900972
+        ],
+        [
+          "/node_modules/recharts/umd",
+          851819
+        ],
+        [
+          "/dist/assets/index-B-G3R8Me.js",
+          817485
+        ],
+        [
+          "/node_modules/recharts/es6",
+          815493
+        ],
+        [
+          "/node_modules/lodash/lodash.js",
+          545945
+        ],
+        [
+          "/node_modules/victory-vendor/lib-vendor",
+          389170
+        ],
+        [
+          "/node_modules/csstype/index.js.flow",
+          344546
+        ],
+        [
+          "/dist-electron/ai-write-worker-v044.cjs",
+          342330
+        ],
+        [
+          "/node_modules/ajv/lib",
+          335910
+        ],
+        [
+          "/node_modules/ajv/dist",
+          320931
+        ],
+        [
+          "/node_modules/@babel/runtime",
+          247400
+        ],
+        [
+          "/node_modules/react/cjs",
+          166392
+        ],
+        [
+          "/node_modules/react-smooth/umd",
+          163432
+        ],
+        [
+          "/dist-electron/database-viewer-worker.cjs",
+          130132
+        ],
+        [
+          "/node_modules/react-transition-group/dist",
+          116604
+        ],
+        [
+          "/node_modules/lodash/core.js",
+          115983
+        ]
+      ]
+    },
+    "error": "AssertionError [ERR_ASSERTION]: Error: ENOENT: no such file or directory, open 'F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\搬移後 Portable Space\\.jaa-ui-ready.json'\n    at Object.openSync (node:fs:561:18)\n    at Object.readFileSync (node:fs:445:35)\n    at F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-ui.cjs:31:42\n    at until (F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-ui.cjs:22:122)\n    at async main (F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-ui.cjs:31:3) {\n  errno: -4058,\n  code: 'ENOENT',\n  syscall: 'open',\n  path: 'F:\\\\AI\\\\JiraActivityAnalyzer\\\\test-artifacts\\\\v0.3.45\\\\windows-1788863793639\\\\搬移後 Portable Space\\\\.jaa-ui-ready.json'\n}\n\n\n1 !== 0\n\n    at command (F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-windows.cjs:7:407)\n    at ui (F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-windows.cjs:8:44)\n    at Object.<anonymous> (F:\\AI\\JiraActivityAnalyzer\\scripts\\test-v0344-windows.cjs:21:18)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at Object..js (node:internal/modules/cjs/loader:2002:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12)\n    at require (node:internal/modules/helpers:153:16)"
+  },
+  "installer": {
+    "status": "PASS",
+    "manualGui": "PENDING",
+    "steps": [
+      {
+        "exitCode": 0,
+        "command": "Installer /S /D=<isolated-root>",
+        "durationMs": 31584
+      },
+      {
+        "exitCode": 0,
+        "command": "node scripts/test-v0344-ui.cjs (installed EXE)",
+        "durationMs": 68632
+      },
+      {
+        "exitCode": 0,
+        "command": "Isolated uninstaller /S",
+        "durationMs": 11344
+      }
+    ],
+    "installRoot": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\installer-1788864565220\\Installed App"
+  },
   "security": {
     "status": "PASS",
     "base": "1696923df674351fc24b68865b4638fb0e756a36",
@@ -4679,6 +5308,16 @@
         "sha256": "c44699ad4efd2832fb1fd8ade85792a969b41c3408544e2d48624166ef130bba"
       },
       {
+        "file": "electron/databaseRevisionV045.ts",
+        "bytes": 3068,
+        "sha256": "e56780051c4a2dd0fc30a7c1ad4b6ff183c3356e3ecfd4d2b51647697a644cc2"
+      },
+      {
+        "file": "electron/diagnosticSnapshotV045.ts",
+        "bytes": 4093,
+        "sha256": "557f4b572d5b93f10960af62011bdcf68b800df32bdda48ddc4f6e7721512559"
+      },
+      {
         "file": "electron/diagnosticWriterV044.ts",
         "bytes": 19356,
         "sha256": "02275799e8f8cc7e32864055e469a0e1ec2bea922ea68d80604fa8943314a5d6"
@@ -4697,6 +5336,31 @@
         "file": "package.json",
         "bytes": 16893,
         "sha256": "2c9835976cc8bb2f85910357fa4f91146eec390fa24a5277b70abd4f077bb854"
+      },
+      {
+        "file": "reports/JiraActivityAnalyzer_v0.3.45_Acceptance.json",
+        "bytes": 23728,
+        "sha256": "0b65ae97fddced24be04ac18adc917c7f5635c706c29b86ea8501164f1499441"
+      },
+      {
+        "file": "reports/JiraActivityAnalyzer_v0.3.45_Execution_Time_Ledger.json",
+        "bytes": 26943,
+        "sha256": "6124fc658b736db64f429457f300ade6e057d8e97afa7c942226062be63c3391"
+      },
+      {
+        "file": "reports/JiraActivityAnalyzer_v0.3.45_Implementation_Report.md",
+        "bytes": 6980,
+        "sha256": "a3395e1b4e0669598a1392dd260619f8ba45c9242458b3dceeee7e857b8135b5"
+      },
+      {
+        "file": "reports/JiraActivityAnalyzer_v0.3.45_Scope.json",
+        "bytes": 9103,
+        "sha256": "d63cc7fc0cb2a9c97f491d3b7a341104643351055dd57126b26d6323a16f4f31"
+      },
+      {
+        "file": "reports/JiraActivityAnalyzer_v0.3.45_Test_Report.json",
+        "bytes": 147688,
+        "sha256": "3c6c67e43b14502d7c12785bc78787a152e6829e87f263380d313affb9e6ea1c"
       },
       {
         "file": "scripts/test-v0344-installer.ps1",
@@ -4724,56 +5388,6 @@
         "sha256": "c20f840df0f15b7e3c9a0990af26402a6e0cf784b50f923f1b01001915a92790"
       },
       {
-        "file": "scripts/v0344-asar-preflight.cjs",
-        "bytes": 3215,
-        "sha256": "30645c73a56f62ccc355ca8317acc4d6139d3cd4956bd02a7a8d315c49741fd8"
-      },
-      {
-        "file": "src/components/ActivityComparisonTable.tsx",
-        "bytes": 5642,
-        "sha256": "710c8b2135aecd69f9475b89cbbb5d182a880cc4359f4dd5c44c3d6e3c0b5986"
-      },
-      {
-        "file": "src/routes/AiDatabaseViewerPagesV043.tsx",
-        "bytes": 19370,
-        "sha256": "bdb437f91611119a58382c2dd1bc457bf35ec5eef343dacb537f86f698712ae0"
-      },
-      {
-        "file": "electron/databaseRevisionV045.ts",
-        "bytes": 3068,
-        "sha256": "e56780051c4a2dd0fc30a7c1ad4b6ff183c3356e3ecfd4d2b51647697a644cc2"
-      },
-      {
-        "file": "electron/diagnosticSnapshotV045.ts",
-        "bytes": 4093,
-        "sha256": "557f4b572d5b93f10960af62011bdcf68b800df32bdda48ddc4f6e7721512559"
-      },
-      {
-        "file": "reports/JiraActivityAnalyzer_v0.3.45_Acceptance.json",
-        "bytes": 23593,
-        "sha256": "e3dd0eb4a499402f4e153b3cf0e666b76d102569a6c66d6517bfa8a19a784187"
-      },
-      {
-        "file": "reports/JiraActivityAnalyzer_v0.3.45_Execution_Time_Ledger.json",
-        "bytes": 22897,
-        "sha256": "4631e54e3c23ebacda5baa05ccf4ab142f96511d470201f6b97efc63404484f8"
-      },
-      {
-        "file": "reports/JiraActivityAnalyzer_v0.3.45_Implementation_Report.md",
-        "bytes": 6960,
-        "sha256": "fdf064e360c64043a2647110943de977a0b692ee9bd3b9afa9517a4f12274495"
-      },
-      {
-        "file": "reports/JiraActivityAnalyzer_v0.3.45_Scope.json",
-        "bytes": 7598,
-        "sha256": "bf6ae7e980989628cf1fcf7ac96460987363e0a3101db6c9f4999017883edfdd"
-      },
-      {
-        "file": "reports/JiraActivityAnalyzer_v0.3.45_Test_Report.json",
-        "bytes": 125293,
-        "sha256": "dddd9feb937bc91a6cef05dd8603f5bc22ffe6f06898878abc77bd9871613f83"
-      },
-      {
         "file": "scripts/test-v0345-regressions.cjs",
         "bytes": 459,
         "sha256": "ca7b8b5a603b875397c34c6c1bb145649cc88721ed5ee5677f40c2043de371dd"
@@ -4792,6 +5406,11 @@
         "file": "scripts/test-v0345.cjs",
         "bytes": 12064,
         "sha256": "bd70947bde4ac3b0291d436af8162004c7262aeb3778b6f757f9524cd861fbe0"
+      },
+      {
+        "file": "scripts/v0344-asar-preflight.cjs",
+        "bytes": 3215,
+        "sha256": "30645c73a56f62ccc355ca8317acc4d6139d3cd4956bd02a7a8d315c49741fd8"
       },
       {
         "file": "scripts/v0345-command.cjs",
@@ -4819,6 +5438,16 @@
         "sha256": "a79a4c8c4bacbbe7ba98061f6db01d646922f7e6a2d3893250531903ab57343a"
       },
       {
+        "file": "src/components/ActivityComparisonTable.tsx",
+        "bytes": 5642,
+        "sha256": "710c8b2135aecd69f9475b89cbbb5d182a880cc4359f4dd5c44c3d6e3c0b5986"
+      },
+      {
+        "file": "src/routes/AiDatabaseViewerPagesV043.tsx",
+        "bytes": 19370,
+        "sha256": "bdb437f91611119a58382c2dd1bc457bf35ec5eef343dacb537f86f698712ae0"
+      },
+      {
         "file": "src/state/aiResultCacheV045.ts",
         "bytes": 1674,
         "sha256": "a6b38763c594468b2fea93ade3796b861242961969da340ab311465a67a94825"
@@ -4835,7 +5464,89 @@
     "Existing node:crypto browser externalization and >500kB renderer chunk warning.",
     "Synthetic data only; no supplied actual Raw DB.",
     "Historical fixture identifiers are identifiers, not credentials.",
-    "No per-model token telemetry available."
+    "No per-model token telemetry available.",
+    "Default Electron application icon.",
+    "Duplicate dependency references reported by electron-builder.",
+    "node:crypto browser externalization and >500kB renderer chunk.",
+    "Authorized dirtyState=true is only the protected original report; application source committed.",
+    "No signed publisher certificate on the3 delivered App executables."
   ],
-  "manualGui": "PENDING"
+  "manualGui": "PENDING",
+  "postPackagingVerification": {
+    "checkedAt": "2026-09-08T10:57:15.493Z",
+    "status": "PARTIAL_RELEASE_BLOCKED",
+    "manualGui": "PENDING",
+    "sourceInputsUnchanged": true,
+    "artifactHashesRechecked": true,
+    "originalWindowsWrapper": {
+      "status": "FAIL",
+      "path": "test-artifacts/v0.3.45/windows-1788863793639/report.json",
+      "reason": "20s readiness deadline expired before Portable child started; harness does not terminate launcher if controlPort is absent."
+    },
+    "portableRelocation": {
+      "status": "PASS_AFTER_UNCHANGED_RETRY",
+      "path": "test-artifacts/v0.3.45/portable-relocation-retry/report.json",
+      "testInputsChanged": false,
+      "launchToReadyMs": 15102,
+      "appRoot": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\windows-1788863793639\\搬移後 Portable Space",
+      "restoredDatabaseId": "2a97964868e43d6c488897092c4f5120d87b74730501bd027713de863b57db9b",
+      "originalRootAbsent": true,
+      "errors": [],
+      "actualAppExited": true
+    },
+    "lateStartupObservation": {
+      "launcherStartUtc": "2026-09-08T10:39:08.192Z",
+      "electronChildStartUtc": "2026-09-08T10:39:35.985Z",
+      "launcherToChildMs": 27793,
+      "didFinishLoadUtc": "2026-09-08T10:39:37.225Z",
+      "readyConfirmed": true,
+      "gracefulNonceQuit": true,
+      "delayInternalCause": "UNKNOWN; no claim that AV or a renderer regression caused the launcher delay"
+    },
+    "installer": {
+      "commandExitCode": 0,
+      "harnessStatus": "PASS",
+      "requiredDataPreservationGate": "FAIL",
+      "severity": "RELEASE_BLOCKER",
+      "syntheticOnly": true,
+      "installedRoot": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\installer-1788864565220\\Installed App",
+      "rawDatabase": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\installer-1788864565220\\Installed App\\databases\\raw.sqlite",
+      "aiDatabase": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\installer-1788864565220\\Installed App\\databases\\ai-analysis\\synthetic.sqlite",
+      "installRootExistsAfterUninstall": false,
+      "rawExistsAfterUninstall": false,
+      "aiExistsAfterUninstall": false,
+      "proof": "Installed UI created/imported/query-verified55 records before uninstall; entire install root and both synthetic databases absent afterward.",
+      "cause": "Packaged non-portable APP_ROOT resolves to dirname(execPath) (electron/appRoot.ts:42); existing NSIS uninstall removes install directory. No data-preservation customization in package.json nsis.",
+      "originalUserDataAffected": false
+    },
+    "signatures": [
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\Jira Activity Analyzer Setup 0.3.45.exe",
+        "status": "NotSigned"
+      },
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\Jira Activity Analyzer Portable 0.3.45.exe",
+        "status": "NotSigned"
+      },
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.45-candidate\\win-unpacked\\Jira Activity Analyzer.exe",
+        "status": "NotSigned"
+      }
+    ],
+    "warnings": [
+      "Default Electron application icon.",
+      "Duplicate dependency references reported by electron-builder.",
+      "node:crypto browser externalization and >500kB renderer chunk.",
+      "Authorized dirtyState=true is only the protected original report; application source committed.",
+      "No signed publisher certificate on the3 delivered App executables."
+    ],
+    "nextVersionRequired": [
+      "Preserve database/config/export/log data during Installer uninstall and assert preservation.",
+      "Fix Portable readiness/cleanup harness handling for a launcher starting after its deadline.",
+      "Complete the six explicitly partial combination-test cases before release."
+    ],
+    "tag": "NOT_RUN",
+    "push": "NOT_RUN",
+    "releaseEligible": false
+  }
 }
