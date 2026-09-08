@@ -5,6 +5,7 @@ import path from 'node:path';
 import net from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { createEnvelopeProducerV044 } from './diagnosticEnvelopeV044.js';
+import { captureDiagnosticSessionV045 } from './diagnosticSnapshotV045.js';
 
 type Json = Record<string, any>;
 const defaults = { quotaBytes: 512 * 1024 ** 2, reserveBytes: 8 * 1024 ** 2, chunkBytes: 25 * 1024 ** 2, normalCount: 20, abnormalCount: 10, normalDays: 14, abnormalDays: 30 };
@@ -26,6 +27,7 @@ export class DiagnosticWriterV044 {
   private suspended = false;
   private lastTick = Date.now();
   private closed = false;
+  private legacySummary: Json | null = null;
   private totalBytes = 0;
   private activeLegacyFiles = new Set<string>();
   private openSpanChunks = new Map<string, number>();
@@ -66,7 +68,7 @@ export class DiagnosticWriterV044 {
       socket.setTimeout(300); socket.on('data', b => finish(b.toString() === summary.instanceId)); socket.on('error', () => finish(false)); socket.on('timeout', () => finish(false)); socket.on('end', () => finish(false));
     });
   }
-  private save(durable = true) { this.summary.updatedAt = new Date().toISOString(); atomic(path.join(this.sessionDir, 'automatic-summary.json'), this.summary, durable); }
+  private save(durable = true) { this.summary.updatedAt = new Date().toISOString(); atomic(path.join(this.sessionDir, 'automatic-summary.json'), this.summary, durable); if (this.legacySummary) atomic(path.join(this.sessionDir, 'session-summary.json'), { ...this.legacySummary, updatedAt: this.summary.updatedAt, status: this.summary.status, writerFailed: this.summary.writerFailed, countBasis: 'writer-accepted-legacy-events' }, durable); }
   record(event: Json, critical = false) {
     try {
       if (this.config.testMode && this.config.failWrites) throw Object.assign(new Error('SYNTHETIC_WRITE_FAILURE'), { code: 'ENOSPC' });
@@ -82,6 +84,9 @@ export class DiagnosticWriterV044 {
       }
       fs.writeFileSync(this.activeFd, body); if (critical) fs.fsyncSync(this.activeFd);
       this.totalBytes += Buffer.byteLength(body);
+      this.summary.producerCounts ??= {}; this.summary.producerWatermarks ??= {};
+      this.summary.producerCounts[event.producerId] = (this.summary.producerCounts[event.producerId] ?? 0) + 1;
+      this.summary.producerWatermarks[event.producerId] = event.producerSeq;
       if (event.phase === 'START') { this.summary.openSpans[event.spanId] = event; this.openSpanChunks.set(event.spanId, this.chunk); }
       if (event.phase === 'END') { this.openSpanChunks.delete(event.spanId); delete this.summary.openSpans[event.spanId]; this.summary.lastCompletedSpan = event; }
       if (event.route) this.summary.lastRoute = event.route;
@@ -100,8 +105,18 @@ export class DiagnosticWriterV044 {
       try { const item = JSON.parse(line); if (/render-process-gone|uncaughtException|unhandledRejection/.test(String(item.event))) this.summary.abnormalObserved = true; } catch { /* Legacy text log, not an event envelope. */ }
       fs.mkdirSync(path.dirname(file), { recursive: true });
       if (bytes(file) > this.limits.chunkBytes) fs.renameSync(file, file + '.' + Date.now() + '.rotated');
-      fs.appendFileSync(file, line + '\n'); this.totalBytes += Buffer.byteLength(line + '\n'); return true;
+      fs.appendFileSync(file, line + '\n'); this.totalBytes += Buffer.byteLength(line + '\n');
+      if (path.dirname(file) === this.sessionDir && /^(main|renderer|transitions)\.ndjson$/.test(path.basename(file))) { this.legacySummary ??= read(path.join(this.sessionDir, 'session-summary.json')); if (this.legacySummary) { const channel = path.basename(file, '.ndjson'); this.legacySummary.eventCounts[channel] = (this.legacySummary.eventCounts[channel] ?? 0) + 1; } }
+      return true;
     } catch { this.summary.writeErrorCount++; this.summary.writerFailed = true; return false; }
+  }
+  capture(target: string) {
+    if (this.activeFd !== null) fs.fsyncSync(this.activeFd);
+    this.save();
+    const current = captureDiagnosticSessionV045(this.sessionDir, path.join(target, 'current'), Object.keys(this.summary.producerWatermarks ?? {}));
+    const previous = this.summary.previous?.sessionId;
+    if (previous && /^app-session-[\w-]+$/.test(previous)) captureDiagnosticSessionV045(path.join(this.config.logsDir, 'sessions', previous), path.join(target, 'previous'));
+    return current;
   }
   beat(producer: string, details: Json) {
     const old = this.beats.get(producer);
@@ -186,6 +201,7 @@ if (process.env.JAA_DIAGNOSTIC_SIDECAR === '1') {
       else if (m.type === 'legacy') { const ok = writer!.appendLegacy(m.file, m.line); process.send?.({ id: m.id, ok }); }
       else if (m.type === 'beat') writer!.beat(m.producer, m.details);
       else if (m.type === 'suspend') writer!.suspend(m.value);
+      else if (m.type === 'capture') { const receipt = writer!.capture(m.target); process.send?.({ id: m.id, ok: true, summary: { lastCapture: { cutoffUtc: receipt.cutoffUtc, completeness: receipt.completeness, fileCount: receipt.files.length, gaps: receipt.gaps.length } } }); }
       else if (m.type === 'close') { clearInterval(timer); writer?.close(!m.incompleteOperations); process.send?.({ id: m.id, ok: true }, () => process.exit(0)); }
     } catch { process.send?.({ id: m.id, ok: false }); }
   });

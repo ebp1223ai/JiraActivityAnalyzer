@@ -3,6 +3,7 @@ import { instrumentedHandleV044 } from "./instrumentedIpcV044.js";
 import fs from "./businessIoDiagnosticsV044.js";
 import crypto from "node:crypto";
 import { aiResultsServiceV044 } from "./aiResultsServiceV044.js";
+import { databaseRevisionV045 } from './databaseRevisionV045.js';
 import { automaticDiagnosticsV044, diagnosticContextV044 } from "./automaticDiagnosticsV044.js";
 import { safeAiAuditV043, safeAiDatabaseDiagnosticV043 } from "./aiDiagnosticsV043.js";
 import { tableCsvV043 } from "./aiTableExportV043.js";
@@ -35,7 +36,7 @@ export function registerAiAnalysisDatabaseIpcV042(getRawDatabasePath: () => stri
   const store = new AiAnalysisDatabaseStoreV042({ appRoot: getAppRuntimeDir(), defaultDatabasePath: getAiAnalysisDatabasePath(), backupDirectory: path.join(getBackupsDir(), "ai-analysis", "migration") });
   activeStore = store;
   let preview: Json | null = null;
-  const lifecycle = () => store.lifecycle();
+  const lifecycle = () => { const snapshot = store.lifecycle(); return { ...snapshot, contentRevision: JSON.stringify([databaseRevisionV045(snapshot.canQuery ? snapshot.databasePath : null), databaseRevisionV045(getRawDatabasePath() || null)]) }; };
 
   instrumentedHandleV044("ai-database:lifecycle", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); return { ok: true, requestId, snapshot: lifecycle() }; } catch (error) { return fail(error, requestId); } });
   instrumentedHandleV044("ai-database:create", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); const supplied = String((payload as Json)?.filePath ?? ""); const result = supplied ? { canceled: false, filePath: supplied } : await dialog.showSaveDialog({ title: "建立 AI 分析資料庫 v2", defaultPath: path.join(getAppRuntimeDir(), "databases", "ai-analysis", "jaa-ai-analysis-v2.sqlite"), filters: [{ name: "SQLite Database", extensions: ["sqlite", "db"] }] }); if (result.canceled || !result.filePath) return { ok: true, requestId, canceled: true, snapshot: lifecycle() }; return { ...store.createAndActivate(result.filePath), requestId, canceled: false }; } catch (error) { return fail(error, requestId); } });
@@ -73,11 +74,18 @@ export function registerAiAnalysisDatabaseIpcV042(getRawDatabasePath: () => stri
     try {
       requestId = id(payload); if (payload?.__trustedOutput) throw Error("INVALID_QUERY_ARGUMENT");
       const kind = payload?.kind === "integrated" ? "integrated" : "ai", csv = payload?.format === "csv";
-      const picked = await dialog.showSaveDialog({ defaultPath: path.join(getExportsDir(), kind + '-table-results-' + Date.now() + (csv ? '.csv' : '.json')), filters: [{ name: csv ? 'CSV' : 'JSON', extensions: [csv ? 'csv' : 'json'] }] });
+      const selectedSnapshot = lifecycle(), selectedRaw = getRawDatabasePath();
+      const started = performance.now(), pickerStart = performance.now();
+      const picked = await automaticDiagnosticsV044()?.operation('export-picker-wait', () => dialog.showSaveDialog({ defaultPath: path.join(getExportsDir(), kind + '-table-results-' + Date.now() + (csv ? '.csv' : '.json')), filters: [{ name: csv ? 'CSV' : 'JSON', extensions: [csv ? 'csv' : 'json'] }] })) ?? await dialog.showSaveDialog({ defaultPath: path.join(getExportsDir(), kind + '-table-results-' + Date.now() + (csv ? '.csv' : '.json')), filters: [{ name: csv ? 'CSV' : 'JSON', extensions: [csv ? 'csv' : 'json'] }] });
+      const pickerWaitMs = performance.now() - pickerStart;
       if (picked.canceled || !picked.filePath) return { ok: true, requestId, canceled: true };
+      if (selectedSnapshot.contentRevision !== lifecycle().contentRevision || selectedRaw !== getRawDatabasePath()) throw Error('EXPORT_SNAPSHOT_CHANGED');
       temporary = picked.filePath + '.' + crypto.randomUUID() + '.partial';
       const result = await runQuery(event, { ...payload, __trustedOutput: temporary }, "export-file", kind);
-      await fs.promises.rename(temporary, picked.filePath);
+      if (selectedSnapshot.contentRevision !== lifecycle().contentRevision) throw Error('EXPORT_SNAPSHOT_CHANGED');
+      if (automaticDiagnosticsV044()) await automaticDiagnosticsV044()!.operation('export-atomic-publish', () => fs.promises.rename(temporary, picked.filePath));
+      else await fs.promises.rename(temporary, picked.filePath);
+      await automaticDiagnosticsV044()?.event('export-completed', 'POINT', { requestId, pickerWaitMs, processingMs: performance.now() - started - pickerWaitMs, sizeBytes: result.sizeBytes, rowCount: result.filteredCount });
       return { ok: true, requestId, canceled: false, filePath: picked.filePath, sizeBytes: result.sizeBytes, filteredCount: result.filteredCount };
     } catch (error) { return fail(error, requestId); }
     finally { if (temporary) await fs.promises.unlink(temporary).catch(() => {}); }

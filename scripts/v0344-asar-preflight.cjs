@@ -1,6 +1,7 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict'),asar=require('@electron/asar');
 const root=path.resolve(__dirname,'..');
-const work=path.join(root,'test-artifacts/v0.3.44',`asar-preflight-${Date.now()}`),input=path.join(work,'input');
+const version=process.env.JAA_TEST_VERSION||'0.3.44';
+const work=path.join(root,'test-artifacts','v'+version,`asar-preflight-${Date.now()}`),input=path.join(work,'input');
 const baseline=path.join(root,'release/v0.3.43-candidate/win-unpacked/resources/app.asar');
 const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json')));
 const prohibited='node_modules/json-schema-traverse/spec/fixtures/schema.js';
@@ -8,7 +9,7 @@ const exclusion='!node_modules/json-schema-traverse/spec/**';
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 async function main(){
   assert.ok(pkg.build.files.includes(exclusion));
-  assert.equal(pkg.version,'0.3.44');
+  assert.equal(pkg.version,version);
   fs.mkdirSync(input,{recursive:true});asar.extractAll(baseline,input);
   const original=fs.readFileSync(path.join(input,prohibited));assert.equal(original.length,5544);
   const prefix=path.join(input,'node_modules/json-schema-traverse/spec');
@@ -25,7 +26,7 @@ async function main(){
   for(const file of before)assert.ok(entries.includes(file),`runtime/license removed: ${file}`);
   for(const file of ['dist/index.html','dist-electron/main.cjs','dist-electron/preload.cjs','dist-electron/ai-results-worker-v044.cjs','dist-electron/diagnostic-writer-v044.cjs','dist-electron/ai-write-worker-v044.cjs','node_modules/json-schema-traverse/index.js'])assert.ok(entries.some(e=>e.replaceAll('\\','/').replace(/^\//,'')===file),file);
   fs.writeFileSync(path.join(work,'file-list.json'),JSON.stringify(entries,null,2));
-  const report={status:'PASS',version:'0.3.44',method:'prior frozen production dependency archive + current compiled app inputs; actual final builder archive remains a separate required gate',excluded:{path:prohibited,bytes:original.length,sha256:hash(original),pattern:exclusion},archive,archiveBytes:fs.statSync(archive).size,sha256:hash(fs.readFileSync(archive)),preservedNativeLicenseCount:before.length,forbidden,appExeProduced:false};
+  const report={status:'PASS',version,method:'prior frozen production dependency archive + current compiled app inputs; actual final builder archive remains a separate required gate',excluded:{path:prohibited,bytes:original.length,sha256:hash(original),pattern:exclusion},archive,archiveBytes:fs.statSync(archive).size,sha256:hash(fs.readFileSync(archive)),preservedNativeLicenseCount:before.length,forbidden,appExeProduced:false};
   fs.writeFileSync(path.join(work,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

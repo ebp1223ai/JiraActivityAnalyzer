@@ -60,9 +60,10 @@ export function activityComparisonColumns(mode: ActivityComparisonMode): SqliteT
 type Props = Omit<ComponentProps<typeof SqliteDataTable>, "columns" | "renderExpandedRow"> & {
   mode: ActivityComparisonMode;
   additionalColumns?: SqliteTableColumn[];
+  hiddenDefaultColumns?: string[];
 };
 
-export function ActivityComparisonTable({ mode, additionalColumns = [], query, onQueryChange, preferences, onPreferencesChange, ...props }: Props) {
+export function ActivityComparisonTable({ mode, additionalColumns = [], hiddenDefaultColumns = [], query, onQueryChange, preferences, onPreferencesChange, ...props }: Props) {
   const diffQuickFilters = normalizeDiffQuickFilters(query.diffQuickFilters);
   const changeDiffQuickFilters = (next: typeof diffQuickFilters) => {
     onPreferencesChange?.({ ...(preferences ?? { visibleColumns: [], columnOrder: [], columnWidths: {}, pageSize: query.pageSize, pageIndex: 1, sort: query.sort, filters: query.filters }), diffQuickFilters: next });
@@ -70,6 +71,6 @@ export function ActivityComparisonTable({ mode, additionalColumns = [], query, o
   };
   return <div className="min-w-0 space-y-3">
     <DiffQuickFilters value={diffQuickFilters} disabled={Boolean(props.loading)} onChange={changeDiffQuickFilters} />
-    <SqliteDataTable {...props} query={query} onQueryChange={onQueryChange} preferences={preferences} onPreferencesChange={onPreferencesChange} columns={[...activityComparisonColumns(mode), ...additionalColumns]} renderExpandedRow={(row) => <ActivityEventDetailPanel row={row} />} />
+    <SqliteDataTable {...props} query={query} onQueryChange={onQueryChange} preferences={preferences} onPreferencesChange={onPreferencesChange} columns={[...activityComparisonColumns(mode).map((column): SqliteTableColumn => hiddenDefaultColumns.includes(column.id) ? { ...column, defaultVisible: false, render: (row, context) => row[column.id] == null ? <span title="Source did not provide this field">未提供</span> : column.render ? column.render(row, context) : String(row[column.id]) } : column), ...additionalColumns]} renderExpandedRow={(row) => <ActivityEventDetailPanel row={row} />} />
   </div>;
 }

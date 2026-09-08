@@ -3,14 +3,15 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const { root, load, seedRaw } = require('./v0343-test-helpers.cjs');
 const { DatabaseSync } = require('node:sqlite');
-const work = path.join(root, 'test-artifacts/v0.3.44', `services-${Date.now()}`);
+const version = process.env.JAA_TEST_VERSION || '0.3.44';
+const work = path.join(root, 'test-artifacts', 'v'+version, `services-${Date.now()}`);
 const query = load('electron/aiResultsQueryV043.ts', work);
 const { AiResultsServiceV044 } = load('electron/aiResultsServiceV044.ts', work);
 const { DiagnosticWriterV044 } = load('electron/diagnosticWriterV044.ts', work);
 const { createEnvelopeProducerV044, redactDiagnosticsV044 } = load('electron/diagnosticEnvelopeV044.ts', work);
 const results = [];
 async function test(name, fn) { const start=performance.now(); try { const detail=await fn(); results.push({name,status:'PASS',durationMs:performance.now()-start,detail}); console.log('PASS '+name); } catch(error) { results.push({name,status:'FAIL',durationMs:performance.now()-start,error:error.stack}); throw error; } }
-const build={version:'0.3.44',sourceCommit:null,buildTime:null};
+const build={version,sourceCommit:null,buildTime:null};
 const producer=createEnvelopeProducerV044({sessionId:'app-session-test',instanceId:'instance-test',processType:'main',build});
 const context={operationId:'op',spanId:'span',parentSpanId:null,route:'/integrated-results'};
 const writers=[];

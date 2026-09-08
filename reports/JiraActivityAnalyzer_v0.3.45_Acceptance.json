@@ -1,0 +1,485 @@
+{
+  "version": "0.3.45",
+  "overall": "PARTIAL",
+  "manualGui": "PENDING",
+  "generatedAt": "2026-09-08T10:30:24.926Z",
+  "cases": [
+    {
+      "id": "T45-01",
+      "name": "Raw三欄取值與跨資料庫Identity",
+      "requirements": [
+        "R45-01"
+      ],
+      "expected": "以真實Raw seed adapter驗5事件；相同issueKey/issueId不同DB不得混值；目前Status不取historicalStatus；cell/facet/filter/export與UserViewer相同",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json"
+      ],
+      "assessment": "Current Raw join, cross-DB values, SQL/filters/facets; true user Raw DB was not supplied."
+    },
+    {
+      "id": "T45-02",
+      "name": "Raw母體與AI缺席／fanout",
+      "requirements": [
+        "R45-01"
+      ],
+      "expected": "AI關閉/空/未Relink/部分/全配/孤立均保Raw母體；多findings不重複Raw；SQL故障QUERY_ERROR，不是0筆或RELINK_REQUIRED",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "Raw base, absent AI and orphan/SQL-error regression; frozen importer/link projection retained."
+    },
+    {
+      "id": "T45-03",
+      "name": "AI預設與舊偏好",
+      "requirements": [
+        "R45-02"
+      ],
+      "expected": "新預設移除無來源固定欄，手動/來源不明舊偏好保留；schema存在但當次全null仍可選；不得改SourceTrace/DDL",
+      "status": "PARTIAL",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788862429707\\report.json"
+      ],
+      "assessment": "New AI defaults verified in actual UI. Explicit/unknown legacy selections preserved by source logic; exhaustive old-preference UI migration matrix not separately executed."
+    },
+    {
+      "id": "T45-04",
+      "name": "完整動態欄位與候選",
+      "requirements": [
+        "R45-02",
+        "R45-03"
+      ],
+      "expected": "最後第10001筆才出現的欄位/候選仍可選；nested/arrays命名空間；候選搜尋非實際filter；OR/AND與已選0-count可用",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.45/services-1788861067022/results.json",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "10001st tail and 100k complete fields/facets; typed array OR/AND and selected-zero current-source oracles."
+    },
+    {
+      "id": "T45-05",
+      "name": "日期與文字篩選",
+      "requirements": [
+        "R45-01",
+        "R45-03"
+      ],
+      "expected": "起訖/單邊/含邊界/同日/非法阻擋及時區；多選和文字輸入真生效；null/empty/0/false不同",
+      "status": "PARTIAL",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "Production date/filter boundary oracles passed; actual UI Actor exact filter passed. All calendar interaction combinations were not separately repeated."
+    },
+    {
+      "id": "T45-06",
+      "name": "Diff／AI與manual語意",
+      "requirements": [
+        "R45-01",
+        "R45-02"
+      ],
+      "expected": "同事件兩頁與UserViewer共用formatter；source原bytes不變；AI/manual/projection/review rank分開，中英與語意；mixed ACCEPT/REJECT/ADJUST/新增不混同",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "Current-source shared Diff/Trace immutability and frozen active projection oracles; no formatter/manual contract changes."
+    },
+    {
+      "id": "T45-07",
+      "name": "有效快取回頁",
+      "requirements": [
+        "R45-03",
+        "R45-08"
+      ],
+      "expected": "至少5次A→B→A；每次≤1000ms恢复既有結果且同query新job=0；保留filter/page/order/width/columns/scroll",
+      "status": "PARTIAL",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788862429707\\report.json"
+      ],
+      "assessment": "Five real A-B-A restores <=1000ms and zero query jobs; filter retained. Every width/order/page/scroll combination is not exhaustively UI-tested."
+    },
+    {
+      "id": "T45-08",
+      "name": "進行中job接回與晚回應",
+      "requirements": [
+        "R45-03",
+        "R45-05"
+      ],
+      "expected": "切頁仍跑則接回同job；late response不污染新DB/filter；驗實際工作生命週期，不只忽略回應",
+      "status": "PARTIAL",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json"
+      ],
+      "assessment": "Real service pending promise reconnect, one job and bounded cache verified. Mid-flight renderer route stress/late response matrix not separately exhaustive."
+    },
+    {
+      "id": "T45-09",
+      "name": "有效失效通知",
+      "requirements": [
+        "R45-03"
+      ],
+      "expected": "import commit/有效relink/外部DB變更/手動refresh失效；rollback/protected/no-op/只讀健康/debug/lastOpened不偽造內容revision",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json"
+      ],
+      "assessment": "WAL external commit/finding edit, readonly/timestamp/rollback, protected/no-op import revision assertions."
+    },
+    {
+      "id": "T45-10",
+      "name": "DB隔離與有界淘汰",
+      "requirements": [
+        "R45-03",
+        "R45-05"
+      ],
+      "expected": "DB A→B→A互不污染；真eviction誠實重查/記原因；cache bytes/entries上限及釋放有證據",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json"
+      ],
+      "assessment": "Real cross-DB query isolation and bounded actual cache entries/bytes; release reasons emitted by query worker."
+    },
+    {
+      "id": "T45-11",
+      "name": "小型就緒匯出",
+      "requirements": [
+        "R45-04",
+        "R45-08"
+      ],
+      "expected": "已就緒40列/17欄約32KiB，page20仍匯出40；5次各處理≤2000ms；分列picker等待與原始phase/bytes/row數",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788862429707\\report.json",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json"
+      ],
+      "assessment": "Five real UI exports with 40 matching/17 columns around32KiB; service page20 still exports40; picker span separately recorded."
+    },
+    {
+      "id": "T45-12",
+      "name": "全部符合列與四種匯出",
+      "requirements": [
+        "R45-04"
+      ],
+      "expected": "CSV/JSON×顯示欄/全部欄，10001符合列page50仍全部；membership/sort同snapshot，原文不截短",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "JSON/CSV x visible/all;39281 rows not page-limited and current-source complete membership/sort oracle."
+    },
+    {
+      "id": "T45-13",
+      "name": "匯出快照競態與取消",
+      "requirements": [
+        "R45-04",
+        "R45-05"
+      ],
+      "expected": "開始後filter或DB内容改變不可混代；query在跑不另全重算；取消不發布半檔，只清本job temp",
+      "status": "PARTIAL",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "Same snapshot/export lane and worker cancellation checked; main checks revision before publication. Full picker/race/UI-cancel combination not separately repeated."
+    },
+    {
+      "id": "T45-14",
+      "name": "匯出格式保真",
+      "requirements": [
+        "R45-04"
+      ],
+      "expected": "Unicode/quotes/CRLF/nested arrays/longdiff保真；CSV公式防護可解釋；JSON/Trace不被顯示escape修改",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "Original text and JSON/CSV contract equality; unchanged quoted JSON CSV encoding prevents direct formula cells."
+    },
+    {
+      "id": "T45-15",
+      "name": "20輪資源與owner",
+      "requirements": [
+        "R45-05",
+        "R45-08"
+      ],
+      "expected": "按固定warmup/settle跑20輪；每PID資源與jobs/executors/queue/listeners/cache回穩；門檻≤max(20%,32MiB)，無孤兒job或無界累積",
+      "status": "PARTIAL",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\performance-1788862553334\\report.json"
+      ],
+      "assessment": "20 query/filter and20 cancel cycles; single process RSS not summed over worker threads; bounded pending/executors. Combined tab/export/DB-switch20-cycle UI profile not executed."
+    },
+    {
+      "id": "T45-16",
+      "name": "真實規模與cold/warm",
+      "requirements": [
+        "R45-05",
+        "R45-08"
+      ],
+      "expected": "39281、10001尾值、100k、1000×64KiB；100k首屏≤5000ms，normal shell≤1000ms，eventloop穩態p95≤100ms；拆SQL/索引/後處理，不能warm冒充cold",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\performance-1788862553334\\report.json",
+        "test-artifacts/v0.3.45/services-1788861067022/results.json",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788862429707\\report.json"
+      ],
+      "assessment": "39281/10001-tail/100k/1000x64KiB; cold timing and foreground responsiveness recorded separately."
+    },
+    {
+      "id": "T45-17",
+      "name": "取消反應與實際停止",
+      "requirements": [
+        "R45-05",
+        "R45-08"
+      ],
+      "expected": "UI≤250ms，readjob≤2000ms停止或可驗證隔離終止；寫入cancel按safe point/rollback/committed，不殺正式transaction或背景fetch",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788863363862\\report.json",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "Actual UI feedback <=250ms; export/read stop <=2000ms; no published or partial file; production write rollback/commit barrier retained."
+    },
+    {
+      "id": "T45-18",
+      "name": "診斷cutoff與collector",
+      "requirements": [
+        "R45-06"
+      ],
+      "expected": "producer水位/摘要counts/hash/缺檔一致；新增export/cache/release stages跨IPC可串，未來seq不計同cutoff；missing producer標INCOMPLETE",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788862429707\\report.json"
+      ],
+      "assessment": "Writer cutoff, missing producer, sequence/count/hash consistency; real debug collector and actual legacy counts checked."
+    },
+    {
+      "id": "T45-19",
+      "name": "自動落盤與異常恢復",
+      "requirements": [
+        "R45-06"
+      ],
+      "expected": "隔離instance真業務START後kill，重開可找最後完成/open span，rootcause未知不猜；安全頁不重跑；sleep/live instance/正常close不誤判",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "Current-build isolated main/renderer hang/crash/kill/restart; independent writer, safe recovery and clean close."
+    },
+    {
+      "id": "T45-20",
+      "name": "診斷writer/容量/遮罩",
+      "requirements": [
+        "R45-06"
+      ],
+      "expected": "沿v044適用9故障案例：disk full/readonly/partial/monitor等；記degraded/gap，容量有界，redact先queue，BEGIN證據與正常業務安全保留",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "Current diagnostics queue/readonly/sharing denial/retention/suspend tests; unchanged .44 disk/partial/redaction coverage retained."
+    },
+    {
+      "id": "T45-21",
+      "name": "診斷開銷",
+      "requirements": [
+        "R45-06",
+        "R45-08"
+      ],
+      "expected": "5組相同流程normal on對test-only off，中位額外≤10%，基準<100ms採≤10ms；CPU/memory/log量另列",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\performance-1788862553334\\report.json"
+      ],
+      "assessment": "Five paired normal production writer ON vs test-only OFF; median <=10%; CPU/RSS separately retained."
+    },
+    {
+      "id": "T45-22",
+      "name": "Package Golden與資料保護",
+      "requirements": [
+        "R45-07"
+      ],
+      "expected": "current55/130與legacy44/113三Rank；null partial、rank保護、冪等、rollback、binding與lossless Trace；沿已證實不變的source測試證據可引用，當版packaged匯入仍驗",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log",
+        "reports/JiraActivityAnalyzer_v0.3.44_Test_Report.json"
+      ],
+      "assessment": "Frozen importer unchanged; current55/130 exact rollback tests, packaged55 import; legacy44/113 and ranks source evidence reused because dependencies frozen."
+    },
+    {
+      "id": "T45-23",
+      "name": "Relink與查詢錯誤",
+      "requirements": [
+        "R45-01",
+        "R45-03",
+        "R45-07"
+      ],
+      "expected": "Primary/Fallback唯一/AMBIGUOUS/NOT_FOUND/SQL ERROR append attempt；hash差不阻Identity；import/relink提示分離、有效link才invalidate；最小受影響回歸",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+      ],
+      "assessment": "Current orphan/SQL-failure checks plus unchanged production relink and frozen .44 source-link golden evidence."
+    },
+    {
+      "id": "T45-24",
+      "name": "source gates與正式UI",
+      "requirements": [
+        "R45-01",
+        "R45-02",
+        "R45-03",
+        "R45-04",
+        "R45-05",
+        "R45-06",
+        "R45-07",
+        "R45-08"
+      ],
+      "expected": "實際scripts typecheck/適用unit/integration/production build/renderer UI；shared styles、loading/empty/error/cancel、中文狀態、受影響viewport/DPI；無靜態UI Gate",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788862429707\\report.json",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-24-31-519Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-32-10-460Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-32-36-676Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-33-42-992Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-48-37-697Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-49-40-677Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-01-58-116Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-07-25-887Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-26-03-616Z-npm.cmd.log"
+      ],
+      "assessment": "Current source build/UI;1366/1920 and125% Chromium emulated scale. Windows system DPI manual gate still pending."
+    },
+    {
+      "id": "T45-25",
+      "name": "首EXE前打包輸入預檢",
+      "requirements": [
+        "R45-07"
+      ],
+      "expected": "預覽collect list/暫存ASAR，不產AppEXE即可查fixture/private/runtime/license/native/DDL；修正後才凍結首EXE",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\asar-preflight-1788862809177\\report.json"
+      ],
+      "assessment": "Temporary ASAR without AppEXE before packaging, licenses/native/private exclusion; actual output scanned separately."
+    },
+    {
+      "id": "T45-26",
+      "name": "三種Windows產物與ASAR",
+      "requirements": [
+        "R45-07"
+      ],
+      "expected": "Installer/Portable/unpacked都有path/bytes/hash/build source/time，實際ASAR排除fixture/private、bridge/native/preload/DDL/hash/security/正常console errors=0",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "assessment": "All3 hashes and actual ASAR; normal UI console/preload/isolation/IPC checks."
+    },
+    {
+      "id": "T45-27",
+      "name": "Portable獨立啟動與搬移",
+      "requirements": [
+        "R45-07"
+      ],
+      "expected": "隔離空中文/空白路徑單EXE→建庫/Golden/UI→關閉→移APP_ROOT→重開相對DB/prefs/logs/recovery；launcher与child ready分開，無AppData業務fallback",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "assessment": "Single EXE isolated Chinese/space root, real create/import/relink/query and whole APP_ROOT relocation."
+    },
+    {
+      "id": "T45-28",
+      "name": "Installer隔離安裝與移除",
+      "requirements": [
+        "R45-07"
+      ],
+      "expected": "安全VM/隔離環境install/launch/uninstall，保留用戶資料；不能unpacked代替；環境缺失NOT_RUN",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "assessment": "Isolated install/launch/uninstall, refuses existing installation/shortcuts; original data untouched."
+    },
+    {
+      "id": "T45-29",
+      "name": "交付範圍／敏感／帳／git",
+      "requirements": [
+        "R45-07"
+      ],
+      "expected": "git diff --check、敏感及實際I/O、scope逐檔歸屬、firstEXE鎖定、rule hash、時間與Token三區塊；保留原dirty、不Tag/Push直到人工PASS",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\source-security-audit.json"
+      ],
+      "assessment": "Scoped source review, original protected report hash, no private inputs staged, reports/time/token and firstEXE freeze tracked."
+    },
+    {
+      "id": "T45-30",
+      "name": "Windows人工GUI",
+      "requirements": [
+        "R45-01",
+        "R45-02",
+        "R45-03",
+        "R45-04",
+        "R45-05",
+        "R45-06",
+        "R45-07",
+        "R45-08"
+      ],
+      "expected": "使用者對指定v0.3.45候選hash明確「v0.3.45 GUI 驗收 PASS」；自動化/截圖/agent審閱不可代替",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "assessment": "Requires user explicitly confirming v0.3.45 GUI 驗收 PASS for this exact candidate hash."
+    }
+  ],
+  "releaseEligible": false,
+  "tag": "NOT_RUN",
+  "push": "NOT_RUN",
+  "additionalCoverageGaps": [
+    "T45-03",
+    "T45-05",
+    "T45-07",
+    "T45-08",
+    "T45-13",
+    "T45-15"
+  ]
+}

@@ -68,7 +68,8 @@ export function indexFieldsV044(s: IndexedSnapshotV044, names: string[]) {
 }
 
 export function materializeRowV044(body: string, registry: Map<string, FieldV043>, visibleFields?: string[]) {
-  const { row, document } = JSON.parse(body);
+  const { document } = JSON.parse(body);
+  const row = document.computed;
   const fields = visibleFields === undefined ? [...registry.values()].filter(f => f.path === fieldIdV043(f.namespace, f.segments)) : visibleFields.map(id => registry.get(id.replace(/^dynamic:/, ''))).filter((f): f is FieldV043 => Boolean(f));
   const fieldValues: Json = Object.create(null);
   for (const field of fields) {

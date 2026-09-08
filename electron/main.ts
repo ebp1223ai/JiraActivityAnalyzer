@@ -4043,6 +4043,8 @@ instrumentedHandleV044("debug-log:save-bundle", async (_event, payload: { debugL
   const timelineForBundle = currentAttempt ? timelineRunResults.get(currentAttempt.selectedTimelineRunId) ?? null : latestUserActivityTimeline;
   const copiedEntries: DebugFolderEntry[] = [];
   const evidenceEntries: DebugEvidenceEntry[] = [];
+  const automaticCapture = await automaticDiagnostics.capture(path.join(folderPath, 'automatic-diagnostics'));
+  evidenceEntries.push({ id: 'automatic_diagnostics_snapshot', status: automaticCapture ? 'copied' : 'copy_failed', relativePath: 'automatic-diagnostics', reason: automaticCapture ? 'Writer-serialized journal snapshot; counts and per-producer watermarks in snapshot-summary.json.' : 'Automatic writer snapshot unavailable; diagnostics are incomplete.' });
   const savedRuns = Array.from(latestAutoSavedRuns.values());
   const latest = latestRunResult;
   const unavailable = { status: "not_available", message: "No matching auto-saved result available" };
@@ -6145,6 +6147,7 @@ function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: !startUiTestControlV044,
       preload: path.join(__dirname, "preload.cjs")
     }
   });

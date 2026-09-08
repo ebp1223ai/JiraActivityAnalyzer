@@ -97,6 +97,7 @@ export class AutomaticDiagnosticsV044 {
   beat(producer: string, details: Json = {}) { if (this.child.connected) this.child.send({ type: 'beat', producer, details }, () => {}); }
   suspend(value: boolean) { if (this.child.connected) this.child.send({ type: 'suspend', value }, () => {}); }
   snapshot(): Json { return { ...this.state, queueBytes: this.queueBytes, status: this.state.writerFailed ? 'DIAGNOSTICS_DEGRADED' : this.state.status }; }
+  async capture(target: string) { await this.ready; return this.send({ type: 'capture', target }, true); }
   async close() {
     this.beginShutdown(); clearInterval(this.heartbeat);
     const deadline = performance.now() + 2500;

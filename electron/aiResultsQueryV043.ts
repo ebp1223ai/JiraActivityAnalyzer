@@ -1,6 +1,7 @@
 import fs from "./businessIoDiagnosticsV044.js";
 import { createFieldDiscoveryV044, indexFieldsV044, materializeRowV044, queryStageV044 } from "./aiResultsIndexV044.js";
 import { DatabaseSync } from "node:sqlite";
+import { databaseRevisionV045, closeDatabaseRevisionsV045 } from './databaseRevisionV045.js';
 import { projectActiveAiV043 } from "../shared/aiResultProjectionV043.js";
 import { fieldIdV043, registerDocumentV043, resolveFieldV043, typedValueV043, type FieldV043 } from "./aiFieldRegistryV043.js";
 
@@ -10,9 +11,9 @@ type Snapshot = { indexed: Set<string>; db: DatabaseSync; registry: Map<string, 
 const cache = new Map<string, Snapshot>();
 const receipts: Json = {};
 const parse = (value: any) => value == null ? null : JSON.parse(String(value));
-const fileKey = (p: string | null) => !p || !fs.existsSync(p) ? "CLOSED" : [p, ...[p, `${p}-wal`].flatMap(f => fs.existsSync(f) && (f === p || fs.statSync(f).size > 0) ? [fs.statSync(f).size, fs.statSync(f).mtimeMs, fs.statSync(f).ctimeMs] : [])].join(":");
+const fileKey = databaseRevisionV045;
 const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
-export function invalidateAiResultsV043() { for (const snapshot of cache.values()) snapshot.db.close(); cache.clear(); }
+export function invalidateAiResultsV043() { for (const snapshot of cache.values()) snapshot.db.close(); cache.clear(); closeDatabaseRevisionsV045(); }
 
 function aiJoin(prefix = "") {
   return `FROM ${prefix}ai_records r JOIN ${prefix}ai_record_analyses a ON a.analysis_id=r.active_analysis_id
@@ -33,6 +34,7 @@ function seedSchema(registry: Map<string, FieldV043>, db: DatabaseSync, namespac
 function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null): Snapshot {
   const key = `${kind}|${fileKey(aiPath)}|${fileKey(rawPath)}`;
   const existing = cache.get(key); if (existing) { queryStageV044("cache-hit", "START"); queryStageV044("cache-hit", "END"); return existing; }
+  for (const [oldKey, old] of cache) { old.db.close(); cache.delete(oldKey); queryStageV044('cache-released', 'POINT', { reason: 'CONTENT_CHANGED_OR_DATABASE_SWITCH', rowCount: old.total }); }
   queryStageV044("snapshot-build", "START", { stages: ["source-read", "mapping", "complete-field-discovery"], rawPath, aiPath, pathPolicy: "operator-selected-databases-read-only" });
   queryStageV044("source-read", "START", { mode: "streaming-iterator", paths: [rawPath, aiPath], bindings: "schema-derived identifiers; no literal Jira values" });
   queryStageV044("mapping-aggregation", "START", { mode: "streaming-overlap-with-source-read" });
@@ -41,6 +43,7 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
   const registry = new Map<string, FieldV043>();
   db.exec("CREATE TABLE documents(id TEXT PRIMARY KEY,body TEXT NOT NULL); CREATE TABLE cells(row_id TEXT NOT NULL,field_id TEXT NOT NULL,token TEXT NOT NULL,kind TEXT NOT NULL,text TEXT,number REAL, UNIQUE(row_id,field_id,token)); BEGIN");
   registerDocumentV043(registry, { computed: Object.fromEntries(["eventTime", "issueKey", "projectKey", "displayName", "fieldName", "eventType", "action", "sourceProvenance", "before", "after", "diffText", "analysisStatus", "reviewRank", "sourceLinkStatus", "sourceTraceStatus", "integrityStatus", "skillId", "confidence", "rationale", "summary", "issueTypeName", "currentStatusName", "currentPriorityName", "historyId", "itemIndex"].map(key => [key, null])) });
+  registerDocumentV043(registry, { computed: { manual: { state: null } } });
   const insertRow = db.prepare("INSERT INTO documents VALUES(?,?)"), insertCell = db.prepare("INSERT OR IGNORE INTO cells VALUES(?,?,?,?,?,?)");
   let total = 0;
   const discover = createFieldDiscoveryV044(registry);
@@ -50,7 +53,7 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
     discover(doc);
     const v = typedValueV043(row.eventTime);
     insertCell.run(row.id, eventField, v.token, v.kind, v.text, v.number);
-    insertRow.run(row.id, JSON.stringify({ row, document: doc })); total++;
+    insertRow.run(row.id, JSON.stringify({ document: doc })); total++;
     if (performance.now() - lastProgress > 500) { queryStageV044("snapshot-build", "PROGRESS", { processed: total, total: null, rssBytes: process.memoryUsage().rss }); lastProgress = performance.now(); }
   };
   const aiRows = new Map<string, { row: Json; document: Json }>();
@@ -79,7 +82,8 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
       try {
         raw.exec("PRAGMA query_only=ON; BEGIN");
         rawIdentity = String((raw.prepare("SELECT database_id FROM database_metadata WHERE metadata_key='primary'").get() as Json)?.database_id ?? "");
-        seedSchema(registry, raw, "raw", ["activity_events", "source_objects"]);
+        const hasCurrent = Boolean(raw.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='current_issue_snapshots'").get());
+        seedSchema(registry, raw, "raw", ["activity_events", "source_objects", ...(hasCurrent ? ["current_issue_snapshots"] : [])]);
         const byTarget = new Map<string, Array<{ row: Json; document: Json }>>();
         for (const entry of aiRows.values()) {
           const l = entry.row.link;
@@ -90,10 +94,11 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
         // Raw is the left side; a unique authoritative link is the only permitted AI association.
         const objectColumns = new Set((raw.prepare('PRAGMA table_info(source_objects)').all() as Json[]).map(c => c.name));
         const objectIdColumn = objectColumns.has('id') ? 'id' : 'source_object_id';
-        for (const item of raw.prepare(`SELECT ${jsonColumns(raw, "activity_events", "e")} event,${jsonColumns(raw, "source_objects", "o")} object FROM activity_events e LEFT JOIN source_objects o ON o.${quote(objectIdColumn)}=e.source_object_id`).iterate() as Iterable<Json>) {
+        for (const item of raw.prepare(`SELECT ${jsonColumns(raw, "activity_events", "e")} event,${jsonColumns(raw, "source_objects", "o")} object,${hasCurrent ? jsonColumns(raw, "current_issue_snapshots", "s") : "NULL"} currentIssue FROM activity_events e LEFT JOIN source_objects o ON o.${quote(objectIdColumn)}=e.source_object_id ${hasCurrent ? `LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.${quote(objectIdColumn)}` : ""}`).iterate() as Iterable<Json>) {
           const e = parse(item.event), o = parse(item.object), links = byTarget.get(e.id) ?? [], found = links.length === 1 ? links[0] : null;
-          const before = parse(e.from_value_json), after = parse(e.to_value_json);
+          const before = parse(e.from_value_json), after = parse(e.to_value_json), currentIssue = parse(item.currentIssue) ?? {};
           const rawRow = { id: e.id, activityEventId: e.id, sourceRecordId: e.source_record_id, eventTime: e.event_time, eventType: e.event_type, action: e.event_type, sourceProvenance: e.source_provenance ?? e.event_type, displayName: e.actor_display_name ?? e.actor_account_id, actorAccountId: e.actor_account_id, issueKey: o.issue_key ?? o.object_key, projectKey: o.project_key ?? String(o.issue_key ?? o.object_key ?? "").split("-")[0], fieldName: e.field_name, fieldId: e.field_id, before, after, historyId: e.history_id ?? e.source_record_id, itemIndex: e.item_index ?? null };
+          Object.assign(rawRow, { summary: currentIssue.summary ?? null, issueTypeName: currentIssue.issue_type ?? null, currentStatusName: currentIssue.status ?? null, currentPriorityName: currentIssue.priority ?? null });
           if (links.length > 1) ambiguous++;
           if (found) {
             matched++;
@@ -102,7 +107,7 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
           }
           if (kind === "integrated") {
             const row = { ...(found?.row ?? {}), ...rawRow, analysisState: found ? "ANALYZED" : links.length > 1 ? "IDENTITY_CONFLICT" : "UNANALYZED", contentSource: "RAW_EVENT", sourceTrace: found?.row.sourceTrace ?? null, sourceConflict: found?.row.sourceConflict ?? false, sourceLinkStatus: found?.row.sourceLinkStatus ?? (links.length > 1 ? "IDENTITY_CONFLICT" : "NOT_ATTEMPTED") };
-            add(row, { raw: { activity_events: e, source_objects: o, decoded: { activity_events: Object.fromEntries(Object.entries(e).filter(([k, v]) => k.endsWith("_json") && typeof v === "string").map(([k, v]) => [k, parse(v)])), source_objects: Object.fromEntries(Object.entries(o).filter(([k, v]) => k.endsWith("_json") && typeof v === "string").map(([k, v]) => [k, parse(v)])) } }, ai: found?.document.ai ?? {}, link: found?.document.link ?? {}, computed: row });
+            add(row, { raw: { activity_events: e, source_objects: o, current_issue_snapshots: currentIssue, decoded: { activity_events: Object.fromEntries(Object.entries(e).filter(([k, v]) => k.endsWith("_json") && typeof v === "string").map(([k, v]) => [k, parse(v)])), source_objects: Object.fromEntries(Object.entries(o).filter(([k, v]) => k.endsWith("_json") && typeof v === "string").map(([k, v]) => [k, parse(v)])) } }, ai: found?.document.ai ?? {}, link: found?.document.link ?? {}, computed: row });
           }
         }
       } finally { raw.close(); }
@@ -139,7 +144,9 @@ export function dayBoundaryV043(day: string, zone: string, next = false) {
   return hi;
 }
 function predicates(snapshot: Snapshot, query: QueryV043, exclude?: string) {
-  indexFieldsV044(snapshot, [...Object.keys(query.filters ?? {}), "addedLineCount", "removedLineCount", "isSubstantiveChange", "beforeAvailability"].filter(name => name !== exclude));
+  const quick = query.diffQuickFilters ?? {};
+  const quickFields = Object.entries({ hideZeroAdded: 'addedLineCount', hideZeroDeleted: 'removedLineCount', hideNoChange: 'isSubstantiveChange', hideBeforeUnavailable: 'beforeAvailability' }).filter(([toggle]) => quick[toggle]).map(([, field]) => field);
+  indexFieldsV044(snapshot, [...Object.keys(query.filters ?? {}), ...quickFields].filter(name => name !== exclude));
   const clauses: string[] = [], binds: (string | number)[] = [];
   const excluded = exclude ? snapshot.registry.get(exclude)?.path : undefined;
   for (const [name, filter] of Object.entries(query.filters ?? {})) {
@@ -182,7 +189,7 @@ function snapshotFor(kind: "ai" | "integrated", aiPath: string | null, rawPath: 
 export function queryResultsV043(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null, query: QueryV043 = {}, all = false) {
   const start = Date.now(), s = snapshotFor(kind, aiPath, rawPath), where = predicates(s, query);
   const page = query.page ?? 1, size = query.pageSize ?? 50;
-  if (!Number.isSafeInteger(page) || page < 1 || ![25, 50, 100, 200].includes(size)) throw new Error("QUERY_PAGE_INVALID");
+  if (!Number.isSafeInteger(page) || page < 1 || ![20, 25, 50, 100, 200].includes(size)) throw new Error("QUERY_PAGE_INVALID");
   const sort = s.registry.get(query.sort?.field ?? "eventTime");
   if (query.sort?.field && !sort) throw new Error("QUERY_SORT_FIELD_UNAVAILABLE");
   if (sort && !sort.sortable) throw new Error("CONTAINER_SORT_UNSUPPORTED");
@@ -220,13 +227,17 @@ export function exportResultsV043(kind: "ai" | "integrated", aiPath: string | nu
   const fields = visible ? visible.map(id => s.registry.get(id.replace(/^dynamic:/, ""))).filter((f): f is FieldV043 => Boolean(f)) : result.fieldCatalog;
   return { schemaName: "jaa-table-query-export", schemaVersion: "0.3.43", scope: visible ? "visible-columns" : "all-fields", completePackage: false, snapshot: result.generation, totalCount: result.totalCount, filteredCount: result.filteredCount, fields: fields.map(f => ({ id: f.path, label: f.label })), rows: result.rows.map((row: Json) => Object.fromEntries(fields.map(f => [f.path, row.fieldValues[f.path]]))) };
 }
-export function latestQueryDiagnosticsV043() { return { ...receipts }; }
+export function latestQueryDiagnosticsV043() { const cacheBytes = [...cache.values()].reduce((n, s) => n + Number((s.db.prepare("PRAGMA page_count").get() as Json).page_count) * Number((s.db.prepare("PRAGMA page_size").get() as Json).page_size), 0); return { ...receipts, cacheEntries: cache.size, cacheBytes, cacheBudgetBytes: 256 * 1024 ** 2 }; }
+export function releaseOversizeResultCacheV045() { const state = latestQueryDiagnosticsV043(); if (state.cacheBytes > state.cacheBudgetBytes) { invalidateAiResultsV043(); queryStageV044("cache-released", "POINT", { reason: "BYTE_BUDGET", bytes: state.cacheBytes }); } }
 
 // Iterate a single immutable query snapshot; never send full-scope export rows over IPC.
 export function writeQueryExportV044(kind: "ai" | "integrated", ai: string | null, raw: string | null, query: QueryV043, visible: string[] | undefined, target: string, format: string) {
   if (!target || !target.endsWith('.partial')) throw Error('INVALID_EXPORT_TARGET');
+  queryStageV044('export-snapshot', 'START');
   const metadata = queryResultsV043(kind, ai, raw, { ...query, page: 1, pageSize: 25, visibleFields: [] });
   const s = snapshotFor(kind, ai, raw), where = predicates(s, query);
+  if ((query as Json).expectedSnapshot && (query as Json).expectedSnapshot !== s.key) throw Error('EXPORT_SNAPSHOT_CHANGED');
+  queryStageV044('export-snapshot', 'END', { snapshot: s.key, filteredCount: metadata.filteredCount });
   const fields = visible ? visible.map(id => s.registry.get(id.replace(/^dynamic:/, ''))).filter((f): f is FieldV043 => Boolean(f)) : metadata.fieldCatalog;
   const sort = s.registry.get(query.sort?.field ?? 'eventTime');
   const order = sort ? '(SELECT ' + (['number','boolean'].includes(sort.dataType) ? 'c.number' : sort.dataType === 'date' ? 'jaa_epoch(c.text)' : 'c.text') + ' FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) ' + (query.sort?.direction === 'asc' ? 'ASC' : 'DESC') + ',' : '';
@@ -235,12 +246,18 @@ export function writeQueryExportV044(kind: "ai" | "integrated", ai: string | nul
   const fd = fs.openSync(target, 'wx'); let processed = 0, lastProgress = performance.now();
   const csvCell = (value: unknown) => '"' + (value === undefined ? '' : JSON.stringify(value)).replace(/"/g, '""') + '"';
   queryStageV044('export-write', 'START', { total: metadata.filteredCount });
+  let projectionMs = 0, serializationMs = 0, writeMs = 0;
   try {
     fs.writeSync(fd, format === 'csv' ? '\uFEFF' + fields.map(f => csvCell(f.path)).join(',') + '\r\n' : JSON.stringify(header).slice(0, -1) + ',"rows":[');
     for (const item of s.db.prepare(sql).iterate(...where.binds, ...(sort ? [sort.path] : [])) as Iterable<Json>) {
+      const projectionStart = performance.now();
       const row = materializeRowV044(item.body, s.registry, fields.map(f => f.path));
       const values = Object.fromEntries(fields.map(f => [f.path, row.fieldValues[f.path]]));
-      fs.writeSync(fd, format === 'csv' ? fields.map(f => csvCell(values[f.path])).join(',') + '\r\n' : (processed ? ',' : '') + JSON.stringify(values));
+      projectionMs += performance.now() - projectionStart;
+      const serializeStart = performance.now();
+      const encoded = format === 'csv' ? fields.map(f => csvCell(values[f.path])).join(',') + '\r\n' : (processed ? ',' : '') + JSON.stringify(values);
+      serializationMs += performance.now() - serializeStart;
+      const writeStart = performance.now(); fs.writeSync(fd, encoded); writeMs += performance.now() - writeStart;
       processed++;
       if (performance.now() - lastProgress > 500) { queryStageV044('export-write', 'PROGRESS', { processed, total: metadata.filteredCount }); lastProgress = performance.now(); }
     }
@@ -248,5 +265,6 @@ export function writeQueryExportV044(kind: "ai" | "integrated", ai: string | nul
     fs.fsyncSync(fd);
   } finally { fs.closeSync(fd); }
   queryStageV044('export-write', 'END', { processed, total: metadata.filteredCount });
-  return { sizeBytes: fs.statSync(target).size, filteredCount: processed, snapshot: metadata.generation };
+  queryStageV044('export-projection-serialization', 'POINT', { projectionMs, serializationMs, writeMs, rowCount: processed });
+  return { sizeBytes: fs.statSync(target).size, filteredCount: processed, snapshot: metadata.generation, projectionMs, serializationMs, writeMs };
 }

@@ -1,0 +1,877 @@
+{
+  "version": "0.3.45",
+  "status": "PARTIAL_MANUAL_GUI_PENDING",
+  "startedAt": "2026-09-08T17:15:10.8858685+08:00",
+  "recordedAt": "2026-09-08T10:30:24.926Z",
+  "timezone": "Asia/Taipei",
+  "wallClockMs": 4514041,
+  "commandUnionMs": 1118912,
+  "activeWorkMs": null,
+  "waitingMs": null,
+  "activeWaitingReason": "UNAVAILABLE: orchestration, reasoning and tool/approval waits are not separately metered.",
+  "tokenUsage": {
+    "provider": "OpenAI",
+    "model": "UNAVAILABLE: exact runtime model identifier not exposed",
+    "input": null,
+    "cachedInput": null,
+    "output": null,
+    "reasoning": null,
+    "total": null,
+    "knownSubtotal": null,
+    "status": "UNAVAILABLE",
+    "reason": "No per-turn/session provider usage meter is exposed. No estimate, account quota conversion or fabricated zero.",
+    "scope": "Entire current v0.3.45 task including continuations",
+    "deduplication": "No numeric totals available; cached/reasoning are not added again."
+  },
+  "commands": [
+    {
+      "command": [
+        "git",
+        "switch",
+        "-c",
+        "feat/v0.3.45-integrated-raw-cache-export"
+      ],
+      "startedAt": "2026-09-08T09:17:16.066Z",
+      "finishedAt": "2026-09-08T09:17:16.238Z",
+      "durationMs": 171.173,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-17-16-066Z-git.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "typecheck"
+      ],
+      "startedAt": "2026-09-08T09:24:31.519Z",
+      "finishedAt": "2026-09-08T09:24:51.254Z",
+      "durationMs": 19734.0427,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-24-31-519Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "python",
+        "07_validation/test-frozen-ddl.py"
+      ],
+      "startedAt": "2026-09-08T09:25:24.487Z",
+      "finishedAt": "2026-09-08T09:25:25.094Z",
+      "durationMs": 605.7192,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-25-24-487Z-python.log"
+    },
+    {
+      "command": [
+        "python",
+        "07_validation/verify-private-evidence.py"
+      ],
+      "startedAt": "2026-09-08T09:25:25.182Z",
+      "finishedAt": "2026-09-08T09:25:25.503Z",
+      "durationMs": 320.4217,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-25-25-182Z-python.log"
+    },
+    {
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "07_validation/test-frozen-ddl.py"
+      ],
+      "startedAt": "2026-09-08T09:26:52.683Z",
+      "finishedAt": "2026-09-08T09:26:52.940Z",
+      "durationMs": 256.77520000000004,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-26-52-683Z-python.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "version",
+        "0.3.45",
+        "--no-git-tag-version",
+        "--ignore-scripts"
+      ],
+      "startedAt": "2026-09-08T09:28:24.885Z",
+      "finishedAt": "2026-09-08T09:28:25.734Z",
+      "durationMs": 848.2187,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-28-24-885Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T09:32:10.460Z",
+      "finishedAt": "2026-09-08T09:32:10.863Z",
+      "durationMs": 402.2726,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-32-10-460Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T09:32:36.676Z",
+      "finishedAt": "2026-09-08T09:32:48.604Z",
+      "durationMs": 11927.624600000001,
+      "exitCode": 2,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-32-36-676Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T09:33:42.992Z",
+      "finishedAt": "2026-09-08T09:34:23.159Z",
+      "durationMs": 40165.6742,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-33-42-992Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "test:v0.3.45"
+      ],
+      "startedAt": "2026-09-08T09:34:51.868Z",
+      "finishedAt": "2026-09-08T09:35:12.157Z",
+      "durationMs": 20287.6067,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-34-51-868Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:37:11.817Z",
+      "finishedAt": "2026-09-08T09:37:51.199Z",
+      "durationMs": 39381.4245,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-37-11-817Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/v0345-ui-checks.cjs"
+      ],
+      "startedAt": "2026-09-08T09:38:26.276Z",
+      "finishedAt": "2026-09-08T09:38:26.353Z",
+      "durationMs": 75.822,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-38-26-276Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:38:26.428Z",
+      "finishedAt": "2026-09-08T09:38:52.967Z",
+      "durationMs": 26539.2088,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-38-26-428Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:40:22.983Z",
+      "finishedAt": "2026-09-08T09:40:51.448Z",
+      "durationMs": 28464.6206,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-40-22-983Z-node.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "electron:build"
+      ],
+      "startedAt": "2026-09-08T09:42:25.460Z",
+      "finishedAt": "2026-09-08T09:42:30.299Z",
+      "durationMs": 4838.5503,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-42-25-460Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:43:08.710Z",
+      "finishedAt": "2026-09-08T09:43:37.496Z",
+      "durationMs": 28785.5684,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-43-08-710Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:44:41.040Z",
+      "finishedAt": "2026-09-08T09:45:05.609Z",
+      "durationMs": 24568.3554,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-44-41-040Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:47:19.039Z",
+      "finishedAt": "2026-09-08T09:47:52.953Z",
+      "durationMs": 33913.1261,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-47-19-039Z-node.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T09:48:37.697Z",
+      "finishedAt": "2026-09-08T09:48:47.826Z",
+      "durationMs": 10128.893,
+      "exitCode": 2,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-48-37-697Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T09:49:40.677Z",
+      "finishedAt": "2026-09-08T09:50:11.676Z",
+      "durationMs": 30998.5021,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-49-40-677Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0344.cjs"
+      ],
+      "startedAt": "2026-09-08T09:51:06.927Z",
+      "finishedAt": "2026-09-08T09:51:35.974Z",
+      "durationMs": 29046.1235,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-51-06-927Z-node.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "electron:build"
+      ],
+      "startedAt": "2026-09-08T09:53:29.492Z",
+      "finishedAt": "2026-09-08T09:53:32.450Z",
+      "durationMs": 2957.3206999999998,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-53-29-492Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "test:v0.3.45"
+      ],
+      "startedAt": "2026-09-08T09:54:10.866Z",
+      "finishedAt": "2026-09-08T09:54:31.306Z",
+      "durationMs": 20439.824,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-54-10-866Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0344-performance.cjs"
+      ],
+      "startedAt": "2026-09-08T09:55:24.458Z",
+      "finishedAt": "2026-09-08T09:56:27.310Z",
+      "durationMs": 62851.5709,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-55-24-458Z-node.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T10:01:58.116Z",
+      "finishedAt": "2026-09-08T10:02:23.364Z",
+      "durationMs": 25247.6696,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-01-58-116Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:02:37.575Z",
+      "finishedAt": "2026-09-08T10:03:46.900Z",
+      "durationMs": 69324.2148,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-02-37-575Z-node.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "test:v0.3.45"
+      ],
+      "startedAt": "2026-09-08T10:05:08.236Z",
+      "finishedAt": "2026-09-08T10:05:33.894Z",
+      "durationMs": 25658.3537,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-05-08-236Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T10:07:25.887Z",
+      "finishedAt": "2026-09-08T10:07:52.973Z",
+      "durationMs": 27085.105399999997,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-07-25-887Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "scripts/test-v0343-correctness.cjs"
+      ],
+      "startedAt": "2026-09-08T10:08:02.185Z",
+      "finishedAt": "2026-09-08T10:08:11.469Z",
+      "durationMs": 9283.8472,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "scripts/test-v0344-correctness.cjs"
+      ],
+      "startedAt": "2026-09-08T10:08:11.534Z",
+      "finishedAt": "2026-09-08T10:08:16.777Z",
+      "durationMs": 5243.2674,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "scripts/test-v0344-diagnostics.cjs"
+      ],
+      "startedAt": "2026-09-08T10:08:16.837Z",
+      "finishedAt": "2026-09-08T10:08:21.745Z",
+      "durationMs": 4906.839000000001,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "scripts/test-v0344-faults.cjs"
+      ],
+      "startedAt": "2026-09-08T10:08:21.813Z",
+      "finishedAt": "2026-09-08T10:08:57.329Z",
+      "durationMs": 35515.945700000004,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:09:53.606Z",
+      "finishedAt": "2026-09-08T10:10:29.368Z",
+      "durationMs": 35761.2584,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-09-53-606Z-node.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "test:v0.3.45"
+      ],
+      "startedAt": "2026-09-08T10:12:51.147Z",
+      "finishedAt": "2026-09-08T10:13:15.638Z",
+      "durationMs": 24490.9973,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-12-51-147Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:13:49.390Z",
+      "finishedAt": "2026-09-08T10:14:50.145Z",
+      "durationMs": 60753.7174,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-13-49-390Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0344-performance.cjs"
+      ],
+      "startedAt": "2026-09-08T10:15:53.255Z",
+      "finishedAt": "2026-09-08T10:16:51.242Z",
+      "durationMs": 57986.774999999994,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-15-53-255Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/v0345-source-audit.cjs"
+      ],
+      "startedAt": "2026-09-08T10:19:08.124Z",
+      "finishedAt": "2026-09-08T10:19:09.691Z",
+      "durationMs": 1566.3735000000001,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-19-08-124Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/v0344-asar-preflight.cjs"
+      ],
+      "startedAt": "2026-09-08T10:20:08.711Z",
+      "finishedAt": "2026-09-08T10:20:37.748Z",
+      "durationMs": 29036.707000000002,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-20-08-711Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:21:25.588Z",
+      "finishedAt": "2026-09-08T10:22:37.923Z",
+      "durationMs": 72335.73989999999,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-21-25-588Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/v0345-delivery-report.cjs"
+      ],
+      "startedAt": "2026-09-08T10:23:05.650Z",
+      "finishedAt": "2026-09-08T10:23:06.066Z",
+      "durationMs": 415.2512,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-23-05-650Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:24:00.838Z",
+      "finishedAt": "2026-09-08T10:24:38.735Z",
+      "durationMs": 37896.983,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-24-00-838Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "07_validation/validate-input.cjs"
+      ],
+      "startedAt": "2026-09-08T10:24:41.898Z",
+      "finishedAt": "2026-09-08T10:24:42.374Z",
+      "durationMs": 475.6277,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-24-41-898Z-node.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T10:26:03.616Z",
+      "finishedAt": "2026-09-08T10:26:39.577Z",
+      "durationMs": 35960.5015,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-26-03-616Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "test:v0.3.45"
+      ],
+      "startedAt": "2026-09-08T10:26:26.141Z",
+      "finishedAt": "2026-09-08T10:27:00.213Z",
+      "durationMs": 34070.9644,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-26-26-141Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:27:22.407Z",
+      "finishedAt": "2026-09-08T10:28:23.057Z",
+      "durationMs": 60646.6679,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-27-22-407Z-node.log"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "startedAt": "2026-09-08T10:28:35.448Z",
+      "finishedAt": "2026-09-08T10:28:35.587Z",
+      "durationMs": 139.0423,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-28-35-448Z-git.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/v0345-source-audit.cjs"
+      ],
+      "startedAt": "2026-09-08T10:29:57.248Z",
+      "finishedAt": "2026-09-08T10:29:59.395Z",
+      "durationMs": 2146.4957999999997,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-29-57-248Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:29:23.320Z",
+      "finishedAt": "2026-09-08T10:30:04.131Z",
+      "durationMs": 40810.5048,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-29-23-320Z-node.log"
+    }
+  ],
+  "topFive": [
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:21:25.588Z",
+      "finishedAt": "2026-09-08T10:22:37.923Z",
+      "durationMs": 72335.73989999999,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-21-25-588Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:02:37.575Z",
+      "finishedAt": "2026-09-08T10:03:46.900Z",
+      "durationMs": 69324.2148,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-02-37-575Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0344-performance.cjs"
+      ],
+      "startedAt": "2026-09-08T09:55:24.458Z",
+      "finishedAt": "2026-09-08T09:56:27.310Z",
+      "durationMs": 62851.5709,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-55-24-458Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:13:49.390Z",
+      "finishedAt": "2026-09-08T10:14:50.145Z",
+      "durationMs": 60753.7174,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-13-49-390Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:27:22.407Z",
+      "finishedAt": "2026-09-08T10:28:23.057Z",
+      "durationMs": 60646.6679,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-27-22-407Z-node.log"
+    }
+  ],
+  "failedAttempts": [
+    {
+      "command": [
+        "python",
+        "07_validation/test-frozen-ddl.py"
+      ],
+      "startedAt": "2026-09-08T09:25:24.487Z",
+      "finishedAt": "2026-09-08T09:25:25.094Z",
+      "durationMs": 605.7192,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-25-24-487Z-python.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T09:32:10.460Z",
+      "finishedAt": "2026-09-08T09:32:10.863Z",
+      "durationMs": 402.2726,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-32-10-460Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T09:32:36.676Z",
+      "finishedAt": "2026-09-08T09:32:48.604Z",
+      "durationMs": 11927.624600000001,
+      "exitCode": 2,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-32-36-676Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:37:11.817Z",
+      "finishedAt": "2026-09-08T09:37:51.199Z",
+      "durationMs": 39381.4245,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-37-11-817Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:38:26.428Z",
+      "finishedAt": "2026-09-08T09:38:52.967Z",
+      "durationMs": 26539.2088,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-38-26-428Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:40:22.983Z",
+      "finishedAt": "2026-09-08T09:40:51.448Z",
+      "durationMs": 28464.6206,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-40-22-983Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:43:08.710Z",
+      "finishedAt": "2026-09-08T09:43:37.496Z",
+      "durationMs": 28785.5684,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-43-08-710Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:44:41.040Z",
+      "finishedAt": "2026-09-08T09:45:05.609Z",
+      "durationMs": 24568.3554,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-44-41-040Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T09:47:19.039Z",
+      "finishedAt": "2026-09-08T09:47:52.953Z",
+      "durationMs": 33913.1261,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-47-19-039Z-node.log"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-09-08T09:48:37.697Z",
+      "finishedAt": "2026-09-08T09:48:47.826Z",
+      "durationMs": 10128.893,
+      "exitCode": 2,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T09-48-37-697Z-npm.cmd.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:09:53.606Z",
+      "finishedAt": "2026-09-08T10:10:29.368Z",
+      "durationMs": 35761.2584,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-09-53-606Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:21:25.588Z",
+      "finishedAt": "2026-09-08T10:22:37.923Z",
+      "durationMs": 72335.73989999999,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-21-25-588Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:24:00.838Z",
+      "finishedAt": "2026-09-08T10:24:38.735Z",
+      "durationMs": 37896.983,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-24-00-838Z-node.log"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0345-ui.cjs"
+      ],
+      "startedAt": "2026-09-08T10:27:22.407Z",
+      "finishedAt": "2026-09-08T10:28:23.057Z",
+      "durationMs": 60646.6679,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-27-22-407Z-node.log"
+    }
+  ],
+  "inputValidatorObservation": {
+    "command": "node 07_validation/validate-input.cjs",
+    "durationMs": 745.4413,
+    "exitCode": 0,
+    "pass": 495,
+    "fail": 0,
+    "timingSource": "Initial tool observation, before durable command wrapper"
+  },
+  "timingGaps": "Initial sandbox ACL rejection, read-only exploration and apply_patch retries retained in tool history; no complete per-command timing claimed for these. Command intervals are unioned, not added to wall-clock.",
+  "sourceCommit": null,
+  "reportHeadAtGeneration": "1696923df674351fc24b68865b4638fb0e756a36",
+  "finalReportCommit": null,
+  "finalReportCommitReason": "Resolve containing commit externally; do not invent a self-referential commit hash."
+}

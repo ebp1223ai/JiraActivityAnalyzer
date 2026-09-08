@@ -1,3 +1,12 @@
+# v0.3.45 - Raw Enrichment, Reusable Results and Snapshot Exports
+
+- Populate Integrated Results issue type/current status/current priority from Raw current_issue_snapshots, preserving the complete Raw base and unique AI links.
+- Hide unavailable AI-only default columns while retaining explicit and legacy preferences and complete dynamic fields.
+- Reuse bounded completed/in-flight renderer queries with database content revisions; reuse worker snapshots for complete filtered JSON/CSV exports.
+- Avoid duplicate snapshot documents and unnecessary quick-filter indexes; report executor/cache ownership and bounded memory.
+- Capture writer-consistent diagnostic cutoffs with producer watermarks/counts/hash verification; synchronize legacy counts.
+- Retain Package 2.0.0/2.0.1, frozen DDL and Bridge. Windows candidate remains Manual GUI Validation Pending; no Tag or Push before explicit v0.3.45 approval.
+
 # v0.3.44 - Integrated Results Stability and Automatic Diagnostics
 
 - Moved complete Raw/AI query, facet indexing, preflight/import/relink and streaming export work into dedicated executors without changing frozen contracts.

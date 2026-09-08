@@ -1,0 +1,20 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawn } = require('node:child_process');
+const root = path.resolve(__dirname, '..');
+const dir = path.join(root, 'test-artifacts/v0.3.45');
+fs.mkdirSync(dir, { recursive: true });
+const [command, ...args] = process.argv.slice(2);
+if (!command) throw new Error('Command required');
+const start = new Date(), clock = performance.now();
+const log = path.join(dir, `${start.toISOString().replace(/[:.]/g, '-')}-${path.basename(command)}.log`);
+const stream = fs.createWriteStream(log);
+const child = spawn(command.endsWith('.cmd') ? process.env.ComSpec : command, command.endsWith('.cmd') ? ['/d', '/s', '/c', command, ...args] : args, { cwd: process.env.JAA_COMMAND_CWD || root, windowsHide: true, env: process.env });
+let error;
+child.on('error', e => { error = e.message; });
+for (const channel of [child.stdout, child.stderr]) channel?.on('data', data => { process.stdout.write(data); stream.write(data); });
+child.on('close', (code, signal) => {
+  const result = { command: [command, ...args], startedAt: start.toISOString(), finishedAt: new Date().toISOString(), durationMs: performance.now() - clock, exitCode: code, signal, error, log };
+  fs.appendFileSync(path.join(dir, 'commands.jsonl'), JSON.stringify(result) + '\n');
+  stream.end(); console.log(JSON.stringify(result)); process.exitCode = code ?? 1;
+});

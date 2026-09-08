@@ -1,0 +1,4841 @@
+{
+  "version": "0.3.45",
+  "status": "PARTIAL_MANUAL_GUI_AND_COVERAGE_PENDING",
+  "generatedAt": "2026-09-08T10:30:24.926Z",
+  "input": {
+    "validatorPass": 495,
+    "validatorFail": 0,
+    "frozenDdl": "PASS",
+    "privateZipCheck": "31 PASS / 0 FAIL, external input only"
+  },
+  "evidence": [
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\asar-preflight-1788862809177\\report.json",
+      "status": "PASS"
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\performance-1788861324526\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "T44-30 five paired 100k/55 cold-worker production diagnostics ON/OFF",
+          "status": "PASS",
+          "durationMs": 43809.6048,
+          "detail": {
+            "pairs": [
+              {
+                "off": {
+                  "elapsedMs": 3601.7549,
+                  "cpu": {
+                    "user": 3328000,
+                    "system": 313000
+                  },
+                  "memory": {
+                    "rss": 626368512,
+                    "heapTotal": 35364864,
+                    "heapUsed": 22543456,
+                    "external": 3524492,
+                    "arrayBuffers": 78155
+                  }
+                },
+                "on": {
+                  "elapsedMs": 3701.7284999999997,
+                  "cpu": {
+                    "user": 3093000,
+                    "system": 375000
+                  },
+                  "memory": {
+                    "rss": 633311232,
+                    "heapTotal": 34054144,
+                    "heapUsed": 22653928,
+                    "external": 3526540,
+                    "arrayBuffers": 78155
+                  }
+                }
+              },
+              {
+                "on": {
+                  "elapsedMs": 3793.1778999999988,
+                  "cpu": {
+                    "user": 3219000,
+                    "system": 312000
+                  },
+                  "memory": {
+                    "rss": 628736000,
+                    "heapTotal": 34840576,
+                    "heapUsed": 22500088,
+                    "external": 3526540,
+                    "arrayBuffers": 78139
+                  }
+                },
+                "off": {
+                  "elapsedMs": 3866.933499999999,
+                  "cpu": {
+                    "user": 3531000,
+                    "system": 266000
+                  },
+                  "memory": {
+                    "rss": 634322944,
+                    "heapTotal": 34578432,
+                    "heapUsed": 22638224,
+                    "external": 3524492,
+                    "arrayBuffers": 78155
+                  }
+                }
+              },
+              {
+                "off": {
+                  "elapsedMs": 4014.513799999999,
+                  "cpu": {
+                    "user": 3718000,
+                    "system": 375000
+                  },
+                  "memory": {
+                    "rss": 638754816,
+                    "heapTotal": 34840576,
+                    "heapUsed": 22649240,
+                    "external": 3524492,
+                    "arrayBuffers": 78155
+                  }
+                },
+                "on": {
+                  "elapsedMs": 4859.5769999999975,
+                  "cpu": {
+                    "user": 4203000,
+                    "system": 219000
+                  },
+                  "memory": {
+                    "rss": 638586880,
+                    "heapTotal": 35364864,
+                    "heapUsed": 22530424,
+                    "external": 3526540,
+                    "arrayBuffers": 78119
+                  }
+                }
+              },
+              {
+                "on": {
+                  "elapsedMs": 4569.180700000001,
+                  "cpu": {
+                    "user": 3844000,
+                    "system": 390000
+                  },
+                  "memory": {
+                    "rss": 639578112,
+                    "heapTotal": 34316288,
+                    "heapUsed": 22662592,
+                    "external": 3526540,
+                    "arrayBuffers": 78139
+                  }
+                },
+                "off": {
+                  "elapsedMs": 4474.447800000002,
+                  "cpu": {
+                    "user": 4235000,
+                    "system": 266000
+                  },
+                  "memory": {
+                    "rss": 643162112,
+                    "heapTotal": 34578432,
+                    "heapUsed": 22700304,
+                    "external": 3524492,
+                    "arrayBuffers": 78155
+                  }
+                }
+              },
+              {
+                "off": {
+                  "elapsedMs": 4556.1946000000025,
+                  "cpu": {
+                    "user": 4016000,
+                    "system": 296000
+                  },
+                  "memory": {
+                    "rss": 643698688,
+                    "heapTotal": 34578432,
+                    "heapUsed": 22709384,
+                    "external": 3524492,
+                    "arrayBuffers": 78155
+                  }
+                },
+                "on": {
+                  "elapsedMs": 4410.5789,
+                  "cpu": {
+                    "user": 3938000,
+                    "system": 218000
+                  },
+                  "memory": {
+                    "rss": 642260992,
+                    "heapTotal": 34316288,
+                    "heapUsed": 22773048,
+                    "external": 3526540,
+                    "arrayBuffers": 78119
+                  }
+                }
+              }
+            ],
+            "medianOnMs": 4410.5789,
+            "medianOffMs": 4014.513799999999,
+            "overheadPercent": 9.865829829754272
+          }
+        },
+        {
+          "name": "T44-29 twenty query/filter/cancel executor cycles have bounded resources",
+          "status": "PASS",
+          "durationMs": 10229.0429,
+          "detail": {
+            "before": {
+              "rss": 692367360,
+              "heapTotal": 34578432,
+              "heapUsed": 21875296,
+              "external": 3524492,
+              "arrayBuffers": 78139
+            },
+            "after": {
+              "rss": 707825664,
+              "heapTotal": 48996352,
+              "heapUsed": 21042816,
+              "external": 3524492,
+              "arrayBuffers": 78203
+            },
+            "growth": -832480,
+            "limit": 33554432,
+            "samples": [
+              {
+                "rss": 687783936,
+                "heapTotal": 32219136,
+                "heapUsed": 13669320,
+                "external": 3524492,
+                "arrayBuffers": 78163
+              },
+              {
+                "rss": 687919104,
+                "heapTotal": 32219136,
+                "heapUsed": 14031288,
+                "external": 3524492,
+                "arrayBuffers": 78155
+              },
+              {
+                "rss": 687919104,
+                "heapTotal": 32219136,
+                "heapUsed": 14224040,
+                "external": 3524492,
+                "arrayBuffers": 78143
+              },
+              {
+                "rss": 687935488,
+                "heapTotal": 32219136,
+                "heapUsed": 14597448,
+                "external": 3524492,
+                "arrayBuffers": 78155
+              },
+              {
+                "rss": 687955968,
+                "heapTotal": 32219136,
+                "heapUsed": 14221072,
+                "external": 3524492,
+                "arrayBuffers": 78143
+              },
+              {
+                "rss": 687955968,
+                "heapTotal": 32219136,
+                "heapUsed": 14563792,
+                "external": 3524492,
+                "arrayBuffers": 78167
+              },
+              {
+                "rss": 687955968,
+                "heapTotal": 32219136,
+                "heapUsed": 14306120,
+                "external": 3524492,
+                "arrayBuffers": 78191
+              },
+              {
+                "rss": 688214016,
+                "heapTotal": 32219136,
+                "heapUsed": 14661000,
+                "external": 3524492,
+                "arrayBuffers": 78155
+              },
+              {
+                "rss": 688930816,
+                "heapTotal": 48996352,
+                "heapUsed": 14252672,
+                "external": 3524492,
+                "arrayBuffers": 78167
+              },
+              {
+                "rss": 689512448,
+                "heapTotal": 48996352,
+                "heapUsed": 14594992,
+                "external": 3524492,
+                "arrayBuffers": 78155
+              },
+              {
+                "rss": 693575680,
+                "heapTotal": 48996352,
+                "heapUsed": 20659496,
+                "external": 3524492,
+                "arrayBuffers": 78179
+              },
+              {
+                "rss": 693899264,
+                "heapTotal": 48996352,
+                "heapUsed": 21001624,
+                "external": 3524492,
+                "arrayBuffers": 78203
+              },
+              {
+                "rss": 697835520,
+                "heapTotal": 48996352,
+                "heapUsed": 14287304,
+                "external": 3524492,
+                "arrayBuffers": 78143
+              },
+              {
+                "rss": 697835520,
+                "heapTotal": 48996352,
+                "heapUsed": 14633888,
+                "external": 3524492,
+                "arrayBuffers": 78167
+              },
+              {
+                "rss": 701947904,
+                "heapTotal": 48996352,
+                "heapUsed": 20701208,
+                "external": 3524492,
+                "arrayBuffers": 78191
+              },
+              {
+                "rss": 702803968,
+                "heapTotal": 48996352,
+                "heapUsed": 21047072,
+                "external": 3524492,
+                "arrayBuffers": 78215
+              },
+              {
+                "rss": 707215360,
+                "heapTotal": 48996352,
+                "heapUsed": 14294992,
+                "external": 3524492,
+                "arrayBuffers": 78239
+              },
+              {
+                "rss": 707825664,
+                "heapTotal": 48996352,
+                "heapUsed": 14637080,
+                "external": 3524492,
+                "arrayBuffers": 78155
+              },
+              {
+                "rss": 707825664,
+                "heapTotal": 48996352,
+                "heapUsed": 20700840,
+                "external": 3524492,
+                "arrayBuffers": 78179
+              },
+              {
+                "rss": 707825664,
+                "heapTotal": 48996352,
+                "heapUsed": 21042816,
+                "external": 3524492,
+                "arrayBuffers": 78203
+              }
+            ],
+            "remainingExecutors": 1,
+            "pending": 0
+          }
+        },
+        {
+          "name": "T44-28 1000 events with 64KiB before/after remain lossless and page-bounded",
+          "status": "PASS",
+          "durationMs": 8413.098299999998,
+          "detail": {
+            "firstPageMs": 2316.8027,
+            "bytesPerSide": 65536,
+            "memory": {
+              "rss": 1184043008,
+              "heapTotal": 86192128,
+              "heapUsed": 30083904,
+              "external": 3524492,
+              "arrayBuffers": 78155
+            },
+            "rawBytes": 132247552,
+            "rendererLazyDiff": "requires separate UI assertion"
+          }
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\performance-1788862553334\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "T44-30 five paired 100k/55 cold-worker production diagnostics ON/OFF",
+          "status": "PASS",
+          "durationMs": 40113.6608,
+          "detail": {
+            "pairs": [
+              {
+                "off": {
+                  "elapsedMs": 5174.2363000000005,
+                  "cpu": {
+                    "user": 3094000,
+                    "system": 438000
+                  },
+                  "memory": {
+                    "rss": 626372608,
+                    "heapTotal": 34316288,
+                    "heapUsed": 22495424,
+                    "external": 3524492,
+                    "arrayBuffers": 78155
+                  }
+                },
+                "on": {
+                  "elapsedMs": 3796.0891,
+                  "cpu": {
+                    "user": 3172000,
+                    "system": 375000
+                  },
+                  "memory": {
+                    "rss": 628142080,
+                    "heapTotal": 34316288,
+                    "heapUsed": 22677296,
+                    "external": 3526540,
+                    "arrayBuffers": 78135
+                  }
+                }
+              },
+              {
+                "on": {
+                  "elapsedMs": 3673.6887000000006,
+                  "cpu": {
+                    "user": 3297000,
+                    "system": 250000
+                  },
+                  "memory": {
+                    "rss": 634441728,
+                    "heapTotal": 34316288,
+                    "heapUsed": 22708184,
+                    "external": 3526540,
+                    "arrayBuffers": 78139
+                  }
+                },
+                "off": {
+                  "elapsedMs": 3483.9402999999984,
+                  "cpu": {
+                    "user": 3109000,
+                    "system": 406000
+                  },
+                  "memory": {
+                    "rss": 635232256,
+                    "heapTotal": 34578432,
+                    "heapUsed": 22629048,
+                    "external": 3524492,
+                    "arrayBuffers": 78155
+                  }
+                }
+              },
+              {
+                "off": {
+                  "elapsedMs": 3463.6648999999998,
+                  "cpu": {
+                    "user": 3266000,
+                    "system": 281000
+                  },
+                  "memory": {
+                    "rss": 637177856,
+                    "heapTotal": 34578432,
+                    "heapUsed": 22592624,
+                    "external": 3524492,
+                    "arrayBuffers": 78155
+                  }
+                },
+                "on": {
+                  "elapsedMs": 3804.5747999999985,
+                  "cpu": {
+                    "user": 3359000,
+                    "system": 235000
+                  },
+                  "memory": {
+                    "rss": 639819776,
+                    "heapTotal": 34316288,
+                    "heapUsed": 22637480,
+                    "external": 3526540,
+                    "arrayBuffers": 78139
+                  }
+                }
+              },
+              {
+                "on": {
+                  "elapsedMs": 3887.7842999999993,
+                  "cpu": {
+                    "user": 3219000,
+                    "system": 469000
+                  },
+                  "memory": {
+                    "rss": 637628416,
+                    "heapTotal": 34316288,
+                    "heapUsed": 22763264,
+                    "external": 3526540,
+                    "arrayBuffers": 78155
+                  }
+                },
+                "off": {
+                  "elapsedMs": 3641.2325999999994,
+                  "cpu": {
+                    "user": 3359000,
+                    "system": 344000
+                  },
+                  "memory": {
+                    "rss": 639574016,
+                    "heapTotal": 34578432,
+                    "heapUsed": 22569536,
+                    "external": 3524492,
+                    "arrayBuffers": 78155
+                  }
+                }
+              },
+              {
+                "off": {
+                  "elapsedMs": 3585.011300000002,
+                  "cpu": {
+                    "user": 3422000,
+                    "system": 203000
+                  },
+                  "memory": {
+                    "rss": 641761280,
+                    "heapTotal": 34578432,
+                    "heapUsed": 22569744,
+                    "external": 3524492,
+                    "arrayBuffers": 78155
+                  }
+                },
+                "on": {
+                  "elapsedMs": 3838.8632,
+                  "cpu": {
+                    "user": 3437000,
+                    "system": 203000
+                  },
+                  "memory": {
+                    "rss": 644509696,
+                    "heapTotal": 34054144,
+                    "heapUsed": 22677960,
+                    "external": 3526540,
+                    "arrayBuffers": 78155
+                  }
+                }
+              }
+            ],
+            "medianOnMs": 3804.5747999999985,
+            "medianOffMs": 3585.011300000002,
+            "overheadPercent": 6.124485576935181
+          }
+        },
+        {
+          "name": "T44-29 twenty query/filter/cancel executor cycles have bounded resources",
+          "status": "PASS",
+          "durationMs": 9514.134700000002,
+          "detail": {
+            "before": {
+              "rss": 695902208,
+              "heapTotal": 34316288,
+              "heapUsed": 25147592,
+              "external": 3524492,
+              "arrayBuffers": 78163
+            },
+            "after": {
+              "rss": 710733824,
+              "heapTotal": 50569216,
+              "heapUsed": 21151000,
+              "external": 3524492,
+              "arrayBuffers": 78215
+            },
+            "growth": -3996592,
+            "limit": 33554432,
+            "rssGrowth": 14831616,
+            "rssLimit": 139180441.6,
+            "rssScope": "process-wide single owner, not summed across workers",
+            "samples": [
+              {
+                "rss": 691154944,
+                "heapTotal": 33792000,
+                "heapUsed": 13671488,
+                "external": 3524492,
+                "arrayBuffers": 78131
+              },
+              {
+                "rss": 691286016,
+                "heapTotal": 33792000,
+                "heapUsed": 14025712,
+                "external": 3524492,
+                "arrayBuffers": 78155
+              },
+              {
+                "rss": 691286016,
+                "heapTotal": 33792000,
+                "heapUsed": 14356392,
+                "external": 3524492,
+                "arrayBuffers": 78143
+              },
+              {
+                "rss": 691298304,
+                "heapTotal": 33792000,
+                "heapUsed": 14730320,
+                "external": 3524492,
+                "arrayBuffers": 78155
+              },
+              {
+                "rss": 691314688,
+                "heapTotal": 33792000,
+                "heapUsed": 14375984,
+                "external": 3524492,
+                "arrayBuffers": 78167
+              },
+              {
+                "rss": 691314688,
+                "heapTotal": 33792000,
+                "heapUsed": 14718704,
+                "external": 3524492,
+                "arrayBuffers": 78191
+              },
+              {
+                "rss": 691314688,
+                "heapTotal": 33792000,
+                "heapUsed": 14384544,
+                "external": 3524492,
+                "arrayBuffers": 78143
+              },
+              {
+                "rss": 691572736,
+                "heapTotal": 33792000,
+                "heapUsed": 14717840,
+                "external": 3524492,
+                "arrayBuffers": 78167
+              },
+              {
+                "rss": 692350976,
+                "heapTotal": 50569216,
+                "heapUsed": 14383520,
+                "external": 3524492,
+                "arrayBuffers": 78143
+              },
+              {
+                "rss": 692350976,
+                "heapTotal": 50569216,
+                "heapUsed": 14725840,
+                "external": 3524492,
+                "arrayBuffers": 78167
+              },
+              {
+                "rss": 696414208,
+                "heapTotal": 50569216,
+                "heapUsed": 20790344,
+                "external": 3524492,
+                "arrayBuffers": 78191
+              },
+              {
+                "rss": 696803328,
+                "heapTotal": 50569216,
+                "heapUsed": 21132472,
+                "external": 3524492,
+                "arrayBuffers": 78203
+              },
+              {
+                "rss": 700674048,
+                "heapTotal": 50569216,
+                "heapUsed": 14450192,
+                "external": 3524492,
+                "arrayBuffers": 78167
+              },
+              {
+                "rss": 700686336,
+                "heapTotal": 50569216,
+                "heapUsed": 14799704,
+                "external": 3524492,
+                "arrayBuffers": 78191
+              },
+              {
+                "rss": 705286144,
+                "heapTotal": 50569216,
+                "heapUsed": 20862160,
+                "external": 3524492,
+                "arrayBuffers": 78215
+              },
+              {
+                "rss": 706236416,
+                "heapTotal": 50569216,
+                "heapUsed": 21210512,
+                "external": 3524492,
+                "arrayBuffers": 78239
+              },
+              {
+                "rss": 710606848,
+                "heapTotal": 50569216,
+                "heapUsed": 14402336,
+                "external": 3524492,
+                "arrayBuffers": 78143
+              },
+              {
+                "rss": 710606848,
+                "heapTotal": 50569216,
+                "heapUsed": 14744424,
+                "external": 3524492,
+                "arrayBuffers": 78167
+              },
+              {
+                "rss": 710606848,
+                "heapTotal": 50569216,
+                "heapUsed": 20809032,
+                "external": 3524492,
+                "arrayBuffers": 78191
+              },
+              {
+                "rss": 710733824,
+                "heapTotal": 50569216,
+                "heapUsed": 21151000,
+                "external": 3524492,
+                "arrayBuffers": 78215
+              }
+            ],
+            "remainingExecutors": 1,
+            "pending": 0
+          }
+        },
+        {
+          "name": "T44-28 1000 events with 64KiB before/after remain lossless and page-bounded",
+          "status": "PASS",
+          "durationMs": 8003.837099999997,
+          "detail": {
+            "firstPageMs": 1705.7225000000035,
+            "bytesPerSide": 65536,
+            "memory": {
+              "rss": 1191055360,
+              "heapTotal": 85929984,
+              "heapUsed": 30083280,
+              "external": 3524492,
+              "arrayBuffers": 78155
+            },
+            "rawBytes": 132247552,
+            "rendererLazyDiff": "requires separate UI assertion"
+          }
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788860092506\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "T45-01/02 Raw current values, missing AI, filters/facets/export and DB isolation",
+          "status": "PASS",
+          "durationMs": 3738.1006000000007,
+          "detail": {
+            "rawRows": 39281,
+            "otherDatabaseRows": 5,
+            "source": "same UserViewer SQL join",
+            "aiClosed": true
+          }
+        },
+        {
+          "name": "T45-09 SQLite committed revision: timestamp/read/rollback unchanged; external WAL write invalidates",
+          "status": "PASS",
+          "durationMs": 186.52380000000085,
+          "detail": {
+            "readsAndTimestampsDoNotInvalidate": true,
+            "rollbackStable": true,
+            "walCommitDetected": true
+          }
+        },
+        {
+          "name": "T45-11/13 ready 39281 mother set, 40 matching/17 columns: five same-executor complete exports",
+          "status": "PASS",
+          "durationMs": 3325.9107000000004,
+          "detail": {
+            "samples": [
+              {
+                "elapsedMs": 122.46290000000045,
+                "bytes": 44979,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 106.41899999999987,
+                "bytes": 44979,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 100.4434999999994,
+                "bytes": 44979,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 108.51490000000013,
+                "bytes": 44979,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 107.72869999999966,
+                "bytes": 44979,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              }
+            ],
+            "executors": 1,
+            "pickerWaitMs": 0,
+            "level": "production service; UI timing separate"
+          }
+        },
+        {
+          "name": "T45-12/14 full row export is not page-limited; four formats, arrays and source text",
+          "status": "PASS",
+          "durationMs": 5194.697399999997,
+          "detail": {
+            "fullRows": 39281,
+            "formats": 4,
+            "originalTextPreserved": true
+          }
+        },
+        {
+          "name": "T45-18 writer cutoff counts/watermarks/hash and missing producer",
+          "status": "PASS",
+          "durationMs": 275.52679999999964,
+          "detail": {
+            "count": 3,
+            "files": 2,
+            "missingDetected": true
+          }
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788861067022\\results.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "D44 redaction bounded cyclic/BigInt/oversize and schema envelope",
+          "status": "PASS",
+          "durationMs": 2.1517000000000053
+        },
+        {
+          "name": "D44 critical fsync, incomplete recovery and live-instance distinction",
+          "status": "PASS",
+          "durationMs": 396.7805
+        },
+        {
+          "name": "D44 ENOSPC degraded rather than crashing",
+          "status": "PASS",
+          "durationMs": 45.983999999999924
+        },
+        {
+          "name": "T44-27 seed true production Raw 100000, late-only field at 100000",
+          "status": "PASS",
+          "durationMs": 16988.870499999997
+        },
+        {
+          "name": "T44-27 complete Raw first page worker/main responsiveness + timing",
+          "status": "PASS",
+          "durationMs": 4869.434300000001,
+          "detail": {
+            "durationMs": 4869.060799999999,
+            "targetMs": 5000,
+            "targetMet": true,
+            "maxEventLoopDelayMs": 15.599200000000565,
+            "stages": [
+              {
+                "event": "snapshot-build",
+                "phase": "START",
+                "details": {
+                  "stages": [
+                    "source-read",
+                    "mapping",
+                    "complete-field-discovery"
+                  ],
+                  "rawPath": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788861067022\\100k.sqlite",
+                  "aiPath": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788861067022\\ai55.sqlite",
+                  "pathPolicy": "operator-selected-databases-read-only"
+                }
+              },
+              {
+                "event": "source-read",
+                "phase": "START",
+                "details": {
+                  "mode": "streaming-iterator",
+                  "paths": [
+                    "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788861067022\\100k.sqlite",
+                    "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788861067022\\ai55.sqlite"
+                  ],
+                  "bindings": "schema-derived identifiers; no literal Jira values"
+                }
+              },
+              {
+                "event": "mapping-aggregation",
+                "phase": "START",
+                "details": {
+                  "mode": "streaming-overlap-with-source-read"
+                }
+              },
+              {
+                "event": "field-discovery",
+                "phase": "START",
+                "details": {
+                  "scope": "all-rows",
+                  "mode": "streaming-overlap-with-mapping"
+                }
+              },
+              {
+                "event": "snapshot-build",
+                "phase": "PROGRESS",
+                "details": {
+                  "processed": 13344,
+                  "total": null,
+                  "rssBytes": 267468800
+                }
+              },
+              {
+                "event": "snapshot-build",
+                "phase": "PROGRESS",
+                "details": {
+                  "processed": 28386,
+                  "total": null,
+                  "rssBytes": 345391104
+                }
+              },
+              {
+                "event": "snapshot-build",
+                "phase": "PROGRESS",
+                "details": {
+                  "processed": 43467,
+                  "total": null,
+                  "rssBytes": 424583168
+                }
+              },
+              {
+                "event": "snapshot-build",
+                "phase": "PROGRESS",
+                "details": {
+                  "processed": 57931,
+                  "total": null,
+                  "rssBytes": 495554560
+                }
+              },
+              {
+                "event": "snapshot-build",
+                "phase": "PROGRESS",
+                "details": {
+                  "processed": 72448,
+                  "total": null,
+                  "rssBytes": 569049088
+                }
+              },
+              {
+                "event": "snapshot-build",
+                "phase": "PROGRESS",
+                "details": {
+                  "processed": 87989,
+                  "total": null,
+                  "rssBytes": 647872512
+                }
+              },
+              {
+                "event": "field-discovery",
+                "phase": "END",
+                "details": {
+                  "processed": 100000,
+                  "fieldCount": 765
+                }
+              },
+              {
+                "event": "mapping-aggregation",
+                "phase": "END",
+                "details": {
+                  "processed": 100000,
+                  "matched": 55,
+                  "ambiguous": 0
+                }
+              },
+              {
+                "event": "source-read",
+                "phase": "END",
+                "details": {
+                  "processed": 100000,
+                  "aiRecordCount": 55
+                }
+              },
+              {
+                "event": "snapshot-build",
+                "phase": "END",
+                "details": {
+                  "processed": 100000,
+                  "fieldCount": 765
+                }
+              },
+              {
+                "event": "facet-build",
+                "phase": "START",
+                "details": {
+                  "fieldCount": 4
+                }
+              },
+              {
+                "event": "facet-build",
+                "phase": "PROGRESS",
+                "details": {
+                  "processed": 54294,
+                  "total": null
+                }
+              },
+              {
+                "event": "facet-build",
+                "phase": "END",
+                "details": {
+                  "processed": 100000
+                }
+              },
+              {
+                "event": "sql-query",
+                "phase": "START",
+                "details": {}
+              },
+              {
+                "event": "row-mapping",
+                "phase": "START",
+                "details": {
+                  "rowCount": 25
+                }
+              },
+              {
+                "event": "row-mapping",
+                "phase": "END",
+                "details": {
+                  "rowCount": 25
+                }
+              },
+              {
+                "event": "sql-query",
+                "phase": "END",
+                "details": {
+                  "queryTemplate": "SELECT body FROM documents d  ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+                  "parameterTypes": [
+                    "string",
+                    "number",
+                    "number"
+                  ],
+                  "queryId": "v043-document-page",
+                  "totalCount": 100000,
+                  "filteredCount": 100000,
+                  "rowCount": 25,
+                  "elapsedMs": 4834
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "T44-04 complete high-cardinality facet, tail filter and self-exclusion",
+          "status": "PASS",
+          "durationMs": 6187.272499999999
+        },
+        {
+          "name": "T44-06 cancel stops read executor (not only late-response discard)",
+          "status": "PASS",
+          "durationMs": 114.13620000000083,
+          "detail": {
+            "cancelMs": 2.36449999999968
+          }
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788861251301\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "T45-01/02 Raw current values, missing AI, filters/facets/export and DB isolation",
+          "status": "PASS",
+          "durationMs": 3444.2366,
+          "detail": {
+            "rawRows": 39281,
+            "otherDatabaseRows": 5,
+            "source": "same UserViewer SQL join",
+            "aiClosed": true
+          }
+        },
+        {
+          "name": "T45-09 SQLite committed revision: timestamp/read/rollback unchanged; external WAL write invalidates",
+          "status": "PASS",
+          "durationMs": 142.9964,
+          "detail": {
+            "readsAndTimestampsDoNotInvalidate": true,
+            "rollbackStable": true,
+            "walCommitDetected": true
+          }
+        },
+        {
+          "name": "T45-09 active AI revision preserves protected/no-op imports and invalidates new active data",
+          "status": "PASS",
+          "durationMs": 1778.4773999999998,
+          "detail": {
+            "newActiveDataInvalidates": true,
+            "protectedAndNoopStable": true
+          }
+        },
+        {
+          "name": "T45-11/13 ready 39281 mother set, 40 matching/17 columns: five same-executor complete exports",
+          "status": "PASS",
+          "durationMs": 3066.8115,
+          "detail": {
+            "samples": [
+              {
+                "elapsedMs": 129.4999000000007,
+                "bytes": 44978,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 116.74279999999999,
+                "bytes": 44978,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 111.1265000000003,
+                "bytes": 44978,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 116.77250000000095,
+                "bytes": 44978,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 105.5601999999999,
+                "bytes": 44978,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              }
+            ],
+            "executors": 1,
+            "pickerWaitMs": 0,
+            "level": "production service; UI timing separate"
+          }
+        },
+        {
+          "name": "T45-12/14 full row export is not page-limited; four formats, arrays and source text",
+          "status": "PASS",
+          "durationMs": 5153.927299999999,
+          "detail": {
+            "fullRows": 39281,
+            "formats": 4,
+            "originalTextPreserved": true
+          }
+        },
+        {
+          "name": "T45-18 writer cutoff counts/watermarks/hash and missing producer",
+          "status": "PASS",
+          "durationMs": 243.51540000000023,
+          "detail": {
+            "count": 3,
+            "files": 2,
+            "missingDetected": true
+          }
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788861908748\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "T45-01/02 Raw current values, missing AI, filters/facets/export and DB isolation",
+          "status": "PASS",
+          "durationMs": 3617.553099999999,
+          "detail": {
+            "rawRows": 39281,
+            "otherDatabaseRows": 5,
+            "source": "same UserViewer SQL join",
+            "aiClosed": true
+          }
+        },
+        {
+          "name": "T45-09 SQLite committed revision: timestamp/read/rollback unchanged; external WAL write invalidates",
+          "status": "PASS",
+          "durationMs": 145.3842999999997,
+          "detail": {
+            "readsAndTimestampsDoNotInvalidate": true,
+            "rollbackStable": true,
+            "walCommitDetected": true
+          }
+        },
+        {
+          "name": "T45-09 active AI revision preserves protected/no-op imports and invalidates new active data",
+          "status": "PASS",
+          "durationMs": 1879.8076,
+          "detail": {
+            "newActiveDataInvalidates": true,
+            "protectedAndNoopStable": true,
+            "externalFindingChangeInvalidates": true
+          }
+        },
+        {
+          "name": "T45-11/13 ready 39281 mother set, 40 matching/17 columns: five same-executor complete exports",
+          "status": "PASS",
+          "durationMs": 2890.3469999999998,
+          "detail": {
+            "samples": [
+              {
+                "elapsedMs": 91.1200000000008,
+                "bytes": 55779,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 95.40649999999914,
+                "bytes": 55779,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 97.08539999999994,
+                "bytes": 55779,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 99.77289999999994,
+                "bytes": 55779,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 102.22540000000117,
+                "bytes": 55779,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              }
+            ],
+            "executors": 1,
+            "pickerWaitMs": 0,
+            "level": "production service; UI timing separate"
+          }
+        },
+        {
+          "name": "T45-08/10 pending cache reconnect uses one real service job and bounded entries",
+          "status": "PASS",
+          "durationMs": 3859.4918,
+          "detail": {
+            "jobsBeforeEviction": 1,
+            "entries": 8,
+            "bytes": 892262,
+            "pending": 0,
+            "maxBytes": 8388608,
+            "maxEntries": 8,
+            "maxPending": 4
+          }
+        },
+        {
+          "name": "T45-12/14 full row export is not page-limited; four formats, arrays and source text",
+          "status": "PASS",
+          "durationMs": 5608.720600000001,
+          "detail": {
+            "fullRows": 39281,
+            "formats": 4,
+            "originalTextPreserved": true
+          }
+        },
+        {
+          "name": "T45-18 writer cutoff counts/watermarks/hash and missing producer",
+          "status": "PASS",
+          "durationMs": 343.89930000000095,
+          "detail": {
+            "count": 3,
+            "files": 2,
+            "missingDetected": true
+          }
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788862371573\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "T45-01/02 Raw current values, missing AI, filters/facets/export and DB isolation",
+          "status": "PASS",
+          "durationMs": 3178.4274000000005,
+          "detail": {
+            "rawRows": 39281,
+            "otherDatabaseRows": 5,
+            "source": "same UserViewer SQL join",
+            "aiClosed": true
+          }
+        },
+        {
+          "name": "T45-09 SQLite committed revision: timestamp/read/rollback unchanged; external WAL write invalidates",
+          "status": "PASS",
+          "durationMs": 160.70110000000022,
+          "detail": {
+            "readsAndTimestampsDoNotInvalidate": true,
+            "rollbackStable": true,
+            "walCommitDetected": true
+          }
+        },
+        {
+          "name": "T45-09 active AI revision preserves protected/no-op imports and invalidates new active data",
+          "status": "PASS",
+          "durationMs": 1908.9500000000007,
+          "detail": {
+            "newActiveDataInvalidates": true,
+            "protectedAndNoopStable": true,
+            "externalFindingChangeInvalidates": true
+          }
+        },
+        {
+          "name": "T45-11/13 ready 39281 mother set, 40 matching/17 columns: five same-executor complete exports",
+          "status": "PASS",
+          "durationMs": 2818.6008,
+          "detail": {
+            "samples": [
+              {
+                "elapsedMs": 86.13760000000002,
+                "bytes": 65818,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 90.33370000000104,
+                "bytes": 65818,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 92.3093000000008,
+                "bytes": 65818,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 107.96419999999853,
+                "bytes": 65818,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 99.26310000000012,
+                "bytes": 65818,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              }
+            ],
+            "executors": 1,
+            "pickerWaitMs": 0,
+            "level": "production service; UI timing separate"
+          }
+        },
+        {
+          "name": "T45-08/10 pending cache reconnect uses one real service job and bounded entries",
+          "status": "PASS",
+          "durationMs": 3762.495600000002,
+          "detail": {
+            "jobsBeforeEviction": 1,
+            "entries": 8,
+            "bytes": 892246,
+            "pending": 0,
+            "maxBytes": 8388608,
+            "maxEntries": 8,
+            "maxPending": 4
+          }
+        },
+        {
+          "name": "T45-12/14 full row export is not page-limited; four formats, arrays and source text",
+          "status": "PASS",
+          "durationMs": 5469.364300000001,
+          "detail": {
+            "fullRows": 39281,
+            "formats": 4,
+            "originalTextPreserved": true
+          }
+        },
+        {
+          "name": "T45-18 writer cutoff counts/watermarks/hash and missing producer",
+          "status": "PASS",
+          "durationMs": 246.49229999999807,
+          "detail": {
+            "count": 3,
+            "files": 2,
+            "missingDetected": true
+          }
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\services-1788863186753\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "T45-01/02 Raw current values, missing AI, filters/facets/export and DB isolation",
+          "status": "PASS",
+          "durationMs": 6338.4139,
+          "detail": {
+            "rawRows": 39281,
+            "otherDatabaseRows": 5,
+            "source": "same UserViewer SQL join",
+            "aiClosed": true
+          }
+        },
+        {
+          "name": "T45-09 SQLite committed revision: timestamp/read/rollback unchanged; external WAL write invalidates",
+          "status": "PASS",
+          "durationMs": 258.79859999999826,
+          "detail": {
+            "readsAndTimestampsDoNotInvalidate": true,
+            "rollbackStable": true,
+            "walCommitDetected": true
+          }
+        },
+        {
+          "name": "T45-09 active AI revision preserves protected/no-op imports and invalidates new active data",
+          "status": "PASS",
+          "durationMs": 2301.8876999999993,
+          "detail": {
+            "newActiveDataInvalidates": true,
+            "protectedAndNoopStable": true,
+            "externalFindingChangeInvalidates": true
+          }
+        },
+        {
+          "name": "T45-11/13 ready 39281 mother set, 40 matching/17 columns: five same-executor complete exports",
+          "status": "PASS",
+          "durationMs": 3655.671599999998,
+          "detail": {
+            "samples": [
+              {
+                "elapsedMs": 107.15639999999985,
+                "bytes": 65819,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 103.2448000000004,
+                "bytes": 65819,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 97.47509999999966,
+                "bytes": 65819,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 101.49070000000211,
+                "bytes": 65819,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              },
+              {
+                "elapsedMs": 104.29880000000048,
+                "bytes": 65819,
+                "rows": 40,
+                "columns": 17,
+                "phases": [
+                  {
+                    "event": "export-snapshot",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "row-mapping",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "sql-query",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "cache-hit",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-snapshot",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "START"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "file-io",
+                    "phase": "POINT"
+                  },
+                  {
+                    "event": "export-write",
+                    "phase": "END"
+                  },
+                  {
+                    "event": "export-projection-serialization",
+                    "phase": "POINT"
+                  }
+                ]
+              }
+            ],
+            "executors": 1,
+            "staleSnapshotRejected": true,
+            "pickerWaitMs": 0,
+            "level": "production service; UI timing separate"
+          }
+        },
+        {
+          "name": "T45-08/10 pending cache reconnect uses one real service job and bounded entries",
+          "status": "PASS",
+          "durationMs": 4059.417300000001,
+          "detail": {
+            "jobsBeforeEviction": 1,
+            "entries": 8,
+            "bytes": 892262,
+            "pending": 0,
+            "maxBytes": 8388608,
+            "maxEntries": 8,
+            "maxPending": 4
+          }
+        },
+        {
+          "name": "T45-12/14 full row export is not page-limited; four formats, arrays and source text",
+          "status": "PASS",
+          "durationMs": 5753.277399999999,
+          "detail": {
+            "fullRows": 39281,
+            "formats": 4,
+            "originalTextPreserved": true
+          }
+        },
+        {
+          "name": "T45-18 writer cutoff counts/watermarks/hash and missing producer",
+          "status": "PASS",
+          "durationMs": 244.39530000000377,
+          "detail": {
+            "count": 3,
+            "files": 2,
+            "missingDetected": true
+          }
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788860232430\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 179.47049999999945
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1290.1532000000007
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1247.735099999998
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 174.56260000000475
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1225.3496999999988
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1231.974900000001
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788860306912\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 182.09710000000086
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1260.6078000000016
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1230.4169999999976
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 174.2768999999971
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1242.2239000000009
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1234.130000000001
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1235.3369999999995
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 996.5167999999976
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1018.1692999999977
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1000.9909000000007
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788860423311\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 169.374600000001
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1264.5684
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1255.0621000000028
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 180.83450000000084
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1221.1049999999996
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1220.7746999999981
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1231.800299999999
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1014.1522000000004
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1015.196899999999
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788860589052\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 167.45780000000013
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1247.2554000000018
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1242.1686000000009
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 185.22109999999884
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1226.1756999999998
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1228.9717999999993
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1254.0882999999994
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1025.913099999998
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 999.9094999999979
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788860681376\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 16.754800000000614
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 962.652399999999
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 457.02680000000146
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 23.94289999999819
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 247.2993000000024
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 229.5560000000005
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 206.66359999999986
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 217.97309999999925
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 312.40049999999974
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 247.8834999999999
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 214.1281999999992
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 212.66609999999855
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 249.0565999999999
+        },
+        {
+          "name": "v045-five-real-cache-restores-zero-query-jobs",
+          "status": "PASS",
+          "samples": [
+            {
+              "elapsedMs": 245.89040000000023,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 262.3538000000008,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 292.01220000000103,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 278.08729999999923,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 253.21559999999954,
+              "newQueryJobs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788860839396\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 20.341800000001967
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1607.0820000000022
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 931.385199999997
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 22.714700000000448
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 218.9956999999995
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 235.52360000000044
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 386.6310000000012
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 270.13790000000154
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 234.950499999999
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 205.89849999999933
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 176.193299999999
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 181.72279999999955
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 244.44220000000132
+        },
+        {
+          "name": "v045-five-real-cache-restores-zero-query-jobs",
+          "status": "PASS",
+          "samples": [
+            {
+              "elapsedMs": 267.8752999999997,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 235.20340000000215,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 313.4492999999966,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 277.48679999999877,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 248.1840000000011,
+              "newQueryJobs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788861758050\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 25.11739999999918
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1015.1180999999997
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 965.6409999999996
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 15.826600000000326
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 208.10310000000027
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 219.97829999999885
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 219.87029999999868
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 208.66209999999774
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 269.28770000000077
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 194.6582999999955
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 239.93990000000485
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 151.62230000000272
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 235.738400000002
+        },
+        {
+          "name": "v045-five-real-cache-restores-zero-query-jobs",
+          "status": "PASS",
+          "samples": [
+            {
+              "elapsedMs": 284.4666999999972,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 352.9432000000015,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 237.09769999999844,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 217.49410000000353,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 358.0394000000015,
+              "newQueryJobs": 0
+            }
+          ]
+        },
+        {
+          "name": "v045-five-UI-ready-complete-exports",
+          "status": "PASS",
+          "samples": [
+            {
+              "elapsedMs": 568.710693359375,
+              "actionPreparationAndProcessingMs": 2557.9827000000005,
+              "rows": 40,
+              "columns": 17,
+              "bytes": 22749
+            },
+            {
+              "elapsedMs": 570.04833984375,
+              "actionPreparationAndProcessingMs": 2575.4181000000026,
+              "rows": 40,
+              "columns": 17,
+              "bytes": 22749
+            },
+            {
+              "elapsedMs": 560.280517578125,
+              "actionPreparationAndProcessingMs": 2570.346900000004,
+              "rows": 40,
+              "columns": 17,
+              "bytes": 22749
+            },
+            {
+              "elapsedMs": 566.978759765625,
+              "actionPreparationAndProcessingMs": 2592.8228000000017,
+              "rows": 40,
+              "columns": 17,
+              "bytes": 22749
+            },
+            {
+              "elapsedMs": 567.960693359375,
+              "actionPreparationAndProcessingMs": 2577.501400000001,
+              "rows": 40,
+              "columns": 17,
+              "bytes": 22749
+            }
+          ],
+          "picker": "nonce-isolated automatic picker; actual picker span retained"
+        },
+        {
+          "name": "v045-real-debug-export-cutoff",
+          "status": "PASS",
+          "cutoffUtc": "2026-09-08T10:03:45.237Z",
+          "files": 5,
+          "gaps": 0
+        },
+        {
+          "name": "route-ready:users",
+          "status": "PASS",
+          "durationMs": 13.475699999995413
+        },
+        {
+          "name": "route:users",
+          "status": "PASS",
+          "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+        },
+        {
+          "name": "runtime-IPC-registry-bidirectional-exact",
+          "status": "PASS",
+          "channels": 102
+        },
+        {
+          "name": "production-file-io-and-complete-streaming-pipeline",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788862193974\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 33.461599999998725
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1461.6223000000027
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 980.7158999999992
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 17.566900000001624
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 254.07540000000154
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 249.92099999999846
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 188.06240000000253
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 569.8639000000003
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 255.140199999998
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 265.1873999999989
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 289.97299999999814
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 241.20910000000003
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 246.95699999999852
+        },
+        {
+          "name": "v045-five-real-cache-restores-zero-query-jobs",
+          "status": "PASS",
+          "samples": [
+            {
+              "elapsedMs": 249.1232999999993,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 284.5141999999978,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 248.90829999999914,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 285.97179999999935,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 274.8208000000013,
+              "newQueryJobs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788862429707\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 22.134099999999307
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 979.3934999999983
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 969.7321000000011
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 17.818499999997584
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 217.3107999999993
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 207.40830000000278
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 321.8279999999977
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 265.6092000000026
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 170.6934000000001
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 248.06880000000092
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 214.9883000000009
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 185.56690000000162
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 284.7417999999998
+        },
+        {
+          "name": "v045-five-real-cache-restores-zero-query-jobs",
+          "status": "PASS",
+          "samples": [
+            {
+              "elapsedMs": 227.7468000000008,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 215.21550000000207,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 215.64500000000044,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 220.83369999999923,
+              "newQueryJobs": 0
+            },
+            {
+              "elapsedMs": 207.0418000000027,
+              "newQueryJobs": 0
+            }
+          ]
+        },
+        {
+          "name": "v045-five-UI-ready-complete-exports",
+          "status": "PASS",
+          "samples": [
+            {
+              "elapsedMs": 455.868408203125,
+              "actionPreparationAndProcessingMs": 2458.5204999999987,
+              "rows": 40,
+              "columns": 17,
+              "bytes": 32787
+            },
+            {
+              "elapsedMs": 685.307861328125,
+              "actionPreparationAndProcessingMs": 2694.6471999999994,
+              "rows": 40,
+              "columns": 17,
+              "bytes": 32787
+            },
+            {
+              "elapsedMs": 567.64697265625,
+              "actionPreparationAndProcessingMs": 2579.701000000001,
+              "rows": 40,
+              "columns": 17,
+              "bytes": 32787
+            },
+            {
+              "elapsedMs": 576.598876953125,
+              "actionPreparationAndProcessingMs": 2587.7632000000012,
+              "rows": 40,
+              "columns": 17,
+              "bytes": 32787
+            },
+            {
+              "elapsedMs": 574.89404296875,
+              "actionPreparationAndProcessingMs": 2579.814600000005,
+              "rows": 40,
+              "columns": 17,
+              "bytes": 32787
+            }
+          ],
+          "picker": "nonce-isolated automatic picker; actual picker span retained"
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 7.135499999996682
+        },
+        {
+          "name": "v045-renderer-125-percent-scale",
+          "status": "PASS",
+          "method": "Chromium device metrics emulation, not Windows system DPI"
+        },
+        {
+          "name": "v045-real-debug-export-cutoff",
+          "status": "PASS",
+          "cutoffUtc": "2026-09-08T10:14:48.464Z",
+          "files": 5,
+          "gaps": 0
+        },
+        {
+          "name": "route-ready:users",
+          "status": "PASS",
+          "durationMs": 13.196799999997893
+        },
+        {
+          "name": "route:users",
+          "status": "PASS",
+          "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+        },
+        {
+          "name": "runtime-IPC-registry-bidirectional-exact",
+          "status": "PASS",
+          "channels": 102
+        },
+        {
+          "name": "production-file-io-and-complete-streaming-pipeline",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788862885911\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 18.35870000000068
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 977.2911000000022
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1013.3644999999997
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 17.902600000001257
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 445.29249999999956
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1028.3541000000005
+        },
+        {
+          "name": "route-ready:users",
+          "status": "PASS",
+          "durationMs": 11.677800000001298
+        },
+        {
+          "name": "route:users",
+          "status": "PASS",
+          "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1661.8595000000023
+        },
+        {
+          "name": "route-ready:connections",
+          "status": "PASS",
+          "durationMs": 20.434300000000803
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 12220.9608
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788863041342\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 19.235599999999977
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 981.2197999999989
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 982.0161999999982
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 16.170099999999366
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 419.16209999999774
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 952.5545999999995
+        },
+        {
+          "name": "route-ready:users",
+          "status": "PASS",
+          "durationMs": 13.040000000000873
+        },
+        {
+          "name": "route:users",
+          "status": "PASS",
+          "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1081.3341
+        },
+        {
+          "name": "route-ready:connections",
+          "status": "PASS",
+          "durationMs": 15.2725999999966
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788863242923\\report.json",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 377.501400000001
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1194.393500000002
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1098.553399999997
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 24.103399999999965
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1050.2623999999996
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 976.1394000000037
+        },
+        {
+          "name": "route-ready:users",
+          "status": "PASS",
+          "durationMs": 17.34990000000107
+        },
+        {
+          "name": "route:users",
+          "status": "PASS",
+          "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1254.4381000000067
+        },
+        {
+          "name": "route-ready:connections",
+          "status": "PASS",
+          "durationMs": 27.755700000001525
+        },
+        {
+          "name": "UI-cancel-export-real-executor-no-publication-no-partial",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\ui-1788863363862\\report.json",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 72.99500000000262
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 1700.3424999999988
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1599.4968999999983
+        },
+        {
+          "name": "route-ready:ai-database",
+          "status": "PASS",
+          "durationMs": 30.330200000000332
+        },
+        {
+          "name": "route-ready:ai-results",
+          "status": "PASS",
+          "durationMs": 945.4794000000002
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1558.9171999999999
+        },
+        {
+          "name": "route-ready:users",
+          "status": "PASS",
+          "durationMs": 49.19869999999719
+        },
+        {
+          "name": "route:users",
+          "status": "PASS",
+          "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1798.2979000000014
+        },
+        {
+          "name": "route-ready:connections",
+          "status": "PASS",
+          "durationMs": 31.20730000000185
+        },
+        {
+          "name": "UI-cancel-export-real-executor-no-publication-no-partial",
+          "status": "PASS"
+        },
+        {
+          "name": "route-ready:integrated-results",
+          "status": "PASS",
+          "durationMs": 1892.8759999999966
+        },
+        {
+          "name": "long-content-real-lazy-expansion",
+          "status": "PASS"
+        },
+        {
+          "name": "runtime-IPC-registry-bidirectional-exact",
+          "status": "PASS",
+          "channels": 102
+        },
+        {
+          "name": "production-file-io-and-complete-streaming-pipeline",
+          "status": "PASS"
+        }
+      ]
+    }
+  ],
+  "regressions": [
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "scripts/test-v0343-correctness.cjs"
+      ],
+      "startedAt": "2026-09-08T10:08:02.185Z",
+      "finishedAt": "2026-09-08T10:08:11.469Z",
+      "durationMs": 9283.8472,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-02-185Z-node.exe.log"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "scripts/test-v0344-correctness.cjs"
+      ],
+      "startedAt": "2026-09-08T10:08:11.534Z",
+      "finishedAt": "2026-09-08T10:08:16.777Z",
+      "durationMs": 5243.2674,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-11-534Z-node.exe.log"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "scripts/test-v0344-diagnostics.cjs"
+      ],
+      "startedAt": "2026-09-08T10:08:16.837Z",
+      "finishedAt": "2026-09-08T10:08:21.745Z",
+      "durationMs": 4906.839000000001,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-16-837Z-node.exe.log"
+    },
+    {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "scripts/test-v0344-faults.cjs"
+      ],
+      "startedAt": "2026-09-08T10:08:21.813Z",
+      "finishedAt": "2026-09-08T10:08:57.329Z",
+      "durationMs": 35515.945700000004,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.45\\2026-09-08T10-08-21-813Z-node.exe.log"
+    }
+  ],
+  "priorEvidenceReuse": {
+    "baseline": "1696923df674351fc24b68865b4638fb0e756a36",
+    "unchanged": [
+      "contracts",
+      "rules",
+      "shared/aiResultProjectionV043.ts",
+      "electron/aiAnalysisDatabaseV042.ts"
+    ],
+    "reason": "No frozen importer/projection/Workbench changes; repeat only affected production paths and packaged Golden import."
+  },
+  "build": null,
+  "freeze": null,
+  "windows": null,
+  "installer": null,
+  "security": {
+    "status": "PASS",
+    "base": "1696923df674351fc24b68865b4638fb0e756a36",
+    "files": [
+      {
+        "file": "CHANGELOG.md",
+        "bytes": 71536,
+        "sha256": "d7cfcd0ec9a30f1a24e02bff33a826f17fd448a963f2da4a252c69534b6b62f4"
+      },
+      {
+        "file": "VERSION",
+        "bytes": 7,
+        "sha256": "4387695cf030a3cdaf1695e9ca65502b5ba0aeda75c382b736b89706ad56828a"
+      },
+      {
+        "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+        "bytes": 17122,
+        "sha256": "1a1117d3636797188881665fe9cb0c5c3b602f2b9c7dac0a69394163b46aa723"
+      },
+      {
+        "file": "electron/aiResultsIndexV044.ts",
+        "bytes": 5131,
+        "sha256": "4d38fc00354a7c64a411b778f5b7575e4a66191569a3307c8789782cb691aa59"
+      },
+      {
+        "file": "electron/aiResultsQueryV043.ts",
+        "bytes": 28426,
+        "sha256": "8c319da30a3e481e40173ed1a05d7e46c9822cd8c8aa0a0a9c5f3525a52ef6cf"
+      },
+      {
+        "file": "electron/aiResultsServiceV044.ts",
+        "bytes": 3848,
+        "sha256": "ca0577f7263be95c6ac3c9a32e32ddf1ba262a80e7c8ee818be7a84028996118"
+      },
+      {
+        "file": "electron/aiResultsWorkerV044.ts",
+        "bytes": 3079,
+        "sha256": "c59df2e70df9c2d762df6db1be6fe983d241f06d8c846d15b6dfb4b747bedf9e"
+      },
+      {
+        "file": "electron/automaticDiagnosticsV044.ts",
+        "bytes": 9163,
+        "sha256": "c44699ad4efd2832fb1fd8ade85792a969b41c3408544e2d48624166ef130bba"
+      },
+      {
+        "file": "electron/diagnosticWriterV044.ts",
+        "bytes": 19356,
+        "sha256": "02275799e8f8cc7e32864055e469a0e1ec2bea922ea68d80604fa8943314a5d6"
+      },
+      {
+        "file": "electron/main.ts",
+        "bytes": 593822,
+        "sha256": "ac1987f1d52a31a79e8e88627b0466782ff3965f89ae722a7c0413c70617ef9d"
+      },
+      {
+        "file": "package-lock.json",
+        "bytes": 275425,
+        "sha256": "4a13edba99d880cd4ccf386e793a2e64c60eaeb7b401c504a8e3d39b22b05428"
+      },
+      {
+        "file": "package.json",
+        "bytes": 16893,
+        "sha256": "2c9835976cc8bb2f85910357fa4f91146eec390fa24a5277b70abd4f077bb854"
+      },
+      {
+        "file": "scripts/test-v0344-installer.ps1",
+        "bytes": 3677,
+        "sha256": "abbf0fb2684c03c2f4a4cdd58ebf5d06927063ab1a052e96f2c77f24a7e3a5f3"
+      },
+      {
+        "file": "scripts/test-v0344-performance.cjs",
+        "bytes": 5903,
+        "sha256": "6a7d4d34f95a4f5af7aae4babaf7bb033b5fbf6ade1e659fecf6bfff1d14f868"
+      },
+      {
+        "file": "scripts/test-v0344-ui.cjs",
+        "bytes": 20956,
+        "sha256": "961a5394e3901facd77e8a916a086290e0c63bae128a679f9b7db557dc7ad1a1"
+      },
+      {
+        "file": "scripts/test-v0344-windows.cjs",
+        "bytes": 4455,
+        "sha256": "3b00d663767207d1a52955e8eb7a7355c3b8bf42e02057a49f45692871175741"
+      },
+      {
+        "file": "scripts/test-v0344.cjs",
+        "bytes": 8285,
+        "sha256": "c20f840df0f15b7e3c9a0990af26402a6e0cf784b50f923f1b01001915a92790"
+      },
+      {
+        "file": "scripts/v0344-asar-preflight.cjs",
+        "bytes": 3215,
+        "sha256": "30645c73a56f62ccc355ca8317acc4d6139d3cd4956bd02a7a8d315c49741fd8"
+      },
+      {
+        "file": "src/components/ActivityComparisonTable.tsx",
+        "bytes": 5642,
+        "sha256": "710c8b2135aecd69f9475b89cbbb5d182a880cc4359f4dd5c44c3d6e3c0b5986"
+      },
+      {
+        "file": "src/routes/AiDatabaseViewerPagesV043.tsx",
+        "bytes": 19370,
+        "sha256": "bdb437f91611119a58382c2dd1bc457bf35ec5eef343dacb537f86f698712ae0"
+      },
+      {
+        "file": "electron/databaseRevisionV045.ts",
+        "bytes": 3068,
+        "sha256": "e56780051c4a2dd0fc30a7c1ad4b6ff183c3356e3ecfd4d2b51647697a644cc2"
+      },
+      {
+        "file": "electron/diagnosticSnapshotV045.ts",
+        "bytes": 4093,
+        "sha256": "557f4b572d5b93f10960af62011bdcf68b800df32bdda48ddc4f6e7721512559"
+      },
+      {
+        "file": "reports/JiraActivityAnalyzer_v0.3.45_Acceptance.json",
+        "bytes": 23593,
+        "sha256": "e3dd0eb4a499402f4e153b3cf0e666b76d102569a6c66d6517bfa8a19a784187"
+      },
+      {
+        "file": "reports/JiraActivityAnalyzer_v0.3.45_Execution_Time_Ledger.json",
+        "bytes": 22897,
+        "sha256": "4631e54e3c23ebacda5baa05ccf4ab142f96511d470201f6b97efc63404484f8"
+      },
+      {
+        "file": "reports/JiraActivityAnalyzer_v0.3.45_Implementation_Report.md",
+        "bytes": 6960,
+        "sha256": "fdf064e360c64043a2647110943de977a0b692ee9bd3b9afa9517a4f12274495"
+      },
+      {
+        "file": "reports/JiraActivityAnalyzer_v0.3.45_Scope.json",
+        "bytes": 7598,
+        "sha256": "bf6ae7e980989628cf1fcf7ac96460987363e0a3101db6c9f4999017883edfdd"
+      },
+      {
+        "file": "reports/JiraActivityAnalyzer_v0.3.45_Test_Report.json",
+        "bytes": 125293,
+        "sha256": "dddd9feb937bc91a6cef05dd8603f5bc22ffe6f06898878abc77bd9871613f83"
+      },
+      {
+        "file": "scripts/test-v0345-regressions.cjs",
+        "bytes": 459,
+        "sha256": "ca7b8b5a603b875397c34c6c1bb145649cc88721ed5ee5677f40c2043de371dd"
+      },
+      {
+        "file": "scripts/test-v0345-ui.cjs",
+        "bytes": 145,
+        "sha256": "a88995c411c294025903e25ad219e575a17bcf6e8292b32a414e167e638bc0aa"
+      },
+      {
+        "file": "scripts/test-v0345-windows.cjs",
+        "bytes": 83,
+        "sha256": "7d3f1b2203955b4a9c8c721473c42d31f73128743acc321139ea91eee2a6778c"
+      },
+      {
+        "file": "scripts/test-v0345.cjs",
+        "bytes": 12064,
+        "sha256": "bd70947bde4ac3b0291d436af8162004c7262aeb3778b6f757f9524cd861fbe0"
+      },
+      {
+        "file": "scripts/v0345-command.cjs",
+        "bytes": 1389,
+        "sha256": "293aa72a07ac5bb84e3560f6b1aeb88bad288cec48c1e23f8a57137e31166549"
+      },
+      {
+        "file": "scripts/v0345-delivery-report.cjs",
+        "bytes": 15575,
+        "sha256": "8d346210a5df650c8a8b49699fcc24cbf74f38713f15070ef392effcdbd09339"
+      },
+      {
+        "file": "scripts/v0345-package.cjs",
+        "bytes": 2241,
+        "sha256": "e23838d4a0e6c05dd5cd0d9fe36889c0d37b0a0b22f4ed90a928dc7c546d4131"
+      },
+      {
+        "file": "scripts/v0345-source-audit.cjs",
+        "bytes": 3152,
+        "sha256": "9f7fa5e1a74d49176fd5ea357db5575baaafb53501fd74ac2764a299cb5484f8"
+      },
+      {
+        "file": "scripts/v0345-ui-checks.cjs",
+        "bytes": 6255,
+        "sha256": "a79a4c8c4bacbbe7ba98061f6db01d646922f7e6a2d3893250531903ab57343a"
+      },
+      {
+        "file": "src/state/aiResultCacheV045.ts",
+        "bytes": 1674,
+        "sha256": "a6b38763c594468b2fea93ade3796b861242961969da340ab311465a67a94825"
+      }
+    ],
+    "findings": [],
+    "protectedFile": "reports/JiraActivityAnalyzer_v0.2.47_Background_Fetch_and_Activity_Events_UX_implementation_report.md",
+    "protectedHash": "9862e5dd2748f3c6624b94d4a98dbefc1146128766692dac1f92271a96e5934d",
+    "scope": "Only changed lines and named v045 source/tests/reports; original untracked files not opened.",
+    "warning": "SECURITY_WARNING_EXISTING_IDENTIFIER_FIXTURE: unchanged historical identifiers are not credentials.",
+    "frozenContractChanges": []
+  },
+  "warnings": [
+    "Existing node:crypto browser externalization and >500kB renderer chunk warning.",
+    "Synthetic data only; no supplied actual Raw DB.",
+    "Historical fixture identifiers are identifiers, not credentials.",
+    "No per-model token telemetry available."
+  ],
+  "manualGui": "PENDING"
+}

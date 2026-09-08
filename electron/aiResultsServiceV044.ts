@@ -9,7 +9,7 @@ export class AiResultsServiceV044 {
   private receipts: Json = {};
   constructor(private filename = path.join(__dirname, 'ai-results-worker-v044.cjs')) {}
   run(owner: number, input: Json, onStage?: (stage: Json) => void | Promise<unknown>): Promise<any> {
-    const key = `${owner}:${input.kind}:${input.action === "export-file" ? "export" : "read"}`;
+    const key = `${owner}:${input.kind}:read`;
     let lane = this.lanes.get(key);
     if (!lane) {
       // Read-only executors never own a user database transaction or background fetch.
