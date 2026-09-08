@@ -1,6 +1,6 @@
 # v0.3.44 Implementation Report
 
-Status: IN_PROGRESS. No v0.3.44 EXE has been produced. Manual GUI gate: PENDING. Tag / Push: NOT RUN.
+狀態：PARTIAL / Manual GUI Validation Pending。Windows 三種候選已產出並鎖版；44 項自動驗收通過，人工 GUI 尚未執行。不 Tag、不 Push。
 
 ## Baseline And Preservation
 
@@ -10,7 +10,7 @@ Status: IN_PROGRESS. No v0.3.44 EXE has been produced. Manual GUI gate: PENDING.
 - Preserve the pre-existing v0.2.47 report modification and every original untracked item. They are not implementation inputs or staging candidates.
 - Protected report SHA256: `9862e5dd2748f3c6624b94d4a98dbefc1146128766692dac1f92271a96e5934d`.
 - Windows event records: NOT_FOUND_REPORTED_BY_USER. This does not block synthetic investigation.
-- Source / report commit: not yet created. No Tag, Push, PR or GitHub Release authorized before the named GUI gate.
+- Source commit: `28147c94c4cc8c597a64ae63a5e9f24337ff6952`; report-only closeout commit is recorded in the final delivery receipt. No Tag, Push, PR or GitHub Release authorized before the named GUI gate.
 
 ## Findings
 
@@ -45,7 +45,7 @@ Observed Windows behavior: abrupt main exit can kill the writer before its disco
 
 ## Remaining Gates
 
-This report is intentionally not a completion claim. The acceptance matrix, all-route/internal-job coverage, extended UI and fault evidence, I/O/retention audits, final source gate, candidate packaging, relocation/install verification, artifact hashes and manual GUI result must be finalized before release. Input validators are not App test results.
+來源、自動測試與 Windows 封裝驗證已完成。仍需使用者對下列同 hash 候選明確回覆 `v0.3.44 GUI 驗收 PASS`；自動化截圖不代表人工驗收。原始事故原因仍 UNCONFIRMED，沒有原始 Raw DB，不以合成資料冒稱事故已重現。
 
 ## 續接修正（2026-09-08）
 
@@ -62,3 +62,22 @@ This report is intentionally not a completion claim. The acceptance matrix, all-
 正常關閉加入 bounded drain，停止接收新業務 IPC，再等既有命令與 critical ACK。未完成的 renderer commit 明確 CANCELLED，晚到 END 不重複；超時未完成工作不偽報正常關閉。
 
 新增 streaming 觀測後曾量測 18.621% overhead（FAIL，證據保留）。重用 NDJSON handle、移除逐 span 重複摘要 rename，critical journal 仍每筆 fsync。摘要定期／結束 atomic 保存，啟動從 authoritative journal 重播。重測 9.30%（PASS，硬體與原始五組數值見 Test Report）。
+
+## Windows 凍結交付
+
+Build Version：0.3.44。Build Time：2026/09/08 11:32:04（Asia/Taipei）。Source：`28147c94c4cc8c597a64ae63a5e9f24337ff6952`。
+
+- `F:\AI\JiraActivityAnalyzer\release\v0.3.44-candidate\Jira Activity Analyzer Setup 0.3.44.exe`
+  191189849 bytes / 182.333 MiB；SHA-256 `14c7c1565d9ce26a45b23145f433be6b659e1da3b9fd7f1d4effea51df31e432`。
+- `F:\AI\JiraActivityAnalyzer\release\v0.3.44-candidate\Jira Activity Analyzer Portable 0.3.44.exe`
+  190959771 bytes / 182.113 MiB；SHA-256 `a4dfa2087ffb5041cce6bb12cf50de90c9a12ead5e93382e7d0a05a6bf82a1dd`。
+- `F:\AI\JiraActivityAnalyzer\release\v0.3.44-candidate\win-unpacked\Jira Activity Analyzer.exe`
+  235706368 bytes / 224.787 MiB；SHA-256 `772c314975ef1b46537d05b94b0d5c8c5ee525dd71d820578a2cc3669f664157`。
+
+Installer 隔離安裝／UI／移除 PASS；win-unpacked、單檔 Portable、中文空白路徑 APP_ROOT 搬移重開均 PASS。SQLite/Bridge/ASAR/路徑驗證通過。
+
+候選未簽章，沿用 Electron 預設圖示；既有 Vite node:crypto externalization／chunk 大於 500 kB、builder 重複 dependency references 及 protected-report dirtyState 警告均保留，沒有隱藏 error。完整失敗／重試見時間帳。
+
+人工驗收候選：`F:\AI\JiraActivityAnalyzer\test-artifacts\v0.3.44\windows-1788838507734\搬移後 Portable Space\Jira Activity Analyzer Portable 0.3.44.exe`。檢查三個 AI 主頁、篩選與 Diff、導航／縮放與 Debug Log、關閉再開；以相同 SHA 確認後回覆 `v0.3.44 GUI 驗收 PASS`。
+
+隔離 Portable 已於 2026-09-08 11:45:01（Asia/Taipei）正常啟動，實際視窗標題 `Jira Activity Analyzer v0.3.44`，App PID 31132、launcher PID 39452。測試控制及 DevTools 關閉。此觀察不等於使用者 GUI PASS。最終 report-only SHA 於忽略區 delivery-receipt.json 與對話回報提供，避免自我參照 SHA。

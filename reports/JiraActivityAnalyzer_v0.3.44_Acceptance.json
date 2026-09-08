@@ -2,7 +2,7 @@
   "version": "0.3.44",
   "overall": "PARTIAL",
   "manualGui": "PENDING",
-  "generatedAt": "2026-09-08T03:28:33.617Z",
+  "generatedAt": "2026-09-08T03:42:14.887Z",
   "cases": [
     {
       "id": "T44-01",
@@ -366,9 +366,11 @@
       "name": "asar-final",
       "requirement": "R44-14",
       "expected": "最終三artifact內容掃描/size/top files；來源fixture path/sha與排除證據",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "note": "Pending requirement-specific final evidence."
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\windows-1788838507734\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
     },
     {
       "id": "T44-33",
@@ -389,34 +391,40 @@
       "name": "portable-launch-attach",
       "requirement": "R44-15",
       "expected": "launcher/App PID與各ready/attach明確，真實正式IPC成功，不只加timeout",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "note": "Pending requirement-specific final evidence."
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\windows-1788838507734\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
     },
     {
       "id": "T44-35",
       "name": "portable-move",
       "requirement": "R44-15",
       "expected": "空中文空白目錄單EXE建庫/匯入/整合/關閉/全root搬移/重開，settings/DB/log恢復",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "note": "Pending requirement-specific final evidence."
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\windows-1788838507734\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
     },
     {
       "id": "T44-36",
       "name": "installer-unpacked",
       "requirement": "R44-17",
       "expected": "Installer install/run/uninstall隔離測、unpacked UI/native/DDL，各自結果",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "note": "Pending requirement-specific final evidence."
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\installer-1788838756806\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
     },
     {
       "id": "T44-37",
       "name": "io-path-redaction",
       "requirement": "R44-16",
       "expected": "實際業務I/O逐路徑policy判定、temp例外、redaction canary、private不Git/ASAR",
-      "status": "PARTIAL",
+      "status": "PASS",
       "evidence": [
         "test-artifacts/v0.3.44/ui-1788838054903/report.json",
         "test-artifacts/v0.3.44/source-security-audit.json"
@@ -503,11 +511,13 @@
       "name": "version-git-ledger",
       "requirement": "R44-17",
       "expected": "首EXE鎖版、source/final SHA、EXE hashes、dirty保留、ledger/token真實",
-      "status": "PARTIAL",
+      "status": "PASS",
       "evidence": [
+        "release/v0.3.44-candidate/build-info.json",
+        "test-artifacts/v0.3.44/delivery-facts.json",
         "reports/JiraActivityAnalyzer_v0.3.44_Execution_Time_Ledger.json"
       ],
-      "note": "Source/report SHA and frozen artifact binding recorded as available; no Tag/Push."
+      "note": "Exact source/build/artifact hash binding verified. Protected dirty report retained. Unknown timing/token fields explicit. Final report SHA resolved after report-only commit."
     },
     {
       "id": "T44-45",
@@ -746,8 +756,9 @@
         "T44-37",
         "T44-41"
       ],
-      "status": "PARTIAL",
+      "status": "PASS",
       "evidence": [
+        "test-artifacts\\v0.3.44\\windows-1788838507734\\report.json",
         "test-artifacts/v0.3.44/ui-1788786940016/report.json",
         "test-artifacts/v0.3.44/ui-1788787104216/report.json",
         "test-artifacts/v0.3.44/ui-1788837329646/report.json",
@@ -877,7 +888,7 @@
         "T44-32",
         "T44-33"
       ],
-      "status": "PARTIAL"
+      "status": "PASS"
     },
     {
       "id": "R44-15",
@@ -885,14 +896,14 @@
         "T44-34",
         "T44-35"
       ],
-      "status": "PARTIAL"
+      "status": "PASS"
     },
     {
       "id": "R44-16",
       "cases": [
         "T44-37"
       ],
-      "status": "PARTIAL"
+      "status": "PASS"
     },
     {
       "id": "R44-17",
@@ -910,5 +921,91 @@
       ],
       "status": "PASS"
     }
-  ]
+  ],
+  "automatedCaseCount": 44,
+  "automatedCasesPassed": 44,
+  "delivery": {
+    "status": "PARTIAL_MANUAL_GUI_VALIDATION_PENDING",
+    "version": "0.3.44",
+    "sourceCommit": "28147c94c4cc8c597a64ae63a5e9f24337ff6952",
+    "finalReportCommit": null,
+    "finalReportCommitReason": "Resolved in ignored delivery receipt after the report-only commit; no self-referential SHA.",
+    "build": {
+      "appVersion": "0.3.44",
+      "packagedSourceCommit": "28147c94c4cc8c597a64ae63a5e9f24337ff6952",
+      "buildTime": "2026/09/08 11:32:04",
+      "buildTimeIso": "2026-09-08T03:32:04.874Z",
+      "buildMachine": "pc1-ch_kao",
+      "buildOs": "Windows_NT 10.0.26100 x64",
+      "gitBranch": "feat/v0.3.44-integrated-stability-auto-diagnostics",
+      "dirtyState": true,
+      "artifacts": [
+        {
+          "fileName": "Jira Activity Analyzer Portable 0.3.44.exe",
+          "sizeBytes": 190959771,
+          "sha256": "a4dfa2087ffb5041cce6bb12cf50de90c9a12ead5e93382e7d0a05a6bf82a1dd"
+        },
+        {
+          "fileName": "Jira Activity Analyzer Setup 0.3.44.exe",
+          "sizeBytes": 191189849,
+          "sha256": "14c7c1565d9ce26a45b23145f433be6b659e1da3b9fd7f1d4effea51df31e432"
+        }
+      ]
+    },
+    "artifacts": [
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.44-candidate\\Jira Activity Analyzer Setup 0.3.44.exe",
+        "bytes": 191189849,
+        "MiB": 182.33284854888916,
+        "sha256": "14c7c1565d9ce26a45b23145f433be6b659e1da3b9fd7f1d4effea51df31e432"
+      },
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.44-candidate\\Jira Activity Analyzer Portable 0.3.44.exe",
+        "bytes": 190959771,
+        "MiB": 182.11342906951904,
+        "sha256": "a4dfa2087ffb5041cce6bb12cf50de90c9a12ead5e93382e7d0a05a6bf82a1dd"
+      },
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.44-candidate\\win-unpacked\\Jira Activity Analyzer.exe",
+        "bytes": 235706368,
+        "MiB": 224.787109375,
+        "sha256": "772c314975ef1b46537d05b94b0d5c8c5ee525dd71d820578a2cc3669f664157"
+      }
+    ],
+    "manualGui": {
+      "status": "NOT_RUN",
+      "requiredApproval": "v0.3.44 GUI 驗收 PASS",
+      "executable": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\windows-1788838507734\\搬移後 Portable Space\\Jira Activity Analyzer Portable 0.3.44.exe",
+      "sha256": "a4dfa2087ffb5041cce6bb12cf50de90c9a12ead5e93382e7d0a05a6bf82a1dd",
+      "launch": {
+        "startedAtUtc": "2026-09-08T03:45:01.6699642Z",
+        "launcherPid": 39452,
+        "actualAppPid": 31132,
+        "observedWindowTitle": "Jira Activity Analyzer v0.3.44",
+        "testControlEnabled": false,
+        "devToolsEnabled": false,
+        "verification": "Process/window title observation only, not human acceptance",
+        "launchExecToolWallTimeMs": 990.7965
+      }
+    },
+    "tag": "NOT_RUN",
+    "push": "NOT_RUN",
+    "release": "NOT_CREATED",
+    "sourceInputsUnchangedAfterFirstExe": true,
+    "firstObservedExecutableCreationUtc": "2026-09-08T03:32:39.2714387Z",
+    "unsignedPortable": true,
+    "originalIncidentRootCause": "UNCONFIRMED",
+    "originalRawDatabase": "NOT_PROVIDED",
+    "realServiceTests": "NOT_RUN: no live Jira/AI/internal service calls authorized",
+    "protectedFile": "reports/JiraActivityAnalyzer_v0.2.47_Background_Fetch_and_Activity_Events_UX_implementation_report.md",
+    "protectedHash": "9862e5dd2748f3c6624b94d4a98dbefc1146128766692dac1f92271a96e5934d",
+    "originalUntracked": "Preserved untouched and unstaged; not read or claimed to have been content-scanned.",
+    "screenshots": [
+      "test-artifacts/v0.3.44/windows-1788838507734/unpacked-ui/screenshots",
+      "test-artifacts/v0.3.44/windows-1788838507734/portable-ui/screenshots",
+      "test-artifacts/v0.3.44/windows-1788838507734/portable-relocated-ui/screenshots",
+      "test-artifacts/v0.3.44/installer-1788838756806/ui/screenshots"
+    ],
+    "captureMethod": "BrowserWindow.capturePage; app-only, no desktop capture; automation does not satisfy human GUI gate"
+  }
 }

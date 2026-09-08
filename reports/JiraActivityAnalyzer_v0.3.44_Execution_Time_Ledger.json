@@ -2,12 +2,12 @@
   "version": "0.3.44",
   "status": "PARTIAL_MANUAL_GUI_PENDING",
   "startedAt": "2026-09-07T19:40:41.0555979+08:00",
-  "recordedAt": "2026-09-08T03:28:33.483Z",
-  "wallClockMs": 56872428,
+  "recordedAt": "2026-09-08T03:47:12.823Z",
+  "wallClockMs": 57991768,
   "preReadDurationMs": null,
   "preReadDurationReason": "UNAVAILABLE",
   "continuationStartedAt": "2026-09-08T02:50:51.499Z",
-  "continuationWallClockMs": 2261984,
+  "continuationWallClockMs": 3381324,
   "observedInactiveInterval": {
     "from": "2026-09-07T13:26:37.622Z",
     "to": "2026-09-08T02:50:51.499Z",
@@ -27,7 +27,7 @@
       "finishedAt": "2026-09-07T11:42:06.931Z",
       "finishedAtSource": "DERIVED_FROM_RECORDED_START_AND_MEASURED_DURATION",
       "log": null,
-      "logUnavailableReason": "UNAVAILABLE: output retained in initial tool history, no separate log file"
+      "logUnavailableReason": "UNAVAILABLE: initial command output retained in tool history"
     },
     {
       "durationMs": 1476.2615,
@@ -40,7 +40,7 @@
       "finishedAt": "2026-09-07T11:42:08.431Z",
       "finishedAtSource": "DERIVED_FROM_RECORDED_START_AND_MEASURED_DURATION",
       "log": null,
-      "logUnavailableReason": "UNAVAILABLE: output retained in initial tool history, no separate log file"
+      "logUnavailableReason": "UNAVAILABLE: initial command output retained in tool history"
     },
     {
       "exitCode": 0,
@@ -54,7 +54,7 @@
       "finishedAt": "2026-09-07T11:42:24.139Z",
       "finishedAtSource": "DERIVED_FROM_RECORDED_START_AND_MEASURED_DURATION",
       "log": null,
-      "logUnavailableReason": "UNAVAILABLE: output retained in initial tool history, no separate log file"
+      "logUnavailableReason": "UNAVAILABLE: initial command output retained in tool history"
     },
     {
       "exitCode": 0,
@@ -68,7 +68,7 @@
       "finishedAt": "2026-09-07T11:42:24.453Z",
       "finishedAtSource": "DERIVED_FROM_RECORDED_START_AND_MEASURED_DURATION",
       "log": null,
-      "logUnavailableReason": "UNAVAILABLE: output retained in initial tool history, no separate log file"
+      "logUnavailableReason": "UNAVAILABLE: initial command output retained in tool history"
     },
     {
       "exitCode": 0,
@@ -82,7 +82,7 @@
       "finishedAt": "2026-09-07T11:42:24.534Z",
       "finishedAtSource": "DERIVED_FROM_RECORDED_START_AND_MEASURED_DURATION",
       "log": null,
-      "logUnavailableReason": "UNAVAILABLE: output retained in initial tool history, no separate log file"
+      "logUnavailableReason": "UNAVAILABLE: initial command output retained in tool history"
     },
     {
       "command": [
@@ -2323,10 +2323,156 @@
       "signal": null,
       "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-28-24-811Z-node.log",
       "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/v0344-delivery-report.cjs"
+      ],
+      "startedAt": "2026-09-08T03:28:33.341Z",
+      "finishedAt": "2026-09-08T03:28:34.124Z",
+      "durationMs": 782.0987,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-28-33-341Z-node.log",
+      "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/validate-v0344-ledger.cjs"
+      ],
+      "startedAt": "2026-09-08T03:28:43.626Z",
+      "finishedAt": "2026-09-08T03:28:43.728Z",
+      "durationMs": 100.7543,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-28-43-626Z-node.log",
+      "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/v0344-source-audit.cjs"
+      ],
+      "startedAt": "2026-09-08T03:28:51.436Z",
+      "finishedAt": "2026-09-08T03:28:54.698Z",
+      "durationMs": 3261.7373000000002,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-28-51-436Z-node.log",
+      "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "node",
+        "test-artifacts/v0.3.44/commit-reviewed-source.cjs"
+      ],
+      "startedAt": "2026-09-08T03:30:31.513Z",
+      "finishedAt": "2026-09-08T03:30:34.085Z",
+      "durationMs": 2567.4253000000003,
+      "exitCode": 1,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-30-31-513Z-node.log",
+      "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "node",
+        "test-artifacts/v0.3.44/fix-reviewed-whitespace.cjs"
+      ],
+      "startedAt": "2026-09-08T03:31:27.000Z",
+      "finishedAt": "2026-09-08T03:31:27.128Z",
+      "durationMs": 127.81580000000001,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-31-27-000Z-node.log",
+      "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "node",
+        "test-artifacts/v0.3.44/commit-reviewed-source.cjs"
+      ],
+      "startedAt": "2026-09-08T03:31:32.424Z",
+      "finishedAt": "2026-09-08T03:31:33.876Z",
+      "durationMs": 1450.9073,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-31-32-424Z-node.log",
+      "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "npm.cmd",
+        "run",
+        "dist"
+      ],
+      "startedAt": "2026-09-08T03:31:53.601Z",
+      "finishedAt": "2026-09-08T03:34:40.131Z",
+      "durationMs": 166530.193,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-31-53-601Z-npm.cmd.log",
+      "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/test-v0344-windows.cjs"
+      ],
+      "startedAt": "2026-09-08T03:35:07.620Z",
+      "finishedAt": "2026-09-08T03:38:08.616Z",
+      "durationMs": 180996.78160000002,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-35-07-620Z-node.log",
+      "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "pwsh.exe",
+        "-NoProfile",
+        "-File",
+        "scripts/test-v0344-installer.ps1"
+      ],
+      "startedAt": "2026-09-08T03:39:16.341Z",
+      "finishedAt": "2026-09-08T03:40:35.695Z",
+      "durationMs": 79353.7353,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-39-16-341Z-pwsh.exe.log",
+      "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/v0344-delivery-report.cjs"
+      ],
+      "startedAt": "2026-09-08T03:42:14.313Z",
+      "finishedAt": "2026-09-08T03:42:15.534Z",
+      "durationMs": 1220.1716999999999,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-42-14-313Z-node.log",
+      "finishedAtSource": "RECORDED"
+    },
+    {
+      "command": [
+        "node",
+        "test-artifacts/v0.3.44/final-report-facts.cjs"
+      ],
+      "startedAt": "2026-09-08T03:43:42.159Z",
+      "finishedAt": "2026-09-08T03:43:48.300Z",
+      "durationMs": 6140.7486,
+      "exitCode": 0,
+      "signal": null,
+      "log": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-43-42-159Z-node.log",
+      "finishedAtSource": "RECORDED"
     }
   ],
   "readonlyToolCalls": "Exploratory calls outside the command wrapper have unavailable per-command timing. Optional-file lookups, interrupted ms-playwright search, guarded edit retries and ASAR leading-slash stat failure are retained in task/tool history; not represented as successful validation.",
-  "sourceCommit": null,
+  "sourceCommit": "28147c94c4cc8c597a64ae63a5e9f24337ff6952",
   "finalReportCommit": null,
   "finalReportCommitReason": "The commit containing this report is resolved externally after commit, avoiding self-referential SHA.",
   "firstAction": {
@@ -2339,5 +2485,90 @@
     "zipEntries": 93,
     "startLocal": "2026-09-07T19:40:41.0555979+08:00",
     "zipSha256": "4D10C743CC3A7C8B710BD47D08287968654F03B34E760751A21213BA4EF442E0"
-  }
+  },
+  "delivery": {
+    "status": "PARTIAL_MANUAL_GUI_VALIDATION_PENDING",
+    "version": "0.3.44",
+    "sourceCommit": "28147c94c4cc8c597a64ae63a5e9f24337ff6952",
+    "finalReportCommit": null,
+    "finalReportCommitReason": "Resolved in ignored delivery receipt after the report-only commit; no self-referential SHA.",
+    "build": {
+      "appVersion": "0.3.44",
+      "packagedSourceCommit": "28147c94c4cc8c597a64ae63a5e9f24337ff6952",
+      "buildTime": "2026/09/08 11:32:04",
+      "buildTimeIso": "2026-09-08T03:32:04.874Z",
+      "buildMachine": "pc1-ch_kao",
+      "buildOs": "Windows_NT 10.0.26100 x64",
+      "gitBranch": "feat/v0.3.44-integrated-stability-auto-diagnostics",
+      "dirtyState": true,
+      "artifacts": [
+        {
+          "fileName": "Jira Activity Analyzer Portable 0.3.44.exe",
+          "sizeBytes": 190959771,
+          "sha256": "a4dfa2087ffb5041cce6bb12cf50de90c9a12ead5e93382e7d0a05a6bf82a1dd"
+        },
+        {
+          "fileName": "Jira Activity Analyzer Setup 0.3.44.exe",
+          "sizeBytes": 191189849,
+          "sha256": "14c7c1565d9ce26a45b23145f433be6b659e1da3b9fd7f1d4effea51df31e432"
+        }
+      ]
+    },
+    "artifacts": [
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.44-candidate\\Jira Activity Analyzer Setup 0.3.44.exe",
+        "bytes": 191189849,
+        "MiB": 182.33284854888916,
+        "sha256": "14c7c1565d9ce26a45b23145f433be6b659e1da3b9fd7f1d4effea51df31e432"
+      },
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.44-candidate\\Jira Activity Analyzer Portable 0.3.44.exe",
+        "bytes": 190959771,
+        "MiB": 182.11342906951904,
+        "sha256": "a4dfa2087ffb5041cce6bb12cf50de90c9a12ead5e93382e7d0a05a6bf82a1dd"
+      },
+      {
+        "path": "F:\\AI\\JiraActivityAnalyzer\\release\\v0.3.44-candidate\\win-unpacked\\Jira Activity Analyzer.exe",
+        "bytes": 235706368,
+        "MiB": 224.787109375,
+        "sha256": "772c314975ef1b46537d05b94b0d5c8c5ee525dd71d820578a2cc3669f664157"
+      }
+    ],
+    "manualGui": {
+      "status": "NOT_RUN",
+      "requiredApproval": "v0.3.44 GUI 驗收 PASS",
+      "executable": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\windows-1788838507734\\搬移後 Portable Space\\Jira Activity Analyzer Portable 0.3.44.exe",
+      "sha256": "a4dfa2087ffb5041cce6bb12cf50de90c9a12ead5e93382e7d0a05a6bf82a1dd",
+      "launch": {
+        "startedAtUtc": "2026-09-08T03:45:01.6699642Z",
+        "launcherPid": 39452,
+        "actualAppPid": 31132,
+        "observedWindowTitle": "Jira Activity Analyzer v0.3.44",
+        "testControlEnabled": false,
+        "devToolsEnabled": false,
+        "verification": "Process/window title observation only, not human acceptance",
+        "launchExecToolWallTimeMs": 990.7965
+      }
+    },
+    "tag": "NOT_RUN",
+    "push": "NOT_RUN",
+    "release": "NOT_CREATED",
+    "sourceInputsUnchangedAfterFirstExe": true,
+    "firstObservedExecutableCreationUtc": "2026-09-08T03:32:39.2714387Z",
+    "unsignedPortable": true,
+    "originalIncidentRootCause": "UNCONFIRMED",
+    "originalRawDatabase": "NOT_PROVIDED",
+    "realServiceTests": "NOT_RUN: no live Jira/AI/internal service calls authorized",
+    "protectedFile": "reports/JiraActivityAnalyzer_v0.2.47_Background_Fetch_and_Activity_Events_UX_implementation_report.md",
+    "protectedHash": "9862e5dd2748f3c6624b94d4a98dbefc1146128766692dac1f92271a96e5934d",
+    "originalUntracked": "Preserved untouched and unstaged; not read or claimed to have been content-scanned.",
+    "screenshots": [
+      "test-artifacts/v0.3.44/windows-1788838507734/unpacked-ui/screenshots",
+      "test-artifacts/v0.3.44/windows-1788838507734/portable-ui/screenshots",
+      "test-artifacts/v0.3.44/windows-1788838507734/portable-relocated-ui/screenshots",
+      "test-artifacts/v0.3.44/installer-1788838756806/ui/screenshots"
+    ],
+    "captureMethod": "BrowserWindow.capturePage; app-only, no desktop capture; automation does not satisfy human GUI gate"
+  },
+  "finalCloseoutTiming": "Report-only commit and wrapper completion are captured in the ignored delivery receipt and commands.jsonl after this report snapshot; no circular commit SHA fabricated."
 }
