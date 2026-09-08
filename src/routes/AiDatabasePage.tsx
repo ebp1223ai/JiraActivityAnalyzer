@@ -65,6 +65,8 @@ export function AiDatabasePage() {
   const [snapshot, setSnapshot] = useState<Snapshot>({ lifecycleState: "DETECTING" });
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState("");
+  const [writeJob, setWriteJob] = useState<Record<string, any>>({ running: false });
+  const [writeElapsed, setWriteElapsed] = useState(0);
   const [notice, setNotice] = useState("");
   const [relinkNotice, setRelinkNotice] = useState("");
 
@@ -73,6 +75,7 @@ export function AiDatabasePage() {
     setSnapshot(result?.snapshot ?? { lifecycleState: "ERROR", message: result?.message ?? "Lifecycle detection failed." });
   }, [api]);
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { let active = true; const start = performance.now(); const tick = async () => { const job = await api?.writeState(); if (active && job) { setWriteJob(job); setWriteElapsed((performance.now() - start) / 1000); } }; void tick(); const timer = window.setInterval(() => void tick(), 500); return () => { active = false; window.clearInterval(timer); }; }, [api, busy]);
 
   const ready = snapshot.lifecycleState === "READY_EMPTY" || snapshot.lifecycleState === "READY_WITH_DATA";
   const run = async (name: string, operation: () => Promise<Record<string, any>> | undefined) => {
@@ -133,6 +136,7 @@ export function AiDatabasePage() {
         <details className="relative"><summary className="btn cursor-pointer list-none">更多操作</summary><div className="absolute right-0 top-11 z-30 grid w-56 gap-1 rounded-md border border-line bg-white p-2 shadow-xl"><button className="btn justify-start" type="button" onClick={() => void refresh()}><RefreshCw size={16} /> Refresh</button><button className="btn justify-start" type="button" disabled={!ready} onClick={() => void run("health", () => api?.healthCheck({ requestId: makeRequestId("health") }))}><Activity size={16} /> Health Check</button><button className="btn justify-start" type="button" disabled={!ready} onClick={() => void run("backup", () => api?.backup({ requestId: makeRequestId("backup") }))}><HardDrive size={16} /> Backup</button><button className="btn justify-start" type="button" onClick={() => void api?.openFolder({ requestId: makeRequestId("folder") })}><FolderOpen size={16} /> Open Folder</button><button className="btn justify-start" type="button" onClick={() => void api?.exportDiagnostics({ requestId: makeRequestId("diagnostics") })}><FileCheck2 size={16} /> Export Diagnostics</button><button className="btn justify-start" type="button" onClick={() => void api?.openWorkbench({ requestId: makeRequestId("workbench") })}><FileCheck2 size={16} /> Review Workbench</button></div></details>
       </DatabaseOverviewToolbar>
       <StateBanner snapshot={snapshot} />
+      {writeJob.running ? <div role="status" className="flex flex-wrap items-center gap-3 border-l-4 border-blue-500 bg-blue-50 p-3 text-sm">{writeJob.phase >= 2 ? "正在提交，取消已太晚" : "正在執行資料庫工作"} · {writeElapsed.toFixed(1)} 秒<button className="btn" disabled={writeJob.phase >= 1} onClick={() => void api?.cancelWrite({ requestId: writeJob.requestId })}>取消工作</button></div> : null}
 
 
       {snapshot.exists ? (

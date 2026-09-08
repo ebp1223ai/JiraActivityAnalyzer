@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import fs from "./businessIoDiagnosticsV044.js";
 import path from "node:path";
 
 export const ENV_FORMAT_VERSION = "4";

@@ -1,0 +1,2631 @@
+{
+  "version": "0.3.44",
+  "status": "PASS",
+  "scope": "D44-01 active commands/routes/repository entry calls; not every function or every row. External network and destructive commands inventoried but not executed.",
+  "entries": [
+    {
+      "channel": "diagnostics:export-previous",
+      "file": "electron/main.ts",
+      "line": 347,
+      "repositoryCalls": [
+        {
+          "symbol": "exportPreviousDiagnosticsV044",
+          "module": "./diagnosticRecoveryV044.js",
+          "line": 347
+        },
+        {
+          "symbol": "getLogsDir",
+          "module": "./appPaths.js",
+          "line": 347
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 347
+        },
+        {
+          "symbol": "getDebugFoldersDir",
+          "module": "./appPaths.js",
+          "line": 347
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "CONTROL_NOT_RECURSIVELY_LOGGED",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "diagnostics:automatic-state",
+      "file": "electron/main.ts",
+      "line": 349,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "CONTROL_NOT_RECURSIVELY_LOGGED",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "diagnostics:automatic-renderer",
+      "file": "electron/main.ts",
+      "line": 350,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "CONTROL_NOT_RECURSIVELY_LOGGED",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "runtime:get-state",
+      "file": "electron/main.ts",
+      "line": 818,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "runtime:get-startup-milestones",
+      "file": "electron/main.ts",
+      "line": 819,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "runtime:retry-jira",
+      "file": "electron/main.ts",
+      "line": 820,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "runtime:retry-database",
+      "file": "electron/main.ts",
+      "line": 821,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:overview",
+      "file": "electron/main.ts",
+      "line": 845,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:health-check",
+      "file": "electron/main.ts",
+      "line": 846,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:list-issues",
+      "file": "electron/main.ts",
+      "line": 847,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:issue-distributions",
+      "file": "electron/main.ts",
+      "line": 849,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:get-issue",
+      "file": "electron/main.ts",
+      "line": 851,
+      "repositoryCalls": [
+        {
+          "symbol": "issueViewerFailure",
+          "module": "./databaseViewer.js",
+          "line": 856
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:list-users",
+      "file": "electron/main.ts",
+      "line": 859,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:get-user",
+      "file": "electron/main.ts",
+      "line": 861,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:user-distributions",
+      "file": "electron/main.ts",
+      "line": 863,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:user-related-issues",
+      "file": "electron/main.ts",
+      "line": 865,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:user-events",
+      "file": "electron/main.ts",
+      "line": 867,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:issue-events",
+      "file": "electron/main.ts",
+      "line": 869,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:issue-changelog",
+      "file": "electron/main.ts",
+      "line": 871,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:cancel",
+      "file": "electron/main.ts",
+      "line": 873,
+      "repositoryCalls": [
+        {
+          "symbol": "databaseViewerCoordinator.cancel",
+          "module": "coordinator instance declared in main",
+          "line": 878
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:description-full-context",
+      "file": "electron/main.ts",
+      "line": 880,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:description-original-previews",
+      "file": "electron/main.ts",
+      "line": 882,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:description-comparison",
+      "file": "electron/main.ts",
+      "line": 884,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database-viewer:distinct-values",
+      "file": "electron/main.ts",
+      "line": 886,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "pending-analysis-export:start",
+      "file": "electron/main.ts",
+      "line": 888,
+      "repositoryCalls": [
+        {
+          "symbol": "crypto.randomUUID",
+          "module": "node:crypto",
+          "line": 892
+        },
+        {
+          "symbol": "filterSnapshot",
+          "module": "../shared/pendingAnalysisContract.js",
+          "line": 895
+        },
+        {
+          "symbol": "createPendingAnalysisExportDiagnostics",
+          "module": "./pendingAnalysisExportDiagnostics.js",
+          "line": 896
+        },
+        {
+          "symbol": "getConfiguredAppRoot",
+          "module": "./appRoot.js",
+          "line": 912
+        },
+        {
+          "symbol": "pendingAnalysisExportCoordinator.start",
+          "module": "coordinator instance declared in main",
+          "line": 917
+        },
+        {
+          "symbol": "getAppDataDir",
+          "module": "./appPaths.js",
+          "line": 928
+        },
+        {
+          "symbol": "getTempDir",
+          "module": "./appPaths.js",
+          "line": 929
+        },
+        {
+          "symbol": "getFullFetchStagingDir",
+          "module": "./appPaths.js",
+          "line": 930
+        },
+        {
+          "symbol": "app.getPath",
+          "module": "electron",
+          "line": 931
+        },
+        {
+          "symbol": "pendingAnalysisPublicReason",
+          "module": "./pendingAnalysisExportDiagnostics.js",
+          "line": 954
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "pending-analysis-export:status",
+      "file": "electron/main.ts",
+      "line": 964,
+      "repositoryCalls": [
+        {
+          "symbol": "pendingAnalysisExportCoordinator.current",
+          "module": "coordinator instance declared in main",
+          "line": 964
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "pending-analysis-export:cancel",
+      "file": "electron/main.ts",
+      "line": 965,
+      "repositoryCalls": [
+        {
+          "symbol": "pendingAnalysisExportCoordinator.cancel",
+          "module": "coordinator instance declared in main",
+          "line": 965
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "pending-analysis-export:open-folder",
+      "file": "electron/main.ts",
+      "line": 966,
+      "repositoryCalls": [
+        {
+          "symbol": "assertAppPath",
+          "module": "./appPaths.js",
+          "line": 967
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 967
+        },
+        {
+          "symbol": "getExportsDir",
+          "module": "./appPaths.js",
+          "line": 967
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 968
+        },
+        {
+          "symbol": "shell.openPath",
+          "module": "electron",
+          "line": 969
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "ui-preferences:get",
+      "file": "electron/main.ts",
+      "line": 973,
+      "repositoryCalls": [
+        {
+          "symbol": "loadUiPreferences",
+          "module": "./uiPreferences.js",
+          "line": 973
+        },
+        {
+          "symbol": "getConfiguredAppRoot",
+          "module": "./appRoot.js",
+          "line": 973
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ui-preferences:update",
+      "file": "electron/main.ts",
+      "line": 974,
+      "repositoryCalls": [
+        {
+          "symbol": "updateUiPreferences",
+          "module": "./uiPreferences.js",
+          "line": 981
+        },
+        {
+          "symbol": "getConfiguredAppRoot",
+          "module": "./appRoot.js",
+          "line": 981
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "jira-probe:run",
+      "file": "electron/main.ts",
+      "line": 984,
+      "repositoryCalls": [
+        {
+          "symbol": "runApiProbe",
+          "module": "./jira/jiraProbeRunner.js",
+          "line": 988
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "connection:load-env",
+      "file": "electron/main.ts",
+      "line": 991,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "connection:list",
+      "file": "electron/main.ts",
+      "line": 997,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "connection:choose-env",
+      "file": "electron/main.ts",
+      "line": 999,
+      "repositoryCalls": [
+        {
+          "symbol": "dialog.showOpenDialog",
+          "module": "electron",
+          "line": 1000
+        },
+        {
+          "symbol": "path.dirname",
+          "module": "node:path",
+          "line": 1002
+        },
+        {
+          "symbol": "path.basename(envPath).toLowerCase",
+          "module": "node:path",
+          "line": 1013
+        },
+        {
+          "symbol": "path.basename",
+          "module": "node:path",
+          "line": 1013
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database:check-path",
+      "file": "electron/main.ts",
+      "line": 1022,
+      "repositoryCalls": [
+        {
+          "symbol": "resolveLocalDatabasePath",
+          "module": "./appPathResolver.js",
+          "line": 1024
+        },
+        {
+          "symbol": "getAppRuntimeDir",
+          "module": "./appPaths.js",
+          "line": 1024
+        },
+        {
+          "symbol": "checkDatabaseCompatibility",
+          "module": "./currentStateArchive.js",
+          "line": 1028
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database:select-existing",
+      "file": "electron/main.ts",
+      "line": 1031,
+      "repositoryCalls": [
+        {
+          "symbol": "dialog.showOpenDialog",
+          "module": "electron",
+          "line": 1034
+        },
+        {
+          "symbol": "validateAndSaveDatabaseSelection",
+          "module": "./startupIntegration.js",
+          "line": 1048
+        },
+        {
+          "symbol": "getAppRuntimeDir",
+          "module": "./appPaths.js",
+          "line": 1049
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "database:create-new",
+      "file": "electron/main.ts",
+      "line": 1063,
+      "repositoryCalls": [
+        {
+          "symbol": "dialog.showSaveDialog",
+          "module": "electron",
+          "line": 1066
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 1068
+        },
+        {
+          "symbol": "getDatabaseDir",
+          "module": "./appPaths.js",
+          "line": 1068
+        },
+        {
+          "symbol": "crypto.createHash(\"sha256\").update(effectiveBaseUrl).digest",
+          "module": "node:crypto",
+          "line": 1079
+        },
+        {
+          "symbol": "crypto.createHash(\"sha256\").update",
+          "module": "node:crypto",
+          "line": 1079
+        },
+        {
+          "symbol": "crypto.createHash",
+          "module": "node:crypto",
+          "line": 1079
+        },
+        {
+          "symbol": "createSourceArchiveDatabase",
+          "module": "./currentStateArchive.js",
+          "line": 1092
+        },
+        {
+          "symbol": "atomicPatchEnv",
+          "module": "./runtimeConfig.js",
+          "line": 1097
+        },
+        {
+          "symbol": "databasePathForEnv",
+          "module": "./appPathResolver.js",
+          "line": 1099
+        },
+        {
+          "symbol": "getAppRuntimeDir",
+          "module": "./appPaths.js",
+          "line": 1099
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "connection:test",
+      "file": "electron/main.ts",
+      "line": 1113,
+      "repositoryCalls": [
+        {
+          "symbol": "createJiraClient",
+          "module": "./jira/jiraClient.js",
+          "line": 1125
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:discover-candidates",
+      "file": "electron/main.ts",
+      "line": 1278,
+      "repositoryCalls": [
+        {
+          "symbol": "createJiraClient",
+          "module": "./jira/jiraClient.js",
+          "line": 1302
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:activity-stream-probe",
+      "file": "electron/main.ts",
+      "line": 2216,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:cancel-stability-probe",
+      "file": "electron/main.ts",
+      "line": 2247,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:activity-stream-stability-probe-v1-legacy",
+      "file": "electron/main.ts",
+      "line": 2253,
+      "repositoryCalls": [
+        {
+          "symbol": "splitActivityStreamWindows",
+          "module": "./activityStreamStability.js",
+          "line": 2259
+        },
+        {
+          "symbol": "sha256",
+          "module": "./activityStreamBaseline.js",
+          "line": 2266
+        },
+        {
+          "symbol": "normalizeStabilityEvent",
+          "module": "./activityStreamStability.js",
+          "line": 2292
+        },
+        {
+          "symbol": "fingerprintSet",
+          "module": "./activityStreamStability.js",
+          "line": 2301
+        },
+        {
+          "symbol": "sanitizeExportData",
+          "module": "./export/sanitizeExport.js",
+          "line": 2303
+        },
+        {
+          "symbol": "classifyWindowStability",
+          "module": "./activityStreamStability.js",
+          "line": 2314
+        },
+        {
+          "symbol": "finalizeAttemptDiffs",
+          "module": "./activityStreamStability.js",
+          "line": 2312
+        },
+        {
+          "symbol": "mergeProbeAttempts",
+          "module": "./activityStreamStability.js",
+          "line": 2323
+        },
+        {
+          "symbol": "recommendStabilitySettings",
+          "module": "./activityStreamStability.js",
+          "line": 2324
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:update-stability-ui-state",
+      "file": "electron/main.ts",
+      "line": 2391,
+      "repositoryCalls": [
+        {
+          "symbol": "sanitizeExportData",
+          "module": "./export/sanitizeExport.js",
+          "line": 2392
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:activity-stream-stability-probe",
+      "file": "electron/main.ts",
+      "line": 2396,
+      "repositoryCalls": [
+        {
+          "symbol": "splitActivityStreamWindows",
+          "module": "./activityStreamStability.js",
+          "line": 2412
+        },
+        {
+          "symbol": "sha256",
+          "module": "./activityStreamBaseline.js",
+          "line": 2419
+        },
+        {
+          "symbol": "executeRoundFirstStability",
+          "module": "./activityStreamRoundStability.js",
+          "line": 2422
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:activity-stream-benchmark",
+      "file": "electron/main.ts",
+      "line": 2456,
+      "repositoryCalls": [
+        {
+          "symbol": "executeActivityStreamBenchmark",
+          "module": "./activityStreamBenchmark.js",
+          "line": 2462
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:cancel-activity-stream-benchmark",
+      "file": "electron/main.ts",
+      "line": 2477,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:cancel-activity-timeline",
+      "file": "electron/main.ts",
+      "line": 2483,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:build-activity-timeline",
+      "file": "electron/main.ts",
+      "line": 2489,
+      "repositoryCalls": [
+        {
+          "symbol": "validateActivityTimelineRunContext",
+          "module": "./activityTimelineRunContext.js",
+          "line": 2490
+        },
+        {
+          "symbol": "sha256",
+          "module": "./activityStreamBaseline.js",
+          "line": 2568
+        },
+        {
+          "symbol": "executeRoundFirstStability",
+          "module": "./activityStreamRoundStability.js",
+          "line": 2509
+        },
+        {
+          "symbol": "buildUserActivityTimeline",
+          "module": "./userActivityTimeline.js",
+          "line": 2532
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 2552
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 2556
+        },
+        {
+          "symbol": "getExportsDir",
+          "module": "./appPaths.js",
+          "line": 2552
+        },
+        {
+          "symbol": "fs.writeFileSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 2559
+        },
+        {
+          "symbol": "sanitizeExportData",
+          "module": "./export/sanitizeExport.js",
+          "line": 2559
+        },
+        {
+          "symbol": "timelineCsv",
+          "module": "./userActivityTimeline.js",
+          "line": 2558
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:activity-stream-manual-replay",
+      "file": "electron/main.ts",
+      "line": 2602,
+      "repositoryCalls": [
+        {
+          "symbol": "createJiraClient",
+          "module": "./jira/jiraClient.js",
+          "line": 2614
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:precision-probe",
+      "file": "electron/main.ts",
+      "line": 2621,
+      "repositoryCalls": [
+        {
+          "symbol": "createJiraClient",
+          "module": "./jira/jiraClient.js",
+          "line": 2692
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:full-fetch-preflight",
+      "file": "electron/main.ts",
+      "line": 2882,
+      "repositoryCalls": [
+        {
+          "symbol": "preflightFullFetchQueue",
+          "module": "./fullFetchPreflight.js",
+          "line": 2884
+        },
+        {
+          "symbol": "evaluateFullFetchEligibility",
+          "module": "./fullFetchEligibility.js",
+          "line": 2887
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:full-fetch",
+      "file": "electron/main.ts",
+      "line": 2895,
+      "repositoryCalls": [
+        {
+          "symbol": "preflightFullFetchQueue",
+          "module": "./fullFetchPreflight.js",
+          "line": 2903
+        },
+        {
+          "symbol": "evaluateFullFetchEligibility",
+          "module": "./fullFetchEligibility.js",
+          "line": 2907
+        },
+        {
+          "symbol": "createFullFetchAttempt",
+          "module": "./fullFetchEligibility.js",
+          "line": 2937
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 2960
+        },
+        {
+          "symbol": "getFullFetchStagingDir",
+          "module": "./appPaths.js",
+          "line": 2949
+        },
+        {
+          "symbol": "crypto.randomBytes(3).toString",
+          "module": "node:crypto",
+          "line": 2950
+        },
+        {
+          "symbol": "crypto.randomBytes",
+          "module": "node:crypto",
+          "line": 2950
+        },
+        {
+          "symbol": "createCanonicalQueueSnapshot",
+          "module": "./fullFetchPreflight.js",
+          "line": 2957
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 2960
+        },
+        {
+          "symbol": "getFullFetchLogsDir",
+          "module": "./appPaths.js",
+          "line": 2960
+        },
+        {
+          "symbol": "fs.writeFileSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 2961
+        },
+        {
+          "symbol": "createStagingRun",
+          "module": "./fullFetchStaging.js",
+          "line": 2974
+        },
+        {
+          "symbol": "setStagingStatus",
+          "module": "./fullFetchStaging.js",
+          "line": 2980
+        },
+        {
+          "symbol": "stagingPaths",
+          "module": "./fullFetchStaging.js",
+          "line": 3149
+        },
+        {
+          "symbol": "BrowserWindow.getAllWindows",
+          "module": "electron",
+          "line": 3028
+        },
+        {
+          "symbol": "previewStaging",
+          "module": "./fullFetchStaging.js",
+          "line": 3195
+        },
+        {
+          "symbol": "createJiraClient",
+          "module": "./jira/jiraClient.js",
+          "line": 3032
+        },
+        {
+          "symbol": "jiraGetWithRetry",
+          "module": "./jira/jiraGetRetry.js",
+          "line": 3033
+        },
+        {
+          "symbol": "startTarget",
+          "module": "./fullFetchStaging.js",
+          "line": 3043
+        },
+        {
+          "symbol": "completeTarget",
+          "module": "./fullFetchStaging.js",
+          "line": 3103
+        },
+        {
+          "symbol": "jiraFailureCode",
+          "module": "./jira/jiraErrorCode.js",
+          "line": 3087
+        },
+        {
+          "symbol": "evaluateEmbeddedChangelog",
+          "module": "./changelogCompatibility.js",
+          "line": 3060
+        },
+        {
+          "symbol": "fetchJiraPages",
+          "module": "./jira/jiraPagination.js",
+          "line": 3070
+        },
+        {
+          "symbol": "normalizeWorklogs",
+          "module": "./worklogCompleteness.js",
+          "line": 3075
+        },
+        {
+          "symbol": "classifyWorklogCompleteness",
+          "module": "./worklogCompleteness.js",
+          "line": 3077
+        },
+        {
+          "symbol": "extractJiraEvidenceFromIssue",
+          "module": "./jiraEvidence.js",
+          "line": 3094
+        },
+        {
+          "symbol": "extractRelatedIssues",
+          "module": "./userAnalysisWorkflow.js",
+          "line": 3109
+        },
+        {
+          "symbol": "finalizeStagingRun",
+          "module": "./fullFetchStaging.js",
+          "line": 3118
+        },
+        {
+          "symbol": "updateStagingWorkflow",
+          "module": "./fullFetchStaging.js",
+          "line": 3118
+        },
+        {
+          "symbol": "reconcileIssueKeySets",
+          "module": "./userAnalysisWorkflow.js",
+          "line": 3176
+        },
+        {
+          "symbol": "appendStagingDiagnostic",
+          "module": "./fullFetchStaging.js",
+          "line": 3184
+        },
+        {
+          "symbol": "relatedIssueSummary",
+          "module": "./userAnalysisWorkflow.js",
+          "line": 3147
+        },
+        {
+          "symbol": "relatedIssueScopeSummary",
+          "module": "./userAnalysisWorkflow.js",
+          "line": 3147
+        },
+        {
+          "symbol": "readFullFetchResultIndex",
+          "module": "./fullFetchStaging.js",
+          "line": 3148
+        },
+        {
+          "symbol": "buildFullFetchResultDocument",
+          "module": "./fullFetchResult.js",
+          "line": 3149
+        },
+        {
+          "symbol": "failStagingRun",
+          "module": "./fullFetchStaging.js",
+          "line": 3173
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:get-active-full-fetch-run",
+      "file": "electron/main.ts",
+      "line": 3203,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:get-full-fetch-run-status",
+      "file": "electron/main.ts",
+      "line": 3205,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:cancel-full-fetch",
+      "file": "electron/main.ts",
+      "line": 3210,
+      "repositoryCalls": [
+        {
+          "symbol": "BrowserWindow.getAllWindows",
+          "module": "electron",
+          "line": 3217
+        },
+        {
+          "symbol": "loadStagingRun",
+          "module": "./fullFetchStaging.js",
+          "line": 3220
+        },
+        {
+          "symbol": "appendStagingDiagnostic",
+          "module": "./fullFetchStaging.js",
+          "line": 3221
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:scan-full-fetch-staging",
+      "file": "electron/main.ts",
+      "line": 3226,
+      "repositoryCalls": [
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 3227
+        },
+        {
+          "symbol": "getFullFetchStagingDir",
+          "module": "./appPaths.js",
+          "line": 3227
+        },
+        {
+          "symbol": "recoverStaleStaging",
+          "module": "./fullFetchStaging.js",
+          "line": 3228
+        },
+        {
+          "symbol": "listStagingRuns",
+          "module": "./fullFetchStaging.js",
+          "line": 3229
+        },
+        {
+          "symbol": "getLegacyFullFetchStagingDir",
+          "module": "./appPaths.js",
+          "line": 3229
+        },
+        {
+          "symbol": "previewStaging",
+          "module": "./fullFetchStaging.js",
+          "line": 3234
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:full-fetch-staging-action",
+      "file": "electron/main.ts",
+      "line": 3238,
+      "repositoryCalls": [
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 3252
+        },
+        {
+          "symbol": "getFullFetchStagingDir",
+          "module": "./appPaths.js",
+          "line": 3239
+        },
+        {
+          "symbol": "loadStagingRun",
+          "module": "./fullFetchStaging.js",
+          "line": 3240
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 3240
+        },
+        {
+          "symbol": "path.basename",
+          "module": "node:path",
+          "line": 3253
+        },
+        {
+          "symbol": "shell.openPath",
+          "module": "electron",
+          "line": 3243
+        },
+        {
+          "symbol": "deleteFailedStaging",
+          "module": "./fullFetchStaging.js",
+          "line": 3247
+        },
+        {
+          "symbol": "exportStaging",
+          "module": "./fullFetchStaging.js",
+          "line": 3252
+        },
+        {
+          "symbol": "getSourceArchivesDir",
+          "module": "./appPaths.js",
+          "line": 3252
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:preview-source-archive",
+      "file": "electron/main.ts",
+      "line": 3298,
+      "repositoryCalls": [
+        {
+          "symbol": "loadStagingRun",
+          "module": "./fullFetchStaging.js",
+          "line": 3300
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 3300
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 3300
+        },
+        {
+          "symbol": "getFullFetchStagingDir",
+          "module": "./appPaths.js",
+          "line": 3300
+        },
+        {
+          "symbol": "path.basename",
+          "module": "node:path",
+          "line": 3300
+        },
+        {
+          "symbol": "previewStaging",
+          "module": "./fullFetchStaging.js",
+          "line": 3301
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:export-source-archive",
+      "file": "electron/main.ts",
+      "line": 3307,
+      "repositoryCalls": [
+        {
+          "symbol": "loadStagingRun",
+          "module": "./fullFetchStaging.js",
+          "line": 3309
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 3309
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 3310
+        },
+        {
+          "symbol": "getFullFetchStagingDir",
+          "module": "./appPaths.js",
+          "line": 3309
+        },
+        {
+          "symbol": "path.basename",
+          "module": "node:path",
+          "line": 3312
+        },
+        {
+          "symbol": "exportStaging",
+          "module": "./fullFetchStaging.js",
+          "line": 3310
+        },
+        {
+          "symbol": "getSourceArchivesDir",
+          "module": "./appPaths.js",
+          "line": 3310
+        },
+        {
+          "symbol": "path.dirname",
+          "module": "node:path",
+          "line": 3313
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "diagnostics:renderer-event",
+      "file": "electron/main.ts",
+      "line": 3318,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "CONTROL_NOT_RECURSIVELY_LOGGED",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "diagnostics:transition",
+      "file": "electron/main.ts",
+      "line": 3334,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "CONTROL_NOT_RECURSIVELY_LOGGED",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "diagnostics:get-context",
+      "file": "electron/main.ts",
+      "line": 3341,
+      "repositoryCalls": [
+        {
+          "symbol": "getLogsDir",
+          "module": "./appPaths.js",
+          "line": 3344
+        },
+        {
+          "symbol": "getAppRuntimeDir",
+          "module": "./appPaths.js",
+          "line": 3345
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "CONTROL_NOT_RECURSIVELY_LOGGED",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "diagnostics:open-logs",
+      "file": "electron/main.ts",
+      "line": 3348,
+      "repositoryCalls": [
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 3349
+        },
+        {
+          "symbol": "getLogsDir",
+          "module": "./appPaths.js",
+          "line": 3349
+        },
+        {
+          "symbol": "shell.openPath",
+          "module": "electron",
+          "line": 3350
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "CONTROL_NOT_RECURSIVELY_LOGGED",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:log-action",
+      "file": "electron/main.ts",
+      "line": 3354,
+      "repositoryCalls": [
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 3360
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 3360
+        },
+        {
+          "symbol": "getAppLogsDir",
+          "module": "./appPaths.js",
+          "line": 3360
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:update-workflow-snapshot",
+      "file": "electron/main.ts",
+      "line": 3368,
+      "repositoryCalls": [
+        {
+          "symbol": "sanitizeRawJson",
+          "module": "./jira/safeJson.js",
+          "line": 3375
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 3389
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 3399
+        },
+        {
+          "symbol": "getExportsDir",
+          "module": "./appPaths.js",
+          "line": 3389
+        },
+        {
+          "symbol": "relatedIssueSummary",
+          "module": "./userAnalysisWorkflow.js",
+          "line": 3390
+        },
+        {
+          "symbol": "relatedIssueScopeSummary",
+          "module": "./userAnalysisWorkflow.js",
+          "line": 3406
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:load-workflow-snapshot",
+      "file": "electron/main.ts",
+      "line": 3416,
+      "repositoryCalls": [
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 3417
+        },
+        {
+          "symbol": "getExportsDir",
+          "module": "./appPaths.js",
+          "line": 3417
+        },
+        {
+          "symbol": "fs.existsSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 3419
+        },
+        {
+          "symbol": "fs.readFileSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 3421
+        },
+        {
+          "symbol": "defaultWorkflowSteps",
+          "module": "./userAnalysisWorkflow.js",
+          "line": 3424
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:action-log-diagnostics",
+      "file": "electron/main.ts",
+      "line": 3442,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:open-diagnostics-folder",
+      "file": "electron/main.ts",
+      "line": 3444,
+      "repositoryCalls": [
+        {
+          "symbol": "path.resolve",
+          "module": "node:path",
+          "line": 3446
+        },
+        {
+          "symbol": "getLogsDir",
+          "module": "./appPaths.js",
+          "line": 3445
+        },
+        {
+          "symbol": "path.dirname",
+          "module": "node:path",
+          "line": 3446
+        },
+        {
+          "symbol": "getFullFetchLogsDir",
+          "module": "./appPaths.js",
+          "line": 3446
+        },
+        {
+          "symbol": "path.relative",
+          "module": "node:path",
+          "line": 3447
+        },
+        {
+          "symbol": "path.isAbsolute",
+          "module": "node:path",
+          "line": 3448
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 3449
+        },
+        {
+          "symbol": "shell.openPath",
+          "module": "electron",
+          "line": 3450
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:save-export",
+      "file": "electron/main.ts",
+      "line": 3454,
+      "repositoryCalls": [
+        {
+          "symbol": "saveExportJson",
+          "module": "./export/exportService.js",
+          "line": 3455
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "user-analysis:save-full-fetch-result",
+      "file": "electron/main.ts",
+      "line": 3458,
+      "repositoryCalls": [
+        {
+          "symbol": "loadStagingRun",
+          "module": "./fullFetchStaging.js",
+          "line": 3491
+        },
+        {
+          "symbol": "crypto.randomBytes(4).toString",
+          "module": "node:crypto",
+          "line": 3501
+        },
+        {
+          "symbol": "crypto.randomBytes",
+          "module": "node:crypto",
+          "line": 3501
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 3503
+        },
+        {
+          "symbol": "getFullFetchResultsDir",
+          "module": "./appPaths.js",
+          "line": 3519
+        },
+        {
+          "symbol": "saveFullFetchResult",
+          "module": "./fullFetchResult.js",
+          "line": 3504
+        },
+        {
+          "symbol": "recordStep5Action",
+          "module": "./fullFetchStaging.js",
+          "line": 3597
+        },
+        {
+          "symbol": "resolveLocalDatabasePath",
+          "module": "./appPathResolver.js",
+          "line": 3509
+        },
+        {
+          "symbol": "getAppRuntimeDir",
+          "module": "./appPaths.js",
+          "line": 3509
+        },
+        {
+          "symbol": "writeFullFetchStagingToCurrentDatabase",
+          "module": "./sourceArchiveDatabaseWrite.js",
+          "line": 3515
+        },
+        {
+          "symbol": "appendStagingDiagnostic",
+          "module": "./fullFetchStaging.js",
+          "line": 3554
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:open-export-folder",
+      "file": "electron/main.ts",
+      "line": 3626,
+      "repositoryCalls": [
+        {
+          "symbol": "path.resolve",
+          "module": "node:path",
+          "line": 3628
+        },
+        {
+          "symbol": "getExportsDir",
+          "module": "./appPaths.js",
+          "line": 3627
+        },
+        {
+          "symbol": "getFullFetchResultsDir",
+          "module": "./appPaths.js",
+          "line": 3628
+        },
+        {
+          "symbol": "path.relative",
+          "module": "node:path",
+          "line": 3629
+        },
+        {
+          "symbol": "path.isAbsolute",
+          "module": "node:path",
+          "line": 3630
+        },
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 3633
+        },
+        {
+          "symbol": "shell.openPath",
+          "module": "electron",
+          "line": 3634
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "jira-analysis:load",
+      "file": "electron/main.ts",
+      "line": 3638,
+      "repositoryCalls": [
+        {
+          "symbol": "createJiraClient",
+          "module": "./jira/jiraClient.js",
+          "line": 3652
+        },
+        {
+          "symbol": "sanitizeRawJson",
+          "module": "./jira/safeJson.js",
+          "line": 3795
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "jira-analysis:save-export",
+      "file": "electron/main.ts",
+      "line": 3901,
+      "repositoryCalls": [
+        {
+          "symbol": "saveExportJson",
+          "module": "./export/exportService.js",
+          "line": 3902
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "jira-probe:load-env",
+      "file": "electron/main.ts",
+      "line": 3905,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "jira-probe:save-result",
+      "file": "electron/main.ts",
+      "line": 3909,
+      "repositoryCalls": [
+        {
+          "symbol": "saveExportJson",
+          "module": "./export/exportService.js",
+          "line": 3910
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "jira-probe:save-raw-data",
+      "file": "electron/main.ts",
+      "line": 3917,
+      "repositoryCalls": [
+        {
+          "symbol": "saveExportJson",
+          "module": "./export/exportService.js",
+          "line": 3918
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "user-analysis:auto-save-run",
+      "file": "electron/main.ts",
+      "line": 3970,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "debug-log:save-bundle",
+      "file": "electron/main.ts",
+      "line": 4022,
+      "repositoryCalls": [
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 4370
+        },
+        {
+          "symbol": "getDebugFoldersDir",
+          "module": "./appPaths.js",
+          "line": 4162
+        },
+        {
+          "symbol": "createCollisionSafeDirectory",
+          "module": "./appRoot.js",
+          "line": 4026
+        },
+        {
+          "symbol": "getAppRuntimeDir",
+          "module": "./appPaths.js",
+          "line": 4145
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 4578
+        },
+        {
+          "symbol": "fs.existsSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4525
+        },
+        {
+          "symbol": "collectDebugFolderSources",
+          "module": "./debugFolderCollector.js",
+          "line": 4287
+        },
+        {
+          "symbol": "getExportsDir",
+          "module": "./appPaths.js",
+          "line": 4187
+        },
+        {
+          "symbol": "fs.readdirSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4464
+        },
+        {
+          "symbol": "fs.statSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4194
+        },
+        {
+          "symbol": "getSelectedCanonicalAiRunDirectory",
+          "module": "./aiAnalysisIpc.js",
+          "line": 4087
+        },
+        {
+          "symbol": "path.resolve",
+          "module": "node:path",
+          "line": 4189
+        },
+        {
+          "symbol": "flushRunArchive",
+          "module": "./aiAnalysisRunArchiveV0314.js",
+          "line": 4089
+        },
+        {
+          "symbol": "path.basename",
+          "module": "node:path",
+          "line": 4545
+        },
+        {
+          "symbol": "getSelectedAiAnalysisAttemptDirectory",
+          "module": "./aiAnalysisIpc.js",
+          "line": 4095
+        },
+        {
+          "symbol": "getActiveAiDatabasePathV042",
+          "module": "./aiAnalysisDatabaseIpcV042.js",
+          "line": 4118
+        },
+        {
+          "symbol": "getAiDatabaseV042Diagnostics",
+          "module": "./aiAnalysisDatabaseIpcV042.js",
+          "line": 4101
+        },
+        {
+          "symbol": "fs.mkdirSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4103
+        },
+        {
+          "symbol": "checkpointAiDatabase",
+          "module": "./aiAnalysisDatabaseV038.js",
+          "line": 4108
+        },
+        {
+          "symbol": "aiDatabaseDiagnosticsV042",
+          "module": "./aiAnalysisDatabaseV042.js",
+          "line": 4109
+        },
+        {
+          "symbol": "fs.writeFileSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4477
+        },
+        {
+          "symbol": "fs.readFileSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4563
+        },
+        {
+          "symbol": "buildPathAudit",
+          "module": "./pathAudit.js",
+          "line": 4144
+        },
+        {
+          "symbol": "getAppDataDir",
+          "module": "./appPaths.js",
+          "line": 4153
+        },
+        {
+          "symbol": "getSessionDataDir",
+          "module": "./appPaths.js",
+          "line": 4154
+        },
+        {
+          "symbol": "getCacheDir",
+          "module": "./appPaths.js",
+          "line": 4155
+        },
+        {
+          "symbol": "getLogsDir",
+          "module": "./appPaths.js",
+          "line": 4156
+        },
+        {
+          "symbol": "getCrashDumpsDir",
+          "module": "./appPaths.js",
+          "line": 4157
+        },
+        {
+          "symbol": "getTempDir",
+          "module": "./appPaths.js",
+          "line": 4158
+        },
+        {
+          "symbol": "getFullFetchStagingDir",
+          "module": "./appPaths.js",
+          "line": 4159
+        },
+        {
+          "symbol": "getSourceArchivesDir",
+          "module": "./appPaths.js",
+          "line": 4161
+        },
+        {
+          "symbol": "getAiAnalysisDatabasePath",
+          "module": "./appPaths.js",
+          "line": 4163
+        },
+        {
+          "symbol": "getBackupsDir",
+          "module": "./appPaths.js",
+          "line": 4164
+        },
+        {
+          "symbol": "isPathInsideRoot",
+          "module": "./appRoot.js",
+          "line": 4190
+        },
+        {
+          "symbol": "fs.statSync(sourcePath).isFile",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4194
+        },
+        {
+          "symbol": "timelineCsv",
+          "module": "./userActivityTimeline.js",
+          "line": 4212
+        },
+        {
+          "symbol": "describeFullFetchFailureEvidence",
+          "module": "./debugFolderCollector.js",
+          "line": 4224
+        },
+        {
+          "symbol": "loadStagingRun",
+          "module": "./fullFetchStaging.js",
+          "line": 4239
+        },
+        {
+          "symbol": "stagingDebugIndex",
+          "module": "./fullFetchStaging.js",
+          "line": 4249
+        },
+        {
+          "symbol": "stagingPaths",
+          "module": "./fullFetchStaging.js",
+          "line": 4255
+        },
+        {
+          "symbol": "saveFullFetchResult",
+          "module": "./fullFetchResult.js",
+          "line": 4279
+        },
+        {
+          "symbol": "getFullFetchResultsDir",
+          "module": "./appPaths.js",
+          "line": 4279
+        },
+        {
+          "symbol": "benchmarkCsv",
+          "module": "./activityStreamBenchmark.js",
+          "line": 4324
+        },
+        {
+          "symbol": "buildSourceVersionProjectionDiagnostics",
+          "module": "./sourceArchiveDatabaseWrite.js",
+          "line": 4359
+        },
+        {
+          "symbol": "relatedIssueScopeSummary",
+          "module": "./userAnalysisWorkflow.js",
+          "line": 4413
+        },
+        {
+          "symbol": "relatedIssueSummary",
+          "module": "./userAnalysisWorkflow.js",
+          "line": 4483
+        },
+        {
+          "symbol": "reconcileRunChain",
+          "module": "./runReconciliation.js",
+          "line": 4461
+        },
+        {
+          "symbol": "fs.readFileSync(debugFolderReadmePath, \"utf8\")\n    .replace(\"Jira Activity Analyzer Debug Bundle\", \"Jira Activity Analyzer Debug Folder\")\n    .replace(\"Full Session Debug Bundle:\", \"Full Session Debug Folder:\")\n    .replace(\"bundleGeneratedAt:\", \"folderGeneratedAt:\")\n    .replace(\"Full sanitized JSON bodies are under auto-saved-results/.\", \"Source JSON files are copied unchanged under auto-saved-results/.\")\n    .replace",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4471
+        },
+        {
+          "symbol": "fs.readFileSync(debugFolderReadmePath, \"utf8\")\n    .replace(\"Jira Activity Analyzer Debug Bundle\", \"Jira Activity Analyzer Debug Folder\")\n    .replace(\"Full Session Debug Bundle:\", \"Full Session Debug Folder:\")\n    .replace(\"bundleGeneratedAt:\", \"folderGeneratedAt:\")\n    .replace",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4471
+        },
+        {
+          "symbol": "fs.readFileSync(debugFolderReadmePath, \"utf8\")\n    .replace(\"Jira Activity Analyzer Debug Bundle\", \"Jira Activity Analyzer Debug Folder\")\n    .replace(\"Full Session Debug Bundle:\", \"Full Session Debug Folder:\")\n    .replace",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4471
+        },
+        {
+          "symbol": "fs.readFileSync(debugFolderReadmePath, \"utf8\")\n    .replace(\"Jira Activity Analyzer Debug Bundle\", \"Jira Activity Analyzer Debug Folder\")\n    .replace",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4471
+        },
+        {
+          "symbol": "fs.readFileSync(debugFolderReadmePath, \"utf8\")\n    .replace",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4471
+        },
+        {
+          "symbol": "fs.appendFileSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4486
+        },
+        {
+          "symbol": "listDebugFolderFiles",
+          "module": "./debugFolderCollector.js",
+          "line": 4600
+        },
+        {
+          "symbol": "crypto.createHash(\"sha256\").update(fs.readFileSync(absolute)).digest",
+          "module": "node:crypto",
+          "line": 4545
+        },
+        {
+          "symbol": "crypto.createHash(\"sha256\").update",
+          "module": "node:crypto",
+          "line": 4545
+        },
+        {
+          "symbol": "crypto.createHash",
+          "module": "node:crypto",
+          "line": 4545
+        },
+        {
+          "symbol": "summarizeDebugEvidence",
+          "module": "./debugFolderCollector.js",
+          "line": 4577
+        },
+        {
+          "symbol": "recordStep5Action",
+          "module": "./fullFetchStaging.js",
+          "line": 4603
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "debug-log:open-folder",
+      "file": "electron/main.ts",
+      "line": 4626,
+      "repositoryCalls": [
+        {
+          "symbol": "path.resolve",
+          "module": "node:path",
+          "line": 4627
+        },
+        {
+          "symbol": "getExportsDir",
+          "module": "./appPaths.js",
+          "line": 4627
+        },
+        {
+          "symbol": "assertAppPath",
+          "module": "./appPaths.js",
+          "line": 4629
+        },
+        {
+          "symbol": "shell.openPath",
+          "module": "electron",
+          "line": 4633
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "debug-log:save-text",
+      "file": "electron/main.ts",
+      "line": 4637,
+      "repositoryCalls": [
+        {
+          "symbol": "ensureDir",
+          "module": "./appPaths.js",
+          "line": 4638
+        },
+        {
+          "symbol": "getLogsDir",
+          "module": "./appPaths.js",
+          "line": 4638
+        },
+        {
+          "symbol": "path.basename",
+          "module": "node:path",
+          "line": 4642
+        },
+        {
+          "symbol": "path.extname",
+          "module": "node:path",
+          "line": 4642
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 4646
+        },
+        {
+          "symbol": "fs.existsSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4645
+        },
+        {
+          "symbol": "assertAppPath",
+          "module": "./appPaths.js",
+          "line": 4650
+        },
+        {
+          "symbol": "fs.writeFileSync",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 4651
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:lifecycle",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 40,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:create",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 41,
+      "repositoryCalls": [
+        {
+          "symbol": "dialog.showSaveDialog",
+          "module": "electron",
+          "line": 41
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 41
+        },
+        {
+          "symbol": "getAppRuntimeDir",
+          "module": "./appPaths.js",
+          "line": 41
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:open-switch",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 42,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:forget",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 43,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:health-check",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 44,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:backup",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 45,
+      "repositoryCalls": [
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 45
+        },
+        {
+          "symbol": "getBackupsDir",
+          "module": "./appPaths.js",
+          "line": 45
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:select-import",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 46,
+      "repositoryCalls": [
+        {
+          "symbol": "aiWriteServiceV044.run",
+          "module": "./aiWriteServiceV044.js",
+          "line": 46
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "ai-database:preflight",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 47,
+      "repositoryCalls": [
+        {
+          "symbol": "aiWriteServiceV044.run",
+          "module": "./aiWriteServiceV044.js",
+          "line": 47
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:cancel-preflight",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 48,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:import",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 49,
+      "repositoryCalls": [
+        {
+          "symbol": "path.resolve",
+          "module": "node:path",
+          "line": 49
+        },
+        {
+          "symbol": "aiWriteServiceV044.run",
+          "module": "./aiWriteServiceV044.js",
+          "line": 49
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "ai-database:relink",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 50,
+      "repositoryCalls": [
+        {
+          "symbol": "aiWriteServiceV044.run",
+          "module": "./aiWriteServiceV044.js",
+          "line": 50
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "ai-database:cancel-write",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 51,
+      "repositoryCalls": [
+        {
+          "symbol": "automaticDiagnosticsV044",
+          "module": "./automaticDiagnosticsV044.js",
+          "line": 51
+        },
+        {
+          "symbol": "aiWriteServiceV044.cancel",
+          "module": "./aiWriteServiceV044.js",
+          "line": 51
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:write-state",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 52,
+      "repositoryCalls": [
+        {
+          "symbol": "aiWriteServiceV044.state",
+          "module": "./aiWriteServiceV044.js",
+          "line": 52
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:query-results",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 66,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "ai-database:query-integrated",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 67,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "ai-database:distinct",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 68,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:cancel-query",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 69,
+      "repositoryCalls": [
+        {
+          "symbol": "automaticDiagnosticsV044",
+          "module": "./automaticDiagnosticsV044.js",
+          "line": 69
+        },
+        {
+          "symbol": "aiResultsServiceV044.cancel",
+          "module": "./aiResultsServiceV044.js",
+          "line": 69
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "ai-database:report-stale",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 70,
+      "repositoryCalls": [],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:export-query",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 71,
+      "repositoryCalls": [
+        {
+          "symbol": "dialog.showSaveDialog",
+          "module": "electron",
+          "line": 76
+        },
+        {
+          "symbol": "path.join",
+          "module": "node:path",
+          "line": 76
+        },
+        {
+          "symbol": "getExportsDir",
+          "module": "./appPaths.js",
+          "line": 76
+        },
+        {
+          "symbol": "crypto.randomUUID",
+          "module": "node:crypto",
+          "line": 78
+        },
+        {
+          "symbol": "fs.promises.rename",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 80
+        },
+        {
+          "symbol": "fs.promises.unlink(temporary).catch",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 83
+        },
+        {
+          "symbol": "fs.promises.unlink",
+          "module": "./businessIoDiagnosticsV044.js",
+          "line": 83
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "ai-database:export-diagnostics",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 85,
+      "repositoryCalls": [
+        {
+          "symbol": "aiDatabaseDiagnosticsV042",
+          "module": "./aiAnalysisDatabaseV042.js",
+          "line": 85
+        },
+        {
+          "symbol": "safeAiAuditV043",
+          "module": "./aiDiagnosticsV043.js",
+          "line": 85
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "service pipeline and command stages"
+    },
+    {
+      "channel": "ai-database:open-folder",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 86,
+      "repositoryCalls": [
+        {
+          "symbol": "path.dirname",
+          "module": "node:path",
+          "line": 86
+        },
+        {
+          "symbol": "getAiAnalysisDatabasePath",
+          "module": "./appPaths.js",
+          "line": 86
+        },
+        {
+          "symbol": "shell.openPath",
+          "module": "electron",
+          "line": 86
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    },
+    {
+      "channel": "ai-database:open-workbench",
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "line": 87,
+      "repositoryCalls": [
+        {
+          "symbol": "shell.openPath",
+          "module": "electron",
+          "line": 87
+        }
+      ],
+      "instrumented": true,
+      "coverageBoundary": "DURABLE_IPC_START_PERIODIC_PROGRESS_TERMINAL",
+      "sqlStage": "N/A unless called repository performs SQL; outer command remains observed"
+    }
+  ],
+  "routes": [
+    {
+      "route": "/connections",
+      "component": "ConnectionsPage",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    },
+    {
+      "route": "/database",
+      "component": "DashboardPage",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    },
+    {
+      "route": "/collection",
+      "component": "AnalysisPage",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    },
+    {
+      "route": "/issues",
+      "component": "IssueViewerPage",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    },
+    {
+      "route": "/users",
+      "component": "UserViewerPage",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    },
+    {
+      "route": "/ai-database",
+      "component": "AiDatabasePage",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    },
+    {
+      "route": "/ai-results",
+      "component": "AiResultsPageV043",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    },
+    {
+      "route": "/integrated-results",
+      "component": "IntegratedResultsPageV043",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    },
+    {
+      "route": "/activity-stream-probe",
+      "component": "PrecisionProbePage",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    },
+    {
+      "route": "/jira-probe",
+      "component": "JiraProbePage",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    },
+    {
+      "route": "/settings",
+      "component": "SettingsPage",
+      "entry": "src/App.tsx",
+      "navigation": "src/components/useUiDiagnosticsV044.ts",
+      "commands": "AppLayout capture listener + formal IPC; text values not recorded"
+    }
+  ],
+  "ioModules": [
+    "electron/activityStreamBaseline.ts",
+    "electron/aiAnalysisDatabaseIpcV042.ts",
+    "electron/aiAnalysisDatabaseLifecycleV042.ts",
+    "electron/aiAnalysisDatabaseQueryV042.ts",
+    "electron/aiAnalysisDatabaseV042.ts",
+    "electron/aiPackageSemanticsV043.ts",
+    "electron/aiResultsQueryV043.ts",
+    "electron/appPathResolver.ts",
+    "electron/appPaths.ts",
+    "electron/appRoot.ts",
+    "electron/currentStateArchive.ts",
+    "electron/databaseViewer.ts",
+    "electron/debugBundleSanitizer.ts",
+    "electron/debugFolderCollector.ts",
+    "electron/fileBackedJson.ts",
+    "electron/fullFetchResult.ts",
+    "electron/fullFetchRunRegistry.ts",
+    "electron/fullFetchStaging.ts",
+    "electron/main.ts",
+    "electron/pathAudit.ts",
+    "electron/pendingAnalysisExport.ts",
+    "electron/runtimeConfig.ts",
+    "electron/sourceArchiveDatabase.ts",
+    "electron/sourceArchiveDatabaseWrite.ts",
+    "electron/streamingZip.ts",
+    "electron/uiPreferences.ts"
+  ],
+  "runtimeEvidence": "test-artifacts/v0.3.44/ui-1788838054903/report.json",
+  "uncoveredActiveEntryPoints": [],
+  "streamingStages": [
+    "session-start",
+    "file-io",
+    "startup.jira-check",
+    "startup.database-check",
+    "ipc.ai-database:lifecycle",
+    "navigation-shell",
+    "ipc.user-analysis:log-action",
+    "ipc.connection:list",
+    "ipc.runtime:get-state",
+    "ipc.ui-preferences:get",
+    "ipc.database:select-existing",
+    "navigation-observed",
+    "ipc.database-viewer:overview",
+    "ipc.ai-database:create",
+    "monitor-heartbeat",
+    "ipc.database-viewer:list-issues",
+    "ipc.ai-database:preflight",
+    "write.preflight",
+    "ipc.database-viewer:issue-distributions",
+    "ipc.ai-database:import",
+    "write.import",
+    "ipc.ai-database:relink",
+    "write.relink",
+    "ipc.ai-database:query-integrated",
+    "snapshot-build",
+    "source-read",
+    "mapping-aggregation",
+    "field-discovery",
+    "facet-build",
+    "sql-query",
+    "row-mapping",
+    "ipc-result-ready",
+    "ipc.ai-database:write-state",
+    "ipc.ai-database:query-results",
+    "ipc.ui-preferences:update",
+    "renderer-result-commit",
+    "ipc.ai-database:cancel-query",
+    "cancel-requested",
+    "cache-hit",
+    "ui-command",
+    "ipc.user-analysis:action-log-diagnostics",
+    "ipc.user-analysis:load-workflow-snapshot",
+    "ipc.user-analysis:get-active-full-fetch-run",
+    "ipc.user-analysis:scan-full-fetch-staging",
+    "ipc.user-analysis:update-workflow-snapshot",
+    "ipc.database-viewer:list-users",
+    "ipc.user-analysis:update-stability-ui-state",
+    "ipc.jira-probe:load-env",
+    "session-stop"
+  ],
+  "limitations": [
+    "File-IO points are coalesced by actual path/operation/phase; they are observations within the enclosing durable command, not fsync promises for business writes.",
+    "Source-read/mapping/discovery are streaming overlapping spans, not additive independent durations.",
+    "Pre-diagnostics bootstrap and diagnostic writer own IO use existing path preflight and writer health; excluded from recursive observation.",
+    "CrashReporter is not enabled; no managed Crashpad production dump creation.",
+    "No OS syscall interception and no live Jira/AI service execution."
+  ]
+}

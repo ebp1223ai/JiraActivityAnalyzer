@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import fs from "./businessIoDiagnosticsV044.js";
 import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { createSanitizationContext, sanitizeTextForBundle, type SanitizationContext } from "./export/sanitizeExport.js";

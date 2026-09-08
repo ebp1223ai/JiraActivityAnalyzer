@@ -1,0 +1,11 @@
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const {root,load}=require('./v0343-test-helpers.cjs');
+const outside=path.join(fs.readFileSync(path.join(root,'test-artifacts/v0.3.44/input-root.txt'),'utf8').trim(),'JiraActivityAnalyzer_v0.3.44_Complete_Codex_Input');
+const work=fs.mkdtempSync(path.join(os.tmpdir(),'jaa-v0344-private-validation-'));
+const file=path.join(outside,'08_private_local_only/analyzed-user-all-activity-events_20260907_142721_b22b8747__AI_ONLY_v2.0.1.json');
+const store=load('electron/aiAnalysisDatabaseV042.ts',work);
+const result=store.validateAiAnalysisPackageV042({filePath:file,packageSchemaPath:path.join(root,'contracts/ai-analysis/jaa-ai-analysis-package_v2.0.0.schema.json'),sourceTraceSchemaPath:path.join(root,'contracts/ai-analysis/jaa-source-trace_v1.0.0.schema.json')});
+const report={status:result.preview.ok?'PASS':'FAIL',privateInputSha256:crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),records:result.pkg?.records?.length??null,findings:result.pkg?.records?.reduce((n,r)=>n+r.aiAnalysis.skillFindings.length,0)??null,errors:result.preview.errors?.map(e=>typeof e==='string'?e.split(':')[0]:e.code??'VALIDATION_ERROR'),sourceRawProvided:false,matchedRawClaim:false,privateCopiedToRepo:false,output:work};
+fs.writeFileSync(path.join(work,'validation-summary.json'),JSON.stringify(report,null,2));
+fs.writeFileSync(path.join(root,'test-artifacts/v0.3.44/private-validation-summary.json'),JSON.stringify(report,null,2));
+console.log(JSON.stringify(report));assert.equal(report.status,'PASS');assert.equal(report.records,55);assert.equal(report.findings,130);

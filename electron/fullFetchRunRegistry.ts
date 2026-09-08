@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import fs from "./businessIoDiagnosticsV044.js";
 import type { FullFetchAttempt } from "./fullFetchEligibility.js";
 
 export type FullFetchRunIdentity = {

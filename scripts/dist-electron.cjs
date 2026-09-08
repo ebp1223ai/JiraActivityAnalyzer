@@ -78,12 +78,7 @@ fs.promises.rename = async (from, to) => {
       await new Promise((resolve) => setTimeout(resolve, 750));
     }
   }
-  if (lastError?.code === "EPERM") {
-    await fs.promises.rm(to, { recursive: true, force: true });
-    await fs.promises.cp(from, to, { recursive: true });
-    await fs.promises.rm(from, { recursive: true, force: true });
-    return;
-  }
+  // Preserve both paths on persistent sharing denial; never recursively replace an unchecked target.
   throw lastError;
 };
 

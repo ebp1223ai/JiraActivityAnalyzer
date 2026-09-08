@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld("desktopApp", {
   nodeAccess: false,
   uiSmoke: process.env.ELECTRON_UI_SMOKE === "1",
   appDiagnostics: {
+    exportPrevious: () => ipcRenderer.invoke("diagnostics:export-previous"),
+    automaticState: () => ipcRenderer.invoke("diagnostics:automatic-state"),
+    heartbeat: (route: string) => ipcRenderer.invoke("diagnostics:automatic-renderer", { route }),
     reportRendererEvent: (payload: unknown) => ipcRenderer.invoke("diagnostics:renderer-event", payload),
     reportTransition: (payload: unknown) => ipcRenderer.invoke("diagnostics:transition", payload),
     getContext: () => ipcRenderer.invoke("diagnostics:get-context"),
@@ -149,6 +152,10 @@ contextBridge.exposeInMainWorld("desktopApp", {
     autoSaveRun: (payload: unknown) => ipcRenderer.invoke("user-analysis:auto-save-run", payload)
   },
   aiDatabase: {
+    cancelWrite: (payload: { requestId: string }) => ipcRenderer.invoke("ai-database:cancel-write", payload),
+    writeState: () => ipcRenderer.invoke("ai-database:write-state"),
+    cancelQuery: (payload: { requestId: string }) => ipcRenderer.invoke("ai-database:cancel-query", payload),
+    onQueryProgress: (callback: (value: Record<string, any>) => void) => { const listener = (_event: Electron.IpcRendererEvent, value: Record<string, any>) => callback(value); ipcRenderer.on("ai-database:query-progress", listener); return () => ipcRenderer.removeListener("ai-database:query-progress", listener); },
     lifecycle: (payload: unknown) => ipcRenderer.invoke("ai-database:lifecycle", payload),
     create: (payload: unknown) => ipcRenderer.invoke("ai-database:create", payload),
     openSwitch: (payload: unknown) => ipcRenderer.invoke("ai-database:open-switch", payload),

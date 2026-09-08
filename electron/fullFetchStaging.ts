@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import fs from "./businessIoDiagnosticsV044.js";
 import path from "node:path";
 import { atomicWriteJsonStream, atomicWriteNdjsonStream, directorySize, hashFile, readSmallJson, resolveInside, safeIssueDirectoryName, validateGeneratedJsonFile, verifyFileReference, type FileReference } from "./fileBackedJson.js";
 import { buildCurrentIssueSnapshot, normalizeCurrentIssueFields, type NormalizedCurrentField } from "./normalizedCurrentFields.js";

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
+import fs from "./businessIoDiagnosticsV044.js";
 import path from "node:path";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { DatabaseSync } from "node:sqlite";
@@ -266,7 +266,7 @@ function validateSchema(db: DatabaseSync, schemaVersion = SOURCE_ARCHIVE_SCHEMA_
 export function checkDatabaseCompatibility(databasePath: string, currentJiraIdentity = ""): Omit<DatabaseRuntimeState, "requestId"> {
   if (!databasePath.trim()) return baseDatabaseState("NOT_CONFIGURED", "", "LOCAL_DATABASE_PATH is not configured.");
   const resolved = path.resolve(databasePath);
-  let stats: fs.Stats;
+  let stats: import('node:fs').Stats;
   try {
     stats = fs.statSync(resolved);
   } catch (error) {

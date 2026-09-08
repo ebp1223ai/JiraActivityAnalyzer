@@ -111,3 +111,5 @@ esbuild.buildSync({
   entryPoints: [path.resolve(__dirname, "../electron/pendingAnalysisExportWorker.ts")],
   outfile: path.join(outdir, "pending-analysis-export-worker.cjs")
 });
+
+for (const [source, output] of [["aiWriteWorkerV044.ts", "ai-write-worker-v044.cjs"], ["aiResultsWorkerV044.ts", "ai-results-worker-v044.cjs"], ["diagnosticWriterV044.ts", "diagnostic-writer-v044.cjs"]]) esbuild.buildSync({ ...common, entryPoints: [path.resolve(__dirname, "../electron", source)], outfile: path.join(outdir, output) });

@@ -8,15 +8,15 @@ const preloadSource = fs.readFileSync(path.join(repositoryRoot, "electron", "pre
 const analysisSource = fs.readFileSync(path.join(repositoryRoot, "src", "routes", "AnalysisPage.tsx"), "utf8");
 
 const appRootInitialization = mainSource.indexOf("initializeAppRoot(resolvedAppRoot)");
-const firstIpcRegistration = mainSource.indexOf("ipcMain.handle(");
+const firstIpcRegistration = mainSource.indexOf("instrumentedHandleV044(");
 const electronReady = mainSource.indexOf("app.whenReady()");
 assert.ok(appRootInitialization >= 0, "APP_ROOT must be initialized");
 assert.ok(firstIpcRegistration > appRootInitialization, "APP_ROOT must be initialized before IPC services");
 assert.ok(electronReady > appRootInitialization, "APP_ROOT must be initialized before Electron ready");
 assert.ok(mainSource.includes("applyPortableElectronPaths(app, appDirectories)"), "Electron paths must be redirected at startup");
 
-const debugHandlerStart = mainSource.indexOf('ipcMain.handle("debug-log:save-bundle"');
-const debugHandlerEnd = mainSource.indexOf('ipcMain.handle("debug-log:open-folder"', debugHandlerStart);
+const debugHandlerStart = mainSource.indexOf('instrumentedHandleV044("debug-log:save-bundle"');
+const debugHandlerEnd = mainSource.indexOf('instrumentedHandleV044("debug-log:open-folder"', debugHandlerStart);
 const debugHandler = mainSource.slice(debugHandlerStart, debugHandlerEnd);
 assert.ok(debugHandler.includes("getDebugFoldersDir()"));
 assert.ok(debugHandler.includes("createCollisionSafeDirectory("));

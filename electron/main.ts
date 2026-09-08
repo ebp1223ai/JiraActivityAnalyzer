@@ -1,5 +1,13 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
-import fs from "node:fs";
+import { installSyntheticIoAuditV044 } from "./syntheticIoAuditV044.js";
+import { aiWriteServiceV044 } from "./aiWriteServiceV044.js";
+import { exportPreviousDiagnosticsV044 } from "./diagnosticRecoveryV044.js";
+import { prepareUiTestV044 } from "./uiTestControlV044.js";
+import { instrumentedHandleV044, ipcCoverageV044 } from "./instrumentedIpcV044.js";
+import { configureBusinessIoV044 } from "./businessIoDiagnosticsV044.js";
+import { AutomaticDiagnosticsV044, setAutomaticDiagnosticsV044 } from "./automaticDiagnosticsV044.js";
+import { aiResultsServiceV044 } from "./aiResultsServiceV044.js";
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell, powerMonitor } from "electron";
+import fs from "./businessIoDiagnosticsV044.js";
 import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
@@ -100,6 +108,7 @@ const resolvedAppRoot = resolveCanonicalAppRoot({
   developmentRoot: process.env.JAA_DEV_APP_ROOT || path.resolve(__dirname, "../.runtime"),
   testRoot: isUiSmoke ? path.resolve(process.cwd(), "test-artifacts", `electron-ui-app-root-${process.pid}`) : undefined
 });
+installSyntheticIoAuditV044(resolvedAppRoot);
 const captureDir = app.isPackaged
   ? path.join(resolvedAppRoot, "test-artifacts", "screenshots")
   : process.env.ELECTRON_UI_CAPTURE_DIR
@@ -314,6 +323,8 @@ function maskDiagnosticText(value: string) {
     .replace(/((?:api[_-]?token|token|password|secret|cookie)\s*[:=]\s*)[^\r\n]+/gi, "$1[masked]");
 }
 
+const startUiTestControlV044 = prepareUiTestV044(getAppRuntimeDir());
+
 const persistentDiagnostics = createPersistentDiagnostics({
   logsDir: ensureDir(getLogsDir()),
   sessionId: appSessionId,
@@ -328,9 +339,24 @@ const persistentDiagnostics = createPersistentDiagnostics({
   retentionSessions: 12
 });
 
+const automaticDiagnostics = new AutomaticDiagnosticsV044({ logsDir: getLogsDir(), sessionId: appSessionId, build: { version: __MAIN_APP_VERSION__, sourceCommit: __MAIN_GIT_COMMIT__, buildTime: __MAIN_BUILD_TIME__ } });
+setAutomaticDiagnosticsV044(automaticDiagnostics);
+configureBusinessIoV044(details => { void automaticDiagnostics.event('file-io', 'POINT', details); }, resolvedAppRoot);
+persistentDiagnostics.setSink((file, value) => { void automaticDiagnostics.appendLegacy(file, value); });
+
+instrumentedHandleV044("diagnostics:export-previous", async () => { const previous = automaticDiagnostics.snapshot().previous; if (!previous?.sessionId) return { ok: false, errorCode: "NO_PREVIOUS_DIAGNOSTICS" }; return exportPreviousDiagnosticsV044(getLogsDir(), ensureDir(getDebugFoldersDir()), previous.sessionId); });
+
+instrumentedHandleV044("diagnostics:automatic-state", () => ({ ...automaticDiagnostics.snapshot(), registeredChannels: [...ipcCoverageV044].sort() }));
+instrumentedHandleV044("diagnostics:automatic-renderer", (event, payload) => {
+  const route = typeof payload?.route === "string" && /^\/[a-z0-9/-]{0,100}$/.test(payload.route) ? payload.route : null;
+  automaticDiagnostics.beat("renderer:" + event.sender.id, { pid: event.sender.getOSProcessId(), route });
+  if (route) automaticDiagnostics.route = route;
+  return { ok: true };
+});
+
 function appendRuntimeLog(filePath: string, level: string, message: string) {
   const line = `${formatLocalLogTimestamp()} [${level}] ${maskDiagnosticText(message)}`;
-  fs.appendFileSync(filePath, `${line}\n`, "utf8");
+  void automaticDiagnostics.appendLegacy(filePath, line);
   if (activeFullFetch?.autoLogPath === filePath) {
     activeFullFetch.lastLogs = [...activeFullFetch.lastLogs, line].slice(-100);
   }
@@ -772,8 +798,8 @@ async function runDatabaseStartupCheck() {
 function getRuntimeCoordinator() {
   if (!runtimeCoordinator) {
     runtimeCoordinator = new StartupCheckCoordinator(
-      async () => runJiraStartupCheck(),
-      async () => runDatabaseStartupCheck(),
+      async () => automaticDiagnostics.operation("startup.jira-check", () => runJiraStartupCheck()),
+      async () => automaticDiagnostics.operation("startup.database-check", () => runDatabaseStartupCheck()),
       broadcastRuntimeState
     );
   }
@@ -789,10 +815,10 @@ async function startBackgroundChecks() {
   startupMilestones.mark("App Interactive");
 }
 
-ipcMain.handle("runtime:get-state", async () => getRuntimeCoordinator().snapshot());
-ipcMain.handle("runtime:get-startup-milestones", async () => startupMilestones.snapshot());
-ipcMain.handle("runtime:retry-jira", async () => getRuntimeCoordinator().retryJira());
-ipcMain.handle("runtime:retry-database", async () => getRuntimeCoordinator().retryDatabase());
+instrumentedHandleV044("runtime:get-state", async () => getRuntimeCoordinator().snapshot());
+instrumentedHandleV044("runtime:get-startup-milestones", async () => startupMilestones.snapshot());
+instrumentedHandleV044("runtime:retry-jira", async () => getRuntimeCoordinator().retryJira());
+instrumentedHandleV044("runtime:retry-database", async () => getRuntimeCoordinator().retryDatabase());
 
 function currentReadableDatabasePath() {
   const database = getRuntimeCoordinator().snapshot().database;
@@ -816,13 +842,13 @@ function runProgressiveDatabaseViewer(event: Electron.IpcMainInvokeEvent, lane: 
     (progress) => { if (!event.sender.isDestroyed()) event.sender.send("database-viewer:progress", progress); }, ...args);
 }
 
-ipcMain.handle("database-viewer:overview", async () => runDatabaseViewer("database", "overview"));
-ipcMain.handle("database-viewer:health-check", async () => runDatabaseViewer("database", "healthCheck"));
-ipcMain.handle("database-viewer:list-issues", async (_event, payload?: Record<string, unknown>) =>
+instrumentedHandleV044("database-viewer:overview", async () => runDatabaseViewer("database", "overview"));
+instrumentedHandleV044("database-viewer:health-check", async () => runDatabaseViewer("database", "healthCheck"));
+instrumentedHandleV044("database-viewer:list-issues", async (_event, payload?: Record<string, unknown>) =>
   runDatabaseViewer("database-table", "listIssues", payload));
-ipcMain.handle("database-viewer:issue-distributions", async () =>
+instrumentedHandleV044("database-viewer:issue-distributions", async () =>
   runDatabaseViewer("database-distributions", "issueDistributions"));
-ipcMain.handle("database-viewer:get-issue", async (_event, payload: { issueKey?: string }) => {
+instrumentedHandleV044("database-viewer:get-issue", async (_event, payload: { issueKey?: string }) => {
   const issueKey = String(payload?.issueKey ?? "").trim().toUpperCase();
   try {
     return await runDatabaseViewer("issue", "getIssue", issueKey);
@@ -830,36 +856,36 @@ ipcMain.handle("database-viewer:get-issue", async (_event, payload: { issueKey?:
     return issueViewerFailure(issueKey, "query_failed", error instanceof Error ? error.message : "Issue Viewer query failed.");
   }
 });
-ipcMain.handle("database-viewer:list-users", async (_event, payload?: { search?: string; limit?: number; offset?: number }) =>
+instrumentedHandleV044("database-viewer:list-users", async (_event, payload?: { search?: string; limit?: number; offset?: number }) =>
   runDatabaseViewer("user-directory", "listUsers", payload));
-ipcMain.handle("database-viewer:get-user", async (_event, payload: { userId?: string; limit?: number; offset?: number }) =>
+instrumentedHandleV044("database-viewer:get-user", async (_event, payload: { userId?: string; limit?: number; offset?: number }) =>
   runDatabaseViewer("user-directory", "getUser", String(payload?.userId ?? ""), payload));
-ipcMain.handle("database-viewer:user-distributions", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
+instrumentedHandleV044("database-viewer:user-distributions", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
   runDatabaseViewer("user-distributions", "userDistributions", payload?.scope, payload?.query));
-ipcMain.handle("database-viewer:user-related-issues", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
+instrumentedHandleV044("database-viewer:user-related-issues", async (_event, payload: { scope?: unknown; query?: Record<string, unknown> }) =>
   runDatabaseViewer("user", "userRelatedIssues", payload?.scope, payload?.query));
-ipcMain.handle("database-viewer:user-events", async (event, payload: { requestId?: unknown; scope?: unknown; query?: Record<string, unknown> }) =>
+instrumentedHandleV044("database-viewer:user-events", async (event, payload: { requestId?: unknown; scope?: unknown; query?: Record<string, unknown> }) =>
   runProgressiveDatabaseViewer(event, "user", "userEvents", payload?.requestId, payload?.scope, payload?.query));
-ipcMain.handle("database-viewer:issue-events", async (event, payload: { requestId?: unknown; issueKey?: string; query?: Record<string, unknown> }) =>
+instrumentedHandleV044("database-viewer:issue-events", async (event, payload: { requestId?: unknown; issueKey?: string; query?: Record<string, unknown> }) =>
   runProgressiveDatabaseViewer(event, "issue-table", "issueEvents", payload?.requestId, String(payload?.issueKey ?? ""), payload?.query));
-ipcMain.handle("database-viewer:issue-changelog", async (event, payload: { requestId?: unknown; issueKey?: string; query?: Record<string, unknown> }) =>
+instrumentedHandleV044("database-viewer:issue-changelog", async (event, payload: { requestId?: unknown; issueKey?: string; query?: Record<string, unknown> }) =>
   runProgressiveDatabaseViewer(event, "issue-table", "issueChangelog", payload?.requestId, String(payload?.issueKey ?? ""), payload?.query));
-ipcMain.handle("database-viewer:cancel", async (_event, payload: { requestId?: unknown; target?: unknown }) => {
+instrumentedHandleV044("database-viewer:cancel", async (_event, payload: { requestId?: unknown; target?: unknown }) => {
   const requestId = progressiveRequestId(payload?.requestId);
   const target = String(payload?.target ?? "");
   const lane = target === "user-events" ? "user" : target === "issue-events" || target === "issue-changelog" ? "issue-table" : null;
   if (!lane) throw new Error("VIEWER_CANCEL_TARGET_INVALID");
   return { cancelled: databaseViewerCoordinator.cancel(lane, requestId), requestId };
 });
-ipcMain.handle("database-viewer:description-full-context", async (_event, payload: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; revision?: unknown }) =>
+instrumentedHandleV044("database-viewer:description-full-context", async (_event, payload: { eventId?: unknown; issueKey?: unknown; requestId?: unknown; revision?: unknown }) =>
   runDatabaseViewer("detail", "descriptionFullContext", payload));
-ipcMain.handle("database-viewer:description-original-previews", async (_event, payload: Record<string, unknown>) =>
+instrumentedHandleV044("database-viewer:description-original-previews", async (_event, payload: Record<string, unknown>) =>
   runDatabaseViewer("detail", "descriptionOriginalPreviews", payload));
-ipcMain.handle("database-viewer:description-comparison", async (_event, payload: Record<string, unknown>) =>
+instrumentedHandleV044("database-viewer:description-comparison", async (_event, payload: Record<string, unknown>) =>
   runDatabaseViewer("detail", "descriptionComparison", payload));
-ipcMain.handle("database-viewer:distinct-values", async (_event, payload: Record<string, unknown>) =>
+instrumentedHandleV044("database-viewer:distinct-values", async (_event, payload: Record<string, unknown>) =>
   runDatabaseViewer("distinct", "distinctValues", payload));
-ipcMain.handle("pending-analysis-export:start", async (event, payload: PendingAnalysisExportRequest) => {
+instrumentedHandleV044("pending-analysis-export:start", async (event, payload: PendingAnalysisExportRequest) => {
   const expectedFilteredCount = Number(payload?.expectedFilteredCount ?? 0);
   if (!Number.isSafeInteger(expectedFilteredCount) || expectedFilteredCount <= 0) throw Object.assign(new Error("No filtered records are available for export."), { code: "NO_FILTERED_RECORDS" });
   if (!payload || !["ISSUE_ACTIVITY_EVENTS", "USER_ALL_ACTIVITY_EVENTS"].includes(payload.sourceView)) throw Object.assign(new Error("Invalid pending-analysis source view."), { code: "FILTER_SNAPSHOT_INVALID" });
@@ -935,17 +961,17 @@ ipcMain.handle("pending-analysis-export:start", async (event, payload: PendingAn
     throw error;
   }
 });
-ipcMain.handle("pending-analysis-export:status", async () => pendingAnalysisExportCoordinator.current());
-ipcMain.handle("pending-analysis-export:cancel", async (_event, payload: { exportId?: unknown }) => ({ cancelled: pendingAnalysisExportCoordinator.cancel(String(payload?.exportId ?? "")) }));
-ipcMain.handle("pending-analysis-export:open-folder", async () => {
+instrumentedHandleV044("pending-analysis-export:status", async () => pendingAnalysisExportCoordinator.current());
+instrumentedHandleV044("pending-analysis-export:cancel", async (_event, payload: { exportId?: unknown }) => ({ cancelled: pendingAnalysisExportCoordinator.cancel(String(payload?.exportId ?? "")) }));
+instrumentedHandleV044("pending-analysis-export:open-folder", async () => {
   const folderPath = assertAppPath(path.join(getExportsDir(), "pending-analysis"));
   ensureDir(folderPath);
   const error = await shell.openPath(folderPath);
   return { ok: !error, folderPath, error };
 });
 
-ipcMain.handle("ui-preferences:get", async () => loadUiPreferences(getConfiguredAppRoot()));
-ipcMain.handle("ui-preferences:update", async (_event, payload: { section?: unknown; value?: unknown }) => {
+instrumentedHandleV044("ui-preferences:get", async () => loadUiPreferences(getConfiguredAppRoot()));
+instrumentedHandleV044("ui-preferences:update", async (_event, payload: { section?: unknown; value?: unknown }) => {
   const section = String(payload?.section ?? "");
   const allowedSections = new Set([
     "databaseIssueList", "timelineEventList", "userRelatedIssues", "userAllActivityEvents",
@@ -955,22 +981,22 @@ ipcMain.handle("ui-preferences:update", async (_event, payload: { section?: unkn
   return updateUiPreferences(getConfiguredAppRoot(), section as Parameters<typeof updateUiPreferences>[1], payload?.value);
 });
 
-ipcMain.handle("jira-probe:run", async (_event, request: ProbeRequest) => {
+instrumentedHandleV044("jira-probe:run", async (_event, request: ProbeRequest) => {
   if (!request || request.useMock) {
     throw new Error("Jira Probe IPC only runs real read-only API probes.");
   }
   return runApiProbe(request);
 });
 
-ipcMain.handle("connection:load-env", async () => {
+instrumentedHandleV044("connection:load-env", async () => {
   const state = loadConnectionState();
   const runtime = markRuntimeJiraSettingsChanged();
   return { ...hydratedConnectionState(runtime, "restored"), runtime };
 });
 
-ipcMain.handle("connection:list", async () => hydratedConnectionState());
+instrumentedHandleV044("connection:list", async () => hydratedConnectionState());
 
-ipcMain.handle("connection:choose-env", async () => {
+instrumentedHandleV044("connection:choose-env", async () => {
   const result = await dialog.showOpenDialog({
     title: "Choose Env File",
     defaultPath: path.dirname(resolveCurrentEnvPath()),
@@ -993,7 +1019,7 @@ ipcMain.handle("connection:choose-env", async () => {
   return { canceled: false, state: hydratedConnectionState(runtime, "restored"), runtime };
 });
 
-ipcMain.handle("database:check-path", async (_event, payload?: { filePath?: string }) => {
+instrumentedHandleV044("database:check-path", async (_event, payload?: { filePath?: string }) => {
   const configuredPath = payload?.filePath ?? loadEffectiveRuntimeConfig().localDatabasePath;
   const resolved = resolveLocalDatabasePath(getAppRuntimeDir(), configuredPath);
   const jiraIdentity = getRuntimeCoordinator().snapshot().jira.status === "CONNECTED"
@@ -1002,7 +1028,7 @@ ipcMain.handle("database:check-path", async (_event, payload?: { filePath?: stri
   return checkDatabaseCompatibility(resolved, jiraIdentity);
 });
 
-ipcMain.handle("database:select-existing", async (_event, payload?: { filePath?: string }) => {
+instrumentedHandleV044("database:select-existing", async (_event, payload?: { filePath?: string }) => {
   let selectedPath = payload?.filePath ?? "";
   if (!selectedPath) {
     const result = await dialog.showOpenDialog({
@@ -1034,7 +1060,7 @@ ipcMain.handle("database:select-existing", async (_event, payload?: { filePath?:
   return { canceled: false, saved: true, validation, state };
 });
 
-ipcMain.handle("database:create-new", async (_event, payload?: { filePath?: string }) => {
+instrumentedHandleV044("database:create-new", async (_event, payload?: { filePath?: string }) => {
   let targetPath = payload?.filePath ?? "";
   if (!targetPath) {
     const result = await dialog.showSaveDialog({
@@ -1084,7 +1110,7 @@ ipcMain.handle("database:create-new", async (_event, payload?: { filePath?: stri
   }
 });
 
-ipcMain.handle("connection:test", async (_event, connection: AppConnection) => {
+instrumentedHandleV044("connection:test", async (_event, connection: AppConnection) => {
   const requestedVersion = connection.apiVersion ?? "v2";
   const prefixes = requestedVersion === "auto" ? ["/rest/api/3", "/rest/api/2"] : [requestedVersion === "v3" ? "/rest/api/3" : "/rest/api/2"];
   const logs = [
@@ -1249,7 +1275,7 @@ function jiraSearchErrorDetails(response: { json: unknown | null; bodyPreview?: 
   };
 }
 
-ipcMain.handle("user-analysis:discover-candidates", async (_event, payload: { connection: AppConnection; jql: string; safetyLimit: number; selectedUsers?: string[] }) => {
+instrumentedHandleV044("user-analysis:discover-candidates", async (_event, payload: { connection: AppConnection; jql: string; safetyLimit: number; selectedUsers?: string[] }) => {
   const connection = payload.connection;
   const safetyLimit = Math.min(Math.max(Number(payload.safetyLimit) || 1000, 1), 1000);
   const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
@@ -2187,7 +2213,7 @@ async function runActivityStreamProbe(connection: AppConnection, selectedUsers: 
   return { ...selected.run, runId: originalRunId, activityStream, baselineComparison: finalComparison, baselineGuardRetry: retry, baselineSnapshot: selected.snapshot, baselinePath: selected.baselinePath, baselineGuardAttemptResults };
 }
 
-ipcMain.handle("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: number; maxResultsSource?: "custom" | "quick"; largeMaxResultsConfirmed?: boolean; dateQueryMode?: ActivityStreamDateQueryMode; relativeLinks?: boolean; runId?: string; chunkingMode?: ActivityStreamChunkingMode; customChunkDays?: number; standardFlow?: boolean; advancedOverrideUsed?: boolean }) => {
+instrumentedHandleV044("user-analysis:activity-stream-probe", async (_event, payload: { connection: AppConnection; selectedUsers?: string[]; activityStreamUser: string; queryMode?: ActivityStreamQueryMode; startDate: string; endDate: string; maxResults: number; maxResultsSource?: "custom" | "quick"; largeMaxResultsConfirmed?: boolean; dateQueryMode?: ActivityStreamDateQueryMode; relativeLinks?: boolean; runId?: string; chunkingMode?: ActivityStreamChunkingMode; customChunkDays?: number; standardFlow?: boolean; advancedOverrideUsed?: boolean }) => {
   return runActivityStreamProbe(payload.connection, payload.selectedUsers ?? [], String(payload.activityStreamUser || "").trim(), payload.queryMode ?? "auto", payload.startDate, payload.endDate, Number(payload.maxResults), payload.relativeLinks !== false, payload.runId, payload.dateQueryMode ?? "both", payload.maxResultsSource ?? "custom", payload.largeMaxResultsConfirmed === true, payload.chunkingMode ?? "auto", Number(payload.customChunkDays ?? 14), payload.standardFlow === true, payload.advancedOverrideUsed === true);
 });
 
@@ -2218,13 +2244,13 @@ function writeStabilityProbeFiles(run: ActivityStreamProbeRun) {
   return files;
 }
 
-ipcMain.handle("user-analysis:cancel-stability-probe", async () => {
+instrumentedHandleV044("user-analysis:cancel-stability-probe", async () => {
   if (!activeStabilityProbe) return { ok: false, message: "No Stability Probe is running." };
   activeStabilityProbe.cancelled = true;
   return { ok: true, runId: activeStabilityProbe.runId };
 });
 
-ipcMain.handle("user-analysis:activity-stream-stability-probe-v1-legacy", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamStabilityProbeConfig; confirmedLargeRun?: boolean }) => {
+instrumentedHandleV044("user-analysis:activity-stream-stability-probe-v1-legacy", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamStabilityProbeConfig; confirmedLargeRun?: boolean }) => {
   if (activeStabilityProbe) throw new Error("Another Activity Stream Stability Probe is already running.");
   const config = payload.config;
   const forcedRetryCount = Math.max(1, Math.min(32, Math.trunc(Number(config.forcedRetryCount))));
@@ -2362,12 +2388,12 @@ async function fetchReliabilityWindow(connection: AppConnection, selectedUser: s
   }
 }
 
-ipcMain.handle("user-analysis:update-stability-ui-state", async (_event, payload: Record<string, unknown>) => {
+instrumentedHandleV044("user-analysis:update-stability-ui-state", async (_event, payload: Record<string, unknown>) => {
   latestStabilityUiState = sanitizeExportData({ ...payload, statePersistedAt: new Date().toISOString() }) as Record<string, unknown>;
   return { ok: true };
 });
 
-ipcMain.handle("user-analysis:activity-stream-stability-probe", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamStabilityConfigV2 & Record<string, unknown>; confirmedLargeRun?: boolean }) => {
+instrumentedHandleV044("user-analysis:activity-stream-stability-probe", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamStabilityConfigV2 & Record<string, unknown>; confirmedLargeRun?: boolean }) => {
   if (activeStabilityProbe) throw new Error("Another Activity Stream Stability Probe is already running. / 另一個穩定性測試正在執行。");
   const source = payload.config;
   const roundExecutionMode = source.roundExecutionMode === "stop_when_stable" || source.roundExecutionMode === "force_all_rounds"
@@ -2427,7 +2453,7 @@ function writeBenchmarkFiles(run: ActivityStreamBenchmarkRun) {
   return files;
 }
 
-ipcMain.handle("user-analysis:activity-stream-benchmark", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamBenchmarkConfig }) => {
+instrumentedHandleV044("user-analysis:activity-stream-benchmark", async (ipcEvent, payload: { connection: AppConnection; config: ActivityStreamBenchmarkConfig }) => {
   if (activeActivityStreamBenchmark) throw new Error("Another benchmark is already running. / 另一個效能基準正在執行。");
   const config: ActivityStreamBenchmarkConfig = { selectedUser: String(payload.config.selectedUser || "").trim(), startDate: payload.config.startDate, endDate: payload.config.endDate, runs: Math.trunc(Number(payload.config.runs)), variant: "escaped_username", concurrency: 1 };
   const benchmarkRunId = `ASB-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -2448,19 +2474,19 @@ ipcMain.handle("user-analysis:activity-stream-benchmark", async (ipcEvent, paylo
   }
 });
 
-ipcMain.handle("user-analysis:cancel-activity-stream-benchmark", async () => {
+instrumentedHandleV044("user-analysis:cancel-activity-stream-benchmark", async () => {
   if (!activeActivityStreamBenchmark) return { ok: false, message: "No benchmark is running. / 目前沒有執行中的效能基準。" };
   activeActivityStreamBenchmark.cancelled = true;
   return { ok: true, benchmarkRunId: activeActivityStreamBenchmark.runId };
 });
 
-ipcMain.handle("user-analysis:cancel-activity-timeline", async () => {
+instrumentedHandleV044("user-analysis:cancel-activity-timeline", async () => {
   if (!activeTimelineBuild) return { ok: false, message: "No timeline build is running." };
   activeTimelineBuild.cancelled = true;
   return { ok: true, runId: activeTimelineBuild.runId };
 });
 
-ipcMain.handle("user-analysis:build-activity-timeline", async (ipcEvent, payload: { connection: AppConnection; runContext: ActivityTimelineRunContext }) => {
+instrumentedHandleV044("user-analysis:build-activity-timeline", async (ipcEvent, payload: { connection: AppConnection; runContext: ActivityTimelineRunContext }) => {
   const runContext = validateActivityTimelineRunContext(payload.runContext);
   const selectedUser = runContext.selectedUser;
   const timelineRunId = runContext.runId;
@@ -2573,7 +2599,7 @@ function validateManualActivityStreamUrl(baseUrl: string, input: string) {
   }
 }
 
-ipcMain.handle("user-analysis:activity-stream-manual-replay", async (_event, payload: { connection: AppConnection; manualUrl: string; runId?: string }) => {
+instrumentedHandleV044("user-analysis:activity-stream-manual-replay", async (_event, payload: { connection: AppConnection; manualUrl: string; runId?: string }) => {
   const runId = payload.runId || createActivityStreamRunId();
   const startedAt = new Date().toISOString();
   const validated = validateManualActivityStreamUrl(payload.connection.baseUrl, String(payload.manualUrl || ""));
@@ -2592,7 +2618,7 @@ ipcMain.handle("user-analysis:activity-stream-manual-replay", async (_event, pay
   return { ok: variantResult.parsed, runId, startedAt, completedAt: new Date().toISOString(), manualUrlReplayDiagnostics: validated.diagnostics, variantResult, activityStream, logs };
 });
 
-ipcMain.handle("user-analysis:precision-probe", async (_event, payload: {
+instrumentedHandleV044("user-analysis:precision-probe", async (_event, payload: {
   connection: AppConnection;
   selectedUsers: string[];
   startInclusive: string;
@@ -2853,7 +2879,7 @@ function fullFetchFailureSummary(items: FullFetchFailedIssue[]) {
   return { failedCount: items.length, byHttpStatus: count(items.map((item) => item.httpStatus)), byErrorCode: count(items.map((item) => item.errorCode)), byStage: count(items.map((item) => item.stage)), bySource: count(items.map((item) => item.source)) };
 }
 
-ipcMain.handle("user-analysis:full-fetch-preflight", async (_event, payload: { fetchQueue?: Record<string, unknown>[]; selectedTimelineRunId?: string; queueTimelineRunId?: string }) => {
+instrumentedHandleV044("user-analysis:full-fetch-preflight", async (_event, payload: { fetchQueue?: Record<string, unknown>[]; selectedTimelineRunId?: string; queueTimelineRunId?: string }) => {
   const requestedQueue = Array.isArray(payload.fetchQueue) ? payload.fetchQueue : [];
   const queuePreflight = preflightFullFetchQueue({ candidates: requestedQueue });
   const selectedTimelineRunId = text(payload.selectedTimelineRunId) === "-" ? "" : text(payload.selectedTimelineRunId);
@@ -2866,7 +2892,7 @@ ipcMain.handle("user-analysis:full-fetch-preflight", async (_event, payload: { f
     attempt: null
   };
 });
-ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
+instrumentedHandleV044("user-analysis:full-fetch", async (_event, payload: {
   connection: AppConnection; fetchQueue: Record<string, unknown>[];
   rawDataMode?: "auto_save_raw_per_issue"; selectedUser?: string; startDate?: string; endDate?: string;
   projectScope?: string; jql?: string; candidateIssues?: Record<string, unknown>[]; selectedIssues?: string[]; relatedIssuesStatus?: string;
@@ -2998,6 +3024,7 @@ ipcMain.handle("user-analysis:full-fetch", async (_event, payload: {
     if (["completed", "completed_with_errors", "cancelled", "failed"].includes(status)) activeFullFetch.finishedAt = activeFullFetch.updatedAt;
     const payload = progressPayload();
     latestFullFetchRunSnapshot = payload;
+    void automaticDiagnostics.event("full-fetch-progress", "PROGRESS", { runId, stage: activeFullFetch.currentStage, processed: activeFullFetch.success + activeFullFetch.partial + activeFullFetch.failed, total: activeFullFetch.queueCount, status });
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send("user-analysis:full-fetch-progress", payload);
     }
@@ -3173,14 +3200,14 @@ for (const page of worklogPageResult.metadata.pages) targetEndpointMetadata.push
   }
 });
 
-ipcMain.handle("user-analysis:get-active-full-fetch-run", async () => activeFullFetch ? latestFullFetchRunSnapshot : null);
+instrumentedHandleV044("user-analysis:get-active-full-fetch-run", async () => activeFullFetch ? latestFullFetchRunSnapshot : null);
 
-ipcMain.handle("user-analysis:get-full-fetch-run-status", async (_event, payload: { runId?: string }) => {
+instrumentedHandleV044("user-analysis:get-full-fetch-run-status", async (_event, payload: { runId?: string }) => {
   const runId = text(payload?.runId);
   return latestFullFetchRunSnapshot?.runId === runId ? latestFullFetchRunSnapshot : null;
 });
 
-ipcMain.handle("user-analysis:cancel-full-fetch", async (_event, payload?: { runId?: string }) => {
+instrumentedHandleV044("user-analysis:cancel-full-fetch", async (_event, payload?: { runId?: string }) => {
   if (payload?.runId && activeFullFetch && payload.runId !== activeFullFetch.runId) return { ok: false, message: "The requested Full Fetch run is no longer active." };
   if (!activeFullFetch || activeFullFetch.status !== "running") return { ok: false, message: "No Full Fetch is currently running. / 目前沒有執行中的 Full Fetch。" };
   activeFullFetch.cancelRequested = true;
@@ -3196,7 +3223,7 @@ ipcMain.handle("user-analysis:cancel-full-fetch", async (_event, payload?: { run
   return { ok: true, runId: activeFullFetch.runId, stagingId: run.state.stagingId };
 });
 
-ipcMain.handle("user-analysis:scan-full-fetch-staging", async () => {
+instrumentedHandleV044("user-analysis:scan-full-fetch-staging", async () => {
   const root = ensureDir(getFullFetchStagingDir());
   recoverStaleStaging(root);
   const runs = listStagingRuns(root, getLegacyFullFetchStagingDir());
@@ -3208,7 +3235,7 @@ ipcMain.handle("user-analysis:scan-full-fetch-staging", async () => {
   };
 });
 
-ipcMain.handle("user-analysis:full-fetch-staging-action", async (_event, payload: { stagingId: string; action: "open_folder" | "export_completed" | "delete_failed" }) => {
+instrumentedHandleV044("user-analysis:full-fetch-staging-action", async (_event, payload: { stagingId: string; action: "open_folder" | "export_completed" | "delete_failed" }) => {
   const root = ensureDir(getFullFetchStagingDir());
   const run = loadStagingRun(path.join(root, path.basename(payload.stagingId)));
   latestFullFetchStaging = run;
@@ -3268,7 +3295,7 @@ function prepareSourceArchive(payload: { rawData?: unknown; confluenceRawData?: 
   });
 }
 
-ipcMain.handle("user-analysis:preview-source-archive", async (_event, payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => {
+instrumentedHandleV044("user-analysis:preview-source-archive", async (_event, payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => {
   if (payload.stagingId) {
     const run = loadStagingRun(path.join(ensureDir(getFullFetchStagingDir()), path.basename(payload.stagingId)));
     const preview = previewStaging(run);
@@ -3277,7 +3304,7 @@ ipcMain.handle("user-analysis:preview-source-archive", async (_event, payload: {
   return { ok: false, fileName: "", manifest: { packageStatus: "blocked", safeForAutomaticImport: false }, summary: {}, errors: [{ code: "staging_id_required", message: "Source Archive Export requires an explicit Full Fetch staging ID." }], logs: ["[ERROR] Source Archive preview blocked: staging ID is required", "[INFO] Renderer memory is not accepted as an archive source", "[INFO] No database write performed"] };
 });
 
-ipcMain.handle("user-analysis:export-source-archive", async (_event, payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => {
+instrumentedHandleV044("user-analysis:export-source-archive", async (_event, payload: { rawData?: unknown; confluenceRawData?: unknown[]; selectedUser?: string; stagingId?: string }) => {
   if (payload.stagingId) {
     const run = loadStagingRun(path.join(ensureDir(getFullFetchStagingDir()), path.basename(payload.stagingId)));
     const result = exportStaging(run, ensureDir(getSourceArchivesDir()));
@@ -3288,39 +3315,48 @@ ipcMain.handle("user-analysis:export-source-archive", async (_event, payload: { 
   return { ok: false, exportRunId: "", fileName: "", filePath: "", folderPath: "", manifest: { packageStatus: "blocked", safeForAutomaticImport: false }, summary: {}, errors: [{ code: "staging_id_required", message: "Source Archive Export requires an explicit Full Fetch staging ID." }], logs: ["[ERROR] Source Archive export blocked: staging ID is required", "[INFO] Renderer memory is not accepted as an archive source", "[INFO] No database write performed"] };
 });
 
-ipcMain.handle("diagnostics:renderer-event", async (_event, payload: Record<string, unknown>) => {
+instrumentedHandleV044("diagnostics:renderer-event", async (_event, payload: Record<string, unknown>) => {
   const event = text(payload?.event) || "renderer_event";
+  if (event === "ui-command") { const p = payload as Record<string, any>; if (!["button","summary","select","input"].includes(p.control)) return { ok: false, incidentId: "" }; await automaticDiagnostics.event("ui-command", "POINT", { control: p.control, reason: "CLIENT_CONTROL_NO_VALUE_CAPTURED" }); return { ok: true, incidentId: "" }; }
+  if (event === "query-render" || event === "navigation-shell") {
+    const p = payload as Record<string, any>;
+    const c = p.context;
+    if (!c || ![c.operationId,c.spanId].every(v => typeof v === 'string' && /^[a-zA-Z0-9._:-]{1,128}$/.test(v)) || !(typeof c.route === 'string' && /^\/[a-z0-9/-]{0,100}$/.test(c.route)) || !['START','END','POINT'].includes(p.phase)) return { ok: false, incidentId: '' };
+    await automaticDiagnostics.event(event === 'navigation-shell' ? 'navigation-shell' : 'renderer-result-commit', p.phase, { observedProducer: 'renderer', rendererPid: _event.sender.getOSProcessId(), rowCount: Number.isSafeInteger(p.rowCount) ? p.rowCount : null, requestId: typeof p.requestId === 'string' ? p.requestId.slice(0,128) : null }, c, p.phase === 'END' ? (['FAILED','CANCELLED','SUPERSEDED'].includes(p.outcome) ? p.outcome : 'SUCCEEDED') : null);
+    return { ok: true, incidentId: '' };
+  }
   if (event === "startup_milestone") startupMilestones.mark(String(payload?.milestone ?? "") as StartupMilestoneName);
   const incidentId = text(payload?.incidentId);
   const resolvedIncidentId = persistentDiagnostics.write("renderer", event, payload, incidentId);
   return { ok: true, incidentId: resolvedIncidentId };
 });
 
-ipcMain.handle("diagnostics:transition", async (_event, payload: Record<string, unknown>) => {
+instrumentedHandleV044("diagnostics:transition", async (_event, payload: Record<string, unknown>) => {
   const event = text(payload?.event) || "queue_transition";
   const incidentId = text(payload?.incidentId);
   const resolvedIncidentId = persistentDiagnostics.write("transitions", event, payload, incidentId);
   return { ok: true, incidentId: resolvedIncidentId };
 });
 
-ipcMain.handle("diagnostics:get-context", async () => ({
+instrumentedHandleV044("diagnostics:get-context", async () => ({
   sessionId: appSessionId,
   previousSessionId: persistentDiagnostics.previousSessionId,
   logsDir: getLogsDir(),
   appRoot: getAppRuntimeDir()
 }));
 
-ipcMain.handle("diagnostics:open-logs", async () => {
+instrumentedHandleV044("diagnostics:open-logs", async () => {
   const folderPath = ensureDir(getLogsDir());
   const error = await shell.openPath(folderPath);
   return { ok: !error, folderPath, error };
 });
 
-ipcMain.handle("user-analysis:log-action", async (_event, payload: { category?: string; message?: string }) => {
+instrumentedHandleV044("user-analysis:log-action", async (_event, payload: { category?: string; message?: string }) => {
   const allowedCategories = new Set(["USER_ACTION", "GUARD", "UI_MODAL", "INFO"]);
   const category = allowedCategories.has(text(payload?.category)) ? text(payload.category) : "USER_ACTION";
   const message = maskDiagnosticText(text(payload?.message)).slice(0, 2000);
   if (!message) return { ok: false, error: "Action message is required." };
+  if (/^page_changed path=\/[a-z0-9/-]{0,100}$/.test(message)) { const to = message.slice("page_changed path=".length), from = automaticDiagnostics.route; automaticDiagnostics.route = to; await automaticDiagnostics.event("navigation-observed", "POINT", { from, to }); }
   const appLogPath = path.join(ensureDir(getAppLogsDir()), `app-${dateStamp()}.log`);
   appendRuntimeLog(appLogPath, category, message);
   appendUserActionLog(category, message);
@@ -3329,7 +3365,7 @@ ipcMain.handle("user-analysis:log-action", async (_event, payload: { category?: 
   return { ok: true, appLogPath, ...getActionLogDiagnostics(), fullFetchLogPath: activeFullFetch?.autoLogPath ?? "" };
 });
 
-ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload: Record<string, unknown>) => {
+instrumentedHandleV044("user-analysis:update-workflow-snapshot", async (_event, payload: Record<string, unknown>) => {
   const now = new Date().toISOString();
   const steps = asRecord(payload.steps) as WorkflowStepStatus;
   const timelineIssueGroups = Array.isArray(payload.timelineIssueGroups) ? sanitizeRawJson(payload.timelineIssueGroups) as unknown[] : [];
@@ -3377,7 +3413,7 @@ ipcMain.handle("user-analysis:update-workflow-snapshot", async (_event, payload:
   return { ok: true, outputDir, files };
 });
 
-ipcMain.handle("user-analysis:load-workflow-snapshot", async () => {
+instrumentedHandleV044("user-analysis:load-workflow-snapshot", async () => {
   const filePath = path.join(getExportsDir(), "user-analysis", "workflow", "user-analysis-workflow-snapshot.json");
   if (isUiSmoke) return { found: false, filePath };
   if (!fs.existsSync(filePath)) return { found: false, filePath };
@@ -3403,9 +3439,9 @@ ipcMain.handle("user-analysis:load-workflow-snapshot", async () => {
   }
 });
 
-ipcMain.handle("user-analysis:action-log-diagnostics", async () => getActionLogDiagnostics());
+instrumentedHandleV044("user-analysis:action-log-diagnostics", async () => getActionLogDiagnostics());
 
-ipcMain.handle("user-analysis:open-diagnostics-folder", async (_event, payload?: { filePath?: string }) => {
+instrumentedHandleV044("user-analysis:open-diagnostics-folder", async (_event, payload?: { filePath?: string }) => {
   const logsRoot = path.resolve(getLogsDir());
   const target = path.resolve(payload?.filePath ? path.dirname(payload.filePath) : getFullFetchLogsDir());
   const relative = path.relative(logsRoot, target);
@@ -3415,11 +3451,11 @@ ipcMain.handle("user-analysis:open-diagnostics-folder", async (_event, payload?:
   return error ? { ok: false, folderPath: target, error } : { ok: true, folderPath: target };
 });
 
-ipcMain.handle("user-analysis:save-export", async (_event, payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => {
+instrumentedHandleV044("user-analysis:save-export", async (_event, payload: { category: "user-analysis" | "raw-data"; defaultFileName: string; data: unknown }) => {
   return saveExportJson(payload);
 });
 
-ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: FullFetchRunIdentity) => {
+instrumentedHandleV044("user-analysis:save-full-fetch-result", async (_event, payload: FullFetchRunIdentity) => {
   const identity: FullFetchRunIdentity = {
     attemptId: text(payload?.attemptId),
     selectedTimelineRunId: text(payload?.selectedTimelineRunId),
@@ -3587,7 +3623,7 @@ ipcMain.handle("user-analysis:save-full-fetch-result", async (_event, payload: F
   }
 });
 
-ipcMain.handle("user-analysis:open-export-folder", async (_event, payload?: { folderPath?: string }) => {
+instrumentedHandleV044("user-analysis:open-export-folder", async (_event, payload?: { folderPath?: string }) => {
   const exportsRoot = path.resolve(getExportsDir());
   const folderPath = path.resolve(payload?.folderPath || getFullFetchResultsDir());
   const relative = path.relative(exportsRoot, folderPath);
@@ -3599,7 +3635,7 @@ ipcMain.handle("user-analysis:open-export-folder", async (_event, payload?: { fo
   return error ? { ok: false, folderPath, error } : { ok: true, folderPath };
 });
 
-ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppConnection; issueKey: string }) => {
+instrumentedHandleV044("jira-analysis:load", async (_event, payload: { connection: AppConnection; issueKey: string }) => {
   const issueKey = String(payload.issueKey || "").trim().toUpperCase();
   const connection = payload.connection;
   const apiPrefix = connection.apiVersion === "v3" ? "/rest/api/3" : "/rest/api/2";
@@ -3862,15 +3898,15 @@ ipcMain.handle("jira-analysis:load", async (_event, payload: { connection: AppCo
   };
 });
 
-ipcMain.handle("jira-analysis:save-export", async (_event, payload: { category: "jira-analysis" | "raw-data" | "debug-bundles"; defaultFileName: string; data: unknown }) => {
+instrumentedHandleV044("jira-analysis:save-export", async (_event, payload: { category: "jira-analysis" | "raw-data" | "debug-bundles"; defaultFileName: string; data: unknown }) => {
   return saveExportJson(payload);
 });
 
-ipcMain.handle("jira-probe:load-env", async () => {
+instrumentedHandleV044("jira-probe:load-env", async () => {
   return ensureProbeEnv();
 });
 
-ipcMain.handle("jira-probe:save-result", async (_event, payload: { defaultFileName: string; content: string }) => {
+instrumentedHandleV044("jira-probe:save-result", async (_event, payload: { defaultFileName: string; content: string }) => {
   return saveExportJson({
     category: "jira-probe",
     defaultFileName: payload.defaultFileName,
@@ -3878,7 +3914,7 @@ ipcMain.handle("jira-probe:save-result", async (_event, payload: { defaultFileNa
   });
 });
 
-ipcMain.handle("jira-probe:save-raw-data", async (_event, payload: { defaultFileName: string; data: unknown }) => {
+instrumentedHandleV044("jira-probe:save-raw-data", async (_event, payload: { defaultFileName: string; data: unknown }) => {
   return saveExportJson({
     category: "raw-data",
     defaultFileName: payload.defaultFileName,
@@ -3931,7 +3967,7 @@ function autoSaveRun(payload: { resultType: AutoSaveResultType; runId: string; s
   return { canceled: false, ...saved, data: undefined, resultTracking: { latestRunResult: summarize(latestRunResult), lastSuccessfulResult: summarize(lastSuccessfulResult), lastParsedResult: summarize(lastParsedResult), latestNoEntriesResult: summarize(latestNoEntriesResult) } };
 }
 
-ipcMain.handle("user-analysis:auto-save-run", async (_event, payload: { resultType: AutoSaveResultType; runId: string; status: string; data: unknown }) => autoSaveRun(payload));
+instrumentedHandleV044("user-analysis:auto-save-run", async (_event, payload: { resultType: AutoSaveResultType; runId: string; status: string; data: unknown }) => autoSaveRun(payload));
 
 function writeBundleJson(folderPath: string, fileName: string, data: unknown) {
   fs.writeFileSync(path.join(folderPath, fileName), `${JSON.stringify(data, null, 2)}\n`, "utf8");
@@ -3983,7 +4019,7 @@ function debugLogTimeline(debugLog: string) {
   });
 }
 
-ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: string; currentPage: string; fullFetchIdentity?: Partial<FullFetchRunIdentity> }) => {
+instrumentedHandleV044("debug-log:save-bundle", async (_event, payload: { debugLog: string; currentPage: string; fullFetchIdentity?: Partial<FullFetchRunIdentity> }) => {
   const createdAt = new Date().toISOString();
   let aiWriterFlushResults: ReturnType<typeof flushRunArchive>[] = [];
   const outputRoot = ensureDir(getDebugFoldersDir());
@@ -4587,7 +4623,7 @@ ipcMain.handle("debug-log:save-bundle", async (_event, payload: { debugLog: stri
   };
 });
 
-ipcMain.handle("debug-log:open-folder", async (_event, payload: { folderPath: string }) => {
+instrumentedHandleV044("debug-log:open-folder", async (_event, payload: { folderPath: string }) => {
   const target = path.resolve(payload.folderPath || getExportsDir());
   try {
     assertAppPath(target);
@@ -4598,7 +4634,7 @@ ipcMain.handle("debug-log:open-folder", async (_event, payload: { folderPath: st
   return { ok: !error, folderPath: target, error };
 });
 
-ipcMain.handle("debug-log:save-text", async (_event, payload: { defaultFileName: string; content: string }) => {
+instrumentedHandleV044("debug-log:save-text", async (_event, payload: { defaultFileName: string; content: string }) => {
   const outputDir = ensureDir(getLogsDir());
   const requestedBaseName = path.basename(String(payload.defaultFileName || "debug-log.txt"));
   const safeBaseName = requestedBaseName.replace(/[^a-zA-Z0-9._-]/g, "_") || "debug-log.txt";
@@ -6201,16 +6237,24 @@ function createMainWindow() {
   }
 }
 
+let fatalExitScheduledV044 = false;
+function scheduleFatalExitV044(kind: string) {
+  if (fatalExitScheduledV044) return; fatalExitScheduledV044 = true;
+  const timer = setTimeout(() => app.exit(1), 2200);
+  void automaticDiagnostics.event('fatal-main-error', 'POINT', { kind, rootCause: 'UNCAUGHT_ERROR_OBSERVED' }).finally(() => { clearTimeout(timer); app.exit(1); });
+}
 process.on("uncaughtException", (error) => {
   console.error("[main uncaughtException]", error);
   persistentDiagnostics.write("main", "uncaughtException", { processType: "main", error });
   crashDiagnostic("uncaughtException", { processType: "main", error: error.stack ?? error.message });
+  scheduleFatalExitV044("uncaughtException");
 });
 
 process.on("unhandledRejection", (reason) => {
   console.error("[main unhandledRejection]", reason);
   persistentDiagnostics.write("main", "unhandledRejection", { processType: "main", reason });
   crashDiagnostic("unhandledRejection", { processType: "main", error: reason instanceof Error ? reason.stack ?? reason.message : String(reason) });
+  scheduleFatalExitV044("unhandledRejection");
 });
 
 app.on("render-process-gone", (_event, webContents, details) => {
@@ -6223,13 +6267,18 @@ app.on("child-process-gone", (_event, details) => {
   crashDiagnostic("child-process-gone", { processType: details.type, reason: details.reason, exitCode: details.exitCode, serviceName: details.serviceName });
 });
 
-app.on("before-quit", () => {
-  void stopChatGptService();
-  void databaseViewerCoordinator.close();
-  persistentDiagnostics.close("closed");
+let diagnosticsShutdown = false;
+app.on("before-quit", event => {
+  if (diagnosticsShutdown) return;
+  event.preventDefault(); diagnosticsShutdown = true; automaticDiagnostics.beginShutdown();
+  void Promise.allSettled([stopChatGptService(), databaseViewerCoordinator.close(), aiResultsServiceV044.close(), aiWriteServiceV044.close()]).then(async () => {
+    persistentDiagnostics.close("closed"); await automaticDiagnostics.close(); app.quit();
+  });
 });
 
 app.whenReady().then(() => {
+  powerMonitor.on("suspend", () => automaticDiagnostics.suspend(true));
+  powerMonitor.on("resume", () => automaticDiagnostics.suspend(false));
   if (app.isPackaged || isUiSmoke) {
     Menu.setApplicationMenu(null);
   }
@@ -6245,7 +6294,7 @@ app.whenReady().then(() => {
 
 
   createMainWindow();
-
+  void startUiTestControlV044?.();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

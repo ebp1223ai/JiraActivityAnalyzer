@@ -1,0 +1,914 @@
+{
+  "version": "0.3.44",
+  "overall": "PARTIAL",
+  "manualGui": "PENDING",
+  "generatedAt": "2026-09-08T03:28:33.617Z",
+  "cases": [
+    {
+      "id": "T44-01",
+      "name": "baseline-evidence",
+      "requirement": "R44-01",
+      "expected": "驗源commit/report、三session最後event、未知rootcause與無Windows事件；本機報告差異清楚",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/start.json",
+        "test-artifacts/v0.3.44/incident-video-frames.json"
+      ],
+      "note": "Baseline, three candidate sessions and video reviewed. Exact incident cause UNCONFIRMED; Windows events not found is not a blocker."
+    },
+    {
+      "id": "T44-02",
+      "name": "integrated-pipeline",
+      "requirement": "R44-02",
+      "expected": "實際DB→SQL→mapping→registry→facets→IPC→Diff→render，每階段trace可串接；正常firstpage值正確",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/coverage-audit.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json"
+      ],
+      "note": "Active route/IPC/repository-entry inventory checked against runtime. Real overlapping source/mapping/discovery/query/render stages and persisted progress verified. No per-row tracing or live service execution claimed."
+    },
+    {
+      "id": "T44-03",
+      "name": "raw-empty-ai",
+      "requirement": "R44-03",
+      "expected": "Raw44/AI0結果44；100000/55完整母體，未配對/部分/孤立/no-fanout",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-04",
+      "name": "full-field-facet-export",
+      "requirement": "R44-03",
+      "expected": "late-only>10000可見、篩選可查、facet self-exclusion/selected0、完整export",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-05",
+      "name": "date-diff-manual",
+      "requirement": "R44-12",
+      "expected": "日期區間含邊界、SourceTrace/hunks可讀、AI/manual分開、中文狀態",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts/v0.3.44/ui-1788837329646/report.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json"
+      ],
+      "note": "Real renderer + formal Bridge/IPC; synthetic DB. No live Jira/AI request. Early startup console logs included."
+    },
+    {
+      "id": "T44-06",
+      "name": "route-cancel-stale",
+      "requirement": "R44-04",
+      "expected": "A→B→A、DB/generation切換與晚到response，UI取消及實際executor停止",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json"
+      ],
+      "note": "20 route changes + real filter restore; read-executor cancellation and bounded worker resources separately verified."
+    },
+    {
+      "id": "T44-07",
+      "name": "transaction-cancel",
+      "requirement": "R44-04",
+      "expected": "commit前cancel完整rollback，commit後cancel-too-late不假報取消，Relink attempt保留",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\correctness-1788837810324\\results.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-08",
+      "name": "export-cancel",
+      "requirement": "R44-04",
+      "expected": "無半成品發布、取消清理只針本job；全結果snapshot一致",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786293233/report.json"
+      ],
+      "note": "Actual 100k export, route away/back, hydrated job cancellation; no final file or owned partial remains."
+    },
+    {
+      "id": "T44-09",
+      "name": "background-navigation",
+      "requirement": "R44-04",
+      "expected": "切页不誤停持續工作；回頁hydration沿用job，不重複啟動",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786293233/report.json"
+      ],
+      "note": "Actual 100k export, route away/back, hydrated job cancellation; no final file or owned partial remains."
+    },
+    {
+      "id": "T44-10",
+      "name": "all-routes-coverage",
+      "requirement": "R44-05",
+      "expected": "runtime route/command/IPC/job registry與coverage雙向比對，所有啟用功能instrumented，Archived無初始化",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/coverage-audit.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json"
+      ],
+      "note": "Active route/IPC/repository-entry inventory checked against runtime. Real overlapping source/mapping/discovery/query/render stages and persisted progress verified. No per-row tracing or live service execution claimed."
+    },
+    {
+      "id": "T44-11",
+      "name": "trace-correlation",
+      "requirement": "R44-06",
+      "expected": "每span start/terminal、parent因果、跨程序ID、producerSeq；未知原因不臆造",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\correctness-1788837810324\\results.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-12",
+      "name": "critical-start-durable",
+      "requirement": "R44-07",
+      "expected": "收到保存ack後立即kill isolated App，重開能讀已開始階段；不只看queue",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\correctness-1788837810324\\results.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-13",
+      "name": "progress-persistence",
+      "requirement": "R44-07",
+      "expected": "長工progress自動保存、有processed與未知total、無逐列洪水",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/coverage-audit.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json"
+      ],
+      "note": "Active route/IPC/repository-entry inventory checked against runtime. Real overlapping source/mapping/discovery/query/render stages and persisted progress verified. No per-row tracing or live service execution claimed."
+    },
+    {
+      "id": "T44-14",
+      "name": "writer-disk-full",
+      "requirement": "R44-07",
+      "expected": "disk-full/read-only/flush-timeout顯示degraded，writerFailed/gap可見，不凍結UI",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\diagnostics-1788837860032\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-15",
+      "name": "writer-overflow",
+      "requirement": "R44-07",
+      "expected": "bounded queue/event cap、oversize/cyclic data/redaction、dropped counts與critical保留",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json",
+        "test-artifacts\\v0.3.44\\diagnostics-1788837860032\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-16",
+      "name": "jsonl-tail-recovery",
+      "requirement": "R44-09",
+      "expected": "最後半行/損壞summary不吞整session；保留原證據與missing標記",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\correctness-1788837810324\\results.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-17",
+      "name": "renderer-hang",
+      "requirement": "R44-08",
+      "expected": "隔離故障注入renderer阻塞，獨立monitor仍記heartbeat gap與active phase",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\faults-1788838009934\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-18",
+      "name": "main-hang",
+      "requirement": "R44-08",
+      "expected": "隔離main阻塞時monitor/writer仍可記觀測，不只有main timer",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\faults-1788838009934\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-19",
+      "name": "renderer-crash",
+      "requirement": "R44-08",
+      "expected": "記process identity/reason/exit若可得、main存活狀態；不混成正常close",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\faults-1788838009934\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-20",
+      "name": "main-kill-restart",
+      "requirement": "R44-09",
+      "expected": "殺isolated main後重開辨識未正常結束，unknown不假exception；安全頁不自動重跑",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\faults-1788838009934\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-21",
+      "name": "sleep-live-instance",
+      "requirement": "R44-09",
+      "expected": "sleep/resume/debug pause與第二存活instance/PID reuse不誤報已確認crash",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\faults-1788838009934\\report.json",
+        "test-artifacts\\v0.3.44\\diagnostics-1788837860032\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-22",
+      "name": "clean-shutdown",
+      "requirement": "R44-09",
+      "expected": "正常close無異常banner、bounded flush成功、無orphan monitor/worker",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\faults-1788838009934\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-23",
+      "name": "retention-cap",
+      "requirement": "R44-10",
+      "expected": "缩小測試quota觸發普通→舊異常清理，active摘要不刪，總量有界，cleanup可追查",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\diagnostics-1788837860032\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-24",
+      "name": "previous-diagnostics-export",
+      "requirement": "R44-11",
+      "expected": "沒有事前手動export仍可匯出上一輪timeline/open spans/paths/gaps；missing明示",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\faults-1788838009934\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-25",
+      "name": "ui-production-states",
+      "requirement": "R44-11",
+      "expected": "loading不是0/0、elapsed/stage/cancel/error/unclean/degraded，shared樣式與5viewport",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts/v0.3.44/ui-1788837329646/report.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json"
+      ],
+      "note": "Real renderer + formal Bridge/IPC; synthetic DB. No live Jira/AI request. Early startup console logs included."
+    },
+    {
+      "id": "T44-26",
+      "name": "raw10001",
+      "requirement": "R44-13",
+      "expected": "真實repository/UI完整10001資料、尾欄尾值/排序/分頁/匯出，量測SQL及IPC",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "scripts/test-v0343-integration.cjs"
+      ],
+      "note": "Actual 10001-row production renderer test plus complete tail fields/facets/export source assertions."
+    },
+    {
+      "id": "T44-27",
+      "name": "raw100000-ai55",
+      "requirement": "R44-13",
+      "expected": "100k Raw/55AI、firstpage/完整count、列出硬體耗時記憶體無無聲上限",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-28",
+      "name": "long-diff",
+      "requirement": "R44-13",
+      "expected": "1000x64KiB長內容安全渲染與lazy Diff，firstpage及展開內容正確",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786911574/report.json",
+        "test-artifacts\\v0.3.44\\performance-1788837573503\\report.json"
+      ],
+      "note": "1000 records with 64KiB before/after; actual Description expansion checked."
+    },
+    {
+      "id": "T44-29",
+      "name": "loop-resource",
+      "requirement": "R44-13",
+      "expected": "20輪切頁/filter/cancel memory/jobs/listeners/queue有界，無持續累積",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json"
+      ],
+      "note": "20 route changes + real filter restore; read-executor cancellation and bounded worker resources separately verified."
+    },
+    {
+      "id": "T44-30",
+      "name": "logging-overhead",
+      "requirement": "R44-13",
+      "expected": "5組相同流程normal instrumentation vs test-only-off，報median增量/CPU/memory/logbytes",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\performance-1788837573503\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-31",
+      "name": "asar-preflight",
+      "requirement": "R44-14",
+      "expected": "首EXE前輸入清單及暫存ASAR精確排除fixture，保留native/license",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\asar-preflight-1788837885889\\report.json"
+      ],
+      "note": "Automated synthetic scope only; detailed assertions are in the referenced test script/report."
+    },
+    {
+      "id": "T44-32",
+      "name": "asar-final",
+      "requirement": "R44-14",
+      "expected": "最終三artifact內容掃描/size/top files；來源fixture path/sha與排除證據",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Pending requirement-specific final evidence."
+    },
+    {
+      "id": "T44-33",
+      "name": "preload-errors",
+      "requirement": "R44-14",
+      "expected": "查舊sandbox/null preloadScripts；正式啟動與自動化成功路徑console無該錯，不能ignore",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts/v0.3.44/ui-1788837329646/report.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json"
+      ],
+      "note": "Real renderer + formal Bridge/IPC; synthetic DB. No live Jira/AI request. Early startup console logs included."
+    },
+    {
+      "id": "T44-34",
+      "name": "portable-launch-attach",
+      "requirement": "R44-15",
+      "expected": "launcher/App PID與各ready/attach明確，真實正式IPC成功，不只加timeout",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Pending requirement-specific final evidence."
+    },
+    {
+      "id": "T44-35",
+      "name": "portable-move",
+      "requirement": "R44-15",
+      "expected": "空中文空白目錄單EXE建庫/匯入/整合/關閉/全root搬移/重開，settings/DB/log恢復",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Pending requirement-specific final evidence."
+    },
+    {
+      "id": "T44-36",
+      "name": "installer-unpacked",
+      "requirement": "R44-17",
+      "expected": "Installer install/run/uninstall隔離測、unpacked UI/native/DDL，各自結果",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Pending requirement-specific final evidence."
+    },
+    {
+      "id": "T44-37",
+      "name": "io-path-redaction",
+      "requirement": "R44-16",
+      "expected": "實際業務I/O逐路徑policy判定、temp例外、redaction canary、private不Git/ASAR",
+      "status": "PARTIAL",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json",
+        "test-artifacts/v0.3.44/source-security-audit.json"
+      ],
+      "note": "Actual synthetic Node fs/SQLite invocation audit, production scoped IO observation and redaction. Final packaged ASAR gate remains required; this is not OS syscall tracing."
+    },
+    {
+      "id": "T44-38",
+      "name": "golden-compatibility",
+      "requirement": "R44-12",
+      "expected": "v20044/113及v20155/130三Rank、279ID、invalidroles/bindings/rank、rollback/readback/idempotency/protection",
+      "status": "PASS",
+      "evidence": [
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ],
+      "note": "Executed by current v0.3.44 source suite; versioned helper names do not mean old EXE testing."
+    },
+    {
+      "id": "T44-39",
+      "name": "relink-errors",
+      "requirement": "R44-12",
+      "expected": "primary/fallback/ambiguous/notfound/error attempts、hash不參與identity、Import/Relink狀態隔離",
+      "status": "PASS",
+      "evidence": [
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ],
+      "note": "Executed by current v0.3.44 source suite; versioned helper names do not mean old EXE testing."
+    },
+    {
+      "id": "T44-40",
+      "name": "workbench-source",
+      "requirement": "R44-12",
+      "expected": "既有Workbench新舊schema匯入/部分/完成匯出、原trace immutable、manual null不自動accept",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json"
+      ],
+      "note": "Both schema versions load/export partial review with immutable trace/AI/rules. Completed-rank importer tested; Completed-rank Workbench GUI export now separately recorded by frozen-workbench-completed cases."
+    },
+    {
+      "id": "T44-41",
+      "name": "original-pages",
+      "requirement": "R44-12",
+      "expected": "UserViewer/DBOverview共享元件與query回歸，其他功能加觀測不改結果",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts/v0.3.44/ui-1788837329646/report.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json"
+      ],
+      "note": "Real renderer + formal Bridge/IPC; synthetic DB. No live Jira/AI request. Early startup console logs included."
+    },
+    {
+      "id": "T44-42",
+      "name": "typecheck-build",
+      "requirement": "R44-18",
+      "expected": "typecheck/unit/integration/production build與git diff check實測，不用inputvalidator代替",
+      "status": "PASS",
+      "evidence": [
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-21-53-094Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-22-11-786Z-npm.cmd.log",
+        "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.44\\2026-09-08T03-23-04-925Z-npm.cmd.log"
+      ],
+      "note": "Typecheck, current source suite and production build passed. git diff --check separately recorded."
+    },
+    {
+      "id": "T44-43",
+      "name": "private55-local",
+      "requirement": "R44-12",
+      "expected": "提供AI_ONLY55/130只在Repo外隔離驗證；不改使用者現有review，不冒稱原Raw配對成功",
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/private-validation-summary.json"
+      ],
+      "note": "55/130 private package validated outside repo; no original Raw pairing or rewritten analysis claimed."
+    },
+    {
+      "id": "T44-44",
+      "name": "version-git-ledger",
+      "requirement": "R44-17",
+      "expected": "首EXE鎖版、source/final SHA、EXE hashes、dirty保留、ledger/token真實",
+      "status": "PARTIAL",
+      "evidence": [
+        "reports/JiraActivityAnalyzer_v0.3.44_Execution_Time_Ledger.json"
+      ],
+      "note": "Source/report SHA and frozen artifact binding recorded as available; no Tag/Push."
+    },
+    {
+      "id": "T44-45",
+      "name": "manual-gui",
+      "requirement": "R44-17",
+      "expected": "指定hashWindows候選使用者明確PASS才Tag/Push；未過不可發佈",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Requires explicit user v0.3.44 GUI acceptance for exact candidate hash."
+    }
+  ],
+  "inheritedRequirements": [
+    {
+      "id": "R43-01",
+      "cases": [
+        "T44-03",
+        "T44-38",
+        "T44-39"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json",
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ]
+    },
+    {
+      "id": "R43-02",
+      "cases": [
+        "T44-05",
+        "T44-38"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts/v0.3.44/ui-1788837329646/report.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json",
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ]
+    },
+    {
+      "id": "R43-03",
+      "cases": [
+        "T44-05",
+        "T44-28",
+        "T44-38"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts/v0.3.44/ui-1788837329646/report.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json",
+        "test-artifacts/v0.3.44/ui-1788786911574/report.json",
+        "test-artifacts\\v0.3.44\\performance-1788837573503\\report.json",
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ]
+    },
+    {
+      "id": "R43-04",
+      "cases": [
+        "T44-38",
+        "T44-40"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json"
+      ]
+    },
+    {
+      "id": "R43-05",
+      "cases": [
+        "T44-04",
+        "T44-26",
+        "T44-27"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json",
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "scripts/test-v0343-integration.cjs"
+      ]
+    },
+    {
+      "id": "R43-06",
+      "cases": [
+        "T44-04",
+        "T44-38"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json",
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ]
+    },
+    {
+      "id": "R43-07",
+      "cases": [
+        "T44-04",
+        "T44-38"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json",
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ]
+    },
+    {
+      "id": "R43-08",
+      "cases": [
+        "T44-05",
+        "T44-38"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts/v0.3.44/ui-1788837329646/report.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json",
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ]
+    },
+    {
+      "id": "R43-09",
+      "cases": [
+        "T44-06",
+        "T44-09",
+        "T44-38"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json",
+        "test-artifacts/v0.3.44/ui-1788786293233/report.json",
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ]
+    },
+    {
+      "id": "R43-10",
+      "cases": [
+        "T44-08",
+        "T44-38"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786293233/report.json",
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ]
+    },
+    {
+      "id": "R43-11",
+      "cases": [
+        "T44-07",
+        "T44-25"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\correctness-1788837810324\\results.json",
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts/v0.3.44/ui-1788837329646/report.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json"
+      ]
+    },
+    {
+      "id": "R43-12",
+      "cases": [
+        "T44-38",
+        "T44-41"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs",
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts/v0.3.44/ui-1788837329646/report.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json"
+      ]
+    },
+    {
+      "id": "R43-13",
+      "cases": [
+        "T44-38",
+        "T44-43"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs",
+        "test-artifacts/v0.3.44/private-validation-summary.json"
+      ]
+    },
+    {
+      "id": "R43-14",
+      "cases": [
+        "T44-03",
+        "T44-39"
+      ],
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts\\v0.3.44\\services-1788837785426\\results.json",
+        "scripts/test-v0343.cjs",
+        "scripts/test-v0343-integration.cjs",
+        "scripts/test-v0343-correctness.cjs"
+      ]
+    },
+    {
+      "id": "R43-15",
+      "cases": [
+        "T44-32",
+        "T44-33",
+        "T44-34",
+        "T44-35",
+        "T44-37",
+        "T44-41"
+      ],
+      "status": "PARTIAL",
+      "evidence": [
+        "test-artifacts/v0.3.44/ui-1788786940016/report.json",
+        "test-artifacts/v0.3.44/ui-1788787104216/report.json",
+        "test-artifacts/v0.3.44/ui-1788837329646/report.json",
+        "test-artifacts/v0.3.44/ui-1788838054903/report.json",
+        "test-artifacts/v0.3.44/source-security-audit.json"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R44-01",
+      "cases": [
+        "T44-01"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-02",
+      "cases": [
+        "T44-02"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-03",
+      "cases": [
+        "T44-03",
+        "T44-04"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-04",
+      "cases": [
+        "T44-06",
+        "T44-07",
+        "T44-08",
+        "T44-09"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-05",
+      "cases": [
+        "T44-10"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-06",
+      "cases": [
+        "T44-11"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-07",
+      "cases": [
+        "T44-12",
+        "T44-13",
+        "T44-14",
+        "T44-15"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-08",
+      "cases": [
+        "T44-17",
+        "T44-18",
+        "T44-19"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-09",
+      "cases": [
+        "T44-16",
+        "T44-20",
+        "T44-21",
+        "T44-22"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-10",
+      "cases": [
+        "T44-23"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-11",
+      "cases": [
+        "T44-24",
+        "T44-25"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-12",
+      "cases": [
+        "T44-05",
+        "T44-38",
+        "T44-39",
+        "T44-40",
+        "T44-41",
+        "T44-43"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-13",
+      "cases": [
+        "T44-26",
+        "T44-27",
+        "T44-28",
+        "T44-29",
+        "T44-30"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "R44-14",
+      "cases": [
+        "T44-31",
+        "T44-32",
+        "T44-33"
+      ],
+      "status": "PARTIAL"
+    },
+    {
+      "id": "R44-15",
+      "cases": [
+        "T44-34",
+        "T44-35"
+      ],
+      "status": "PARTIAL"
+    },
+    {
+      "id": "R44-16",
+      "cases": [
+        "T44-37"
+      ],
+      "status": "PARTIAL"
+    },
+    {
+      "id": "R44-17",
+      "cases": [
+        "T44-36",
+        "T44-44",
+        "T44-45"
+      ],
+      "status": "PARTIAL"
+    },
+    {
+      "id": "R44-18",
+      "cases": [
+        "T44-42"
+      ],
+      "status": "PASS"
+    }
+  ]
+}

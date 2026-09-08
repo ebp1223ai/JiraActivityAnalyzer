@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import fs from "./businessIoDiagnosticsV044.js";
 import path from "node:path";
 import crypto from "node:crypto";
 import { gunzipSync } from "node:zlib";

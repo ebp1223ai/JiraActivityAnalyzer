@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
+import fs from "./businessIoDiagnosticsV044.js";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import Ajv2020Module from "ajv/dist/2020.js";
@@ -107,7 +107,7 @@ export type V042Preview = {
 export function validateAiAnalysisPackageV042(input: { filePath: string; packageSchemaPath: string; sourceTraceSchemaPath: string; databasePath?: string }) {
   const filePath = path.resolve(input.filePath);
   const base = { filePath, fileName: path.basename(filePath), fileSizeBytes: 0 };
-  let stat: fs.Stats;
+  let stat: import('node:fs').Stats;
   try { stat = fs.statSync(filePath); } catch { return { preview: { ...base, ok: false, errors: [{ code: "FILE_NOT_FOUND", message: "Import package cannot be read." }] } as V042Preview }; }
   base.fileSizeBytes = stat.size;
   if (!stat.isFile() || stat.size > 128 * 1024 * 1024) return { preview: { ...base, ok: false, errors: [{ code: "FILE_SIZE_INVALID", message: "Package must be a regular JSON file no larger than 128 MiB." }] } as V042Preview };
@@ -250,9 +250,11 @@ export function previewImportActionsV042(databasePath: string, pkg: Json) {
   } finally { db.close(); }
 }
 
-export function importAiAnalysisPackageV042(input: { databasePath: string; packageSchemaPath: string; sourceTraceSchemaPath: string; packagePath: string; failureInjection?: "AFTER_BATCH" | "AFTER_RECORDS" }) {
+export function importAiAnalysisPackageV042(input: { databasePath: string; packageSchemaPath: string; sourceTraceSchemaPath: string; packagePath: string; isCancelled?: () => boolean; beforeCommit?: () => void; expectedPackageSha256?: string; failureInjection?: "AFTER_BATCH" | "AFTER_RECORDS" }) {
   const validated = validateAiAnalysisPackageV042({ filePath: input.packagePath, packageSchemaPath: input.packageSchemaPath, sourceTraceSchemaPath: input.sourceTraceSchemaPath, databasePath: input.databasePath });
   if (!validated.preview.ok || !validated.pkg) throw Object.assign(new Error("AI_IMPORT_PREFLIGHT_FAILED"), { preview: validated.preview });
+  if (input.isCancelled?.()) throw new Error("CANCELLED");
+  if (input.expectedPackageSha256 && input.expectedPackageSha256 !== validated.preview.packageSha256) throw new Error("IMPORT_FILE_CHANGED_SINCE_PREFLIGHT");
   const pkg = validated.pkg, importedAt = now(), packageSha256 = packageDigestV042(pkg);
   const db = new DatabaseSync(input.databasePath);
   try {
@@ -267,6 +269,7 @@ export function importAiAnalysisPackageV042(input: { databasePath: string; packa
       .run(batchId, pkg.packageId, pkg.schemaVersion, path.basename(input.packagePath), pkg.sourceTrace.sourceDatabase.sourceDatabaseId, pkg.sourceTrace.sourceDatabase.databaseGeneration, String(pkg.sourceTrace.sourceDatabase.sourceSchemaVersion), pkg.sourceTrace.contractVersion, pkg.reviewRank, json(pkg.sourceTrace), json({ createdAt: pkg.createdAt, generator: pkg.generator, rulesBinding: pkg.rulesBinding, counts: pkg.counts, packageSha256 }), json(validated.preview), pkg.records.length, importedAt, "COMMITTED");
     if (input.failureInjection === "AFTER_BATCH") throw new Error("SYNTHETIC_V042_IMPORT_FAILURE_AFTER_BATCH");
     for (const record of pkg.records as Json[]) {
+      if (input.isCancelled?.()) throw new Error("CANCELLED");
       const ref = record.sourceTrace.reference;
       const recordId = stableId("record", ref.sourceDatabaseId, ref.activityEventId);
       const existing = db.prepare("SELECT ai_record_id,active_analysis_id,active_review_id FROM ai_records WHERE source_database_id=? AND activity_event_id=?").get(ref.sourceDatabaseId, ref.activityEventId) as Json | undefined;
@@ -312,10 +315,13 @@ export function importAiAnalysisPackageV042(input: { databasePath: string; packa
       JOIN ai_record_analyses a ON a.ai_record_id=t.ai_record_id AND a.import_batch_id=t.import_batch_id
       LEFT JOIN ai_record_reviews v ON v.analysis_id=a.analysis_id WHERE t.import_batch_id=? AND t.ai_record_id=?`);
     for (const record of pkg.records as Json[]) {
+      if (input.isCancelled?.()) throw new Error("CANCELLED");
       const ref=record.sourceTrace.reference;
       const saved=readDocument.get(batchId,stableId("record",ref.sourceDatabaseId,ref.activityEventId)) as Json;
       if (!saved || packageDigestV042({sourceTrace:JSON.parse(saved.source_trace_json),aiAnalysis:JSON.parse(saved.analysis_json),manualReview:saved.review_json ? JSON.parse(saved.review_json) : null}) !== incomingRecordDigest(record)) throw new Error("AI_IMPORT_CONTENT_READBACK_MISMATCH");
     }
+    if (input.isCancelled?.()) throw new Error("CANCELLED");
+    input.beforeCommit?.();
     db.exec("COMMIT");
     return { ok: true, importBatchId: batchId, readBack, packageId: pkg.packageId, insertedCount, replacedCount, protectedSkipCount, identicalNoopCount, idempotent: false, committedRecordCount: scalar(db, "SELECT COUNT(*) value FROM ai_records"), completedAt: importedAt };
   } catch (error) { try { db.exec("ROLLBACK"); } catch { /* no active transaction */ } throw error; }

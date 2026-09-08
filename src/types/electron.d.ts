@@ -20,6 +20,9 @@ declare global {
       nodeAccess: boolean;
       uiSmoke?: boolean;
       appDiagnostics?: {
+        exportPrevious: () => Promise<Record<string, any>>;
+        automaticState: () => Promise<Record<string, any>>;
+        heartbeat: (route: string) => Promise<{ ok: boolean }>;
         reportRendererEvent: (payload: Record<string, unknown>) => Promise<{ ok: boolean; incidentId: string }>;
         reportTransition: (payload: Record<string, unknown>) => Promise<{ ok: boolean; incidentId: string }>;
         getContext: () => Promise<{ sessionId: string; previousSessionId: string; logsDir: string; appRoot: string }>;
@@ -157,6 +160,10 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         autoSaveRun: (payload: { resultType: "activity_stream_run" | "precision_probe_run" | "manual_url_replay_run" | "maxresults_cap_test"; runId: string; status: string; data: unknown }) => Promise<{ canceled: boolean; runId: string; resultType: string; status: string; savedAt: string; filePath: string; folderPath: string; resultTracking: Record<"latestRunResult" | "lastSuccessfulResult" | "lastParsedResult" | "latestNoEntriesResult", { runId: string; resultType: string; status: string; diagnosis: string; parsedActivityCount: number; savedAt: string; path: string; folderPath: string } | null> }>;
       };
       aiDatabase?: {
+        cancelWrite: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        writeState: () => Promise<Record<string, any>>;
+        cancelQuery: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        onQueryProgress: (callback: (value: Record<string, any>) => void) => () => void;
         lifecycle: (payload: { requestId: string }) => Promise<Record<string, any>>;
         create: (payload: { requestId: string; filePath?: string }) => Promise<Record<string, any>>;
         openSwitch: (payload: { requestId: string; filePath?: string }) => Promise<Record<string, any>>;

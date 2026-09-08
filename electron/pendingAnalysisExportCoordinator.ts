@@ -1,3 +1,5 @@
+import { automaticDiagnosticsV044, diagnosticContextV044 } from './automaticDiagnosticsV044.js';
+import type { DiagnosticContextV044 } from './diagnosticEnvelopeV044.js';
 import { Worker } from "node:worker_threads";
 import type { PendingAnalysisExportRequest, PendingAnalysisProgress, PendingAnalysisRuntimeIdentity } from "../shared/pendingAnalysisContract.js";
 
@@ -15,11 +17,14 @@ export class PendingAnalysisExportCoordinator {
       totalRecords: input.expectedFilteredCount, processedRecords: 0, serializedRecords: 0, writtenRecords: 0,
       filteredCount: input.expectedFilteredCount, exportedCount: 0, percentage: 0, elapsedMs: 0, message: "Preparing export / 準備匯出"
     };
+    const diagnosticContext = diagnosticContextV044.getStore();
     const worker = new Worker(this.workerPath);
     this.worker = worker;
     return new Promise((resolve, reject) => {
-      worker.on("message", (message: { type: string; progress?: PendingAnalysisProgress; result?: unknown; error?: { code: string; message: string; integrityReason?: PendingAnalysisProgress["integrityReason"]; offendingJsonPath?: string } }) => {
+      worker.on("message", (message: { ioDetails?: Record<string, unknown>; type: string; progress?: PendingAnalysisProgress; result?: unknown; error?: { code: string; message: string; integrityReason?: PendingAnalysisProgress["integrityReason"]; offendingJsonPath?: string } }) => {
         if (this.worker !== worker) return;
+        if (message.type === 'io-observation') { void automaticDiagnosticsV044()?.event('file-io', 'POINT', { ...message.ioDetails, observedFrom: 'pending-export-worker' }, diagnosticContext); return; }
+        if (message.type === 'progress') void automaticDiagnosticsV044()?.event('export-progress', 'POINT', { stage: message.progress?.stage, processed: message.progress?.processedRecords, total: message.progress?.totalRecords }, diagnosticContext);
         if (message.type === "progress" && message.progress) { this.status = message.progress; onProgress(message.progress); }
         if (message.type === "completed") {
           this.status = { ...this.status!, status: "completed", stage: "completed", percentage: 100, result: message.result as PendingAnalysisProgress["result"] };

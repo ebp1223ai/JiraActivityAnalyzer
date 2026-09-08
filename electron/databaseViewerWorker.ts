@@ -1,3 +1,5 @@
+import "./syntheticIoAuditV044.js";
+import { configureBusinessIoV044 } from './businessIoDiagnosticsV044.js';
 import { parentPort } from "node:worker_threads";
 import { DatabaseSync } from "node:sqlite";
 import {
@@ -83,6 +85,7 @@ workerPort.on("message", (request: WorkerRequest) => {
     cancelled.add(request.id);
     return;
   }
+  configureBusinessIoV044(ioDetails => workerPort.postMessage({ type: 'io-observation', id: request.id, ioDetails }));
   void dispatch(request).then((value) => {
     const response: WorkerResponse = { id: request.id, ok: true, value };
     workerPort.postMessage(response);

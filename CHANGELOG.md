@@ -1,3 +1,11 @@
+# v0.3.44 - Integrated Results Stability and Automatic Diagnostics
+
+- Moved complete Raw/AI query, facet indexing, preflight/import/relink and streaming export work into dedicated executors without changing frozen contracts.
+- Added durable stage acknowledgements, independent monitoring, bounded/redacted logs, retention, previous-session recovery and diagnostic export.
+- Preserved last successful results and fixed runtime-state/snapshot races; exposed actual query/export cancellation and cooperative write cancellation.
+- Added normal-launch Electron UI, synthetic large-data, fault-injection, compatibility and ASAR preflight tests.
+- Release remains IN PROGRESS / Manual GUI Validation Pending. No Tag or Push before explicit v0.3.44 GUI approval.
+
 # v0.3.43 - Results Consistency, Typed Facets and Package 2.0.1
 
 - Unified active-analysis projection across AI and Raw-based integrated results; retained complete findings, source traces and separate manual decisions.

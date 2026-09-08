@@ -1,3 +1,5 @@
+import { useUiDiagnosticsV044 } from "./useUiDiagnosticsV044";
+import { AutomaticDiagnosticsStatusV044 } from "./AutomaticDiagnosticsStatusV044";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { DebugLogPanel } from "./DebugLogPanel";
@@ -29,6 +31,7 @@ function warningCount(logs: string[]) {
 
 export function AppLayout() {
   const { pathname } = useLocation();
+  useUiDiagnosticsV044(pathname);
   const page = pageByPath[pathname] ?? "dashboard";
   const mainRef = useRef<HTMLElement>(null);
   const [debugOpen, setDebugOpen] = useState(false);
@@ -51,6 +54,7 @@ export function AppLayout() {
       <main ref={mainRef} className="thin-scroll min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-5 pb-6">
         <div className="mx-auto w-full max-w-[1680px] min-w-0">
           <GlobalRuntimeStatusBar debugCount={warningCount(allLogs)} onOpenDebug={() => setDebugOpen(true)} />
+          <AutomaticDiagnosticsStatusV044 />
           <Outlet context={{
             appendDebugLog,
             getDebugLogs

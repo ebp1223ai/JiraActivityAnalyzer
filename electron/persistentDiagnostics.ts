@@ -83,6 +83,7 @@ export function createPersistentDiagnostics(options: DiagnosticOptions) {
   const startedAt = now().toISOString();
   const counts: Record<DiagnosticChannel, number> = { main: 0, renderer: 0, transitions: 0 };
   let writerFailed = false;
+  let sink: ((file: string, value: unknown) => void) | undefined;
 
   const fileFor = (channel: DiagnosticChannel) => path.join(sessionDir, `${channel}.ndjson`);
   const summaryPath = path.join(sessionDir, "session-summary.json");
@@ -124,9 +125,9 @@ export function createPersistentDiagnostics(options: DiagnosticOptions) {
         details: safeValue(details)
       };
       const sanitized = options.sanitizeText(maskCommonSecrets(JSON.stringify(record)));
-      fs.appendFileSync(fileFor(channel), `${sanitized}\n`, "utf8");
+      if (sink) sink(fileFor(channel), JSON.parse(sanitized)); else fs.appendFileSync(fileFor(channel), `${sanitized}\n`, "utf8");
       counts[channel] += 1;
-      updateSummary();
+      if (!sink) updateSummary();
     } catch (error) {
       writerFailed = true;
       try {
@@ -148,9 +149,9 @@ export function createPersistentDiagnostics(options: DiagnosticOptions) {
         details: safeValue(details)
       };
       const sanitized = options.sanitizeText(maskCommonSecrets(JSON.stringify(record)));
-      fs.appendFileSync(fileFor(channel), sanitized + "\n", "utf8");
+      if (sink) sink(fileFor(channel), JSON.parse(sanitized)); else fs.appendFileSync(fileFor(channel), sanitized + "\n", "utf8");
       counts[channel] += 1;
-      updateSummary();
+      if (!sink) updateSummary();
     } catch (error) {
       writerFailed = true;
       try {
@@ -181,7 +182,7 @@ export function createPersistentDiagnostics(options: DiagnosticOptions) {
 
   updateSummary();
   write("main", "session_started", { previousSessionId: previousSessionId || null });
-  retention();
+  // Automatic diagnostics owns retention; legacy running sessions are not deleted here.
 
   return {
     sessionId: options.sessionId,
@@ -194,6 +195,7 @@ export function createPersistentDiagnostics(options: DiagnosticOptions) {
     fileFor,
     write,
     writeRestricted,
+    setSink: (value: (file: string, data: unknown) => void) => { sink = value; },
     close: (status = "closed") => {
       try { updateSummary(status); } catch { /* best effort during shutdown */ }
     },

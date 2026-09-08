@@ -1,10 +1,13 @@
 import path from "node:path";
+import { automaticDiagnosticsV044, diagnosticContextV044 } from './automaticDiagnosticsV044.js';
+import type { DiagnosticContextV044 } from './diagnosticEnvelopeV044.js';
 import { Worker } from "node:worker_threads";
 import type { ProgressiveCheckpoint, ProgressiveCheckpointDelta, ViewerProgressDto } from "./databaseViewer.js";
 import type { ViewerWorkerOperation } from "./databaseViewerWorker.js";
 
 export type ViewerWorkerLane = "database" | "database-table" | "database-distributions" | "issue" | "issue-table" | "user-directory" | "user" | "user-distributions" | "detail" | "distinct";
 type PendingTask = {
+  diagnosticContext?: DiagnosticContextV044;
   operation: ViewerWorkerOperation;
   databasePath: string;
   args: unknown[];
@@ -42,7 +45,7 @@ class LaneCoordinator {
 
   run(operation: ViewerWorkerOperation, databasePath: string, args: unknown[], requestId: string, onProgress?: (progress: ViewerProgressDto) => void, progressive = false) {
     return new Promise<unknown>((resolve, reject) => {
-      const task: PendingTask = { operation, databasePath: path.resolve(databasePath), args, requestId, onProgress, progressive, resolve, reject };
+      const task: PendingTask = { diagnosticContext: diagnosticContextV044.getStore(), operation, databasePath: path.resolve(databasePath), args, requestId, onProgress, progressive, resolve, reject };
       if (this.databasePath && this.databasePath !== task.databasePath) this.reset("VIEWER_DATABASE_SWITCHED");
       this.databasePath = task.databasePath;
       if (!this.active) this.start(task);
@@ -76,8 +79,10 @@ class LaneCoordinator {
   private ensureWorker() {
     if (this.worker) return this.worker;
     const worker = new Worker(this.workerPath);
-    worker.on("message", (response: { type?: string; id: number; ok?: boolean; value?: unknown; progress?: ViewerProgressDto; checkpoint?: ProgressiveCheckpointDelta; error?: { code?: string; message?: string } }) => {
+    worker.on("message", (response: { ioDetails?: Record<string, unknown>; type?: string; id: number; ok?: boolean; value?: unknown; progress?: ViewerProgressDto; checkpoint?: ProgressiveCheckpointDelta; error?: { code?: string; message?: string } }) => {
       if (!this.active || response.id !== this.active.id) return;
+      if (response.type === 'io-observation') { void automaticDiagnosticsV044()?.event('file-io', 'POINT', { ...response.ioDetails, observedFrom: 'database-viewer-worker' }, this.active.diagnosticContext); return; }
+      if (response.type === 'progress') void automaticDiagnosticsV044()?.event('viewer-progress', 'POINT', { stage: response.progress?.status ?? 'query', processed: response.progress?.scanned ?? null, total: response.progress?.total ?? null, matched: response.progress?.matched ?? null, requestId: this.active.requestId }, this.active.diagnosticContext);
       if (response.type === "checkpoint" && response.checkpoint) {
         const previous = this.active.recoveryCheckpoint?.matching ?? [];
         this.active.recoveryCheckpoint = { cursor: response.checkpoint.cursor, scanned: response.checkpoint.scanned, elapsedMs: response.checkpoint.elapsedMs, matching: [...previous, ...response.checkpoint.matches] };

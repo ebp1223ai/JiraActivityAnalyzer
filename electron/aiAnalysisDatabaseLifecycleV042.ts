@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
+import fs from "./businessIoDiagnosticsV044.js";
 import path from "node:path";
 import { resolveInsideRoot } from "./appRoot.js";
 import { initializeAiDatabaseV042, inspectAiDatabaseV042 } from "./aiAnalysisDatabaseV042.js";

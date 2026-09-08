@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import fs from "./businessIoDiagnosticsV044.js";
 import { DatabaseSync } from "node:sqlite";
 import { buildAiFieldCatalogV042, fieldExpressionsV042, materializeFieldValuesV042, publicFieldCatalogV042 } from "./aiAnalysisFieldCatalogV042.js";
 

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
+import fs from "./businessIoDiagnosticsV044.js";
 import path from "node:path";
 import { isPathInsideRoot } from "./appRoot.js";
 
@@ -38,7 +38,7 @@ function copyFile(outputRoot: string, sourcePath: string, relativePath: string):
 }
 
 function collectDirectory(outputRoot: string, sourceRoot: string, relativeRoot: string, entries: DebugFolderEntry[]) {
-  let children: fs.Dirent[];
+  let children: import('node:fs').Dirent[];
   try { children = fs.readdirSync(sourceRoot, { withFileTypes: true }); }
   catch (error) {
     entries.push({ sourcePath: sourceRoot, relativePath: relativeRoot, size: 0, status: "copy_failed", reason: error instanceof Error ? error.message : String(error) });

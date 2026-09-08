@@ -1,3 +1,5 @@
+import "./syntheticIoAuditV044.js";
+import { configureBusinessIoV044 } from './businessIoDiagnosticsV044.js';
 import { parentPort } from "node:worker_threads";
 import { runPendingAnalysisExport } from "./pendingAnalysisExport.js";
 
@@ -6,6 +8,7 @@ let cancelled = false;
 parentPort.on("message", async (message: { type: string; input?: Parameters<typeof runPendingAnalysisExport>[0] }) => {
   if (message.type === "cancel") { cancelled = true; return; }
   if (message.type !== "start" || !message.input) return;
+  configureBusinessIoV044(ioDetails => parentPort!.postMessage({ type: 'io-observation', ioDetails }), message.input.appRoot);
   try {
     const result = await runPendingAnalysisExport(message.input, {
       isCancelled: () => cancelled,

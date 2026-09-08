@@ -40,11 +40,14 @@ export function RuntimeStatusProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     let active = true;
-    void window.desktopApp?.runtime?.getState?.().then((next) => {
-      if (active && next) setState(next);
-    });
+    let receivedChange = false;
     const unsubscribe = window.desktopApp?.runtime?.onStateChanged?.((next) => {
+      receivedChange = true;
       if (active) setState(next);
+    });
+    // A slow initial IPC snapshot must not overwrite a newer database-selection event.
+    void window.desktopApp?.runtime?.getState?.().then((next) => {
+      if (active && next && !receivedChange) setState(next);
     });
     return () => {
       active = false;
