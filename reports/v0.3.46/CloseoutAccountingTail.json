@@ -1,0 +1,304 @@
+{
+  "version": "0.3.46",
+  "kind": "REPORT_ONLY_CLOSEOUT_TAIL",
+  "from": "2026-09-09T07:54:30.970Z",
+  "cutoff": "2026-09-09T08:04:16.535Z",
+  "taskStartedAt": "2026-09-09T06:20:54.000Z",
+  "wallClockMs": 6202535,
+  "operations": [
+    {
+      "id": "op101",
+      "command": "apply_patch",
+      "targets": [
+        "report accounting input snapshot; no production/test changes"
+      ],
+      "startedAt": "2026-09-09T07:54:32.067Z",
+      "endedAt": "2026-09-09T07:54:46.364Z",
+      "before": "s202",
+      "after": "s203",
+      "exitCode": null,
+      "elapsedMs": 14297
+    },
+    {
+      "id": "op102",
+      "command": "apply_patch",
+      "targets": [
+        "factual report generation only after EXE freeze"
+      ],
+      "startedAt": "2026-09-09T07:57:42.752Z",
+      "endedAt": "2026-09-09T07:58:13.923Z",
+      "before": "s204",
+      "after": "s205",
+      "exitCode": null,
+      "elapsedMs": 31171
+    },
+    {
+      "id": "op103",
+      "command": "node test-artifacts/v0.3.46/write-reports.cjs",
+      "targets": [
+        "generate acceptance, delivery and timestamp/quota reports"
+      ],
+      "startedAt": "2026-09-09T07:58:15.116Z",
+      "commandEndedAt": "2026-09-09T07:58:25.764Z",
+      "endedAt": "2026-09-09T07:58:26.992Z",
+      "before": "s206",
+      "after": "s207",
+      "exitCode": 0,
+      "elapsedMs": 10648
+    },
+    {
+      "id": "op104",
+      "command": "Get-Content -LiteralPath reports/v0.3.46/TestReport.md -Encoding UTF8",
+      "targets": [
+        "Review factual v0.3.46 closeout report"
+      ],
+      "startedAt": "2026-09-09T08:02:15.497Z",
+      "commandEndedAt": "2026-09-09T08:02:19.713Z",
+      "endedAt": "2026-09-09T08:02:20.808Z",
+      "before": "s208",
+      "after": "s209",
+      "exitCode": 0,
+      "elapsedMs": 4216
+    },
+    {
+      "id": "op105",
+      "command": "git status --short",
+      "targets": [
+        "Final report-only diff and preserved worktree audit"
+      ],
+      "startedAt": "2026-09-09T08:02:31.809Z",
+      "commandEndedAt": "2026-09-09T08:02:36.616Z",
+      "endedAt": "2026-09-09T08:02:37.777Z",
+      "before": "s210",
+      "after": "s211",
+      "exitCode": 0,
+      "elapsedMs": 4807
+    },
+    {
+      "id": "op106",
+      "command": "Get-Content -LiteralPath test-artifacts/v0.3.46/write-reports.cjs -TotalCount 55",
+      "targets": [
+        "Review report schema and accounting source"
+      ],
+      "startedAt": "2026-09-09T08:02:44.912Z",
+      "commandEndedAt": "2026-09-09T08:02:50.696Z",
+      "endedAt": "2026-09-09T08:02:51.810Z",
+      "before": "s212",
+      "after": "s213",
+      "exitCode": 0,
+      "elapsedMs": 5784
+    },
+    {
+      "id": "op107",
+      "command": "$l=Get-Content -LiteralPath reports/v0.3.46/ExecutionLedger.json -Raw | ConvertFrom-Json\n$l.operations | Where-Object { $_.command -match '^npm.cmd run (typecheck|build|test:v0.3.46|package:v0.3.46)$' -or $_.command -match \"JAA_V046_UI_FOCUS\" } | Select-Object id,command,exitCode,elapsedMs | ConvertTo-Json -Depth 3",
+      "targets": [
+        "Extract final command timing for delivery"
+      ],
+      "startedAt": "2026-09-09T08:03:01.837Z",
+      "commandEndedAt": "2026-09-09T08:03:08.006Z",
+      "endedAt": "2026-09-09T08:03:09.346Z",
+      "before": "s214",
+      "after": "s215",
+      "exitCode": 0,
+      "elapsedMs": 6169
+    },
+    {
+      "id": "op108",
+      "command": "$ErrorActionPreference='Stop'\n$files=Get-ChildItem -LiteralPath reports/v0.3.46 -File\n$patterns=@('-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----','(?i)Authorization\\s*[:=]\\s*[\"'']?(?:Bearer|Basic)\\s+[A-Za-z0-9+/=_-]{24,}','\\b(?:ghp|github_pat|sk-proj)_[A-Za-z0-9_]{20,}')\nforeach($f in $files){\n $s=[System.Text.UTF8Encoding]::new($false,$true).GetString([System.IO.File]::ReadAllBytes($f.FullName))\n if($f.Extension -eq '.json'){$null=ConvertFrom-Json -InputObject $s}\n foreach($p in $patterns){if($s -match $p){throw \"Sensitive credential pattern in $($f.Name)\"}}\n}\nWrite-Output \"Report UTF-8 / JSON / scoped credential-pattern audit PASS: $($files.Count) files\"\n$expected=@{\n 'release/0.3.46/JiraActivityAnalyzer_v0.3.46_win-unpacked.zip'='e69d2fb9e447ba92d02739995f722be4cbc304067910821d32ef0f553e3df4c1'\n 'release/0.3.46/win-unpacked/Jira Activity Analyzer.exe'='2fc5428201daecd1416107f8baef90d2b115a25b194b4e0e99607bbda8e292bc'\n 'reports/JiraActivityAnalyzer_v0.2.47_Background_Fetch_and_Activity_Events_UX_implementation_report.md'='9862e5dd2748f3c6624b94d4a98dbefc1146128766692dac1f92271a96e5934d'\n}\nforeach($p in $expected.Keys){$h=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash;if($h -ne $expected[$p]){throw \"Hash changed: $p\"};Write-Output \"Unchanged: $p\"}\ngit diff --check\nif($LASTEXITCODE -ne 0){exit $LASTEXITCODE}\ngit branch --show-current",
+      "targets": [
+        "Report-only safety audit; frozen artifact/protected original hash check"
+      ],
+      "startedAt": "2026-09-09T08:03:34.148Z",
+      "commandEndedAt": "2026-09-09T08:03:40.397Z",
+      "endedAt": "2026-09-09T08:03:41.524Z",
+      "before": "s216",
+      "after": "s217",
+      "exitCode": 0,
+      "elapsedMs": 6249
+    }
+  ],
+  "snapshots": [
+    {
+      "id": "s202",
+      "requestedAt": "2026-09-09T07:54:31.001Z",
+      "receivedAt": "2026-09-09T07:54:32.064Z",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s203",
+      "requestedAt": "2026-09-09T07:54:45.252Z",
+      "receivedAt": "2026-09-09T07:54:46.355Z",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s204",
+      "requestedAt": "2026-09-09T07:57:41.574Z",
+      "receivedAt": "2026-09-09T07:57:42.749Z",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s205",
+      "requestedAt": "2026-09-09T07:58:12.699Z",
+      "receivedAt": "2026-09-09T07:58:13.914Z",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s206",
+      "requestedAt": "2026-09-09T07:58:13.929Z",
+      "receivedAt": "2026-09-09T07:58:15.111Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s207",
+      "requestedAt": "2026-09-09T07:58:25.764Z",
+      "receivedAt": "2026-09-09T07:58:26.982Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s208",
+      "requestedAt": "2026-09-09T08:02:14.462Z",
+      "receivedAt": "2026-09-09T08:02:15.492Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 67,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s209",
+      "requestedAt": "2026-09-09T08:02:19.713Z",
+      "receivedAt": "2026-09-09T08:02:20.797Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 67,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s210",
+      "requestedAt": "2026-09-09T08:02:29.957Z",
+      "receivedAt": "2026-09-09T08:02:31.803Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 67,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s211",
+      "requestedAt": "2026-09-09T08:02:36.616Z",
+      "receivedAt": "2026-09-09T08:02:37.767Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 67,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s212",
+      "requestedAt": "2026-09-09T08:02:43.849Z",
+      "receivedAt": "2026-09-09T08:02:44.908Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 67,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s213",
+      "requestedAt": "2026-09-09T08:02:50.696Z",
+      "receivedAt": "2026-09-09T08:02:51.799Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 67,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s214",
+      "requestedAt": "2026-09-09T08:03:00.680Z",
+      "receivedAt": "2026-09-09T08:03:01.833Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 67,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s215",
+      "requestedAt": "2026-09-09T08:03:08.006Z",
+      "receivedAt": "2026-09-09T08:03:09.335Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 67,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s216",
+      "requestedAt": "2026-09-09T08:03:33.136Z",
+      "receivedAt": "2026-09-09T08:03:34.144Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 67,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "id": "s217",
+      "requestedAt": "2026-09-09T08:03:40.397Z",
+      "receivedAt": "2026-09-09T08:03:41.512Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 67,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    }
+  ],
+  "remainingPercent": 33,
+  "accountDeltaPercentagePoints": 10,
+  "exactTokenCounts": "UNAVAILABLE",
+  "scope": "Shared account window; not exact task cost",
+  "uncaptured": [
+    "Resume wait on exec cell 111 returned cell not found; report files were verified already generated.",
+    "Initial resume directory check succeeded, exit 0, tool runtime 0.548s; full per-operation quota boundaries unavailable.",
+    "Report commit, final status checks and final answer occur after this cutoff and are reported separately; no invented per-command snapshots."
+  ],
+  "gateStatus": "PARTIAL; human GUI PENDING; no Tag or Push"
+}

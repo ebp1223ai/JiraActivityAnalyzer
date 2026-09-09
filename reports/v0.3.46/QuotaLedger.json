@@ -1,0 +1,2108 @@
+{
+  "version": "0.3.46",
+  "exactTokens": {
+    "input": null,
+    "output": null,
+    "cached": null,
+    "total": null,
+    "remaining": null,
+    "status": "UNAVAILABLE"
+  },
+  "source": "get_usage_limits",
+  "accountSharedActivity": "UNKNOWN",
+  "first": {
+    "usedPercent": 57,
+    "windowDurationMins": 10080,
+    "resetsAt": 1789440647
+  },
+  "last": {
+    "usedPercent": 66,
+    "windowDurationMins": 10080,
+    "resetsAt": 1789440647
+  },
+  "remainingPercentStart": 43,
+  "remainingPercentAtCutoff": 34,
+  "deltaPercentagePoints": 9,
+  "snapshotCount": 204,
+  "quotaQueryUnionMs": 247728,
+  "top5ComparableIntervals": [
+    {
+      "from": "2026-09-09T06:22:34.241Z",
+      "to": "2026-09-09T06:22:47.506Z",
+      "deltaPercentagePoints": 1,
+      "operationIds": [
+        "OP-003"
+      ],
+      "attribution": "SHARED_ACCOUNT_WINDOW_OVERLAPS_OPERATIONS"
+    },
+    {
+      "from": "2026-09-09T06:30:09.159Z",
+      "to": "2026-09-09T06:30:17.906Z",
+      "deltaPercentagePoints": 1,
+      "operationIds": [],
+      "attribution": "UNATTRIBUTED_MODEL_WAIT_OR_OTHER_ACCOUNT_ACTIVITY"
+    },
+    {
+      "from": "2026-09-09T06:39:15.083Z",
+      "to": "2026-09-09T06:39:27.455Z",
+      "deltaPercentagePoints": 1,
+      "operationIds": [],
+      "attribution": "UNATTRIBUTED_MODEL_WAIT_OR_OTHER_ACCOUNT_ACTIVITY"
+    },
+    {
+      "from": "2026-09-09T06:47:18.398Z",
+      "to": "2026-09-09T06:47:25.677Z",
+      "deltaPercentagePoints": 1,
+      "operationIds": [
+        "OP-040"
+      ],
+      "attribution": "SHARED_ACCOUNT_WINDOW_OVERLAPS_OPERATIONS"
+    },
+    {
+      "from": "2026-09-09T06:57:01.572Z",
+      "to": "2026-09-09T06:57:06.958Z",
+      "deltaPercentagePoints": 1,
+      "operationIds": [
+        "OP-051"
+      ],
+      "attribution": "SHARED_ACCOUNT_WINDOW_OVERLAPS_OPERATIONS"
+    }
+  ],
+  "snapshots": [
+    {
+      "requestedAt": "2026-09-09T06:22:09.282Z",
+      "receivedAt": "2026-09-09T06:22:10.082Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 57,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:22:16.357Z",
+      "receivedAt": "2026-09-09T06:22:17.372Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 57,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:22:25.842Z",
+      "receivedAt": "2026-09-09T06:22:26.634Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 57,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:22:33.331Z",
+      "receivedAt": "2026-09-09T06:22:34.241Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 57,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:22:46.360Z",
+      "receivedAt": "2026-09-09T06:22:47.506Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:22:54.408Z",
+      "receivedAt": "2026-09-09T06:22:55.296Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:23:06.143Z",
+      "receivedAt": "2026-09-09T06:23:07.160Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:23:19.212Z",
+      "receivedAt": "2026-09-09T06:23:20.096Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:23:20.097Z",
+      "receivedAt": "2026-09-09T06:23:21.233Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:23:51.232Z",
+      "receivedAt": "2026-09-09T06:23:52.271Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:24:12.731Z",
+      "receivedAt": "2026-09-09T06:24:13.679Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:24:21.931Z",
+      "receivedAt": "2026-09-09T06:24:22.796Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:24:22.797Z",
+      "receivedAt": "2026-09-09T06:24:23.720Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:24:33.346Z",
+      "receivedAt": "2026-09-09T06:24:34.161Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:24:39.509Z",
+      "receivedAt": "2026-09-09T06:24:40.462Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:24:45.081Z",
+      "receivedAt": "2026-09-09T06:24:45.920Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:24:53.788Z",
+      "receivedAt": "2026-09-09T06:24:54.797Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:25:01.854Z",
+      "receivedAt": "2026-09-09T06:25:02.834Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:25:11.765Z",
+      "receivedAt": "2026-09-09T06:25:12.720Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:25:21.000Z",
+      "receivedAt": "2026-09-09T06:25:21.969Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:25:33.359Z",
+      "receivedAt": "2026-09-09T06:25:34.194Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:25:40.599Z",
+      "receivedAt": "2026-09-09T06:25:41.479Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:26:55.247Z",
+      "receivedAt": "2026-09-09T06:26:56.161Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:27:32.082Z",
+      "receivedAt": "2026-09-09T06:27:32.893Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:28:44.994Z",
+      "receivedAt": "2026-09-09T06:28:45.806Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:28:50.682Z",
+      "receivedAt": "2026-09-09T06:28:51.673Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:29:58.055Z",
+      "receivedAt": "2026-09-09T06:29:58.890Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:30:08.320Z",
+      "receivedAt": "2026-09-09T06:30:09.159Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 58,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:30:17.108Z",
+      "receivedAt": "2026-09-09T06:30:17.906Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:30:24.349Z",
+      "receivedAt": "2026-09-09T06:30:25.290Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:30:55.426Z",
+      "receivedAt": "2026-09-09T06:30:56.228Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:31:25.635Z",
+      "receivedAt": "2026-09-09T06:31:26.532Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:31:39.387Z",
+      "receivedAt": "2026-09-09T06:31:40.338Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:31:56.601Z",
+      "receivedAt": "2026-09-09T06:31:57.547Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:32:48.794Z",
+      "receivedAt": "2026-09-09T06:32:49.626Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:32:57.406Z",
+      "receivedAt": "2026-09-09T06:32:58.236Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:32:58.242Z",
+      "receivedAt": "2026-09-09T06:32:59.199Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:33:16.109Z",
+      "receivedAt": "2026-09-09T06:33:17.142Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:34:08.859Z",
+      "receivedAt": "2026-09-09T06:34:09.904Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:34:16.460Z",
+      "receivedAt": "2026-09-09T06:34:17.380Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:34:17.385Z",
+      "receivedAt": "2026-09-09T06:34:18.285Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:34:31.641Z",
+      "receivedAt": "2026-09-09T06:34:32.680Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:34:58.793Z",
+      "receivedAt": "2026-09-09T06:34:59.648Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:35:06.519Z",
+      "receivedAt": "2026-09-09T06:35:07.378Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:35:32.415Z",
+      "receivedAt": "2026-09-09T06:35:33.904Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:36:08.269Z",
+      "receivedAt": "2026-09-09T06:36:09.150Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:36:42.964Z",
+      "receivedAt": "2026-09-09T06:36:43.953Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:36:52.244Z",
+      "receivedAt": "2026-09-09T06:36:53.168Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:37:00.995Z",
+      "receivedAt": "2026-09-09T06:37:01.848Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:37:08.549Z",
+      "receivedAt": "2026-09-09T06:37:09.450Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:38:40.958Z",
+      "receivedAt": "2026-09-09T06:38:41.970Z",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:38:51.299Z",
+      "receivedAt": "2026-09-09T06:38:52.140Z",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:39:07.936Z",
+      "receivedAt": "2026-09-09T06:39:08.740Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:39:14.196Z",
+      "receivedAt": "2026-09-09T06:39:15.083Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 59,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:39:26.442Z",
+      "receivedAt": "2026-09-09T06:39:27.455Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:39:32.840Z",
+      "receivedAt": "2026-09-09T06:39:33.807Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:41:16.119Z",
+      "receivedAt": "2026-09-09T06:41:16.943Z",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:41:51.941Z",
+      "receivedAt": "2026-09-09T06:41:53.080Z",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:42:08.138Z",
+      "receivedAt": "2026-09-09T06:42:08.981Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:42:16.313Z",
+      "receivedAt": "2026-09-09T06:42:17.145Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:42:17.150Z",
+      "receivedAt": "2026-09-09T06:42:18.092Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:43:00.780Z",
+      "receivedAt": "2026-09-09T06:43:01.727Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:43:12.232Z",
+      "receivedAt": "2026-09-09T06:43:13.044Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:43:31.444Z",
+      "receivedAt": "2026-09-09T06:43:32.219Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:43:48.260Z",
+      "receivedAt": "2026-09-09T06:43:49.137Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:44:11.263Z",
+      "receivedAt": "2026-09-09T06:44:12.086Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:44:12.092Z",
+      "receivedAt": "2026-09-09T06:44:12.964Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:44:31.758Z",
+      "receivedAt": "2026-09-09T06:44:32.593Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:44:57.890Z",
+      "receivedAt": "2026-09-09T06:44:58.705Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:45:05.815Z",
+      "receivedAt": "2026-09-09T06:45:06.827Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:45:21.146Z",
+      "receivedAt": "2026-09-09T06:45:22.341Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:45:30.579Z",
+      "receivedAt": "2026-09-09T06:45:31.525Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:45:40.703Z",
+      "receivedAt": "2026-09-09T06:45:41.562Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:46:13.719Z",
+      "receivedAt": "2026-09-09T06:46:14.558Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:46:33.354Z",
+      "receivedAt": "2026-09-09T06:46:34.205Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:46:42.367Z",
+      "receivedAt": "2026-09-09T06:46:43.295Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:46:55.613Z",
+      "receivedAt": "2026-09-09T06:46:56.427Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:47:05.033Z",
+      "receivedAt": "2026-09-09T06:47:05.968Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:47:17.445Z",
+      "receivedAt": "2026-09-09T06:47:18.398Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 60,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:47:24.713Z",
+      "receivedAt": "2026-09-09T06:47:25.677Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:47:33.951Z",
+      "receivedAt": "2026-09-09T06:47:34.800Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:47:41.421Z",
+      "receivedAt": "2026-09-09T06:47:42.461Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:47:51.832Z",
+      "receivedAt": "2026-09-09T06:47:52.751Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:48:00.205Z",
+      "receivedAt": "2026-09-09T06:48:00.995Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:48:15.557Z",
+      "receivedAt": "2026-09-09T06:48:16.715Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:49:09.493Z",
+      "receivedAt": "2026-09-09T06:49:10.473Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:49:23.762Z",
+      "receivedAt": "2026-09-09T06:49:25.335Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:50:15.839Z",
+      "receivedAt": "2026-09-09T06:50:16.733Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:50:45.086Z",
+      "receivedAt": "2026-09-09T06:50:45.965Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:50:54.197Z",
+      "receivedAt": "2026-09-09T06:50:55.212Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:51:19.561Z",
+      "receivedAt": "2026-09-09T06:51:20.488Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:51:28.329Z",
+      "receivedAt": "2026-09-09T06:51:29.137Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:51:29.147Z",
+      "receivedAt": "2026-09-09T06:51:29.950Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:51:40.783Z",
+      "receivedAt": "2026-09-09T06:51:42.032Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:51:42.041Z",
+      "receivedAt": "2026-09-09T06:51:42.988Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:55:07.301Z",
+      "receivedAt": "2026-09-09T06:55:08.136Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:56:06.467Z",
+      "receivedAt": "2026-09-09T06:56:07.481Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:56:12.990Z",
+      "receivedAt": "2026-09-09T06:56:13.862Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:56:35.381Z",
+      "receivedAt": "2026-09-09T06:56:36.541Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:56:42.997Z",
+      "receivedAt": "2026-09-09T06:56:44.126Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:57:00.579Z",
+      "receivedAt": "2026-09-09T06:57:01.572Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 61,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:57:06.048Z",
+      "receivedAt": "2026-09-09T06:57:06.958Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:57:28.731Z",
+      "receivedAt": "2026-09-09T06:57:29.544Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:57:34.668Z",
+      "receivedAt": "2026-09-09T06:57:35.510Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:58:03.498Z",
+      "receivedAt": "2026-09-09T06:58:04.328Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:58:19.600Z",
+      "receivedAt": "2026-09-09T06:58:20.484Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T06:58:20.493Z",
+      "receivedAt": "2026-09-09T06:58:21.412Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:03:19.842Z",
+      "receivedAt": "2026-09-09T07:03:20.938Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:04:24.452Z",
+      "receivedAt": "2026-09-09T07:04:25.425Z",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:04:35.226Z",
+      "receivedAt": "2026-09-09T07:04:36.318Z",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:05:00.843Z",
+      "receivedAt": "2026-09-09T07:05:01.706Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:05:09.419Z",
+      "receivedAt": "2026-09-09T07:05:10.306Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:05:16.480Z",
+      "receivedAt": "2026-09-09T07:05:17.535Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:05:22.807Z",
+      "receivedAt": "2026-09-09T07:05:23.601Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:05:33.768Z",
+      "receivedAt": "2026-09-09T07:05:34.823Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:05:40.770Z",
+      "receivedAt": "2026-09-09T07:05:41.712Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:05:50.377Z",
+      "receivedAt": "2026-09-09T07:05:51.282Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:06:12.432Z",
+      "receivedAt": "2026-09-09T07:06:13.345Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:06:19.420Z",
+      "receivedAt": "2026-09-09T07:06:20.510Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:06:27.138Z",
+      "receivedAt": "2026-09-09T07:06:28.137Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:06:39.613Z",
+      "receivedAt": "2026-09-09T07:06:40.476Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:06:46.130Z",
+      "receivedAt": "2026-09-09T07:06:47.224Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:07:11.831Z",
+      "receivedAt": "2026-09-09T07:07:12.818Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 62,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:11:53.693Z",
+      "receivedAt": "2026-09-09T07:11:55.510Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:12:40.229Z",
+      "receivedAt": "2026-09-09T07:12:41.148Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:12:49.503Z",
+      "receivedAt": "2026-09-09T07:12:50.297Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:13:08.891Z",
+      "receivedAt": "2026-09-09T07:13:09.856Z",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:13:18.282Z",
+      "receivedAt": "2026-09-09T07:13:19.346Z",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:13:19.356Z",
+      "receivedAt": "2026-09-09T07:13:20.260Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:14:08.803Z",
+      "receivedAt": "2026-09-09T07:14:09.673Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:14:10.191Z",
+      "receivedAt": "2026-09-09T07:14:11.409Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:14:16.525Z",
+      "receivedAt": "2026-09-09T07:14:17.438Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:14:24.351Z",
+      "receivedAt": "2026-09-09T07:14:25.584Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:14:43.632Z",
+      "receivedAt": "2026-09-09T07:14:44.620Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:15:04.180Z",
+      "receivedAt": "2026-09-09T07:15:05.905Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:15:11.272Z",
+      "receivedAt": "2026-09-09T07:15:12.354Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:15:45.003Z",
+      "receivedAt": "2026-09-09T07:15:45.841Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:15:54.994Z",
+      "receivedAt": "2026-09-09T07:15:55.966Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:16:13.182Z",
+      "receivedAt": "2026-09-09T07:16:14.704Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:16:22.243Z",
+      "receivedAt": "2026-09-09T07:16:23.187Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:16:44.463Z",
+      "receivedAt": "2026-09-09T07:16:45.519Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:16:51.111Z",
+      "receivedAt": "2026-09-09T07:16:51.928Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:17:07.118Z",
+      "receivedAt": "2026-09-09T07:17:08.309Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:17:15.032Z",
+      "receivedAt": "2026-09-09T07:17:15.882Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:18:14.217Z",
+      "receivedAt": "2026-09-09T07:18:15.257Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:20:10.390Z",
+      "receivedAt": "2026-09-09T07:20:11.547Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:21:11.999Z",
+      "receivedAt": "2026-09-09T07:21:13.015Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:21:35.534Z",
+      "receivedAt": "2026-09-09T07:21:36.455Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:21:55.329Z",
+      "receivedAt": "2026-09-09T07:21:56.262Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 63,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:22:09.302Z",
+      "receivedAt": "2026-09-09T07:22:10.295Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:22:10.311Z",
+      "receivedAt": "2026-09-09T07:22:11.235Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:22:35.593Z",
+      "receivedAt": "2026-09-09T07:22:37.476Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:22:37.492Z",
+      "receivedAt": "2026-09-09T07:22:43.776Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:23:13.778Z",
+      "receivedAt": "2026-09-09T07:23:14.746Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:23:14.761Z",
+      "receivedAt": "2026-09-09T07:23:15.632Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:23:26.668Z",
+      "receivedAt": "2026-09-09T07:23:27.735Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:23:27.749Z",
+      "receivedAt": "2026-09-09T07:23:28.630Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:25:10.687Z",
+      "receivedAt": "2026-09-09T07:25:11.651Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:25:38.473Z",
+      "receivedAt": "2026-09-09T07:25:39.347Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:25:47.615Z",
+      "receivedAt": "2026-09-09T07:25:48.648Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:26:11.640Z",
+      "receivedAt": "2026-09-09T07:26:12.539Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:26:20.669Z",
+      "receivedAt": "2026-09-09T07:26:21.721Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:26:21.732Z",
+      "receivedAt": "2026-09-09T07:26:22.839Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:26:42.905Z",
+      "receivedAt": "2026-09-09T07:26:43.920Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:26:43.939Z",
+      "receivedAt": "2026-09-09T07:26:44.831Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:27:03.661Z",
+      "receivedAt": "2026-09-09T07:27:08.471Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:27:16.725Z",
+      "receivedAt": "2026-09-09T07:27:58.486Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:27:57.179Z",
+      "receivedAt": "2026-09-09T07:27:58.291Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:27:58.502Z",
+      "receivedAt": "2026-09-09T07:27:59.342Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:28:26.615Z",
+      "receivedAt": "2026-09-09T07:28:27.580Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:28:27.594Z",
+      "receivedAt": "2026-09-09T07:28:28.494Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:29:50.919Z",
+      "receivedAt": "2026-09-09T07:29:51.864Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:29:51.882Z",
+      "receivedAt": "2026-09-09T07:29:53.195Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:34:56.815Z",
+      "receivedAt": "2026-09-09T07:34:57.690Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 64,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:35:21.454Z",
+      "receivedAt": "2026-09-09T07:35:22.368Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:35:30.476Z",
+      "receivedAt": "2026-09-09T07:35:31.362Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:35:42.710Z",
+      "receivedAt": "2026-09-09T07:35:43.815Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:36:13.132Z",
+      "receivedAt": "2026-09-09T07:36:14.067Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:36:45.475Z",
+      "receivedAt": "2026-09-09T07:36:46.528Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:36:53.168Z",
+      "receivedAt": "2026-09-09T07:36:54.117Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:37:08.836Z",
+      "receivedAt": "2026-09-09T07:37:09.795Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:37:26.413Z",
+      "receivedAt": "2026-09-09T07:37:27.380Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:38:48.642Z",
+      "receivedAt": "2026-09-09T07:38:49.588Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:38:57.792Z",
+      "receivedAt": "2026-09-09T07:38:58.910Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:40:34.858Z",
+      "receivedAt": "2026-09-09T07:40:36.023Z",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:40:45.144Z",
+      "receivedAt": "2026-09-09T07:40:46.500Z",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:40:46.514Z",
+      "receivedAt": "2026-09-09T07:40:47.429Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:40:53.067Z",
+      "receivedAt": "2026-09-09T07:40:53.919Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:41:49.848Z",
+      "receivedAt": "2026-09-09T07:41:50.745Z",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:41:59.562Z",
+      "receivedAt": "2026-09-09T07:42:00.601Z",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:42:00.620Z",
+      "receivedAt": "2026-09-09T07:42:01.830Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:42:08.407Z",
+      "receivedAt": "2026-09-09T07:42:09.446Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:42:31.038Z",
+      "receivedAt": "2026-09-09T07:42:31.977Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:42:47.377Z",
+      "receivedAt": "2026-09-09T07:42:48.345Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:43:06.261Z",
+      "receivedAt": "2026-09-09T07:43:07.172Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 65,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:46:01.825Z",
+      "receivedAt": "2026-09-09T07:46:02.741Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:46:54.274Z",
+      "receivedAt": "2026-09-09T07:46:55.358Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:47:13.800Z",
+      "receivedAt": "2026-09-09T07:47:14.842Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:47:14.871Z",
+      "receivedAt": "2026-09-09T07:47:15.798Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:48:12.149Z",
+      "receivedAt": "2026-09-09T07:48:13.164Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:49:19.477Z",
+      "receivedAt": "2026-09-09T07:49:20.384Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:50:36.270Z",
+      "receivedAt": "2026-09-09T07:50:37.290Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:51:37.433Z",
+      "receivedAt": "2026-09-09T07:51:38.498Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    },
+    {
+      "requestedAt": "2026-09-09T07:52:03.943Z",
+      "receivedAt": "2026-09-09T07:52:05.469Z",
+      "source": "get_usage_limits",
+      "primary": {
+        "usedPercent": 66,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789440647
+      }
+    }
+  ],
+  "limitations": [
+    "Integer account percentages are rounded/delayed; 0pp does not mean zero tokens.",
+    "Shared quota changes are not exact task cost.",
+    "Do not compare across changed windows/reset timestamps.",
+    "First response timestamp was not separately retained; task-start anchor and first response budget are distinct.",
+    "Initial prompt and final answer generation are outside full observation."
+  ]
+}

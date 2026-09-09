@@ -1,0 +1,470 @@
+{
+  "appVersion": "0.3.46",
+  "packagedSourceCommit": "262730e47de928f0169a97ccc88ac220996ae27d",
+  "gitBranch": "feat/v0.3.46-comment-fulltext-query-performance",
+  "buildTime": "2026/09/09 15:43:43",
+  "buildTimeIso": "2026-09-09T07:43:43.621Z",
+  "buildMachine": "pc1-ch_kao",
+  "buildOs": "10.0.26100",
+  "dirtyState": true,
+  "dirtyException": "reports/JiraActivityAnalyzer_v0.2.47_Background_Fetch_and_Activity_Events_UX_implementation_report.md",
+  "deliveryMode": "DEVELOPMENT",
+  "artifactTargets": [
+    "win-unpacked"
+  ],
+  "manualGuiGate": "PENDING",
+  "exe": {
+    "path": "F:\\AI\\JiraActivityAnalyzer\\release\\0.3.46\\win-unpacked\\Jira Activity Analyzer.exe",
+    "bytes": 235706368,
+    "sha256": "2fc5428201daecd1416107f8baef90d2b115a25b194b4e0e99607bbda8e292bc"
+  },
+  "zip": {
+    "path": "F:\\AI\\JiraActivityAnalyzer\\release\\0.3.46\\JiraActivityAnalyzer_v0.3.46_win-unpacked.zip",
+    "bytes": 283320777,
+    "sha256": "e69d2fb9e447ba92d02739995f722be4cbc304067910821d32ef0f553e3df4c1",
+    "crc": "PASS"
+  },
+  "fileCount": 129,
+  "totalBytes": 772358006,
+  "zipSha256Rechecked": "e69d2fb9e447ba92d02739995f722be4cbc304067910821d32ef0f553e3df4c1",
+  "exeSha256Rechecked": "2fc5428201daecd1416107f8baef90d2b115a25b194b4e0e99607bbda8e292bc",
+  "extractedApp": "C:/Users/ch_kao/AppData/Local/Temp/JAA v0.3.46 同磁碟驗證 1788940159476/App",
+  "extractedInventory": {
+    "files": 129,
+    "status": "PASS"
+  },
+  "bridge": {
+    "schemaVersion": "jaa-analysis-bridge-preflight-receipt-v1",
+    "resolverSchemaVersion": "jaa-packaged-analysis-bridge-resolver-v1",
+    "phase": "diagnostic",
+    "attemptId": null,
+    "appIsPackaged": true,
+    "distributionKind": "win-unpacked",
+    "processResourcesPath": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 交付驗證 1788940014273\\resources",
+    "expectedRelativePath": "jaa-analysis-bridge/analysis-bridge-v0337.cjs",
+    "resolvedAbsolutePath": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 交付驗證 1788940014273\\resources\\jaa-analysis-bridge\\analysis-bridge-v0337.cjs",
+    "manifestAbsolutePath": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 交付驗證 1788940014273\\resources\\jaa-analysis-bridge\\analysis-bridge-manifest-v0337.json",
+    "expectedBridgeIdentity": "0.3.37-bridge-v17",
+    "observedBridgeIdentity": "0.3.37-bridge-v17",
+    "expectedBytes": 181460,
+    "observedBytes": 181460,
+    "expectedSha256": "403b9093c2f95bc5ba49679eff851680c13baf80e31b24db1a35a8d593dc0770",
+    "observedSha256": "403b9093c2f95bc5ba49679eff851680c13baf80e31b24db1a35a8d593dc0770",
+    "manifestValidated": true,
+    "artifactValidated": true,
+    "loadabilityValidated": true,
+    "externalFallbackUsed": false,
+    "status": "ready",
+    "rootErrorCode": null,
+    "rootErrorMessage": null,
+    "createdAtUtc": "2026-09-09T07:47:13.563Z"
+  },
+  "windowsUI": {
+    "status": "PASS",
+    "evidence": "C:/Users/ch_kao/AppData/Local/Temp/JAA v0.3.46 同磁碟驗證 1788940159476/Evidence",
+    "screenshots": 8,
+    "errors": [],
+    "appExited": true
+  },
+  "postShutdownSyntheticDatabaseIntegrity": {
+    "count": 5,
+    "status": "PASS"
+  },
+  "frozenInputHashes": {
+    "count": 846,
+    "status": "PASS"
+  },
+  "payloadAudit": {
+    "fileCount": 129,
+    "totalBytes": 772358006,
+    "forbiddenPathAudit": "PASS",
+    "top50AsarFiles": [
+      {
+        "path": "dist-electron/main.cjs",
+        "bytes": 1445847,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-profiling.development.js",
+        "bytes": 1082082,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-client.development.js",
+        "bytes": 1065698,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "dist/assets/index-ptZ8yE_N.js",
+        "bytes": 818923,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/lucide-react/dist/umd/lucide-react.js",
+        "bytes": 795674,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/lucide-react/dist/cjs/lucide-react.js",
+        "bytes": 756146,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-profiling.profiling.js",
+        "bytes": 607634,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/lodash/lodash.js",
+        "bytes": 545945,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-client.production.js",
+        "bytes": 536016,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/lucide-react/dist/umd/lucide-react.min.js",
+        "bytes": 514980,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/recharts/umd/Recharts.js",
+        "bytes": 502946,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server.node.development.js",
+        "bytes": 429423,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server.edge.development.js",
+        "bytes": 425439,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server.browser.development.js",
+        "bytes": 424658,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server-legacy.browser.development.js",
+        "bytes": 395197,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js",
+        "bytes": 395194,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/production/chunk-3WDNQUW5.mjs",
+        "bytes": 371988,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/development/chunk-KS7C4IRE.mjs",
+        "bytes": 371987,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server.bun.development.js",
+        "bytes": 354659,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/recharts/umd/report.html",
+        "bytes": 348549,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/csstype/index.js.flow",
+        "bytes": 344546,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/production/chunk-IEF7VMTA.js",
+        "bytes": 342800,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/development/chunk-SA4DP3SF.js",
+        "bytes": 342799,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "dist-electron/ai-write-worker-v044.cjs",
+        "bytes": 342330,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server.node.production.js",
+        "bytes": 277046,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server.edge.production.js",
+        "bytes": 273614,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server.browser.production.js",
+        "bytes": 268058,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server.bun.production.js",
+        "bytes": 245324,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server-legacy.node.production.js",
+        "bytes": 242793,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-server-legacy.browser.production.js",
+        "bytes": 237937,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/lucide-react/dist/esm/lucide-react.js",
+        "bytes": 201844,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "dist-electron/database-viewer-worker.cjs",
+        "bytes": 130132,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-smooth/umd/ReactSmooth.js",
+        "bytes": 128560,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/development/index-react-server.js",
+        "bytes": 123385,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/production/index-react-server.js",
+        "bytes": 123385,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/development/index-react-server.mjs",
+        "bytes": 120138,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/production/index-react-server.mjs",
+        "bytes": 120138,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/lodash/core.js",
+        "bytes": 115983,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/lucide-react/dynamicIconImports.js",
+        "bytes": 101803,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/recharts/lib/chart/generateCategoricalChart.js",
+        "bytes": 101175,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/development/index-react-server.d.mts",
+        "bytes": 98459,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/production/index-react-server.d.mts",
+        "bytes": 98459,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-transition-group/dist/react-transition-group.js",
+        "bytes": 98424,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/development/index-react-server-client-CACgcj2J.d.mts",
+        "bytes": 98177,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/production/index-react-server-client-CACgcj2J.d.mts",
+        "bytes": 98177,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/recharts/es6/chart/generateCategoricalChart.js",
+        "bytes": 97743,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "dist-electron/pending-analysis-export-worker.cjs",
+        "bytes": 94672,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/lucide-react/dist/esm/icons/index.js",
+        "bytes": 89448,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/development/index.js",
+        "bytes": 84508,
+        "link": null,
+        "unpacked": false
+      },
+      {
+        "path": "node_modules/react-router/dist/production/index.js",
+        "bytes": 84508,
+        "link": null,
+        "unpacked": false
+      }
+    ],
+    "top20Directories": [
+      [
+        "resources/codex-runtime/bin",
+        356118624
+      ],
+      [
+        ".",
+        325297846
+      ],
+      [
+        "locales",
+        48895643
+      ],
+      [
+        "resources",
+        26224702
+      ],
+      [
+        "resources/codex-runtime/codex-resources",
+        10104416
+      ],
+      [
+        "app.asar/node_modules/react-dom/cjs",
+        7305668
+      ],
+      [
+        "resources/codex-runtime/codex-path",
+        4218880
+      ],
+      [
+        "app.asar/dist-electron",
+        2140747
+      ],
+      [
+        "app.asar/node_modules/react-router/dist/production",
+        1662859
+      ],
+      [
+        "app.asar/node_modules/react-router/dist/development",
+        1662857
+      ],
+      [
+        "app.asar/node_modules/lodash",
+        1323494
+      ],
+      [
+        "app.asar/node_modules/lucide-react/dist/umd",
+        1310654
+      ],
+      [
+        "app.asar/node_modules/lucide-react/dist/esm/icons",
+        1134285
+      ],
+      [
+        "app.asar/dist/assets",
+        859867
+      ],
+      [
+        "app.asar/node_modules/recharts/umd",
+        851819
+      ],
+      [
+        "app.asar/node_modules/lucide-react/dist/cjs",
+        756146
+      ],
+      [
+        "resources/ai-analysis-contracts",
+        562553
+      ],
+      [
+        "app.asar/node_modules/csstype",
+        346924
+      ],
+      [
+        "app.asar/node_modules/recharts/lib/cartesian",
+        229552
+      ],
+      [
+        "app.asar/node_modules/recharts/es6/cartesian",
+        212062
+      ]
+    ],
+    "directoryNote": "Virtual app.asar entries are reported alongside physical directories; do not add them to physical totalBytes."
+  },
+  "status": "PARTIAL / Manual GUI Validation Pending",
+  "tag": "NOT_CREATED",
+  "push": "NOT_PERFORMED"
+}

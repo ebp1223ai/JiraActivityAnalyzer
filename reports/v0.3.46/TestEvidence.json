@@ -1,0 +1,3975 @@
+{
+  "version": "0.3.46",
+  "status": "PARTIAL_ACCEPTANCE_COVERAGE",
+  "evidence": {
+    "services": "test-artifacts/v0.3.46/services-1788938884679/report.json",
+    "worker": "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+    "workflow": "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+    "edges": "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+    "combinations": "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+    "packaged": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+  },
+  "groups": {
+    "unit": [
+      {
+        "name": "R46-01 Comment source body excludes wrapper; no JSON diff metrics",
+        "status": "PASS",
+        "durationMs": 21.947599999999966,
+        "detail": {
+          "cases": 5,
+          "production": "queryResultsV043 + activityEventDisplayPolicy"
+        }
+      },
+      {
+        "name": "R46-02 Description-only quick filters retain other events and unknown metrics",
+        "status": "PASS",
+        "durationMs": 12.039999999999964,
+        "detail": {
+          "combinations": 16
+        }
+      },
+      {
+        "name": "R46-03 paired production query/facet profile",
+        "status": "PASS",
+        "durationMs": 9785.9624,
+        "detail": {
+          "eviction": {
+            "beforeBytes": 307240960,
+            "budget": 268435456,
+            "rebuildSameRevision": true
+          },
+          "stages": [
+            {
+              "name": "cold-query",
+              "ms": 2079.4184000000005
+            },
+            {
+              "name": "facet-displayName",
+              "ms": 429.1841999999997,
+              "values": 2
+            },
+            {
+              "name": "facet-fieldName",
+              "ms": 422.7943000000005,
+              "values": 2
+            },
+            {
+              "name": "warm-facet",
+              "ms": 59.458700000000135
+            },
+            {
+              "name": "large-numeric-quick-filter",
+              "ms": 1465.8467,
+              "queryPlan": [
+                {
+                  "id": 9,
+                  "parent": 0,
+                  "notused": 216,
+                  "detail": "SCAN d"
+                },
+                {
+                  "id": 12,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 1"
+                },
+                {
+                  "id": 17,
+                  "parent": 12,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 34,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 41,
+                  "parent": 34,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 56,
+                  "parent": 34,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 77,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 3"
+                },
+                {
+                  "id": 84,
+                  "parent": 77,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 99,
+                  "parent": 77,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 120,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 4"
+                },
+                {
+                  "id": 127,
+                  "parent": 120,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 142,
+                  "parent": 120,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 163,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 5"
+                },
+                {
+                  "id": 170,
+                  "parent": 163,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 181,
+                  "parent": 163,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 202,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 6"
+                },
+                {
+                  "id": 208,
+                  "parent": 202,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 233,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ]
+            }
+          ],
+          "rows": 39281,
+          "longRows": 40,
+          "longContentBytes": 65536,
+          "cache": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 9,
+                  "parent": 0,
+                  "notused": 216,
+                  "detail": "SCAN d"
+                },
+                {
+                  "id": 12,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 1"
+                },
+                {
+                  "id": 18,
+                  "parent": 12,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 43,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d  ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 39281,
+              "elapsedMs": 2070
+            },
+            "facets": {
+              "queryTemplate": "SELECT c.token value,c.text label,c.kind,COUNT(DISTINCT d.id) count FROM documents d JOIN cells c ON c.row_id=d.id  WHERE c.field_id=? AND instr(lower(c.text),lower(?))>0 GROUP BY c.token,c.text,c.kind ORDER BY c.number,c.text,c.token",
+              "parameterTypes": [
+                "string",
+                "string"
+              ],
+              "candidateCount": 2,
+              "excludedField": "computed:[\"displayName\"]",
+              "scope": "integrated"
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 218136576,
+            "cacheBudgetBytes": 268435456
+          },
+          "memory": {
+            "rss": 399364096,
+            "heapTotal": 71593984,
+            "heapUsed": 45812864,
+            "external": 2591343,
+            "arrayBuffers": 145631
+          },
+          "cold": "logical cache miss; OS cache unknown",
+          "runtime": {
+            "node": "24.18.0",
+            "acorn": "8.16.0",
+            "ada": "3.4.4",
+            "amaro": "1.1.9",
+            "ares": "1.34.6",
+            "brotli": "1.2.0",
+            "cldr": "48.0",
+            "icu": "78.3",
+            "llhttp": "9.4.2",
+            "merve": "1.2.2",
+            "modules": "137",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.69.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "openssl": "3.5.7",
+            "simdjson": "4.6.4",
+            "simdutf": "6.4.0",
+            "sqlite": "3.53.1",
+            "tz": "2026b",
+            "undici": "7.28.0",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "13.6.233.17-node.50",
+            "zlib": "1.3.1-e00f703",
+            "zstd": "1.5.7"
+          }
+        }
+      }
+    ],
+    "service": [
+      {
+        "name": "R46-13 committed revisions ignore rollback/protected/noop; Raw metadata remains DB-scoped",
+        "status": "PASS",
+        "durationMs": 4947.7128999999995
+      },
+      {
+        "name": "R46-04 current and legacy preference scopes survive normalization",
+        "status": "PASS",
+        "durationMs": 5.477399999999761
+      },
+      {
+        "name": "R46-01 ADF, literal source, compact-only and original trace identity",
+        "status": "PASS",
+        "durationMs": 0.5874999999996362
+      },
+      {
+        "name": "R46-04 same pending promise, valid cache reuse and explicit invalidation",
+        "status": "PASS",
+        "durationMs": 64.60019999999986,
+        "detail": {
+          "jobs": 2,
+          "cache": {
+            "entries": 1,
+            "bytes": 134112,
+            "pending": 0,
+            "maxBytes": 8388608,
+            "maxEntries": 8,
+            "maxPending": 4
+          }
+        }
+      },
+      {
+        "name": "R46-06 stopped cancellation target vs superseded queued work and real SQL error",
+        "status": "PASS",
+        "durationMs": 38.304299999999785,
+        "detail": {
+          "receipt": {
+            "cancelled": true,
+            "executorStopped": true
+          },
+          "outcomes": [
+            "CANCELLED",
+            "SUPERSEDED"
+          ],
+          "sqlFailurePreserved": true
+        }
+      },
+      {
+        "name": "R46-07 all four export scopes/formats preserve before/after and reject stale snapshot",
+        "status": "PASS",
+        "durationMs": 186.3032000000003
+      },
+      {
+        "name": "R46-07 both Golden package versions use real importer, transaction and trace readback",
+        "status": "PASS",
+        "durationMs": 3115.0391
+      }
+    ],
+    "regression": [
+      {
+        "path": "test-artifacts/v0.3.43/services-1788938523747/results.json",
+        "results": [
+          {
+            "name": "2.0.1 schema, semantic preflight and exact 55/130 import",
+            "status": "PASS",
+            "durationMs": 1462
+          },
+          {
+            "name": "AI projection keeps findings, hunks and unknown before; no manual auto acceptance",
+            "status": "PASS",
+            "durationMs": 49
+          },
+          {
+            "name": "Full facets self exclude, cross intersect and preserve selected zero counts",
+            "status": "PASS",
+            "durationMs": 8
+          },
+          {
+            "name": "Literal SQL metacharacters, invalid fields and numeric/date ranges",
+            "status": "PASS",
+            "durationMs": 15
+          },
+          {
+            "name": "Lossless key identity and resolver including empty key and arrays",
+            "status": "PASS",
+            "durationMs": 1
+          },
+          {
+            "name": "Review partial/completed ranks, idempotency and lower-rank protection",
+            "status": "PASS",
+            "durationMs": 939
+          },
+          {
+            "name": "Invalid skill, binding, evidence and review fail before DB write; transaction rollback",
+            "status": "PASS",
+            "durationMs": 1387
+          },
+          {
+            "name": "All 279 catalog IDs import and read back",
+            "status": "PASS",
+            "durationMs": 1336
+          },
+          {
+            "name": "Complete snapshot export exceeds current page",
+            "status": "PASS",
+            "durationMs": 49
+          }
+        ]
+      },
+      {
+        "path": "test-artifacts/v0.3.43/integration-1788938536612/results.json",
+        "results": [
+          {
+            "name": "Legacy 2.0.0 three ranks exact 44/113 on current importer",
+            "status": "PASS",
+            "durationMs": 2144
+          },
+          {
+            "name": "Production Raw schema; I01/I02 raw only and unlinked AI never suppress rows",
+            "status": "PASS",
+            "durationMs": 3143
+          },
+          {
+            "name": "I03/I04/I06 unique links preserve one row, all fields exact across both pages",
+            "status": "PASS",
+            "durationMs": 8821
+          },
+          {
+            "name": "Fallback matched ID, ambiguous candidate, SQL ERROR attempts remain append-only",
+            "status": "PASS",
+            "durationMs": 581
+          },
+          {
+            "name": "Review projections R01-R03; provisional groups, ADJUST and null",
+            "status": "PASS",
+            "durationMs": 0
+          },
+          {
+            "name": "Scoped preferences retain long values, null/0/false; no rows persisted",
+            "status": "PASS",
+            "durationMs": 1
+          },
+          {
+            "name": "10001 actual Raw events: last facet, late-only fields, full export and cache invalidation",
+            "status": "PASS",
+            "durationMs": 4031
+          }
+        ]
+      },
+      {
+        "path": "test-artifacts/v0.3.43/correctness-1788938584045/results.json",
+        "results": [
+          {
+            "name": "F01-F05 exact event IDs, self exclusion, selected-zero and array membership",
+            "status": "PASS",
+            "durationMs": 1743
+          },
+          {
+            "name": "Typed tokens cannot alias literal strings; missing/null/zero/false survive export",
+            "status": "PASS",
+            "durationMs": 1713
+          },
+          {
+            "name": "Offsets, milliseconds, one-sided days and invalid dates use epoch order",
+            "status": "PASS",
+            "durationMs": 1243
+          },
+          {
+            "name": "Package collision, negative metadata/identity/order/confidence/binding and rollback",
+            "status": "PASS",
+            "durationMs": 1736
+          },
+          {
+            "name": "D02/D03/D07 source bytes and unavailable metrics are immutable",
+            "status": "PASS",
+            "durationMs": 1
+          },
+          {
+            "name": "Shared Diff formatter D01/D04, literal hunk D07/D08 and safe diagnostics",
+            "status": "PASS",
+            "durationMs": 206
+          },
+          {
+            "name": "I05 orphan and I07 SQL errors cannot become successful empty results",
+            "status": "PASS",
+            "durationMs": 2780
+          }
+        ]
+      },
+      {
+        "path": "test-artifacts/v0.3.44/correctness-1788938600712/results.json",
+        "results": [
+          {
+            "name": "Transaction cancellation after writes rolls back all tables",
+            "status": "PASS",
+            "durationMs": 1393.3695
+          },
+          {
+            "name": "Commit-barrier cancellation rolls back; successful retry exact 55/130",
+            "status": "PASS",
+            "durationMs": 252.35460000000012
+          },
+          {
+            "name": "Production worker cancellation acknowledges request separately and leaves DB intact",
+            "status": "PASS",
+            "durationMs": 1609.7244
+          },
+          {
+            "name": "Streaming JSON / CSV exactly preserve filtered full-scope export contract",
+            "status": "PASS",
+            "durationMs": 1801.6604000000002
+          },
+          {
+            "name": "Worker stage START durable before SQL with real worker producer identity",
+            "status": "PASS",
+            "durationMs": 428.60759999999937,
+            "detail": {
+              "durableStageStarts": 6
+            }
+          },
+          {
+            "name": "Recovery reads complete UTF-8 lines, ignores truncated tail without rewriting evidence",
+            "status": "PASS",
+            "durationMs": 10.520599999999831
+          }
+        ]
+      }
+    ]
+  },
+  "sourceUI": [
+    {
+      "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:ai-database",
+      "status": "PASS",
+      "durationMs": 189.73099999999977
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 1137.839600000003
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 1109.1584999999977
+    },
+    {
+      "name": "route-ready:ai-database",
+      "status": "PASS",
+      "durationMs": 177.15199999999822
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 389.8220000000001
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 373.2392
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 164.0676999999996
+    },
+    {
+      "name": "Comment content; quick combinations separately evidenced",
+      "status": "PASS"
+    },
+    {
+      "name": "T46-21 actual same-day/cross-day/start-only/end-only/invalid calendar + text AND",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 627.5454000000027
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 433.0743999999977
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 371.04039999999804
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 426.35100000000966
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 398.7149000000063
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 467.1860000000015
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 368.7543000000005
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 389.56609999999637
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 374.4051000000036
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 406.1603000000032
+    },
+    {
+      "name": "T46-11 five A-B-A preserves filter/page/order/width/scroll/results zero jobs",
+      "status": "PASS",
+      "restores": [
+        {
+          "ms": 2395.696000000011,
+          "newJobs": 0
+        },
+        {
+          "ms": 1630.3555999999953,
+          "newJobs": 0
+        },
+        {
+          "ms": 1609.2688000000053,
+          "newJobs": 0
+        },
+        {
+          "ms": 1622.892599999992,
+          "newJobs": 0
+        },
+        {
+          "ms": 1637.8201999999874,
+          "newJobs": 0
+        }
+      ]
+    },
+    {
+      "name": "T46-22 actual JSON/CSV visible/all exports 40 matches over25 row page",
+      "status": "PASS",
+      "exports": [
+        {
+          "name": "顯示欄位",
+          "ms": 2590.925900000002,
+          "bytes": 22474
+        },
+        {
+          "name": "全部欄位 JSON",
+          "ms": 2774.3744000000006,
+          "bytes": 11337944
+        },
+        {
+          "name": "顯示欄位 CSV",
+          "ms": 2484.7322999999888,
+          "bytes": 9324
+        },
+        {
+          "name": "全部欄位 CSV",
+          "ms": 2678.893700000015,
+          "bytes": 11252770
+        }
+      ]
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 664.2994999999937
+    },
+    {
+      "name": "T46-12 actual in-flight route reconnect no duplicate query",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 362.9132999999856
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 400.428899999999
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 403.66440000000875
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 428.0908000000054
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 396.55259999999544
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 423.4128999999957
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 496.70270000002347
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 450.9492999999784
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 393.38809999998193
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 493.9684000000125
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 390.4206000000122
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 446.8579000000027
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 373.38449999998556
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 462.88749999998254
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 440.75229999999283
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 450.59030000001076
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 386.2289999999921
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 398.0385000000242
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 369.25820000001113
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 399.5037000000011
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 321.07399999999325
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 429.27700000000186
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 366.15030000000843
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 399.7642000000051
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 385.2532000000065
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 349.6509000000078
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 419.699500000017
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 382.8755999999994
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 403.46710000000894
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 415.90199999997276
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 399.53900000001886
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 449.89590000000317
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 397.7462999999989
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 437.8616000000038
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 415.17420000000857
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 668.6971000000485
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 369.27470000000903
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 351.1111999999848
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 419.42379999998957
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 432.4737000000314
+    },
+    {
+      "name": "T46-15 twenty mixed route/filter/export/DB-switch/cancel cycles settle and bounded jobs",
+      "status": "PASS",
+      "samples": [
+        {
+          "cycle": 1,
+          "rendererHeap": 12896188,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 9,
+                  "parent": 0,
+                  "notused": 216,
+                  "detail": "SCAN d"
+                },
+                {
+                  "id": 12,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 1"
+                },
+                {
+                  "id": 18,
+                  "parent": 12,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 43,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d  ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 1,
+              "filtered": 1,
+              "elapsedMs": 349
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 40960,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 205451264,
+              "heapTotal": 10223616,
+              "heapUsed": 5614844,
+              "external": 3558709,
+              "arrayBuffers": 14659
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 9,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 204943360,
+              "sampledAt": "2026-09-09T07:32:34.505Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 1,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 2,
+          "rendererHeap": 40660524,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 16,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 28,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 34,
+                  "parent": 28,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 61,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 40,
+              "elapsedMs": 3108
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 227164160,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 465018880,
+              "heapTotal": 24629248,
+              "heapUsed": 8261456,
+              "external": 3557176,
+              "arrayBuffers": 14659
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 11,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 466513920,
+              "sampledAt": "2026-09-09T07:32:45.885Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 11,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:32:45.755Z",
+                "memory": {
+                  "rss": 465018880,
+                  "heapTotal": 24629248,
+                  "heapUsed": 8261456,
+                  "external": 3557176,
+                  "arrayBuffers": 14659
+                },
+                "cacheBytes": 227164160,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 3,
+          "rendererHeap": 40082044,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 17,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 24,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 39,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 59,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 71,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 3"
+                },
+                {
+                  "id": 77,
+                  "parent": 71,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 104,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) AND NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text='DESCRIPTION' WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number>0)) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 38,
+              "elapsedMs": 986
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251887616,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 506851328,
+              "heapTotal": 36552704,
+              "heapUsed": 21578808,
+              "external": 3557176,
+              "arrayBuffers": 14655
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 11,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 508698624,
+              "sampledAt": "2026-09-09T07:32:50.630Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 11,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:32:49.660Z",
+                "memory": {
+                  "rss": 506851328,
+                  "heapTotal": 36552704,
+                  "heapUsed": 21578808,
+                  "external": 3557176,
+                  "arrayBuffers": 14655
+                },
+                "cacheBytes": 251887616,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 4,
+          "rendererHeap": 34937712,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 16,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 28,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 34,
+                  "parent": 28,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 61,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 40,
+              "elapsedMs": 167
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251887616,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 512131072,
+              "heapTotal": 36151296,
+              "heapUsed": 17124936,
+              "external": 3557176,
+              "arrayBuffers": 14647
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 11,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 515162112,
+              "sampledAt": "2026-09-09T07:32:54.657Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 11,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:32:52.877Z",
+                "memory": {
+                  "rss": 512131072,
+                  "heapTotal": 36151296,
+                  "heapUsed": 17124936,
+                  "external": 3557176,
+                  "arrayBuffers": 14647
+                },
+                "cacheBytes": 251887616,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 5,
+          "rendererHeap": 36504916,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 17,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 24,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 39,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 59,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 71,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 3"
+                },
+                {
+                  "id": 77,
+                  "parent": 71,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 104,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) AND NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text='DESCRIPTION' WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number>0)) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 38,
+              "elapsedMs": 213
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251887616,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 514584576,
+              "heapTotal": 39161856,
+              "heapUsed": 24198740,
+              "external": 3557176,
+              "arrayBuffers": 14655
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 11,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 515801088,
+              "sampledAt": "2026-09-09T07:32:58.706Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 11,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:32:56.951Z",
+                "memory": {
+                  "rss": 514584576,
+                  "heapTotal": 39161856,
+                  "heapUsed": 24198740,
+                  "external": 3557176,
+                  "arrayBuffers": 14655
+                },
+                "cacheBytes": 251887616,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 6,
+          "rendererHeap": 20161960,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 9,
+                  "parent": 0,
+                  "notused": 216,
+                  "detail": "SCAN d"
+                },
+                {
+                  "id": 12,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 1"
+                },
+                {
+                  "id": 18,
+                  "parent": 12,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 43,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d  ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 1,
+              "filtered": 1,
+              "elapsedMs": 302
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 40960,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 216973312,
+              "heapTotal": 9961472,
+              "heapUsed": 5595440,
+              "external": 3558709,
+              "arrayBuffers": 14667
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 12,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 209928192,
+              "sampledAt": "2026-09-09T07:33:12.846Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 1,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 7,
+          "rendererHeap": 21015212,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 17,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 24,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 39,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 59,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 71,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 3"
+                },
+                {
+                  "id": 77,
+                  "parent": 71,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 104,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) AND NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text='DESCRIPTION' WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number>0)) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 38,
+              "elapsedMs": 3197
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251498496,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 495181824,
+              "heapTotal": 25817088,
+              "heapUsed": 18459852,
+              "external": 3558749,
+              "arrayBuffers": 14675
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 14,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 494948352,
+              "sampledAt": "2026-09-09T07:33:25.288Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 14,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:33:25.211Z",
+                "memory": {
+                  "rss": 495181824,
+                  "heapTotal": 25817088,
+                  "heapUsed": 18459852,
+                  "external": 3558749,
+                  "arrayBuffers": 14675
+                },
+                "cacheBytes": 251498496,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 8,
+          "rendererHeap": 33159472,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 16,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 28,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 34,
+                  "parent": 28,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 61,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 40,
+              "elapsedMs": 158
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251498496,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 494850048,
+              "heapTotal": 25153536,
+              "heapUsed": 12299216,
+              "external": 3557176,
+              "arrayBuffers": 14651
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 14,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 498188288,
+              "sampledAt": "2026-09-09T07:33:30.032Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 14,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:33:28.236Z",
+                "memory": {
+                  "rss": 494850048,
+                  "heapTotal": 25153536,
+                  "heapUsed": 12299216,
+                  "external": 3557176,
+                  "arrayBuffers": 14651
+                },
+                "cacheBytes": 251498496,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 9,
+          "rendererHeap": 34829812,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 17,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 24,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 39,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 59,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 71,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 3"
+                },
+                {
+                  "id": 77,
+                  "parent": 71,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 104,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) AND NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text='DESCRIPTION' WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number>0)) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 38,
+              "elapsedMs": 192
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251498496,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 499032064,
+              "heapTotal": 31834112,
+              "heapUsed": 19358128,
+              "external": 3557176,
+              "arrayBuffers": 14675
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 14,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 501190656,
+              "sampledAt": "2026-09-09T07:33:34.047Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 14,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:33:32.277Z",
+                "memory": {
+                  "rss": 499032064,
+                  "heapTotal": 31834112,
+                  "heapUsed": 19358128,
+                  "external": 3557176,
+                  "arrayBuffers": 14675
+                },
+                "cacheBytes": 251498496,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 10,
+          "rendererHeap": 34499380,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 16,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 28,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 34,
+                  "parent": 28,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 61,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 40,
+              "elapsedMs": 132
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251498496,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 503328768,
+              "heapTotal": 20172800,
+              "heapUsed": 10083064,
+              "external": 3557176,
+              "arrayBuffers": 14651
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 14,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 505528320,
+              "sampledAt": "2026-09-09T07:33:38.097Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 14,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:33:36.268Z",
+                "memory": {
+                  "rss": 503328768,
+                  "heapTotal": 20172800,
+                  "heapUsed": 10083064,
+                  "external": 3557176,
+                  "arrayBuffers": 14651
+                },
+                "cacheBytes": 251498496,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 11,
+          "rendererHeap": 20289288,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 9,
+                  "parent": 0,
+                  "notused": 216,
+                  "detail": "SCAN d"
+                },
+                {
+                  "id": 12,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 1"
+                },
+                {
+                  "id": 18,
+                  "parent": 12,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 43,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d  ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 1,
+              "filtered": 1,
+              "elapsedMs": 227
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 40960,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 205238272,
+              "heapTotal": 9961472,
+              "heapUsed": 5631700,
+              "external": 3558709,
+              "arrayBuffers": 14667
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 15,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 198631424,
+              "sampledAt": "2026-09-09T07:33:52.250Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 1,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 12,
+          "rendererHeap": 16902460,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 16,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 28,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 34,
+                  "parent": 28,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 61,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 40,
+              "elapsedMs": 2692
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 227164160,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 462561280,
+              "heapTotal": 24104960,
+              "heapUsed": 8261520,
+              "external": 3557176,
+              "arrayBuffers": 14675
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 17,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 464560128,
+              "sampledAt": "2026-09-09T07:34:03.147Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 17,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:34:03.076Z",
+                "memory": {
+                  "rss": 462561280,
+                  "heapTotal": 24104960,
+                  "heapUsed": 8261520,
+                  "external": 3557176,
+                  "arrayBuffers": 14675
+                },
+                "cacheBytes": 227164160,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 13,
+          "rendererHeap": 38501624,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 17,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 24,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 39,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 59,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 71,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 3"
+                },
+                {
+                  "id": 77,
+                  "parent": 71,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 104,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) AND NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text='DESCRIPTION' WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number>0)) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 38,
+              "elapsedMs": 817
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251887616,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 505712640,
+              "heapTotal": 36028416,
+              "heapUsed": 21708316,
+              "external": 3557176,
+              "arrayBuffers": 14651
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 17,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 506855424,
+              "sampledAt": "2026-09-09T07:34:07.379Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 17,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:34:06.240Z",
+                "memory": {
+                  "rss": 505712640,
+                  "heapTotal": 36028416,
+                  "heapUsed": 21708316,
+                  "external": 3557176,
+                  "arrayBuffers": 14651
+                },
+                "cacheBytes": 251887616,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 14,
+          "rendererHeap": 35183992,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 16,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 28,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 34,
+                  "parent": 28,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 61,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 40,
+              "elapsedMs": 166
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251887616,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 508755968,
+              "heapTotal": 35627008,
+              "heapUsed": 16995020,
+              "external": 3557176,
+              "arrayBuffers": 14647
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 17,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 510517248,
+              "sampledAt": "2026-09-09T07:34:11.413Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 17,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:34:09.639Z",
+                "memory": {
+                  "rss": 508755968,
+                  "heapTotal": 35627008,
+                  "heapUsed": 16995020,
+                  "external": 3557176,
+                  "arrayBuffers": 14647
+                },
+                "cacheBytes": 251887616,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 15,
+          "rendererHeap": 36603760,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 17,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 24,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 39,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 59,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 71,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 3"
+                },
+                {
+                  "id": 77,
+                  "parent": 71,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 104,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) AND NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text='DESCRIPTION' WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number>0)) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 38,
+              "elapsedMs": 266
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251887616,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 510287872,
+              "heapTotal": 38637568,
+              "heapUsed": 24132544,
+              "external": 3557176,
+              "arrayBuffers": 14655
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 17,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 505507840,
+              "sampledAt": "2026-09-09T07:34:15.464Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 17,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:34:13.814Z",
+                "memory": {
+                  "rss": 510287872,
+                  "heapTotal": 38637568,
+                  "heapUsed": 24132544,
+                  "external": 3557176,
+                  "arrayBuffers": 14655
+                },
+                "cacheBytes": 251887616,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 16,
+          "rendererHeap": 19966832,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 9,
+                  "parent": 0,
+                  "notused": 216,
+                  "detail": "SCAN d"
+                },
+                {
+                  "id": 12,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 1"
+                },
+                {
+                  "id": 18,
+                  "parent": 12,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 43,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d  ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 1,
+              "filtered": 1,
+              "elapsedMs": 302
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 40960,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 217010176,
+              "heapTotal": 9961472,
+              "heapUsed": 5628244,
+              "external": 3558709,
+              "arrayBuffers": 14651
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 18,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 212443136,
+              "sampledAt": "2026-09-09T07:34:29.665Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 1,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 17,
+          "rendererHeap": 17605324,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 17,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 24,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 39,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 59,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 71,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 3"
+                },
+                {
+                  "id": 77,
+                  "parent": 71,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 104,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) AND NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text='DESCRIPTION' WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number>0)) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 38,
+              "elapsedMs": 3237
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251498496,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 490217472,
+              "heapTotal": 23719936,
+              "heapUsed": 9142148,
+              "external": 3557176,
+              "arrayBuffers": 14675
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 20,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 491704320,
+              "sampledAt": "2026-09-09T07:34:42.130Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 20,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:34:42.044Z",
+                "memory": {
+                  "rss": 490217472,
+                  "heapTotal": 23719936,
+                  "heapUsed": 9142148,
+                  "external": 3557176,
+                  "arrayBuffers": 14675
+                },
+                "cacheBytes": 251498496,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 18,
+          "rendererHeap": 33882764,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 16,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 28,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 34,
+                  "parent": 28,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 61,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 40,
+              "elapsedMs": 141
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251498496,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 495497216,
+              "heapTotal": 26329088,
+              "heapUsed": 15493752,
+              "external": 3557176,
+              "arrayBuffers": 14651
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 20,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 497467392,
+              "sampledAt": "2026-09-09T07:34:46.811Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 20,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:34:44.994Z",
+                "memory": {
+                  "rss": 495497216,
+                  "heapTotal": 26329088,
+                  "heapUsed": 15493752,
+                  "external": 3557176,
+                  "arrayBuffers": 14651
+                },
+                "cacheBytes": 251498496,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 19,
+          "rendererHeap": 35377032,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 17,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 24,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH c USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 39,
+                  "parent": 17,
+                  "notused": 61,
+                  "detail": "SEARCH applicable USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 59,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 71,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 3"
+                },
+                {
+                  "id": 77,
+                  "parent": 71,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 104,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) AND NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text='DESCRIPTION' WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number>0)) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 38,
+              "elapsedMs": 207
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251498496,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 502476800,
+              "heapTotal": 33533952,
+              "heapUsed": 22616592,
+              "external": 3557176,
+              "arrayBuffers": 14675
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 20,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 503787520,
+              "sampledAt": "2026-09-09T07:34:50.829Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 20,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:34:49.081Z",
+                "memory": {
+                  "rss": 502476800,
+                  "heapTotal": 33533952,
+                  "heapUsed": 22616592,
+                  "external": 3557176,
+                  "arrayBuffers": 14675
+                },
+                "cacheBytes": 251498496,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        },
+        {
+          "cycle": 20,
+          "rendererHeap": 33875648,
+          "resources": {
+            "integrated": {
+              "queryPlan": [
+                {
+                  "id": 13,
+                  "parent": 0,
+                  "notused": 213,
+                  "detail": "SCAN d USING INDEX sqlite_autoindex_documents_1"
+                },
+                {
+                  "id": 16,
+                  "parent": 0,
+                  "notused": 61,
+                  "detail": "SEARCH c EXISTS USING INDEX cells_row (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 28,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "CORRELATED SCALAR SUBQUERY 2"
+                },
+                {
+                  "id": 34,
+                  "parent": 28,
+                  "notused": 62,
+                  "detail": "SEARCH c USING INDEX sqlite_autoindex_cells_1 (row_id=? AND field_id=?)"
+                },
+                {
+                  "id": 61,
+                  "parent": 0,
+                  "notused": 0,
+                  "detail": "USE TEMP B-TREE FOR ORDER BY"
+                }
+              ],
+              "queryTemplate": "SELECT body FROM documents d WHERE EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text=?) ORDER BY (SELECT jaa_epoch(c.text) FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) DESC, d.id LIMIT ? OFFSET ?",
+              "parameterTypes": [
+                "string",
+                "string",
+                "string",
+                "number",
+                "number"
+              ],
+              "scope": "integrated",
+              "total": 39281,
+              "filtered": 40,
+              "elapsedMs": 152
+            },
+            "cacheEntries": 1,
+            "cacheBytes": 251498496,
+            "cacheBudgetBytes": 268435456,
+            "memory": {
+              "rss": 505290752,
+              "heapTotal": 30523392,
+              "heapUsed": 15392708,
+              "external": 3557176,
+              "arrayBuffers": 14643
+            },
+            "resourceOwner": {
+              "pid": 44328,
+              "threadId": 20,
+              "processType": "worker",
+              "rssScope": "process-wide-do-not-sum-workers",
+              "heapScope": "worker-local",
+              "units": "bytes"
+            },
+            "process": {
+              "pid": 44328,
+              "rssBytes": 506638336,
+              "sampledAt": "2026-09-09T07:34:54.848Z",
+              "rssScope": "unique-process"
+            },
+            "executors": [
+              {
+                "key": "1:ai:read",
+                "threadId": 8,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:31:38.302Z",
+                "memory": {
+                  "rss": 460726272,
+                  "heapTotal": 8650752,
+                  "heapUsed": 6902728,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 1449984,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              },
+              {
+                "key": "1:integrated:read",
+                "threadId": 20,
+                "pendingCount": 0,
+                "sampledAt": "2026-09-09T07:34:53.043Z",
+                "memory": {
+                  "rss": 505290752,
+                  "heapTotal": 30523392,
+                  "heapUsed": 15392708,
+                  "external": 3557176,
+                  "arrayBuffers": 14643
+                },
+                "cacheBytes": 251498496,
+                "cacheBudgetBytes": 268435456,
+                "listeners": {
+                  "newListener": 1,
+                  "removeListener": 1,
+                  "message": 1,
+                  "error": 1,
+                  "exit": 1
+                }
+              }
+            ],
+            "executorCount": 2,
+            "pendingCount": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "T46-18 real diagnostic export consistent cutoff",
+      "status": "PASS",
+      "cutoff": "2026-09-09T07:34:54.972Z"
+    },
+    {
+      "name": "route-ready:users",
+      "status": "PASS",
+      "durationMs": 170.74800000002142
+    },
+    {
+      "name": "route:users",
+      "status": "PASS",
+      "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+    },
+    {
+      "name": "runtime-IPC-registry-bidirectional-exact",
+      "status": "PASS",
+      "channels": 102
+    },
+    {
+      "name": "production-file-io-and-complete-streaming-pipeline",
+      "status": "PASS"
+    }
+  ],
+  "edgeUI": [
+    {
+      "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:ai-database",
+      "status": "PASS",
+      "durationMs": 180.28149999999732
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 1153.6100000000006
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 683.5036
+    },
+    {
+      "name": "route-ready:ai-database",
+      "status": "PASS",
+      "durationMs": 174.91589999999997
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 506.9858999999997
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 315.40230000000156
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 167.01010000000315
+    },
+    {
+      "name": "T46-23 cancel during held picker prevents publication",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 994.3444999999992
+    },
+    {
+      "name": "T46-23 native-picker cancel and DB change reject stale publication",
+      "status": "PASS"
+    },
+    {
+      "name": "T46-23 filter change during picker keeps original 40-row snapshot",
+      "status": "PASS"
+    },
+    {
+      "name": "T46-23 real in-flight full export cancel stops worker and cleans only own partial",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:connections",
+      "status": "PASS",
+      "durationMs": 183.81170000000566
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 1593.2551000000094
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 1159.1379000000015
+    },
+    {
+      "name": "T46-20 old manual preferences real UI + persisted current scope reload",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:connections",
+      "status": "PASS",
+      "durationMs": 158.23579999999492
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 1086.5583999999944
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 1249.0128000000113
+    },
+    {
+      "name": "T46-20 old unknown preferences real UI + persisted current scope reload",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:connections",
+      "status": "PASS",
+      "durationMs": 157.9539000000077
+    },
+    {
+      "name": "route-ready:users",
+      "status": "PASS",
+      "durationMs": 174.16830000000482
+    },
+    {
+      "name": "route:users",
+      "status": "PASS",
+      "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+    },
+    {
+      "name": "runtime-IPC-registry-bidirectional-exact",
+      "status": "PASS",
+      "channels": 102
+    },
+    {
+      "name": "production-file-io-and-complete-streaming-pipeline",
+      "status": "PASS"
+    }
+  ],
+  "packagedUI": {
+    "status": "PASS",
+    "checks": [
+      {
+        "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+        "status": "PASS"
+      },
+      {
+        "name": "route-ready:ai-database",
+        "status": "PASS",
+        "durationMs": 192.54169999999976
+      },
+      {
+        "name": "route-ready:ai-results",
+        "status": "PASS",
+        "durationMs": 1100.1966000000011
+      },
+      {
+        "name": "route-ready:integrated-results",
+        "status": "PASS",
+        "durationMs": 423.26060000000143
+      },
+      {
+        "name": "route-ready:ai-database",
+        "status": "PASS",
+        "durationMs": 179.1833000000006
+      },
+      {
+        "name": "route-ready:ai-results",
+        "status": "PASS",
+        "durationMs": 223.41070000000036
+      },
+      {
+        "name": "route-ready:integrated-results",
+        "status": "PASS",
+        "durationMs": 253.51519999999982
+      },
+      {
+        "name": "route-ready:integrated-results",
+        "status": "PASS",
+        "durationMs": 162.76250000000073
+      },
+      {
+        "name": "T46-23 cancel during held picker prevents publication",
+        "status": "PASS"
+      },
+      {
+        "name": "route-ready:integrated-results",
+        "status": "PASS",
+        "durationMs": 236.3735000000015
+      },
+      {
+        "name": "T46-23 native-picker cancel and DB change reject stale publication",
+        "status": "PASS"
+      },
+      {
+        "name": "T46-23 filter change during picker keeps original 40-row snapshot",
+        "status": "PASS"
+      },
+      {
+        "name": "T46-23 real in-flight full export cancel stops worker and cleans only own partial",
+        "status": "PASS"
+      },
+      {
+        "name": "route-ready:connections",
+        "status": "PASS",
+        "durationMs": 173.2433000000019
+      },
+      {
+        "name": "route-ready:ai-results",
+        "status": "PASS",
+        "durationMs": 1061.1847999999954
+      },
+      {
+        "name": "route-ready:ai-results",
+        "status": "PASS",
+        "durationMs": 302.69840000000113
+      },
+      {
+        "name": "T46-20 old manual preferences real UI + persisted current scope reload",
+        "status": "PASS"
+      },
+      {
+        "name": "route-ready:connections",
+        "status": "PASS",
+        "durationMs": 160.33320000000094
+      },
+      {
+        "name": "route-ready:ai-results",
+        "status": "PASS",
+        "durationMs": 1040.4859999999971
+      },
+      {
+        "name": "route-ready:ai-results",
+        "status": "PASS",
+        "durationMs": 303.64160000000265
+      },
+      {
+        "name": "T46-20 old unknown preferences real UI + persisted current scope reload",
+        "status": "PASS"
+      },
+      {
+        "name": "route-ready:connections",
+        "status": "PASS",
+        "durationMs": 160.4308000000019
+      },
+      {
+        "name": "route-ready:users",
+        "status": "PASS",
+        "durationMs": 159.32560000000376
+      },
+      {
+        "name": "route:users",
+        "status": "PASS",
+        "heading": "使用者檢視 / User Viewer / Local Database / Read Only"
+      },
+      {
+        "name": "runtime-IPC-registry-bidirectional-exact",
+        "status": "PASS",
+        "channels": 102
+      },
+      {
+        "name": "production-file-io-and-complete-streaming-pipeline",
+        "status": "PASS"
+      }
+    ],
+    "errors": [],
+    "screenshots": [
+      {
+        "file": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\screenshots\\ai-database-1366x768.png",
+        "width": 1366,
+        "height": 768,
+        "overflow": false,
+        "heading": "AI 分析資料庫 / AI Analysis Database",
+        "sidebar": true
+      },
+      {
+        "file": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\screenshots\\ai-results-1366x768.png",
+        "width": 1366,
+        "height": 768,
+        "overflow": false,
+        "heading": "AI 結果檢視 / AI Results Viewer",
+        "sidebar": true
+      },
+      {
+        "file": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\screenshots\\integrated-results-1366x768.png",
+        "width": 1366,
+        "height": 768,
+        "overflow": false,
+        "heading": "整合顯示結果 / Integrated Results",
+        "sidebar": true
+      },
+      {
+        "file": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\screenshots\\debug-1366x768.png",
+        "debugExpanded": true,
+        "left": 926,
+        "right": 1366,
+        "width": 1366,
+        "clippedButtons": []
+      },
+      {
+        "file": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\screenshots\\ai-database-1920x1080.png",
+        "width": 1920,
+        "height": 1080,
+        "overflow": false,
+        "heading": "AI 分析資料庫 / AI Analysis Database",
+        "sidebar": true
+      },
+      {
+        "file": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\screenshots\\ai-results-1920x1080.png",
+        "width": 1920,
+        "height": 1080,
+        "overflow": false,
+        "heading": "AI 結果檢視 / AI Results Viewer",
+        "sidebar": true
+      },
+      {
+        "file": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\screenshots\\integrated-results-1920x1080.png",
+        "width": 1920,
+        "height": 1080,
+        "overflow": false,
+        "heading": "整合顯示結果 / Integrated Results",
+        "sidebar": true
+      },
+      {
+        "file": "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\screenshots\\debug-1920x1080.png",
+        "debugExpanded": true,
+        "left": 1480,
+        "right": 1920,
+        "width": 1920,
+        "clippedButtons": []
+      }
+    ],
+    "appExited": true,
+    "ioAudit": {
+      "files": [
+        "io-audit-32724-0.ndjson",
+        "io-audit-32724-1.ndjson",
+        "io-audit-32724-10.ndjson",
+        "io-audit-32724-11.ndjson",
+        "io-audit-32724-12.ndjson",
+        "io-audit-32724-13.ndjson",
+        "io-audit-32724-14.ndjson",
+        "io-audit-32724-15.ndjson",
+        "io-audit-32724-2.ndjson",
+        "io-audit-32724-3.ndjson",
+        "io-audit-32724-4.ndjson",
+        "io-audit-32724-5.ndjson",
+        "io-audit-32724-6.ndjson",
+        "io-audit-32724-7.ndjson",
+        "io-audit-32724-8.ndjson",
+        "io-audit-32724-9.ndjson",
+        "io-audit-41524-0.ndjson"
+      ],
+      "invocations": 285,
+      "externalReads": [
+        {
+          "timestampUtc": "2026-09-09T07:50:31.388Z",
+          "pid": 32724,
+          "threadId": 11,
+          "operation": "statSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:50:31.402Z",
+          "pid": 32724,
+          "threadId": 11,
+          "operation": "readFileSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:50:31.533Z",
+          "pid": 32724,
+          "threadId": 12,
+          "operation": "statSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:50:31.547Z",
+          "pid": 32724,
+          "threadId": 12,
+          "operation": "readFileSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:50:33.562Z",
+          "pid": 32724,
+          "threadId": 13,
+          "operation": "statSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:50:33.576Z",
+          "pid": 32724,
+          "threadId": 13,
+          "operation": "readFileSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:50:33.706Z",
+          "pid": 32724,
+          "threadId": 14,
+          "operation": "statSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:50:33.719Z",
+          "pid": 32724,
+          "threadId": 14,
+          "operation": "readFileSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:49:43.841Z",
+          "pid": 32724,
+          "threadId": 2,
+          "operation": "statSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:49:43.857Z",
+          "pid": 32724,
+          "threadId": 2,
+          "operation": "readFileSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:49:44.009Z",
+          "pid": 32724,
+          "threadId": 4,
+          "operation": "statSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        },
+        {
+          "timestampUtc": "2026-09-09T07:49:44.022Z",
+          "pid": 32724,
+          "threadId": 4,
+          "operation": "readFileSync",
+          "path": "F:\\AI\\JiraActivityAnalyzer\\tests\\fixtures\\v0.3.43\\v201\\package-ai-only-55.json",
+          "writes": false,
+          "policy": "EXTERNAL_READ_REQUIRES_REVIEW",
+          "observation": "API invocation; may fail; no content captured"
+        }
+      ],
+      "coverage": "Node fs APIs + SQLite connection paths in main/query/write/diagnostic isolates; Chromium native cache writes are checked by APP_ROOT paths, not OS syscall tracing"
+    },
+    "traceAudit": {
+      "events": 1093,
+      "producers": 13,
+      "spans": 242,
+      "terminatedReadWorkerSpans": [
+        {
+          "spanId": "3e9a2919-e5f9-4175-8d1e-eb509016ec7f",
+          "event": "snapshot-build",
+          "operationId": "b54c92f4-0841-4b2c-ac73-a3a163dc0710",
+          "producer": "worker",
+          "terminalOperation": "CANCELLED"
+        },
+        {
+          "spanId": "d6928452-fa20-46e1-8833-7f5e7c470308",
+          "event": "source-read",
+          "operationId": "b54c92f4-0841-4b2c-ac73-a3a163dc0710",
+          "producer": "worker",
+          "terminalOperation": "CANCELLED"
+        },
+        {
+          "spanId": "c300d0a8-8934-4198-bbf1-ce5561732ac0",
+          "event": "mapping-aggregation",
+          "operationId": "b54c92f4-0841-4b2c-ac73-a3a163dc0710",
+          "producer": "worker",
+          "terminalOperation": "CANCELLED"
+        },
+        {
+          "spanId": "38612268-264f-4406-83c0-be4ae19e070f",
+          "event": "export-write",
+          "operationId": "afb023cd-b9a2-41f5-b8ab-681b67a48ec3",
+          "producer": "worker",
+          "terminalOperation": "CANCELLED"
+        }
+      ],
+      "stageNames": [
+        "session-start",
+        "file-io",
+        "startup.jira-check",
+        "startup.database-check",
+        "ipc.ai-database:lifecycle",
+        "navigation-shell",
+        "ipc.user-analysis:log-action",
+        "ipc.connection:list",
+        "ipc.runtime:get-state",
+        "ipc.ui-preferences:get",
+        "navigation-observed",
+        "ipc.database:select-existing",
+        "ipc.database-viewer:overview",
+        "ipc.ai-database:create",
+        "ipc.ai-database:preflight",
+        "ipc.database-viewer:list-issues",
+        "write.preflight",
+        "ipc.ai-database:import",
+        "write.import",
+        "ipc.database-viewer:issue-distributions",
+        "ipc.ai-database:relink",
+        "write.relink",
+        "monitor-heartbeat",
+        "ipc.ai-database:query-integrated",
+        "snapshot-build",
+        "source-read",
+        "mapping-aggregation",
+        "field-discovery",
+        "sql-query",
+        "row-mapping",
+        "ipc-result-ready",
+        "ipc.ai-database:write-state",
+        "ipc.ai-database:query-results",
+        "ipc.ui-preferences:update",
+        "renderer-result-commit",
+        "cache-hit",
+        "ui-command",
+        "ipc.ai-database:export-query",
+        "export-picker-wait",
+        "ipc.ai-database:cancel-query",
+        "cancel-requested",
+        "ipc.ai-database:report-stale",
+        "cache-released",
+        "ipc.ai-database:distinct",
+        "facet-build",
+        "export-snapshot",
+        "export-write",
+        "export-projection-serialization",
+        "export-atomic-publish",
+        "export-completed",
+        "ipc.database-viewer:list-users",
+        "session-stop"
+      ]
+    }
+  },
+  "memory": {
+    "cycles": 20,
+    "rssMin": 198631424,
+    "rssMax": 515801088,
+    "rendererHeapMin": 12896188,
+    "rendererHeapMax": 40660524,
+    "units": "bytes",
+    "notes": "RSS once per main PID; worker heaps are last-completed-job samples. No forced GC. Read workers stop only as part of tested cancellation."
+  }
+}

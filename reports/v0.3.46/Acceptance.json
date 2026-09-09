@@ -1,0 +1,655 @@
+{
+  "targetAppVersion": "0.3.46",
+  "deliveryMode": "DEVELOPMENT",
+  "artifactTargets": [
+    "win-unpacked"
+  ],
+  "manualGui": "PENDING",
+  "status": "PARTIAL",
+  "secondsAreHardGates": false,
+  "tests": [
+    {
+      "id": "T46-01",
+      "name": "Comment新增全文",
+      "requirements": [
+        "R46-01"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "C01：顯示body可讀全文/新增標示；缺Before正常、metadata不混入；不算JSON+6"
+    },
+    {
+      "id": "T46-02",
+      "name": "Comment更新全文",
+      "requirements": [
+        "R46-01"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "C02/C03：不管有無Before均全文，Update標示與來源時點，分析/Review Rank不因缺Before被改"
+    },
+    {
+      "id": "T46-03",
+      "name": "Comment缺本文與安全呈現",
+      "requirements": [
+        "R46-01"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "C04/C05：缺body提示內容不可得；正常CRLF、literal escape不盲改，HTML當文字不執行"
+    },
+    {
+      "id": "T46-04",
+      "name": "Description正常／缺失／compact",
+      "requirements": [
+        "R46-01"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "D01～D06：有據Diff、空字串與null區別；可信compact保留片段，真正不足才unknown"
+    },
+    {
+      "id": "T46-05",
+      "name": "跨頁來源與不變性",
+      "requirements": [
+        "R46-01",
+        "R46-07"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PARTIAL",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "同事件同snapshot三頁共用formatter；Raw與AI來源不同明標不強制覆蓋；SourceTrace/人工結果前後canonical hash不變",
+      "coverageGap": "Shared formatter, trace preservation and route smoke pass; identical-event/snapshot full comparison across all three live pages is not independently evidenced."
+    },
+    {
+      "id": "T46-06",
+      "name": "Description快篩16組",
+      "requirements": [
+        "R46-02"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "每組完整expectedIds匹配；Comment與O01不因四快篩排除；一般eventType能排除Comment"
+    },
+    {
+      "id": "T46-07",
+      "name": "未知/不適用的顯示篩選匯出",
+      "requirements": [
+        "R46-02",
+        "R46-07"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "Comment derived counts=N/A，不用0；Description unknown不当zero/unchanged；sort/filter/export一致，原始trace舊diff保真"
+    },
+    {
+      "id": "T46-08",
+      "name": "查詢量測與瓶頸修正",
+      "requirements": [
+        "R46-03"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "同條件before/after或誠實NOT_COMPARABLE；分queue/SQL/map/IPC/render，已確認缺陷有修改與生產路徑證據；秒數非硬Gate"
+    },
+    {
+      "id": "T46-09",
+      "name": "完整動態欄位候選",
+      "requirements": [
+        "R46-03"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "尾端才出現字段/候選可用，schema全null可選；nested/array namespace，OR/AND及已選0-count；候選搜尋不誤作實際filter"
+    },
+    {
+      "id": "T46-10",
+      "name": "Raw整合母體與錯誤",
+      "requirements": [
+        "R46-03",
+        "R46-07"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "AI空/未開/未配/部分/全配/孤立保持Raw母體，findings不fanout；SQL error明示QUERY_ERROR不是0筆"
+    },
+    {
+      "id": "T46-11",
+      "name": "五次回頁完整偏好",
+      "requirements": [
+        "R46-04"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "同條件5次A-B-A保留結果/filter/page/sort/columns/order/width/scroll，有效cache新同query job=0，端到端時間僅記錄"
+    },
+    {
+      "id": "T46-12",
+      "name": "進行中工作接回與stale",
+      "requirements": [
+        "R46-04"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PARTIAL",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "實際renderer切頁/快速改filter/DB切換的inflight矩陣；接回同job且late response不污染新狀態",
+      "coverageGap": "Actual in-flight route reconnect, service supersession and export DB/filter races pass; complete renderer query-inflight rapid-filter/DB-switch matrix is not independently evidenced."
+    },
+    {
+      "id": "T46-13",
+      "name": "內容revision與跨DB隔離",
+      "requirements": [
+        "R46-04"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "import commit/有效link/外部commit/手動refresh失效；rollback/protected/noop/健康/lastOpened不偽造內容revision；DB A/B不串"
+    },
+    {
+      "id": "T46-14",
+      "name": "快取淘汰與真重查",
+      "requirements": [
+        "R46-04",
+        "R46-05"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "有界bytes/entries，實际evict後如實重查與原因；不是把所有操作都報cache hit"
+    },
+    {
+      "id": "T46-15",
+      "name": "20輪混合資源觀測",
+      "requirements": [
+        "R46-05"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "warmup/settle明示；tab/filter/export/DB/cancel混合20輪，RSS按PID唯一/heap按owner，job/queue/listeners/cache釋放，有界證據"
+    },
+    {
+      "id": "T46-16",
+      "name": "取消實際生命週期",
+      "requirements": [
+        "R46-05",
+        "R46-06"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "取消已受理與已terminal分離，舊工作停止或安全替代；不以忽略renderer結果冒稱worker停止"
+    },
+    {
+      "id": "T46-17",
+      "name": "Superseded錯誤分類",
+      "requirements": [
+        "R46-06"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "新請求取代舊請求不計真FAILED；用真service觸發；SQLITE_ERROR和未知錯誤仍失敗，保留span和耗時"
+    },
+    {
+      "id": "T46-18",
+      "name": "診斷持久化與snapshot",
+      "requirements": [
+        "R46-06"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "自動落盤、summary/水位線/事件數/雜湊一致，missing/dropped不假PASS；中斷恢復不自動重跑故障；實際關聯操作而非只call logger"
+    },
+    {
+      "id": "T46-19",
+      "name": "Raw三欄回歸",
+      "requirements": [
+        "R46-07"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "IssueType/currentStatus/currentPriority採Raw正確snapshot；同key不同DB不混值，AI null不蓋Raw，顯示/候選/匯出一致"
+    },
+    {
+      "id": "T46-20",
+      "name": "AI預設與舊偏好組合",
+      "requirements": [
+        "R46-07"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "新default不固定空欄；明確手動/來源不明舊prefs保存；跨頁實際UI驗而非只讀source；補T45-03"
+    },
+    {
+      "id": "T46-21",
+      "name": "日期/文字UI組合",
+      "requirements": [
+        "R46-07"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PARTIAL",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "實際日曆起訖/單邊/同日/跨日/含邊界/非法/時區與文字/多選生效，0/false/null/empty分開；補T45-05",
+      "coverageGap": "Actual date range + text UI and service typed multi-filter cases pass; date + multi-select full UI combination remains incomplete."
+    },
+    {
+      "id": "T46-22",
+      "name": "四種完整結果匯出",
+      "requirements": [
+        "R46-07"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "CSV/JSON×visible/all；page20但matches40須40筆，membership/order/schema正確；visible選小子集需與all不同；長字/中文/quotes/Trace保真"
+    },
+    {
+      "id": "T46-23",
+      "name": "匯出競態與取消UI",
+      "requirements": [
+        "R46-07",
+        "R46-04"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "picker等待時改filter/DB、inflight export/cancel完整矩陣；同snapshot不混代，取消無半成品且只清本job temp；分picker/processing"
+    },
+    {
+      "id": "T46-24",
+      "name": "Frozen Package/Relink保護",
+      "requirements": [
+        "R46-07"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "2.0.0三Rank44/113與2.0.1三Rank55/130、279Catalog；真import rank保護/冪等/rollback/Trace；primary/fallback/notfound/ambiguous/SQLERROR attempt；沿現有有效測試不重寫importer"
+    },
+    {
+      "id": "T46-25",
+      "name": "Source與單target預檢",
+      "requirements": [
+        "R46-08"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PARTIAL",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "typecheck/必要unit/integration/productionUI/build/diffcheck/sensitive；確認target只unpacked、排除private/fixtures；首EXE前完成可做預檢",
+      "coverageGap": "Source/build/packaging prechecks passed, but the three detailed coverage gaps were recognized during closeout after the first EXE. Full gate coverage must not be claimed."
+    },
+    {
+      "id": "T46-26",
+      "name": "Win-unpacked內容與ZIP",
+      "requirements": [
+        "R46-08"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "實際完整folder/ASAR/native/bridge/DDL/版本與hash稽核；ZIP CRC与file inventory，無Installer/Portable，無使用者資料"
+    },
+    {
+      "id": "T46-27",
+      "name": "交付ZIP的WindowsUI與路徑",
+      "requirements": [
+        "R46-08"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "在隔離中文空白路徑解壓交付ZIP，用其EXE建/開合成DB、操作相關頁/匯出/關閉；記實際I/O路徑，App-only截圖"
+    },
+    {
+      "id": "T46-28",
+      "name": "人工GUI",
+      "requirements": [
+        "R46-08"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "MANUAL_GUI_PENDING",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "使用者對指定EXE/ZIP hash明確回覆v0.3.46 GUI 驗收 PASS；自動截圖不能代替"
+    },
+    {
+      "id": "T46-29",
+      "name": "範圍時間額度報告",
+      "requirements": [
+        "R46-09"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PARTIAL",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "逐檔/功能前後百分比checkpoint含來源/窗口/缺口；精確usage分開；即時phase時間/去重/覆蓋/未知；最終三區塊與binding一致",
+      "coverageGap": "Per-operation checkpoints and quota snapshots retained with explicit initial/dispatch/model/final-tail observation gaps; no invented exact usage."
+    },
+    {
+      "id": "T46-30",
+      "name": "版本Git與開發交付狀態",
+      "requirements": [
+        "R46-09",
+        "R46-08"
+      ],
+      "applies": true,
+      "requiredNow": true,
+      "status": "PARTIAL",
+      "productionEvidence": [
+        "test-artifacts/v0.3.46/services-1788938884679/report.json",
+        "test-artifacts/v0.3.46/worker-1788938896530/report.json",
+        "test-artifacts/v0.3.46/ui-1788939002917/report.json",
+        "test-artifacts/v0.3.46/ui-1788938917639/report.json",
+        "test-artifacts/v0.3.46/ui-1788937111603/report.json",
+        "C:\\Users\\ch_kao\\AppData\\Local\\Temp\\JAA v0.3.46 同磁碟驗證 1788940159476\\Evidence\\report.json"
+      ],
+      "expected": "首EXE鎖版/dirty保存/選擇性stage；mode完成與release NOT_READY分開；人工前不Tag/Push，Gate全齊依授權Git與remote核對",
+      "coverageGap": "Source commit and frozen candidate exist; no Tag/Push. Remaining automated coverage plus explicit human approval are outstanding."
+    },
+    {
+      "id": "G46-INSTALLER",
+      "name": "Installer install/upgrade/uninstall",
+      "requirements": [
+        "R46-08"
+      ],
+      "applies": false,
+      "requiredNow": false,
+      "status": "N/A_MODE",
+      "productionEvidence": null,
+      "expected": "不產生/不驗證；非PASS",
+      "reason": "DEVELOPMENT",
+      "deferredIssueRef": "K46-01"
+    },
+    {
+      "id": "G46-PORTABLE",
+      "name": "Portable launcher/temp/move",
+      "requirements": [
+        "R46-08"
+      ],
+      "applies": false,
+      "requiredNow": false,
+      "status": "N/A_MODE",
+      "productionEvidence": null,
+      "expected": "不產生/不驗證；非PASS",
+      "reason": "DEVELOPMENT",
+      "deferredIssueRef": null
+    }
+  ],
+  "delivery": {
+    "appVersion": "0.3.46",
+    "packagedSourceCommit": "262730e47de928f0169a97ccc88ac220996ae27d",
+    "gitBranch": "feat/v0.3.46-comment-fulltext-query-performance",
+    "buildTime": "2026/09/09 15:43:43",
+    "buildTimeIso": "2026-09-09T07:43:43.621Z",
+    "buildMachine": "pc1-ch_kao",
+    "buildOs": "10.0.26100",
+    "dirtyState": true,
+    "dirtyException": "reports/JiraActivityAnalyzer_v0.2.47_Background_Fetch_and_Activity_Events_UX_implementation_report.md",
+    "deliveryMode": "DEVELOPMENT",
+    "artifactTargets": [
+      "win-unpacked"
+    ],
+    "manualGuiGate": "PENDING",
+    "exe": {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\0.3.46\\win-unpacked\\Jira Activity Analyzer.exe",
+      "bytes": 235706368,
+      "sha256": "2fc5428201daecd1416107f8baef90d2b115a25b194b4e0e99607bbda8e292bc"
+    },
+    "zip": {
+      "path": "F:\\AI\\JiraActivityAnalyzer\\release\\0.3.46\\JiraActivityAnalyzer_v0.3.46_win-unpacked.zip",
+      "bytes": 283320777,
+      "sha256": "e69d2fb9e447ba92d02739995f722be4cbc304067910821d32ef0f553e3df4c1",
+      "crc": "PASS"
+    },
+    "fileCount": 129,
+    "totalBytes": 772358006
+  },
+  "releaseReadiness": "NOT_READY",
+  "deferredIssue": "K46-01",
+  "frozenVersionNote": "No production, contract, test or packaging input was changed after first EXE. Additional test implementation requires the next version; do not repair/rebuild v0.3.46 in place."
+}
