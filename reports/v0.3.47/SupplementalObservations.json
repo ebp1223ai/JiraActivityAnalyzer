@@ -1,0 +1,35 @@
+{
+  "note": "同時只讀檢查有實際時間，parentOperation是工作關聯；超出parent command的部分屬未分類時間，未重複計費。額度邊界不可得。",
+  "observations": [
+    {
+      "startedAt": "2026-09-09T12:36:53.048Z",
+      "endedAt": "2026-09-09T12:36:58.229Z",
+      "parentOperation": 116,
+      "scope": "READ_ONLY_OBSERVATION; correlation only, not an extra quota claim",
+      "output": "\r\nName                                            Length\r\n----                                            ------\r\nbuilder-debug.yml                                 1555\r\nfirst-exe-freeze.json                              140\r\nJiraActivityAnalyzer_v0.3.47_win-unpacked.zip 39175807\r\npayload-audit.json                              706295\r\nprepack-inputs.json                             132409\r\nTrue\r\n\r\n",
+      "exitCode": 0,
+      "quotaBefore": null,
+      "quotaAfter": null
+    },
+    {
+      "startedAt": "2026-09-09T12:40:47.074Z",
+      "endedAt": "2026-09-09T12:40:52.405Z",
+      "parentOperation": 118,
+      "scope": "READ_ONLY_OBSERVATION; correlation only, not an extra quota claim",
+      "output": "\r\nName                             Length\r\n----                             ------\r\nai-database-1366x768.png         116082\r\nai-database-1920x1080.png        166156\r\nai-results-1366x768.png           86697\r\nai-results-1920x1080.png         173830\r\ndebug-1366x768.png               154568\r\ndebug-1920x1080.png              217526\r\nintegrated-results-1366x768.png  115484\r\nintegrated-results-1920x1080.png 154826\r\n\r\n",
+      "exitCode": 0,
+      "quotaBefore": null,
+      "quotaAfter": null
+    },
+    {
+      "startedAt": "2026-09-09T12:42:58.707Z",
+      "endedAt": "2026-09-09T12:43:06.489Z",
+      "parentOperation": 118,
+      "scope": "READ_ONLY_OBSERVATION; correlation only, not an extra quota claim",
+      "output": "2026-09-09T20:43:06.3294755+08:00\r\n\r\nName          Length LastWriteTime\r\n----          ------ -------------\r\nreport.json    23402 2026/9/9 下午 08:42:25\r\nseed-map.json 112071 2026/9/9 下午 08:38:52\r\nstderr.log       100 2026/9/9 下午 08:38:53\r\nstdout.log      1702 2026/9/9 下午 08:38:53\r\n        \"policy\": \"EXTERNAL_READ_REQUIRES_REVIEW\",\r\n        \"observation\": \"API invocation; may fail; no content captured\"\r\n      },\r\n      {\r\n        \"timestampUtc\": \"2026-09-09T12:38:56.656Z\",\r\n        \"pid\": 22400,\r\n        \"threadId\": 5,\r\n        \"operation\": \"readFileSync\",\r\n        \"path\": \"F:\\\\AI\\\\JiraActivityAnalyzer\\\\test-artifacts\\\\v0.3.47\\\\ZIP 驗證 20260909-203809\\\\Evidence\\\\seed\\\\adapted-package.json\",\r\n        \"writes\": false,\r\n        \"policy\": \"EXTERNAL_READ_REQUIRES_REVIEW\",\r\n        \"observation\": \"API invocation; may fail; no content captured\"\r\n      }\r\n    ],\r\n    \"coverage\": \"Node fs APIs + SQLite connection paths in main/query/write/diagnostic isolates; Chromium native cache writes are checked by APP_ROOT paths, not OS syscall tracing\"\r\n  },\r\n  \"finishedAt\": \"2026-09-09T12:42:25.438Z\"\r\n}\r\n\r\n",
+      "exitCode": 0,
+      "quotaBefore": null,
+      "quotaAfter": null
+    }
+  ]
+}

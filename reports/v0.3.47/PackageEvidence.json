@@ -1,0 +1,7 @@
+{
+  "services": "test-artifacts/v0.3.47/service-1788955150051/report.json",
+  "profile": "test-artifacts/v0.3.47/paired-profile-1788955176817/report.json",
+  "ui": "test-artifacts/v0.3.47/ui-1788955618819/report.json",
+  "dates": "test-artifacts/v0.3.47/ui-1788955339990/report.json",
+  "coverage": "reports/v0.3.47/SourceCoverage.json"
+}

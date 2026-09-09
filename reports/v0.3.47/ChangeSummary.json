@@ -1,0 +1,350 @@
+{
+  "cutoff": "2026-09-09T12:51:10.949Z",
+  "scope": "baseline net source plus current reports BEFORE this receipt and remaining report/ledger tail; do not sum with stage churn",
+  "summary": {
+    "DOC_REPORT": {
+      "newFiles": 14,
+      "modifiedFiles": 1,
+      "deletedFiles": 0,
+      "renamedFiles": 0,
+      "files": 15,
+      "added": 5047,
+      "deleted": 0,
+      "net": 5047
+    },
+    "VERSION_METADATA": {
+      "newFiles": 0,
+      "modifiedFiles": 3,
+      "deletedFiles": 0,
+      "renamedFiles": 0,
+      "files": 3,
+      "added": 7,
+      "deleted": 4,
+      "net": 3
+    },
+    "PRODUCT_CODE": {
+      "newFiles": 2,
+      "modifiedFiles": 11,
+      "deletedFiles": 0,
+      "renamedFiles": 0,
+      "files": 13,
+      "added": 155,
+      "deleted": 27,
+      "net": 128
+    },
+    "DELIVERY_ACCOUNTING_TOOL": {
+      "newFiles": 3,
+      "modifiedFiles": 0,
+      "deletedFiles": 0,
+      "renamedFiles": 0,
+      "files": 3,
+      "added": 148,
+      "deleted": 0,
+      "net": 148
+    },
+    "TEST_CODE": {
+      "newFiles": 7,
+      "modifiedFiles": 1,
+      "deletedFiles": 0,
+      "renamedFiles": 0,
+      "files": 8,
+      "added": 334,
+      "deleted": 4,
+      "net": 330
+    },
+    "FIXTURE_DATA": {
+      "newFiles": 5,
+      "modifiedFiles": 0,
+      "deletedFiles": 0,
+      "renamedFiles": 0,
+      "files": 5,
+      "added": 6355,
+      "deleted": 0,
+      "net": 6355
+    }
+  },
+  "rows": [
+    {
+      "file": "CHANGELOG.md",
+      "added": 8,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "VERSION",
+      "added": 1,
+      "deleted": 1,
+      "category": "VERSION_METADATA"
+    },
+    {
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "added": 1,
+      "deleted": 0,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "electron/aiResultsQueryV043.ts",
+      "added": 12,
+      "deleted": 8,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "electron/aiResultsServiceV044.ts",
+      "added": 5,
+      "deleted": 1,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "electron/aiResultsWorkerV044.ts",
+      "added": 4,
+      "deleted": 0,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "electron/uiTestControlV044.ts",
+      "added": 4,
+      "deleted": 0,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "package-lock.json",
+      "added": 2,
+      "deleted": 2,
+      "category": "VERSION_METADATA"
+    },
+    {
+      "file": "package.json",
+      "added": 4,
+      "deleted": 1,
+      "category": "VERSION_METADATA"
+    },
+    {
+      "file": "scripts/package-v0347.cjs",
+      "added": 60,
+      "deleted": 0,
+      "category": "DELIVERY_ACCOUNTING_TOOL"
+    },
+    {
+      "file": "scripts/profile-v0347.cjs",
+      "added": 24,
+      "deleted": 0,
+      "category": "TEST_CODE"
+    },
+    {
+      "file": "scripts/test-v0344-ui.cjs",
+      "added": 5,
+      "deleted": 4,
+      "category": "TEST_CODE"
+    },
+    {
+      "file": "scripts/test-v0347-ui.cjs",
+      "added": 7,
+      "deleted": 0,
+      "category": "TEST_CODE"
+    },
+    {
+      "file": "scripts/test-v0347.cjs",
+      "added": 78,
+      "deleted": 0,
+      "category": "TEST_CODE"
+    },
+    {
+      "file": "scripts/v0347-test-seed.cjs",
+      "added": 43,
+      "deleted": 0,
+      "category": "TEST_CODE"
+    },
+    {
+      "file": "scripts/v0347-ui-checks.cjs",
+      "added": 111,
+      "deleted": 0,
+      "category": "TEST_CODE"
+    },
+    {
+      "file": "scripts/v0347-ui-delivery.cjs",
+      "added": 28,
+      "deleted": 0,
+      "category": "TEST_CODE"
+    },
+    {
+      "file": "scripts/v0347-ui-edgechecks.cjs",
+      "added": 38,
+      "deleted": 0,
+      "category": "TEST_CODE"
+    },
+    {
+      "file": "scripts/work-ledger-audit-v0347.cjs",
+      "added": 36,
+      "deleted": 0,
+      "category": "DELIVERY_ACCOUNTING_TOOL"
+    },
+    {
+      "file": "scripts/work-timeline-v0347.cjs",
+      "added": 52,
+      "deleted": 0,
+      "category": "DELIVERY_ACCOUNTING_TOOL"
+    },
+    {
+      "file": "shared/aiResultProjectionV043.ts",
+      "added": 1,
+      "deleted": 1,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "shared/integratedDisplayV047.ts",
+      "added": 65,
+      "deleted": 0,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "src/components/AiStatusFilterV047.tsx",
+      "added": 28,
+      "deleted": 0,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "src/components/DiffCell.tsx",
+      "added": 2,
+      "deleted": 2,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "src/components/SqliteDataTable.tsx",
+      "added": 7,
+      "deleted": 5,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "src/components/TraceEvidenceView.tsx",
+      "added": 3,
+      "deleted": 2,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "src/components/TypedColumnFilter.tsx",
+      "added": 3,
+      "deleted": 3,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "src/routes/AiDatabaseViewerPagesV043.tsx",
+      "added": 20,
+      "deleted": 5,
+      "category": "PRODUCT_CODE"
+    },
+    {
+      "file": "tests/fixtures/v0.3.47/diff-source-cases.json",
+      "added": 270,
+      "deleted": 0,
+      "category": "FIXTURE_DATA"
+    },
+    {
+      "file": "tests/fixtures/v0.3.47/display-quick-filter-cases.json",
+      "added": 309,
+      "deleted": 0,
+      "category": "FIXTURE_DATA"
+    },
+    {
+      "file": "tests/fixtures/v0.3.47/package-status-mix-55.json",
+      "added": 4860,
+      "deleted": 0,
+      "category": "FIXTURE_DATA"
+    },
+    {
+      "file": "tests/fixtures/v0.3.47/preference-cases.json",
+      "added": 155,
+      "deleted": 0,
+      "category": "FIXTURE_DATA"
+    },
+    {
+      "file": "tests/fixtures/v0.3.47/status-selection-cases.json",
+      "added": 761,
+      "deleted": 0,
+      "category": "FIXTURE_DATA"
+    },
+    {
+      "file": "reports/v0.3.47/AcceptanceReport.md",
+      "added": 38,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/DeliveryAudit.json",
+      "added": 144,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/DevelopmentDeliveryReport.md",
+      "added": 44,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/ExtractedDelivery.json",
+      "added": 10,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/ImplementationReport.md",
+      "added": 29,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/ManualGUI.md",
+      "added": 24,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/PackageEvidence.json",
+      "added": 7,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/PostExitDatabaseAudit.json",
+      "added": 26,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/PrepackAudit.json",
+      "added": 86,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/SourceCoverage.json",
+      "added": 335,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/SupplementalObservations.json",
+      "added": 36,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/TestReport.md",
+      "added": 118,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/WorkLedger.json",
+      "added": 3873,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    },
+    {
+      "file": "reports/v0.3.47/WorkTimeline.md",
+      "added": 269,
+      "deleted": 0,
+      "category": "DOC_REPORT"
+    }
+  ]
+}

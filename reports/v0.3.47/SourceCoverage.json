@@ -1,0 +1,335 @@
+{
+  "version": "0.3.47",
+  "deliveryMode": "DEVELOPMENT",
+  "sourceGate": "PASS",
+  "sourceGateScope": "Source-only; T25 actual payload and T29 final reconciliation still pending. No manual GUI claim.",
+  "firstExeProduced": false,
+  "reviewedAt": "2026-09-09T12:30:14.381Z",
+  "rows": [
+    {
+      "id": "T47-01",
+      "name": "初次預設四種",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.47/ui-1788955339990/report.json"
+      ],
+      "detail": "真 renderer 初始偏好與缺省；有效配對決定狀態。"
+    },
+    {
+      "id": "T47-02",
+      "name": "32 種集合",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json"
+      ],
+      "detail": "32 子集合逐一比對；[] 是 0，facet 自身排除。"
+    },
+    {
+      "id": "T47-03",
+      "name": "母體與診斷",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.43/correctness-1788956747047/results.json",
+        "test-artifacts/v0.3.43/integration-1788956796396/results.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "Raw LEFT JOIN、空/未選/未配/部分/完整/孤立/ambiguity/不同 DB；missing AI/SQL error 明確拋錯，IPC unavailable guard 審查。"
+    },
+    {
+      "id": "T47-04",
+      "name": "計數與分頁",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json",
+        "test-artifacts/v0.3.47/ui-1788956194077/report.json"
+      ],
+      "detail": "Raw/filtered/page 分列；無 fanout。"
+    },
+    {
+      "id": "T47-05",
+      "name": "標籤與欄頭同步",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/ui-1788955339990/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "中英狀態/定義、頂端與表頭共用 state；不混 Review Rank。"
+    },
+    {
+      "id": "T47-06",
+      "name": "偏好與明確空集合",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.46/worker-1788956170110/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "合法舊值、非法診斷、[]；落盤後 renderer reload 保持 0。"
+    },
+    {
+      "id": "T47-07",
+      "name": "清除/預設/取消",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/ui-1788955339990/report.json",
+        "test-artifacts/v0.3.47/ui-1788956194077/report.json"
+      ],
+      "detail": "三種操作不同；真表頭排序與寬度保留。"
+    },
+    {
+      "id": "T47-08",
+      "name": "日期搭配多選真 UI",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/ui-1788955339990/report.json"
+      ],
+      "detail": "同日/跨日/單邊/毫秒/非法/時區、AI+Actor OR/AND、A-B-A。只引用此 run 已完成子測項；整個 run 後來失敗不冒稱 PASS。"
+    },
+    {
+      "id": "T47-09",
+      "name": "Raw != AI 主 Diff",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json",
+        "test-artifacts/v0.3.47/ui-1788956194077/report.json"
+      ],
+      "detail": "同 event ID 主格 AI 紅刪綠增，無須展開。"
+    },
+    {
+      "id": "T47-10",
+      "name": "compact",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "AI 可信片段，Before 不可得不切 Raw。"
+    },
+    {
+      "id": "T47-11",
+      "name": "缺失與完整性",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "缺失/UNVERIFIABLE 主格不可用；不將 Raw 冒充 AI。"
+    },
+    {
+      "id": "T47-12",
+      "name": "無唯一配對",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.43/integration-1788956796396/results.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "active analysis 與唯一 link；ambiguity Raw、不同 DB 身分隔離。"
+    },
+    {
+      "id": "T47-13",
+      "name": "三頁同事件真 UI",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "User Raw vs AI/Integrated AI，內容刻意不同；Comment Create/Update 全文。"
+    },
+    {
+      "id": "T47-14",
+      "name": "16 快篩真 UI",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.47/ui-1788956194077/report.json"
+      ],
+      "detail": "独立合成 cases 預期；Comment 不受 Description 快篩。"
+    },
+    {
+      "id": "T47-15",
+      "name": "display 搜尋/排序/欄位",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.47/ui-1788956194077/report.json",
+        "test-artifacts/v0.3.43/correctness-1788956747047/results.json",
+        "test-artifacts/v0.3.43/integration-1788956796396/results.json"
+      ],
+      "detail": "實際 Diff 文字搜尋/排序/候選；typed null/0/false/empty；10001 尾端欄位。"
+    },
+    {
+      "id": "T47-16",
+      "name": "四種完整匯出",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "CSV/JSON 顯示/全部；55 > 25 頁；原始 trace/review hash 不變。"
+    },
+    {
+      "id": "T47-17",
+      "name": "匯出競態",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.46/worker-1788956170110/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "picker 狀態快照、Raw 切換、取消、39281 writing cancel，只清自己 partial。"
+    },
+    {
+      "id": "T47-18",
+      "name": "五次 A-B-A",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "相同查詢無新 job，頁碼/偏好維持。"
+    },
+    {
+      "id": "T47-19",
+      "name": "query inflight 真 UI",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "實際 worker barrier entered 證實尚未完成；route/date/status/Raw/AI 切換。"
+    },
+    {
+      "id": "T47-20",
+      "name": "revision/資源/取消",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.46/worker-1788956170110/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "commit/noop/rollback，CANCELLED vs SUPERSEDED，20 route/status cycles 有界。"
+    },
+    {
+      "id": "T47-21",
+      "name": "Raw 三欄與 Comment",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.46/worker-1788956170110/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "Raw Issue Type/Current Status/Priority；Comment 全文/N/A。"
+    },
+    {
+      "id": "T47-22",
+      "name": "Golden/不变性",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.46/worker-1788956170110/report.json",
+        "test-artifacts/v0.3.43/integration-1788956796396/results.json",
+        "test-artifacts/v0.3.43/correctness-1788956747047/results.json",
+        "test-artifacts/v0.3.47/service-1788955150051/report.json"
+      ],
+      "detail": "2.0.0 三 rank 44/113；2.0.1 55/130、rank 保護/回滾/idempotency；原值保留。"
+    },
+    {
+      "id": "T47-23",
+      "name": "效能觀測",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/paired-profile-1788955176817/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json"
+      ],
+      "detail": "同 39281/55 母體 before/after，冷/暖/actor/facet；runtime pipeline/IPC/render/export traces。秒數不是硬 Gate。"
+    },
+    {
+      "id": "T47-24",
+      "name": "首 EXE 前審查",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1788955150051/report.json",
+        "test-artifacts/v0.3.47/ui-1788955618819/report.json",
+        "test-artifacts/v0.3.47/ui-1788955339990/report.json",
+        "test-artifacts/v0.3.47/ui-1788956194077/report.json",
+        "test-artifacts/v0.3.43/correctness-1788956747047/results.json",
+        "test-artifacts/v0.3.43/integration-1788956796396/results.json"
+      ],
+      "detail": "本 SourceCoverage + typecheck/build + 記帳工具風險測試 + sensitive/prepack。"
+    },
+    {
+      "id": "T47-25",
+      "name": "單 target 預檢",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [],
+      "detail": "SOURCE_CONFIG PASS：package:v0.3.47 只 dir；payload/Bridge/EXE 部分待封裝後補證。"
+    },
+    {
+      "id": "T47-26",
+      "name": "ZIP 與 EXE",
+      "requiredBeforeExe": false,
+      "status": "PENDING",
+      "evidence": [],
+      "detail": "待首 EXE。"
+    },
+    {
+      "id": "T47-27",
+      "name": "路徑與關閉資料",
+      "requiredBeforeExe": false,
+      "status": "PENDING",
+      "evidence": [],
+      "detail": "待 ZIP 隔離 EXE。"
+    },
+    {
+      "id": "T47-28",
+      "name": "人工 GUI",
+      "requiredBeforeExe": false,
+      "status": "MANUAL_GUI_PENDING",
+      "evidence": [],
+      "detail": "MANUAL_GUI_PENDING，必須由使用者指定 hash 明確 PASS。"
+    },
+    {
+      "id": "T47-29",
+      "name": "WorkTimeline",
+      "requiredBeforeExe": true,
+      "status": "PASS",
+      "evidence": [],
+      "detail": "SOURCE_TOOL PASS：分類/淨差/缺值/reset/overlap/duplicate/orphan；完整記錄有已知觀測缺口，交付時另結算。"
+    },
+    {
+      "id": "T47-30",
+      "name": "版本與交付",
+      "requiredBeforeExe": false,
+      "status": "PENDING",
+      "evidence": [],
+      "detail": "待 source commit / hash / final reports；不得 Tag/Push。"
+    }
+  ],
+  "installer": "N/A_MODE",
+  "portable": "N/A_MODE",
+  "manualGui": "PENDING"
+}

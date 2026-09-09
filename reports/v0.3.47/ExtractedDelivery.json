@@ -1,0 +1,10 @@
+{
+  "exe": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.47\\ZIP 驗證 20260909-203809\\App 中文 空白\\Jira Activity Analyzer.exe",
+  "status": "PASS",
+  "evidence": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.47\\ZIP 驗證 20260909-203809\\Evidence",
+  "zipSha256": "4d7ec7f87e2e7f01d8b4021ed96ab366f0a18200293a4293ee6d07674893be56",
+  "checkedAt": "2026-09-09T12:38:18.3536227Z",
+  "files": 129,
+  "hashesAndSizes": "ALL_MATCH",
+  "appRoot": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.47\\ZIP 驗證 20260909-203809\\App 中文 空白"
+}
