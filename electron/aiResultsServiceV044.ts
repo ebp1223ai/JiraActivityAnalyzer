@@ -3,7 +3,7 @@ import { Worker } from 'node:worker_threads';
 
 type Json = Record<string, any>;
 type Job = { owner: number; requestId: string; onStage?: (stage: Json) => void | Promise<unknown>; resolve: (value: any) => void; reject: (error: Error) => void };
-type Lane = { endReason?: string; worker: Worker; pending: Map<string, Job> };
+type Lane = { lastDiagnostics?: Json; sampledAt?: string; cancelledRequestId?: string; endReason?: string; worker: Worker; pending: Map<string, Job> };
 export class AiResultsServiceV044 {
   private lanes = new Map<string, Lane>();
   private receipts: Json = {};
@@ -27,9 +27,9 @@ export class AiResultsServiceV044 {
         }
         current.pending.delete(msg.id);
         if (msg.type === 'error') job.reject(new Error(msg.error));
-        else { this.receipts = msg.diagnostics; job.resolve(msg.value); }
+        else { this.receipts = msg.diagnostics; current.lastDiagnostics = msg.diagnostics; current.sampledAt = new Date().toISOString(); job.resolve(msg.value); }
       });
-      const fail = (error: Error) => { if (this.lanes.get(key) === current) this.lanes.delete(key); for (const job of current.pending.values()) job.reject(current.endReason ? new Error(current.endReason) : error); current.pending.clear(); };
+      const fail = (error: Error) => { if (this.lanes.get(key) === current) this.lanes.delete(key); for (const job of current.pending.values()) job.reject(current.endReason ? new Error(job.requestId === current.cancelledRequestId ? current.endReason : 'SUPERSEDED') : error); current.pending.clear(); };
       current.worker.on('error', fail);
       current.worker.on('exit', code => fail(new Error(`QUERY_WORKER_EXIT_${code}`)));
     }
@@ -45,6 +45,7 @@ export class AiResultsServiceV044 {
       if (!lane.pending.has(requestId) || lane.pending.get(requestId)!.owner !== owner) continue;
       this.lanes.delete(key);
       lane.endReason = reason;
+      lane.cancelledRequestId = requestId;
       const stopped = lane.worker.terminate();
       await stopped;
       for (const [id, job] of lane.pending) job.reject(new Error(id === requestId ? reason : 'SUPERSEDED'));
@@ -56,11 +57,13 @@ export class AiResultsServiceV044 {
   async closeOwner(owner: number) {
     for (const [key, lane] of [...this.lanes]) if (key.startsWith(`${owner}:`)) {
       this.lanes.delete(key);
+      lane.endReason = 'SUPERSEDED';
+      await lane.worker.terminate();
       for (const job of lane.pending.values()) job.reject(new Error('SUPERSEDED'));
-      lane.pending.clear(); await lane.worker.terminate();
+      lane.pending.clear();
     }
   }
   async close() { for (const key of [...this.lanes.keys()]) await this.closeOwner(Number(key.split(':')[0])); }
-  diagnostics() { return { ...this.receipts, executorCount: this.lanes.size, pendingCount: [...this.lanes.values()].reduce((n, lane) => n + lane.pending.size, 0) }; }
+  diagnostics() { return { ...this.receipts, process: { pid: process.pid, rssBytes: process.memoryUsage().rss, sampledAt: new Date().toISOString(), rssScope: 'unique-process' }, executors: [...this.lanes].map(([key, lane]) => ({ key, threadId: lane.worker.threadId, pendingCount: lane.pending.size, sampledAt: lane.sampledAt ?? null, memory: lane.lastDiagnostics?.memory ?? null, cacheBytes: lane.lastDiagnostics?.cacheBytes ?? null, cacheBudgetBytes: lane.lastDiagnostics?.cacheBudgetBytes ?? null, listeners: Object.fromEntries(lane.worker.eventNames().map(name => [String(name), lane.worker.listenerCount(name)])) })), executorCount: this.lanes.size, pendingCount: [...this.lanes.values()].reduce((n, lane) => n + lane.pending.size, 0) }; }
 }
 export const aiResultsServiceV044 = new AiResultsServiceV044();

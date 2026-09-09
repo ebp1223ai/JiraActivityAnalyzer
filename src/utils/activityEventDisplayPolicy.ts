@@ -1,3 +1,4 @@
+import { commentTextV046, isCommentV046 } from "../../shared/activityPresentationV046";
 import { normalizeActivityChange } from "./normalizedChange";
 
 export type CommentOperation = "CREATE" | "UPDATE" | "COMMENT";
@@ -20,11 +21,10 @@ function firstText(row: Record<string, unknown>, keys: string[]) {
 
 export function activityEventDisplayPolicy(row: Record<string, unknown>): ActivityEventDisplayPolicy {
   const eventType = firstText(row, ["eventType", "activityType", "action", "type"]).toLowerCase();
-  const fieldName = firstText(row, ["fieldName", "field"]).toLowerCase();
   const commentId = firstText(row, ["commentId", "sourceCommentId", "source_comment_id"]);
-  const isComment = eventType.includes("comment") || fieldName.includes("comment") || Boolean(commentId);
-  const change = normalizeActivityChange(row);
+  const isComment = isCommentV046(row) || Boolean(commentId);
   if (!isComment) {
+    const change = normalizeActivityChange(row);
     const content = change.contentDisplay.displayText ?? change.afterDisplayText ?? change.afterText ?? "";
     return { kind: "change", operation: null, content, preview: content.slice(0, 180), metadata: [] };
   }
@@ -34,11 +34,7 @@ export function activityEventDisplayPolicy(row: Record<string, unknown>): Activi
     : /updated|edited|update/.test(eventType)
       ? "UPDATE"
       : "COMMENT";
-  const content = firstText(row, ["commentBody", "displayText", "toValueText", "afterText"])
-    || change.contentDisplay.displayText
-    || change.afterDisplayText
-    || change.afterText
-    || "Comment content unavailable";
+  const content = commentTextV046(row.commentBody ?? row.after ?? row.toValueText ?? row.afterText) ?? "Comment content unavailable";
   const metadata = [
     { label: "Comment ID", value: commentId },
     { label: "Author", value: firstText(row, ["displayName", "actorDisplayName", "authorDisplayName", "actor"]) },

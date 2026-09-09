@@ -346,7 +346,7 @@ persistentDiagnostics.setSink((file, value) => { void automaticDiagnostics.appen
 
 instrumentedHandleV044("diagnostics:export-previous", async () => { const previous = automaticDiagnostics.snapshot().previous; if (!previous?.sessionId) return { ok: false, errorCode: "NO_PREVIOUS_DIAGNOSTICS" }; return exportPreviousDiagnosticsV044(getLogsDir(), ensureDir(getDebugFoldersDir()), previous.sessionId); });
 
-instrumentedHandleV044("diagnostics:automatic-state", () => ({ ...automaticDiagnostics.snapshot(), registeredChannels: [...ipcCoverageV044].sort() }));
+instrumentedHandleV044("diagnostics:automatic-state", async () => ({ ...automaticDiagnostics.snapshot(), registeredChannels: [...ipcCoverageV044].sort(), queryResources: (await import("./aiResultsServiceV044.js")).aiResultsServiceV044.diagnostics() }));
 instrumentedHandleV044("diagnostics:automatic-renderer", (event, payload) => {
   const route = typeof payload?.route === "string" && /^\/[a-z0-9/-]{0,100}$/.test(payload.route) ? payload.route : null;
   automaticDiagnostics.beat("renderer:" + event.sender.id, { pid: event.sender.getOSProcessId(), route });

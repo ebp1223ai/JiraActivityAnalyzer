@@ -53,8 +53,13 @@ export function indexFieldsV044(s: IndexedSnapshotV044, names: string[]) {
   s.db.exec('BEGIN');
   try {
     let processed = 0, last = performance.now();
-    for (const stored of s.db.prepare('SELECT id,body FROM documents').iterate() as Iterable<Json>) {
-      const doc = JSON.parse(stored.body).document;
+    const compact = fields.every(f => f.namespace === 'computed' && f.segments.length === 1 && !['before','after','diffText','rationale'].includes(String(f.segments[0])) && !['array','json','mixed'].includes(f.dataType));
+    // Predicate indexing needs scalar metadata, not repeated decoding of full source bodies.
+    const hasCompact = Boolean(s.db.prepare("SELECT 1 FROM sqlite_master WHERE name='projections'").get());
+    const compactSource = compact && hasCompact;
+    for (const stored of s.db.prepare(`SELECT id,body FROM ${compactSource ? 'projections' : 'documents'}`).iterate() as Iterable<Json>) {
+      const parsed = JSON.parse(stored.body);
+      const doc = compactSource ? parsed : parsed.document;
       for (const field of fields) for (const value of resolveFieldV043(doc, field).flatMap(v => Array.isArray(v) && v.length ? v : [v])) {
         const v = typedValueV043(value); insert.run(stored.id, field.path, v.token, v.kind, v.text, v.number);
       }

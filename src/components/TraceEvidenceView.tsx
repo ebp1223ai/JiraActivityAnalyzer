@@ -1,3 +1,4 @@
+import { commentTextV046, isCommentV046 } from "../../shared/activityPresentationV046";
 import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { ReadableContentCell } from "./ReadableContentCell";
@@ -9,6 +10,7 @@ type Json = Record<string, any>;
 export function TraceDiffLines({ row, expanded = false }: { row: Json; expanded?: boolean }) {
   const trace = row.contentSource === "RAW_EVENT" ? null : row.sourceTrace;
   const content = trace ? traceContentV043(trace) : row;
+  if (isCommentV046(row)) return <div data-comment-full="true" className="space-y-2"><div className="text-xs text-muted">留言全文 · {String(row.eventType ?? row.action ?? "")} · {row.contentSource === "RAW_EVENT" ? "原始事件" : "分析當時內容"} · {String((content.after as Json)?.provenance ?? row.sourceProvenance ?? "")}</div><pre className={`whitespace-pre-wrap break-words overflow-auto ${expanded ? "max-h-96" : "max-h-40"}`}>{commentTextV046(content.after) ?? "未取得留言全文"}</pre><span className="text-xs">分析範圍：全文 · 差異行數：不適用</span></div>;
   const hunks = content.diffHunks ?? [];
   const normalized = normalizeActivityChange({ ...row, before: content.before, after: content.after });
   const lines = hunks.flatMap((h: Json) => h.lines ?? [h]);

@@ -86,7 +86,7 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
       id = cached.entry.id; latest.current = id;
       if (cached.reused) { setStage(cached.entry.value ? '恢復有效結果' : '接回進行中的查詢'); void window.desktopApp?.appDiagnostics?.reportRendererEvent({ event: 'cache-reuse', phase: 'POINT', requestId: id, reason: cached.entry.value ? 'VALID_RESULT' : 'IN_FLIGHT' }); }
       const response = await cached.entry.promise;
-      if (!alive.current || latest.current !== id || response.requestId !== id || (response.ok !== false && (response.aiDatabaseIdentity !== aiIdentity || (kind === "integrated" && response.rawDatabaseIdentity !== rawIdentity)))) { void api.reportStale({ requestId: id, scope, reason: "IDENTITY_OR_REQUEST_CHANGED" }); return; }
+      if (!alive.current || revision !== sequence.current || latest.current !== id || response.requestId !== id || (response.ok !== false && (response.aiDatabaseIdentity !== aiIdentity || (kind === "integrated" && response.rawDatabaseIdentity !== rawIdentity)))) { void api.reportStale({ requestId: id, scope, reason: "IDENTITY_OR_REQUEST_CHANGED" }); return; }
       if (response.ok === false) setError(response.errorCode === "CANCELLED" ? "已取消查詢" : response.message ?? response.errorCode ?? "查詢失敗"); else {
         const context = response.diagnosticContext ? { ...response.diagnosticContext, spanId: crypto.randomUUID(), parentSpanId: response.diagnosticContext.spanId, route: kind === "ai" ? "/ai-results" : "/integrated-results" } : null;
         if (!Array.isArray(response.rows) || !Number.isSafeInteger(response.totalCount)) throw Error("INVALID_QUERY_RESULT");

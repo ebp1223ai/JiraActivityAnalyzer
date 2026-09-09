@@ -22,7 +22,7 @@ export function databaseRevisionV045(file: string | null): string {
   if (!watch) {
     if (watches.size >= 4) { const oldest = watches.keys().next().value!; watches.get(oldest)!.db.close(); watches.delete(oldest); }
     watch = { db: new DatabaseSync(resolved, { readOnly: true }), identity, epoch: ++epoch, ai: false };
-    watch.db.exec('PRAGMA query_only=ON'); watches.set(resolved, watch);
+    watch.db.exec('PRAGMA busy_timeout=3000; PRAGMA query_only=ON'); watches.set(resolved, watch);
     watch.ai = Boolean(watch.db.prepare("SELECT 1 FROM sqlite_master WHERE name='ai_schema_metadata'").get());
   }
   const version = watch.db.prepare('PRAGMA data_version').get() as { data_version: number };

@@ -4,7 +4,7 @@ export function normalizeAiViewerScopesV043(input: unknown): Record<string, Json
   if (!input || typeof input !== "object" || Array.isArray(input)) return {};
   const result: Record<string, Json> = Object.create(null);
   for (const [scope, raw] of Object.entries(input)) {
-    if (!scope.startsWith("v043|") || scope.length > 2048 || !raw || typeof raw !== "object") continue;
+    if (!/^v04[35]\|/.test(scope) || scope.length > 2048 || !raw || typeof raw !== "object") continue;
     const p = raw as Json, prefs = p.preferences ?? {}, session = p.session ?? {};
     const strings = (v: any) => Array.isArray(v) ? v.filter((s: any) => typeof s === "string") : [];
     const filters: Json = Object.create(null);

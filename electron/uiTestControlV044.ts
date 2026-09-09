@@ -16,6 +16,7 @@ export function prepareUiTestV044(root: string) {
   app.commandLine.appendSwitch('remote-debugging-address', '127.0.0.1');
   app.commandLine.appendSwitch('remote-debugging-port', '0');
   return async () => {
+    let pendingPicker: ((value: Electron.SaveDialogReturnValue) => void) | null = null;
     let workbench: BrowserWindow | null = null; let downloadState: Record<string, unknown> = {};
     const server = http.createServer(async (req, res) => {
       const supplied = req.headers['x-jaa-test-nonce'];
@@ -37,6 +38,15 @@ export function prepareUiTestV044(root: string) {
           const width = Number(params.get('width')), height = Number(params.get('height'));
           if (![800,1024,1280,1366,1440,1600,1920].includes(width) || ![600,720,768,900,1080].includes(height)) throw Error('SIZE_NOT_ALLOWED');
           window.setMinimumSize(400,300); window.setContentSize(width,height); res.end('{}');
+        } else if (req.url === '/hold-test-export') {
+          if (pendingPicker) throw Error('PICKER_ALREADY_PENDING');
+          const original = dialog.showSaveDialog;
+          (dialog as any).showSaveDialog = () => { dialog.showSaveDialog = original; return new Promise<Electron.SaveDialogReturnValue>(resolve => { pendingPicker = resolve; }); };
+          res.end('{}');
+        } else if (req.url === '/test-export-state') { res.end(JSON.stringify({pending: Boolean(pendingPicker)}));
+        } else if (req.url === '/release-test-export' || req.url === '/cancel-test-export') {
+          if (!pendingPicker) throw Error('NO_PENDING_PICKER');
+          pendingPicker({ canceled: req.url === '/cancel-test-export', filePath: path.join(root,'exports','synthetic-table-export.json') }); pendingPicker = null; res.end('{}');
         } else if (req.url === '/select-test-export') {
           const original = dialog.showSaveDialog;
           (dialog as any).showSaveDialog = async () => { dialog.showSaveDialog = original; return { canceled: false, filePath: path.join(root,'exports','synthetic-table-export.json') }; };

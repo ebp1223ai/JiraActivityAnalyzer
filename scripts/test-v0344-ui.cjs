@@ -48,7 +48,7 @@ async function main(){
   }
   const result=await page.evaluate(()=>window.desktopApp.aiDatabase.queryIntegrated({requestId:'ui-query',page:1,pageSize:100,visibleFields:[]}));assert.equal(result.ok,true,JSON.stringify(result));assert.equal(result.totalCount,expectedTotal);assert.equal(result.matchedCount,expectedMatched);
   report.checks.push({name:'real-preload-IPC-Raw-AI-create-import-relink-query',status:'PASS'});
-  const sizes=version==='0.3.45'?[[1366,768],[1920,1080]]:process.env.JAA_UI_SHORT==='1'?[[1280,720]]:[[800,600],[1024,768],[1280,720],[1366,768],[1440,900],[1600,900],[1920,1080]];
+  const sizes=['0.3.45','0.3.46'].includes(version)?[[1366,768],[1920,1080]]:process.env.JAA_UI_SHORT==='1'?[[1280,720]]:[[800,600],[1024,768],[1280,720],[1366,768],[1440,900],[1600,900],[1920,1080]];
   for(const [width,height] of sizes){await control(`/resize?width=${width}&height=${height}`);for(const name of ['ai-database','ai-results','integrated-results']){await route(name);await control('/capture');await wait(100);const png=Buffer.from(await(await control('/capture')).arrayBuffer());const file=path.join(work,'screenshots',`${name}-${width}x${height}.png`);fs.writeFileSync(file,png);const layout=await page.evaluate(()=>({width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth>innerWidth+1||document.body.scrollWidth>innerWidth+1,heading:document.querySelector('h1')?.textContent,sidebar:!!document.querySelector('aside')}));assert.equal(layout.overflow,false,JSON.stringify(layout));assert.ok(layout.sidebar);assert.ok(png.length>10000,'blank capture');report.screenshots.push({file,...layout});
     if(name==='integrated-results') {
       await page.getByRole('button',{name:/Debug Log/}).click();const panel=page.getByRole('dialog',{name:/全域除錯日誌/});await panel.waitFor();
@@ -65,8 +65,9 @@ async function main(){
     for(let i=0;i<20;i++){await route(i%2?'integrated-results':'ai-results');}
     report.checks.push({name:'real-header-filter-route-hydration-and-20-route-loop',status:'PASS'});
   }
+  if(version==='0.3.46') await require(process.env.JAA_V046_UI_FOCUS==='edges'?'./v0346-ui-edgechecks.cjs':'./v0346-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});
   if(version==='0.3.45' && process.env.JAA_UI_V045_CHECKS!=='0') await require('./v0345-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});
-  for(const name of (version==='0.3.45'?['users']:['database','connections','collection','issues','users','activity-stream-probe','jira-probe','settings'])){await route(name);report.checks.push({name:`route:${name}`,status:'PASS',heading:await page.locator('h1').first().textContent()});}
+  for(const name of (['0.3.45','0.3.46'].includes(version)?['users']:['database','connections','collection','issues','users','activity-stream-probe','jira-probe','settings'])){await route(name);report.checks.push({name:`route:${name}`,status:'PASS',heading:await page.locator('h1').first().textContent()});}
   if(process.env.JAA_UI_EXPORT==='1') {
     await route('integrated-results');await control('/select-test-export');await page.getByText('匯出表格',{exact:true}).click();await page.getByRole('button',{name:'全部欄位 JSON',exact:true}).click();
     const target=path.join(appRoot,'exports','synthetic-table-export.json');

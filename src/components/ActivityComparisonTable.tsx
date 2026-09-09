@@ -1,3 +1,4 @@
+import { commentTextV046, isCommentV046 } from "../../shared/activityPresentationV046";
 import type { ComponentProps } from "react";
 import { activityViewerRegistryForScope, type ActivityViewerColumnId } from "../../shared/activityViewerColumns";
 import { ActivityEventDetailPanel } from "./ActivityEventDetailPanel";
@@ -34,7 +35,7 @@ function renderColumn(id: ActivityViewerColumnId): SqliteTableColumn["render"] {
     case "currentPriorityName": return (row) => <span title="Current saved issue metadata / 目前儲存的 Issue metadata">{value(row, id)}</span>;
     case "issueKey": return (row) => <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(String(row.issueKey ?? ""))}&sourcePage=users`}>{value(row, "issueKey")}</a>;
     case "before": return (row, context) => isDescriptionDiffRow(row) ? <DescriptionOriginalPreviewCell row={row} side="before" expanded={context.expanded} onExpandedChange={context.setExpanded} /> : <ReadableContentCell value={activityEventBefore(row)} missing="No previous value" />;
-    case "after": return (row, context) => isDescriptionDiffRow(row) ? <DescriptionOriginalPreviewCell row={row} side="after" expanded={context.expanded} onExpandedChange={context.setExpanded} /> : <ReadableContentCell value={activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} />;
+    case "after": return (row, context) => isCommentV046(row) ? <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words text-xs">{commentTextV046(activityEventAfter(row)) ?? "未取得留言全文"}</pre> : isDescriptionDiffRow(row) ? <DescriptionOriginalPreviewCell row={row} side="after" expanded={context.expanded} onExpandedChange={context.setExpanded} /> : <ReadableContentCell value={activityEventAfter(row)} formatHint={String(row.commentBodyFormat ?? "")} />;
     case "diff": return (row, context) => <DiffCell row={row} expanded={context.expanded} onExpandedChange={context.setExpanded} />;
     case "sourceProvenance": return (row) => formatActivitySource(row.sourceProvenance);
     default: return (row) => value(row, id);

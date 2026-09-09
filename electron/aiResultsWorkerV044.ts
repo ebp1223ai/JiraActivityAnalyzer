@@ -28,10 +28,10 @@ port.on('message', (job) => {
   try {
     const { kind, ai, raw, query, field, search, visible } = job;
     const value = job.action === 'facet' ? distinctResultsV043(kind, ai, raw, field, query, search) : job.action === 'export-file' ? writeQueryExportV044(kind, ai, raw, query, visible, job.output, job.format) : job.action === 'export' ? exportResultsV043(kind, ai, raw, query, visible) : queryResultsV043(kind, ai, raw, query);
+    releaseOversizeResultCacheV045();
     port.postMessage({ type: 'result', id: job.id, value, diagnostics: { ...latestQueryDiagnosticsV043(), memory: process.memoryUsage(), resourceOwner: { pid: process.pid, threadId, processType: 'worker', rssScope: 'process-wide-do-not-sum-workers', heapScope: 'worker-local', units: 'bytes' } } });
   } catch (error) {
     for (const event of [...spans.keys()].reverse()) stage(event, 'END', { code: 'QUERY_FAILED' }, 'FAILED');
     port.postMessage({ type: 'error', id: job.id, error: error instanceof Error ? error.message : 'QUERY_FAILED' });
   }
 });
-    releaseOversizeResultCacheV045();

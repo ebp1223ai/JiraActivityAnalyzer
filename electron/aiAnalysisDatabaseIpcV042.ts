@@ -35,6 +35,7 @@ export function getAiDatabaseV042Diagnostics() { return { schemaName: "jaa-ai-an
 export function registerAiAnalysisDatabaseIpcV042(getRawDatabasePath: () => string) {
   const store = new AiAnalysisDatabaseStoreV042({ appRoot: getAppRuntimeDir(), defaultDatabasePath: getAiAnalysisDatabasePath(), backupDirectory: path.join(getBackupsDir(), "ai-analysis", "migration") });
   activeStore = store;
+  const pendingExports = new Map<string, { cancelled: boolean }>();
   let preview: Json | null = null;
   const lifecycle = () => { const snapshot = store.lifecycle(); return { ...snapshot, contentRevision: JSON.stringify([databaseRevisionV045(snapshot.canQuery ? snapshot.databasePath : null), databaseRevisionV045(getRawDatabasePath() || null)]) }; };
 
@@ -67,28 +68,34 @@ export function registerAiAnalysisDatabaseIpcV042(getRawDatabasePath: () => stri
   instrumentedHandleV044("ai-database:query-results", async (event, payload) => { try { return await runQuery(event, payload, "query", "ai"); } catch (error) { return fail(error, String(payload?.requestId ?? "")); } });
   instrumentedHandleV044("ai-database:query-integrated", async (event, payload) => { try { return await runQuery(event, payload, "query", "integrated"); } catch (error) { return fail(error, String(payload?.requestId ?? "")); } });
   instrumentedHandleV044("ai-database:distinct", async (event, payload) => { try { return await runQuery(event, payload, "facet", payload?.kind === "integrated" ? "integrated" : "ai"); } catch (error) { return fail(error, String(payload?.requestId ?? "")); } });
-  instrumentedHandleV044("ai-database:cancel-query", async (event, payload) => { const requestId = id(payload); await automaticDiagnosticsV044()?.event("cancel-requested", "POINT", { requestId }); return { ok: true, requestId, ...await aiResultsServiceV044.cancel(event.sender.id, requestId) }; });
+  instrumentedHandleV044("ai-database:cancel-query", async (event, payload) => { const requestId = id(payload); await automaticDiagnosticsV044()?.event("cancel-requested", "POINT", { requestId }); const pending = pendingExports.get(`${event.sender.id}:${requestId}`); if (pending) pending.cancelled = true; const result = await aiResultsServiceV044.cancel(event.sender.id, requestId); return { ok: true, requestId, ...result, ...(pending && !result.executorStopped ? { requested: true, reason: "CANCELLATION_PENDING_PICKER_OR_PUBLISH" } : {}) }; });
   instrumentedHandleV044("ai-database:report-stale", async (_event, payload) => { const event = { at: new Date().toISOString(), ...(payload as Json), reason: "STALE_RESPONSE_DISCARDED" }; latestStaleDiagnostics.push(event); latestStaleDiagnostics = latestStaleDiagnostics.slice(-100); return { ok: true }; });
   instrumentedHandleV044("ai-database:export-query", async (event, payload) => {
-    let requestId = "", temporary = "";
+    let requestId = "", temporary = "", exportKey = "";
+    let cancellation: { cancelled: boolean } | undefined;
     try {
       requestId = id(payload); if (payload?.__trustedOutput) throw Error("INVALID_QUERY_ARGUMENT");
       const kind = payload?.kind === "integrated" ? "integrated" : "ai", csv = payload?.format === "csv";
       const selectedSnapshot = lifecycle(), selectedRaw = getRawDatabasePath();
+      const key = `${event.sender.id}:${requestId}`;
+      if (pendingExports.has(key) || pendingExports.size >= 8) throw Error("EXPORT_QUEUE_FULL");
+      exportKey = key; cancellation = { cancelled: false }; pendingExports.set(key, cancellation);
       const started = performance.now(), pickerStart = performance.now();
       const picked = await automaticDiagnosticsV044()?.operation('export-picker-wait', () => dialog.showSaveDialog({ defaultPath: path.join(getExportsDir(), kind + '-table-results-' + Date.now() + (csv ? '.csv' : '.json')), filters: [{ name: csv ? 'CSV' : 'JSON', extensions: [csv ? 'csv' : 'json'] }] })) ?? await dialog.showSaveDialog({ defaultPath: path.join(getExportsDir(), kind + '-table-results-' + Date.now() + (csv ? '.csv' : '.json')), filters: [{ name: csv ? 'CSV' : 'JSON', extensions: [csv ? 'csv' : 'json'] }] });
       const pickerWaitMs = performance.now() - pickerStart;
+      if (cancellation.cancelled) throw Error("CANCELLED");
       if (picked.canceled || !picked.filePath) return { ok: true, requestId, canceled: true };
       if (selectedSnapshot.contentRevision !== lifecycle().contentRevision || selectedRaw !== getRawDatabasePath()) throw Error('EXPORT_SNAPSHOT_CHANGED');
       temporary = picked.filePath + '.' + crypto.randomUUID() + '.partial';
       const result = await runQuery(event, { ...payload, __trustedOutput: temporary }, "export-file", kind);
+      if (cancellation.cancelled) throw Error("CANCELLED");
       if (selectedSnapshot.contentRevision !== lifecycle().contentRevision) throw Error('EXPORT_SNAPSHOT_CHANGED');
       if (automaticDiagnosticsV044()) await automaticDiagnosticsV044()!.operation('export-atomic-publish', () => fs.promises.rename(temporary, picked.filePath));
       else await fs.promises.rename(temporary, picked.filePath);
       await automaticDiagnosticsV044()?.event('export-completed', 'POINT', { requestId, pickerWaitMs, processingMs: performance.now() - started - pickerWaitMs, sizeBytes: result.sizeBytes, rowCount: result.filteredCount });
       return { ok: true, requestId, canceled: false, filePath: picked.filePath, sizeBytes: result.sizeBytes, filteredCount: result.filteredCount };
     } catch (error) { return fail(error, requestId); }
-    finally { if (temporary) await fs.promises.unlink(temporary).catch(() => {}); }
+    finally { if (exportKey) pendingExports.delete(exportKey); if (temporary) await fs.promises.unlink(temporary).catch(() => {}); }
   });
   instrumentedHandleV044("ai-database:export-diagnostics", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); const database = lifecycle().canQuery ? aiDatabaseDiagnosticsV042(store.activePath()) : null; return { ok: true, requestId, ...(await save(`ai-analysis-diagnostic-${Date.now()}.json`, { ...getAiDatabaseV042Diagnostics(), database: safeAiAuditV043(database) })) }; } catch (error) { return fail(error, requestId); } });
   instrumentedHandleV044("ai-database:open-folder", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); const target = path.dirname(lifecycle().databasePath || getAiAnalysisDatabasePath()); const error = await shell.openPath(target); if (error) throw new Error("OPEN_AI_DATABASE_FOLDER_FAILED"); return { ok: true, requestId, folderPath: target }; } catch (error) { return fail(error, requestId); } });

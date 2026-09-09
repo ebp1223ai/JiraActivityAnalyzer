@@ -1,0 +1,38 @@
+{
+  "role": "LOGICAL_OUTCOME_EXPECTATIONS",
+  "cases": [
+    {
+      "id": "S01",
+      "cause": "newer read query replaces old query",
+      "expected": "SUPERSEDED",
+      "countAsFailure": false,
+      "terminalRequired": true
+    },
+    {
+      "id": "S02",
+      "cause": "user cancel accepted and worker stopped",
+      "expected": "CANCELLED",
+      "countAsFailure": false,
+      "terminalRequired": true
+    },
+    {
+      "id": "S03",
+      "cause": "SQLITE_ERROR",
+      "expected": "FAILED",
+      "countAsFailure": true,
+      "terminalRequired": true
+    },
+    {
+      "id": "S04",
+      "cause": "cancel requested but worker still running",
+      "expected": "CANCEL_REQUESTED_OR_RUNNING",
+      "mustNotClaimTerminal": true
+    },
+    {
+      "id": "S05",
+      "cause": "unknown error",
+      "expected": "FAILED_OR_UNKNOWN_ERROR",
+      "mustNotMapAllErrorsToSuperseded": true
+    }
+  ]
+}

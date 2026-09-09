@@ -1,0 +1,15 @@
+const fs=require('node:fs'),path=require('node:path');
+const {DatabaseSync}=require('node:sqlite');
+const {root,seedRaw}=require('./v0343-test-helpers.cjs');
+process.env.JAA_UI_EXPECT_VERSION='0.3.46';
+process.env.JAA_UI_DEEP='0';process.env.JAA_UI_WORKBENCH='0';
+const work=path.join(root,'test-artifacts/v0.3.46','ui-seed-'+Date.now());fs.mkdirSync(work,{recursive:true});
+const raw=path.join(work,'raw.sqlite');
+const pkg=JSON.parse(fs.readFileSync(path.join(root,'tests/fixtures/v0.3.43/v201/package-ai-only-55.json')));
+const cases=JSON.parse(fs.readFileSync(path.join(root,'tests/fixtures/v0.3.46/05_fixtures/v046/presentation-cases.json'))).cases;
+const rows=[...pkg.records,...cases.map(c=>({id:c.id,issue:'SYN-CASE',actor:'Export User',eventTime:'2026-09-01T12:00:00Z',fieldId:c.field.toLowerCase(),fieldName:c.field,eventType:c.eventType,before:c.before,after:c.after})),...Array.from({length:39281-55-cases.length},(_,i)=>({id:'ui-'+i,issue:'SYN-'+i,actor:i<28?'Export User':'Other User',eventTime:'2026-09-01T12:00:00Z',fieldId:'description',fieldName:'Description',eventType:'field_changed',before:'old',after:i<28?'new\n'+'x'.repeat(65536):'new'}))];
+seedRaw(raw,rows,work);
+const db=new DatabaseSync(raw);for(const c of cases)db.prepare('UPDATE activity_events SET to_value_json=? WHERE id=?').run(JSON.stringify(c.after),c.id);
+db.exec("INSERT INTO current_issue_snapshots(source_object_id,summary,status,issue_type,priority,labels_json,components_json,versions_json,snapshot_json,snapshot_updated_at) SELECT id,'Synthetic issue','Open','Task','High','[]','[]','[]','{}','2026-09-01T00:00:00Z' FROM source_objects");db.close();
+process.env.JAA_UI_STRESS_RAW=raw;process.env.JAA_UI_EXPECT_TOTAL='39281';process.env.JAA_UI_EXPECT_MATCHED='55';
+require('./test-v0344-ui.cjs');

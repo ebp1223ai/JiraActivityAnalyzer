@@ -1,4 +1,5 @@
 import fs from "./businessIoDiagnosticsV044.js";
+import { presentationMetricsV046 } from "../shared/activityPresentationV046.js";
 import { createFieldDiscoveryV044, indexFieldsV044, materializeRowV044, queryStageV044 } from "./aiResultsIndexV044.js";
 import { DatabaseSync } from "node:sqlite";
 import { databaseRevisionV045, closeDatabaseRevisionsV045 } from './databaseRevisionV045.js';
@@ -13,7 +14,7 @@ const receipts: Json = {};
 const parse = (value: any) => value == null ? null : JSON.parse(String(value));
 const fileKey = databaseRevisionV045;
 const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
-export function invalidateAiResultsV043() { for (const snapshot of cache.values()) snapshot.db.close(); cache.clear(); closeDatabaseRevisionsV045(); }
+export function invalidateAiResultsV043(closeRevisions = true) { for (const snapshot of cache.values()) snapshot.db.close(); cache.clear(); if (closeRevisions) closeDatabaseRevisionsV045(); }
 
 function aiJoin(prefix = "") {
   return `FROM ${prefix}ai_records r JOIN ${prefix}ai_record_analyses a ON a.analysis_id=r.active_analysis_id
@@ -41,19 +42,26 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
   queryStageV044("field-discovery", "START", { scope: "all-rows", mode: "streaming-overlap-with-mapping" });
   const db = new DatabaseSync(":memory:");
   const registry = new Map<string, FieldV043>();
-  db.exec("CREATE TABLE documents(id TEXT PRIMARY KEY,body TEXT NOT NULL); CREATE TABLE cells(row_id TEXT NOT NULL,field_id TEXT NOT NULL,token TEXT NOT NULL,kind TEXT NOT NULL,text TEXT,number REAL, UNIQUE(row_id,field_id,token)); BEGIN");
+  db.exec("CREATE TABLE documents(id TEXT PRIMARY KEY,body TEXT NOT NULL); CREATE TABLE projections(id TEXT PRIMARY KEY,body TEXT NOT NULL); CREATE TABLE cells(row_id TEXT NOT NULL,field_id TEXT NOT NULL,token TEXT NOT NULL,kind TEXT NOT NULL,text TEXT,number REAL, UNIQUE(row_id,field_id,token)); BEGIN");
   registerDocumentV043(registry, { computed: Object.fromEntries(["eventTime", "issueKey", "projectKey", "displayName", "fieldName", "eventType", "action", "sourceProvenance", "before", "after", "diffText", "analysisStatus", "reviewRank", "sourceLinkStatus", "sourceTraceStatus", "integrityStatus", "skillId", "confidence", "rationale", "summary", "issueTypeName", "currentStatusName", "currentPriorityName", "historyId", "itemIndex"].map(key => [key, null])) });
   registerDocumentV043(registry, { computed: { manual: { state: null } } });
-  const insertRow = db.prepare("INSERT INTO documents VALUES(?,?)"), insertCell = db.prepare("INSERT OR IGNORE INTO cells VALUES(?,?,?,?,?,?)");
+  const insertRow = db.prepare("INSERT INTO documents VALUES(?,?)"), insertProjection = db.prepare("INSERT INTO projections VALUES(?,?)"), insertCell = db.prepare("INSERT OR IGNORE INTO cells VALUES(?,?,?,?,?,?)");
   let total = 0;
   const discover = createFieldDiscoveryV044(registry);
   let lastProgress = performance.now();
   const eventField = fieldIdV043("computed", ["eventTime"]);
+  const metricCache = new Map<string, ReturnType<typeof presentationMetricsV046>>();
   const add = (row: Json, doc: Json) => {
+    const reusable = typeof row.before === "string" && typeof row.after === "string" && row.before.length + row.after.length < 4096;
+    const metricKey = reusable ? JSON.stringify([row.fieldId, row.fieldName, row.eventType, row.before, row.after]) : "";
+    let metrics = metricKey ? metricCache.get(metricKey) : undefined;
+    if (!metrics) { metrics = presentationMetricsV046(row); if (metricKey) { if (metricCache.size >= 128) metricCache.delete(metricCache.keys().next().value!); metricCache.set(metricKey, metrics); } }
+    Object.assign(row, metrics);
     discover(doc);
     const v = typedValueV043(row.eventTime);
     insertCell.run(row.id, eventField, v.token, v.kind, v.text, v.number);
-    insertRow.run(row.id, JSON.stringify({ document: doc })); total++;
+    insertRow.run(row.id, JSON.stringify({ document: doc }));
+    insertProjection.run(row.id, JSON.stringify({ computed: Object.fromEntries(Object.entries(row).filter(([key, value]) => !["before", "after", "diffText", "rationale"].includes(key) && (value === null || ["string", "number", "boolean"].includes(typeof value)))) })); total++;
     if (performance.now() - lastProgress > 500) { queryStageV044("snapshot-build", "PROGRESS", { processed: total, total: null, rssBytes: process.memoryUsage().rss }); lastProgress = performance.now(); }
   };
   const aiRows = new Map<string, { row: Json; document: Json }>();
@@ -146,7 +154,7 @@ export function dayBoundaryV043(day: string, zone: string, next = false) {
 function predicates(snapshot: Snapshot, query: QueryV043, exclude?: string) {
   const quick = query.diffQuickFilters ?? {};
   const quickFields = Object.entries({ hideZeroAdded: 'addedLineCount', hideZeroDeleted: 'removedLineCount', hideNoChange: 'isSubstantiveChange', hideBeforeUnavailable: 'beforeAvailability' }).filter(([toggle]) => quick[toggle]).map(([, field]) => field);
-  indexFieldsV044(snapshot, [...Object.keys(query.filters ?? {}), ...quickFields].filter(name => name !== exclude));
+  indexFieldsV044(snapshot, [...Object.keys(query.filters ?? {}), ...quickFields, ...(quickFields.length ? ['diffApplicability'] : [])].filter(name => name !== exclude));
   const clauses: string[] = [], binds: (string | number)[] = [];
   const excluded = exclude ? snapshot.registry.get(exclude)?.path : undefined;
   for (const [name, filter] of Object.entries(query.filters ?? {})) {
@@ -180,9 +188,9 @@ function predicates(snapshot: Snapshot, query: QueryV043, exclude?: string) {
   for (const [toggle, field, op] of [["hideZeroAdded", "addedLineCount", ">0"], ["hideZeroDeleted", "removedLineCount", ">0"], ["hideNoChange", "isSubstantiveChange", "=1"]]) if (query.diffQuickFilters?.[toggle]) {
     const id = snapshot.registry.get(field)?.path;
     // Unknown metrics remain visible; absence is not a measured zero.
-    if (id) { clauses.push(`NOT EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number${op}))`); binds.push(id); }
+    if (id) { clauses.push(`NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text=\'DESCRIPTION\' WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number${op}))`); binds.push(snapshot.registry.get("diffApplicability")!.path, id); }
   }
-  if (query.diffQuickFilters?.hideBeforeUnavailable) { const id = snapshot.registry.get("beforeAvailability")?.path; if (id) { clauses.push("NOT EXISTS(SELECT 1 FROM cells c WHERE c.row_id=d.id AND c.field_id=? AND c.text='UNAVAILABLE')"); binds.push(id); } }
+  if (query.diffQuickFilters?.hideBeforeUnavailable) { const id = snapshot.registry.get("beforeAvailability")?.path; if (id) { clauses.push("NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text='DESCRIPTION' WHERE c.row_id=d.id AND c.field_id=? AND c.text='UNAVAILABLE')"); binds.push(snapshot.registry.get("diffApplicability")!.path, id); } }
   return { sql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", binds };
 }
 function snapshotFor(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null) { const s = createSnapshot(kind, aiPath, rawPath); s.db.function("jaa_epoch", (v: any) => { const ms = Date.parse(String(v)); return Number.isFinite(ms) ? ms : null; }); return s; }
@@ -205,7 +213,7 @@ export function queryResultsV043(kind: "ai" | "integrated", aiPath: string | nul
   queryStageV044("row-mapping", "END", { rowCount: mappedRows.length });
   const result = { ok: true, rows: mappedRows, fieldCatalog: [...s.registry].filter(([id, f]) => id === f.path).map(([, f]) => f), totalCount: s.total, filteredCount: count, page, pageSize: size, pageCount: Math.max(1, Math.ceil(count / size)), generation: s.key, ...s.metadata, durationMs: Date.now() - start };
   queryStageV044("sql-query", "END", { queryTemplate: sql, parameterTypes: binds.map(v => typeof v), queryId: "v043-document-page", totalCount: s.total, filteredCount: count, rowCount: result.rows.length, elapsedMs: result.durationMs });
-  receipts[kind] = { queryTemplate: sql, parameterTypes: binds.map(v => typeof v), scope: kind, total: s.total, filtered: count, elapsedMs: result.durationMs };
+  receipts[kind] = { queryPlan: s.db.prepare('EXPLAIN QUERY PLAN ' + sql).all(...binds), queryTemplate: sql, parameterTypes: binds.map(v => typeof v), scope: kind, total: s.total, filtered: count, elapsedMs: result.durationMs };
   return result;
 }
 export function distinctResultsV043(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null, field: string, query: QueryV043 = {}, search = "") {
@@ -228,7 +236,7 @@ export function exportResultsV043(kind: "ai" | "integrated", aiPath: string | nu
   return { schemaName: "jaa-table-query-export", schemaVersion: "0.3.43", scope: visible ? "visible-columns" : "all-fields", completePackage: false, snapshot: result.generation, totalCount: result.totalCount, filteredCount: result.filteredCount, fields: fields.map(f => ({ id: f.path, label: f.label })), rows: result.rows.map((row: Json) => Object.fromEntries(fields.map(f => [f.path, row.fieldValues[f.path]]))) };
 }
 export function latestQueryDiagnosticsV043() { const cacheBytes = [...cache.values()].reduce((n, s) => n + Number((s.db.prepare("PRAGMA page_count").get() as Json).page_count) * Number((s.db.prepare("PRAGMA page_size").get() as Json).page_size), 0); return { ...receipts, cacheEntries: cache.size, cacheBytes, cacheBudgetBytes: 256 * 1024 ** 2 }; }
-export function releaseOversizeResultCacheV045() { const state = latestQueryDiagnosticsV043(); if (state.cacheBytes > state.cacheBudgetBytes) { invalidateAiResultsV043(); queryStageV044("cache-released", "POINT", { reason: "BYTE_BUDGET", bytes: state.cacheBytes }); } }
+export function releaseOversizeResultCacheV045() { const state = latestQueryDiagnosticsV043(); if (state.cacheBytes > state.cacheBudgetBytes) { invalidateAiResultsV043(false); queryStageV044("cache-released", "POINT", { reason: "BYTE_BUDGET", bytes: state.cacheBytes }); } }
 
 // Iterate a single immutable query snapshot; never send full-scope export rows over IPC.
 export function writeQueryExportV044(kind: "ai" | "integrated", ai: string | null, raw: string | null, query: QueryV043, visible: string[] | undefined, target: string, format: string) {

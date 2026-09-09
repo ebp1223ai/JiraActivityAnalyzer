@@ -1,0 +1,338 @@
+{
+  "role": "LOGICAL_ORACLE_ONLY",
+  "fieldMatching": "Use production canonical field identity; aliases mapped by actual schema, not by presence of Before",
+  "combinations": [
+    {
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": false,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D02",
+        "D03",
+        "D04",
+        "D05",
+        "D06",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": false,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D02",
+        "D04",
+        "D05",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": false,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D03",
+        "D05",
+        "D06",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": false,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D05",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": true,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D03",
+        "D04",
+        "D06",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": true,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D04",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": true,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D03",
+        "D06",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": true,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": false,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D03",
+        "D04",
+        "D05",
+        "D06",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": false,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D04",
+        "D05",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": false,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D03",
+        "D05",
+        "D06",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": false,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D05",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": true,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D03",
+        "D04",
+        "D06",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": true,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D04",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": true,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "D03",
+        "D06",
+        "O01"
+      ]
+    },
+    {
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": true,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "D01",
+        "O01"
+      ]
+    }
+  ],
+  "additionalCases": [
+    {
+      "id": "Q-EVENT",
+      "filters": {
+        "eventType": [
+          "field_changed"
+        ]
+      },
+      "quickFlags": {
+        "hideNoChange": false,
+        "hideAddedZero": false,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "D01",
+        "D02",
+        "D03",
+        "D04",
+        "D05",
+        "D06",
+        "O01"
+      ],
+      "purpose": "Comment passes quick layer but is excluded by normal event-type filter"
+    }
+  ]
+}

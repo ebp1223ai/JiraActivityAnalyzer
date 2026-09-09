@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.45",
+  "version": "0.3.46",
   "description": "Electron desktop analyzer with bundled Codex local-workspace AI analysis and canonical debug evidence.",
   "author": "COPGEN",
   "type": "module",
@@ -132,6 +132,9 @@
     "test:ui:legacy-deep": "npm run build && cross-env ELECTRON_UI_SMOKE=1 ELECTRON_UI_CAPTURE=0 ELECTRON_UI_LEGACY_DEEP=1 electron dist-electron/main.cjs",
     "test:v0.3.43": "node scripts/test-v0343.cjs && node scripts/test-v0343-integration.cjs && node scripts/test-v0343-correctness.cjs",
     "test:ui:v0.3.43": "node scripts/test-v0343-ui.cjs",
+    "test:v0.3.46": "node scripts/test-v0346.cjs && node scripts/test-v0346-service.cjs",
+    "test:ui:v0.3.46": "node scripts/test-v0346-ui.cjs",
+    "package:v0.3.46": "node scripts/package-v0346.cjs",
     "test:v0.3.45": "node scripts/test-v0345.cjs",
     "test:v0.3.44": "node scripts/test-v0344.cjs && node scripts/test-v0344-correctness.cjs && node scripts/test-v0343.cjs && node scripts/test-v0343-integration.cjs && node scripts/test-v0343-correctness.cjs"
   },

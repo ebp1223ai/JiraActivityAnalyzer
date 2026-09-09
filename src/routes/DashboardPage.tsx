@@ -113,7 +113,8 @@ export function DashboardPage() {
         recordTableRequest("stale", { requestId, tableId: "databaseIssueList", query, startedAt });
         return;
       }
-      setIssues(issueList ?? emptyIssues);
+      if (!issueList || !Array.isArray(issueList.items)) throw new Error((issueList as unknown as { message?: string })?.message ?? "DATABASE_ISSUE_QUERY_INVALID_RESPONSE");
+      setIssues(issueList);
       recordTableRequest("completed", { requestId, tableId: "databaseIssueList", query, startedAt, resultCount: issueList?.items.length ?? 0 });
       setIssueStatus("ready");
       setIssueInteractionReady(true);

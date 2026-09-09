@@ -1,3 +1,11 @@
+# v0.3.46 - Comment Full Text and Query Correctness
+
+- Present Comment body as safe full text with non-applicable diff counts; apply quick filters only to Description evidence.
+- Use compact scalar predicate projections and row-correlated quick-filter indexes; retain bounded caches with stable revision identity.
+- Persist current and legacy viewer preferences, guard stale responses, and distinguish cancellation from supersession.
+- Prevent picker-wait cancellation from publishing exports; observe resource ownership through existing diagnostics.
+- DEVELOPMENT delivery is a complete win-unpacked ZIP only. Manual GUI Gate remains pending; K46-01 Installer data-loss issue is not fixed.
+
 # v0.3.45 - Raw Enrichment, Reusable Results and Snapshot Exports
 
 - Populate Integrated Results issue type/current status/current priority from Raw current_issue_snapshots, preserving the complete Raw base and unique AI links.

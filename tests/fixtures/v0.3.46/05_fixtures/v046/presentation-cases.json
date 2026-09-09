@@ -1,0 +1,192 @@
+{
+  "role": "SYNTHETIC_LOGICAL_VIEW_FIXTURES_NOT_AI_PACKAGE",
+  "sourceImmutable": true,
+  "cases": [
+    {
+      "id": "C01",
+      "field": "Comment",
+      "eventType": "comment_created",
+      "before": null,
+      "after": {
+        "body": "Inspect queue\r\nConfirm retry",
+        "commentId": "synthetic-comment-1",
+        "contentStatus": "available",
+        "provenance": "current_at_observation"
+      },
+      "expected": {
+        "mode": "COMMENT_FULL",
+        "text": "Inspect queue\nConfirm retry",
+        "analysisScope": "FULL_COMMENT",
+        "added": null,
+        "removed": null,
+        "beforeRequired": false
+      }
+    },
+    {
+      "id": "C02",
+      "field": "Comment",
+      "eventType": "comment_updated",
+      "before": null,
+      "after": {
+        "body": "Inspect queue\r\nConfirm retry",
+        "commentId": "synthetic-comment-1",
+        "contentStatus": "available",
+        "provenance": "current_at_observation"
+      },
+      "expected": {
+        "mode": "COMMENT_FULL",
+        "text": "Inspect queue\nConfirm retry",
+        "analysisScope": "FULL_COMMENT",
+        "added": null,
+        "removed": null,
+        "beforeRequired": false
+      }
+    },
+    {
+      "id": "C03",
+      "field": "Comment",
+      "eventType": "comment_updated",
+      "before": {
+        "body": "old"
+      },
+      "after": {
+        "body": "new\nwhole comment",
+        "commentId": "synthetic-comment-2"
+      },
+      "expected": {
+        "mode": "COMMENT_FULL",
+        "text": "new\nwhole comment",
+        "added": null,
+        "removed": null
+      }
+    },
+    {
+      "id": "C04",
+      "field": "Comment",
+      "eventType": "comment_updated",
+      "before": null,
+      "after": null,
+      "expected": {
+        "mode": "CONTENT_UNAVAILABLE",
+        "reason": "BODY_NOT_AVAILABLE",
+        "added": null,
+        "removed": null
+      }
+    },
+    {
+      "id": "C05",
+      "field": "Comment",
+      "eventType": "comment_updated",
+      "before": null,
+      "after": {
+        "body": "<img src=x onerror=alert(1)>\nliteral \\r\\n code"
+      },
+      "expected": {
+        "mode": "COMMENT_FULL",
+        "text": "<img src=x onerror=alert(1)>\nliteral \\r\\n code",
+        "scriptExecutions": 0,
+        "added": null,
+        "removed": null
+      }
+    },
+    {
+      "id": "D01",
+      "field": "Description",
+      "eventType": "field_changed",
+      "before": "old\nkeep",
+      "after": "new\nkeep",
+      "expected": {
+        "mode": "DESCRIPTION_DIFF",
+        "added": 1,
+        "removed": 1,
+        "changed": true
+      }
+    },
+    {
+      "id": "D02",
+      "field": "Description",
+      "eventType": "field_changed",
+      "before": "same",
+      "after": "same",
+      "expected": {
+        "mode": "DESCRIPTION_DIFF",
+        "added": 0,
+        "removed": 0,
+        "changed": false
+      }
+    },
+    {
+      "id": "D03",
+      "field": "Description",
+      "eventType": "field_changed",
+      "before": null,
+      "after": "current",
+      "expected": {
+        "mode": "DIFF_UNAVAILABLE",
+        "added": null,
+        "removed": null,
+        "changed": null
+      }
+    },
+    {
+      "id": "D04",
+      "field": "Description",
+      "eventType": "field_changed",
+      "before": "",
+      "after": "new",
+      "expected": {
+        "mode": "DESCRIPTION_DIFF",
+        "added": 1,
+        "removed": 0,
+        "changed": true
+      }
+    },
+    {
+      "id": "D05",
+      "field": "Description",
+      "eventType": "field_changed",
+      "before": "old",
+      "after": "",
+      "expected": {
+        "mode": "DESCRIPTION_DIFF",
+        "added": 0,
+        "removed": 1,
+        "changed": true
+      }
+    },
+    {
+      "id": "D06",
+      "field": "Description",
+      "eventType": "field_changed",
+      "before": null,
+      "after": null,
+      "trustedCompactDiff": {
+        "integrity": "verified",
+        "removed": [
+          "old"
+        ],
+        "added": [
+          "new"
+        ]
+      },
+      "expected": {
+        "mode": "DESCRIPTION_COMPACT",
+        "added": 1,
+        "removed": 1,
+        "changed": true,
+        "label": "僅含差異片段"
+      }
+    },
+    {
+      "id": "O01",
+      "field": "Status",
+      "eventType": "field_changed",
+      "before": "Open",
+      "after": "Closed",
+      "expected": {
+        "mode": "EXISTING_OTHER_FORMATTER",
+        "quickFilterApplies": false
+      }
+    }
+  ]
+}
