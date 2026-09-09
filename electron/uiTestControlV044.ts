@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { aiResultsServiceV044 } from './aiResultsServiceV044.js';
 import { automaticDiagnosticsV044 } from './automaticDiagnosticsV044.js';
 import path from 'node:path';
 import http from 'node:http';
@@ -32,6 +33,9 @@ export function prepareUiTestV044(root: string) {
         else if (req.url === '/fault/renderer-crash') { res.end('{}'); setTimeout(() => window.webContents.forcefullyCrashRenderer(), 50); }
         else if (req.url === '/fault/exit-after-durable-start') { automaticDiagnosticsV044()?.armIsolatedStartAckFault(() => app.exit(74)); res.end('{}'); }
         else if (req.url === '/fault/main-exit') { res.end('{}'); setTimeout(() => app.exit(73), 50); }
+        else if (req.url === '/hold-test-query') { aiResultsServiceV044.holdTestQuery(); res.end('{}'); }
+        else if (req.url === '/test-query-state') { res.end(JSON.stringify(aiResultsServiceV044.testQueryState())); }
+        else if (req.url === '/release-test-query') { aiResultsServiceV044.releaseTestQuery(); res.end('{}'); }
         else if (req.url === '/capture') { res.setHeader('Content-Type', 'image/png'); res.end((await window.capturePage(undefined, { stayHidden: true })).toPNG()); }
         else if (req.url?.startsWith('/resize?')) {
           const params = new URL(req.url, 'http://127.0.0.1').searchParams;

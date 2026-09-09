@@ -1,0 +1,309 @@
+{
+  "role": "SYNTHETIC_EXPECTED_RESULTS",
+  "cases": [
+    {
+      "id": "Q47-00",
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": false,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-02",
+        "D47-03",
+        "D47-04",
+        "D47-05",
+        "D47-06",
+        "D47-07",
+        "D47-08",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-01",
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": false,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-02",
+        "D47-03",
+        "D47-04",
+        "D47-05",
+        "D47-07",
+        "D47-08",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-02",
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": true,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-02",
+        "D47-03",
+        "D47-04",
+        "D47-05",
+        "D47-07",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-03",
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": true,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-02",
+        "D47-03",
+        "D47-04",
+        "D47-05",
+        "D47-07",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-04",
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": false,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-02",
+        "D47-03",
+        "D47-04",
+        "D47-05",
+        "D47-08",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-05",
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": false,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-02",
+        "D47-03",
+        "D47-04",
+        "D47-05",
+        "D47-08",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-06",
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": true,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-02",
+        "D47-03",
+        "D47-04",
+        "D47-05",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-07",
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": true,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": false
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-02",
+        "D47-03",
+        "D47-04",
+        "D47-05",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-08",
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": false,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-05",
+        "D47-06",
+        "D47-07",
+        "D47-08",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-09",
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": false,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-05",
+        "D47-07",
+        "D47-08",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-10",
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": true,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-05",
+        "D47-07",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-11",
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": true,
+        "hideRemovedZero": false,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-05",
+        "D47-07",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-12",
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": false,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-05",
+        "D47-08",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-13",
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": false,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-05",
+        "D47-08",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-14",
+      "flags": {
+        "hideNoChange": false,
+        "hideAddedZero": true,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-05",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    },
+    {
+      "id": "Q47-15",
+      "flags": {
+        "hideNoChange": true,
+        "hideAddedZero": true,
+        "hideRemovedZero": true,
+        "hideBeforeUnavailable": true
+      },
+      "expectedIds": [
+        "D47-01",
+        "D47-05",
+        "C47-01",
+        "C47-02",
+        "O47-01"
+      ]
+    }
+  ],
+  "defaultFlags": {
+    "hideNoChange": true,
+    "hideAddedZero": false,
+    "hideRemovedZero": false,
+    "hideBeforeUnavailable": false
+  }
+}

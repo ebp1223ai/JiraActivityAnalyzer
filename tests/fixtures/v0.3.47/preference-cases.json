@@ -1,0 +1,155 @@
+{
+  "role": "SYNTHETIC_LOGICAL_NOT_APP_SETTINGS",
+  "cases": [
+    {
+      "id": "P47-01",
+      "stored": null,
+      "reason": "SETTING_ABSENT",
+      "action": "LOAD",
+      "expected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED"
+      ]
+    },
+    {
+      "id": "P47-02",
+      "stored": [],
+      "reason": "EXPLICIT_EMPTY",
+      "action": "LOAD",
+      "expected": []
+    },
+    {
+      "id": "P47-03",
+      "stored": [
+        "UNKNOWN",
+        "FAILED"
+      ],
+      "action": "LOAD",
+      "expected": [
+        "UNKNOWN",
+        "FAILED"
+      ]
+    },
+    {
+      "id": "P47-04",
+      "stored": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "action": "LOAD",
+      "expected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED",
+        "NOT_ANALYZED"
+      ]
+    },
+    {
+      "id": "P47-05",
+      "stored": [
+        "UNKNOWN"
+      ],
+      "action": "CLEAR_ALL_FILTERS",
+      "expected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "otherFilters": "CLEARED"
+    },
+    {
+      "id": "P47-06",
+      "stored": [],
+      "action": "RESTORE_DEFAULTS",
+      "expected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED"
+      ],
+      "otherFilters": "EXISTING_DEFAULTS"
+    },
+    {
+      "id": "P47-07",
+      "stored": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "action": "DESELECT_ALL_AI",
+      "expected": [],
+      "otherFilters": "UNCHANGED"
+    },
+    {
+      "id": "P47-08",
+      "stored": [
+        "CLASSIFIED",
+        "INVALID"
+      ],
+      "action": "LOAD",
+      "expected": [
+        "CLASSIFIED"
+      ],
+      "warning": true
+    },
+    {
+      "id": "P47-09",
+      "stored": [
+        "INVALID"
+      ],
+      "action": "LOAD",
+      "expected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED"
+      ],
+      "warning": true
+    },
+    {
+      "id": "P47-10",
+      "stored": [
+        "NOT_ANALYZED"
+      ],
+      "action": "RESTART_SAME_DB",
+      "expected": [
+        "NOT_ANALYZED"
+      ]
+    }
+  ],
+  "equivalentQuerySets": [
+    [
+      "UNKNOWN",
+      "FAILED"
+    ],
+    [
+      "FAILED",
+      "UNKNOWN"
+    ]
+  ],
+  "distinctQuerySets": [
+    [],
+    null
+  ],
+  "dbCycle": {
+    "A": [
+      "FAILED"
+    ],
+    "B": [
+      "NOT_ANALYZED"
+    ],
+    "returnA": [
+      "FAILED"
+    ]
+  }
+}

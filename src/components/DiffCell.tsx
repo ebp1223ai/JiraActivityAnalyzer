@@ -12,8 +12,8 @@ type Props = {
 
 export function DiffCell({ row, expanded = false, onExpandedChange }: Props) {
   const policy = useMemo(() => activityEventDisplayPolicy(row), [row]);
-  if (policy.kind === "comment" || (row.sourceTrace && row.contentSource !== "RAW_EVENT")) return <div className="space-y-2"><TraceDiffLines row={row} expanded={expanded} /><button className="btn" type="button" aria-expanded={expanded} onClick={() => onExpandedChange?.(!expanded)}>{expanded ? "收合詳細資料" : "查看來源與分析"}</button></div>;
-  if (isDescriptionDiffRow(row)) return <DescriptionDiffCell row={row} expanded={expanded} onExpandedChange={onExpandedChange} />;
+  if (policy.kind === "comment" || (row.sourceTrace && row.contentSource !== "RAW_EVENT") || (row.displaySourcePolicy && row.diffApplicability === "DESCRIPTION")) return <div className="space-y-2"><TraceDiffLines row={row} expanded={expanded} /><button className="btn" type="button" aria-expanded={expanded} onClick={() => onExpandedChange?.(!expanded)}>{expanded ? "收合詳細資料" : "查看來源與分析"}</button></div>;
+  if (isDescriptionDiffRow(row)) return <div>{row.displaySourceKind === "RAW" ? <small className="text-muted">原始事件 / Raw Event</small> : null}<DescriptionDiffCell row={row} expanded={expanded} onExpandedChange={onExpandedChange} /></div>;
   const label = "Diff preview";
   return (
     <div className="min-w-0 text-xs leading-relaxed">

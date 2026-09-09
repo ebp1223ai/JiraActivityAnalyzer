@@ -56,6 +56,7 @@ export function registerAiAnalysisDatabaseIpcV042(getRawDatabasePath: () => stri
     const requestId = id(payload), context = diagnosticContextV044.getStore();
     if (payload.__trustedOutput && action !== "export-file") throw Error("INVALID_QUERY_ARGUMENT");
     const snapshot = lifecycle(), raw = getRawDatabasePath() || null;
+    if (!snapshot.canQuery && snapshot.lifecycleState !== 'NOT_SELECTED') throw new Error('AI_DATABASE_UNAVAILABLE:' + snapshot.lifecycleState);
     const value = await aiResultsServiceV044.run(event.sender.id, { requestId, action, kind, ai: snapshot.canQuery ? store.activePath() : null, raw, query: action === "query" ? payload : payload.query ?? {}, field: payload.field, search: payload.search ?? "", diagnostic: automaticDiagnosticsV044() ? { ...automaticDiagnosticsV044()!.config, instanceId: automaticDiagnosticsV044()!.instanceId, context } : null, output: payload.__trustedOutput, format: payload.format, visible: payload.exportScope === "visible" ? payload.visibleFields ?? [] : undefined }, async stage => {
       const persisted = await automaticDiagnosticsV044()?.stage(context, stage);
       if (!event.sender.isDestroyed()) event.sender.send("ai-database:query-progress", { requestId, stage: stage.event, phase: stage.phase, ...stage.details });

@@ -6,7 +6,7 @@ const version=process.env.JAA_UI_EXPECT_VERSION||'0.3.44';
 const work=path.resolve(process.env.JAA_UI_EVIDENCE||path.join(root,'test-artifacts','v'+version,`ui-${Date.now()}`));
 const appRoot=path.resolve(process.env.JAA_UI_APP_ROOT||path.join(work,'測試 App Root'));
 const exe=process.env.JAA_UI_EXECUTABLE||require('electron');
-const pkg=path.join(root,'tests/fixtures/v0.3.43/v201/package-ai-only-55.json');
+const pkg=process.env.JAA_UI_PACKAGE||path.join(root,'tests/fixtures/v0.3.43/v201/package-ai-only-55.json');
 const raw=path.join(appRoot,'databases','raw.sqlite'),ai=path.join(appRoot,'databases','ai-analysis','synthetic.sqlite');
 const report={version,exe,appRoot,status:'RUNNING',manualGui:'PENDING',checks:[],errors:[],screenshots:[],startedAt:new Date().toISOString(),captureMethod:'BrowserWindow.capturePage only; no desktop capture; normal Electron spawn + nonce gated loopback CDP'};
 const nonce=crypto.randomBytes(32).toString('hex');
@@ -22,7 +22,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,ms=20000){const started=Date.now();let last;while(Date.now()-started<ms){try {const result=await fn();if(result)return result;}catch(e){last=e;}await wait(100);}throw last||Error('WAIT_TIMEOUT');}
 async function control(url){const response=await fetch(`http://127.0.0.1:${controlPort}${url}`,{headers:{'x-jaa-test-nonce':nonce},signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error(`CONTROL_${response.status}`);return response;}
 const headings={'ai-database':'AI Analysis Database','ai-results':'AI Results Viewer','integrated-results':'Integrated Results',database:'Database Overview',connections:'Connections',collection:'Data Collection',issues:'Issue Viewer',users:'User Viewer','activity-stream-probe':'Activity Stream Probe','jira-probe':'Jira Probe',settings:'Settings'};
-async function route(name){const at=performance.now();await page.evaluate(name=>{location.hash='#/'+name;},name);await page.waitForFunction(expected=>document.querySelector('h1')?.textContent?.includes(expected),headings[name],{timeout:15000,polling:25});if(['ai-results','integrated-results'].includes(name)){await page.locator('tr.activity-event-summary-row').first().waitFor({timeout:20000});await page.waitForFunction(()=>!document.querySelector('[data-table-id][aria-busy="true"]'),null,{polling:25});}if(version!=='0.3.45')await wait(150);report.checks.push({name:'route-ready:'+name,status:'PASS',durationMs:performance.now()-at});}
+async function route(name){const at=performance.now();await page.evaluate(name=>{location.hash='#/'+name;},name);await page.waitForFunction(expected=>document.querySelector('h1')?.textContent?.includes(expected),headings[name],{timeout:15000,polling:25});if(['ai-results','integrated-results'].includes(name)){if(version==='0.3.47')await page.locator('[data-table-id]').first().waitFor({timeout:20000});else await page.locator('tr.activity-event-summary-row').first().waitFor({timeout:20000});await page.waitForFunction(()=>!document.querySelector('[data-table-id][aria-busy="true"]'),null,{polling:25});}if(version!=='0.3.45')await wait(150);report.checks.push({name:'route-ready:'+name,status:'PASS',durationMs:performance.now()-at});}
 async function main(){
   const begin=Date.now();
   child=spawn(exe,process.env.JAA_UI_EXECUTABLE?[]:[root],{cwd:root,windowsHide:true,env:{...process.env,JAA_DEV_APP_ROOT:appRoot,JAA_UI_TEST_MODE:'1',JAA_UI_TEST_NONCE:nonce,JAA_V043_BACKGROUND:'1',JAA_UI_IO_AUDIT:'1',OPEN_DEVTOOLS:'0',ELECTRON_UI_SMOKE:'0'}});
@@ -48,7 +48,7 @@ async function main(){
   }
   const result=await page.evaluate(()=>window.desktopApp.aiDatabase.queryIntegrated({requestId:'ui-query',page:1,pageSize:100,visibleFields:[]}));assert.equal(result.ok,true,JSON.stringify(result));assert.equal(result.totalCount,expectedTotal);assert.equal(result.matchedCount,expectedMatched);
   report.checks.push({name:'real-preload-IPC-Raw-AI-create-import-relink-query',status:'PASS'});
-  const sizes=['0.3.45','0.3.46'].includes(version)?[[1366,768],[1920,1080]]:process.env.JAA_UI_SHORT==='1'?[[1280,720]]:[[800,600],[1024,768],[1280,720],[1366,768],[1440,900],[1600,900],[1920,1080]];
+  const sizes=['0.3.45','0.3.46','0.3.47'].includes(version)?[[1366,768],[1920,1080]]:process.env.JAA_UI_SHORT==='1'?[[1280,720]]:[[800,600],[1024,768],[1280,720],[1366,768],[1440,900],[1600,900],[1920,1080]];
   for(const [width,height] of sizes){await control(`/resize?width=${width}&height=${height}`);for(const name of ['ai-database','ai-results','integrated-results']){await route(name);await control('/capture');await wait(100);const png=Buffer.from(await(await control('/capture')).arrayBuffer());const file=path.join(work,'screenshots',`${name}-${width}x${height}.png`);fs.writeFileSync(file,png);const layout=await page.evaluate(()=>({width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth>innerWidth+1||document.body.scrollWidth>innerWidth+1,heading:document.querySelector('h1')?.textContent,sidebar:!!document.querySelector('aside')}));assert.equal(layout.overflow,false,JSON.stringify(layout));assert.ok(layout.sidebar);assert.ok(png.length>10000,'blank capture');report.screenshots.push({file,...layout});
     if(name==='integrated-results') {
       await page.getByRole('button',{name:/Debug Log/}).click();const panel=page.getByRole('dialog',{name:/全域除錯日誌/});await panel.waitFor();
@@ -65,9 +65,10 @@ async function main(){
     for(let i=0;i<20;i++){await route(i%2?'integrated-results':'ai-results');}
     report.checks.push({name:'real-header-filter-route-hydration-and-20-route-loop',status:'PASS'});
   }
+  if(version==='0.3.47') await require(process.env.JAA_V047_UI_FOCUS==='delivery'?'./v0347-ui-delivery.cjs':'./v0347-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});
   if(version==='0.3.46') await require(process.env.JAA_V046_UI_FOCUS==='edges'?'./v0346-ui-edgechecks.cjs':'./v0346-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});
   if(version==='0.3.45' && process.env.JAA_UI_V045_CHECKS!=='0') await require('./v0345-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});
-  for(const name of (['0.3.45','0.3.46'].includes(version)?['users']:['database','connections','collection','issues','users','activity-stream-probe','jira-probe','settings'])){await route(name);report.checks.push({name:`route:${name}`,status:'PASS',heading:await page.locator('h1').first().textContent()});}
+  for(const name of (['0.3.45','0.3.46','0.3.47'].includes(version)?['users']:['database','connections','collection','issues','users','activity-stream-probe','jira-probe','settings'])){await route(name);report.checks.push({name:`route:${name}`,status:'PASS',heading:await page.locator('h1').first().textContent()});}
   if(process.env.JAA_UI_EXPORT==='1') {
     await route('integrated-results');await control('/select-test-export');await page.getByText('匯出表格',{exact:true}).click();await page.getByRole('button',{name:'全部欄位 JSON',exact:true}).click();
     const target=path.join(appRoot,'exports','synthetic-table-export.json');

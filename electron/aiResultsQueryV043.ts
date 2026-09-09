@@ -1,4 +1,5 @@
 import fs from "./businessIoDiagnosticsV044.js";
+import { descriptionDisplayV047, DISPLAY_POLICY_V047 } from "../shared/integratedDisplayV047.js";
 import { presentationMetricsV046 } from "../shared/activityPresentationV046.js";
 import { createFieldDiscoveryV044, indexFieldsV044, materializeRowV044, queryStageV044 } from "./aiResultsIndexV044.js";
 import { DatabaseSync } from "node:sqlite";
@@ -33,7 +34,8 @@ function seedSchema(registry: Map<string, FieldV043>, db: DatabaseSync, namespac
   }
 }
 function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null): Snapshot {
-  const key = `${kind}|${fileKey(aiPath)}|${fileKey(rawPath)}`;
+  if (aiPath && !fs.existsSync(aiPath)) throw new Error("AI_DATABASE_UNAVAILABLE");
+  const key = `${DISPLAY_POLICY_V047}|${kind}|${fileKey(aiPath)}|${fileKey(rawPath)}`;
   const existing = cache.get(key); if (existing) { queryStageV044("cache-hit", "START"); queryStageV044("cache-hit", "END"); return existing; }
   for (const [oldKey, old] of cache) { old.db.close(); cache.delete(oldKey); queryStageV044('cache-released', 'POINT', { reason: 'CONTENT_CHANGED_OR_DATABASE_SWITCH', rowCount: old.total }); }
   queryStageV044("snapshot-build", "START", { stages: ["source-read", "mapping", "complete-field-discovery"], rawPath, aiPath, pathPolicy: "operator-selected-databases-read-only" });
@@ -52,10 +54,10 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
   const eventField = fieldIdV043("computed", ["eventTime"]);
   const metricCache = new Map<string, ReturnType<typeof presentationMetricsV046>>();
   const add = (row: Json, doc: Json) => {
-    const reusable = typeof row.before === "string" && typeof row.after === "string" && row.before.length + row.after.length < 4096;
+    const reusable = !row.aiRecordId && typeof row.before === "string" && typeof row.after === "string" && row.before.length + row.after.length < 4096;
     const metricKey = reusable ? JSON.stringify([row.fieldId, row.fieldName, row.eventType, row.before, row.after]) : "";
     let metrics = metricKey ? metricCache.get(metricKey) : undefined;
-    if (!metrics) { metrics = presentationMetricsV046(row); if (metricKey) { if (metricCache.size >= 128) metricCache.delete(metricCache.keys().next().value!); metricCache.set(metricKey, metrics); } }
+    if (!metrics) { metrics = descriptionDisplayV047(row); if (metricKey) { if (metricCache.size >= 128) metricCache.delete(metricCache.keys().next().value!); metricCache.set(metricKey, metrics); } }
     Object.assign(row, metrics);
     discover(doc);
     const v = typedValueV043(row.eventTime);
@@ -114,7 +116,7 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
             found.row.sourceConflict = (found.row.before !== null && JSON.stringify(found.row.before) !== JSON.stringify(before)) || (found.row.after !== null && JSON.stringify(found.row.after) !== JSON.stringify(after));
           }
           if (kind === "integrated") {
-            const row = { ...(found?.row ?? {}), ...rawRow, analysisState: found ? "ANALYZED" : links.length > 1 ? "IDENTITY_CONFLICT" : "UNANALYZED", contentSource: "RAW_EVENT", sourceTrace: found?.row.sourceTrace ?? null, sourceConflict: found?.row.sourceConflict ?? false, sourceLinkStatus: found?.row.sourceLinkStatus ?? (links.length > 1 ? "IDENTITY_CONFLICT" : "NOT_ATTEMPTED") };
+            const row = { ...(found?.row ?? {}), ...rawRow, analysisStatus: found ? found.row.analysisStatus : "NOT_ANALYZED", rawSupplement: found ? rawRow : null, analysisState: found ? "ANALYZED" : links.length > 1 ? "IDENTITY_CONFLICT" : "UNANALYZED", contentSource: "RAW_EVENT", sourceTrace: found?.row.sourceTrace ?? null, sourceConflict: found?.row.sourceConflict ?? false, sourceLinkStatus: found?.row.sourceLinkStatus ?? (links.length > 1 ? "IDENTITY_CONFLICT" : "NOT_ATTEMPTED") };
             add(row, { raw: { activity_events: e, source_objects: o, current_issue_snapshots: currentIssue, decoded: { activity_events: Object.fromEntries(Object.entries(e).filter(([k, v]) => k.endsWith("_json") && typeof v === "string").map(([k, v]) => [k, parse(v)])), source_objects: Object.fromEntries(Object.entries(o).filter(([k, v]) => k.endsWith("_json") && typeof v === "string").map(([k, v]) => [k, parse(v)])) } }, ai: found?.document.ai ?? {}, link: found?.document.link ?? {}, computed: row });
           }
         }
@@ -127,7 +129,7 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
       const name = field.segments[0] as string; registry.set(name, field);
     }
     for (const [alias, name] of Object.entries(aliases)) if (registry.has(name)) registry.set(alias, registry.get(name)!);
-    const metadata = { rawDatabaseIdentity: rawIdentity, aiRecordCount: aiRows.size, matchedCount: matched, ambiguousCount: ambiguous, integrationState: !aiPath ? "AI_DATABASE_CLOSED" : !aiRows.size ? "READY_NO_AI_RECORDS" : !matched ? "RELINK_REQUIRED" : matched === aiRows.size ? "FULL_MATCH" : "PARTIAL_MATCH" };
+    const metadata = { rawDatabaseIdentity: rawIdentity, aiRecordCount: aiRows.size, unmatchedAiCount: aiRows.size - matched, displaySourcePolicy: DISPLAY_POLICY_V047, matchedCount: matched, ambiguousCount: ambiguous, ambiguousLinkCount: [...aiRows.values()].filter(e => e.row.link?.raw_database_identity === rawIdentity && e.row.link?.link_status === 'AMBIGUOUS').length, integrationState: !aiPath ? "AI_DATABASE_CLOSED" : !aiRows.size ? "READY_NO_AI_RECORDS" : !matched ? "RELINK_REQUIRED" : matched === aiRows.size ? "FULL_MATCH" : "PARTIAL_MATCH" };
     const snapshot = { db, registry, total, key, metadata, indexed: new Set([eventField]) };
     queryStageV044("field-discovery", "END", { processed: total, fieldCount: registry.size });
     queryStageV044("mapping-aggregation", "END", { processed: total, matched, ambiguous });
@@ -161,6 +163,7 @@ function predicates(snapshot: Snapshot, query: QueryV043, exclude?: string) {
     const f = snapshot.registry.get(name); if (!f) throw new Error(`QUERY_FIELD_UNAVAILABLE:${name}`);
     if (f.path === excluded) continue;
     const terms: string[] = [], values: (string | number)[] = [];
+    if (f.path === snapshot.registry.get("analysisStatus")?.path && Array.isArray(filter.values) && !filter.values.length) { clauses.push("0"); continue; }
     if (filter.values?.length) {
       terms.push(`(${filter.values.map((v: string) => /^(missing|null|string|number|boolean|array|object):/.test(v) ? "c.token=?" : "c.text=?").join(" OR ")})`);
       values.push(...filter.values);
@@ -211,7 +214,8 @@ export function queryResultsV043(kind: "ai" | "integrated", aiPath: string | nul
   queryStageV044("row-mapping", "START", { rowCount: sqlRows.length });
   const mappedRows = sqlRows.map(r => materializeRowV044(r.body, s.registry, query.visibleFields));
   queryStageV044("row-mapping", "END", { rowCount: mappedRows.length });
-  const result = { ok: true, rows: mappedRows, fieldCatalog: [...s.registry].filter(([id, f]) => id === f.path).map(([, f]) => f), totalCount: s.total, filteredCount: count, page, pageSize: size, pageCount: Math.max(1, Math.ceil(count / size)), generation: s.key, ...s.metadata, durationMs: Date.now() - start };
+  const statusCounts = kind === "integrated" ? distinctResultsV043(kind, aiPath, rawPath, "analysisStatus", query).values : undefined;
+  const result = { ok: true, statusCounts, rows: mappedRows, fieldCatalog: [...s.registry].filter(([id, f]) => id === f.path).map(([, f]) => f), totalCount: s.total, filteredCount: count, page, pageSize: size, pageCount: Math.max(1, Math.ceil(count / size)), generation: s.key, ...s.metadata, durationMs: Date.now() - start };
   queryStageV044("sql-query", "END", { queryTemplate: sql, parameterTypes: binds.map(v => typeof v), queryId: "v043-document-page", totalCount: s.total, filteredCount: count, rowCount: result.rows.length, elapsedMs: result.durationMs });
   receipts[kind] = { queryPlan: s.db.prepare('EXPLAIN QUERY PLAN ' + sql).all(...binds), queryTemplate: sql, parameterTypes: binds.map(v => typeof v), scope: kind, total: s.total, filtered: count, elapsedMs: result.durationMs };
   return result;
@@ -233,7 +237,7 @@ export function exportResultsV043(kind: "ai" | "integrated", aiPath: string | nu
   const result = queryResultsV043(kind, aiPath, rawPath, { ...query, visibleFields: visible }, true);
   const s = snapshotFor(kind, aiPath, rawPath);
   const fields = visible ? visible.map(id => s.registry.get(id.replace(/^dynamic:/, ""))).filter((f): f is FieldV043 => Boolean(f)) : result.fieldCatalog;
-  return { schemaName: "jaa-table-query-export", schemaVersion: "0.3.43", scope: visible ? "visible-columns" : "all-fields", completePackage: false, snapshot: result.generation, totalCount: result.totalCount, filteredCount: result.filteredCount, fields: fields.map(f => ({ id: f.path, label: f.label })), rows: result.rows.map((row: Json) => Object.fromEntries(fields.map(f => [f.path, row.fieldValues[f.path]]))) };
+  return { schemaName: "jaa-table-query-export", schemaVersion: "0.3.43", scope: visible ? "visible-columns" : "all-fields", completePackage: false, displaySourcePolicy: DISPLAY_POLICY_V047, snapshot: result.generation, totalCount: result.totalCount, filteredCount: result.filteredCount, fields: fields.map(f => ({ id: f.path, label: f.label })), rows: result.rows.map((row: Json) => Object.fromEntries(fields.map(f => [f.path, row.fieldValues[f.path]]))) };
 }
 export function latestQueryDiagnosticsV043() { const cacheBytes = [...cache.values()].reduce((n, s) => n + Number((s.db.prepare("PRAGMA page_count").get() as Json).page_count) * Number((s.db.prepare("PRAGMA page_size").get() as Json).page_size), 0); return { ...receipts, cacheEntries: cache.size, cacheBytes, cacheBudgetBytes: 256 * 1024 ** 2 }; }
 export function releaseOversizeResultCacheV045() { const state = latestQueryDiagnosticsV043(); if (state.cacheBytes > state.cacheBudgetBytes) { invalidateAiResultsV043(false); queryStageV044("cache-released", "POINT", { reason: "BYTE_BUDGET", bytes: state.cacheBytes }); } }
@@ -250,7 +254,7 @@ export function writeQueryExportV044(kind: "ai" | "integrated", ai: string | nul
   const sort = s.registry.get(query.sort?.field ?? 'eventTime');
   const order = sort ? '(SELECT ' + (['number','boolean'].includes(sort.dataType) ? 'c.number' : sort.dataType === 'date' ? 'jaa_epoch(c.text)' : 'c.text') + ' FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) ' + (query.sort?.direction === 'asc' ? 'ASC' : 'DESC') + ',' : '';
   const sql = 'SELECT body FROM documents d ' + where.sql + ' ORDER BY ' + order + ' d.id';
-  const header = { schemaName: 'jaa-table-query-export', schemaVersion: '0.3.43', scope: visible ? 'visible-columns' : 'all-fields', completePackage: false, snapshot: metadata.generation, totalCount: metadata.totalCount, filteredCount: metadata.filteredCount, fields: fields.map(f => ({ id: f.path, label: f.label })) };
+  const header = { schemaName: 'jaa-table-query-export', schemaVersion: '0.3.43', scope: visible ? 'visible-columns' : 'all-fields', completePackage: false, displaySourcePolicy: DISPLAY_POLICY_V047, snapshot: metadata.generation, totalCount: metadata.totalCount, filteredCount: metadata.filteredCount, fields: fields.map(f => ({ id: f.path, label: f.label })) };
   const fd = fs.openSync(target, 'wx'); let processed = 0, lastProgress = performance.now();
   const csvCell = (value: unknown) => '"' + (value === undefined ? '' : JSON.stringify(value)).replace(/"/g, '""') + '"';
   queryStageV044('export-write', 'START', { total: metadata.filteredCount });

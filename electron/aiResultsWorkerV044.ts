@@ -27,6 +27,10 @@ port.on('message', (job) => {
   configureBusinessIoV044(details => stage('file-io', 'POINT', details), job.appRoot ?? '');
   try {
     const { kind, ai, raw, query, field, search, visible } = job;
+    if (process.env.JAA_UI_TEST_MODE === '1' && job.__testBarrier instanceof SharedArrayBuffer) {
+      const barrier = new Int32Array(job.__testBarrier); Atomics.add(barrier, 1, 1);
+      if (Atomics.wait(barrier, 0, 0, 20000) === 'timed-out') throw Error('TEST_QUERY_BARRIER_TIMEOUT');
+    }
     const value = job.action === 'facet' ? distinctResultsV043(kind, ai, raw, field, query, search) : job.action === 'export-file' ? writeQueryExportV044(kind, ai, raw, query, visible, job.output, job.format) : job.action === 'export' ? exportResultsV043(kind, ai, raw, query, visible) : queryResultsV043(kind, ai, raw, query);
     releaseOversizeResultCacheV045();
     port.postMessage({ type: 'result', id: job.id, value, diagnostics: { ...latestQueryDiagnosticsV043(), memory: process.memoryUsage(), resourceOwner: { pid: process.pid, threadId, processType: 'worker', rssScope: 'process-wide-do-not-sum-workers', heapScope: 'worker-local', units: 'bytes' } } });

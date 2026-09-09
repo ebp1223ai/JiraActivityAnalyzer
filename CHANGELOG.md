@@ -1,3 +1,11 @@
+# v0.3.47 - Integrated AI Status and Display Source Consistency
+
+- Add five synchronized AI status selections, explicit-empty preferences, independent counts and distinct clear/reset actions.
+- Use the uniquely matched active AI Description snapshot for main Diff, quick filters, search, sorting and exports; label Raw fallback and unavailable AI evidence.
+- Preserve Raw issue metadata, Comment full text, frozen contracts and read-only query behavior.
+- Validate real date/multi-select UI, same-event cross-page content, controlled in-flight races and bounded resources; record readable work/time/quota/diff evidence.
+- DEVELOPMENT: complete win-unpacked ZIP only; manual GUI gate pending, no Tag/Push. K46-01 Installer data-loss remains deferred.
+
 # v0.3.46 - Comment Full Text and Query Correctness
 
 - Present Comment body as safe full text with non-applicable diff counts; apply quick filters only to Description evidence.

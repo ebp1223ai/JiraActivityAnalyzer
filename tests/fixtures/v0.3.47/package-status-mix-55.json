@@ -1,0 +1,4860 @@
+{
+  "schemaName": "jaa-ai-analysis-package",
+  "schemaVersion": "2.0.1",
+  "packageId": "synthetic-v047-status-mix-55",
+  "createdAt": "2026-09-07T00:00:00Z",
+  "generator": {
+    "name": "v043-synthetic-fixtures",
+    "version": "1.0.0",
+    "mode": "TEST_FIXTURE"
+  },
+  "reviewRank": "AI_ONLY",
+  "sourceTrace": {
+    "contractVersion": "JAA-SOURCE-TRACE-v1",
+    "pendingDocument": {
+      "schemaName": "jira-activity-analyzer.pending-analysis",
+      "schemaVersion": "0.3.3-draft.1",
+      "contractStatus": "GOLDEN_FIXTURE",
+      "exportId": "synthetic-v043-55",
+      "createdAt": "2026-09-02T00:00:00.000Z",
+      "timezone": "Asia/Taipei",
+      "appVersion": "0.3.43-fixture",
+      "counts": {
+        "exportedCount": 55
+      },
+      "integrity": {
+        "recordCount": 55
+      },
+      "diagnostics": [],
+      "sourceDatabase": {
+        "sourceDatabaseId": "synthetic-v043-db",
+        "jiraServerFingerprint": "jira:fixture:001",
+        "jiraServerHost": "jira.example.invalid",
+        "sourceSchemaVersion": 3,
+        "databaseGeneration": "generation-golden-001"
+      },
+      "sourceView": "USER_ALL_ACTIVITY_EVENTS",
+      "querySnapshot": {
+        "query": {
+          "dateRange": {
+            "startDate": "2026-08-01",
+            "endDate": "2026-08-31"
+          }
+        },
+        "subject": {
+          "userScope": {
+            "kind": "selected-users",
+            "userIds": [
+              "fixture_user"
+            ]
+          }
+        }
+      },
+      "exportMetadata": {
+        "exportMode": "compact-reference",
+        "selfContained": false,
+        "fullContentIncluded": false,
+        "sourceDatabaseRequiredForFullContent": true
+      }
+    },
+    "sourceDatabase": {
+      "sourceDatabaseId": "synthetic-v043-db",
+      "jiraServerFingerprint": "jira:fixture:001",
+      "jiraServerHost": "jira.example.invalid",
+      "sourceSchemaVersion": 3,
+      "databaseGeneration": "generation-golden-001"
+    },
+    "sourceView": "USER_ALL_ACTIVITY_EVENTS",
+    "querySnapshot": {
+      "query": {
+        "dateRange": {
+          "startDate": "2026-08-01",
+          "endDate": "2026-08-31"
+        }
+      },
+      "subject": {
+        "userScope": {
+          "kind": "selected-users",
+          "userIds": [
+            "fixture_user"
+          ]
+        }
+      }
+    },
+    "exportMetadata": {
+      "exportMode": "compact-reference",
+      "selfContained": false,
+      "fullContentIncluded": false,
+      "sourceDatabaseRequiredForFullContent": true
+    },
+    "optionalIntegrityReceipt": null
+  },
+  "rulesBinding": {
+    "manifest": {
+      "file": "Skill_Analysis_Rule_Set_Manifest_v1.6.1.md",
+      "version": "1.6.1",
+      "bytes": 7924,
+      "sha256": "d1a93e359b1b687ac1f790e228637efccc5c3984bcb346dae4afd1a9a3dceb71"
+    },
+    "commonRules": {
+      "file": "Skill_Classification_Common_Rules_v2.6.1.md",
+      "version": "2.6.1",
+      "bytes": 24640,
+      "sha256": "d4fa8775bb9c71cb2fec67657d861c04ea2f7363f48c6a801a9d70de671757c5"
+    },
+    "skillCatalog": {
+      "file": "Skill_Catalog_v0.3.5.md",
+      "version": "0.3.5",
+      "bytes": 30465,
+      "sha256": "d32eb58ff7ea01931e889d97e2f4b1a30ed35a5cce17a293ba37b0e19d73d006"
+    },
+    "htmlTemplate": {
+      "file": "Skill_Analysis_HTML_Report_Template_v1.13.2.md",
+      "version": "1.13.2",
+      "bytes": 17235,
+      "sha256": "6466a42b30c4ef92952ae2ade7f27b8684308bbdbbb61799a3245f6da7ba8458"
+    }
+  },
+  "counts": {
+    "records": 55,
+    "classified": 14,
+    "unknown": 14,
+    "excluded": 14,
+    "failed": 13,
+    "skillFindings": 37,
+    "reviewedRecords": 0,
+    "completedReviews": 0
+  },
+  "records": [
+    {
+      "recordIndex": 0,
+      "dedupeKey": "synthetic-v043-db:event-000",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-000",
+          "activityEventId": "event-000",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-000",
+          "historyId": "history-000",
+          "historyItemIndex": null,
+          "issueId": "issue-0",
+          "issueKey": "FIX-100",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:00:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 0,
+        "evidenceId": "evidence-000",
+        "sourceRecordStableId": "stable-000",
+        "issueKey": "FIX-100",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "FTL_ERROR_HANDLE_001",
+            "skillName": "Read Fail - CopyUnit",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_002",
+            "skillName": "Program Fail - CopyBlock",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_003",
+            "skillName": "Program Fail - Clawback",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FTL_ERROR_HANDLE_004",
+            "skillName": "Erase Fail",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/0/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 0: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 1,
+      "dedupeKey": "synthetic-v043-db:event-001",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-001",
+          "activityEventId": "event-001",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-001",
+          "historyId": "history-001",
+          "historyItemIndex": null,
+          "issueId": "issue-0",
+          "issueKey": "FIX-100",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:01:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 1: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 1: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 1,
+        "evidenceId": "evidence-001",
+        "sourceRecordStableId": "stable-001",
+        "issueKey": "FIX-100",
+        "status": "UNKNOWN",
+        "confidence": 0.6,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 2,
+      "dedupeKey": "synthetic-v043-db:event-002",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-002",
+          "activityEventId": "event-002",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-002",
+          "historyId": "history-002",
+          "historyItemIndex": null,
+          "issueId": "issue-1",
+          "issueKey": "FIX-101",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:02:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 2: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 2: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 2,
+        "evidenceId": "evidence-002",
+        "sourceRecordStableId": "stable-002",
+        "issueKey": "FIX-101",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 3,
+      "dedupeKey": "synthetic-v043-db:event-003",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-003",
+          "activityEventId": "event-003",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-003",
+          "historyId": "history-003",
+          "historyItemIndex": null,
+          "issueId": "issue-1",
+          "issueKey": "FIX-101",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:03:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 3: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 3: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 3,
+        "evidenceId": "evidence-003",
+        "sourceRecordStableId": "stable-003",
+        "issueKey": "FIX-101",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 4,
+      "dedupeKey": "synthetic-v043-db:event-004",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-004",
+          "activityEventId": "event-004",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-004",
+          "historyId": "history-004",
+          "historyItemIndex": null,
+          "issueId": "issue-2",
+          "issueKey": "FIX-102",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:04:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 4: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 4: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 4,
+        "evidenceId": "evidence-004",
+        "sourceRecordStableId": "stable-004",
+        "issueKey": "FIX-102",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "FLASH_ERROR_HANDLE_002",
+            "skillName": "MediaScan",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/4/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 4: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_003",
+            "skillName": "Read Disturb",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/4/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 4: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_004",
+            "skillName": "Erase/Empty Page Check",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/4/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 4: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_005",
+            "skillName": "Program 後 Read Verify",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/4/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 4: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 5,
+      "dedupeKey": "synthetic-v043-db:event-005",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-005",
+          "activityEventId": "event-005",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-005",
+          "historyId": "history-005",
+          "historyItemIndex": null,
+          "issueId": "issue-2",
+          "issueKey": "FIX-102",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:05:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 5: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 5: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 5,
+        "evidenceId": "evidence-005",
+        "sourceRecordStableId": "stable-005",
+        "issueKey": "FIX-102",
+        "status": "UNKNOWN",
+        "confidence": 0.6,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 6,
+      "dedupeKey": "synthetic-v043-db:event-006",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-006",
+          "activityEventId": "event-006",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-006",
+          "historyId": "history-006",
+          "historyItemIndex": null,
+          "issueId": "issue-3",
+          "issueKey": "FIX-103",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:06:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 6: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 6: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 6,
+        "evidenceId": "evidence-006",
+        "sourceRecordStableId": "stable-006",
+        "issueKey": "FIX-103",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 7,
+      "dedupeKey": "synthetic-v043-db:event-007",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-007",
+          "activityEventId": "event-007",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-007",
+          "historyId": "history-007",
+          "historyItemIndex": null,
+          "issueId": "issue-3",
+          "issueKey": "FIX-103",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:07:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 7: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 7: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 7,
+        "evidenceId": "evidence-007",
+        "sourceRecordStableId": "stable-007",
+        "issueKey": "FIX-103",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 8,
+      "dedupeKey": "synthetic-v043-db:event-008",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-008",
+          "activityEventId": "event-008",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-008",
+          "historyId": "history-008",
+          "historyItemIndex": null,
+          "issueId": "issue-4",
+          "issueKey": "FIX-104",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:08:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 8: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 8: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 8,
+        "evidenceId": "evidence-008",
+        "sourceRecordStableId": "stable-008",
+        "issueKey": "FIX-104",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "FLASH_ERROR_HANDLE_018",
+            "skillName": "ERS ErrorRecovery 存取",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/8/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 8: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_019",
+            "skillName": "其他 MAG 項目",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/8/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 8: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_020",
+            "skillName": "NXS 驗證",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/8/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 8: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "FLASH_ERROR_HANDLE_021",
+            "skillName": "PPS 白箱驗證",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/8/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 8: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 9,
+      "dedupeKey": "synthetic-v043-db:event-009",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-009",
+          "activityEventId": "event-009",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-009",
+          "historyId": "history-009",
+          "historyItemIndex": null,
+          "issueId": "issue-4",
+          "issueKey": "FIX-104",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:09:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 9: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 9: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 9,
+        "evidenceId": "evidence-009",
+        "sourceRecordStableId": "stable-009",
+        "issueKey": "FIX-104",
+        "status": "UNKNOWN",
+        "confidence": 0.6,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 10,
+      "dedupeKey": "synthetic-v043-db:event-010",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-010",
+          "activityEventId": "event-010",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-010",
+          "historyId": "history-010",
+          "historyItemIndex": null,
+          "issueId": "issue-5",
+          "issueKey": "FIX-105",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:10:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 10: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 10: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 10,
+        "evidenceId": "evidence-010",
+        "sourceRecordStableId": "stable-010",
+        "issueKey": "FIX-105",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 11,
+      "dedupeKey": "synthetic-v043-db:event-011",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-011",
+          "activityEventId": "event-011",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-011",
+          "historyId": "history-011",
+          "historyItemIndex": null,
+          "issueId": "issue-5",
+          "issueKey": "FIX-105",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:11:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 11: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 11: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 11,
+        "evidenceId": "evidence-011",
+        "sourceRecordStableId": "stable-011",
+        "issueKey": "FIX-105",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 12,
+      "dedupeKey": "synthetic-v043-db:event-012",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-012",
+          "activityEventId": "event-012",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-012",
+          "historyId": "history-012",
+          "historyItemIndex": null,
+          "issueId": "issue-6",
+          "issueKey": "FIX-106",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:12:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 12: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 12: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 12,
+        "evidenceId": "evidence-012",
+        "sourceRecordStableId": "stable-012",
+        "issueKey": "FIX-106",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "HOST_PCIE_004",
+            "skillName": "Save/Load Host table",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/12/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 12: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_005",
+            "skillName": "set/get Feature",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/12/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 12: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_006",
+            "skillName": "NVME Smart/Vendor smart",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/12/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 12: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 13,
+      "dedupeKey": "synthetic-v043-db:event-013",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-013",
+          "activityEventId": "event-013",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-013",
+          "historyId": "history-013",
+          "historyItemIndex": null,
+          "issueId": "issue-6",
+          "issueKey": "FIX-106",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:13:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 13: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 13: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 13,
+        "evidenceId": "evidence-013",
+        "sourceRecordStableId": "stable-013",
+        "issueKey": "FIX-106",
+        "status": "UNKNOWN",
+        "confidence": 0.6,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 14,
+      "dedupeKey": "synthetic-v043-db:event-014",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-014",
+          "activityEventId": "event-014",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-014",
+          "historyId": "history-014",
+          "historyItemIndex": null,
+          "issueId": "issue-7",
+          "issueKey": "FIX-107",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:14:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 14: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 14: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 14,
+        "evidenceId": "evidence-014",
+        "sourceRecordStableId": "stable-014",
+        "issueKey": "FIX-107",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 15,
+      "dedupeKey": "synthetic-v043-db:event-015",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-015",
+          "activityEventId": "event-015",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-015",
+          "historyId": "history-015",
+          "historyItemIndex": null,
+          "issueId": "issue-7",
+          "issueKey": "FIX-107",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:15:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 15: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 15: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 15,
+        "evidenceId": "evidence-015",
+        "sourceRecordStableId": "stable-015",
+        "issueKey": "FIX-107",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 16,
+      "dedupeKey": "synthetic-v043-db:event-016",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-016",
+          "activityEventId": "event-016",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-016",
+          "historyId": "history-016",
+          "historyItemIndex": null,
+          "issueId": "issue-8",
+          "issueKey": "FIX-108",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:16:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 16: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 16: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 16,
+        "evidenceId": "evidence-016",
+        "sourceRecordStableId": "stable-016",
+        "issueKey": "FIX-108",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "HOST_PCIE_016",
+            "skillName": "WorkLoadLog",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/16/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 16: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_017",
+            "skillName": "HMB",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/16/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 16: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_PCIE_018",
+            "skillName": "Multi Namespace",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/16/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 16: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 17,
+      "dedupeKey": "synthetic-v043-db:event-017",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-017",
+          "activityEventId": "event-017",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-017",
+          "historyId": "history-017",
+          "historyItemIndex": null,
+          "issueId": "issue-8",
+          "issueKey": "FIX-108",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:17:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 17: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 17: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 17,
+        "evidenceId": "evidence-017",
+        "sourceRecordStableId": "stable-017",
+        "issueKey": "FIX-108",
+        "status": "UNKNOWN",
+        "confidence": 0.6,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 18,
+      "dedupeKey": "synthetic-v043-db:event-018",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-018",
+          "activityEventId": "event-018",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-018",
+          "historyId": "history-018",
+          "historyItemIndex": null,
+          "issueId": "issue-9",
+          "issueKey": "FIX-109",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:18:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 18: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 18: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 18,
+        "evidenceId": "evidence-018",
+        "sourceRecordStableId": "stable-018",
+        "issueKey": "FIX-109",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 19,
+      "dedupeKey": "synthetic-v043-db:event-019",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-019",
+          "activityEventId": "event-019",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-019",
+          "historyId": "history-019",
+          "historyItemIndex": null,
+          "issueId": "issue-9",
+          "issueKey": "FIX-109",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:19:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 19: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 19: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 19,
+        "evidenceId": "evidence-019",
+        "sourceRecordStableId": "stable-019",
+        "issueKey": "FIX-109",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 20,
+      "dedupeKey": "synthetic-v043-db:event-020",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-020",
+          "activityEventId": "event-020",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-020",
+          "historyId": "history-020",
+          "historyItemIndex": null,
+          "issueId": "issue-10",
+          "issueKey": "FIX-110",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:20:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 20: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 20: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 20,
+        "evidenceId": "evidence-020",
+        "sourceRecordStableId": "stable-020",
+        "issueKey": "FIX-110",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "HOST_USB_003",
+            "skillName": "PD/USB4 Trace 分析",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/20/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 20: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_004",
+            "skillName": "PD/USB4 Debug",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/20/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 20: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_005",
+            "skillName": "PD Protocol",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/20/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 20: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 21,
+      "dedupeKey": "synthetic-v043-db:event-021",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-021",
+          "activityEventId": "event-021",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-021",
+          "historyId": "history-021",
+          "historyItemIndex": null,
+          "issueId": "issue-10",
+          "issueKey": "FIX-110",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:21:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 21: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 21: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 21,
+        "evidenceId": "evidence-021",
+        "sourceRecordStableId": "stable-021",
+        "issueKey": "FIX-110",
+        "status": "UNKNOWN",
+        "confidence": 0.6,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 22,
+      "dedupeKey": "synthetic-v043-db:event-022",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-022",
+          "activityEventId": "event-022",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-022",
+          "historyId": "history-022",
+          "historyItemIndex": null,
+          "issueId": "issue-11",
+          "issueKey": "FIX-111",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:22:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 22: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 22: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 22,
+        "evidenceId": "evidence-022",
+        "sourceRecordStableId": "stable-022",
+        "issueKey": "FIX-111",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 23,
+      "dedupeKey": "synthetic-v043-db:event-023",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-023",
+          "activityEventId": "event-023",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-023",
+          "historyId": "history-023",
+          "historyItemIndex": null,
+          "issueId": "issue-11",
+          "issueKey": "FIX-111",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:23:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 23: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 23: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 23,
+        "evidenceId": "evidence-023",
+        "sourceRecordStableId": "stable-023",
+        "issueKey": "FIX-111",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 24,
+      "dedupeKey": "synthetic-v043-db:event-024",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-024",
+          "activityEventId": "event-024",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-024",
+          "historyId": "history-024",
+          "historyItemIndex": null,
+          "issueId": "issue-12",
+          "issueKey": "FIX-112",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:24:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 24: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 24: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 24,
+        "evidenceId": "evidence-024",
+        "sourceRecordStableId": "stable-024",
+        "issueKey": "FIX-112",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "HOST_USB_015",
+            "skillName": "PCIe/NVMe INIT/ISR FW flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/24/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 24: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_016",
+            "skillName": "PCIe/NVMe Trace 分析",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/24/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 24: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "HOST_USB_017",
+            "skillName": "NVMe CMD FW flow",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/24/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 24: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 25,
+      "dedupeKey": "synthetic-v043-db:event-025",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-025",
+          "activityEventId": "event-025",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-025",
+          "historyId": "history-025",
+          "historyItemIndex": null,
+          "issueId": "issue-12",
+          "issueKey": "FIX-112",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:25:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 25: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 25: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 25,
+        "evidenceId": "evidence-025",
+        "sourceRecordStableId": "stable-025",
+        "issueKey": "FIX-112",
+        "status": "UNKNOWN",
+        "confidence": 0.6,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 26,
+      "dedupeKey": "synthetic-v043-db:event-026",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-026",
+          "activityEventId": "event-026",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-026",
+          "historyId": "history-026",
+          "historyItemIndex": null,
+          "issueId": "issue-13",
+          "issueKey": "FIX-113",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:26:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 26: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 26: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 26,
+        "evidenceId": "evidence-026",
+        "sourceRecordStableId": "stable-026",
+        "issueKey": "FIX-113",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 27,
+      "dedupeKey": "synthetic-v043-db:event-027",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-027",
+          "activityEventId": "event-027",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-027",
+          "historyId": "history-027",
+          "historyItemIndex": null,
+          "issueId": "issue-13",
+          "issueKey": "FIX-113",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:27:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 27: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 27: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 27,
+        "evidenceId": "evidence-027",
+        "sourceRecordStableId": "stable-027",
+        "issueKey": "FIX-113",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 28,
+      "dedupeKey": "synthetic-v043-db:event-028",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-028",
+          "activityEventId": "event-028",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-028",
+          "historyId": "history-028",
+          "historyItemIndex": null,
+          "issueId": "issue-14",
+          "issueKey": "FIX-114",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:28:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 28: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 28: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 28,
+        "evidenceId": "evidence-028",
+        "sourceRecordStableId": "stable-028",
+        "issueKey": "FIX-114",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "HOST_USB_027",
+            "skillName": "與其他 Group 溝通",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/28/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 28: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_001",
+            "skillName": "D1 D3 架構",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/28/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 28: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_002",
+            "skillName": "FreePool",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/28/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 28: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 29,
+      "dedupeKey": "synthetic-v043-db:event-029",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-029",
+          "activityEventId": "event-029",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-029",
+          "historyId": "history-029",
+          "historyItemIndex": null,
+          "issueId": "issue-14",
+          "issueKey": "FIX-114",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:29:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 29: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 29: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 29,
+        "evidenceId": "evidence-029",
+        "sourceRecordStableId": "stable-029",
+        "issueKey": "FIX-114",
+        "status": "UNKNOWN",
+        "confidence": 0.6,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 30,
+      "dedupeKey": "synthetic-v043-db:event-030",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-030",
+          "activityEventId": "event-030",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-030",
+          "historyId": "history-030",
+          "historyItemIndex": null,
+          "issueId": "issue-15",
+          "issueKey": "FIX-115",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:30:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 30: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 30: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 30,
+        "evidenceId": "evidence-030",
+        "sourceRecordStableId": "stable-030",
+        "issueKey": "FIX-115",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 31,
+      "dedupeKey": "synthetic-v043-db:event-031",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-031",
+          "activityEventId": "event-031",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-031",
+          "historyId": "history-031",
+          "historyItemIndex": null,
+          "issueId": "issue-15",
+          "issueKey": "FIX-115",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:31:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 31: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 31: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 31,
+        "evidenceId": "evidence-031",
+        "sourceRecordStableId": "stable-031",
+        "issueKey": "FIX-115",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 32,
+      "dedupeKey": "synthetic-v043-db:event-032",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-032",
+          "activityEventId": "event-032",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-032",
+          "historyId": "history-032",
+          "historyItemIndex": null,
+          "issueId": "issue-16",
+          "issueKey": "FIX-116",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:32:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 32: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 32: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 32,
+        "evidenceId": "evidence-032",
+        "sourceRecordStableId": "stable-032",
+        "issueKey": "FIX-116",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "GC_012",
+            "skillName": "Cache Policy",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/32/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 32: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_013",
+            "skillName": "EDR",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/32/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 32: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "GC_014",
+            "skillName": "Low Valid Count Policy",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/32/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 32: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 33,
+      "dedupeKey": "synthetic-v043-db:event-033",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-033",
+          "activityEventId": "event-033",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-033",
+          "historyId": "history-033",
+          "historyItemIndex": null,
+          "issueId": "issue-16",
+          "issueKey": "FIX-116",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:33:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 33: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 33: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 33,
+        "evidenceId": "evidence-033",
+        "sourceRecordStableId": "stable-033",
+        "issueKey": "FIX-116",
+        "status": "UNKNOWN",
+        "confidence": 0.6,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 34,
+      "dedupeKey": "synthetic-v043-db:event-034",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-034",
+          "activityEventId": "event-034",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-034",
+          "historyId": "history-034",
+          "historyItemIndex": null,
+          "issueId": "issue-17",
+          "issueKey": "FIX-117",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:34:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 34: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 34: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 34,
+        "evidenceId": "evidence-034",
+        "sourceRecordStableId": "stable-034",
+        "issueKey": "FIX-117",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 35,
+      "dedupeKey": "synthetic-v043-db:event-035",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-035",
+          "activityEventId": "event-035",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-035",
+          "historyId": "history-035",
+          "historyItemIndex": null,
+          "issueId": "issue-17",
+          "issueKey": "FIX-117",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:35:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 35: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 35: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 35,
+        "evidenceId": "evidence-035",
+        "sourceRecordStableId": "stable-035",
+        "issueKey": "FIX-117",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 36,
+      "dedupeKey": "synthetic-v043-db:event-036",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-036",
+          "activityEventId": "event-036",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-036",
+          "historyId": "history-036",
+          "historyItemIndex": null,
+          "issueId": "issue-18",
+          "issueKey": "FIX-118",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:36:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 36: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 36: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 36,
+        "evidenceId": "evidence-036",
+        "sourceRecordStableId": "stable-036",
+        "issueKey": "FIX-118",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "SYSTEM_005",
+            "skillName": "I2C",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/36/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 36: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_006",
+            "skillName": "I3C",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/36/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 36: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          },
+          {
+            "skillId": "SYSTEM_007",
+            "skillName": "SMBus",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/36/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 36: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 37,
+      "dedupeKey": "synthetic-v043-db:event-037",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-037",
+          "activityEventId": "event-037",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-037",
+          "historyId": "history-037",
+          "historyItemIndex": null,
+          "issueId": "issue-18",
+          "issueKey": "FIX-118",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:37:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 37: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 37: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 37,
+        "evidenceId": "evidence-037",
+        "sourceRecordStableId": "stable-037",
+        "issueKey": "FIX-118",
+        "status": "UNKNOWN",
+        "confidence": 0.6,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 38,
+      "dedupeKey": "synthetic-v043-db:event-038",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-038",
+          "activityEventId": "event-038",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-038",
+          "historyId": "history-038",
+          "historyItemIndex": null,
+          "issueId": "issue-19",
+          "issueKey": "FIX-119",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:38:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 38: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 38: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 38,
+        "evidenceId": "evidence-038",
+        "sourceRecordStableId": "stable-038",
+        "issueKey": "FIX-119",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 39,
+      "dedupeKey": "synthetic-v043-db:event-039",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-039",
+          "activityEventId": "event-039",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-039",
+          "historyId": "history-039",
+          "historyItemIndex": null,
+          "issueId": "issue-19",
+          "issueKey": "FIX-119",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:39:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 39: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 39: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 39,
+        "evidenceId": "evidence-039",
+        "sourceRecordStableId": "stable-039",
+        "issueKey": "FIX-119",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 40,
+      "dedupeKey": "synthetic-v043-db:event-040",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-040",
+          "activityEventId": "event-040",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-040",
+          "historyId": "history-040",
+          "historyItemIndex": null,
+          "issueId": "issue-20",
+          "issueKey": "FIX-120",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:40:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 40: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 40: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 40,
+        "evidenceId": "evidence-040",
+        "sourceRecordStableId": "stable-040",
+        "issueKey": "FIX-120",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "FTL_ERROR_HANDLE_001",
+            "skillName": "Read Fail - CopyUnit",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/40/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 40: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 41,
+      "dedupeKey": "synthetic-v043-db:event-041",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-041",
+          "activityEventId": "event-041",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-041",
+          "historyId": "history-041",
+          "historyItemIndex": null,
+          "issueId": "issue-20",
+          "issueKey": "FIX-120",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:41:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 41: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 41: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 41,
+        "evidenceId": "evidence-041",
+        "sourceRecordStableId": "stable-041",
+        "issueKey": "FIX-120",
+        "status": "UNKNOWN",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 42,
+      "dedupeKey": "synthetic-v043-db:event-042",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-042",
+          "activityEventId": "event-042",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-042",
+          "historyId": "history-042",
+          "historyItemIndex": null,
+          "issueId": "issue-21",
+          "issueKey": "FIX-121",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:42:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 42: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 42: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 42,
+        "evidenceId": "evidence-042",
+        "sourceRecordStableId": "stable-042",
+        "issueKey": "FIX-121",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 43,
+      "dedupeKey": "synthetic-v043-db:event-043",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-043",
+          "activityEventId": "event-043",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-043",
+          "historyId": "history-043",
+          "historyItemIndex": null,
+          "issueId": "issue-21",
+          "issueKey": "FIX-121",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:43:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 43: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 43: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 43,
+        "evidenceId": "evidence-043",
+        "sourceRecordStableId": "stable-043",
+        "issueKey": "FIX-121",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 44,
+      "dedupeKey": "synthetic-v043-db:event-044",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-044",
+          "activityEventId": "event-044",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-044",
+          "historyId": "history-044",
+          "historyItemIndex": null,
+          "issueId": "issue-22",
+          "issueKey": "FIX-122",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:44:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 44: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 44: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 44,
+        "evidenceId": "evidence-044",
+        "sourceRecordStableId": "stable-044",
+        "issueKey": "FIX-122",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "FTL_ERROR_HANDLE_001",
+            "skillName": "Read Fail - CopyUnit",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/44/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 44: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 45,
+      "dedupeKey": "synthetic-v043-db:event-045",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-045",
+          "activityEventId": "event-045",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-045",
+          "historyId": "history-045",
+          "historyItemIndex": null,
+          "issueId": "issue-22",
+          "issueKey": "FIX-122",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:45:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 45: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 45: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 45,
+        "evidenceId": "evidence-045",
+        "sourceRecordStableId": "stable-045",
+        "issueKey": "FIX-122",
+        "status": "UNKNOWN",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 46,
+      "dedupeKey": "synthetic-v043-db:event-046",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-046",
+          "activityEventId": "event-046",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-046",
+          "historyId": "history-046",
+          "historyItemIndex": null,
+          "issueId": "issue-23",
+          "issueKey": "FIX-123",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:46:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 46: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 46: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 46,
+        "evidenceId": "evidence-046",
+        "sourceRecordStableId": "stable-046",
+        "issueKey": "FIX-123",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 47,
+      "dedupeKey": "synthetic-v043-db:event-047",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-047",
+          "activityEventId": "event-047",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-047",
+          "historyId": "history-047",
+          "historyItemIndex": null,
+          "issueId": "issue-23",
+          "issueKey": "FIX-123",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:47:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 47: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 47: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 47,
+        "evidenceId": "evidence-047",
+        "sourceRecordStableId": "stable-047",
+        "issueKey": "FIX-123",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 48,
+      "dedupeKey": "synthetic-v043-db:event-048",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-048",
+          "activityEventId": "event-048",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-048",
+          "historyId": "history-048",
+          "historyItemIndex": null,
+          "issueId": "issue-24",
+          "issueKey": "FIX-124",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:48:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 48: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 48: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 48,
+        "evidenceId": "evidence-048",
+        "sourceRecordStableId": "stable-048",
+        "issueKey": "FIX-124",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "FTL_ERROR_HANDLE_001",
+            "skillName": "Read Fail - CopyUnit",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/48/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 48: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 49,
+      "dedupeKey": "synthetic-v043-db:event-049",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-049",
+          "activityEventId": "event-049",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-049",
+          "historyId": "history-049",
+          "historyItemIndex": null,
+          "issueId": "issue-24",
+          "issueKey": "FIX-124",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:49:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 49: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 49: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 49,
+        "evidenceId": "evidence-049",
+        "sourceRecordStableId": "stable-049",
+        "issueKey": "FIX-124",
+        "status": "UNKNOWN",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 50,
+      "dedupeKey": "synthetic-v043-db:event-050",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-050",
+          "activityEventId": "event-050",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-050",
+          "historyId": "history-050",
+          "historyItemIndex": null,
+          "issueId": "issue-25",
+          "issueKey": "FIX-125",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:50:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 50: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 50: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 50,
+        "evidenceId": "evidence-050",
+        "sourceRecordStableId": "stable-050",
+        "issueKey": "FIX-125",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 51,
+      "dedupeKey": "synthetic-v043-db:event-051",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-051",
+          "activityEventId": "event-051",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-051",
+          "historyId": "history-051",
+          "historyItemIndex": null,
+          "issueId": "issue-25",
+          "issueKey": "FIX-125",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:51:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 51: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 51: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 51,
+        "evidenceId": "evidence-051",
+        "sourceRecordStableId": "stable-051",
+        "issueKey": "FIX-125",
+        "status": "FAILED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 52,
+      "dedupeKey": "synthetic-v043-db:event-052",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-052",
+          "activityEventId": "event-052",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-052",
+          "historyId": "history-052",
+          "historyItemIndex": null,
+          "issueId": "issue-26",
+          "issueKey": "FIX-126",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:52:00Z",
+          "actor": {
+            "stableIdentity": "B",
+            "displayValue": "Synthetic B"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 52: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 52: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 52,
+        "evidenceId": "evidence-052",
+        "sourceRecordStableId": "stable-052",
+        "issueKey": "FIX-126",
+        "status": "CLASSIFIED",
+        "confidence": 0.6,
+        "skillFindings": [
+          {
+            "skillId": "FTL_ERROR_HANDLE_001",
+            "skillName": "Read Fail - CopyUnit",
+            "confidence": 0.6,
+            "evidence": [
+              {
+                "sourceJsonPointer": "/records/52/diff/diffHunks/0/lines/0/text",
+                "quote": "Synthetic event 52: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+              }
+            ],
+            "negativeChecks": [
+              "Synthetic importer test only"
+            ],
+            "rationale": "Synthetic finding; checks storage and presentation, not classification accuracy."
+          }
+        ],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 53,
+      "dedupeKey": "synthetic-v043-db:event-053",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-053",
+          "activityEventId": "event-053",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-053",
+          "historyId": "history-053",
+          "historyItemIndex": null,
+          "issueId": "issue-26",
+          "issueKey": "FIX-126",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:53:00Z",
+          "actor": {
+            "stableIdentity": "C",
+            "displayValue": "Synthetic C"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 53: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 53: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 53,
+        "evidenceId": "evidence-053",
+        "sourceRecordStableId": "stable-053",
+        "issueKey": "FIX-126",
+        "status": "UNKNOWN",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [
+          "Synthetic insufficient classification evidence"
+        ],
+        "rationale": "Synthetic status filter regression only"
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    },
+    {
+      "recordIndex": 54,
+      "dedupeKey": "synthetic-v043-db:event-054",
+      "sourceTrace": {
+        "reference": {
+          "evidenceId": "evidence-054",
+          "activityEventId": "event-054",
+          "sourceDatabaseId": "synthetic-v043-db",
+          "jiraServerFingerprint": "jira:fixture:001",
+          "sourceRecordStableId": "stable-054",
+          "historyId": "history-054",
+          "historyItemIndex": null,
+          "issueId": "issue-27",
+          "issueKey": "FIX-127",
+          "projectKey": "FIX",
+          "fieldId": null,
+          "fieldName": "Comment",
+          "eventTime": "2026-09-07T00:54:00Z",
+          "actor": {
+            "stableIdentity": "A",
+            "displayValue": "Synthetic A"
+          },
+          "sourceProvenance": "jira_comment",
+          "sourceContentHash": "fixture-only-not-a-link-key",
+          "beforeSha256": null,
+          "afterSha256": null
+        },
+        "diff": {
+          "beforeAvailability": "UNAVAILABLE",
+          "afterAvailability": "AVAILABLE",
+          "diffText": "+ Synthetic event 54: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content.",
+          "diffHunks": [
+            {
+              "id": "h44-000",
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 1,
+              "lines": [
+                {
+                  "kind": "insert",
+                  "oldLineNumber": null,
+                  "newLineNumber": 1,
+                  "text": "Synthetic event 54: old line\\r\\nnew line; GC/HMB/host debug fixture. No real Jira content."
+                }
+              ]
+            }
+          ],
+          "addedLineCount": 1,
+          "removedLineCount": 0,
+          "diffStatus": "AVAILABLE",
+          "isSubstantiveChange": true,
+          "integrityStatus": "VERIFIED",
+          "diagnostics": []
+        },
+        "pendingIntegrity": {
+          "fixture": true
+        },
+        "optionalIntegrityReceipt": null
+      },
+      "aiAnalysis": {
+        "recordIndex": 54,
+        "evidenceId": "evidence-054",
+        "sourceRecordStableId": "stable-054",
+        "issueKey": "FIX-127",
+        "status": "EXCLUDED",
+        "confidence": 0,
+        "skillFindings": [],
+        "recordNegativeChecks": [],
+        "unknownReasons": [],
+        "rationale": "Synthetic status filter regression only",
+        "fixtureExtension": {
+          "nullable": null,
+          "newDate": "2026-09-07T15:00:00+08:00",
+          "labels": [
+            "late-only",
+            "A/B~C"
+          ]
+        }
+      },
+      "manualReview": null,
+      "integrityReceipt": null
+    }
+  ]
+}

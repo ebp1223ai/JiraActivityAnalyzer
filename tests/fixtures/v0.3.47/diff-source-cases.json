@@ -1,0 +1,270 @@
+{
+  "role": "SYNTHETIC_LOGICAL_NOT_IMPORTABLE",
+  "sourceImmutable": true,
+  "cases": [
+    {
+      "id": "D47-01",
+      "field": "Description",
+      "linked": true,
+      "raw": {
+        "before": "",
+        "after": "current raw line",
+        "added": 1,
+        "removed": 0
+      },
+      "ai": {
+        "kind": "FULL",
+        "before": "old AI line",
+        "after": "new AI line",
+        "added": 1,
+        "removed": 1,
+        "trusted": true
+      },
+      "expected": {
+        "source": "AI",
+        "mode": "DESCRIPTION_DIFF",
+        "removedText": "old AI line",
+        "addedText": "new AI line",
+        "added": 1,
+        "removed": 1,
+        "changed": true,
+        "beforeAvailable": true
+      }
+    },
+    {
+      "id": "D47-02",
+      "field": "Description",
+      "linked": true,
+      "raw": {
+        "before": "old Raw",
+        "after": "new Raw"
+      },
+      "ai": {
+        "kind": "COMPACT",
+        "before": null,
+        "after": null,
+        "hunks": [
+          {
+            "removed": [
+              "compact old"
+            ],
+            "added": [
+              "compact new"
+            ]
+          }
+        ],
+        "added": 1,
+        "removed": 1,
+        "trusted": true
+      },
+      "expected": {
+        "source": "AI",
+        "mode": "DESCRIPTION_COMPACT",
+        "removedText": "compact old",
+        "addedText": "compact new",
+        "added": 1,
+        "removed": 1,
+        "changed": true,
+        "beforeAvailable": false,
+        "label": "僅含差異片段"
+      }
+    },
+    {
+      "id": "D47-03",
+      "field": "Description",
+      "linked": true,
+      "raw": {
+        "before": "old Raw",
+        "after": "new Raw",
+        "added": 1,
+        "removed": 1
+      },
+      "ai": {
+        "kind": "MISSING",
+        "before": null,
+        "after": null,
+        "trusted": false
+      },
+      "expected": {
+        "source": "AI",
+        "mode": "DIFF_UNAVAILABLE",
+        "added": null,
+        "removed": null,
+        "changed": null,
+        "beforeAvailable": false,
+        "reason": "AI_DIFF_MISSING",
+        "rawFallback": false
+      }
+    },
+    {
+      "id": "D47-04",
+      "field": "Description",
+      "linked": true,
+      "raw": {
+        "before": "old Raw",
+        "after": "new Raw"
+      },
+      "ai": {
+        "kind": "COMPACT",
+        "hunks": [],
+        "trusted": false,
+        "integrity": "MISMATCH"
+      },
+      "expected": {
+        "source": "AI",
+        "mode": "DIFF_UNAVAILABLE",
+        "added": null,
+        "removed": null,
+        "changed": null,
+        "beforeAvailable": false,
+        "reason": "AI_DIFF_INTEGRITY",
+        "rawFallback": false
+      }
+    },
+    {
+      "id": "D47-05",
+      "field": "Description",
+      "linked": false,
+      "raw": {
+        "before": "raw old",
+        "after": "raw new",
+        "added": 1,
+        "removed": 1
+      },
+      "ai": null,
+      "expected": {
+        "source": "RAW",
+        "mode": "DESCRIPTION_DIFF",
+        "removedText": "raw old",
+        "addedText": "raw new",
+        "added": 1,
+        "removed": 1,
+        "changed": true,
+        "beforeAvailable": true
+      }
+    },
+    {
+      "id": "D47-06",
+      "field": "Description",
+      "linked": true,
+      "raw": {
+        "before": "raw old",
+        "after": "raw new",
+        "added": 1,
+        "removed": 1
+      },
+      "ai": {
+        "kind": "FULL",
+        "before": "same AI",
+        "after": "same AI",
+        "added": 0,
+        "removed": 0,
+        "trusted": true
+      },
+      "expected": {
+        "source": "AI",
+        "mode": "DESCRIPTION_DIFF",
+        "added": 0,
+        "removed": 0,
+        "changed": false,
+        "beforeAvailable": true
+      }
+    },
+    {
+      "id": "D47-07",
+      "field": "Description",
+      "linked": true,
+      "raw": {
+        "before": "same Raw",
+        "after": "same Raw",
+        "added": 0,
+        "removed": 0
+      },
+      "ai": {
+        "kind": "FULL",
+        "before": "",
+        "after": "AI insert",
+        "added": 1,
+        "removed": 0,
+        "trusted": true
+      },
+      "expected": {
+        "source": "AI",
+        "mode": "DESCRIPTION_DIFF",
+        "added": 1,
+        "removed": 0,
+        "changed": true,
+        "beforeAvailable": true
+      }
+    },
+    {
+      "id": "D47-08",
+      "field": "Description",
+      "linked": true,
+      "raw": {
+        "before": "same Raw",
+        "after": "same Raw",
+        "added": 0,
+        "removed": 0
+      },
+      "ai": {
+        "kind": "FULL",
+        "before": "AI delete",
+        "after": "",
+        "added": 0,
+        "removed": 1,
+        "trusted": true
+      },
+      "expected": {
+        "source": "AI",
+        "mode": "DESCRIPTION_DIFF",
+        "added": 0,
+        "removed": 1,
+        "changed": true,
+        "beforeAvailable": true
+      }
+    },
+    {
+      "id": "C47-01",
+      "field": "Comment",
+      "eventType": "comment_created",
+      "linked": true,
+      "before": null,
+      "body": "<b>whole</b>\ncomment",
+      "expected": {
+        "source": "V046_EXISTING",
+        "mode": "COMMENT_FULL",
+        "text": "<b>whole</b>\ncomment",
+        "added": null,
+        "removed": null
+      }
+    },
+    {
+      "id": "C47-02",
+      "field": "Comment",
+      "eventType": "comment_updated",
+      "linked": true,
+      "before": null,
+      "body": "updated full comment",
+      "expected": {
+        "source": "V046_EXISTING",
+        "mode": "COMMENT_FULL",
+        "text": "updated full comment",
+        "added": null,
+        "removed": null
+      }
+    },
+    {
+      "id": "O47-01",
+      "field": "Status",
+      "linked": true,
+      "before": "Open",
+      "after": "Closed",
+      "expected": {
+        "source": "V046_EXISTING",
+        "mode": "EXISTING_OTHER_FORMATTER"
+      }
+    }
+  ],
+  "adapterRequirement": "將logical before/after/hunks適配現有Raw repository與合法SourceTrace；不把kind/trusted/linked等logical欄位寫入Frozen schema。生產hash驗證不接受單一trusted=true替代。"
+}

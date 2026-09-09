@@ -7,6 +7,10 @@ type Lane = { lastDiagnostics?: Json; sampledAt?: string; cancelledRequestId?: s
 export class AiResultsServiceV044 {
   private lanes = new Map<string, Lane>();
   private receipts: Json = {};
+  private testBarrier?: Int32Array;
+  holdTestQuery() { if (process.env.JAA_UI_TEST_MODE !== '1') throw Error('TEST_MODE_REQUIRED'); this.releaseTestQuery(); this.testBarrier = new Int32Array(new SharedArrayBuffer(8)); }
+  testQueryState() { return { armed: Boolean(this.testBarrier), entered: this.testBarrier ? Atomics.load(this.testBarrier, 1) : 0 }; }
+  releaseTestQuery() { if (this.testBarrier) { Atomics.store(this.testBarrier, 0, 1); Atomics.notify(this.testBarrier, 0); this.testBarrier = undefined; } }
   constructor(private filename = path.join(__dirname, 'ai-results-worker-v044.cjs')) {}
   run(owner: number, input: Json, onStage?: (stage: Json) => void | Promise<unknown>): Promise<any> {
     const key = `${owner}:${input.kind}:read`;
@@ -37,7 +41,7 @@ export class AiResultsServiceV044 {
     if (lane.pending.size >= 16) return Promise.reject(new Error('QUERY_QUEUE_FULL'));
     return new Promise((resolve, reject) => {
       lane!.pending.set(input.requestId, { owner, requestId: input.requestId, onStage, resolve, reject });
-      lane!.worker.postMessage({ ...input, id: input.requestId });
+      lane!.worker.postMessage({ ...input, id: input.requestId, __testBarrier: process.env.JAA_UI_TEST_MODE === '1' && input.action === 'query' && input.kind === 'integrated' ? this.testBarrier?.buffer : undefined });
     });
   }
   async cancel(owner: number, requestId: string, reason = 'CANCELLED') {

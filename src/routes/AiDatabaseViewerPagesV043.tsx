@@ -1,4 +1,7 @@
+import { AiStatusFilterV047 } from "../components/AiStatusFilterV047";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AI_STATUSES_V047, DISPLAY_POLICY_V047, integratedQueryV047, normalizeAiSelectionV047 } from "../../shared/integratedDisplayV047";
+import { DEFAULT_DIFF_QUICK_FILTERS } from "../../shared/viewerEfficiency";
 import { Download, RefreshCw, X } from "lucide-react";
 import { ActivityComparisonTable, activityComparisonColumns } from "../components/ActivityComparisonTable";
 import type { SqliteTableColumn } from "../components/SqliteDataTable";
@@ -19,7 +22,7 @@ const exportsInProgress = new Map<string, { id: string; startedAt: number; stage
 const exportNotices = new Map<string, string>();
 const requestId = () => `v043-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const empty: ViewerTableResult = { rows: [], totalCount: 0, filteredCount: 0, page: 1, pageSize: 50, pageCount: 1 };
-const initial = (): Saved => ({ query: { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {} }, session: { scrollLeft: 0, scrollTop: 0, expandedRowIds: [] } });
+const initial = (kind: Variant): Saved => ({ query: kind === "integrated" ? integratedQueryV047({ page: 1, pageSize: 50 as const, sort: { field: "eventTime", direction: "desc" as const }, filters: {}, diffQuickFilters: { ...DEFAULT_DIFF_QUICK_FILTERS } }) : { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {} }, session: { scrollLeft: 0, scrollTop: 0, expandedRowIds: [] } });
 
 function metadataColumns(): SqliteTableColumn[] {
   const statuses = ["analysisStatus", "reviewRank", "sourceLinkStatus", "sourceTraceStatus", "integrityStatus"];
@@ -33,7 +36,7 @@ function metadataColumns(): SqliteTableColumn[] {
 }
 
 function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyScope }: { kind: Variant; scope: string; aiIdentity: string; rawIdentity: string; contentRevision: string; legacyScope: string }) {
-  const [saved, setSaved] = useState<Saved>(() => sessions.get(scope) ?? initial());
+  const [saved, setSaved] = useState<Saved>(() => sessions.get(scope) ?? initial(kind));
   const [hydrated, setHydrated] = useState(() => sessions.has(scope));
   const [result, setResult] = useState<ViewerTableResult & Json>(empty);
   const [loading, setLoading] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
@@ -59,7 +62,14 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
       const oldPrefix = `v043|${kind}|${rawIdentity}|${aiIdentity}|`;
       const oldKey = Object.keys(storedScopes).filter(key => key.startsWith(oldPrefix)).sort().slice(-1)[0];
       const previous = sessions.get(scope) ?? storedScopes[scope] ?? storedScopes[legacyScope] ?? (oldKey ? storedScopes[oldKey] : undefined);
-      if (previous) setSaved(previous);
+      if (previous) {
+        if (kind === "integrated") {
+          const stored = previous.query.filters?.analysisStatus ?? previous.query.filters?.['computed:["analysisStatus"]'];
+          const warning = normalizeAiSelectionV047(stored?.values).warning;
+          setSaved({ ...previous, query: integratedQueryV047(previous.query) });
+          if (warning) setNotice(warning);
+        } else setSaved(previous);
+      }
       if (response.warning) setNotice(response.warning);
       setHydrated(true);
     }).catch(e => { if (alive.current) { setNotice(String(e)); setHydrated(true); } });
@@ -81,7 +91,7 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
     let id = requestId(); latest.current = id; setLoading(true); setError(""); setStage("準備查詢"); setCancelRequested(false);
     const payload = { ...saved.query, visibleFields: saved.preferences?.visibleColumns?.filter(id => id.startsWith("dynamic:")) ?? [], timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, requestId: id, aiDatabaseIdentity: aiIdentity, rawDatabaseIdentity: rawIdentity };
     try {
-      const key = JSON.stringify([scope, contentRevision, saved.query, [...(payload.visibleFields ?? [])].sort()]);
+      const key = JSON.stringify([DISPLAY_POLICY_V047, scope, contentRevision, saved.query, [...(payload.visibleFields ?? [])].sort()]);
       const cached = acquireAiResultV045(scope, key, id, () => kind === 'ai' ? api.queryResults(payload) : api.queryIntegrated(payload), force);
       id = cached.entry.id; latest.current = id;
       if (cached.reused) { setStage(cached.entry.value ? '恢復有效結果' : '接回進行中的查詢'); void window.desktopApp?.appDiagnostics?.reportRendererEvent({ event: 'cache-reuse', phase: 'POINT', requestId: id, reason: cached.entry.value ? 'VALID_RESULT' : 'IN_FLIGHT' }); }
@@ -125,15 +135,20 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
     if (response?.ok === false) exportNotices.set(scope, response.errorCode === "CANCELLED" ? "匯出已取消，未發布檔案" : `匯出失敗：${response.message ?? response.errorCode}`); else if (!response?.canceled) exportNotices.set(scope, `表格結果已匯出：${response?.filePath}`);
     } catch (error) { exportNotices.set(scope, `匯出失敗：${String(error)}`); } finally { exportsInProgress.delete(scope); if (alive.current) setExportJob(null); }
   }
+  const selection = normalizeAiSelectionV047(saved.query.filters.analysisStatus?.values).values;
+  const changeStatuses = (values: readonly string[]) => setSaved(s => ({ ...s, query: integratedQueryV047({ ...s.query, page: 1, filters: { ...s.query.filters, analysisStatus: { values: [...values] } } }) }));
+  const clearAll = () => setSaved(s => ({ ...s, query: integratedQueryV047({ ...s.query, page: 1, filters: {}, diffQuickFilters: { hideNoChange:false, hideZeroAdded:false, hideZeroDeleted:false, hideBeforeUnavailable:false } }, AI_STATUSES_V047) }));
+  const restoreDefaults = () => setSaved(s => ({ ...s, query: { ...initial(kind).query, sort:s.query.sort, pageSize:s.query.pageSize } }));
   return <div className="min-w-0 space-y-4" data-testid={`${kind === "ai" ? "ai-results" : "integrated-results"}-page`}>
     <PageHeader title={kind === "ai" ? "AI 結果檢視" : "整合顯示結果"} subtitle={kind === "ai" ? "AI Results Viewer" : "Integrated Results"} connected={false} />
     {kind === "integrated" && result.integrationState ? <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm">{aiStatusLabelV043(result.integrationState)}</div> : null}
+    {kind === "integrated" ? <AiStatusFilterV047 selection={selection} result={result} loading={loading} onChange={changeStatuses} onClear={clearAll} onReset={restoreDefaults} /> : null}
     {exportJob ? <div role="status" className="flex flex-wrap items-center gap-3 border-l-4 border-blue-500 bg-blue-50 p-3 text-sm"><span>{exportStage} · {exportElapsed.toFixed(1)} 秒</span><button className="btn" disabled={exportStage === "正在取消匯出…"} onClick={() => { const job = exportsInProgress.get(scope); if (job) job.stage = "正在取消匯出…"; setExportStage("正在取消匯出…"); void window.desktopApp?.aiDatabase?.cancelQuery({ requestId: exportJob }).then(r => setExportStage(r.executorStopped ? "已取消，未發布檔案" : "工作已完成或尚在選擇位置")).catch(e => setExportStage(`取消請求失敗：${String(e)}`)); }}><X size={16} />取消匯出</button></div> : null}
     {notice ? <p role="status" className="break-words text-sm">{notice}</p> : null}
     {loading ? <div role="status" className="flex flex-wrap items-center gap-3 border-l-4 border-blue-500 bg-blue-50 p-3 text-sm"><span>{stage} · {elapsed.toFixed(1)} 秒</span><button className="btn" disabled={cancelRequested} onClick={() => void cancel()}><X size={16} />{cancelRequested ? "正在取消…" : "取消查詢"}</button></div> : null}
     {error && result.rows.length > 0 ? <p role="alert" className="text-sm text-amber-800">查詢未完成，下方保留上次成功結果：{error}</p> : null}
     <SectionCard title={loading && !result.generation ? "正在查詢完整資料…" : result.filteredCount.toLocaleString() + " / " + result.totalCount.toLocaleString() + " 筆"} subtitle={kind === "ai" ? "分析當時的事件快照" : "原始事件與唯一配對分析"} action={<div className="flex flex-wrap gap-2"><button className="btn" disabled={loading} onClick={() => void load(true)}><RefreshCw size={16} />重新整理</button><details className="relative"><summary className="btn cursor-pointer"><Download size={16} />匯出表格</summary><div className="absolute right-0 z-30 grid w-48 gap-2 border bg-white p-2 shadow-lg"><button className="btn" onClick={() => void exportRows(true)}>顯示欄位</button><button className="btn" onClick={() => void exportRows(false)}>全部欄位 JSON</button><button className="btn" onClick={() => void exportRows(true, "csv")}>顯示欄位 CSV</button><button className="btn" onClick={() => void exportRows(false, "csv")}>全部欄位 CSV</button></div></details></div>}>
-      <ActivityComparisonTable tableId={scope} fullResultFilters mode="user-events" hiddenDefaultColumns={kind === 'ai' ? ['issueTypeName','currentStatusName','currentPriorityName'] : []} additionalColumns={columns} result={result} query={saved.query} loading={loading} error={error} onQueryChange={query => setSaved(s => ({ ...s, query }))} preferences={saved.preferences} onPreferencesChange={preferences => setSaved(s => ({ ...s, preferences }))} sessionState={saved.session} onSessionStateChange={session => setSaved(s => ({ ...s, session }))} loadDistinct={loadDistinct} />
+      <ActivityComparisonTable tableId={scope} fullResultFilters mode="user-events" hiddenDefaultColumns={kind === 'ai' ? ['issueTypeName','currentStatusName','currentPriorityName'] : []} additionalColumns={columns} result={result} query={saved.query} loading={loading} error={error} emptySelectionFields={kind === "integrated" ? ["analysisStatus"] : []} onClearFilters={kind === "integrated" ? clearAll : undefined} onQueryChange={query => setSaved(s => ({ ...s, query: kind === "integrated" ? integratedQueryV047(query, AI_STATUSES_V047) : query }))} preferences={saved.preferences} onPreferencesChange={preferences => setSaved(s => ({ ...s, preferences }))} sessionState={saved.session} onSessionStateChange={session => setSaved(s => ({ ...s, session }))} loadDistinct={loadDistinct} />
     </SectionCard>
   </div>;
 }

@@ -1,0 +1,761 @@
+{
+  "role": "SYNTHETIC_LOGICAL_NOT_IMPORTABLE",
+  "statusKeys": [
+    "CLASSIFIED",
+    "UNKNOWN",
+    "EXCLUDED",
+    "FAILED",
+    "NOT_ANALYZED"
+  ],
+  "defaultSelected": [
+    "CLASSIFIED",
+    "UNKNOWN",
+    "EXCLUDED",
+    "FAILED"
+  ],
+  "events": [
+    {
+      "id": "E01",
+      "rawDatabaseId": "db-A",
+      "issueKey": "SYNTHETIC-1",
+      "status": "CLASSIFIED",
+      "validAiLink": true,
+      "actor": "A",
+      "eventTime": "2026-09-08T00:00:00Z",
+      "findingCount": 3
+    },
+    {
+      "id": "E02",
+      "rawDatabaseId": "db-A",
+      "issueKey": "SYNTHETIC-1",
+      "status": "UNKNOWN",
+      "validAiLink": true,
+      "actor": "B",
+      "eventTime": "2026-09-07T00:00:00Z",
+      "findingCount": 0
+    },
+    {
+      "id": "E03",
+      "rawDatabaseId": "db-A",
+      "issueKey": "SYNTHETIC-1",
+      "status": "EXCLUDED",
+      "validAiLink": true,
+      "actor": "A",
+      "eventTime": "2026-09-08T00:00:00Z",
+      "findingCount": 0
+    },
+    {
+      "id": "E04",
+      "rawDatabaseId": "db-A",
+      "issueKey": "SYNTHETIC-1",
+      "status": "FAILED",
+      "validAiLink": true,
+      "actor": "B",
+      "eventTime": "2026-09-07T00:00:00Z",
+      "findingCount": 0
+    },
+    {
+      "id": "E05",
+      "rawDatabaseId": "db-A",
+      "issueKey": "SYNTHETIC-2",
+      "status": "NOT_ANALYZED",
+      "validAiLink": false,
+      "actor": "A",
+      "eventTime": "2026-09-08T00:00:00Z",
+      "findingCount": 0
+    },
+    {
+      "id": "E06",
+      "rawDatabaseId": "db-A",
+      "issueKey": "SYNTHETIC-2",
+      "status": "CLASSIFIED",
+      "validAiLink": true,
+      "actor": "B",
+      "eventTime": "2026-09-07T00:00:00Z",
+      "findingCount": 3
+    },
+    {
+      "id": "E07",
+      "rawDatabaseId": "db-A",
+      "issueKey": "SYNTHETIC-2",
+      "status": "UNKNOWN",
+      "validAiLink": true,
+      "actor": "A",
+      "eventTime": "2026-09-08T00:00:00Z",
+      "findingCount": 0
+    },
+    {
+      "id": "E08",
+      "rawDatabaseId": "db-A",
+      "issueKey": "SYNTHETIC-2",
+      "status": "EXCLUDED",
+      "validAiLink": true,
+      "actor": "B",
+      "eventTime": "2026-09-07T00:00:00Z",
+      "findingCount": 0
+    },
+    {
+      "id": "E09",
+      "rawDatabaseId": "db-A",
+      "issueKey": "SYNTHETIC-2",
+      "status": "FAILED",
+      "validAiLink": true,
+      "actor": "A",
+      "eventTime": "2026-09-08T00:00:00Z",
+      "findingCount": 0
+    },
+    {
+      "id": "E10",
+      "rawDatabaseId": "db-A",
+      "issueKey": "SYNTHETIC-2",
+      "status": "NOT_ANALYZED",
+      "validAiLink": false,
+      "actor": "B",
+      "eventTime": "2026-09-07T00:00:00Z",
+      "findingCount": 0
+    }
+  ],
+  "combinations": [
+    {
+      "id": "S47-00",
+      "selected": [],
+      "expectedIds": [],
+      "withActorAExpectedIds": []
+    },
+    {
+      "id": "S47-01",
+      "selected": [
+        "CLASSIFIED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E06"
+      ],
+      "withActorAExpectedIds": [
+        "E01"
+      ]
+    },
+    {
+      "id": "S47-02",
+      "selected": [
+        "UNKNOWN"
+      ],
+      "expectedIds": [
+        "E02",
+        "E07"
+      ],
+      "withActorAExpectedIds": [
+        "E07"
+      ]
+    },
+    {
+      "id": "S47-03",
+      "selected": [
+        "CLASSIFIED",
+        "UNKNOWN"
+      ],
+      "expectedIds": [
+        "E01",
+        "E02",
+        "E06",
+        "E07"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E07"
+      ]
+    },
+    {
+      "id": "S47-04",
+      "selected": [
+        "EXCLUDED"
+      ],
+      "expectedIds": [
+        "E03",
+        "E08"
+      ],
+      "withActorAExpectedIds": [
+        "E03"
+      ]
+    },
+    {
+      "id": "S47-05",
+      "selected": [
+        "CLASSIFIED",
+        "EXCLUDED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E03",
+        "E06",
+        "E08"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E03"
+      ]
+    },
+    {
+      "id": "S47-06",
+      "selected": [
+        "UNKNOWN",
+        "EXCLUDED"
+      ],
+      "expectedIds": [
+        "E02",
+        "E03",
+        "E07",
+        "E08"
+      ],
+      "withActorAExpectedIds": [
+        "E03",
+        "E07"
+      ]
+    },
+    {
+      "id": "S47-07",
+      "selected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E02",
+        "E03",
+        "E06",
+        "E07",
+        "E08"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E03",
+        "E07"
+      ]
+    },
+    {
+      "id": "S47-08",
+      "selected": [
+        "FAILED"
+      ],
+      "expectedIds": [
+        "E04",
+        "E09"
+      ],
+      "withActorAExpectedIds": [
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-09",
+      "selected": [
+        "CLASSIFIED",
+        "FAILED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E04",
+        "E06",
+        "E09"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-10",
+      "selected": [
+        "UNKNOWN",
+        "FAILED"
+      ],
+      "expectedIds": [
+        "E02",
+        "E04",
+        "E07",
+        "E09"
+      ],
+      "withActorAExpectedIds": [
+        "E07",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-11",
+      "selected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "FAILED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E02",
+        "E04",
+        "E06",
+        "E07",
+        "E09"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E07",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-12",
+      "selected": [
+        "EXCLUDED",
+        "FAILED"
+      ],
+      "expectedIds": [
+        "E03",
+        "E04",
+        "E08",
+        "E09"
+      ],
+      "withActorAExpectedIds": [
+        "E03",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-13",
+      "selected": [
+        "CLASSIFIED",
+        "EXCLUDED",
+        "FAILED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E03",
+        "E04",
+        "E06",
+        "E08",
+        "E09"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E03",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-14",
+      "selected": [
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED"
+      ],
+      "expectedIds": [
+        "E02",
+        "E03",
+        "E04",
+        "E07",
+        "E08",
+        "E09"
+      ],
+      "withActorAExpectedIds": [
+        "E03",
+        "E07",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-15",
+      "selected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E02",
+        "E03",
+        "E04",
+        "E06",
+        "E07",
+        "E08",
+        "E09"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E03",
+        "E07",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-16",
+      "selected": [
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E05",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E05"
+      ]
+    },
+    {
+      "id": "S47-17",
+      "selected": [
+        "CLASSIFIED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E05",
+        "E06",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E05"
+      ]
+    },
+    {
+      "id": "S47-18",
+      "selected": [
+        "UNKNOWN",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E02",
+        "E05",
+        "E07",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E05",
+        "E07"
+      ]
+    },
+    {
+      "id": "S47-19",
+      "selected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E02",
+        "E05",
+        "E06",
+        "E07",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E05",
+        "E07"
+      ]
+    },
+    {
+      "id": "S47-20",
+      "selected": [
+        "EXCLUDED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E03",
+        "E05",
+        "E08",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E03",
+        "E05"
+      ]
+    },
+    {
+      "id": "S47-21",
+      "selected": [
+        "CLASSIFIED",
+        "EXCLUDED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E03",
+        "E05",
+        "E06",
+        "E08",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E03",
+        "E05"
+      ]
+    },
+    {
+      "id": "S47-22",
+      "selected": [
+        "UNKNOWN",
+        "EXCLUDED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E02",
+        "E03",
+        "E05",
+        "E07",
+        "E08",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E03",
+        "E05",
+        "E07"
+      ]
+    },
+    {
+      "id": "S47-23",
+      "selected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E02",
+        "E03",
+        "E05",
+        "E06",
+        "E07",
+        "E08",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E03",
+        "E05",
+        "E07"
+      ]
+    },
+    {
+      "id": "S47-24",
+      "selected": [
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E04",
+        "E05",
+        "E09",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E05",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-25",
+      "selected": [
+        "CLASSIFIED",
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E04",
+        "E05",
+        "E06",
+        "E09",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E05",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-26",
+      "selected": [
+        "UNKNOWN",
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E02",
+        "E04",
+        "E05",
+        "E07",
+        "E09",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E05",
+        "E07",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-27",
+      "selected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E02",
+        "E04",
+        "E05",
+        "E06",
+        "E07",
+        "E09",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E05",
+        "E07",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-28",
+      "selected": [
+        "EXCLUDED",
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E03",
+        "E04",
+        "E05",
+        "E08",
+        "E09",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E03",
+        "E05",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-29",
+      "selected": [
+        "CLASSIFIED",
+        "EXCLUDED",
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E03",
+        "E04",
+        "E05",
+        "E06",
+        "E08",
+        "E09",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E03",
+        "E05",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-30",
+      "selected": [
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E02",
+        "E03",
+        "E04",
+        "E05",
+        "E07",
+        "E08",
+        "E09",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E03",
+        "E05",
+        "E07",
+        "E09"
+      ]
+    },
+    {
+      "id": "S47-31",
+      "selected": [
+        "CLASSIFIED",
+        "UNKNOWN",
+        "EXCLUDED",
+        "FAILED",
+        "NOT_ANALYZED"
+      ],
+      "expectedIds": [
+        "E01",
+        "E02",
+        "E03",
+        "E04",
+        "E05",
+        "E06",
+        "E07",
+        "E08",
+        "E09",
+        "E10"
+      ],
+      "withActorAExpectedIds": [
+        "E01",
+        "E03",
+        "E05",
+        "E07",
+        "E09"
+      ]
+    }
+  ],
+  "expectedRawTotal": 10,
+  "expectedDefaultTotal": 8,
+  "expectedStatusFacetsIgnoringOwnSelection": {
+    "CLASSIFIED": 2,
+    "UNKNOWN": 2,
+    "EXCLUDED": 2,
+    "FAILED": 2,
+    "NOT_ANALYZED": 2
+  },
+  "orphans": [
+    {
+      "aiId": "ORPHAN-A",
+      "status": "CLASSIFIED",
+      "rawIdentity": null
+    }
+  ],
+  "duplicateForeignIdentity": {
+    "rawDatabaseId": "db-B",
+    "eventId": "E01",
+    "mustNotLinkTo": "db-A:E01"
+  },
+  "manualOverrideCase": {
+    "aiStatus": "UNKNOWN",
+    "manualExpectedStatus": "CLASSIFIED",
+    "expectedFilterStatus": "UNKNOWN"
+  },
+  "linkWarnings": [
+    "NOT_ATTEMPTED",
+    "AMBIGUOUS",
+    "NOT_FOUND",
+    "ERROR"
+  ],
+  "invalidStatusCase": {
+    "storedStatus": "FUTURE_UNKNOWN_ENUM",
+    "expected": "DIAGNOSTIC_NOT_COERCED"
+  }
+}

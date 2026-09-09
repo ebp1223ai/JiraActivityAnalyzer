@@ -51,7 +51,7 @@ export function projectActiveAiV043(record: Json, trace: Json, analysis: Json, r
 }
 
 const labels: Record<string, string> = {
-  CLASSIFIED: "已分類", EXCLUDED: "排除分類", UNKNOWN: "無法判定", FAILED: "分析失敗",
+  NOT_ANALYZED: "尚未分析", CLASSIFIED: "已分類", EXCLUDED: "排除分類", UNKNOWN: "無法判定", FAILED: "分析失敗",
   AI_ONLY: "尚未驗收", REVIEW_PARTIAL: "部分驗收", REVIEW_COMPLETED: "驗收完成",
   PRIMARY_MATCHED: "主鍵配對成功", FALLBACK_MATCHED: "備援配對成功", NOT_ATTEMPTED: "尚未配對", NOT_FOUND: "找不到來源", AMBIGUOUS: "多個候選", ERROR: "配對錯誤", SOURCE_DATABASE_MISMATCH: "來源資料庫不符", IDENTITY_CONFLICT: "身分衝突",
   COMPLETE: "追溯契約完整", PARTIAL: "部分追溯", MISSING: "未提供", INVALID: "無效",
