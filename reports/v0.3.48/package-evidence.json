@@ -1,0 +1,8 @@
+{
+  "focused": "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+  "worker": "test-artifacts/v0.3.48/worker-1789036584430/report.json",
+  "regression": "test-artifacts/v0.3.47/service-1789036281996/report.json",
+  "profile": "test-artifacts/v0.3.48/paired-profile-1789035688033/report.json",
+  "ui": "test-artifacts/v0.3.48/ui-1789036519938/report.json",
+  "coverage": "reports/v0.3.48/SourceGate.json"
+}

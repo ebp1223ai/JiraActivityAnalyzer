@@ -1,0 +1,48 @@
+{
+  "source": "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+  "sha256": "a94edef42ffca425783a0ba9d96f5a2a8a5cc27ff510515347551c687e103535",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "T48-02/03/06 bounded Raw and AI guard / unknown / originals",
+      "status": "PASS",
+      "ms": 773.0208
+    },
+    {
+      "name": "T48-19 normal, unchanged, empty, missing, compact, invalid, comment and other",
+      "status": "PASS",
+      "ms": 1.0402000000001408
+    },
+    {
+      "name": "T48-04/05/13/21 real importer/links and Raw mother preservation",
+      "status": "PASS",
+      "ms": 12980.439
+    },
+    {
+      "name": "T48-07/11 all 16 quick filters and 32 status subsets with guard",
+      "status": "PASS",
+      "ms": 810.4166000000005
+    },
+    {
+      "name": "T48-08 search coverage is other-condition whole scope including negative",
+      "status": "PASS",
+      "ms": 24.97870000000148
+    },
+    {
+      "name": "T48-09/10 four exports / warnings / null / stale / I/O failure",
+      "status": "PASS",
+      "ms": 459.586299999999
+    },
+    {
+      "name": "T48-03/13/14 global failure retained / date facet late fields / no AI",
+      "status": "PASS",
+      "ms": 441.03180000000066
+    },
+    {
+      "name": "T48-03 finding integrity still fails, no broad catch",
+      "status": "PASS",
+      "ms": 103.65760000000046
+    }
+  ],
+  "screenshots": []
+}

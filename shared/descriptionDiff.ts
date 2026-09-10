@@ -12,7 +12,9 @@ export type DescriptionDiffResult = { eventId: string; issueKey: string; fieldId
 export type DescriptionFullContextResult = { eventId: string; issueKey: string; status: "ready" | Exclude<DescriptionDiffStatus, "changed" | "unchanged" | "whitespace-only">; diffStatus: DescriptionDiffStatus; beforeText: string | null; afterText: string | null; beforeAvailable: boolean; afterAvailable: boolean; beforeComplete: boolean; afterComplete: boolean; diagnosticsCode: DescriptionDiffDiagnosticsCode | null };
 type CanonicalContent = { displayText: string; comparisonText: string; parseable: boolean };
 type LineOperation = { kind: "equal" | "delete" | "insert"; text: string };
-class DiffGuardError extends Error {}
+export class DiffGuardError extends Error {
+  constructor(message: string, readonly distance: number | null = null) { super(message); this.name = "DiffGuardError"; }
+}
 
 function decodeHtml(value: string) {
   return value.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<(br|hr)\b[^>]*\/?>/gi, "\n").replace(/<\/(p|div|li|h[1-6]|tr)>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, "\"").replace(/&#39;/gi, "'").replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)));
@@ -56,7 +58,7 @@ function splitLines(value: string) { return value === "" ? [] : value.split("\n"
 function myersLineDiff(before: string[], after: string[]): LineOperation[] {
   const max = before.length + after.length; let frontier = new Map<number, number>([[1, 0]]); const trace: Array<Map<number, number>> = [];
   for (let distance = 0; distance <= max; distance += 1) {
-    if ((distance + 1) ** 2 > DESCRIPTION_DIFF_LIMITS.maxWorkUnits) throw new DiffGuardError("DIFF_WORK_GUARD");
+    if ((distance + 1) ** 2 > DESCRIPTION_DIFF_LIMITS.maxWorkUnits) throw new DiffGuardError("DIFF_WORK_GUARD", distance);
     trace.push(new Map(frontier));
     for (let diagonal = -distance; diagonal <= distance; diagonal += 2) {
       const down = frontier.get(diagonal + 1) ?? Number.NEGATIVE_INFINITY; const right = frontier.get(diagonal - 1) ?? Number.NEGATIVE_INFINITY;

@@ -23,7 +23,7 @@ function asset(fileName: string) { return process.defaultApp ? path.resolve(proc
 const packageSchemaPath = () => asset("jaa-ai-analysis-package_v2.0.0.schema.json");
 const traceSchemaPath = () => asset("jaa-source-trace_v1.0.0.schema.json");
 function id(payload: unknown) { const value = String((payload as Json | null)?.requestId ?? ""); if (!/^[A-Za-z0-9._:-]{1,128}$/.test(value)) throw new Error("INVALID_REQUEST_ID"); return value; }
-function fail(error: unknown, requestId = "") { const value = error as Json; return { ok: false, requestId, diagnosticId: `AI043-${requestId || Date.now()}`, errorCode: value?.message ?? "AI_DATABASE_OPERATION_FAILED", message: value?.message ?? String(error), preview: value?.preview, snapshot: value?.snapshot }; }
+function fail(error: unknown, requestId = "") { const value = error as Json; return { ok: false, requestId, totalCount:null, filteredCount:null, statusCounts:null, diagnosticId: `AI043-${requestId || Date.now()}`, errorCode: value?.message ?? "AI_DATABASE_OPERATION_FAILED", message: value?.message ?? String(error), preview: value?.preview, snapshot: value?.snapshot }; }
 function filePath(payload: unknown) { const value = String((payload as Json | null)?.filePath ?? "").trim(); if (!value || value.includes("\0") || value.length > 32767) throw new Error("INVALID_FILE_PATH"); return path.resolve(value); }
 async function choose(title: string, extensions: string[]) { const result = await dialog.showOpenDialog({ title, properties: ["openFile"], filters: [{ name: title, extensions }] }); return result.canceled ? "" : result.filePaths[0] ?? ""; }
 function writeAtomic(target: string, value: unknown, plain = false) { fs.mkdirSync(path.dirname(target), { recursive: true }); const temporary = `${target}.${process.pid}.${Date.now()}.tmp`; try { fs.writeFileSync(temporary, plain ? String(value) : JSON.stringify(value, null, 2) + "\n", { encoding: "utf8", flag: "wx" }); fs.renameSync(temporary, target); } finally { try { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); } catch { /* best effort */ } } }
@@ -94,7 +94,7 @@ export function registerAiAnalysisDatabaseIpcV042(getRawDatabasePath: () => stri
       if (automaticDiagnosticsV044()) await automaticDiagnosticsV044()!.operation('export-atomic-publish', () => fs.promises.rename(temporary, picked.filePath));
       else await fs.promises.rename(temporary, picked.filePath);
       await automaticDiagnosticsV044()?.event('export-completed', 'POINT', { requestId, pickerWaitMs, processingMs: performance.now() - started - pickerWaitMs, sizeBytes: result.sizeBytes, rowCount: result.filteredCount });
-      return { ok: true, requestId, canceled: false, filePath: picked.filePath, sizeBytes: result.sizeBytes, filteredCount: result.filteredCount };
+      return { ok: true, requestId, canceled: false, filePath: picked.filePath, sizeBytes: result.sizeBytes, filteredCount: result.filteredCount, warningCount:result.warningCount, searchUnknownCount:result.searchUnknownCount, searchCoverage:result.searchCoverage, resultStatus:result.resultStatus };
     } catch (error) { return fail(error, requestId); }
     finally { if (exportKey) pendingExports.delete(exportKey); if (temporary) await fs.promises.unlink(temporary).catch(() => {}); }
   });

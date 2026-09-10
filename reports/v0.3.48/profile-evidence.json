@@ -1,0 +1,53 @@
+{
+  "source": "test-artifacts/v0.3.48/paired-profile-1789035688033/report.json",
+  "sha256": "5b088cb4ed5e7418e054477c1271afbe16b038ef7c19b248898ec148ee66fd1e",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "before cold fails with original guard",
+      "status": "PASS",
+      "ms": 386.58070000000225
+    },
+    {
+      "name": "cold",
+      "status": "PASS",
+      "ms": 3981.6516999999985
+    },
+    {
+      "name": "warm",
+      "status": "PASS",
+      "ms": 153.57930000000124
+    },
+    {
+      "name": "facet",
+      "status": "PASS",
+      "ms": 522.9611000000004
+    },
+    {
+      "name": "export-json-true",
+      "status": "PASS",
+      "ms": 2810.3996000000006
+    },
+    {
+      "name": "export-json-false",
+      "status": "PASS",
+      "ms": 12969.529100000003
+    },
+    {
+      "name": "export-csv-true",
+      "status": "PASS",
+      "ms": 3087.919799999996
+    },
+    {
+      "name": "export-csv-false",
+      "status": "PASS",
+      "ms": 13966.373400000004
+    },
+    {
+      "name": "default four returns matched 55",
+      "status": "PASS",
+      "ms": 156.8972000000067
+    }
+  ],
+  "screenshots": []
+}

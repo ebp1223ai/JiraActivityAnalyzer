@@ -37,6 +37,7 @@ export type ViewerTableQuery = {
 
 export type ViewerTableResult<TRow extends Record<string, unknown> = Record<string, unknown>> = {
   rows: TRow[];
+  countsKnown?: boolean;
   filteredCount: number;
   totalCount: number;
   page: number;

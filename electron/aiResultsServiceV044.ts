@@ -1,9 +1,10 @@
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
+import { createEnvelopeProducerV044 } from './diagnosticEnvelopeV044.js';
 
 type Json = Record<string, any>;
-type Job = { owner: number; requestId: string; onStage?: (stage: Json) => void | Promise<unknown>; resolve: (value: any) => void; reject: (error: Error) => void };
-type Lane = { lastDiagnostics?: Json; sampledAt?: string; cancelledRequestId?: string; endReason?: string; worker: Worker; pending: Map<string, Job> };
+type Job = { owner: number; requestId: string; onStage?: (stage: Json) => void | Promise<unknown>; resolve: (value: any) => void; reject: (error: Error) => void; stages: Map<string, Json>; drain: Promise<unknown> };
+type Lane = { lastDiagnostics?: Json; sampledAt?: string; cancelledRequestId?: string; endReason?: string; worker: Worker; pending: Map<string, Job>; terminal?: Promise<void>; workerError?: Error };
 export class AiResultsServiceV044 {
   private lanes = new Map<string, Lane>();
   private receipts: Json = {};
@@ -24,23 +25,46 @@ export class AiResultsServiceV044 {
       current.worker.on('message', msg => {
         const job = current.pending.get(msg.id); if (!job) return;
         if (msg.type === 'stage') {
-          Promise.resolve().then(() => job.onStage?.(msg)).then(ok => {
+          if (msg.phase === 'START') job.stages.set(msg.event,msg);
+          if (msg.phase === 'END') job.stages.delete(msg.event);
+          job.drain = job.drain.then(() => job.onStage?.(msg)).then(ok => {
             if (msg.ack) { const ack = new Int32Array(msg.ack); Atomics.store(ack, 0, ok === false ? 2 : 1); Atomics.notify(ack, 0); }
           }, () => { if (msg.ack) { const ack = new Int32Array(msg.ack); Atomics.store(ack, 0, 2); Atomics.notify(ack, 0); } });
           return;
         }
         current.pending.delete(msg.id);
-        if (msg.type === 'error') job.reject(new Error(msg.error));
-        else { this.receipts = msg.diagnostics; current.lastDiagnostics = msg.diagnostics; current.sampledAt = new Date().toISOString(); job.resolve(msg.value); }
+        void job.drain.then(() => {
+          if (msg.type === 'error') job.reject(new Error(msg.error));
+          else { this.receipts = msg.diagnostics; current.lastDiagnostics = msg.diagnostics; current.sampledAt = new Date().toISOString(); job.resolve(msg.value); }
+        });
       });
-      const fail = (error: Error) => { if (this.lanes.get(key) === current) this.lanes.delete(key); for (const job of current.pending.values()) job.reject(current.endReason ? new Error(job.requestId === current.cancelledRequestId ? current.endReason : 'SUPERSEDED') : error); current.pending.clear(); };
-      current.worker.on('error', fail);
-      current.worker.on('exit', code => fail(new Error(`QUERY_WORKER_EXIT_${code}`)));
+      const fail = (error: Error) => {
+        if (this.lanes.get(key) === current) this.lanes.delete(key);
+        if (current.terminal) return;
+        current.terminal = (async () => {
+          for (const job of current.pending.values()) {
+            const reason = current.endReason ? job.requestId === current.cancelledRequestId ? current.endReason : 'SUPERSEDED' : 'INTERRUPTED';
+            await job.drain;
+            for (const stage of [...job.stages.values()].reverse()) {
+              const old = stage.envelope, outcome = reason === 'CANCELLED' ? 'CANCELLED' : reason === 'SUPERSEDED' ? 'SUPERSEDED' : 'FAILED';
+              const details = { reason, terminationObservedBy:'executor-owner', executorStopped:true };
+              const envelope = old ? createEnvelopeProducerV044({sessionId:old.sessionId,instanceId:old.instanceId,build:old.build,processType:'main'})(stage.event,'END',old,details,outcome) : undefined;
+              try { await job.onStage?.({type:'stage',id:job.requestId,event:stage.event,phase:'END',details,envelope}); }
+              catch (diagnosticError) { console.error('QUERY_TERMINAL_DIAGNOSTICS_FAILED', diagnosticError instanceof Error ? diagnosticError.name : 'UNKNOWN'); }
+            }
+            job.stages.clear();
+            job.reject(current.endReason ? new Error(reason) : error);
+          }
+          current.pending.clear();
+        })();
+      };
+      current.worker.on('error', error => { current.workerError = error instanceof Error ? error : new Error('QUERY_WORKER_ERROR'); });
+      current.worker.on('exit', code => fail(current.workerError ?? new Error(`QUERY_WORKER_EXIT_${code}`)));
     }
     if (lane.pending.has(input.requestId)) return Promise.reject(new Error('DUPLICATE_REQUEST_ID'));
     if (lane.pending.size >= 16) return Promise.reject(new Error('QUERY_QUEUE_FULL'));
     return new Promise((resolve, reject) => {
-      lane!.pending.set(input.requestId, { owner, requestId: input.requestId, onStage, resolve, reject });
+      lane!.pending.set(input.requestId, { owner, requestId: input.requestId, onStage, resolve, reject, stages:new Map(), drain:Promise.resolve() });
       lane!.worker.postMessage({ ...input, id: input.requestId, __testBarrier: process.env.JAA_UI_TEST_MODE === '1' && input.action === 'query' && input.kind === 'integrated' ? this.testBarrier?.buffer : undefined });
     });
   }
@@ -52,6 +76,7 @@ export class AiResultsServiceV044 {
       lane.cancelledRequestId = requestId;
       const stopped = lane.worker.terminate();
       await stopped;
+      await lane.terminal;
       for (const [id, job] of lane.pending) job.reject(new Error(id === requestId ? reason : 'SUPERSEDED'));
       lane.pending.clear();
       return { cancelled: true, executorStopped: true };
@@ -63,6 +88,7 @@ export class AiResultsServiceV044 {
       this.lanes.delete(key);
       lane.endReason = 'SUPERSEDED';
       await lane.worker.terminate();
+      await lane.terminal;
       for (const job of lane.pending.values()) job.reject(new Error('SUPERSEDED'));
       lane.pending.clear();
     }

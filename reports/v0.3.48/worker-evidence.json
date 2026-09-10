@@ -1,0 +1,25 @@
+{
+  "source": "test-artifacts/v0.3.48/worker-1789036584430/report.json",
+  "sha256": "66dfb51a501def891e9db368205840aee6a85ed29cc7de10d43ec02e1e2f27ea",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "T48-16/18 actual worker success terminal spans and bounded guard log",
+      "status": "PASS",
+      "ms": 5010.848100000001
+    },
+    {
+      "name": "T48-16/17 CANCELLED real executor termination, queued supersession, no late result",
+      "status": "PASS"
+    },
+    {
+      "name": "T48-16/17 SUPERSEDED real executor termination, queued supersession, no late result",
+      "status": "PASS"
+    },
+    {
+      "name": "T48-16 abnormal worker startup exit is not success",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": []
+}

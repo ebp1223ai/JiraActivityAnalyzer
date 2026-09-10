@@ -1,0 +1,220 @@
+{
+  "source": "test-artifacts/v0.3.48/ui-1789036519938/report.json",
+  "sha256": "6fbf898754228de4d2a734eda80c9a42aabe9eafad569e918c90cfc566575150",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "real-preload-IPC-Raw-AI-create-import-relink-query",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:ai-database",
+      "status": "PASS",
+      "durationMs": 176.01640000000043
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 300.2140999999974
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 309.9210000000021
+    },
+    {
+      "name": "route-ready:ai-database",
+      "status": "PASS",
+      "durationMs": 175.83069999999861
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 811.106499999998
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 321.01750000000175
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 175.8037000000004
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 318.37460000000283
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 371.92229999999836
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 441.3709999999992
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 537.3647999999957
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 522.3924999999945
+    },
+    {
+      "name": "T48-04/05/12/23 actual guard originals, AI policy, clear/default/empty A-B-A and disk persistence",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:ai-results",
+      "status": "PASS",
+      "durationMs": 276.1273999999976
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 434.02509999999893
+    },
+    {
+      "name": "T48-11/14 actual header/status AND inclusive date, route restoration and clear",
+      "status": "PASS"
+    },
+    {
+      "name": "T48-08/09 actual incomplete search and four whole-snapshot UI exports",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:connections",
+      "status": "PASS",
+      "durationMs": 196.90659999998752
+    },
+    {
+      "name": "route-ready:integrated-results",
+      "status": "PASS",
+      "durationMs": 1138.2991000000038
+    },
+    {
+      "name": "T48-10/15/16 actual picker/cancel/DB switch prevent publication; pending and cancelled query blocks stale export",
+      "status": "PASS"
+    },
+    {
+      "name": "T48-10 actual write-in-progress cancellation and own-partial cleanup",
+      "status": "PASS"
+    },
+    {
+      "name": "T48-03/15/23 actual global SQL error remains error, not empty success; synthetic schema restored",
+      "status": "PASS"
+    },
+    {
+      "name": "route-ready:users",
+      "status": "PASS",
+      "durationMs": 297.1007999999856
+    },
+    {
+      "name": "route:users",
+      "status": "PASS"
+    },
+    {
+      "name": "runtime-IPC-registry-bidirectional-exact",
+      "status": "PASS"
+    },
+    {
+      "name": "production-file-io-and-complete-streaming-pipeline",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\ai-database-1366x768.png",
+      "width": 1366,
+      "height": 768,
+      "overflow": false,
+      "heading": "AI 分析資料庫 / AI Analysis Database",
+      "sidebar": true
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\ai-results-1366x768.png",
+      "width": 1366,
+      "height": 768,
+      "overflow": false,
+      "heading": "AI 結果檢視 / AI Results Viewer",
+      "sidebar": true
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\integrated-results-1366x768.png",
+      "width": 1366,
+      "height": 768,
+      "overflow": false,
+      "heading": "整合顯示結果 / Integrated Results",
+      "sidebar": true
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\debug-1366x768.png",
+      "debugExpanded": true,
+      "left": 926,
+      "right": 1366,
+      "width": 1366,
+      "clippedButtons": []
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\ai-database-1920x1080.png",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "heading": "AI 分析資料庫 / AI Analysis Database",
+      "sidebar": true
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\ai-results-1920x1080.png",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "heading": "AI 結果檢視 / AI Results Viewer",
+      "sidebar": true
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\integrated-results-1920x1080.png",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "heading": "整合顯示結果 / Integrated Results",
+      "sidebar": true
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\debug-1920x1080.png",
+      "debugExpanded": true,
+      "left": 1480,
+      "right": 1920,
+      "width": 1920,
+      "clippedButtons": []
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\integrated-guard-originals.png",
+      "appOnly": true
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\ai-same-guard.png",
+      "appOnly": true
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\diff-search-unknown.png",
+      "appOnly": true
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\cancelled-no-false-zero.png",
+      "appOnly": true
+    },
+    {
+      "file": "F:\\AI\\JiraActivityAnalyzer\\test-artifacts\\v0.3.48\\ui-1789036519938\\screenshots\\global-sql-error-unknown-counts.png",
+      "appOnly": true
+    }
+  ],
+  "startedAt": "2026-09-10T10:35:24.512Z",
+  "finishedAt": "2026-09-10T10:39:14.816Z"
+}

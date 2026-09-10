@@ -1,0 +1,190 @@
+{
+  "at": "2026-09-10T10:46:02.926Z",
+  "files": [
+    {
+      "file": "CHANGELOG.md",
+      "sha256": "7d108e81aaa5eb34b16c17dcd32b36f28cd36448067fc530037b818fef15f1e4"
+    },
+    {
+      "file": "VERSION",
+      "sha256": "e05aa6698b5ad56a5ad2ab541319258df3df12267ff1fd2439accf0625e04a3f"
+    },
+    {
+      "file": "electron/aiAnalysisDatabaseIpcV042.ts",
+      "sha256": "442670e8b620484b685514ce54b6aadbca2937273e5917789967046e6a55761d"
+    },
+    {
+      "file": "electron/aiResultsQueryV043.ts",
+      "sha256": "75b3d03bb0c7c39660cd7d55465121645ec7e6fca0604fefb019b4697a1b636f"
+    },
+    {
+      "file": "electron/aiResultsServiceV044.ts",
+      "sha256": "21eb143c8d5d06d924f8f904c70832339c0ceac91060f19e578e437128fce430"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "b27529c35141cc9a5007a40f074d7412b3365ceeda806d572171075c7d911b58"
+    },
+    {
+      "file": "package.json",
+      "sha256": "a1a080851671f0cf03bb7c934e4ea1d106e5c2f5a5eef5f6c1626f16a961d5b6"
+    },
+    {
+      "file": "scripts/test-v0344-ui.cjs",
+      "sha256": "a8087a58605d475e7a72c31eb20e4207eca59f453f324995966b5f40119dd6f7"
+    },
+    {
+      "file": "shared/activityPresentationV046.ts",
+      "sha256": "62941e67a6e8dbcfc6149a67f6df10f6aba26a6905e4b28a3cb1c79256606342"
+    },
+    {
+      "file": "shared/descriptionDiff.ts",
+      "sha256": "e3a300e9ec2c263caa263af9e630c3919e53aeb72a702409e17520846a415e65"
+    },
+    {
+      "file": "shared/integratedDisplayV047.ts",
+      "sha256": "9eed8976010c46c5cae3c1077d4a6939205fc131fdbff0c8821c107211e26f0f"
+    },
+    {
+      "file": "src/components/ActivityEventDetailPanel.tsx",
+      "sha256": "c4d53c469dd40e3537fde12a076e3a8ccf28140acba607eed745104b40ad2055"
+    },
+    {
+      "file": "src/components/AiStatusFilterV047.tsx",
+      "sha256": "f6caea4175c093f97198ae51e8c52bc41708e64227aa5f77804a37e185a9e89b"
+    },
+    {
+      "file": "src/components/SqliteDataTable.tsx",
+      "sha256": "87ec4dc0b8d3d219c2bdcce349620084b39e76b67471e554363f96c5fa98dde8"
+    },
+    {
+      "file": "src/components/TraceEvidenceView.tsx",
+      "sha256": "e2e75d816ca1a4e141414f0ec479f539ed8427f259ddb87e49ea8b8fab4f9519"
+    },
+    {
+      "file": "src/routes/AiDatabaseViewerPagesV043.tsx",
+      "sha256": "cf4843371d0f8dc0ddd86e36ae58fbb3d33b3a23a0c64d1fe7636c796f5d62f0"
+    },
+    {
+      "file": "src/types/activityViewerQuery.ts",
+      "sha256": "fca8b00e2419bc2bb4a8b7246879bc9647c79efe6d1ce878cb5ce2fe84395e59"
+    },
+    {
+      "file": "reports/v0.3.48/Acceptance_Report.md",
+      "sha256": "8439cf7f64f34469d94b293b0ca76ad9a5e2fca5a9517196a763da8c8b7afd21"
+    },
+    {
+      "file": "reports/v0.3.48/ActivityEvents.ndjson",
+      "sha256": "a3772c1acb3ee235698c4bb25664a863c052050ef244f26ee11da74d388c7c3b"
+    },
+    {
+      "file": "reports/v0.3.48/Implementation_Report.md",
+      "sha256": "41dee6892a73d3f65497848c244e7c7092b6f2cc28ec499788e8ee3ada37a406"
+    },
+    {
+      "file": "reports/v0.3.48/SourceGate.json",
+      "sha256": "f27ae711d8814e74cd0f8b8b4900b948f6374bd6369a5d4dac439efd9fc7e14e"
+    },
+    {
+      "file": "reports/v0.3.48/Test_Report.md",
+      "sha256": "44c4bc030a90bd33e26dea568cbfd73cb1ae13bb7cbfcd35daa496b27f2507ff"
+    },
+    {
+      "file": "reports/v0.3.48/WorkLedger.json",
+      "sha256": "ccc0a3a1b1edf2a8dedcc57577f54f4490305f323fa71670c22175f45c1072d6"
+    },
+    {
+      "file": "reports/v0.3.48/WorkTimeline.md",
+      "sha256": "5daa0ca77ace2fca0ac8746daf4eb71b3d737f10922183c024d9c74f0a2cfbd6"
+    },
+    {
+      "file": "reports/v0.3.48/focused-evidence.json",
+      "sha256": "939cf501015ebd5451416780b4559b1b45dd18e5b5733c845c69eed11ce92d85"
+    },
+    {
+      "file": "reports/v0.3.48/package-evidence.json",
+      "sha256": "5bceb6d0ced26492e759163f54977c4ff790b2fd292f9a60d43b5ca3ea409cf9"
+    },
+    {
+      "file": "reports/v0.3.48/profile-evidence.json",
+      "sha256": "2a497afc4fdadca51fd5a21092e2bcb4b690f3dfad4b37b1d58ca54eebeaaaa5"
+    },
+    {
+      "file": "reports/v0.3.48/regression-evidence.json",
+      "sha256": "21261f1cb18b8e7139a3ee374afb147b731ed494b44abb0a0eae75493ebcb457"
+    },
+    {
+      "file": "reports/v0.3.48/ui-evidence.json",
+      "sha256": "555ad9ae5780443a95d5a468ba2ee2bcea92fd22fc527043c96dba4d038bd7ec"
+    },
+    {
+      "file": "reports/v0.3.48/worker-evidence.json",
+      "sha256": "9ca5503dbb5376dec359b10a84fad8310aecf89c9bfa33f0e5c16469c169bdfe"
+    },
+    {
+      "file": "scripts/package-v0348.cjs",
+      "sha256": "f05b498aad855855a268f2d2568b6d0b231f285bc521d206d59b77f8e9c8183f"
+    },
+    {
+      "file": "scripts/profile-v0348.cjs",
+      "sha256": "88a2d889defd0d53668bae1dc37556c3612d1afe1c002ddcfa2389fdff487df0"
+    },
+    {
+      "file": "scripts/reproduce-v0348-guard.cjs",
+      "sha256": "2435b1e92fbc0fce0b4ec19e52bea8d24c9f457c263e3571ff8ae15d2fb292c1"
+    },
+    {
+      "file": "scripts/test-v0348-delivery.cjs",
+      "sha256": "dd23d911a2433be25c608ced1b177acfc9106e06821bb2ab09e348e7c2f3c903"
+    },
+    {
+      "file": "scripts/test-v0348-ui.cjs",
+      "sha256": "82368afe499e676da69555c51d956adb18a85220b377cb8a3916529407788eb7"
+    },
+    {
+      "file": "scripts/test-v0348-worker.cjs",
+      "sha256": "251a08ada394900b274193a3a44d695d08ec36a12bdeb011f608a8f606380068"
+    },
+    {
+      "file": "scripts/test-v0348.cjs",
+      "sha256": "3b35c2c7643bb5f7823d4ebc59cad47a9561685085b5f748c34342f99f087d69"
+    },
+    {
+      "file": "scripts/v0348-test-seed.cjs",
+      "sha256": "706b253c215ad5a676b283ae1eb1dade594d6fb1f4324ed726bfa009414e53b6"
+    },
+    {
+      "file": "scripts/v0348-ui-checks.cjs",
+      "sha256": "8fff309f34104d5ded5539ed703de8709a75ab14ff2b4fe7b942f718a5a17928"
+    },
+    {
+      "file": "scripts/work-evidence-v0348.cjs",
+      "sha256": "cc04042c75cc01f65c668317e8c9ebe0e14e96ad378bd224efce4496f37eb230"
+    },
+    {
+      "file": "scripts/work-timeline-v0348.cjs",
+      "sha256": "12f5a4e2a4bdb78038669bd2267360bf20c59d0aa623942d2f476c49fb91c3d4"
+    },
+    {
+      "file": "tests/fixtures/v0.3.48/guard-boundaries.json",
+      "sha256": "dabb6901734b4bdfb414eb6cdbdb7f674ed11d6e30e297cdb2974bd3f0088f07"
+    }
+  ],
+  "suspicious": [],
+  "status": "PASS",
+  "scope": "Only changed project files and newly owned v0348 paths; no credential/private DB read",
+  "protected": [
+    {
+      "file": "reports/JiraActivityAnalyzer_v0.2.47_Background_Fetch_and_Activity_Events_UX_implementation_report.md",
+      "sha256": "9862e5dd2748f3c6624b94d4a98dbefc1146128766692dac1f92271a96e5934d"
+    },
+    {
+      "file": "reports/v0.3.47/WorkLedger.json",
+      "sha256": "5602e83d2c62e603e72132ce5e2c034d7bfa08778cfee4d73f1d2b1d484b2d00"
+    },
+    {
+      "file": "reports/v0.3.47/WorkTimeline.md",
+      "sha256": "e830ad7d9969b986bdbdee835afffcda22e17f789711f3e2bb43a0de96b3760b"
+    }
+  ]
+}

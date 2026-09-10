@@ -1,3 +1,11 @@
+# v0.3.48 - Bounded Diff Guard Recovery
+
+- Isolate typed per-event Description resource guards without dropping Raw/AI rows or lowering protection limits.
+- Reuse one bounded Diff result for display, filters, search and exports; keep unavailable metrics unknown.
+- Report incomplete Diff search coverage and include required row/query diagnostics in table exports.
+- Preserve global SQL/integrity errors; prevent stale exports and close interrupted worker diagnostic spans.
+- DEVELOPMENT win-unpacked ZIP; manual GUI acceptance pending. No Tag/Push until explicit acceptance.
+
 # v0.3.47 - Integrated AI Status and Display Source Consistency
 
 - Add five synchronized AI status selections, explicit-empty preferences, independent counts and distinct clear/reset actions.

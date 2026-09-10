@@ -1,0 +1,708 @@
+{
+  "sourceGate": "PASS",
+  "recordingQuality": "REPORT_INCOMPLETE",
+  "humanGate": "PENDING",
+  "baseline": "8cfab1bbb85f4ee0b9f912c00442b0ee96d1cab7",
+  "targetAppVersion": "0.3.48",
+  "deliveryMode": "DEVELOPMENT",
+  "artifactTargets": [
+    "win-unpacked"
+  ],
+  "scope": "SOURCE_EXECUTED_ARTIFACT_PENDING",
+  "tests": [
+    {
+      "id": "T48-01",
+      "requirementIds": [
+        "R48-01"
+      ],
+      "name": "舊路徑重現與邊界",
+      "expected": "真正helper：1413可解/1414觸發；兩來源fixture合法，保留修前失敗",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "baseline-1789033119673/baseline.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-02",
+      "requirementIds": [
+        "R48-02"
+      ],
+      "name": "一次bounded Diff",
+      "expected": "正常與guard每來源單次計算供metrics/text共用；不複製算法/調門檻",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-03",
+      "requirementIds": [
+        "R48-02"
+      ],
+      "name": "typed隔離與全局錯誤",
+      "expected": "只捕捉資源超限；SQL/schema/finding integrity/未知錯誤仍FAILED",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-04",
+      "requirementIds": [
+        "R48-03"
+      ],
+      "name": "Raw guard列保留",
+      "expected": "normal/guard/normal入快照，身份與原文不變，後列存在",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-05",
+      "requirementIds": [
+        "R48-03"
+      ],
+      "name": "AI Trace guard列保留",
+      "expected": "合法AI full trace，無Raw fallback，與AI Viewer來源一致",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-06",
+      "requirementIds": [
+        "R48-03"
+      ],
+      "name": "unknown與Before獨立",
+      "expected": "metrics null非0；Before存在仍可查看，不降級missing",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-07",
+      "requirementIds": [
+        "R48-04"
+      ],
+      "name": "16快篩組合",
+      "expected": "含guard與Comment，unknown保留但真缺Before依hideBeforeUnavailable排除",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-08",
+      "requirementIds": [
+        "R48-04"
+      ],
+      "name": "Diff文字搜尋覆蓋",
+      "expected": "confirmed/unknown分開，跨頁other candidate count正確；錯誤字串不索引",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-09",
+      "requirementIds": [
+        "R48-05"
+      ],
+      "name": "四種完整匯出",
+      "expected": "JSON/CSV visible/all完整rows+警告+逐列原因，非當頁；trace不改",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-10",
+      "requirementIds": [
+        "R48-05"
+      ],
+      "name": "匯出失敗及競態",
+      "expected": "write/SQL error、picker期間cancel、write期間cancel/DB switch等不發假成功檔",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-11",
+      "requirementIds": [
+        "R48-06"
+      ],
+      "name": "32種AI狀態選取",
+      "expected": "含guard rows，OR/AND與[]正確，Header/頂端一致",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.47/service-1789036281996/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-12",
+      "requirementIds": [
+        "R48-06"
+      ],
+      "name": "預設/清除/偏好",
+      "expected": "首次四種、clear五種且其他清除、saved[]、restart、A-B-A不重置",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.47/service-1789036281996/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-13",
+      "requirementIds": [
+        "R48-06"
+      ],
+      "name": "Raw基底與一般欄位",
+      "expected": "Raw有AI0/無link/partial/full/orphan/multi-findings；一Raw一列三欄取Raw",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.47/service-1789036281996/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-14",
+      "requirementIds": [
+        "R48-06"
+      ],
+      "name": "動態欄位/date/facet",
+      "expected": "尾列nested/array欄可選；date起訖/單邊/非法/邊界與狀態多選組合",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-15",
+      "requirementIds": [
+        "R48-06"
+      ],
+      "name": "錯誤UI/zero/舊結果",
+      "expected": "初始/failed null—，不no-match；舊結果標來源，DB切換不殘留跨DB資料",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-16",
+      "requirementIds": [
+        "R48-07"
+      ],
+      "name": "取消父子收尾",
+      "expected": "cancel/supersede/worker終止各已開span有真terminal、summary/replay一致",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/worker-1789036584430/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-17",
+      "requirementIds": [
+        "R48-07"
+      ],
+      "name": "cache與過期",
+      "expected": "warning成功snapshot可cache，新policy key；failed/cancel無cache，late不覆蓋",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/worker-1789036584430/report.json",
+        "test-artifacts/v0.3.48/paired-profile-1789035688033/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-18",
+      "requirementIds": [
+        "R48-08"
+      ],
+      "name": "診斷內容與有界",
+      "expected": "實際guard可定位身份/source/input特徵/stack；截斷總量明記無原文秘密",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/worker-1789036584430/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-19",
+      "requirementIds": [
+        "R48-09"
+      ],
+      "name": "正常呈現回歸",
+      "expected": "正常/unchanged/空/缺Before/compact/integrity/Comment/非Description",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.47/service-1789036281996/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-20",
+      "requirementIds": [
+        "R48-09"
+      ],
+      "name": "大型同條件量測",
+      "expected": "39,281 Raw/55AI含高距離guard；冷暖/匯出/資源分段，無整表失敗",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/paired-profile-1789035688033/report.json",
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-21",
+      "requirementIds": [
+        "R48-09"
+      ],
+      "name": "資料契約保真",
+      "expected": "受影響路徑hash/identity/evidence/Review未變，v200/v201合法import測試可引用未失效證據",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/focused-1789036938603/report.json",
+        "test-artifacts/v0.3.47/service-1789036281996/report.json",
+        "unchanged frozen contracts git diff exit0"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-22",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "typecheck/focused/build",
+      "expected": "真package scripts，source 必要Gate通過，不用input validator替代",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "WorkLedger commands typecheck/build exit0"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-23",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "production UI",
+      "expected": "正式UI正常/guard warning/全局error/cancel，App-only截圖，相關viewport/DPI",
+      "phase": "SOURCE_PRE_EXE",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "test-artifacts/v0.3.48/ui-1789036519938/report.json"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-24",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "DEVELOPMENT封裝完整性",
+      "expected": "只win-unpacked，source/build/hash/ASAR/目錄manifest/ZIP CRC，不含private/tests/DB/ENV",
+      "phase": "PACKAGED",
+      "applies": true,
+      "requiredNow": true,
+      "status": "NOT_RUN",
+      "evidence": [],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "T48-25",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "解壓ZIP實際EXE",
+      "expected": "隔離中文空白路徑，真bridge/native/SQLite/guard與clear/status/export，App-only",
+      "phase": "PACKAGED",
+      "applies": true,
+      "requiredNow": true,
+      "status": "NOT_RUN",
+      "evidence": [],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "T48-26",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "實際IO與close完整性",
+      "expected": "unpacked路徑與外部選擇理由，關閉後合成DB完整，無正式資料改動",
+      "phase": "PACKAGED",
+      "applies": true,
+      "requiredNow": true,
+      "status": "NOT_RUN",
+      "evidence": [],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "T48-27",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "人工GUI",
+      "expected": "使用者對指定候選明確v0.3.48 GUI 驗收 PASS",
+      "phase": "HUMAN",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PENDING",
+      "evidence": [],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "T48-28",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "活動帳最初檢查",
+      "expected": "第一工作項START/END涵蓋READ理解；時間/額度/公開事件真落盤可呈現",
+      "phase": "CONTINUOUS",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "WorkLedger READ-01"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "T48-29",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "全程帳與可讀聯表",
+      "expected": "phase+all operations+quota+codeChangeRefs數量/cutoff/重疊/缺口勾稽，非top5only",
+      "phase": "CONTINUOUS",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "WorkLedger/WorkTimeline reconciliation; recordingQuality REPORT_INCOMPLETE"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Audit performed; missing historical per-stage diffs/public events explicitly REPORT_INCOMPLETE."
+    },
+    {
+      "id": "T48-30",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "scope/Git/交付結算",
+      "expected": "baseline/dirty/LOC分類/規範hash/報告/source commits/GUI條件式Git與N/A_MODE",
+      "phase": "CONTINUOUS",
+      "applies": true,
+      "requiredNow": true,
+      "status": "PASS",
+      "evidence": [
+        "Implementation_Report and source-only git audit"
+      ],
+      "evidenceRequired": [
+        "sourceCommit",
+        "testOrOperationId",
+        "resultPath",
+        "assertions"
+      ],
+      "notes": "Source gates verified, artifact/human gates separate."
+    },
+    {
+      "id": "MODE-Installer",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "Installer專屬驗證",
+      "applies": false,
+      "requiredNow": false,
+      "status": "N/A_MODE",
+      "reason": "DEVELOPMENT target未選，無格式專項修改",
+      "evidence": []
+    },
+    {
+      "id": "MODE-Portable",
+      "requirementIds": [
+        "R48-10"
+      ],
+      "name": "Portable專屬驗證",
+      "applies": false,
+      "requiredNow": false,
+      "status": "N/A_MODE",
+      "reason": "DEVELOPMENT target未選，無格式專項修改",
+      "evidence": []
+    }
+  ]
+}

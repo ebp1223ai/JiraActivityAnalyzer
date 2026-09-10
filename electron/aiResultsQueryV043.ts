@@ -1,4 +1,5 @@
 import fs from "./businessIoDiagnosticsV044.js";
+import { createHash } from "node:crypto";
 import { descriptionDisplayV047, DISPLAY_POLICY_V047 } from "../shared/integratedDisplayV047.js";
 import { presentationMetricsV046 } from "../shared/activityPresentationV046.js";
 import { createFieldDiscoveryV044, indexFieldsV044, materializeRowV044, queryStageV044 } from "./aiResultsIndexV044.js";
@@ -53,12 +54,24 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
   let lastProgress = performance.now();
   const eventField = fieldIdV043("computed", ["eventTime"]);
   const metricCache = new Map<string, ReturnType<typeof presentationMetricsV046>>();
+  let totalGuardCount = 0, diffComputations = 0, diffMs = 0;
+  const guardSampleLimit = 20;
   const add = (row: Json, doc: Json) => {
     const reusable = !row.aiRecordId && typeof row.before === "string" && typeof row.after === "string" && row.before.length + row.after.length < 4096;
     const metricKey = reusable ? JSON.stringify([row.fieldId, row.fieldName, row.eventType, row.before, row.after]) : "";
     let metrics = metricKey ? metricCache.get(metricKey) : undefined;
-    if (!metrics) { metrics = descriptionDisplayV047(row); if (metricKey) { if (metricCache.size >= 128) metricCache.delete(metricCache.keys().next().value!); metricCache.set(metricKey, metrics); } }
+    if (!metrics) {
+      metrics = descriptionDisplayV047(row, text => createHash('sha256').update(text).digest('hex'));
+      diffComputations += (metrics as Json).diffComputationCount ?? 0; diffMs += (metrics as Json).diffComputationMs ?? 0;
+      if (metricKey && (metrics as Json).diffStatus !== 'GUARD') { if (metricCache.size >= 128) metricCache.delete(metricCache.keys().next().value!); metricCache.set(metricKey, metrics); }
+    }
     Object.assign(row, metrics);
+    if (row.diffStatus === 'GUARD') {
+      totalGuardCount++;
+      if (totalGuardCount <= guardSampleLimit) queryStageV044('description-diff-guard', 'POINT', { ...row.diffDiagnostic, activityEventId:row.activityEventId ?? row.id, aiRecordId:row.aiRecordId ?? null, analysisId:row.analysisId ?? null, displaySourceKind:row.displaySourceKind, processed:total, sample:totalGuardCount });
+    }
+    // Stack/inputs belong to bounded diagnostics, not the indexed/exported document.
+    delete row.diffDiagnostic;
     discover(doc);
     const v = typedValueV043(row.eventTime);
     insertCell.run(row.id, eventField, v.token, v.kind, v.text, v.number);
@@ -129,7 +142,9 @@ function createSnapshot(kind: "ai" | "integrated", aiPath: string | null, rawPat
       const name = field.segments[0] as string; registry.set(name, field);
     }
     for (const [alias, name] of Object.entries(aliases)) if (registry.has(name)) registry.set(alias, registry.get(name)!);
-    const metadata = { rawDatabaseIdentity: rawIdentity, aiRecordCount: aiRows.size, unmatchedAiCount: aiRows.size - matched, displaySourcePolicy: DISPLAY_POLICY_V047, matchedCount: matched, ambiguousCount: ambiguous, ambiguousLinkCount: [...aiRows.values()].filter(e => e.row.link?.raw_database_identity === rawIdentity && e.row.link?.link_status === 'AMBIGUOUS').length, integrationState: !aiPath ? "AI_DATABASE_CLOSED" : !aiRows.size ? "READY_NO_AI_RECORDS" : !matched ? "RELINK_REQUIRED" : matched === aiRows.size ? "FULL_MATCH" : "PARTIAL_MATCH" };
+    const metadata: Json = { rawDatabaseIdentity: rawIdentity, aiRecordCount: aiRows.size, unmatchedAiCount: aiRows.size - matched, displaySourcePolicy: DISPLAY_POLICY_V047, matchedCount: matched, ambiguousCount: ambiguous, ambiguousLinkCount: [...aiRows.values()].filter(e => e.row.link?.raw_database_identity === rawIdentity && e.row.link?.link_status === 'AMBIGUOUS').length, integrationState: !aiPath ? "AI_DATABASE_CLOSED" : !aiRows.size ? "READY_NO_AI_RECORDS" : !matched ? "RELINK_REQUIRED" : matched === aiRows.size ? "FULL_MATCH" : "PARTIAL_MATCH" };
+    Object.assign(metadata, { totalGuardCount, guardSampleCount:Math.min(totalGuardCount,guardSampleLimit), guardTruncatedCount:Math.max(0,totalGuardCount-guardSampleLimit), diffComputations, diffMs });
+    queryStageV044('description-diff-summary','POINT', { totalGuardCount, sampleCount:metadata.guardSampleCount, truncatedCount:metadata.guardTruncatedCount, diffComputations, diffMs });
     const snapshot = { db, registry, total, key, metadata, indexed: new Set([eventField]) };
     queryStageV044("field-discovery", "END", { processed: total, fieldCount: registry.size });
     queryStageV044("mapping-aggregation", "END", { processed: total, matched, ambiguous });
@@ -169,7 +184,7 @@ function predicates(snapshot: Snapshot, query: QueryV043, exclude?: string) {
       values.push(...filter.values);
     } else if (filter.text) {
       if (["array", "json"].includes(f.dataType)) throw new Error("CONTAINER_TEXT_FILTER_UNSUPPORTED");
-      terms.push(filter.operator === "exact" ? "c.text=?" : "instr(lower(c.text),lower(?))>0"); values.push(filter.text);
+      terms.push(filter.operator === "exact" ? "c.text=?" : filter.operator === "not-equal" ? "c.text<>?" : filter.operator === "not-contains" ? "instr(lower(c.text),lower(?))=0" : "instr(lower(c.text),lower(?))>0"); values.push(filter.text);
     }
     if (filter.min !== undefined || filter.max !== undefined) {
       for (const n of [filter.min, filter.max]) if (n !== undefined && (typeof n !== "number" || !Number.isFinite(n))) throw new Error("QUERY_NUMBER_INVALID");
@@ -194,7 +209,31 @@ function predicates(snapshot: Snapshot, query: QueryV043, exclude?: string) {
     if (id) { clauses.push(`NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text=\'DESCRIPTION\' WHERE c.row_id=d.id AND c.field_id=? AND c.number IS NOT NULL AND NOT(c.number${op}))`); binds.push(snapshot.registry.get("diffApplicability")!.path, id); }
   }
   if (query.diffQuickFilters?.hideBeforeUnavailable) { const id = snapshot.registry.get("beforeAvailability")?.path; if (id) { clauses.push("NOT EXISTS(SELECT 1 FROM cells c INDEXED BY cells_row JOIN cells applicable INDEXED BY cells_row ON applicable.row_id=c.row_id AND applicable.field_id=? AND applicable.text='DESCRIPTION' WHERE c.row_id=d.id AND c.field_id=? AND c.text='UNAVAILABLE')"); binds.push(snapshot.registry.get("diffApplicability")!.path, id); } }
+  if (Object.entries(query.filters ?? {}).some(([name,f]) => f.text && snapshot.registry.get(name)?.path === snapshot.registry.get('diffText')?.path && snapshot.registry.get(name)?.path !== excluded)) {
+    indexFieldsV044(snapshot,['diffSearchUnknown']);
+    const unknown = snapshot.registry.get('diffSearchUnknown');
+    if (unknown) { clauses.push("NOT EXISTS(SELECT 1 FROM cells u WHERE u.row_id=d.id AND u.field_id=? AND u.number=1)"); binds.push(unknown.path); }
+  }
   return { sql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", binds };
+}
+
+function diffCoverage(s: Snapshot, query: QueryV043) {
+  const diffPath = s.registry.get('diffText')?.path;
+  const searched = Object.entries(query.filters ?? {}).filter(([name,f]) => f.text && s.registry.get(name)?.path === diffPath).map(([name])=>name);
+  const count = (q: QueryV043, field: string, condition: string) => {
+    if (!s.registry.has(field)) return 0;
+    indexFieldsV044(s,[field]); const w = predicates(s,q);
+    return Number((s.db.prepare('SELECT COUNT(*) n FROM documents d '+w.sql+(w.sql?' AND ':' WHERE ')+'EXISTS(SELECT 1 FROM cells u WHERE u.row_id=d.id AND u.field_id=? AND '+condition+')').get(...w.binds,s.registry.get(field)!.path) as Json).n);
+  };
+  const candidates = { ...query, filters:Object.fromEntries(Object.entries(query.filters ?? {}).filter(([name])=>!searched.includes(name))) };
+  const warningCount = count(query,'diffStatus',"u.text='GUARD'");
+  const searchUnknownCount = searched.length ? count(candidates,'diffSearchUnknown','u.number=1') : 0;
+  return { warningCount, searchUnknownCount, searchCoverage:searchUnknownCount?'INCOMPLETE':'COMPLETE', resultStatus:warningCount||searchUnknownCount?'COMPLETED_WITH_WARNINGS':'COMPLETED' };
+}
+const exportDiagnosticFields = ['id','activityEventId','aiRecordId','analysisId','diffStatus','diffReason','displaySourceKind','beforeAvailability','addedLineCount','removedLineCount','isSubstantiveChange'];
+function exportFields(s: Snapshot, visible?: string[]) {
+  const names = visible ? [...visible,...exportDiagnosticFields] : [...s.registry.keys()].filter(k=>s.registry.get(k)?.path===k);
+  return [...new Map(names.map(id=>s.registry.get(id.replace(/^dynamic:/,''))).filter((f): f is FieldV043=>Boolean(f)).map(f=>[f.path,f])).values()];
 }
 function snapshotFor(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null) { const s = createSnapshot(kind, aiPath, rawPath); s.db.function("jaa_epoch", (v: any) => { const ms = Date.parse(String(v)); return Number.isFinite(ms) ? ms : null; }); return s; }
 export function queryResultsV043(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null, query: QueryV043 = {}, all = false) {
@@ -216,6 +255,7 @@ export function queryResultsV043(kind: "ai" | "integrated", aiPath: string | nul
   queryStageV044("row-mapping", "END", { rowCount: mappedRows.length });
   const statusCounts = kind === "integrated" ? distinctResultsV043(kind, aiPath, rawPath, "analysisStatus", query).values : undefined;
   const result = { ok: true, statusCounts, rows: mappedRows, fieldCatalog: [...s.registry].filter(([id, f]) => id === f.path).map(([, f]) => f), totalCount: s.total, filteredCount: count, page, pageSize: size, pageCount: Math.max(1, Math.ceil(count / size)), generation: s.key, ...s.metadata, durationMs: Date.now() - start };
+  Object.assign(result, diffCoverage(s,query));
   queryStageV044("sql-query", "END", { queryTemplate: sql, parameterTypes: binds.map(v => typeof v), queryId: "v043-document-page", totalCount: s.total, filteredCount: count, rowCount: result.rows.length, elapsedMs: result.durationMs });
   receipts[kind] = { queryPlan: s.db.prepare('EXPLAIN QUERY PLAN ' + sql).all(...binds), queryTemplate: sql, parameterTypes: binds.map(v => typeof v), scope: kind, total: s.total, filtered: count, elapsedMs: result.durationMs };
   return result;
@@ -236,8 +276,9 @@ export function distinctResultsV043(kind: "ai" | "integrated", aiPath: string | 
 export function exportResultsV043(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null, query: QueryV043, visible?: string[]) {
   const result = queryResultsV043(kind, aiPath, rawPath, { ...query, visibleFields: visible }, true);
   const s = snapshotFor(kind, aiPath, rawPath);
-  const fields = visible ? visible.map(id => s.registry.get(id.replace(/^dynamic:/, ""))).filter((f): f is FieldV043 => Boolean(f)) : result.fieldCatalog;
-  return { schemaName: "jaa-table-query-export", schemaVersion: "0.3.43", scope: visible ? "visible-columns" : "all-fields", completePackage: false, displaySourcePolicy: DISPLAY_POLICY_V047, snapshot: result.generation, totalCount: result.totalCount, filteredCount: result.filteredCount, fields: fields.map(f => ({ id: f.path, label: f.label })), rows: result.rows.map((row: Json) => Object.fromEntries(fields.map(f => [f.path, row.fieldValues[f.path]]))) };
+  const fields = exportFields(s,visible);
+  for (const row of result.rows) for (const name of exportDiagnosticFields) { const f=s.registry.get(name); if(f) row.fieldValues[f.path]=row[name]; }
+  return { schemaName: "jaa-table-query-export", schemaVersion: "0.3.43", scope: visible ? "visible-columns" : "all-fields", completePackage: false, displaySourcePolicy: DISPLAY_POLICY_V047, snapshot: result.generation, ...diffCoverage(s,query), totalCount: result.totalCount, filteredCount: result.filteredCount, fields: fields.map(f => ({ id: f.path, label: f.label })), rows: result.rows.map((row: Json) => Object.fromEntries(fields.map(f => [f.path, row.fieldValues[f.path]]))) };
 }
 export function latestQueryDiagnosticsV043() { const cacheBytes = [...cache.values()].reduce((n, s) => n + Number((s.db.prepare("PRAGMA page_count").get() as Json).page_count) * Number((s.db.prepare("PRAGMA page_size").get() as Json).page_size), 0); return { ...receipts, cacheEntries: cache.size, cacheBytes, cacheBudgetBytes: 256 * 1024 ** 2 }; }
 export function releaseOversizeResultCacheV045() { const state = latestQueryDiagnosticsV043(); if (state.cacheBytes > state.cacheBudgetBytes) { invalidateAiResultsV043(false); queryStageV044("cache-released", "POINT", { reason: "BYTE_BUDGET", bytes: state.cacheBytes }); } }
@@ -250,24 +291,27 @@ export function writeQueryExportV044(kind: "ai" | "integrated", ai: string | nul
   const s = snapshotFor(kind, ai, raw), where = predicates(s, query);
   if ((query as Json).expectedSnapshot && (query as Json).expectedSnapshot !== s.key) throw Error('EXPORT_SNAPSHOT_CHANGED');
   queryStageV044('export-snapshot', 'END', { snapshot: s.key, filteredCount: metadata.filteredCount });
-  const fields = visible ? visible.map(id => s.registry.get(id.replace(/^dynamic:/, ''))).filter((f): f is FieldV043 => Boolean(f)) : metadata.fieldCatalog;
+  const fields = exportFields(s,visible);
   const sort = s.registry.get(query.sort?.field ?? 'eventTime');
   const order = sort ? '(SELECT ' + (['number','boolean'].includes(sort.dataType) ? 'c.number' : sort.dataType === 'date' ? 'jaa_epoch(c.text)' : 'c.text') + ' FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) ' + (query.sort?.direction === 'asc' ? 'ASC' : 'DESC') + ',' : '';
   const sql = 'SELECT body FROM documents d ' + where.sql + ' ORDER BY ' + order + ' d.id';
   const header = { schemaName: 'jaa-table-query-export', schemaVersion: '0.3.43', scope: visible ? 'visible-columns' : 'all-fields', completePackage: false, displaySourcePolicy: DISPLAY_POLICY_V047, snapshot: metadata.generation, totalCount: metadata.totalCount, filteredCount: metadata.filteredCount, fields: fields.map(f => ({ id: f.path, label: f.label })) };
+  const coverage = diffCoverage(s,query);
+  Object.assign(header, coverage);
+  const csvMetadata = { queryWarningCount:coverage.warningCount, querySearchUnknownCount:coverage.searchUnknownCount, querySearchCoverage:coverage.searchCoverage, queryResultStatus:coverage.resultStatus };
   const fd = fs.openSync(target, 'wx'); let processed = 0, lastProgress = performance.now();
-  const csvCell = (value: unknown) => '"' + (value === undefined ? '' : JSON.stringify(value)).replace(/"/g, '""') + '"';
+  const csvCell = (value: unknown) => '"' + (value == null ? '' : JSON.stringify(value)).replace(/"/g, '""') + '"';
   queryStageV044('export-write', 'START', { total: metadata.filteredCount });
   let projectionMs = 0, serializationMs = 0, writeMs = 0;
   try {
-    fs.writeSync(fd, format === 'csv' ? '\uFEFF' + fields.map(f => csvCell(f.path)).join(',') + '\r\n' : JSON.stringify(header).slice(0, -1) + ',"rows":[');
+    fs.writeSync(fd, format === 'csv' ? '\uFEFF' + [...fields.map(f => csvCell(f.path)),...Object.keys(csvMetadata).map(csvCell)].join(',') + '\r\n' : JSON.stringify(header).slice(0, -1) + ',"rows":[');
     for (const item of s.db.prepare(sql).iterate(...where.binds, ...(sort ? [sort.path] : [])) as Iterable<Json>) {
       const projectionStart = performance.now();
       const row = materializeRowV044(item.body, s.registry, fields.map(f => f.path));
       const values = Object.fromEntries(fields.map(f => [f.path, row.fieldValues[f.path]]));
       projectionMs += performance.now() - projectionStart;
       const serializeStart = performance.now();
-      const encoded = format === 'csv' ? fields.map(f => csvCell(values[f.path])).join(',') + '\r\n' : (processed ? ',' : '') + JSON.stringify(values);
+      const encoded = format === 'csv' ? [...fields.map(f => csvCell(values[f.path])),...Object.values(csvMetadata).map(csvCell)].join(',') + '\r\n' : (processed ? ',' : '') + JSON.stringify(values);
       serializationMs += performance.now() - serializeStart;
       const writeStart = performance.now(); fs.writeSync(fd, encoded); writeMs += performance.now() - writeStart;
       processed++;
@@ -278,5 +322,5 @@ export function writeQueryExportV044(kind: "ai" | "integrated", ai: string | nul
   } finally { fs.closeSync(fd); }
   queryStageV044('export-write', 'END', { processed, total: metadata.filteredCount });
   queryStageV044('export-projection-serialization', 'POINT', { projectionMs, serializationMs, writeMs, rowCount: processed });
-  return { sizeBytes: fs.statSync(target).size, filteredCount: processed, snapshot: metadata.generation, projectionMs, serializationMs, writeMs };
+  return { sizeBytes: fs.statSync(target).size, filteredCount: processed, snapshot: metadata.generation, projectionMs, serializationMs, writeMs, ...diffCoverage(s,query) };
 }

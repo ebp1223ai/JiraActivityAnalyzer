@@ -1,0 +1,43 @@
+{
+  "source": "test-artifacts/v0.3.47/service-1789036281996/report.json",
+  "sha256": "b349653c8e26f2c5270e0cf92256b40612c4f01a5eb11810daf2564904ccf465",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "T47-01/02/04/05 status importer + 32 subsets + facet self exclusion",
+      "status": "PASS",
+      "ms": 12877.7338
+    },
+    {
+      "name": "T47-06 canonical selection + empty/absent and legacy prefs",
+      "status": "PASS",
+      "ms": 28.779199999999037
+    },
+    {
+      "name": "T47-09/10/11/12/21 same source metadata, missing/integrity and Raw fields",
+      "status": "PASS",
+      "ms": 30.900700000000143
+    },
+    {
+      "name": "T47-14/15 full 16 display-source quick filters, search/facet/sort",
+      "status": "PASS",
+      "ms": 211.67259999999987
+    },
+    {
+      "name": "T47-16/22 four whole-result exports and original trace/review preservation",
+      "status": "PASS",
+      "ms": 460.70350000000144
+    },
+    {
+      "name": "T47-03/12/20 error, no-AI, unpaired and DB identity separation",
+      "status": "PASS",
+      "ms": 162.3701000000001
+    },
+    {
+      "name": "T47-03/12 ambiguous association is Raw, no fanout or AI fallback",
+      "status": "PASS",
+      "ms": 271.5757999999987
+    }
+  ],
+  "screenshots": []
+}

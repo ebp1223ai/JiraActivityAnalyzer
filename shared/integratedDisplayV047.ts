@@ -1,9 +1,8 @@
 import { isDescriptionV046, presentationMetricsV046 } from './activityPresentationV046.js';
 import { traceContentV043 } from './aiResultProjectionV043.js';
-import { buildCanonicalLineDiff, canonicalizeDescriptionContent, DESCRIPTION_DIFF_LIMITS } from './descriptionDiff.js';
 
 type Json = Record<string, any>;
-export const DISPLAY_POLICY_V047 = 'v047-active-ai-description-1';
+export const DISPLAY_POLICY_V047 = 'v048-bounded-description-1';
 export const AI_STATUSES_V047 = ['CLASSIFIED', 'UNKNOWN', 'EXCLUDED', 'FAILED', 'NOT_ANALYZED'] as const;
 export const DEFAULT_AI_STATUSES_V047 = AI_STATUSES_V047.slice(0, 4);
 export const AI_STATUS_DEFINITIONS_V047 = [
@@ -37,7 +36,7 @@ export function integratedQueryV047<T extends Json>(query: T, missing: readonly 
 }
 
 // Derived presentation only: authoritative Raw/AI documents are never mutated.
-export function descriptionDisplayV047(row: Json) {
+export function descriptionDisplayV047(row: Json, diagnosticHash?: (text: string) => string) {
   if (!isDescriptionV046(row)) return presentationMetricsV046(row);
   const ai = Boolean(row.aiRecordId);
   const content = ai ? traceContentV043(row.sourceTrace ?? {}) : row;
@@ -48,16 +47,9 @@ export function descriptionDisplayV047(row: Json) {
   const verified = row.integrityStatus === 'VERIFIED' || content.diff?.integrityStatus === 'VERIFIED';
   const reason = ai && invalid ? 'AI_DIFF_INTEGRITY' : ai && !hasFull && !compact ? 'AI_DIFF_MISSING' : ai && !verified ? 'AI_DIFF_INTEGRITY' : '';
   const selected = { ...row, ...content, contentSource: ai ? 'ANALYSIS_TIME' : 'RAW_EVENT' };
-  const metrics = presentationMetricsV046(reason ? { ...selected, before:null, after:null, diffHunks:[] } : selected);
-  let diffText = '';
-  if (!reason && hasFull) {
-    const before = canonicalizeDescriptionContent(content.before), after = canonicalizeDescriptionContent(content.after);
-    if (before.parseable && after.parseable && before.displayText.length + after.displayText.length <= DESCRIPTION_DIFF_LIMITS.maxCharacters && before.displayText.split('\n').length <= DESCRIPTION_DIFF_LIMITS.maxLines && after.displayText.split('\n').length <= DESCRIPTION_DIFF_LIMITS.maxLines) {
-      diffText = buildCanonicalLineDiff(String(row.id), before.displayText, after.displayText).flatMap(h=>h.lines).map(l=>(l.kind==='insert'?'+ ':l.kind==='delete'?'- ':'  ')+l.text).join('\n');
-    }
-  } else if (!reason && compact) diffText = lines.map((l: Json)=>(['insert','add'].includes(l.kind)?'+ ':['delete','remove'].includes(l.kind)?'- ':'  ')+l.text).join('\n');
+  const metrics = presentationMetricsV046(reason ? { ...selected, before:null, after:null, diffHunks:[] } : selected, diagnosticHash);
   return { ...metrics, before:reason?null:content.before, after:reason?null:content.after,
-    diffHunks:reason?[]:content.diffHunks ?? [], diffText,
+    diffHunks:reason?[]:'computedDiffHunks' in metrics ? metrics.computedDiffHunks : [],
     contentSource:selected.contentSource, contentAvailability:reason?'UNAVAILABLE':content.contentAvailability ?? 'RAW_EVENT',
     displaySourceKind:ai?'AI':'RAW', displaySourcePolicy:DISPLAY_POLICY_V047,
     displayAvailability:reason?'UNAVAILABLE':hasFull?'FULL':compact?'COMPACT_ONLY':'PARTIAL',
