@@ -1,5 +1,6 @@
 import "./syntheticIoAuditV044.js";
 import { configureBusinessIoV044 } from './businessIoDiagnosticsV044.js';
+import { configureReadProjectionV049 } from './readProjectionV049.js';
 import { parentPort } from "node:worker_threads";
 import { DatabaseSync } from "node:sqlite";
 import {
@@ -19,7 +20,7 @@ export type ViewerWorkerOperation =
   | "descriptionOriginalPreviews" | "descriptionComparison" | "distinctValues" | "assertReadOnly"
   | "cacheDiagnostics" | "clearCache" | "__testDelay" | "__testCrash";
 
-type WorkerRunRequest = { type?: "run"; id: number; requestId: string; operation: ViewerWorkerOperation; databasePath: string; args: unknown[]; batchSize?: number; resume?: ProgressiveCheckpoint };
+type WorkerRunRequest = { type?: "run"; id: number; requestId: string; operation: ViewerWorkerOperation; databasePath: string; appRoot?: string; args: unknown[]; batchSize?: number; resume?: ProgressiveCheckpoint };
 type WorkerCancelRequest = { type: "cancel"; id: number; requestId: string };
 type WorkerRequest = WorkerRunRequest | WorkerCancelRequest;
 type WorkerResponse = { id: number; ok: true; value: unknown } | { id: number; ok: false; error: { code: string; message: string } };
@@ -85,7 +86,8 @@ workerPort.on("message", (request: WorkerRequest) => {
     cancelled.add(request.id);
     return;
   }
-  configureBusinessIoV044(ioDetails => workerPort.postMessage({ type: 'io-observation', id: request.id, ioDetails }));
+  configureReadProjectionV049(request.appRoot ?? '');
+  configureBusinessIoV044(ioDetails => workerPort.postMessage({ type: 'io-observation', id: request.id, ioDetails }),request.appRoot ?? '');
   void dispatch(request).then((value) => {
     const response: WorkerResponse = { id: request.id, ok: true, value };
     workerPort.postMessage(response);

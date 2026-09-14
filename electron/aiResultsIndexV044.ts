@@ -43,9 +43,13 @@ export type QueryStageV044 = (event: string, phase: 'START' | 'PROGRESS' | 'END'
 let observer: QueryStageV044 = () => {};
 export const setQueryObserverV044 = (next: QueryStageV044) => { observer = next; };
 export const queryStageV044: QueryStageV044 = (event, phase, details) => observer(event, phase, details);
-export type IndexedSnapshotV044 = { db: DatabaseSync; registry: Map<string, FieldV043>; indexed: Set<string> };
+export type IndexedSnapshotV044 = { db: DatabaseSync; registry: Map<string, FieldV043>; indexed: Set<string>; disk?: boolean; hydrate?: (ids: string[]) => Json[]; persistIndex?: () => void };
 
 export function indexFieldsV044(s: IndexedSnapshotV044, names: string[]) {
+  if(s.disk && s.persistIndex) {
+    const persisted=s.db.prepare('SELECT body FROM projection_state WHERE id=1').get() as Json;
+    for(const id of JSON.parse(persisted.body).indexed)s.indexed.add(id);
+  }
   const fields = [...new Set(names.map(name => s.registry.get(name)?.path).filter((v): v is string => Boolean(v)))].filter(id => !s.indexed.has(id)).map(id => s.registry.get(id)!);
   if (!fields.length) return;
   queryStageV044('facet-build', 'START', { fieldCount: fields.length });
@@ -57,17 +61,29 @@ export function indexFieldsV044(s: IndexedSnapshotV044, names: string[]) {
     // Predicate indexing needs scalar metadata, not repeated decoding of full source bodies.
     const hasCompact = Boolean(s.db.prepare("SELECT 1 FROM sqlite_master WHERE name='projections'").get());
     const compactSource = compact && hasCompact;
-    for (const stored of s.db.prepare(`SELECT id,body FROM ${compactSource ? 'projections' : 'documents'}`).iterate() as Iterable<Json>) {
+    function* sourceRows(): Generator<Json> {
+      if (!s.disk || compact || !s.hydrate) { yield* s.db.prepare(`SELECT id,body FROM ${compactSource ? 'projections' : 'documents'}`).iterate() as Iterable<Json>; return; }
+      let cursor: string | null = null;
+      while (true) {
+        const page = s.db.prepare('SELECT id FROM documents WHERE (? IS NULL OR id>?) ORDER BY id LIMIT 100').all(cursor,cursor) as Json[];
+        if (!page.length) break;
+        yield* s.hydrate(page.map(row => row.id)); cursor = page.at(-1)!.id;
+      }
+    }
+    for (const stored of sourceRows()) {
       const parsed = JSON.parse(stored.body);
       const doc = compactSource ? parsed : parsed.document;
       for (const field of fields) for (const value of resolveFieldV043(doc, field).flatMap(v => Array.isArray(v) && v.length ? v : [v])) {
-        const v = typedValueV043(value); insert.run(stored.id, field.path, v.token, v.kind, v.text, v.number);
+        const v = typedValueV043(value);
+        if (s.disk && field.dataType === 'date') { const epoch = Date.parse(String(value)); v.number = Number.isFinite(epoch) ? epoch : null; }
+        insert.run(stored.id, field.path, v.token, v.kind, v.text, v.number);
       }
       processed++;
       if (performance.now() - last > 500) { queryStageV044('facet-build', 'PROGRESS', { processed, total: null }); last = performance.now(); }
     }
     s.db.exec('COMMIT');
     fields.forEach(field => s.indexed.add(field.path));
+    s.persistIndex?.();
     queryStageV044('facet-build', 'END', { processed });
   } catch (error) { s.db.exec('ROLLBACK'); throw error; }
 }

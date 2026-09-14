@@ -129,6 +129,8 @@ export function DashboardPage() {
     });
   }, [query, overviewStatus, state.database.canRead, databaseIdentity]);
 
+  const {page: _distributionPage,pageSize: _distributionSize,sort: _distributionSort,...distributionScopeV049} = query;
+  const distributionFingerprintV049 = JSON.stringify(distributionScopeV049);
   useEffect(() => {
     if (!state.database.canRead || !issueInteractionReady) return;
     const requestId = ++distributionRequest.current;
@@ -144,7 +146,7 @@ export function DashboardPage() {
       setDistributionStatus("error");
       setDatabaseLoadStatus("error");
     });
-  }, [databaseIdentity, issueInteractionReady, query, state.database.canRead]);
+  }, [databaseIdentity, issueInteractionReady, distributionFingerprintV049, state.database.canRead]);
   useEffect(() => { void refresh(); }, [refresh, state.database.requestId]);
   useEffect(() => {
     void window.desktopApp?.uiPreferences?.get().then((loaded) => {

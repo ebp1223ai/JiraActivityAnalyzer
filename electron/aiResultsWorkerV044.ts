@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { createEnvelopeProducerV044, type DiagnosticContextV044 } from './diagnosticEnvelopeV044.js';
 import { queryResultsV043, distinctResultsV043, exportResultsV043, writeQueryExportV044, latestQueryDiagnosticsV043, releaseOversizeResultCacheV045 } from './aiResultsQueryV043.js';
 import { setQueryObserverV044 } from './aiResultsIndexV044.js';
+import { configureReadProjectionV049 } from './readProjectionV049.js';
 const port = parentPort!;
 let produce: ReturnType<typeof createEnvelopeProducerV044> | undefined;
 port.on('message', (job) => {
@@ -25,6 +26,8 @@ port.on('message', (job) => {
   };
   setQueryObserverV044(stage);
   configureBusinessIoV044(details => stage('file-io', 'POINT', details), job.appRoot ?? '');
+  configureReadProjectionV049(job.appRoot ?? '',job.action === 'projection-build');
+  stage('worker-start','POINT',{enqueueAt:job.enqueueAt,workerStartAt:Date.now(),queueMs:Math.max(0,Date.now()-(job.enqueueAt ?? Date.now())),requestKind:job.action});
   try {
     const { kind, ai, raw, query, field, search, visible } = job;
     if (process.env.JAA_UI_TEST_MODE === '1' && job.__testBarrier instanceof SharedArrayBuffer) {

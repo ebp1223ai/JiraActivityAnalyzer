@@ -846,8 +846,8 @@ instrumentedHandleV044("database-viewer:overview", async () => runDatabaseViewer
 instrumentedHandleV044("database-viewer:health-check", async () => runDatabaseViewer("database", "healthCheck"));
 instrumentedHandleV044("database-viewer:list-issues", async (_event, payload?: Record<string, unknown>) =>
   runDatabaseViewer("database-table", "listIssues", payload));
-instrumentedHandleV044("database-viewer:issue-distributions", async () =>
-  runDatabaseViewer("database-distributions", "issueDistributions"));
+instrumentedHandleV044("database-viewer:issue-distributions", async (_event, payload?: Record<string, unknown>) =>
+  runDatabaseViewer("database-distributions", "issueDistributions", payload));
 instrumentedHandleV044("database-viewer:get-issue", async (_event, payload: { issueKey?: string }) => {
   const issueKey = String(payload?.issueKey ?? "").trim().toUpperCase();
   try {

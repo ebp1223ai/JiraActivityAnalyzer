@@ -13,12 +13,14 @@ export class AiResultsServiceV044 {
   testQueryState() { return { armed: Boolean(this.testBarrier), entered: this.testBarrier ? Atomics.load(this.testBarrier, 1) : 0 }; }
   releaseTestQuery() { if (this.testBarrier) { Atomics.store(this.testBarrier, 0, 1); Atomics.notify(this.testBarrier, 0); this.testBarrier = undefined; } }
   constructor(private filename = path.join(__dirname, 'ai-results-worker-v044.cjs')) {}
-  run(owner: number, input: Json, onStage?: (stage: Json) => void | Promise<unknown>): Promise<any> {
-    const key = `${owner}:${input.kind}:read`;
+  async run(owner: number, input: Json, onStage?: (stage: Json) => void | Promise<unknown>): Promise<any> {
+    const category = input.action === 'facet' ? 'facet' : input.action.startsWith('export') ? 'export' : input.action === 'projection-build' ? 'build' : 'read';
+    const key = `${owner}:${input.kind}:${category}`;
+    if (category === 'facet') for (const id of this.lanes.get(key)?.pending.keys() ?? []) await this.cancel(owner,id,'SUPERSEDED');
     let lane = this.lanes.get(key);
     if (!lane) {
       // Read-only executors never own a user database transaction or background fetch.
-      if (this.lanes.size >= 4) return Promise.reject(new Error('QUERY_EXECUTOR_CAPACITY'));
+      if (this.lanes.size >= 8) return Promise.reject(new Error('QUERY_EXECUTOR_CAPACITY'));
       lane = { worker: new Worker(this.filename), pending: new Map() };
       const current = lane;
       this.lanes.set(key, current);
@@ -63,10 +65,16 @@ export class AiResultsServiceV044 {
     }
     if (lane.pending.has(input.requestId)) return Promise.reject(new Error('DUPLICATE_REQUEST_ID'));
     if (lane.pending.size >= 16) return Promise.reject(new Error('QUERY_QUEUE_FULL'));
-    return new Promise((resolve, reject) => {
+    const value = await new Promise<any>((resolve, reject) => {
       lane!.pending.set(input.requestId, { owner, requestId: input.requestId, onStage, resolve, reject, stages:new Map(), drain:Promise.resolve() });
-      lane!.worker.postMessage({ ...input, id: input.requestId, __testBarrier: process.env.JAA_UI_TEST_MODE === '1' && input.action === 'query' && input.kind === 'integrated' ? this.testBarrier?.buffer : undefined });
+      lane!.worker.postMessage({ ...input, enqueueAt:Date.now(), id: input.requestId, __testBarrier: process.env.JAA_UI_TEST_MODE === '1' && input.action === 'query' && input.kind === 'integrated' ? this.testBarrier?.buffer : undefined });
     });
+    if (value.projectionBuildRequired && category !== 'build' && !this.lanes.get(`${owner}:${input.kind}:build`)?.pending.size) {
+      value.projectionBuildRequestId=input.requestId+'-rebuild';
+      void this.run(owner,{...input,action:'projection-build',requestId:input.requestId+'-rebuild'},onStage).catch(error => onStage?.({event:'projection-build-failed',phase:'POINT',details:{code:error.message}}));
+    }
+    if(value.projectionBuildRequired) value.projectionBuildRequestId ??= this.lanes.get(`${owner}:${input.kind}:build`)?.pending.keys().next().value;
+    return value;
   }
   async cancel(owner: number, requestId: string, reason = 'CANCELLED') {
     for (const [key, lane] of this.lanes) {

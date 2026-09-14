@@ -1,3 +1,12 @@
+# v0.3.49 - Persistent Read Projections
+
+- Add independent, revision-bound SQLite read projections with validated atomic generations, stale-state visibility, cancellation and safe rebuild.
+- Query Tier 1 core fields and true multi-skill relations before page-bounded Raw/AI heavy hydration; index rare dynamic fields on demand.
+- Separate interactive, facet, export and build workers; cancel stale facets and reuse bounded facet results.
+- Decouple User lists from distributions, reuse safe quick-filter metrics and reduce Raw Issue repeated aggregation.
+- Preserve canonical authority, Diff guards, typed missing values and complete filtered export scope; verify synthetic 40k/100k datasets.
+- DEVELOPMENT: complete win-unpacked ZIP only. Manual GUI acceptance pending; no Tag/Push before explicit candidate acceptance.
+
 # v0.3.48 - Bounded Diff Guard Recovery
 
 - Isolate typed per-event Description resource guards without dropping Raw/AI rows or lowering protection limits.

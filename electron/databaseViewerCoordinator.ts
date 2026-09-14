@@ -1,4 +1,5 @@
 import path from "node:path";
+import { getAppRuntimeDir } from './appPaths.js';
 import { automaticDiagnosticsV044, diagnosticContextV044 } from './automaticDiagnosticsV044.js';
 import type { DiagnosticContextV044 } from './diagnosticEnvelopeV044.js';
 import { Worker } from "node:worker_threads";
@@ -119,7 +120,7 @@ class LaneCoordinator {
     const active = { ...task, id: ++this.sequence, timer: undefined as unknown as ReturnType<typeof setTimeout>, recoveryAttempts, settled: false, recoveryCheckpoint };
     this.active = active;
     this.armWatchdog(active);
-    this.ensureWorker().postMessage({ type: "run", id: active.id, requestId: active.requestId, operation: active.operation, databasePath: active.databasePath, args: active.args, batchSize: recoveryAttempts ? 50 : undefined, resume: recoveryCheckpoint });
+    this.ensureWorker().postMessage({ type: "run", id: active.id, requestId: active.requestId, operation: active.operation, databasePath: active.databasePath, appRoot:getAppRuntimeDir(), args: active.args, batchSize: recoveryAttempts ? 50 : undefined, resume: recoveryCheckpoint });
   }
 
   private armWatchdog(active: ActiveTask) {

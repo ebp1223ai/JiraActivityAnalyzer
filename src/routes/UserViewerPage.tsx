@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Activity, Database, MessageSquare, Search, UserRound, Wrench, X } from "lucide-react";
 import type { UserViewerScope } from "../../shared/userViewerScope";
 import { userViewerScopeKey } from "../../shared/userViewerScope";
@@ -47,6 +47,7 @@ let latestUserViewerRequest = 0;
 let latestUserProgressRequest = "";
 
 export function UserViewerPage() {
+  const distributionRequestV049 = useRef<{ key: string; promise: Promise<UserViewerDistributions | null> } | null>(null);
   const { state } = useRuntimeStatus();
   const { userViewer, setUserViewer } = useSessionState();
   const [preferences, setPreferences] = useState<UiPreferences | null>(null);
@@ -108,13 +109,18 @@ export function UserViewerPage() {
       const detailPromise = oneUserId ? window.desktopApp?.databaseViewer?.getUser({ userId: oneUserId, limit: 1, offset: 0 }) : Promise.resolve(null);
       const resultPromise = tab === "Related Issues" ? window.desktopApp?.databaseViewer?.userRelatedIssues({ scope, query }) : window.desktopApp?.databaseViewer?.userEvents({ requestId: progressRequestId, scope, query });
       const distributionQuery = tab === "Related Issues" ? query : { ...userViewer.relatedQuery, dateRange: query.dateRange };
-      const distributionPromise = window.desktopApp?.databaseViewer?.userDistributions({ scope, query: distributionQuery });
-      const [detail, result, distributions] = await Promise.all([detailPromise, resultPromise, distributionPromise]);
+      const { page: _page, pageSize: _size, sort: _sort, revision: _revision, ...distributionScope } = distributionQuery;
+      const distributionKey = JSON.stringify([databaseIdentity,scope,distributionScope]);
+      if(distributionRequestV049.current?.key !== distributionKey) distributionRequestV049.current = {key:distributionKey,promise:Promise.resolve(window.desktopApp?.databaseViewer?.userDistributions({scope,query:distributionQuery})).then(value=>value ?? null)};
+      void distributionRequestV049.current.promise.then(distributions=>{
+        if(requestId===latestUserViewerRequest) setUserViewer(current=>current.pendingRequestId===requestId?{...current,distributions}:current);
+      }).catch(error=>{ if(distributionRequestV049.current?.key===distributionKey) distributionRequestV049.current=null; recordTableRequest('failed',{requestId,tableId:'userDistributions',query:distributionQuery,startedAt,error}); });
+      void detailPromise?.then(detail=>{if(requestId===latestUserViewerRequest) setUserViewer(current=>current.pendingRequestId===requestId?{...current,detail:detail ?? null}:current);}).catch(error=>recordTableRequest('failed',{requestId,tableId:'userDetail',query,startedAt,error}));
+      const result = await resultPromise;
       if (requestId !== latestUserViewerRequest) return recordTableRequest("stale", { requestId, tableId, query: { ...query, scope: scope.kind }, startedAt });
       recordTableRequest("completed", { requestId, tableId, query: { ...query, scope: scope.kind }, startedAt, resultCount: result?.rows.length ?? 0 });
       if (tab !== "Related Issues") setEventProgress(null);
-      setUserViewer((current) => current.pendingRequestId !== requestId ? current : { ...current, detail: detail ?? null,
-        distributions: (distributions ?? current.distributions) as UserViewerDistributions | null, loadedScopeKey: scopeKey,
+      setUserViewer((current) => current.pendingRequestId !== requestId ? current : { ...current, loadedScopeKey: scopeKey,
         ...(tab === "Related Issues" ? { relatedResult: result ?? emptyResult, relatedCacheKey: cacheKey } : { allEventsResult: result ?? emptyResult, eventCacheKey: cacheKey }), status: "ready" });
     } catch (error) {
       recordTableRequest("failed", { requestId, tableId, query: { ...query, scope: scope.kind }, startedAt, error });

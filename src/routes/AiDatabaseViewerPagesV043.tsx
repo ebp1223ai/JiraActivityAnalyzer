@@ -8,7 +8,7 @@ import type { SqliteTableColumn } from "../components/SqliteDataTable";
 import { PageHeader } from "../components/PageHeader";
 import { SectionCard } from "../components/SectionCard";
 import { useRuntimeStatus } from "../state/RuntimeStatusContext";
-import type { ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
+import type { ViewerDistinctResult, ViewerTableQuery, ViewerTableResult } from "../types/activityViewerQuery";
 import type { ViewerTableSessionState } from "../types/databaseViewer";
 import type { TablePreferences } from "../types/uiPreferences";
 import { aiStatusLabelV043 } from "../../shared/aiResultProjectionV043";
@@ -20,6 +20,8 @@ type Saved = { query: ViewerTableQuery; preferences?: TablePreferences; session:
 const sessions = new Map<string, Saved>();
 const exportsInProgress = new Map<string, { id: string; startedAt: number; stage: string }>();
 const exportNotices = new Map<string, string>();
+const facetCacheV049 = new Map<string, ViewerDistinctResult>();
+const facetPromisesV049 = new Map<string,{id:string;promise:Promise<Json|undefined>}>();
 const requestId = () => `v043-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const empty: ViewerTableResult = { countsKnown:false, rows: [], totalCount: 0, filteredCount: 0, page: 1, pageSize: 50, pageCount: 1 };
 const initial = (kind: Variant): Saved => ({ query: kind === "integrated" ? integratedQueryV047({ page: 1, pageSize: 50 as const, sort: { field: "eventTime", direction: "desc" as const }, filters: {}, diffQuickFilters: { ...DEFAULT_DIFF_QUICK_FILTERS } }) : { page: 1, pageSize: 50, sort: { field: "eventTime", direction: "desc" }, filters: {} }, session: { scrollLeft: 0, scrollTop: 0, expandedRowIds: [] } });
@@ -42,6 +44,8 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
   const [loading, setLoading] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [stage, setStage] = useState("準備查詢"), [elapsed, setElapsed] = useState(0), [cancelRequested, setCancelRequested] = useState(false);
   const sequence = useRef(0), facets = useRef(new Set<string>());
+  const [facetStageV049,setFacetStageV049]=useState('');
+  useEffect(()=>window.desktopApp?.aiDatabase?.onQueryProgress(progress=>{if(facets.current.has(progress.requestId))setFacetStageV049(`篩選索引：${progress.stage}`);}),[]);
   const [exportJob, setExportJob] = useState<string | null>(null), [exportStage, setExportStage] = useState(""), [exportElapsed, setExportElapsed] = useState(0);
   const latest = useRef(""), alive = useRef(true), stateRef = useRef(saved);
   stateRef.current = saved;
@@ -81,7 +85,9 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
     const timer = window.setTimeout(() => { void window.desktopApp?.uiPreferences?.update({ section: "aiViewerScopes", value: { [scope]: saved } }).catch(e => { if (alive.current) setNotice(`偏好儲存失敗：${String(e)}`); }); }, 250);
     return () => window.clearTimeout(timer);
   }, [saved, hydrated, scope]);
-  const visibleProjection = JSON.stringify((saved.preferences?.visibleColumns ?? []).filter(id => id.startsWith('dynamic:')).slice().sort());
+  const projectionColumns = [...activityComparisonColumns('user-events'),...metadataColumns()];
+  const visibleIds = saved.preferences?.visibleColumns ?? projectionColumns.filter(c=>c.required || c.defaultVisible).map(c=>c.id);
+  const visibleProjection = JSON.stringify(visibleIds.slice().sort());
   const load = useCallback(async (force = false) => {
     if (!hydrated) return;
     const api = window.desktopApp?.aiDatabase; if (!api) return;
@@ -89,7 +95,7 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
     if (loading && latest.current) await api.cancelQuery({ requestId: latest.current });
     if (!alive.current || revision !== sequence.current) return;
     let id = requestId(); latest.current = id; setLoading(true); setResult(empty); setError(""); setStage("準備查詢"); setCancelRequested(false);
-    const payload = { ...saved.query, visibleFields: saved.preferences?.visibleColumns?.filter(id => id.startsWith("dynamic:")) ?? [], timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, requestId: id, aiDatabaseIdentity: aiIdentity, rawDatabaseIdentity: rawIdentity };
+    const payload = { ...saved.query, visibleFields: visibleIds.map(id=>projectionColumns.find(c=>c.id===id)?.queryField ?? id.replace(/^dynamic:/,'')), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, requestId: id, aiDatabaseIdentity: aiIdentity, rawDatabaseIdentity: rawIdentity };
     try {
       const key = JSON.stringify([DISPLAY_POLICY_V047, scope, contentRevision, saved.query, [...(payload.visibleFields ?? [])].sort()]);
       const cached = acquireAiResultV045(scope, key, id, () => kind === 'ai' ? api.queryResults(payload) : api.queryIntegrated(payload), force);
@@ -108,14 +114,24 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
     finally { if (alive.current && latest.current === id) setLoading(false); }
   }, [saved.query, visibleProjection, hydrated, kind, aiIdentity, rawIdentity, scope, contentRevision]);
   useEffect(() => { void load(); }, [load]);
-  const loadDistinct = useCallback(async (field: string, search: string) => {
-    const id = requestId();
+  const loadDistinct = useCallback(async (field: string, search: string, signal?: AbortSignal) => {
+    let id = requestId();
+    const fingerprint = JSON.stringify([scope,contentRevision,result.generation,field,search,saved.query.filters,saved.query.diffQuickFilters]);
+    const cached = facetCacheV049.get(fingerprint); if(cached) return cached;
+    const cancelFacet = () => { facetPromisesV049.delete(fingerprint);void window.desktopApp?.aiDatabase?.cancelQuery({requestId:id}); };
+    if(signal?.aborted) throw Error('CANCELLED');
+    signal?.addEventListener('abort',cancelFacet,{once:true});
     const revision = sequence.current; facets.current.add(id);
-    const response = await window.desktopApp?.aiDatabase?.distinct({ requestId: id, field, search, kind, query: { ...saved.query, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } }).finally(() => facets.current.delete(id));
+    let pending=facetPromisesV049.get(fingerprint);
+    if(pending){facets.current.delete(id);id=pending.id;facets.current.add(id);}
+    else {pending={id,promise:Promise.resolve(window.desktopApp?.aiDatabase?.distinct({requestId:id,field,search,kind,query:{...saved.query,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}}))};facetPromisesV049.set(fingerprint,pending);}
+    const response = await pending.promise.finally(() => {if(facetPromisesV049.get(fingerprint)?.id===id)facetPromisesV049.delete(fingerprint);facets.current.delete(id);if(alive.current&&!facets.current.size)setFacetStageV049('');signal?.removeEventListener('abort',cancelFacet);});
     if (!alive.current || revision !== sequence.current || response?.requestId !== id) throw new Error("STALE_FACET_RESPONSE");
     if (!response?.ok) throw new Error(response?.message ?? "FACET_QUERY_FAILED");
-    return { field, values: response.values.map((item: Json) => ({ ...item, label: ["analysisStatus", "reviewRank", "sourceLinkStatus", "sourceTraceStatus", "integrityStatus"].includes(field) ? aiStatusLabelV043(item.label) : item.label })), truncated: false };
-  }, [saved.query, kind, scope]);
+    const value = { field, values: response.values.map((item: Json) => ({ ...item, label: ["analysisStatus", "reviewRank", "sourceLinkStatus", "sourceTraceStatus", "integrityStatus"].includes(field) ? aiStatusLabelV043(item.label) : item.label })), truncated: false };
+    if(facetCacheV049.size>=32) facetCacheV049.delete(facetCacheV049.keys().next().value!);
+    facetCacheV049.set(fingerprint,value); return value;
+  }, [saved.query, kind, scope, contentRevision, result.generation]);
   useEffect(() => {
     if (!result.renderDiagnosticContext) return;
     let completed = false;
@@ -143,10 +159,12 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
   return <div className="min-w-0 space-y-4" data-testid={`${kind === "ai" ? "ai-results" : "integrated-results"}-page`}>
     <PageHeader title={kind === "ai" ? "AI 結果檢視" : "整合顯示結果"} subtitle={kind === "ai" ? "AI Results Viewer" : "Integrated Results"} connected={false} />
     {kind === "integrated" && result.integrationState ? <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm">{aiStatusLabelV043(result.integrationState)}</div> : null}
+    {result.projectionStale ? <div role="status" data-projection-stale="true" className="border-l-4 border-amber-500 bg-amber-50 p-3 text-sm">目前顯示舊版摘要，完整欄位暫不可用。新索引完成後請重新整理。<button className="btn" onClick={()=>void window.desktopApp?.aiDatabase?.cancelQuery({requestId:result.projectionBuildRequestId})}><X size={16}/>取消重建</button></div> : null}
     {kind === "integrated" ? <AiStatusFilterV047 selection={selection} result={displayResult} loading={loading} onChange={changeStatuses} onClear={clearAll} onReset={restoreDefaults} /> : null}
     {exportJob ? <div role="status" className="flex flex-wrap items-center gap-3 border-l-4 border-blue-500 bg-blue-50 p-3 text-sm"><span>{exportStage} · {exportElapsed.toFixed(1)} 秒</span><button className="btn" disabled={exportStage === "正在取消匯出…"} onClick={() => { const job = exportsInProgress.get(scope); if (job) job.stage = "正在取消匯出…"; setExportStage("正在取消匯出…"); void window.desktopApp?.aiDatabase?.cancelQuery({ requestId: exportJob }).then(r => setExportStage(r.executorStopped ? "已取消，未發布檔案" : "工作已完成或尚在選擇位置")).catch(e => setExportStage(`取消請求失敗：${String(e)}`)); }}><X size={16} />取消匯出</button></div> : null}
     {result.queryKey === JSON.stringify(saved.query) && (result.warningCount > 0 || result.searchUnknownCount > 0) ? <div role="status" data-query-warning="true" className="border-l-4 border-amber-500 bg-amber-50 p-3 text-sm">差異計算受限：{result.warningCount} 筆。{result.searchUnknownCount > 0 ? `搜尋範圍不完整：${result.searchUnknownCount} 筆 Diff 無法判定；清除 Diff 搜尋可查看。` : ""} 匯出會附加必要診斷欄與覆蓋資訊。</div> : null}
     {notice ? <p role="status" className="break-words text-sm">{notice}</p> : null}
+    {facetStageV049 ? <div role="status" className="flex items-center gap-3 text-sm">{facetStageV049}<button className="btn" onClick={()=>{for(const id of facets.current)void window.desktopApp?.aiDatabase?.cancelQuery({requestId:id});}}><X size={16}/>取消建立篩選索引</button></div> : null}
     {loading ? <div role="status" className="flex flex-wrap items-center gap-3 border-l-4 border-blue-500 bg-blue-50 p-3 text-sm"><span>{stage} · {elapsed.toFixed(1)} 秒</span><button className="btn" disabled={cancelRequested} onClick={() => void cancel()}><X size={16} />{cancelRequested ? "正在取消…" : "取消查詢"}</button></div> : null}
     {error && result.rows.length > 0 ? <p role="alert" className="text-sm text-amber-800">查詢未完成，下方保留上次成功結果：{error}</p> : null}
     <SectionCard title={loading && !result.generation ? "正在查詢完整資料…" : (displayResult.countsKnown === false ? "— / — 筆" : displayResult.filteredCount.toLocaleString() + " / " + displayResult.totalCount.toLocaleString() + " 筆")} subtitle={kind === "ai" ? "分析當時的事件快照" : "原始事件與唯一配對分析"} action={<div className="flex flex-wrap gap-2"><button className="btn" disabled={loading} onClick={() => void load(true)}><RefreshCw size={16} />重新整理</button><details className="relative"><summary className="btn cursor-pointer"><Download size={16} />匯出表格</summary><div className="absolute right-0 z-30 grid w-48 gap-2 border bg-white p-2 shadow-lg"><button className="btn" disabled={loading || Boolean(error) || displayResult.countsKnown === false} onClick={() => void exportRows(true)}>顯示欄位</button><button className="btn" disabled={loading || Boolean(error) || displayResult.countsKnown === false} onClick={() => void exportRows(false)}>全部欄位 JSON</button><button className="btn" disabled={loading || Boolean(error) || displayResult.countsKnown === false} onClick={() => void exportRows(true, "csv")}>顯示欄位 CSV</button><button className="btn" disabled={loading || Boolean(error) || displayResult.countsKnown === false} onClick={() => void exportRows(false, "csv")}>全部欄位 CSV</button></div></details></div>}>

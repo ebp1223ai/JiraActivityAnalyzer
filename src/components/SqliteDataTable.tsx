@@ -47,7 +47,7 @@ type Props = {
   emptySelectionFields?: string[];
   onClearFilters?: () => void;
   onQueryChange: (query: ViewerTableQuery) => void;
-  loadDistinct?: (field: string, search: string) => Promise<ViewerDistinctResult>;
+  loadDistinct?: (field: string, search: string, signal?: AbortSignal) => Promise<ViewerDistinctResult>;
   preferences?: TablePreferences;
   onPreferencesChange?: (preferences: TablePreferences) => void;
   sessionState?: ViewerTableSessionState;
@@ -108,9 +108,10 @@ export function SqliteDataTable({ tableId = "sqlite-table", fullResultFilters = 
   useEffect(() => {
     if (!activeColumn || (!fullResultFilters && activeColumn.kind !== "multi") || !loadDistinct) return;
     const requestId = ++distinctRequest.current;
+    const controller = new AbortController();
     const field = queryField(activeColumn);
     setDistinctLoading(true); setDistinctError("");
-    const timer = window.setTimeout(() => void loadDistinct(field, distinctSearch).then((next) => {
+    const timer = window.setTimeout(() => void loadDistinct(field, distinctSearch, controller.signal).then((next) => {
       if (requestId === distinctRequest.current) setDistinct(next);
     }).catch((error: unknown) => {
       if (requestId === distinctRequest.current) { setDistinct(null); setDistinctError(error instanceof Error ? error.message : String(error)); }
@@ -119,6 +120,7 @@ export function SqliteDataTable({ tableId = "sqlite-table", fullResultFilters = 
     }), 250);
     return () => {
       window.clearTimeout(timer);
+      controller.abort();
       distinctRequest.current += 1;
     };
   }, [activeColumn?.id, activeColumn?.kind, distinctSearch, loadDistinct]);

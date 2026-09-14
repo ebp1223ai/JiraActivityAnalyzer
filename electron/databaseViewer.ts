@@ -1,4 +1,5 @@
 import fs from "./businessIoDiagnosticsV044.js";
+import { userReadProjectionV049 } from './userReadProjectionV049.js';
 import path from "node:path";
 import crypto from "node:crypto";
 import { gunzipSync } from "node:zlib";
@@ -433,10 +434,12 @@ function issueFilterSql(filters: Row) {
   return { clause: where.length ? `WHERE ${where.join(" AND ")}` : "", parameters };
 }
 
-const ISSUE_QUERY_FROM = `
+const ISSUE_QUERY_BASE_V049 = `
   FROM source_objects o
   LEFT JOIN current_issue_snapshots s ON s.source_object_id = o.id
   LEFT JOIN issue_sync_states y ON y.source_object_id = o.id
+`;
+const ISSUE_QUERY_FROM = `${ISSUE_QUERY_BASE_V049}
   LEFT JOIN (
     SELECT source_object_id,
       COUNT(*) AS event_count,
@@ -1076,13 +1079,31 @@ async function queryDatabaseEventsProgressive(
       FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id
       LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id
       WHERE ${where} AND e.id > ? ORDER BY e.id ASC LIMIT ?`;
+    const projected = subject.kind==='user' && process.env.JAA_READ_PROJECTION_V049!=='0' && ['eventTime','action','issueKey'].includes(query.sortField);
+    let projectedCount: number | undefined;
+    let projectedIds: string[] | undefined;
+    if(projected){
+      const projection=await userReadProjectionV049(databasePath,event=>{
+        const classification=classifyViewerDiff(viewerDiffInputFromEventRow(event));
+        const names=['hideNoChange','hideZeroAdded','hideZeroDeleted','hideBeforeUnavailable'] as const;
+        const mask=names.reduce((mask,name,i)=>mask|(viewerDiffPassesFilters(classification,{hideNoChange:false,hideZeroAdded:false,hideZeroDeleted:false,hideBeforeUnavailable:false,[name]:true})?1<<i:0),0);
+        return {status:classification.status,mask};
+      },control);
+      db.prepare('ATTACH DATABASE ? AS user_projection_v049').run(projection);
+      const mask=['hideNoChange','hideZeroAdded','hideZeroDeleted','hideBeforeUnavailable'].reduce((mask,name,i)=>mask|((query.diffQuickFilters as unknown as Record<string,boolean>)[name]?1<<i:0),0);
+      const condition=`(${where}) AND (p.mask & ${mask})=${mask}`+(query.descriptionChangedOnly?query.includeBeforeUnavailable?" AND p.status IN ('changed','before-unavailable')":" AND p.status='changed'":'');
+      const from='FROM activity_events e JOIN source_objects o ON o.id=e.source_object_id LEFT JOIN current_issue_snapshots s ON s.source_object_id=o.id JOIN user_projection_v049.metrics p ON p.id=e.id';
+      projectedCount=Number(row(db.prepare(`SELECT COUNT(*) count ${from} WHERE ${condition}`).get(...parameters)).count);
+      const selectedPage=Math.min(query.page,Math.max(1,Math.ceil(projectedCount/query.pageSize)));
+      projectedIds=rows(db.prepare(`SELECT e.id ${from} WHERE ${condition} ORDER BY ${sortColumns[query.sortField]} ${query.sortDirection.toUpperCase()},p.tie_rank LIMIT ? OFFSET ?`).all(...parameters,query.pageSize,(selectedPage-1)*query.pageSize)).map(row=>String(row.id));
+    }
     let batchSize = Math.max(PROGRESSIVE_DIFF_CONFIG.reducedBatchSize, Math.min(PROGRESSIVE_DIFF_CONFIG.defaultBatchSize, Math.trunc(control.batchSize ?? PROGRESSIVE_DIFF_CONFIG.defaultBatchSize)));
     let cursor = control.resume?.cursor ?? "";
     let scanned = Math.max(0, Math.min(candidateTotal, Math.trunc(control.resume?.scanned ?? 0)));
     const matching: ProgressiveMatch[] = structuredClone(control.resume?.matching ?? []);
     let matchingBytes = matching.reduce((total, item) => total + Buffer.byteLength(item.eventId + JSON.stringify(item.sortValue ?? null), "utf8") + 32, 0);
     if (matchingBytes > PROGRESSIVE_DIFF_CONFIG.maxMatchingBytes) throw progressiveError("VIEWER_PROGRESSIVE_MATCH_LIMIT");
-    while (scanned < candidateTotal) {
+    while (!projectedIds && scanned < candidateTotal) {
       if (control.isCancelled?.()) throw progressiveError("VIEWER_REQUEST_CANCELLED");
       const batchStartedAt = now();
       const batch = rows(db.prepare(candidateSql).all(...parameters, cursor, batchSize));
@@ -1109,10 +1130,10 @@ async function queryDatabaseEventsProgressive(
     }
     if (control.isCancelled?.()) throw progressiveError("VIEWER_REQUEST_CANCELLED");
     matching.sort((left, right) => compareProgressiveValue(left.sortValue, right.sortValue, query.sortDirection) || left.eventId.localeCompare(right.eventId));
-    const filteredCount = matching.length;
+    const filteredCount = projectedCount ?? matching.length;
     const pageCount = Math.max(1, Math.ceil(filteredCount / query.pageSize));
     const page = Math.min(query.page, pageCount);
-    const pageIds = matching.slice((page - 1) * query.pageSize, page * query.pageSize).map((item) => item.eventId);
+    const pageIds = projectedIds ?? matching.slice((page - 1) * query.pageSize, page * query.pageSize).map((item) => item.eventId);
     let enrichedRows: Row[] = [];
     if (pageIds.length) {
       const placeholders = pageIds.map(() => "?").join(",");
@@ -1310,7 +1331,8 @@ export function listDatabaseIssues(databasePath: string, input: IssueQuery = {})
     const clause = where.length ? "WHERE " + where.join(" AND ") : "";
     const parameters = [...filters.parameters, ...scope.parameters];
     const databaseTotal = Number(row(db.prepare("SELECT COUNT(*) AS count FROM source_objects").get()).count ?? 0);
-    const filteredTotal = Number(row(db.prepare(`SELECT COUNT(*) AS count ${ISSUE_QUERY_FROM} ${clause}`).get(...parameters)).count ?? 0);
+    const countFrom = /\bec\./.test(clause) ? ISSUE_QUERY_FROM : ISSUE_QUERY_BASE_V049;
+    const filteredTotal = !clause ? databaseTotal : Number(row(db.prepare(`SELECT COUNT(*) AS count ${countFrom} ${clause}`).get(...parameters)).count ?? 0);
     const pageCount = Math.max(1, Math.ceil(filteredTotal / query.pageSize));
     const page = Math.min(query.page, pageCount);
     const offset = (page - 1) * query.pageSize;
