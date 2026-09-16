@@ -14,6 +14,7 @@ import { useRuntimeStatus } from "../state/RuntimeStatusContext";
 import type { DatabaseIssueDistributions, DatabaseIssueQuery, DatabaseIssueQueryResult } from "../types/databaseQuery";
 import type { DatabaseIssueListPreferences } from "../types/uiPreferences";
 import { ALL_TIME_DATE_RANGE } from "../types/dateRange";
+import { DatabaseOpenStatusV050 } from "../components/DatabaseOpenStatusV050";
 
 type Overview = {
   status?: string;
@@ -89,7 +90,6 @@ export function DashboardPage() {
       setIssueStatus("idle");
       return;
     }
-    setDatabaseLoadStatus("loading");
     setOverviewStatus("loading");
     void window.desktopApp?.databaseViewer?.overview().then((summary) => {
       if (requestId !== overviewRequest.current) return;
@@ -139,12 +139,10 @@ export function DashboardPage() {
       if (requestId !== distributionRequest.current) return;
       setDistributions(result ?? null);
       setDistributionStatus("ready");
-      setDatabaseLoadStatus("ready");
     }).catch((reason) => {
       if (requestId !== distributionRequest.current) return;
       setNotice(reason instanceof Error ? reason.message : String(reason));
       setDistributionStatus("error");
-      setDatabaseLoadStatus("error");
     });
   }, [databaseIdentity, issueInteractionReady, distributionFingerprintV049, state.database.canRead]);
   useEffect(() => { void refresh(); }, [refresh, state.database.requestId]);
@@ -214,6 +212,7 @@ export function DashboardPage() {
   return (
     <div className="min-w-0">
       <PageHeader title="資料庫總覽" subtitle="Database Overview" connected={state.database.canRead} />
+      <DatabaseOpenStatusV050 />
 
       <DatabaseOverviewToolbar testId="raw-database-primary-actions">
         <button data-testid="select-existing-database" className="btn" type="button" onClick={() => void selectDatabase()}><FileInput size={16} />選擇既有 / Select</button>
@@ -228,7 +227,7 @@ export function DashboardPage() {
 
       <SectionCard title="目前資料庫" subtitle="Current Database">
         <div className="grid min-w-0 grid-cols-1 gap-3 text-sm font-semibold md:grid-cols-2 xl:grid-cols-4">
-          <div><b>Status：</b>{state.database.status === "CHECKING" ? "Connecting" : !state.database.canRead ? (state.database.status === "NOT_CONFIGURED" ? "Not configured" : "Error") : issueInteractionReady && distributionStatus === "ready" ? "Ready" : "Loading"}</div>
+          <div><b>Status：</b>{state.database.status === "CHECKING" ? "Connecting" : !state.database.canRead ? (state.database.status === "NOT_CONFIGURED" ? "Not configured" : "Error") : "Critical Ready"}{state.database.canRead && overviewStatus === 'loading' ? ' · Overview Loading' : ''}</div>
           <div><b>Compatibility：</b>{state.database.reasonCode}</div>
           <div><b>Read：</b>{state.database.canRead ? "Available" : "Unavailable"}</div>
           <div><b>Write：</b>{state.database.canWrite ? "Available" : "Unavailable"}</div>
@@ -247,12 +246,12 @@ export function DashboardPage() {
       {state.database.canRead ? (
         <>
           <ResponsiveMetricGrid className="mt-4" min={180}>
-            <MetricCard label="Issue 數量" sub="Total Issues" value={value(counts, "totalIssues", "0")} icon={FileText} />
-            <MetricCard label="目前快照" sub="Snapshots" value={value(counts, "totalSnapshots", "0")} icon={FileClock} />
-            <MetricCard label="完整 Payload" sub="Full Fetch Payloads" value={value(counts, "totalPayloads", "0")} icon={Database} />
-            <MetricCard label="活動事件" sub="Activity Events" value={value(counts, "totalEvents", "0")} icon={Activity} />
-            <MetricCard label="留言事件" sub="Comments" value={value(counts, "comments", "0")} icon={MessageSquare} />
-            <MetricCard label="欄位變更" sub="Field Changes" value={value(counts, "fieldChanges", "0")} icon={RefreshCw} />
+            <MetricCard label="Issue 數量" sub="Total Issues" value={value(counts, "totalIssues", "—")} icon={FileText} />
+            <MetricCard label="目前快照" sub="Snapshots" value={value(counts, "totalSnapshots", "—")} icon={FileClock} />
+            <MetricCard label="完整 Payload" sub="Full Fetch Payloads" value={value(counts, "totalPayloads", "—")} icon={Database} />
+            <MetricCard label="活動事件" sub="Activity Events" value={value(counts, "totalEvents", "—")} icon={Activity} />
+            <MetricCard label="留言事件" sub="Comments" value={value(counts, "comments", "—")} icon={MessageSquare} />
+            <MetricCard label="欄位變更" sub="Field Changes" value={value(counts, "fieldChanges", "—")} icon={RefreshCw} />
           </ResponsiveMetricGrid>
 
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">

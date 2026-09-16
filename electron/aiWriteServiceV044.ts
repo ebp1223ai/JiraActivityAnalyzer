@@ -33,6 +33,7 @@ export class AiWriteServiceV044 {
     return { requested: phase === 0 || phase === 1, reason: phase >= 2 ? 'CANCEL_TOO_LATE_COMMIT_BARRIER' : 'CANCEL_REQUESTED', cancelled: false };
   }
   state() { return this.active ? { requestId: this.active.requestId, phase: Atomics.load(this.active.control, 0), running: true, startedAt: this.active.startedAt, stage: this.active.stage } : { running: false }; }
+  async waitForIdle() { while (this.active) await this.active.promise.catch(() => {}); }
   async close() { if (this.active) { this.cancel(this.active.owner, this.active.requestId); await this.active.promise.catch(() => {}); } }
 }
 export const aiWriteServiceV044 = new AiWriteServiceV044();

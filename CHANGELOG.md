@@ -1,3 +1,12 @@
+# v0.3.50 - Viewer Lifecycle and Large Database Responsiveness
+
+- Keep valid queries alive across route detach, reuse bounded completed/in-flight results and preserve restored preferences; fresh profiles use six core columns with Diff off.
+- Split lightweight Critical Ready from full background database health checks without weakening integrity or write policy.
+- Reuse exact Raw fingerprints across workers only under live revision and file/WAL identity proof; retain full hashing on invalidation.
+- Move AI database initialization to the existing Write Worker with exclusive publication and selection-change protection.
+- Add pre-query timing coverage, event-loop diagnostics, safe sidecar integrity receipts and focused synthetic regression evidence.
+- DEVELOPMENT candidate: complete win-unpacked ZIP only; manual Windows GUI acceptance pending. No Tag/Push before explicit candidate acceptance.
+
 # v0.3.49 - Persistent Read Projections
 
 - Add independent, revision-bound SQLite read projections with validated atomic generations, stale-state visibility, cancellation and safe rebuild.

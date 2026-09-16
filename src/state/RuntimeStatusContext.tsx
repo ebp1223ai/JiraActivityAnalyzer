@@ -58,7 +58,7 @@ export function RuntimeStatusProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (state.database.status === "CHECKING") setDatabaseLoadStatus("connecting");
     else if (state.database.status === "NOT_CONFIGURED") setDatabaseLoadStatus("not-configured");
-    else if (state.database.canRead) setDatabaseLoadStatus("loading");
+    else if (state.database.canRead) setDatabaseLoadStatus("ready");
     else setDatabaseLoadStatus("error");
   }, [state.database.requestId, state.database.status, state.database.canRead]);
   async function retryJira() {
@@ -74,9 +74,13 @@ export function RuntimeStatusProvider({ children }: { children: React.ReactNode 
   }
 
   async function selectExistingDatabase() {
-    const result = await window.desktopApp?.databases?.selectExisting?.();
-    if (result?.state) setState(result.state);
-    return result ?? null;
+    setDatabaseLoadStatus('connecting');
+    try {
+      const result = await window.desktopApp?.databases?.selectExisting?.();
+      if (result?.state) setState(result.state);
+      setDatabaseLoadStatus(result?.state.database.canRead ? 'ready' : result?.canceled ? state.database.canRead ? 'ready' : 'not-configured' : 'error');
+      return result ?? null;
+    } catch (error) { setDatabaseLoadStatus(state.database.canRead ? 'ready' : 'error'); throw error; }
   }
 
   async function createNewDatabase() {

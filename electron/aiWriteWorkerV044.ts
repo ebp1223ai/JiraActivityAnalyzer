@@ -4,7 +4,7 @@ import { parentPort } from 'node:worker_threads';
 import { randomUUID } from 'node:crypto';
 import { createEnvelopeProducerV044 } from './diagnosticEnvelopeV044.js';
 import { DatabaseSync } from 'node:sqlite';
-import { importAiAnalysisPackageV042, validateAiAnalysisPackageV042, recordSourceLinkAttemptV042 } from './aiAnalysisDatabaseV042.js';
+import { initializeAiDatabaseV042, importAiAnalysisPackageV042, validateAiAnalysisPackageV042, recordSourceLinkAttemptV042 } from './aiAnalysisDatabaseV042.js';
 const port = parentPort!;
 port.on('message', job => {
   const flag = new Int32Array(job.control);
@@ -22,7 +22,8 @@ port.on('message', job => {
     stage('write.' + job.action, 'START');
     safePoint();
     let value: unknown;
-    if (job.action === 'preflight') value = validateAiAnalysisPackageV042(job.input).preview;
+    if (job.action === 'initialize') { value = initializeAiDatabaseV042(job.input); safePoint(); }
+    else if (job.action === 'preflight') value = validateAiAnalysisPackageV042(job.input).preview;
     else if (job.action === 'import') value = importAiAnalysisPackageV042({ ...job.input, isCancelled: cancelled, beforeCommit: () => { if (Atomics.compareExchange(flag, 0, 0, 2) === 1) throw Error('CANCELLED'); port.postMessage({ type: 'progress', stage: 'commit-barrier', requestId: job.requestId }); } });
     else if (job.action === 'relink') {
       const raw = new DatabaseSync(job.rawPath, { readOnly: true }), ai = new DatabaseSync(job.databasePath, { readOnly: true });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, FolderOpen, FileSearch } from 'lucide-react';
+import { monitorEventLoopV050 } from '../../shared/eventLoopLagV050';
 
 export function AutomaticDiagnosticsStatusV044() {
   const { pathname } = useLocation();
@@ -8,6 +9,9 @@ export function AutomaticDiagnosticsStatusV044() {
   const [state, setState] = useState<Record<string, any> | null>(null);
   const [show, setShow] = useState(false);
   const [exportNotice, setExportNotice] = useState("");
+  useEffect(() => monitorEventLoopV050(sample => {
+    void window.desktopApp?.appDiagnostics?.reportRendererEvent({ event: 'event-loop-lag', ...sample, measuredProcess: 'renderer' }).catch(() => {});
+  }), []);
   useEffect(() => {
     let alive = true, recovered = false;
     const update = async () => {

@@ -1,7 +1,7 @@
 {
   "name": "jira-activity-analyzer",
   "private": true,
-  "version": "0.3.49",
+  "version": "0.3.50",
   "description": "Electron desktop analyzer with bundled Codex local-workspace AI analysis and canonical debug evidence.",
   "author": "COPGEN",
   "type": "module",
@@ -146,7 +146,12 @@
     "test:ui:v0.3.46": "node scripts/test-v0346-ui.cjs",
     "package:v0.3.46": "node scripts/package-v0346.cjs",
     "test:v0.3.45": "node scripts/test-v0345.cjs",
-    "test:v0.3.44": "node scripts/test-v0344.cjs && node scripts/test-v0344-correctness.cjs && node scripts/test-v0343.cjs && node scripts/test-v0343-integration.cjs && node scripts/test-v0343-correctness.cjs"
+    "test:v0.3.44": "node scripts/test-v0344.cjs && node scripts/test-v0344-correctness.cjs && node scripts/test-v0343.cjs && node scripts/test-v0343-integration.cjs && node scripts/test-v0343-correctness.cjs",
+    "test:v0.3.50": "node scripts/test-v0350-focused.cjs && node scripts/test-v0350.cjs && node scripts/test-v0350-lifecycle.cjs && node scripts/test-v0350-resume.cjs",
+    "test:ui:v0.3.50": "node scripts/test-v0350-ui.cjs",
+    "test:performance:v0.3.50": "node scripts/profile-v0350.cjs",
+    "package:v0.3.50": "node scripts/package-v0350.cjs",
+    "test:delivery:v0.3.50": "node scripts/test-v0350-delivery.cjs"
   },
   "dependencies": {
     "@openai/codex": "0.147.0",

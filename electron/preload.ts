@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld("desktopApp", {
     }
   },
   databases: {
+    openState: () => ipcRenderer.invoke("database:open-state"),
+    cancelOpen: () => ipcRenderer.invoke("database:cancel-open"),
     checkPath: (payload?: { filePath?: string }) => ipcRenderer.invoke("database:check-path", payload),
     selectExisting: (payload?: { filePath?: string }) => ipcRenderer.invoke("database:select-existing", payload),
     createNew: (payload?: { filePath?: string }) => ipcRenderer.invoke("database:create-new", payload)
@@ -154,7 +156,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
   aiDatabase: {
     cancelWrite: (payload: { requestId: string }) => ipcRenderer.invoke("ai-database:cancel-write", payload),
     writeState: () => ipcRenderer.invoke("ai-database:write-state"),
-    cancelQuery: (payload: { requestId: string }) => ipcRenderer.invoke("ai-database:cancel-query", payload),
+    cancelQuery: (payload: { requestId: string; reason?: 'USER_CANCEL' | 'SUPERSEDED' }) => ipcRenderer.invoke("ai-database:cancel-query", payload),
     onQueryProgress: (callback: (value: Record<string, any>) => void) => { const listener = (_event: Electron.IpcRendererEvent, value: Record<string, any>) => callback(value); ipcRenderer.on("ai-database:query-progress", listener); return () => ipcRenderer.removeListener("ai-database:query-progress", listener); },
     lifecycle: (payload: unknown) => ipcRenderer.invoke("ai-database:lifecycle", payload),
     create: (payload: unknown) => ipcRenderer.invoke("ai-database:create", payload),

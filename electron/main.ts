@@ -6,6 +6,7 @@ import { instrumentedHandleV044, ipcCoverageV044 } from "./instrumentedIpcV044.j
 import { configureBusinessIoV044 } from "./businessIoDiagnosticsV044.js";
 import { AutomaticDiagnosticsV044, setAutomaticDiagnosticsV044 } from "./automaticDiagnosticsV044.js";
 import { aiResultsServiceV044 } from "./aiResultsServiceV044.js";
+import { DatabaseCompatibilityV050 } from "./databaseCompatibilityV050.js";
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell, powerMonitor } from "electron";
 import fs from "./businessIoDiagnosticsV044.js";
 import crypto from "node:crypto";
@@ -775,6 +776,12 @@ async function runJiraStartupCheck() {
   }
 }
 
+const databaseCompatibilityV050 = new DatabaseCompatibilityV050(undefined,
+  value => runtimeCoordinator?.acceptDatabaseHealth(value),
+  (stage, details) => { void automaticDiagnostics.event(stage, 'POINT', details); });
+instrumentedHandleV044("database:open-state", async () => databaseCompatibilityV050.state);
+instrumentedHandleV044("database:cancel-open", async () => databaseCompatibilityV050.cancel());
+
 async function runDatabaseStartupCheck() {
   try {
     const config = loadEffectiveRuntimeConfig();
@@ -782,7 +789,7 @@ async function runDatabaseStartupCheck() {
     const jiraIdentity = runtimeCoordinator?.snapshot().jira.status === "CONNECTED"
       ? runtimeCoordinator.snapshot().jira.serverIdentity
       : "";
-    const compatibility = checkDatabaseCompatibility(databasePath, jiraIdentity);
+    const compatibility = await databaseCompatibilityV050.open(databasePath, jiraIdentity);
     return { ...compatibility, migration: latestSourceArchiveMigration };
   } catch {
     return {
@@ -1025,7 +1032,7 @@ instrumentedHandleV044("database:check-path", async (_event, payload?: { filePat
   const jiraIdentity = getRuntimeCoordinator().snapshot().jira.status === "CONNECTED"
     ? getRuntimeCoordinator().snapshot().jira.serverIdentity
     : "";
-  return checkDatabaseCompatibility(resolved, jiraIdentity);
+  return databaseCompatibilityV050.open(resolved, jiraIdentity);
 });
 
 instrumentedHandleV044("database:select-existing", async (_event, payload?: { filePath?: string }) => {
@@ -1045,12 +1052,13 @@ instrumentedHandleV044("database:select-existing", async (_event, payload?: { fi
   const jiraIdentity = getRuntimeCoordinator().snapshot().jira.status === "CONNECTED"
     ? getRuntimeCoordinator().snapshot().jira.serverIdentity
     : "";
+  const checked = await databaseCompatibilityV050.open(path.resolve(selectedPath), jiraIdentity);
   const selected = validateAndSaveDatabaseSelection({
     appRoot: getAppRuntimeDir(),
     envPath: resolveCurrentEnvPath(),
     selectedPath,
     currentJiraIdentity: jiraIdentity,
-    check: checkDatabaseCompatibility
+    check: () => checked
   });
   const validation = selected.validation;
   if (!selected.saved) {
@@ -3317,6 +3325,13 @@ instrumentedHandleV044("user-analysis:export-source-archive", async (_event, pay
 
 instrumentedHandleV044("diagnostics:renderer-event", async (_event, payload: Record<string, unknown>) => {
   const event = text(payload?.event) || "renderer_event";
+  if (event === 'viewer-query' || event === 'event-loop-lag') {
+    const safe: Record<string, unknown> = {};
+    for (const key of ['stage','reason','loadReason','state','keyHash','scopeHash','severity','measuredProcess','measuredAtUtc','requestId','evictionReason']) if (typeof payload[key] === 'string') safe[key] = String(payload[key]).slice(0,128);
+    for (const key of ['elapsedMs','lagMs','entryBytes','cacheBytes','cacheEntries']) if (typeof payload[key] === 'number' && Number.isFinite(payload[key])) safe[key] = payload[key];
+    await automaticDiagnostics.event(event, 'POINT', safe);
+    return { ok: true, incidentId: '' };
+  }
   if (event === "ui-command") { const p = payload as Record<string, any>; if (!["button","summary","select","input"].includes(p.control)) return { ok: false, incidentId: "" }; await automaticDiagnostics.event("ui-command", "POINT", { control: p.control, reason: "CLIENT_CONTROL_NO_VALUE_CAPTURED" }); return { ok: true, incidentId: "" }; }
   if (event === "query-render" || event === "navigation-shell") {
     const p = payload as Record<string, any>;
@@ -6274,7 +6289,7 @@ let diagnosticsShutdown = false;
 app.on("before-quit", event => {
   if (diagnosticsShutdown) return;
   event.preventDefault(); diagnosticsShutdown = true; automaticDiagnostics.beginShutdown();
-  void Promise.allSettled([stopChatGptService(), databaseViewerCoordinator.close(), aiResultsServiceV044.close(), aiWriteServiceV044.close()]).then(async () => {
+  void Promise.allSettled([stopChatGptService(), databaseCompatibilityV050.cancel(), databaseViewerCoordinator.close(), aiResultsServiceV044.close(), aiWriteServiceV044.close()]).then(async () => {
     persistentDiagnostics.close("closed"); await automaticDiagnostics.close(); app.quit();
   });
 });

@@ -37,10 +37,10 @@ export function registerAiAnalysisDatabaseIpcV042(getRawDatabasePath: () => stri
   activeStore = store;
   const pendingExports = new Map<string, { cancelled: boolean }>();
   let preview: Json | null = null;
-  const lifecycle = () => { const snapshot = store.lifecycle(); return { ...snapshot, contentRevision: JSON.stringify([databaseRevisionV045(snapshot.canQuery ? snapshot.databasePath : null), databaseRevisionV045(getRawDatabasePath() || null)]) }; };
+  const lifecycle = () => { const snapshot = store.lifecycle(); const ai = snapshot.canQuery ? snapshot.databasePath : null, raw = getRawDatabasePath() || null; return { ...snapshot, contentRevision: JSON.stringify([databaseRevisionV045(ai), databaseRevisionV045(raw)]), projectionGenerations: { ai: aiResultsServiceV044.generation('ai',ai,raw), integrated: aiResultsServiceV044.generation('integrated',ai,raw) } }; };
 
-  instrumentedHandleV044("ai-database:lifecycle", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); return { ok: true, requestId, snapshot: lifecycle() }; } catch (error) { return fail(error, requestId); } });
-  instrumentedHandleV044("ai-database:create", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); const supplied = String((payload as Json)?.filePath ?? ""); const result = supplied ? { canceled: false, filePath: supplied } : await dialog.showSaveDialog({ title: "建立 AI 分析資料庫 v2", defaultPath: path.join(getAppRuntimeDir(), "databases", "ai-analysis", "jaa-ai-analysis-v2.sqlite"), filters: [{ name: "SQLite Database", extensions: ["sqlite", "db"] }] }); if (result.canceled || !result.filePath) return { ok: true, requestId, canceled: true, snapshot: lifecycle() }; return { ...store.createAndActivate(result.filePath), requestId, canceled: false }; } catch (error) { return fail(error, requestId); } });
+  instrumentedHandleV044("ai-database:lifecycle", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); await aiWriteServiceV044.waitForIdle(); return { ok: true, requestId, snapshot: lifecycle() }; } catch (error) { return fail(error, requestId); } });
+  instrumentedHandleV044("ai-database:create", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); const supplied = String((payload as Json)?.filePath ?? ""); const result = supplied ? { canceled: false, filePath: supplied } : await dialog.showSaveDialog({ title: "建立 AI 分析資料庫 v2", defaultPath: path.join(getAppRuntimeDir(), "databases", "ai-analysis", "jaa-ai-analysis-v2.sqlite"), filters: [{ name: "SQLite Database", extensions: ["sqlite", "db"] }] }); if (result.canceled || !result.filePath) return { ok: true, requestId, canceled: true, snapshot: lifecycle() }; const created = await store.createAndActivateAsyncV050(result.filePath, temporary => aiWriteServiceV044.run(_event.sender.id, { requestId, action: "initialize", input: { databasePath: temporary } })); return { ...created, requestId, canceled: false }; } catch (error) { return fail(error, requestId); } });
   instrumentedHandleV044("ai-database:open-switch", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); const selected = String((payload as Json)?.filePath ?? "") || await choose("開啟／切換 AI 分析資料庫", ["sqlite", "db"]); if (!selected) return { ok: true, requestId, canceled: true, snapshot: lifecycle() }; return { ok: true, requestId, canceled: false, snapshot: store.openAndActivate(selected) }; } catch (error) { return fail(error, requestId); } });
   instrumentedHandleV044("ai-database:forget", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); const databaseId = String((payload as Json)?.databaseId ?? ""); if (!databaseId) throw new Error("AI_DATABASE_IDENTITY_REQUIRED"); return { ok: true, requestId, snapshot: store.forget(databaseId) }; } catch (error) { return fail(error, requestId); } });
   instrumentedHandleV044("ai-database:health-check", async (_event, payload) => { let requestId = ""; try { requestId = id(payload); return { ok: true, requestId, snapshot: lifecycle() }; } catch (error) { return fail(error, requestId); } });
@@ -54,22 +54,35 @@ export function registerAiAnalysisDatabaseIpcV042(getRawDatabasePath: () => stri
   instrumentedHandleV044("ai-database:write-state", () => aiWriteServiceV044.state());
   const runQuery = async (event: Electron.IpcMainInvokeEvent, payload: Json, action: string, kind: string) => {
     const requestId = id(payload), context = diagnosticContextV044.getStore();
+    await automaticDiagnosticsV044()?.event('ipc-received', 'POINT', { requestId }, context);
     if (payload.__trustedOutput && action !== "export-file") throw Error("INVALID_QUERY_ARGUMENT");
+    await aiWriteServiceV044.waitForIdle();
     const snapshot = lifecycle(), raw = getRawDatabasePath() || null;
     if (!snapshot.canQuery && snapshot.lifecycleState !== 'NOT_SELECTED') throw new Error('AI_DATABASE_UNAVAILABLE:' + snapshot.lifecycleState);
+    await automaticDiagnosticsV044()?.event('service-dispatch', 'POINT', { requestId }, context);
     const value = await aiResultsServiceV044.run(event.sender.id, { requestId, action, kind, appRoot:getAppRuntimeDir(), ai: snapshot.canQuery ? store.activePath() : null, raw, query: action === "query" ? payload : payload.query ?? {}, field: payload.field, search: payload.search ?? "", diagnostic: automaticDiagnosticsV044() ? { ...automaticDiagnosticsV044()!.config, instanceId: automaticDiagnosticsV044()!.instanceId, context } : null, output: payload.__trustedOutput, format: payload.format, visible: payload.exportScope === "visible" ? payload.visibleFields ?? [] : undefined }, async stage => {
       const persisted = await automaticDiagnosticsV044()?.stage(context, stage);
       if (!event.sender.isDestroyed()) event.sender.send("ai-database:query-progress", { requestId, stage: stage.event, phase: stage.phase, ...stage.details });
       return persisted;
     });
     if (lifecycle().databaseId !== snapshot.databaseId || (getRawDatabasePath() || null) !== raw) throw new Error("SUPERSEDED");
+    await automaticDiagnosticsV044()?.event('service-resolve', 'POINT', { requestId }, context);
     await automaticDiagnosticsV044()?.event("ipc-result-ready", "POINT", { requestId, rowCount: value.rows?.length ?? null }, context);
+    await automaticDiagnosticsV044()?.event('ipc-return', 'POINT', { requestId }, context);
     return { ok: true, requestId, diagnosticContext: context ?? null, aiDatabaseIdentity: snapshot.databaseId ?? "", ...value };
   };
   instrumentedHandleV044("ai-database:query-results", async (event, payload) => { try { return await runQuery(event, payload, "query", "ai"); } catch (error) { return fail(error, String(payload?.requestId ?? "")); } });
   instrumentedHandleV044("ai-database:query-integrated", async (event, payload) => { try { return await runQuery(event, payload, "query", "integrated"); } catch (error) { return fail(error, String(payload?.requestId ?? "")); } });
   instrumentedHandleV044("ai-database:distinct", async (event, payload) => { try { return await runQuery(event, payload, "facet", payload?.kind === "integrated" ? "integrated" : "ai"); } catch (error) { return fail(error, String(payload?.requestId ?? "")); } });
-  instrumentedHandleV044("ai-database:cancel-query", async (event, payload) => { const requestId = id(payload); await automaticDiagnosticsV044()?.event("cancel-requested", "POINT", { requestId }); const pending = pendingExports.get(`${event.sender.id}:${requestId}`); if (pending) pending.cancelled = true; const result = await aiResultsServiceV044.cancel(event.sender.id, requestId); return { ok: true, requestId, ...result, ...(pending && !result.executorStopped ? { requested: true, reason: "CANCELLATION_PENDING_PICKER_OR_PUBLISH" } : {}) }; });
+  instrumentedHandleV044("ai-database:cancel-query", async (event, payload) => {
+    const requestId = id(payload);
+    if (payload.reason !== undefined && !['USER_CANCEL','SUPERSEDED'].includes(payload.reason)) throw Error('INVALID_CANCEL_REASON');
+    const reason = payload.reason ?? 'USER_CANCEL';
+    await automaticDiagnosticsV044()?.event("cancel-requested", "POINT", { requestId, reason });
+    const pending = pendingExports.get(`${event.sender.id}:${requestId}`); if (pending) pending.cancelled = true;
+    const result = await aiResultsServiceV044.cancel(event.sender.id, requestId, reason === 'USER_CANCEL' ? 'CANCELLED' : reason);
+    return { ok: true, requestId, cancelReason: reason, ...result, ...(pending && !result.executorStopped ? { requested: true, reason: "CANCELLATION_PENDING_PICKER_OR_PUBLISH" } : {}) };
+  });
   instrumentedHandleV044("ai-database:report-stale", async (_event, payload) => { const event = { at: new Date().toISOString(), ...(payload as Json), reason: "STALE_RESPONSE_DISCARDED" }; latestStaleDiagnostics.push(event); latestStaleDiagnostics = latestStaleDiagnostics.slice(-100); return { ok: true }; });
   instrumentedHandleV044("ai-database:export-query", async (event, payload) => {
     let requestId = "", temporary = "", exportKey = "";

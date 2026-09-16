@@ -65,6 +65,22 @@ export class AiAnalysisDatabaseStoreV042 {
     try { initializeAiDatabaseV042({ databasePath: temporary }); fs.renameSync(temporary, resolved); return { ok: true, snapshot: this.activate(resolved) }; }
     catch (error) { try { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); } catch { /* best effort */ } throw error; }
   }
+  async createAndActivateAsyncV050(filePath: string, initialize: (temporary: string) => Promise<unknown>) {
+    const resolved = path.resolve(filePath);
+    if (fs.existsSync(resolved)) throw new Error("AI_DATABASE_ALREADY_EXISTS");
+    fs.mkdirSync(path.dirname(resolved), { recursive: true });
+    const temporary = path.join(path.dirname(resolved), `.${path.basename(resolved)}.${crypto.randomUUID()}.tmp`);
+    const selection = this.settings;
+    try {
+      await initialize(temporary);
+      if (this.settings !== selection) throw new Error("SUPERSEDED");
+      // Exclusive publication cannot overwrite a destination created while the worker ran.
+      fs.linkSync(temporary, resolved);
+      return { ok: true, snapshot: this.activate(resolved) };
+    } finally {
+      if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    }
+  }
   openAndActivate(filePath: string) {
     const inspected = inspectAiDatabaseV042(path.resolve(filePath));
     if (inspected.lifecycleState === "MIGRATION_REQUIRED") throw Object.assign(new Error("AI_DATABASE_V1_MIGRATION_NOT_AVAILABLE_IN_V042"), { snapshot: inspected });

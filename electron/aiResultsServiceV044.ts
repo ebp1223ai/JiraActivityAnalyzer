@@ -1,13 +1,19 @@
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { createEnvelopeProducerV044 } from './diagnosticEnvelopeV044.js';
+import { databaseRevisionV045 } from './databaseRevisionV045.js';
+import { compatibilityObservationV050 } from './databaseCompatibilityObservationV050.js';
 
 type Json = Record<string, any>;
-type Job = { owner: number; requestId: string; onStage?: (stage: Json) => void | Promise<unknown>; resolve: (value: any) => void; reject: (error: Error) => void; stages: Map<string, Json>; drain: Promise<unknown> };
+type Job = { owner: number; requestId: string; onStage?: (stage: Json) => void | Promise<unknown>; resolve: (value: any) => void; reject: (error: Error) => void; stages: Map<string, Json>; drain: Promise<unknown>; raw?: string; rawRevision: string; rawObservation: string };
 type Lane = { lastDiagnostics?: Json; sampledAt?: string; cancelledRequestId?: string; endReason?: string; worker: Worker; pending: Map<string, Job>; terminal?: Promise<void>; workerError?: Error };
 export class AiResultsServiceV044 {
   private lanes = new Map<string, Lane>();
   private receipts: Json = {};
+  private recoveries = new Map<string, { buildId: string; cancelled: boolean }>();
+  private generations = new Map<string, string>();
+  private sourceProofs = new Map<string, { revision: string; proof: Json }>();
+  generation(kind: string, ai: string | null, raw: string | null) { return this.generations.get(JSON.stringify([kind,ai,raw])) ?? ''; }
   private testBarrier?: Int32Array;
   holdTestQuery() { if (process.env.JAA_UI_TEST_MODE !== '1') throw Error('TEST_MODE_REQUIRED'); this.releaseTestQuery(); this.testBarrier = new Int32Array(new SharedArrayBuffer(8)); }
   testQueryState() { return { armed: Boolean(this.testBarrier), entered: this.testBarrier ? Atomics.load(this.testBarrier, 1) : 0 }; }
@@ -35,10 +41,19 @@ export class AiResultsServiceV044 {
           return;
         }
         current.pending.delete(msg.id);
-        void job.drain.then(() => {
+        const drainStarted = performance.now();
+        void job.drain.then(async () => {
+          await job.onStage?.({ event: 'diagnostics-drain', phase: 'POINT', details: { elapsedMs: performance.now()-drainStarted, requestId: job.requestId } });
           if (msg.type === 'error') job.reject(new Error(msg.error));
-          else { this.receipts = msg.diagnostics; current.lastDiagnostics = msg.diagnostics; current.sampledAt = new Date().toISOString(); job.resolve(msg.value); }
-        });
+          else {
+            const proof = job.raw && msg.sourceProofs?.[job.raw];
+            if (job.raw && proof && proof.fileObservation === job.rawObservation && compatibilityObservationV050(job.raw) === job.rawObservation && databaseRevisionV045(job.raw) === job.rawRevision) {
+              if(this.sourceProofs.size>=4)this.sourceProofs.delete(this.sourceProofs.keys().next().value!);
+              this.sourceProofs.set(job.raw,{revision:job.rawRevision,proof});
+            }
+            this.receipts = msg.diagnostics; current.lastDiagnostics = msg.diagnostics; current.sampledAt = new Date().toISOString(); job.resolve(msg.value);
+          }
+        }).catch(job.reject);
       });
       const fail = (error: Error) => {
         if (this.lanes.get(key) === current) this.lanes.delete(key);
@@ -65,10 +80,28 @@ export class AiResultsServiceV044 {
     }
     if (lane.pending.has(input.requestId)) return Promise.reject(new Error('DUPLICATE_REQUEST_ID'));
     if (lane.pending.size >= 16) return Promise.reject(new Error('QUERY_QUEUE_FULL'));
-    const value = await new Promise<any>((resolve, reject) => {
-      lane!.pending.set(input.requestId, { owner, requestId: input.requestId, onStage, resolve, reject, stages:new Map(), drain:Promise.resolve() });
-      lane!.worker.postMessage({ ...input, enqueueAt:Date.now(), id: input.requestId, __testBarrier: process.env.JAA_UI_TEST_MODE === '1' && input.action === 'query' && input.kind === 'integrated' ? this.testBarrier?.buffer : undefined });
-    });
+    const rawRevision = input.raw ? databaseRevisionV045(input.raw) : '', rawObservation = input.raw ? compatibilityObservationV050(input.raw) : '';
+    const cachedProof = this.sourceProofs.get(input.raw);
+    const sourceProofs = cachedProof?.revision === rawRevision && cachedProof?.proof.fileObservation === rawObservation ? { [input.raw]: cachedProof.proof } : {};
+    let value: any;
+    try { value = await new Promise<any>((resolve, reject) => {
+      lane!.pending.set(input.requestId, { owner, requestId: input.requestId, onStage, resolve, reject, stages:new Map(), drain:Promise.resolve(), raw:input.raw,rawRevision,rawObservation });
+      lane!.worker.postMessage({ ...input, sourceProofs, enqueueAt:Date.now(), id: input.requestId, __testBarrier: process.env.JAA_UI_TEST_MODE === '1' && input.action === 'query' && input.kind === 'integrated' ? this.testBarrier?.buffer : undefined });
+    }); } catch (error) {
+      if (!(error instanceof Error) || error.message !== 'PROJECTION_STALE_HEAVY_UNAVAILABLE' || input.recoveryAttempt || !['query','facet'].includes(input.action)) throw error;
+      const recoveryKey = owner + ':' + input.requestId, recovery = { buildId: input.requestId + '-rebuild', cancelled: false };
+      this.recoveries.set(recoveryKey, recovery);
+      try {
+        await this.run(owner, { ...input, action: 'projection-build', requestId: recovery.buildId, query: { page: 1, pageSize: 25, visibleFields: [], filters: {} } }, onStage);
+        if (recovery.cancelled) throw Error('CANCELLED');
+        this.recoveries.delete(recoveryKey);
+        return await this.run(owner, { ...input, recoveryAttempt: true }, onStage);
+      } finally { if (this.recoveries.get(recoveryKey) === recovery) this.recoveries.delete(recoveryKey); }
+    }
+    if (value.generation && !value.projectionStale) {
+      if (this.generations.size >= 16) this.generations.delete(this.generations.keys().next().value!);
+      this.generations.set(JSON.stringify([input.kind,input.ai,input.raw]), value.generation);
+    }
     if (value.projectionBuildRequired && category !== 'build' && !this.lanes.get(`${owner}:${input.kind}:build`)?.pending.size) {
       value.projectionBuildRequestId=input.requestId+'-rebuild';
       void this.run(owner,{...input,action:'projection-build',requestId:input.requestId+'-rebuild'},onStage).catch(error => onStage?.({event:'projection-build-failed',phase:'POINT',details:{code:error.message}}));
@@ -76,7 +109,9 @@ export class AiResultsServiceV044 {
     if(value.projectionBuildRequired) value.projectionBuildRequestId ??= this.lanes.get(`${owner}:${input.kind}:build`)?.pending.keys().next().value;
     return value;
   }
-  async cancel(owner: number, requestId: string, reason = 'CANCELLED') {
+  async cancel(owner: number, requestId: string, reason = 'CANCELLED'): Promise<{ cancelled: boolean; executorStopped: boolean; reason?: string }> {
+    const recovery = this.recoveries.get(owner + ':' + requestId);
+    if (recovery) { recovery.cancelled = true; return this.cancel(owner, recovery.buildId, reason); }
     for (const [key, lane] of this.lanes) {
       if (!lane.pending.has(requestId) || lane.pending.get(requestId)!.owner !== owner) continue;
       this.lanes.delete(key);

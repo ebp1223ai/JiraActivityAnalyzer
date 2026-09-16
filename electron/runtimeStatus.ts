@@ -163,6 +163,13 @@ export class StartupCheckCoordinator {
     return this.snapshot();
   }
 
+  acceptDatabaseHealth(result: Omit<DatabaseRuntimeState, 'requestId'>) {
+    if (result.path !== this.state.database.path || result.databaseId !== this.state.database.databaseId || this.state.database.status === 'CHECKING') return false;
+    this.state.database = { ...result, requestId: this.state.database.requestId };
+    this.emit();
+    return true;
+  }
+
   async startParallel() {
     await Promise.allSettled([this.retryJira(), this.retryDatabase()]);
     return this.snapshot();

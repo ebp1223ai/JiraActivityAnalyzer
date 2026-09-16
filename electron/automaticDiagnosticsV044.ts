@@ -2,6 +2,7 @@ import { fork, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import path from 'node:path';
+import { monitorEventLoopV050 } from '../shared/eventLoopLagV050.js';
 import { redactDiagnosticsV044, createEnvelopeProducerV044, type DiagnosticBuildV044, type DiagnosticContextV044, type DiagnosticPhaseV044, type DiagnosticOutcomeV044 } from './diagnosticEnvelopeV044.js';
 
 type Json = Record<string, any>;
@@ -14,6 +15,7 @@ export class AutomaticDiagnosticsV044 {
   private pending = new Map<string, { bytes: number; timer: NodeJS.Timeout; resolve: (ok: boolean) => void }>();
   private queueBytes = 0;
   private heartbeat: NodeJS.Timeout;
+  private stopLoopMonitor: () => void;
   private state: Json = { status: 'starting', writerFailed: false, droppedEventCount: 0, queueHighWater: 0, flushTimeout: 0 };
   private stageSpans = new Map<string, DiagnosticContextV044>();
   private inFlight = new Set<Promise<unknown>>();
@@ -38,6 +40,7 @@ export class AutomaticDiagnosticsV044 {
     this.ready = this.send({ type: 'init', config: { ...config, instanceId: this.instanceId, mainPid: process.pid } }, true);
     this.heartbeat = setInterval(() => this.beat('main', { rssBytes: process.memoryUsage().rss, heapUsedBytes: process.memoryUsage().heapUsed }), 2000);
     this.heartbeat.unref();
+    this.stopLoopMonitor = monitorEventLoopV050(sample => { void this.event('event-loop-lag', 'POINT', { ...sample, measuredProcess: 'main' }); });
   }
   private send(message: Json, critical: boolean): Promise<boolean> {
     const size = Buffer.byteLength(JSON.stringify(message));
@@ -81,6 +84,7 @@ export class AutomaticDiagnosticsV044 {
   async stage(context: DiagnosticContextV044 | undefined, stage: Json) {
     if (stage.envelope) { await this.ready; const ok = await this.send({ type: 'event', event: stage.envelope, critical: stage.phase === 'START' || stage.phase === 'END' }, stage.phase === 'START' || stage.phase === 'END'); if (ok && stage.phase === 'START' && this.afterStartAcknowledged) { const callback = this.afterStartAcknowledged; this.afterStartAcknowledged = null; callback(); } return ok; }
     if (!context) return;
+    if (stage.phase === 'POINT') return this.event(stage.event, 'POINT', stage.details ?? {}, context);
     const key = `${context.operationId}:${stage.event}`;
     let child = this.stageSpans.get(key);
     if (stage.phase === 'START') { child = { ...context, spanId: randomUUID(), parentSpanId: context.spanId }; this.stageSpans.set(key, child); }
@@ -99,7 +103,7 @@ export class AutomaticDiagnosticsV044 {
   snapshot(): Json { return { ...this.state, queueBytes: this.queueBytes, status: this.state.writerFailed ? 'DIAGNOSTICS_DEGRADED' : this.state.status }; }
   async capture(target: string) { await this.ready; return this.send({ type: 'capture', target }, true); }
   async close() {
-    this.beginShutdown(); clearInterval(this.heartbeat);
+    this.beginShutdown(); clearInterval(this.heartbeat); this.stopLoopMonitor();
     const deadline = performance.now() + 2500;
     while ((this.inFlight.size || this.pending.size) && performance.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
     for (const { event, context } of [...this.rendererSpans.values()]) await this.event(event, 'END', { reason: 'APP_SHUTDOWN_INTERRUPTED_RENDER', observedProducer: 'renderer' }, context, 'CANCELLED');

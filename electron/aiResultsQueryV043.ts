@@ -2,7 +2,7 @@ import fs from "./businessIoDiagnosticsV044.js";
 import { createHash } from "node:crypto";
 import { descriptionDisplayV047, DISPLAY_POLICY_V047 } from "../shared/integratedDisplayV047.js";
 import { presentationMetricsV046 } from "../shared/activityPresentationV046.js";
-import { createFieldDiscoveryV044, indexFieldsV044, materializeRowV044, queryStageV044 } from "./aiResultsIndexV044.js";
+import { createFieldDiscoveryV044, indexFieldsV044, materializeRowV044, queryStageV044, measureQueryStageV050 as measured } from "./aiResultsIndexV044.js";
 import { DatabaseSync } from "node:sqlite";
 import { readProjectionV049, closeReadProjectionsV049, type ProjectionBuildOptionsV049 } from './readProjectionV049.js';
 export { configureReadProjectionV049 } from './readProjectionV049.js';
@@ -252,21 +252,21 @@ function exportFields(s: Snapshot, visible?: string[]) {
 }
 function snapshotFor(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null) { const s = process.env.JAA_READ_PROJECTION_V049 === '0' ? createSnapshot(kind, aiPath, rawPath) : readProjectionV049(kind, aiPath, rawPath, options => createSnapshot(kind, aiPath, rawPath, options)); s.db.function("jaa_epoch", (v: any) => { const ms = Date.parse(String(v)); return Number.isFinite(ms) ? ms : null; }); return s; }
 export function queryResultsV043(kind: "ai" | "integrated", aiPath: string | null, rawPath: string | null, query: QueryV043 = {}, all = false) {
-  const start = Date.now(), s = snapshotFor(kind, aiPath, rawPath), where = predicates(s, query);
+  const start = Date.now(), s = measured('projection-resolve', () => snapshotFor(kind, aiPath, rawPath)), where = measured('predicate-build', () => predicates(s, query));
   const page = query.page ?? 1, size = query.pageSize ?? 50;
   if (!Number.isSafeInteger(page) || page < 1 || ![20, 25, 50, 100, 200].includes(size)) throw new Error("QUERY_PAGE_INVALID");
   const sort = s.registry.get(query.sort?.field ?? "eventTime");
   if (query.sort?.field && !sort) throw new Error("QUERY_SORT_FIELD_UNAVAILABLE");
   if (sort && !sort.sortable) throw new Error("CONTAINER_SORT_UNSUPPORTED");
-  if (sort) indexFieldsV044(s, [sort.path]);
+  if (sort) measured('on-demand-index', () => indexFieldsV044(s, [sort.path]));
   queryStageV044("sql-query", "START");
   const sortSql = sort ? `(SELECT ${["number", "boolean"].includes(sort.dataType) || (s.disk && sort.dataType === 'date') ? "c.number" : sort.dataType === "date" ? "jaa_epoch(c.text)" : "c.text"} FROM cells c WHERE c.row_id=d.id AND c.field_id=? ORDER BY c.token LIMIT 1) ${query.sort?.direction === "asc" ? "ASC" : "DESC"},` : "";
-  const count = Number((s.db.prepare(`SELECT COUNT(*) n FROM documents d ${where.sql}`).get(...where.binds) as Json).n);
+  const count = measured('sql-count', () => Number((s.db.prepare(`SELECT COUNT(*) n FROM documents d ${where.sql}`).get(...where.binds) as Json).n));
   const epochOrder = s.disk && sort?.path === s.registry.get('eventTime')?.path;
   const sql = epochOrder ? `SELECT d.id,d.body FROM cells cs INDEXED BY cells_sort JOIN documents d ON d.id=cs.row_id WHERE cs.field_id=? ${where.sql ? 'AND '+where.sql.slice(6) : ''} ORDER BY cs.number ${query.sort?.direction==='asc'?'ASC':'DESC'},cs.row_id ${all?'':'LIMIT ? OFFSET ?'}` : `SELECT id,body FROM documents d ${where.sql} ORDER BY ${sortSql} d.id ${all ? "" : "LIMIT ? OFFSET ?"}`;
   const binds = [...(epochOrder ? [sort!.path,...where.binds] : [...where.binds,...(sort?[sort.path]:[])]), ...(all ? [] : [size, (page - 1) * size])];
   const queryStart = performance.now();
-  const sqlRows = s.db.prepare(sql).all(...binds) as Json[];
+  const sqlRows = measured('sql-page', () => s.db.prepare(sql).all(...binds)) as Json[];
   const projectionQueryMs = performance.now() - queryStart;
   queryStageV044('page-hydration', 'START', { rowCount: sqlRows.length });
   queryStageV044("row-mapping", "START", { rowCount: sqlRows.length });

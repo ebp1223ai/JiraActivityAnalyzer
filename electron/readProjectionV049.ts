@@ -5,7 +5,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import type { Snapshot } from './aiResultsQueryV043.js';
 import { databaseRevisionV045 } from './databaseRevisionV045.js';
-import { indexFieldsV044, queryStageV044 } from './aiResultsIndexV044.js';
+import { indexFieldsV044, queryStageV044, measureQueryStageV050 as measured } from './aiResultsIndexV044.js';
+import { validateProjectionIntegrityV050 } from './projectionIntegrityV050.js';
+import { compatibilityObservationV050 } from './databaseCompatibilityObservationV050.js';
 
 type Json = Record<string, any>;
 export type ProjectionBuildOptionsV049 = { file?: string; summaryOnly?: boolean; ids?: string[] };
@@ -14,6 +16,10 @@ const FORMAT = 'v049-summary-1';
 const snapshots = new Map<string, Snapshot>();
 const selections = new Map<string,string>();
 const revisions = new Map<string, { observation: string; digest: string; identity: string }>();
+let suppliedProofsV050: Record<string, { fileObservation: string; digest: string; identity: string }> = {};
+const measuredProofsV050 = new Map<string, { fileObservation: string; digest: string; identity: string }>();
+export function configureSourceProofsV050(proofs: typeof suppliedProofsV050 = {}) { suppliedProofsV050 = proofs; }
+export function sourceProofsV050() { return Object.fromEntries(measuredProofsV050); }
 let root = process.env.JAA_PROJECTION_ROOT ?? path.join(os.tmpdir(), 'jaa-read-projections');
 let forceBuild = false;
 export function configureReadProjectionV049(appRoot: string, rebuild = false) {
@@ -26,10 +32,18 @@ const digest = (value: string) => createHash('sha256').update(value).digest('hex
 // location nor filesystem inode is persisted as canonical database identity.
 export function projectionSourceV049(file: string | null) {
   if (!file) return { identity: 'CLOSED', digest: 'CLOSED' };
-  const watched=databaseRevisionV045(file);
+  const watched=measured('projection-source-observe', () => databaseRevisionV045(file));
   const stat=fs.statSync(file),wal=fs.existsSync(file+'-wal')?fs.statSync(file+'-wal'):null;
   const observation = JSON.stringify([watched,stat.size,stat.mtimeMs,wal?.size,wal?.mtimeMs]), prior = revisions.get(file);
   if (prior?.observation === observation) return prior;
+  const fileObservation = compatibilityObservationV050(file), supplied = suppliedProofsV050[file];
+  if (supplied?.fileObservation === fileObservation && supplied.identity && /^[a-f0-9]{64}$/.test(supplied.digest)) {
+    // Only the owning Main service supplies proofs bound to its still-live revision watcher.
+    const next = { observation, identity: supplied.identity, digest: supplied.digest };
+    revisions.set(file,next); measuredProofsV050.set(file,supplied);
+    queryStageV044('source-fingerprint-reused','POINT',{reason:'LIVE_OWNER_REVISION_AND_FILE_IDENTITY'});
+    return next;
+  }
   const db = new DatabaseSync(file, { readOnly: true });
   let identity: string;
   try {
@@ -49,6 +63,8 @@ export function projectionSourceV049(file: string | null) {
   const after=fs.statSync(file),afterWal=fs.existsSync(file+'-wal')?fs.statSync(file+'-wal'):null;
   if (JSON.stringify([watchedAfter,after.size,after.mtimeMs,afterWal?.size,afterWal?.mtimeMs]) !== observation) throw Error('PROJECTION_SOURCE_CHANGED_DURING_FINGERPRINT');
   const next = { observation, identity, digest: hash.digest('hex') };
+  measuredProofsV050.set(file,{fileObservation,identity,digest:next.digest});
+  if(measuredProofsV050.size>8)measuredProofsV050.delete(measuredProofsV050.keys().next().value!);
   if(revisions.size>=8)revisions.delete(revisions.keys().next().value!);
   revisions.set(file, next); return next;
 }
@@ -62,30 +78,31 @@ function catalog(file: string) {
     return db;
   } catch (error) { db.close(); throw error; }
 }
-function validate(db: DatabaseSync) {
-  const result = db.prepare('PRAGMA quick_check').get() as Json;
-  if (result.quick_check !== 'ok') throw Error('PROJECTION_INTEGRITY_FAILED');
-  if ((db.prepare('SELECT COUNT(*) n FROM documents').get() as Json).n !== (db.prepare('SELECT COUNT(*) n FROM projections').get() as Json).n) throw Error('PROJECTION_ROW_COUNT_MISMATCH');
+function validate(db: DatabaseSync, file: string) {
+  validateProjectionIntegrityV050(db, file);
+  const documents = measured('documents-count', () => (db.prepare('SELECT COUNT(*) n FROM documents').get() as Json).n);
+  const projections = measured('projections-count', () => (db.prepare('SELECT COUNT(*) n FROM projections').get() as Json).n);
+  if (documents !== projections) throw Error('PROJECTION_ROW_COUNT_MISMATCH');
 }
 const core = ['eventTime','action','issueKey','analysisStatus','skillId','computed:["manual","state"]','reviewRank','diffApplicability','diffStatus','diffSearchUnknown','addedLineCount','removedLineCount','isSubstantiveChange','beforeAvailability'];
 
 export function closeReadProjectionsV049() { for (const s of snapshots.values()) s.db.close(); snapshots.clear(); revisions.clear(); selections.clear(); }
 export function readProjectionV049(kind: 'ai' | 'integrated', ai: string | null, raw: string | null, build: Builder): Snapshot {
-  const rawSource = source(raw), aiSource = source(ai);
+  const rawSource = measured('raw-fingerprint', () => source(raw)), aiSource = measured('ai-fingerprint', () => source(ai));
   const identity = digest(JSON.stringify([FORMAT, kind, rawSource.identity, aiSource.identity]));
   const revision = digest(JSON.stringify([rawSource.digest, aiSource.digest]));
   const selection=JSON.stringify([raw,ai]),selectionChanged=selections.has(kind)&&selections.get(kind)!==selection;
   selections.set(kind,selection);
   const file = controlFile(identity);
   let control: DatabaseSync;
-  try { control = catalog(file); }
+  try { control = measured('catalog-open', () => catalog(file)); }
   catch (error) {
     if(!/malformed|not a database|SQLITE_CORRUPT/i.test(String(error)))throw error;
     // Preserve corrupt derived evidence; never touch canonical files.
     fs.renameSync(file, file + '.corrupt-' + randomUUID()); control = catalog(file);
   }
   try {
-    const stored = control.prepare('SELECT body FROM projection_metadata WHERE id=1').get() as Json | undefined;
+    const stored = measured('generation-resolve', () => control.prepare('SELECT body FROM projection_metadata WHERE id=1').get()) as Json | undefined;
     let metadata: Json | undefined;
     try { metadata = stored ? JSON.parse(stored.body) : undefined; } catch { metadata = undefined; }
     const activeFile = metadata?.activeFile && /^[a-f0-9-]+\.sqlite$/.test(metadata.activeFile) ? path.join(root, metadata.activeFile) : '';
@@ -95,10 +112,11 @@ export function readProjectionV049(kind: 'ai' | 'integrated', ai: string | null,
     if (!s && activeFile && fs.existsSync(activeFile) && metadata?.projection_format_version === FORMAT) {
       let db: DatabaseSync | undefined;
       try {
-        db = new DatabaseSync(activeFile); db.exec('PRAGMA busy_timeout=3000; PRAGMA cache_size=-8192'); validate(db);
-        const state = JSON.parse((db.prepare('SELECT body FROM projection_state WHERE id=1').get() as Json).body);
+        db = measured('sidecar-open', () => new DatabaseSync(activeFile)); db.exec('PRAGMA busy_timeout=3000; PRAGMA cache_size=-8192'); validate(db, activeFile);
+        const body = measured('projection-state-read', () => (db!.prepare('SELECT body FROM projection_state WHERE id=1').get() as Json).body);
+        const state = measured('projection-state-parse', () => JSON.parse(body));
         if (state.revision !== metadata.activeRevision) throw Error('PROJECTION_GENERATION_MISMATCH');
-        s = { db, registry: new Map(state.registry), indexed: new Set(state.indexed), total: state.total, key: state.generation, metadata: state.metadata, disk: true };
+        s = measured('registry/index-state-restore', () => ({ db: db!, registry: new Map<string, any>(state.registry), indexed: new Set<string>(state.indexed), total: state.total, key: state.generation, metadata: state.metadata, disk: true }));
         if(snapshots.size>=4){const oldest=snapshots.keys().next().value!;snapshots.get(oldest)!.db.close();snapshots.delete(oldest);}
         snapshots.set(key, s);
       } catch { db?.close(); s = undefined; }
@@ -126,7 +144,7 @@ export function readProjectionV049(kind: 'ai' | 'integrated', ai: string | null,
         next.db.exec('CREATE TABLE projection_state(id INTEGER PRIMARY KEY,body TEXT NOT NULL); CREATE INDEX cells_text ON cells(field_id,text,row_id); CREATE INDEX cells_sort ON cells(field_id,number,row_id)');
         const state = { revision, generation, total: next.total, registry: [...next.registry], indexed: [...next.indexed], metadata: next.metadata };
         next.db.prepare('INSERT INTO projection_state VALUES(1,?)').run(JSON.stringify(state));
-        validate(next.db);
+        validate(next.db, output);
         if (source(raw).digest !== rawSource.digest || source(ai).digest !== aiSource.digest) throw Error('PROJECTION_SOURCE_CHANGED_DURING_BUILD');
         metadata = { projection_format_version: FORMAT, projection_schema_version: 1, raw_database_identity: rawSource.identity, raw_database_revision: rawSource.digest, ai_database_identity: aiSource.identity, ai_database_revision: aiSource.digest, active_generation: generation, activeFile: path.basename(output), activeRevision: revision, build_generation: null, build_status: 'READY', build_started_at: startedAt, build_completed_at: new Date().toISOString() };
         // A single SQLite statement is the atomic generation pointer switch.

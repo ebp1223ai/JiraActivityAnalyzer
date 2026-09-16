@@ -85,6 +85,8 @@ declare global {
       };
       databases?: {
         checkPath: (payload?: { filePath?: string }) => Promise<RuntimeState["database"]>;
+        openState: () => Promise<{ stage: string; startedAt: string; elapsedMs: number; error: string; active: boolean }>;
+        cancelOpen: () => Promise<{ cancelled: boolean; criticalReady?: boolean }>;
         selectExisting: (payload?: { filePath?: string }) => Promise<{ canceled: boolean; saved: boolean; validation?: RuntimeState["database"]; state: RuntimeState; error?: string }>;
         createNew: (payload?: { filePath?: string }) => Promise<{ canceled: boolean; saved: boolean; created?: { databasePath: string; databaseId: string; validation: RuntimeState["database"] }; state: RuntimeState; error?: string }>;
       };
@@ -162,7 +164,7 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
       aiDatabase?: {
         cancelWrite: (payload: { requestId: string }) => Promise<Record<string, any>>;
         writeState: () => Promise<Record<string, any>>;
-        cancelQuery: (payload: { requestId: string }) => Promise<Record<string, any>>;
+        cancelQuery: (payload: { requestId: string; reason?: 'USER_CANCEL' | 'SUPERSEDED' }) => Promise<Record<string, any>>;
         onQueryProgress: (callback: (value: Record<string, any>) => void) => () => void;
         lifecycle: (payload: { requestId: string }) => Promise<Record<string, any>>;
         create: (payload: { requestId: string; filePath?: string }) => Promise<Record<string, any>>;

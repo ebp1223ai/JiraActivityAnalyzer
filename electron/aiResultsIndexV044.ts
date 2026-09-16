@@ -43,12 +43,19 @@ export type QueryStageV044 = (event: string, phase: 'START' | 'PROGRESS' | 'END'
 let observer: QueryStageV044 = () => {};
 export const setQueryObserverV044 = (next: QueryStageV044) => { observer = next; };
 export const queryStageV044: QueryStageV044 = (event, phase, details) => observer(event, phase, details);
+export function measureQueryStageV050<T>(event: string, action: () => T): T {
+  const startedMonoMs = performance.now();
+  queryStageV044(event, 'START', { timingV050: true, startedMonoMs });
+  let succeeded = false;
+  try { const value = action(); succeeded = true; return value; }
+  finally { const endedMonoMs = performance.now(); queryStageV044(event, 'END', { timingV050: true, startedMonoMs, endedMonoMs, elapsedMs: endedMonoMs - startedMonoMs, succeeded }); }
+}
 export type IndexedSnapshotV044 = { db: DatabaseSync; registry: Map<string, FieldV043>; indexed: Set<string>; disk?: boolean; hydrate?: (ids: string[]) => Json[]; persistIndex?: () => void };
 
 export function indexFieldsV044(s: IndexedSnapshotV044, names: string[]) {
   if(s.disk && s.persistIndex) {
-    const persisted=s.db.prepare('SELECT body FROM projection_state WHERE id=1').get() as Json;
-    for(const id of JSON.parse(persisted.body).indexed)s.indexed.add(id);
+    const persisted=measureQueryStageV050('index-state-read', () => s.db.prepare('SELECT body FROM projection_state WHERE id=1').get()) as Json;
+    measureQueryStageV050('index-state-restore', () => { for(const id of JSON.parse(persisted.body).indexed)s.indexed.add(id); });
   }
   const fields = [...new Set(names.map(name => s.registry.get(name)?.path).filter((v): v is string => Boolean(v)))].filter(id => !s.indexed.has(id)).map(id => s.registry.get(id)!);
   if (!fields.length) return;

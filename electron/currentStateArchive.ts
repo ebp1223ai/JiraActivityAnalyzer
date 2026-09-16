@@ -295,7 +295,7 @@ export type CurrentStateInspection = Omit<DatabaseRuntimeState, "requestId"> & {
   legacyReadOnly?: boolean;
 };
 
-export function checkCurrentStateDatabaseCompatibility(databasePath: string, currentJiraIdentity = ""): CurrentStateInspection {
+export function checkCurrentStateDatabaseCompatibility(databasePath: string, currentJiraIdentity = "", options: { criticalOnly?: boolean } = {}): CurrentStateInspection {
   if (!databasePath.trim()) return baseState("NOT_CONFIGURED", "", "LOCAL_DATABASE_PATH is not configured.");
   const resolved = path.resolve(databasePath);
   if (!fs.existsSync(resolved)) return baseState("MISSING", resolved, "Database file does not exist.");
@@ -304,8 +304,10 @@ export function checkCurrentStateDatabaseCompatibility(databasePath: string, cur
   try {
     db = new DatabaseSync(resolved, { readOnly: true });
     db.exec("PRAGMA query_only = ON; PRAGMA foreign_keys = ON;");
-    const integrity = db.prepare("PRAGMA quick_check").get() as { quick_check?: string };
-    if (integrity.quick_check !== "ok") return baseState("CORRUPTED", resolved, "PRAGMA quick_check failed.");
+    if (!options.criticalOnly) {
+      const integrity = db.prepare("PRAGMA quick_check").get() as { quick_check?: string };
+      if (integrity.quick_check !== "ok") return baseState("CORRUPTED", resolved, "PRAGMA quick_check failed.");
+    }
     const tableNames = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>).map((row) => row.name));
     if (LEGACY_HISTORY_TABLES.some((table) => tableNames.has(table))) {
       return {
@@ -386,7 +388,7 @@ export function checkCurrentStateDatabaseCompatibility(databasePath: string, cur
         stableHashPolicyVersion: STABLE_HASH_POLICY_VERSION
       };
     }
-    let canWrite = true;
+    let canWrite = !options.criticalOnly;
     try { fs.accessSync(resolved, fs.constants.W_OK); } catch { canWrite = false; }
     return {
       ...baseState(canWrite ? "READY" : "READY_READ_ONLY", resolved, canWrite ? "Current-State database is ready." : "Current-State database is read-only."),
