@@ -62,9 +62,11 @@ type Props = Omit<ComponentProps<typeof SqliteDataTable>, "columns" | "renderExp
   mode: ActivityComparisonMode;
   additionalColumns?: SqliteTableColumn[];
   hiddenDefaultColumns?: string[];
+  requiredColumnIds?: string[];
+  defaultVisibleColumnIds?: string[];
 };
 
-export function ActivityComparisonTable({ mode, additionalColumns = [], hiddenDefaultColumns = [], query, onQueryChange, preferences, onPreferencesChange, ...props }: Props) {
+export function ActivityComparisonTable({ mode, additionalColumns = [], hiddenDefaultColumns = [], requiredColumnIds, defaultVisibleColumnIds, query, onQueryChange, preferences, onPreferencesChange, ...props }: Props) {
   const diffQuickFilters = normalizeDiffQuickFilters(query.diffQuickFilters);
   const changeDiffQuickFilters = (next: typeof diffQuickFilters) => {
     onPreferencesChange?.({ ...(preferences ?? { visibleColumns: [], columnOrder: [], columnWidths: {}, pageSize: query.pageSize, pageIndex: 1, sort: query.sort, filters: query.filters }), diffQuickFilters: next });
@@ -72,6 +74,6 @@ export function ActivityComparisonTable({ mode, additionalColumns = [], hiddenDe
   };
   return <div className="min-w-0 space-y-3">
     <DiffQuickFilters value={diffQuickFilters} disabled={Boolean(props.loading)} onChange={changeDiffQuickFilters} />
-    <SqliteDataTable {...props} query={query} onQueryChange={onQueryChange} preferences={preferences} onPreferencesChange={onPreferencesChange} columns={[...activityComparisonColumns(mode).map((column): SqliteTableColumn => hiddenDefaultColumns.includes(column.id) ? { ...column, defaultVisible: false, render: (row, context) => row[column.id] == null ? <span title="Source did not provide this field">未提供</span> : column.render ? column.render(row, context) : String(row[column.id]) } : column), ...additionalColumns]} renderExpandedRow={(row) => <ActivityEventDetailPanel row={row} />} />
+    <SqliteDataTable {...props} query={query} onQueryChange={onQueryChange} preferences={preferences} onPreferencesChange={onPreferencesChange} columns={[...activityComparisonColumns(mode).map((column): SqliteTableColumn => hiddenDefaultColumns.includes(column.id) ? { ...column, defaultVisible: false, render: (row, context) => row[column.id] == null ? <span title="Source did not provide this field">未提供</span> : column.render ? column.render(row, context) : String(row[column.id]) } : column), ...additionalColumns].map(column => ({ ...column, ...(requiredColumnIds ? { required: requiredColumnIds.includes(column.id) } : {}), ...(defaultVisibleColumnIds ? { defaultVisible: defaultVisibleColumnIds.includes(column.id) } : {}) }))} renderExpandedRow={(row) => <ActivityEventDetailPanel row={row} />} />
   </div>;
 }

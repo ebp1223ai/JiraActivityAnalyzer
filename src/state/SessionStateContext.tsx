@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from "react";
+import type { CollectionSnapshotV051 } from "../../shared/multiUserCollectionV051";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { defaultWorkflowSteps, type FetchQueueMetadata, type IssueKeySetReconciliation, type RelatedCandidateIssue, type TimelineIssueGroup, type WorkflowStepStatus } from "../../electron/userAnalysisWorkflow";
 import type { ActivityStreamProbeRunV2 } from "../../electron/activityStreamRoundStability";
@@ -566,6 +567,7 @@ export type UserAnalysisSessionState = {
   workflowSteps: WorkflowStepStatus;
   timelineStatus: "idle" | "running" | "completed" | "failed";
   timelineRunContext: ActivityTimelineRunContext | null;
+  timelineCollection?: CollectionSnapshotV051;
   timelineEvents: UserActivityTimelineEvent[];
   timelineSummary: UserActivityTimelineSummary | null;
   timelineIssueGroups: TimelineIssueGroup[];

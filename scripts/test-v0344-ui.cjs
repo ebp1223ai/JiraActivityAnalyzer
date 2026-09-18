@@ -67,6 +67,7 @@ async function main(){
   }
   if(version==='0.3.49') await require('./v0349-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});
   if(version==='0.3.50') await require('./v0350-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});
+  if(version==='0.3.51') await require('./v0351-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});
   if(version==='0.3.48') await require('./v0348-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});
   if(version==='0.3.47') await require(process.env.JAA_V047_UI_FOCUS==='delivery'?'./v0347-ui-delivery.cjs':'./v0347-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});
   if(version==='0.3.46') await require(process.env.JAA_V046_UI_FOCUS==='edges'?'./v0346-ui-edgechecks.cjs':'./v0346-ui-checks.cjs')({page,control,route,report,work,appRoot,raw,ai,until});

@@ -135,8 +135,8 @@ userDistributions: (payload: { scope: UserViewerScope; query?: ViewerTableQuery 
         activityStreamBenchmark: (payload: { connection: JiraConnection; config: Record<string, unknown> }) => Promise<Record<string, unknown>>;
         cancelActivityStreamBenchmark: () => Promise<{ ok: boolean; benchmarkRunId?: string; message?: string }>;
         onActivityStreamBenchmarkProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
-        buildActivityTimeline: (payload: { connection: JiraConnection; runContext: ActivityTimelineRunContext }) => Promise<Record<string, unknown>>;
-        cancelActivityTimeline: () => Promise<{ ok: boolean; runId?: string; message?: string }>;
+        buildActivityTimeline: (payload: { connection: JiraConnection; runContext: ActivityTimelineRunContext; selectedUsers?: string[]; retryFailed?: boolean }) => Promise<Record<string, unknown>>;
+        cancelActivityTimeline: (options?: { scope: "current" | "all" }) => Promise<{ ok: boolean; runId?: string; message?: string }>;
         onActivityTimelineProgress: (callback: (progress: Record<string, unknown>) => void) => () => void;
         activityStreamManualReplay: (payload: { connection: JiraConnection; manualUrl: string; runId: string }) => Promise<Record<string, unknown>>;
         precisionProbe: (payload: { connection: JiraConnection; selectedUsers: string[]; startInclusive: string; endExclusive: string; activityStreamEndInclusive: string; projectScope: string; activityStreamUser: string; activityStreamQueryMode: "auto" | "username" | "escaped_username" | "email" | "custom"; activityStreamRelativeLinks: boolean; activityStreamRunId: string; activityStreamDateQueryMode: "none" | "startDate_endDate" | "update_date_after_before" | "both"; activityStreamChunkingMode?: "off" | "auto" | "monthly" | "weekly" | "custom_days"; activityStreamCustomChunkDays?: number; maxResults: number; maxResultsSource: "custom" | "quick"; largeMaxResultsConfirmed: boolean; standardFlow?: boolean; advancedOverrideUsed?: boolean; broadJql: string }) => Promise<Record<string, unknown>>;

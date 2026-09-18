@@ -1,0 +1,9 @@
+const fs = require('node:fs'), path = require('node:path');
+const { root } = require('./v0343-test-helpers.cjs');
+const work = path.resolve(process.env.JAA_UI_EVIDENCE || path.join(root, 'test-artifacts/v0.3.51', 'ui-' + Date.now()));
+const seed = require('./v0348-test-seed.cjs').seed(path.join(work, 'seed'), 120);
+fs.writeFileSync(path.join(work, 'seed-map.json'), JSON.stringify(seed));
+Object.assign(process.env, { JAA_UI_EXPECT_VERSION: '0.3.51', JAA_UI_EVIDENCE: work,
+  JAA_UI_PACKAGE: seed.pkgPath, JAA_UI_STRESS_RAW: seed.raw, JAA_UI_EXPECT_TOTAL: '120',
+  JAA_UI_EXPECT_MATCHED: '55', JAA_UI_DEEP: '0', JAA_UI_SHORT: '1', JAA_UI_WORKBENCH: '0' });
+require('./test-v0344-ui.cjs');

@@ -1,4 +1,7 @@
 import { installSyntheticIoAuditV044 } from "./syntheticIoAuditV044.js";
+import { MultiUserQueueV051 } from "./multiUserQueueV051.js";
+import { combineUserTimelinesV051 } from "./multiUserTimelineV051.js";
+import { normalizeCollectionUsersV051 } from "../shared/multiUserCollectionV051.js";
 import { aiWriteServiceV044 } from "./aiWriteServiceV044.js";
 import { exportPreviousDiagnosticsV044 } from "./diagnosticRecoveryV044.js";
 import { prepareUiTestV044 } from "./uiTestControlV044.js";
@@ -2488,13 +2491,17 @@ instrumentedHandleV044("user-analysis:cancel-activity-stream-benchmark", async (
   return { ok: true, benchmarkRunId: activeActivityStreamBenchmark.runId };
 });
 
-instrumentedHandleV044("user-analysis:cancel-activity-timeline", async () => {
+let collectionQueueV051: MultiUserQueueV051<Awaited<ReturnType<typeof buildSingleTimelineV051>>> | null = null;
+instrumentedHandleV044("user-analysis:cancel-activity-timeline", async (_event, options?: { scope?: 'current' | 'all' }) => {
+  if (options?.scope && !['current', 'all'].includes(options.scope)) throw new Error('INVALID_CANCEL_SCOPE');
+  const queued = collectionQueueV051?.cancel(options?.scope ?? 'current');
+  if (queued && !activeTimelineBuild) return { ok: true, runId: collectionQueueV051!.runId };
   if (!activeTimelineBuild) return { ok: false, message: "No timeline build is running." };
   activeTimelineBuild.cancelled = true;
   return { ok: true, runId: activeTimelineBuild.runId };
 });
 
-instrumentedHandleV044("user-analysis:build-activity-timeline", async (ipcEvent, payload: { connection: AppConnection; runContext: ActivityTimelineRunContext }) => {
+async function buildSingleTimelineV051(ipcEvent: Electron.IpcMainInvokeEvent, payload: { connection: AppConnection; runContext: ActivityTimelineRunContext }) {
   const runContext = validateActivityTimelineRunContext(payload.runContext);
   const selectedUser = runContext.selectedUser;
   const timelineRunId = runContext.runId;
@@ -2585,6 +2592,68 @@ instrumentedHandleV044("user-analysis:build-activity-timeline", async (ipcEvent,
   });
   const integrityLogs = timeline.summary.integrity.warnings.map((warning) => `[WARN] ${warning}`);
   return { ...timeline, runContext, exportedFiles: { jsonPath, csvPath, summaryPath }, roundStability: roundRun, activityStream: run.activityStream, standardActivityStreamFlow: run.standardActivityStreamFlow, logs: [...run.logs, ...runLogs, `[INFO] User Activity Timeline built: timelineRunId=${timelineRunId} totalEvents=${timeline.summary.totalEvents}`, `[INFO] Timeline integrity: source=${timeline.summary.integrity.sourceParsedActivityCount} events=${timeline.summary.integrity.timelineEventCount} dedup=${timeline.summary.integrity.deduplicatedEntryCount} skipped=${timeline.summary.integrity.skippedEntryCount} unexplained=${timeline.summary.eventCountReconciliation.unexplainedDifferenceCount}`, ...integrityLogs, `[INFO] Timeline JSON auto-saved: ${jsonPath}`, `[INFO] Timeline CSV auto-saved: ${csvPath}`, "[INFO] No database write performed", "[INFO] No Jira write performed"] };
+}
+
+instrumentedHandleV044("user-analysis:build-activity-timeline", async (ipcEvent, payload: {
+  connection: AppConnection; runContext: ActivityTimelineRunContext;
+  selectedUsers?: Array<string | { accountId?: string; username?: string; displayName?: string }>; retryFailed?: boolean;
+}) => {
+  if (activeTimelineBuild || collectionQueueV051?.snapshot.running) throw new Error('COLLECTION_ALREADY_RUNNING');
+  const context = validateActivityTimelineRunContext(payload.runContext);
+  if (payload.retryFailed !== undefined && typeof payload.retryFailed !== 'boolean') throw new Error('INVALID_RETRY_FLAG');
+  if (payload.selectedUsers === undefined) return buildSingleTimelineV051(ipcEvent, payload);
+  if (!Array.isArray(payload.selectedUsers) || payload.selectedUsers.length > 200 ||
+      payload.selectedUsers.some(user => typeof user !== 'string' && (!user || typeof user !== 'object' ||
+        Object.entries(user).some(([key, value]) => !['accountId', 'username', 'displayName'].includes(key) || typeof value !== 'string')))) throw new Error('INVALID_SELECTED_USERS');
+  const users = normalizeCollectionUsersV051(payload.selectedUsers);
+  if (!users.length || users.some(user => user.queryUser.length > 512)) throw new Error('INVALID_SELECTED_USERS');
+  const binding = sha256(JSON.stringify({ context, users, connection: payload.connection }));
+  if (payload.retryFailed) {
+    if (!collectionQueueV051 || collectionQueueV051.runId !== context.runId || collectionQueueV051.binding !== binding) throw new Error('COLLECTION_RETRY_CONTEXT_MISMATCH');
+  } else collectionQueueV051 = new MultiUserQueueV051(context.runId, binding, users);
+  const queue = collectionQueueV051!;
+  const publish = (collection: typeof queue.snapshot) => {
+    if (!ipcEvent.sender.isDestroyed()) ipcEvent.sender.send('user-analysis:activity-timeline-progress', { collection });
+  };
+  await queue.run(async (user) => {
+    const childContext = validateActivityTimelineRunContext({ ...context, selectedUser: user.queryUser,
+      runId: context.runId + '-user-' + sha256(user.id).slice(0, 12) });
+    const value = await buildSingleTimelineV051(ipcEvent, { connection: payload.connection, runContext: childContext });
+    const eligibility = timelineEligibilityRuns.get(childContext.runId);
+    return { value, eventCount: value.events.length, accepted: eligibility?.status === 'completed' && eligibility.reconciliationStatus === 'reconciled' };
+  }, publish, payload.retryFailed);
+  const parts = [...queue.results].map(([userId, timeline]) => ({
+    userId, timeline, stableIds: new Map(timeline.roundStability.mergedEvents.map(event => [String(event.raw.entryFingerprint).replace(/^sha256:/, ''), event.stableEventId]))
+  }));
+  const merged = combineUserTimelinesV051(context, parts);
+  queue.snapshot.discoveredBy = merged.discoveredBy;
+  queue.snapshot.duplicateDiscoveryCount = merged.duplicateDiscoveryCount;
+  const folder = ensureDir(path.join(getExportsDir(), 'user-analysis', 'timeline'));
+  const suffix = fileTimestamp() + '_' + sha256(context.runId).slice(0, 16);
+  const exportedFiles = { jsonPath: path.join(folder, 'collection-' + suffix + '.json'),
+    csvPath: path.join(folder, 'collection-' + suffix + '.csv'), summaryPath: path.join(folder, 'collection-summary-' + suffix + '.json') };
+  const timeline = { timelineRunId: merged.timelineRunId, summary: merged.summary, events: merged.events };
+  fs.writeFileSync(exportedFiles.jsonPath, JSON.stringify(sanitizeExportData({ ...timeline, collection: queue.snapshot }), null, 2), 'utf8');
+  fs.writeFileSync(exportedFiles.csvPath, timelineCsv(timeline.events), 'utf8');
+  fs.writeFileSync(exportedFiles.summaryPath, JSON.stringify(sanitizeExportData({ summary: timeline.summary, collection: queue.snapshot }), null, 2), 'utf8');
+  latestUserActivityTimeline = { ...timeline, exportedFiles };
+  timelineRunResults.set(context.runId, latestUserActivityTimeline);
+  const complete = queue.snapshot.status === 'SUCCESS' && timeline.summary.eventCountReconciliation.status === 'reconciled';
+  timelineEligibilityRuns.set(context.runId, {
+    timelineRunId: context.runId, status: complete ? 'completed' : queue.snapshot.status === 'PARTIAL' ? 'partial' : queue.snapshot.status === 'CANCELLED' ? 'cancelled' : 'failed',
+    selectedUser: context.selectedUser, dateRange: timeline.summary.dateRange,
+    serverIdentity: sha256(String(payload.connection.baseUrl || '')).slice(0, 24),
+    roundExecutionMode: context.roundExecutionMode, mergeStrategy: context.mergeStrategy,
+    expectedRoundCount: context.fullScanRounds * users.length,
+    completedRoundCount: parts.reduce((count, part) => count + part.timeline.roundStability.rounds.filter(round => round.status === 'completed').length, 0),
+    mergedEventCount: timeline.events.length, reconciliationStatus: timeline.summary.eventCountReconciliation.status,
+    canonicalCompleted: complete && timeline.events.length > 0, completedAt: new Date().toISOString()
+  });
+  publish(queue.snapshot);
+  return { ...timeline, runContext: context, exportedFiles, collection: queue.snapshot,
+    logs: ['[INFO] Sequential user collection: ' + queue.snapshot.status,
+      '[INFO] Unique events=' + timeline.events.length + '; duplicate discoveries=' + merged.duplicateDiscoveryCount,
+      '[INFO] No database write performed', '[INFO] No Jira write performed'] };
 });
 
 const sensitiveReplayQueryKey = /token|password|passwd|secret|session|cookie|authorization|auth_token/i;

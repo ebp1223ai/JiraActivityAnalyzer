@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { CollectionProgressV051 } from '../components/CollectionProgressV051';
+import { parseCollectionUsersV051, type CollectionSnapshotV051 } from "../../shared/multiUserCollectionV051";
 import { useOutletContext } from "react-router-dom";
 import { AlertTriangle, ArrowDown, ArrowUp, Bug, ChevronDown, ChevronUp, Clock3, Columns3, Copy, DatabaseZap, Download, Eye, Filter, FolderOpen, PauseCircle, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { buildInfo } from "../buildInfo";
@@ -63,12 +65,7 @@ function currentTaipeiDate() {
 const workflowStateTones: Record<WorkflowVisualState, "green" | "blue" | "amber" | "red" | "gray"> = { current: "blue", completed: "green", ready: "gray", blocked: "gray", warning: "amber", failed: "red", advanced: "blue" };
 
 function parseUsers(input: string) {
-  return Array.from(new Set(
-    input
-      .split(/[\n,;]+/)
-      .map((item) => item.trim())
-      .filter(Boolean)
-  ));
+  return parseCollectionUsersV051(input).map(user => user.queryUser);
 }
 
 function jqlString(value: string) {
@@ -332,7 +329,7 @@ export function AnalysisPage() {
   );
   const recommendedRelatedIssues = userAnalysis.relatedCandidateIssues.filter((item) => item.scope === "recommended" || isRecommendedRelationType(item.relationType));
   const optionalRelatedIssues = filteredRelatedIssues.filter((item) => item.scope === "optional" || !isRecommendedRelationType(item.relationType));
-  const setupReady = selectedUsers.length === 1 && Boolean(userAnalysis.startDate && userAnalysis.endDate) && userAnalysis.startDate <= userAnalysis.endDate;
+  const setupReady = selectedUsers.length > 0 && Boolean(userAnalysis.startDate && userAnalysis.endDate) && userAnalysis.startDate <= userAnalysis.endDate;
   const queueSourceCounts = fetchQueue.reduce((counts, issue) => {
     const sources = issue.queueMetadata?.sources?.length ? issue.queueMetadata.sources : ["manual" as const];
     for (const source of sources) counts[source] = (counts[source] ?? 0) + 1;
@@ -481,7 +478,7 @@ export function AnalysisPage() {
   }
 
   function SetupSummary() {
-    return <div data-testid="analysis-setup-summary" className="mb-4 grid min-w-0 grid-cols-1 gap-2 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold text-muted sm:grid-cols-2 xl:grid-cols-3"><span><b>User:</b> {selectedUsers[0] || "Not set"}</span><span><b>Date Range:</b> {userAnalysis.startDate || "-"} ~ {userAnalysis.endDate || "-"}</span><span><b>Source:</b> Live Jira API · All projects</span></div>;
+    return <div data-testid="analysis-setup-summary" className="mb-4 grid min-w-0 grid-cols-1 gap-2 rounded-lg border border-line bg-slate-50 p-3 text-xs font-semibold text-muted sm:grid-cols-2 xl:grid-cols-3"><span><b>Users:</b> {selectedUsers.join(", ") || "Not set"}</span><span><b>Date Range:</b> {userAnalysis.startDate || "-"} ~ {userAnalysis.endDate || "-"}</span><span><b>Source:</b> Live Jira API · All projects</span></div>;
   }
 
   function logAnalysisAction(category: "USER_ACTION" | "GUARD" | "UI_MODAL" | "INFO", message: string) {
@@ -689,6 +686,10 @@ export function AnalysisPage() {
   }, [appendDebugLog, userAnalysis.fullFetchRunId]);
 
   useEffect(() => window.desktopApp?.userAnalysis?.onActivityTimelineProgress?.((progress) => {
+    if (progress.collection) {
+      setUserAnalysis(current => ({ ...current, timelineCollection: progress.collection as CollectionSnapshotV051 }));
+      return;
+    }
     setTimelineRoundProgress(progress);
     appendDebugLog("analysis", [`[INFO][timeline-round] runId=${String(progress.probeRunId ?? "-")} round=${String(progress.currentRound ?? 0)}/${String(progress.totalRounds ?? 0)} window=${String(progress.currentWindow ?? 0)}/${String(progress.totalWindows ?? 0)} stage=${String(progress.stage ?? "-")} duration=${String(progress.currentApiDurationMs ?? 0)}ms`]);
   }), [appendDebugLog]);
@@ -740,9 +741,9 @@ export function AnalysisPage() {
     patchState({ activeTab: step === "candidate" ? "candidates" : step });
   }
 
-  async function handleBuildTimeline() {
+  async function handleBuildTimeline(retryFailed = false) {
     logAnalysisAction("USER_ACTION", "Button clicked: Build Activity Timeline / 建立活動時間線");
-    if (selectedUsers.length !== 1 || !userAnalysis.startDate || !userAnalysis.endDate) {
+    if (!selectedUsers.length || !userAnalysis.startDate || !userAnalysis.endDate) {
       const message = "Please select a user and date range first. / 請先選擇使用者與日期範圍。";
       patchState({ errors: [message], notice: "" });
       appendDebugLog("analysis", [`[WARN] ${message}`]);
@@ -755,7 +756,7 @@ export function AnalysisPage() {
     let runContext;
     try {
       const nonce = `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-      runContext = createActivityTimelineRunContext({
+      runContext = retryFailed && userAnalysis.timelineRunContext ? userAnalysis.timelineRunContext : createActivityTimelineRunContext({
         sessionId: `timeline-session-${nonce}`,
         runId: `timeline-run-${nonce}`,
         selectedUser: selectedUsers[0],
@@ -772,9 +773,10 @@ export function AnalysisPage() {
     patchState({
       timelineRunContext: runContext,
       timelineStatus: "running",
-      timelineEvents: [],
-      timelineSummary: null,
-      timelineIssueGroups: [],
+      timelineEvents: retryFailed ? userAnalysis.timelineEvents : [],
+      timelineSummary: retryFailed ? userAnalysis.timelineSummary : null,
+      timelineIssueGroups: retryFailed ? userAnalysis.timelineIssueGroups : [],
+      timelineCollection: retryFailed ? userAnalysis.timelineCollection : undefined,
       selectedTimelineIssueKeys: [],
       candidateIssues: [],
       selectedForFetch: [],
@@ -790,10 +792,13 @@ export function AnalysisPage() {
     });
     try {
       const response = await window.desktopApp?.userAnalysis?.buildActivityTimeline({
+        selectedUsers,
+        retryFailed,
         connection: activeConnection,
         runContext
       });
       if (!response) throw new Error("Timeline builder is unavailable.");
+      patchState({ timelineCollection: response.collection as CollectionSnapshotV051 | undefined });
       const events = Array.isArray(response.events) ? response.events as UserActivityTimelineEvent[] : [];
       const summary = response.summary as UserActivityTimelineSummary;
       const exportedFiles = response.exportedFiles as { jsonPath: string; csvPath: string; summaryPath: string };
@@ -827,6 +832,12 @@ export function AnalysisPage() {
       patchState({ timelineStatus: "failed", workflowSteps: { ...defaultWorkflowSteps(), activityTimeline: "failed" }, errors: [message], notice: "" });
       appendDebugLog("analysis", [`[ERROR] Activity Timeline build failed: ${message}`, "[INFO] No database write performed", "[INFO] No Jira write performed"]);
     }
+  }
+
+  function discoveredByUsers(eventIds: string[]) {
+    const collection = userAnalysis.timelineCollection;
+    const ids = new Set(eventIds.flatMap(id => collection?.discoveredBy[id] ?? []));
+    return collection?.users.filter(user => ids.has(user.id)).map(user => user.displayName).join(', ') || '-';
   }
 
   function toggleTimelineDetail(eventId: string) {
@@ -2042,16 +2053,17 @@ export function AnalysisPage() {
         <SectionCard className="mb-4 workflow-current-panel" title="Step 1. Build Activity Stream" subtitle="Data Collection">
           <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-              <FieldLabel label="Selected User" sub="分析對象" />
-              <input data-testid="analysis-setup-user-v244" className="field" value={userAnalysis.selectedUsersText} onChange={(event) => patchState({ selectedUsersText: event.target.value.replace(/[\n,;].*$/, "") })} placeholder="sample.user" />
+              <FieldLabel label="Selected Users" sub="分析對象" />
+              <textarea data-testid="analysis-setup-user-v244" className="field" rows={2} disabled={userAnalysis.timelineStatus === "running"} value={userAnalysis.selectedUsersText} onChange={(event) => patchState({ selectedUsersText: event.target.value })} placeholder="sample.user" />
+              <div className="mt-2 flex flex-wrap gap-2">{selectedUsers.map(user => <span key={user} className="inline-flex min-w-0 items-center gap-1 border px-2 py-1 text-sm"><span className="break-all">{user}</span><button type="button" disabled={userAnalysis.timelineStatus === "running"} aria-label={`Remove ${user}`} title="移除使用者" onClick={() => patchState({ selectedUsersText: selectedUsers.filter(value => value !== user).join("\n") })}><Trash2 size={14} /></button></span>)}</div>
             </div>
             <div>
               <FieldLabel label="Start Date" sub="開始日期" />
-              <input data-testid="analysis-setup-start-v245" className="field" type="date" value={userAnalysis.startDate} onChange={(event) => patchState({ startDate: event.target.value })} />
+              <input data-testid="analysis-setup-start-v245" className="field" type="date" disabled={userAnalysis.timelineStatus === "running"} value={userAnalysis.startDate} onChange={(event) => patchState({ startDate: event.target.value })} />
             </div>
             <div>
               <FieldLabel label="End Date" sub="結束日期" />
-              <input data-testid="analysis-setup-end-v245" className="field" type="date" value={userAnalysis.endDate} onChange={(event) => patchState({ endDate: event.target.value })} />
+              <input data-testid="analysis-setup-end-v245" className="field" type="date" disabled={userAnalysis.timelineStatus === "running"} value={userAnalysis.endDate} onChange={(event) => patchState({ endDate: event.target.value })} />
             </div>
           </div>
           <details data-testid="analysis-advanced-details-v252" className="mt-4 rounded-md border border-line bg-slate-50">
@@ -2603,7 +2615,7 @@ export function AnalysisPage() {
         <div className="mt-3 flex flex-wrap gap-2"><button data-testid="select-all-filtered-results" className="btn" type="button" onClick={() => selectTimelineIssues("filtered")}>Select All Filtered Results / 全選所有篩選結果</button><button data-testid="deselect-all-filtered-results" className="btn" type="button" onClick={() => selectTimelineIssues("deselectFiltered")}>Deselect All Filtered Results / 取消所有篩選結果</button><button className="btn" type="button" onClick={() => selectTimelineIssues("high")}>Select visible High Confidence / 選取高信心</button><button className="btn" type="button" onClick={() => selectTimelineIssues("clear")}>Clear all selections / 清除全部選取</button><button data-testid="clear-all-issue-filters" className="btn" type="button" onClick={() => patchState({ timelineIssueFilters: { jiraRelations: [], activityTypes: [], confidences: [], issueKeyRoles: [], sourceApplications: [], projectKeys: [], selectedStates: [], query: "" } })}>Clear all filters / 清除全部篩選</button><button data-testid="reset-issue-filters" className="btn" type="button" onClick={() => patchState({ timelineIssueFilters: { jiraRelations: ["jira_related"], activityTypes: [], confidences: [], issueKeyRoles: [], sourceApplications: ["jira", "confluence"], projectKeys: [], selectedStates: [], query: "" } })}>Reset Jira-related View / 重設 Jira 關聯檢視</button><button data-testid="issue-group-column-settings-toggle" className="btn" type="button" onClick={() => patchState({ issueGroupColumnSettingsOpen: !userAnalysis.issueGroupColumnSettingsOpen })}><Columns3 size={16} />Column Settings / 欄位設定</button></div>
         <div className="mt-3 text-sm font-bold text-muted">Global Selected Set / 全域選取：<span data-no-clip="true">{userAnalysis.selectedTimelineIssueKeys.length}</span></div>
         {userAnalysis.issueGroupColumnSettingsOpen ? <ColumnSettings testId="issue-group-column-settings" required={issueGroupRequiredColumns} optional={issueGroupOptionalColumns} visible={userAnalysis.issueGroupVisibleColumns} onToggle={(value) => toggleVisibleColumn("issueGroup", value)} /> : null}
-        <ResponsiveTableContainer className="mt-4"><table className="data-table min-w-[1050px]" data-testid="timeline-issue-groups-table"><thead><tr>{issueGroupRequiredColumns.map((column) => <th key={column.value}>{column.label}</th>)}{issueGroupOptionalColumns.filter((column) => userAnalysis.issueGroupVisibleColumns.includes(column.value)).map((column) => <th key={column.value}>{column.label}</th>)}<th>Details</th></tr></thead><tbody>{filteredTimelineIssueGroups.map((group) => <Fragment key={group.issueKey}><tr><td><input type="checkbox" checked={userAnalysis.selectedTimelineIssueKeys.includes(group.issueKey)} onChange={(event) => toggleTimelineIssue(group.issueKey, event.target.checked)} /></td><td className="font-black text-blue-700">{group.issueKey}</td><td>{sourceSystemLabel(group.jiraRelationSummary.sourceApplicationCounts)}</td><td>{group.eventCount}</td><td className="whitespace-nowrap">{group.firstSeen || "-"}</td><td className="whitespace-nowrap">{group.lastSeen || "-"}</td>
+        <ResponsiveTableContainer className="mt-4"><table className="data-table min-w-[1050px]" data-testid="timeline-issue-groups-table"><thead><tr>{issueGroupRequiredColumns.map((column) => <th key={column.value}>{column.label}</th>)}{issueGroupOptionalColumns.filter((column) => userAnalysis.issueGroupVisibleColumns.includes(column.value)).map((column) => <th key={column.value}>{column.label}</th>)}<th>Discovered By</th><th>Details</th></tr></thead><tbody>{filteredTimelineIssueGroups.map((group) => <Fragment key={group.issueKey}><tr><td><input type="checkbox" checked={userAnalysis.selectedTimelineIssueKeys.includes(group.issueKey)} onChange={(event) => toggleTimelineIssue(group.issueKey, event.target.checked)} /></td><td className="font-black text-blue-700">{group.issueKey}</td><td>{sourceSystemLabel(group.jiraRelationSummary.sourceApplicationCounts)}</td><td>{group.eventCount}</td><td className="whitespace-nowrap">{group.firstSeen || "-"}</td><td className="whitespace-nowrap">{group.lastSeen || "-"}</td>
           {userAnalysis.issueGroupVisibleColumns.includes("activityTypes") ? <td>{group.activityTypes.join(", ")}</td> : null}
           {userAnalysis.issueGroupVisibleColumns.includes("confidence") ? <td>H {group.confidenceSummary.high} / M {group.confidenceSummary.medium} / L {group.confidenceSummary.low}</td> : null}
           {userAnalysis.issueGroupVisibleColumns.includes("issueKeyRole") ? <td>{group.issueKeyRole}</td> : null}
@@ -2614,8 +2626,8 @@ export function AnalysisPage() {
           {userAnalysis.issueGroupVisibleColumns.includes("timelineEventIds") ? <td className="max-w-[200px] truncate" title={group.timelineEventIds.join(", ")}>{group.timelineEventIds.join(", ")}</td> : null}
           {userAnalysis.issueGroupVisibleColumns.includes("allIssueKeys") ? <td>{group.issueKey}</td> : null}
           {userAnalysis.issueGroupVisibleColumns.includes("matchedReasons") ? <td>{Object.keys(group.jiraRelationSummary.jiraRelationReasons).join(", ")}</td> : null}
-          <td><button className="btn px-3 py-2" type="button" onClick={() => toggleIssueGroupDetail(group.issueKey)}>{userAnalysis.expandedTimelineIssueGroups.includes(group.issueKey) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}Details</button></td></tr>
-          {userAnalysis.expandedTimelineIssueGroups.includes(group.issueKey) ? <tr><td colSpan={userAnalysis.issueGroupVisibleColumns.length + 1}><div className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed md:grid-cols-2"><div><b>Activity Types count:</b> {group.activityTypes.join(", ")}</div><div><b>Source Applications count:</b> {sourceSystemLabel(group.jiraRelationSummary.sourceApplicationCounts)}</div><div><b>Source Details count:</b> {JSON.stringify(group.sourceDetails)}</div><div><b>Confidence Summary:</b> H {group.confidenceSummary.high} / M {group.confidenceSummary.medium} / L {group.confidenceSummary.low}</div><div><b>Issue Key Role:</b> {group.issueKeyRole}</div><div><b>Project Key:</b> {group.projectKey}</div><div><b>Related Systems:</b> {JSON.stringify(group.jiraRelationSummary.relatedSystemsCounts)}</div><div><b>All Issue Keys:</b> {group.issueKey}</div><div className="md:col-span-2"><b>Timeline Event IDs:</b> <span className="break-all">{group.timelineEventIds.join(", ")}</span></div><div className="md:col-span-2"><b>Matched Reasons:</b> {JSON.stringify(group.jiraRelationSummary.jiraRelationReasons)}</div></div></td></tr> : null}</Fragment>)}</tbody></table></ResponsiveTableContainer>
+          <td className="break-words">{discoveredByUsers(group.timelineEventIds)}</td><td><button className="btn px-3 py-2" type="button" onClick={() => toggleIssueGroupDetail(group.issueKey)}>{userAnalysis.expandedTimelineIssueGroups.includes(group.issueKey) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}Details</button></td></tr>
+          {userAnalysis.expandedTimelineIssueGroups.includes(group.issueKey) ? <tr><td colSpan={userAnalysis.issueGroupVisibleColumns.length + 2}><div className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed md:grid-cols-2"><div><b>Activity Types count:</b> {group.activityTypes.join(", ")}</div><div><b>Source Applications count:</b> {sourceSystemLabel(group.jiraRelationSummary.sourceApplicationCounts)}</div><div><b>Source Details count:</b> {JSON.stringify(group.sourceDetails)}</div><div><b>Confidence Summary:</b> H {group.confidenceSummary.high} / M {group.confidenceSummary.medium} / L {group.confidenceSummary.low}</div><div><b>Issue Key Role:</b> {group.issueKeyRole}</div><div><b>Project Key:</b> {group.projectKey}</div><div><b>Related Systems:</b> {JSON.stringify(group.jiraRelationSummary.relatedSystemsCounts)}</div><div><b>All Issue Keys:</b> {group.issueKey}</div><div className="md:col-span-2"><b>Timeline Event IDs:</b> <span className="break-all">{group.timelineEventIds.join(", ")}</span></div><div className="md:col-span-2"><b>Matched Reasons:</b> {JSON.stringify(group.jiraRelationSummary.jiraRelationReasons)}</div></div></td></tr> : null}</Fragment>)}</tbody></table></ResponsiveTableContainer>
         {userAnalysis.timelineIssueGroups.length === 0 ? <div className="mt-4 rounded-lg border border-dashed border-line p-6 text-center text-sm font-semibold text-muted">Build Timeline first to create issue groups.</div> : null}
         <button className="btn btn-primary mt-4" type="button" disabled={userAnalysis.selectedTimelineIssueKeys.length === 0} onClick={addTimelineIssuesToQueue}>Add Selected Issues, then go to Step 3: Full Fetch / 加入選取 Jira，然後前往 Step 3：完整抓取</button>
       </SectionCard> : null}
@@ -2657,8 +2669,9 @@ export function AnalysisPage() {
             </div>
             <div className="flex flex-wrap gap-2"><button data-testid="build-activity-timeline" className="btn btn-primary" type="button" disabled={!setupReady || userAnalysis.timelineStatus === "running"} title={!setupReady ? "Please set Selected User and Date Range before building timeline." : undefined} onClick={() => void handleBuildTimeline()}>
               <Clock3 size={16} />{userAnalysis.timelineStatus === "running" ? "Building... / 建立中..." : "Build Activity Timeline / 建立活動時間線"}
-            </button>{userAnalysis.timelineStatus === "running" ? <button data-testid="cancel-activity-timeline" className="btn" type="button" onClick={() => void window.desktopApp?.userAnalysis?.cancelActivityTimeline?.()}><PauseCircle size={16} />Cancel / 取消</button> : null}</div>
+            </button>{userAnalysis.timelineStatus === "running" ? <><button data-testid="cancel-activity-timeline" className="btn" type="button" onClick={() => void window.desktopApp?.userAnalysis?.cancelActivityTimeline?.({ scope: "current" })}><PauseCircle size={16} />取消目前使用者</button><button data-testid="cancel-all-users" className="btn" type="button" onClick={() => void window.desktopApp?.userAnalysis?.cancelActivityTimeline?.({ scope: "all" })}><PauseCircle size={16} />取消全部</button></> : userAnalysis.timelineCollection?.users.some(user => user.status === "FAILED") ? <button className="btn" data-testid="retry-failed-users" onClick={() => void handleBuildTimeline(true)}><RotateCcw size={16} />重試失敗使用者</button> : null}</div>
           </div>
+          <CollectionProgressV051 collection={userAnalysis.timelineCollection} />
           {userAnalysis.timelineStatus === "running" || Object.keys(timelineRoundProgress).length > 1 ? <div data-testid="timeline-round-progress" className="mt-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3"><MiniStat label="Current Round / Total Rounds / 目前輪次" value={`${String(timelineRoundProgress.currentRound ?? 0)} / ${String(timelineRoundProgress.totalRounds ?? userAnalysis.activityStreamFullScanRoundCount)}`} /><MiniStat label="Current Window / Total Windows / 目前視窗" value={`${String(timelineRoundProgress.currentWindow ?? 0)} / ${String(timelineRoundProgress.totalWindows ?? 0)}`} /><MiniStat label="Completed Requests / Total Requests / 已完成請求" value={`${String(timelineRoundProgress.completedRequests ?? 0)} / ${String(timelineRoundProgress.totalRequests ?? 0)}`} /><MiniStat label="Stable Since / 穩定起始輪次" value={timelineRoundProgress.stableSinceRound ? `Round ${String(timelineRoundProgress.stableSinceRound)}` : "Not stable / 尚未穩定"} /><MiniStat label="Current Date Window / 目前日期視窗" value={`${String(timelineRoundProgress.requestWindowStart ?? "-")} ~ ${String(timelineRoundProgress.requestWindowEnd ?? "-")}`} /><MiniStat label="Current API Duration / 目前 API 耗時" value={`${String(timelineRoundProgress.currentApiDurationMs ?? 0)} ms`} /><MiniStat label="Average API Duration / 平均 API 耗時" value={`${String(timelineRoundProgress.averageApiDurationMs ?? 0)} ms`} /><MiniStat label="Average Processing Duration / 平均處理耗時" value={`${String(timelineRoundProgress.averageProcessingDurationMs ?? 0)} ms`} /><MiniStat label="Elapsed Time / 已用時間" value={`${String(timelineRoundProgress.elapsedMs ?? 0)} ms`} /><MiniStat label="Estimated Remaining Time / 預估剩餘時間" value={`${String(timelineRoundProgress.estimatedRemainingMs ?? 0)} ms`} /><MiniStat label="Estimated Completion Time / 預估完成時間" value={String(timelineRoundProgress.estimatedCompletionTime ?? "-")} /><MiniStat label="Current Stability / 目前穩定度" value={String(timelineRoundProgress.currentStability ?? timelineRoundProgress.stage ?? "-")} /></div> : null}
           <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MiniStat label="Events / 事件" value={userAnalysis.timelineSummary?.totalEvents ?? 0} />
@@ -2696,7 +2709,7 @@ export function AnalysisPage() {
                 const options = column.value === "activityType" ? timelineFilterOptions.activityTypes : column.value === "sourceApplication" ? ["jira", "confluence", "other", "unknown"] : column.value === "issueKey" ? timelineFilterOptions.issueKeys : column.value === "user" ? timelineFilterOptions.users : [];
                 const selected = filterKey ? userAnalysis.timelineFilters[filterKey as keyof typeof userAnalysis.timelineFilters] : [];
                 return <th key={column.value} className="relative"><div className="flex items-center gap-1"><button className="flex items-center gap-1 font-black" type="button" onClick={() => sortTimeline(column.value as typeof timelineSort.field)}>{column.label}{timelineSort.field === column.value ? timelineSort.direction === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : null}</button>{filterKey ? <button className="icon-btn" type="button" onClick={() => setTimelineFilterColumn(timelineFilterColumn === column.value ? "" : column.value)}><Filter size={13} /></button> : null}</div>{timelineFilterColumn === column.value && filterKey ? <div className="absolute left-1 top-full z-30 mt-1 w-64 rounded-md border border-line bg-white p-3 shadow-xl"><div className="thin-scroll max-h-52 space-y-1 overflow-y-auto">{options.map((value) => <label key={value} className="flex items-center gap-2 py-1 text-xs"><input type="checkbox" checked={selected.includes(value)} onChange={() => toggleTimelineFilter(filterKey as keyof typeof userAnalysis.timelineFilters, value)} /><span className="min-w-0 truncate">{value}</span></label>)}</div><div className="mt-2 flex justify-between"><button className="text-xs font-bold text-rose-700" type="button" onClick={() => patchState({ timelineFilters: { ...userAnalysis.timelineFilters, [filterKey]: [] } })}>Clear</button><button className="btn" type="button" onClick={() => setTimelineFilterColumn("")}>Done</button></div></div> : null}</th>;
-              })}{timelineOptionalColumns.filter((column) => userAnalysis.timelineVisibleColumns.includes(column.value)).map((column) => <th key={column.value}>{column.label}</th>)}<th>Details</th></tr></thead><tbody>
+              })}{timelineOptionalColumns.filter((column) => userAnalysis.timelineVisibleColumns.includes(column.value)).map((column) => <th key={column.value}>{column.label}</th>)}<th>Discovered By</th><th>Details</th></tr></thead><tbody>
                 {filteredTimelineEvents.map((event) => <Fragment key={event.eventId}>
                   <tr><td className="whitespace-nowrap">{event.eventTime || "-"}</td><td title={`${event.displayName} (${event.userKey})`}>{event.displayName}</td><td>{event.issueKey ? <a className="font-black text-blue-700" href={`#/issues?key=${encodeURIComponent(event.issueKey)}`}>{event.issueKey}</a> : "-"}</td><td><StatusBadge tone={event.eventType === "unknown" ? "amber" : "blue"}>{event.eventType}</StatusBadge></td><td><StatusBadge tone={event.sourceApplication === "jira" ? "blue" : event.sourceApplication === "confluence" ? "green" : "amber"}>{event.sourceApplication}</StatusBadge></td>
                     {userAnalysis.timelineVisibleColumns.includes("title") ? <td className="max-w-[320px]"><div className="truncate" data-allow-truncate="true" title={event.eventTitle}>{event.eventTitle}</div></td> : null}
@@ -2711,8 +2724,8 @@ export function AnalysisPage() {
                     {userAnalysis.timelineVisibleColumns.includes("rawTitle") ? <td className="max-w-[320px] truncate" title={event.rawTitle}>{event.rawTitle}</td> : null}
                     {userAnalysis.timelineVisibleColumns.includes("sourceVariant") ? <td>{event.rawRef.variant}</td> : null}
                     {userAnalysis.timelineVisibleColumns.includes("baselineStatus") ? <td>{event.evidence.baselineGuard.classification}</td> : null}
-                    <td><button className="btn px-3 py-2" type="button" onClick={() => toggleTimelineDetail(event.eventId)}>{userAnalysis.expandedTimelineEvents.includes(event.eventId) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}Details</button></td></tr>
-                  {userAnalysis.expandedTimelineEvents.includes(event.eventId) ? <tr><td colSpan={userAnalysis.timelineVisibleColumns.length + 1}><div className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed md:grid-cols-2"><div className="md:col-span-2"><b>Full Title:</b> <span className="break-words">{event.eventTitle}</span></div><div><b>eventId:</b> <span className="break-all">{event.eventId}</span></div><div><b>allIssueKeys:</b> {event.allIssueKeys.join(", ") || "-"}</div><div><b>sourceDetail:</b> {event.sourceDetail}</div><div><b>sourceRunId / chunk:</b> {event.sourceRunId} / {event.rawRef.variant}</div><div><b>jiraRelationReason:</b> {event.jiraRelationReason}</div><div><b>relatedSystems:</b> {event.relatedSystems.join(", ")}</div><div><b>confidence:</b> {event.sourceConfidence}</div><div><b>entryFingerprint:</b> <span className="break-all">{event.rawRef.entryFingerprint}</span></div><div><b>matchedRule:</b> {event.evidence.activityTypeClassifier.matchedRule}</div><div><b>baseline:</b> {event.evidence.baselineGuard.classification}</div><div><b>retry:</b> triggered={String(event.evidence.baselineGuard.retryTriggered)}, recovered={String(event.evidence.baselineGuard.retryRecovered)}</div><div className="md:col-span-2"><b>raw title:</b> <span className="break-words">{event.rawTitle}</span></div><div className="md:col-span-2"><b>diagnostics:</b> <span className="break-words">{event.sanitizedSummary}</span></div></div></td></tr> : null}
+                    <td className="break-words">{discoveredByUsers([event.eventId])}</td><td><button className="btn px-3 py-2" type="button" onClick={() => toggleTimelineDetail(event.eventId)}>{userAnalysis.expandedTimelineEvents.includes(event.eventId) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}Details</button></td></tr>
+                  {userAnalysis.expandedTimelineEvents.includes(event.eventId) ? <tr><td colSpan={userAnalysis.timelineVisibleColumns.length + 2}><div className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed md:grid-cols-2"><div className="md:col-span-2"><b>Full Title:</b> <span className="break-words">{event.eventTitle}</span></div><div><b>eventId:</b> <span className="break-all">{event.eventId}</span></div><div><b>allIssueKeys:</b> {event.allIssueKeys.join(", ") || "-"}</div><div><b>sourceDetail:</b> {event.sourceDetail}</div><div><b>sourceRunId / chunk:</b> {event.sourceRunId} / {event.rawRef.variant}</div><div><b>jiraRelationReason:</b> {event.jiraRelationReason}</div><div><b>relatedSystems:</b> {event.relatedSystems.join(", ")}</div><div><b>confidence:</b> {event.sourceConfidence}</div><div><b>entryFingerprint:</b> <span className="break-all">{event.rawRef.entryFingerprint}</span></div><div><b>matchedRule:</b> {event.evidence.activityTypeClassifier.matchedRule}</div><div><b>baseline:</b> {event.evidence.baselineGuard.classification}</div><div><b>retry:</b> triggered={String(event.evidence.baselineGuard.retryTriggered)}, recovered={String(event.evidence.baselineGuard.retryRecovered)}</div><div className="md:col-span-2"><b>raw title:</b> <span className="break-words">{event.rawTitle}</span></div><div className="md:col-span-2"><b>diagnostics:</b> <span className="break-words">{event.sanitizedSummary}</span></div></div></td></tr> : null}
                 </Fragment>)}
               </tbody></table>
             </ResponsiveTableContainer>

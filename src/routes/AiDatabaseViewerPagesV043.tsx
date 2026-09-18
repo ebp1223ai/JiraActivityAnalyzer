@@ -13,7 +13,8 @@ import type { ViewerTableSessionState } from "../types/databaseViewer";
 import type { TablePreferences } from "../types/uiPreferences";
 import { aiStatusLabelV043 } from "../../shared/aiResultProjectionV043";
 import { acquireAiResultV045, cancellingAiResultV050, pendingAiResultV050, bindAiGenerationV050, observeAiCacheV050 } from '../state/aiResultCacheV045';
-import { semanticQueryV050, diagnosticHashV050, viewerLoadReasonV050, VIEWER_DEFAULT_COLUMNS_V050 } from '../../shared/viewerQueryIdentityV050';
+import { semanticQueryV050, diagnosticHashV050, viewerLoadReasonV050 } from '../../shared/viewerQueryIdentityV050';
+import { viewerDefaultColumnsV051, viewerRequiredColumnsV051 } from '../../shared/aiResultsColumnsV051';
 
 type Json = Record<string, any>;
 type Variant = "ai" | "integrated";
@@ -42,6 +43,8 @@ function metadataColumns(): SqliteTableColumn[] {
 function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyScope, generation }: { kind: Variant; scope: string; aiIdentity: string; rawIdentity: string; contentRevision: string; legacyScope: string; generation: string }) {
   const [saved, setSaved] = useState<Saved>(() => sessions.get(scope) ?? initial(kind));
   const [hydrated, setHydrated] = useState(() => sessions.has(scope));
+  const hydratedRef = useRef(hydrated);
+  hydratedRef.current = hydrated;
   const preferenceRestoredV050 = useRef(false);
   const [result, setResult] = useState<ViewerTableResult & Json>(empty);
   const [loading, setLoading] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
@@ -89,7 +92,15 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
       if (response.warning) setNotice(response.warning);
       setHydrated(true);
     }).catch(e => { if (alive.current) { setNotice(String(e)); setHydrated(true); } });
-    return () => { alive.current = false; sequence.current++; facets.current.clear(); latest.current = ""; sessions.set(scope, stateRef.current); if (sessions.size > 16) sessions.delete(sessions.keys().next().value!); };
+    return () => {
+      alive.current = false; sequence.current++; facets.current.clear(); latest.current = "";
+      // A transient mount must not turn an unhydrated factory state into saved preferences.
+      if (hydratedRef.current) {
+        sessions.set(scope, stateRef.current);
+        void window.desktopApp?.uiPreferences?.update({ section: "aiViewerScopes", value: { [scope]: stateRef.current } }).catch(() => {});
+      }
+      if (sessions.size > 16) sessions.delete(sessions.keys().next().value!);
+    };
   }, [scope]);
   useEffect(() => {
     if (!hydrated) return;
@@ -98,8 +109,8 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
     return () => window.clearTimeout(timer);
   }, [saved, hydrated, scope]);
   const projectionColumns = [...activityComparisonColumns('user-events'),...metadataColumns()];
-  const visibleIds = saved.preferences?.visibleColumns ?? VIEWER_DEFAULT_COLUMNS_V050;
-  const effectivePreferences: TablePreferences = saved.preferences ?? { visibleColumns: VIEWER_DEFAULT_COLUMNS_V050, columnOrder: [], columnWidths: {}, pageSize: saved.query.pageSize };
+  const visibleIds = saved.preferences?.visibleColumns ?? viewerDefaultColumnsV051(kind);
+  const effectivePreferences: TablePreferences = saved.preferences ?? { visibleColumns: viewerDefaultColumnsV051(kind), columnOrder: [], columnWidths: {}, pageSize: saved.query.pageSize };
   const querySemantic = semanticQueryV050(saved.query);
   const visibleProjection = JSON.stringify(visibleIds.slice().sort());
   const load = useCallback(async (force = false) => {
@@ -173,7 +184,7 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
   async function exportRows(visible: boolean, format: "json" | "csv" = "json") {
     if (exportsInProgress.has(scope) || loading || error || result.projectionStale || !result.generation || result.queryKey !== querySemantic) { setNotice("請先完成目前條件的查詢，再匯出。"); return; }
     const defaults = [...activityComparisonColumns("user-events"), ...columns].filter(c => c.required || (c.defaultVisible && !(kind === 'ai' && ['issueTypeName','currentStatusName','currentPriorityName'].includes(c.id)))).map(c => c.id);
-    const ids = saved.preferences?.visibleColumns ?? VIEWER_DEFAULT_COLUMNS_V050;
+    const ids = saved.preferences?.visibleColumns ?? viewerDefaultColumnsV051(kind);
     const allColumns = [...activityComparisonColumns("user-events"), ...columns];
     const visibleFields = ids.map(id => allColumns.find(c => c.id === id)?.queryField ?? id);
     const id = requestId(); exportsInProgress.set(scope, { id, startedAt: Date.now(), stage: "選擇匯出位置" }); setExportJob(id); setExportStage("選擇匯出位置"); setExportElapsed(0);
@@ -199,7 +210,7 @@ function Viewer({ kind, scope, aiIdentity, rawIdentity, contentRevision, legacyS
     {loading ? <div role="status" className="flex flex-wrap items-center gap-3 border-l-4 border-blue-500 bg-blue-50 p-3 text-sm"><span>{stage} · {elapsed.toFixed(1)} 秒</span><button className="btn" disabled={cancelRequested} onClick={() => void cancel()}><X size={16} />{cancelRequested ? "正在取消…" : "取消查詢"}</button></div> : null}
     {error && result.rows.length > 0 ? <p role="alert" className="text-sm text-amber-800">查詢未完成，下方保留上次成功結果：{error}</p> : null}
     <SectionCard title={loading && !result.generation ? "正在查詢完整資料…" : (displayResult.countsKnown === false ? "— / — 筆" : displayResult.filteredCount.toLocaleString() + " / " + displayResult.totalCount.toLocaleString() + " 筆")} subtitle={kind === "ai" ? "分析當時的事件快照" : "原始事件與唯一配對分析"} action={<div className="flex flex-wrap gap-2"><button className="btn" disabled={loading} onClick={() => void load(true)}><RefreshCw size={16} />重新整理</button><details className="relative"><summary className="btn cursor-pointer"><Download size={16} />匯出表格</summary><div className="absolute right-0 z-30 grid w-48 gap-2 border bg-white p-2 shadow-lg"><button className="btn" disabled={loading || Boolean(error) || displayResult.countsKnown === false} onClick={() => void exportRows(true)}>顯示欄位</button><button className="btn" disabled={loading || Boolean(error) || displayResult.countsKnown === false} onClick={() => void exportRows(false)}>全部欄位 JSON</button><button className="btn" disabled={loading || Boolean(error) || displayResult.countsKnown === false} onClick={() => void exportRows(true, "csv")}>顯示欄位 CSV</button><button className="btn" disabled={loading || Boolean(error) || displayResult.countsKnown === false} onClick={() => void exportRows(false, "csv")}>全部欄位 CSV</button></div></details></div>}>
-      <ActivityComparisonTable tableId={scope} fullResultFilters mode="user-events" hiddenDefaultColumns={kind === 'ai' ? ['issueTypeName','currentStatusName','currentPriorityName'] : []} additionalColumns={columns} result={displayResult} query={saved.query} loading={loading} error={error} emptySelectionFields={kind === "integrated" ? ["analysisStatus"] : []} onClearFilters={kind === "integrated" ? clearAll : undefined} onQueryChange={query => setSaved(s => ({ ...s, query: kind === "integrated" ? integratedQueryV047(query, AI_STATUSES_V047) : query }))} preferences={effectivePreferences} onPreferencesChange={preferences => setSaved(s => ({ ...s, preferences }))} sessionState={saved.session} onSessionStateChange={session => setSaved(s => ({ ...s, session }))} loadDistinct={loadDistinct} />
+      <ActivityComparisonTable tableId={scope} fullResultFilters mode="user-events" requiredColumnIds={viewerRequiredColumnsV051(kind)} defaultVisibleColumnIds={kind === "ai" ? viewerDefaultColumnsV051(kind) : undefined} hiddenDefaultColumns={kind === 'ai' ? ['issueTypeName','currentStatusName','currentPriorityName'] : []} additionalColumns={columns} result={displayResult} query={saved.query} loading={loading} error={error} emptySelectionFields={kind === "integrated" ? ["analysisStatus"] : []} onClearFilters={kind === "integrated" ? clearAll : undefined} onQueryChange={query => setSaved(s => ({ ...s, query: kind === "integrated" ? integratedQueryV047(query, AI_STATUSES_V047) : query }))} preferences={effectivePreferences} onPreferencesChange={preferences => setSaved(s => ({ ...s, preferences }))} sessionState={saved.session} onSessionStateChange={session => setSaved(s => ({ ...s, session }))} loadDistinct={loadDistinct} />
     </SectionCard>
   </div>;
 }

@@ -1,0 +1,50 @@
+const assert = require('node:assert/strict');
+module.exports = async ({ page, report, route, until }) => {
+  await route('ai-results');
+  const headers = () => page.locator('[data-table-id] thead th').allTextContents();
+  const actionVisible = async () => (await headers()).some(text => /^Action/.test(text.trim()));
+  assert.equal(await actionVisible(), false, 'fresh AI profile Action must be OFF');
+  if (process.env.JAA_UI_REOPEN_ONLY === '1') {
+    assert.ok(!(await headers()).some(text => /^Time/.test(text.trim())), 'restart must retain Issue-Key-only preference');
+    report.checks.push({ name: 'actual process restart retains hidden Time/Action/status/skills/manual', status: 'PASS' });
+  }
+  const settings = page.getByRole('button', { name: '欄位', exact: true });
+  await settings.click();
+  const catalog = page.locator('[data-column-catalog]');
+  const labels = catalog.locator('label');
+  const action = labels.filter({ has: page.locator('span[title="action"]') }).filter({ hasText: /^Action/ }).getByRole('checkbox');
+  const locked = await catalog.locator('input:disabled').count();
+  assert.equal(locked, 1);
+  assert.match(await catalog.locator('label').filter({ has: page.locator('input:disabled') }).textContent(), /Issue Key/);
+  await action.check(); await settings.click();
+  assert.equal(await actionVisible(), true);
+  await route('connections'); await route('ai-results'); assert.equal(await actionVisible(), true);
+  await settings.click(); await action.uncheck();
+  await catalog.getByRole('button', { name: 'Clear / 清除', exact: true }).click();
+  await settings.click();
+  assert.ok((await headers()).some(text => text.includes('Issue Key')));
+  assert.ok(!(await headers()).some(text => /^Time/.test(text.trim())));
+  const savedScope = await page.locator('[data-table-id]').getAttribute('data-table-id');
+  await until(async () => {
+    const saved = await page.evaluate(scope => window.desktopApp.uiPreferences.get().then(r => r.preferences.aiViewerScopes[scope]), savedScope);
+    return saved?.preferences?.visibleColumns?.length === 1 && saved.preferences.visibleColumns[0] === 'issueKey';
+  });
+  report.checks.push({ name: 'Issue-Key-only preference persisted on disk before reload', status: 'PASS', scope: savedScope });
+  await page.reload(); await route('ai-results');
+  assert.equal(await actionVisible(), false);
+  assert.ok(!(await headers()).some(text => /^Time/.test(text.trim())));
+  report.checks.push({ name: 'AI Action show/hide; only Issue Key locked; route and renderer reload persistence', status: 'PASS' });
+  await route('integrated-results');
+  assert.equal(await actionVisible(), true, 'Integrated default unchanged');
+  report.checks.push({ name: 'Integrated Results Action default preserved', status: 'PASS' });
+  await route('collection');
+  const input = page.getByTestId('analysis-setup-user-v244');
+  await input.fill('sample.a;sample.b\nSAMPLE.A');
+  assert.equal(await page.getByRole('button', { name: /^Remove sample\./ }).count(), 2);
+  await page.getByRole('button', { name: 'Remove sample.a', exact: true }).click();
+  assert.equal(await input.inputValue(), 'sample.b');
+  await input.fill('sample.a,sample.b');
+  await route('connections'); await route('collection');
+  assert.equal(await input.inputValue(), 'sample.a,sample.b');
+  report.checks.push({ name: 'multi-user paste/dedupe/remove/route persistence without network', status: 'PASS' });
+};

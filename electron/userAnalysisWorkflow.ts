@@ -187,7 +187,7 @@ export function defaultWorkflowSteps(): WorkflowStepStatus {
 export function buildTimelineIssueGroups(events: TimelineEventLike[]): TimelineIssueGroup[] {
   const groups = new Map<string, TimelineIssueGroup & { primary: boolean; secondary: boolean }>();
   for (const event of events) {
-    const primary = event.issueKey.toUpperCase();
+    const primary = event.issueKey.trim().toUpperCase();
     const keys = primary ? [primary] : [];
     for (const issueKey of keys) {
       const current = groups.get(issueKey) ?? {

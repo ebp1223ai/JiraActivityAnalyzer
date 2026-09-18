@@ -110,7 +110,7 @@ contextBridge.exposeInMainWorld("desktopApp", {
       return () => ipcRenderer.removeListener("user-analysis:activity-stream-benchmark-progress", listener);
     },
     buildActivityTimeline: (payload: unknown) => ipcRenderer.invoke("user-analysis:build-activity-timeline", payload),
-    cancelActivityTimeline: () => ipcRenderer.invoke("user-analysis:cancel-activity-timeline"),
+    cancelActivityTimeline: (options?: { scope: "current" | "all" }) => ipcRenderer.invoke("user-analysis:cancel-activity-timeline", options),
     onActivityTimelineProgress: (callback: (progress: unknown) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => callback(progress);
       ipcRenderer.on("user-analysis:activity-timeline-progress", listener);
